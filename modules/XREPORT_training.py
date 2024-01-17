@@ -25,13 +25,6 @@ import configurations as cnf
 # Load the csv with data and transform the tokenized text column to convert the
 # strings into a series of integers
 #==============================================================================
-print('''
--------------------------------------------------------------------------------
-XRAYREP training
--------------------------------------------------------------------------------
-XRAYREP model will be trained on the preprocessed data...
-''')
-
 file_loc = os.path.join(GlobVar.data_path, 'XREP_train.csv') 
 df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 file_loc = os.path.join(GlobVar.data_path, 'XREP_test.csv') 
@@ -63,6 +56,8 @@ vocab_size = len(tokenizer.word_index) + 1
 #------------------------------------------------------------------------------
 train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_size, cnf.num_channels, shuffle=True)
 test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_size, cnf.num_channels, shuffle=True)
+num_train_samples = df_train.shape[0]
+num_test_samples = df_test.shape[0]
 
 # define the output signature of the generator using tf.TensorSpec
 #------------------------------------------------------------------------------
@@ -76,22 +71,26 @@ output_signature = ((tf.TensorSpec(shape=img_shape, dtype=tf.float32),
 
 # generate tf.dataset from generator and set prefetch
 #------------------------------------------------------------------------------
-train_dataset = tf.data.Dataset.from_generator(lambda : train_datagen, output_signature=output_signature)
-test_dataset = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature=output_signature)
-train_dataset = train_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
-test_dataset = test_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
+df_train = tf.data.Dataset.from_generator(lambda : train_datagen, output_signature=output_signature)
+df_test = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature=output_signature)
+df_train = df_train.prefetch(buffer_size=tf.data.AUTOTUNE)
+df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 
 # [PRINT STATISTICAL REPORT]
 #==============================================================================
-# module for the selection of different operations
+# Print report with info about the training parameters
 #==============================================================================
 print(f'''
 -------------------------------------------------------------------------------
-Number of train samples: {df_train.shape[0]}
-Number of test samples:  {df_test.shape[0]}
+XRAYREP training report
+-------------------------------------------------------------------------------
+Number of train samples: {num_train_samples}
+Number of test samples:  {num_test_samples}
+-------------------------------------------------------------------------------
 Batch size:              {cnf.batch_size}
-Vocabulary size:         {vocab_size}
+Epochs:                  {cnf.epochs}
+Vocabulary size:         {vocab_size + 1}
 Caption length:          {caption_shape[1]} 
 -------------------------------------------------------------------------------
 ''')
@@ -135,10 +134,7 @@ else:
 
 # training loop and model saving at end
 #------------------------------------------------------------------------------
-print(f'''Start model training for {cnf.epochs} epochs and batch size of {cnf.batch_size}
-       ''')
-
-training = caption_model.fit(train_dataset, validation_data=test_dataset, epochs=cnf.epochs, 
+training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
                              callbacks=callbacks, workers=6, use_multiprocessing=True)                          
 
 trainworker.save_model(caption_model, model_savepath)
