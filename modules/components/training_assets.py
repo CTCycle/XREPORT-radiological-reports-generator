@@ -207,7 +207,7 @@ class PositionalEmbedding(layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True):
         super(PositionalEmbedding, self).__init__()
         self.sequence_length = sequence_length
-        self.vocab_size = vocab_size + 1
+        self.vocab_size = vocab_size 
         self.embedding_dim = embedding_dims
         self.mask_zero = mask_zero
         self.token_embeddings = Embedding(input_dim=self.vocab_size, output_dim=embedding_dims)                
@@ -384,7 +384,7 @@ class XREPCaptioningModel(keras.Model):
         self.acc_tracker = keras.metrics.Mean(name="accuracy")
         self.pic_shape = pic_shape
         self.sequence_length = sequence_length
-        self.vocab_size = vocab_size + 1
+        self.vocab_size = vocab_size 
         self.embedding_dims = embedding_dims
         self.kernel_size = kernel_size
         self.num_heads = num_heads

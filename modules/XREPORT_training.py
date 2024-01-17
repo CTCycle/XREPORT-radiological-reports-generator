@@ -1,6 +1,5 @@
 import os
 import sys
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -38,7 +37,6 @@ df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or
 file_loc = os.path.join(GlobVar.data_path, 'XREP_test.csv') 
 df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 
-
 # assign paths to images in the dataset
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
@@ -59,7 +57,7 @@ trainworker = ModelTraining(device = cnf.training_device)
 #------------------------------------------------------------------------------
 tokenizer_path = os.path.join(GlobVar.data_path, 'Tokenizers')
 tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
-vocab_size = len(tokenizer.word_index)
+vocab_size = len(tokenizer.word_index) + 1
 
 # transform string sequence into list of elements
 #------------------------------------------------------------------------------

@@ -2,7 +2,6 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-import json
 
 # set warnings
 #------------------------------------------------------------------------------
@@ -17,7 +16,7 @@ if __name__ == '__main__':
 # import modules and components
 #------------------------------------------------------------------------------
 from modules.components.data_assets import PreProcessing
-from modules.components.training_assets import ModelTraining, InferenceTools
+from modules.components.training_assets import InferenceTools
 import modules.global_variables as GlobVar
 import configurations as cnf
 
@@ -34,15 +33,12 @@ XREPORT generation
 
 # check report folder and generate list of images paths
 #------------------------------------------------------------------------------
-if len(os.listdir(GlobVar.predict_path)) == 0:
+if not os.listdir(GlobVar.predict_path):
     print('''No XRAY scans found in the report generation folder, please add them before continuing,
 the script will now be closed!''')
     sys.exit()
 else:
-    scan_paths = [] 
-    for root, dirs, files in os.walk(GlobVar.predict_path):
-        for file in files:
-            scan_paths.append(os.path.join(root, file))
+    scan_paths = [os.path.join(root, file) for root, dirs, files in os.walk(GlobVar.predict_path) for file in files]
     print(f'''XRAY images found: {len(scan_paths)}
 Report generation will start once you've selected the model.''')    
 
@@ -50,21 +46,15 @@ Report generation will start once you've selected the model.''')
 #------------------------------------------------------------------------------
 inference = InferenceTools() 
 model = inference.load_pretrained_model(GlobVar.model_path)
-load_path = inference.model_path
-parameters = inference.model_configuration
-model.summary(expand_nested=True)
+# load_path = inference.model_path
+# parameters = inference.model_configuration
+# model.summary(expand_nested=True)
 
 # Load the tokenizer
 #------------------------------------------------------------------------------
 PP = PreProcessing()
 tokenizer_path = os.path.join(GlobVar.data_path, 'Tokenizers')
 tokenizer = PP.load_tokenizer(tokenizer_path, 'word_tokenizer.json')
-
-# Load images in memory
-#------------------------------------------------------------------------------
-
-
-
 
 # [GENERATE REPORTS]
 #==============================================================================
