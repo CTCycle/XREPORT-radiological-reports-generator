@@ -263,7 +263,7 @@ class TransformerEncoderBlock(layers.Layer):
         self.attention = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
         self.layernorm1 = LayerNormalization()
         self.layernorm2 = LayerNormalization()
-        self.dense1 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = Dense(512, activation='relu', kernel_initializer='he_uniform')
 
     # implement transformer encoder through call method  
@@ -311,8 +311,9 @@ class TransformerDecoderBlock(layers.Layer):
         self.layernorm2 = LayerNormalization()
         self.layernorm3 = LayerNormalization()        
         self.outmax = Dense(self.vocab_size, activation='softmax')
-        self.dropout1 = Dropout(0.3, seed=seed)
-        self.dropout2 = Dropout(0.5, seed=seed)  
+        self.dropout1 = Dropout(0.2, seed=seed)
+        self.dropout2 = Dropout(0.3, seed=seed) 
+        self.supports_masking = True 
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------
@@ -521,7 +522,8 @@ class XREPCaptioningModel(keras.Model):
                   'kernel_size': self.kernel_size,
                   'num_heads': self.num_heads,
                   'learning_rate': self.learning_rate,
-                  'XLA_state': self.XLA_state}
+                  'XLA_state': self.XLA_state,
+                  'seed' : self.seed}
         return config
 
     @classmethod
@@ -674,50 +676,52 @@ class InferenceTools:
 
         pic_shape = tuple(config['pic_shape'])
         sequence_length = config['sequence_length']
-
         model = XREPCaptioningModel.from_config(config)
         weights_path = os.path.join(self.model_path, 'model_weights.h5')
         build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
         model(build_inputs, training=False)
-        model.load_weights(weights_path)       
-        
-        return model
+        model.load_weights(weights_path)
+
+        return model, config
 
     #--------------------------------------------------------------------------    
-    def generate_caption(self, model, paths, num_channels, image_size,
-                         max_length):
+    def generate_reports(self, model, paths, num_channels, image_size,
+                         max_length, tokenizer):
         
+        reports = {}
+        vocabulary = tokenizer.word_index
+        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))
         for pt in tqdm(paths):
             image = tf.io.read_file(pt)
             image = tf.image.decode_image(image, channels=num_channels)
             image = tf.image.resize(image, image_size)
-            if self.num_channels==3:
+            if num_channels==3:
                 image = tf.reverse(image, axis=[-1])
-            image = image/255.0  
-
+            image = image/255.0 
             input_image = tf.expand_dims(image, 0)
-            features = model.image_encoder(input_image)            
-            encoded_img = model.encoder(features, training=False)
+            features = model.image_encoder(input_image)
+            encoded_img = model.encoder(features, training=False)   
 
             decoded_caption = '[START]'
-            for i in range(max_length):
-                tokenized_caption = vectorization([decoded_caption])[:, :-1]
+            for i in range(max_length):                
+                tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
+                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
+                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
                 mask = tf.math.not_equal(tokenized_caption, 0)
-                predictions = caption_model.decoder(
-                    tokenized_caption, encoded_img, training=False, mask=mask
-                )
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
                 sampled_token_index = np.argmax(predictions[0, i, :])
                 sampled_token = index_lookup[sampled_token_index]
-                if sampled_token == "<end>":
+                if sampled_token == '[END]': 
                     break
-                decoded_caption += " " + sampled_token
+                decoded_caption += ' ' + sampled_token
 
-        decoded_caption = decoded_caption.replace("<start> ", "")
-        decoded_caption = decoded_caption.replace(" <end>", "").strip()
-        print("Predicted Caption: ", decoded_caption)
+            decoded_caption = decoded_caption.replace('[START] ', '')
+            decoded_caption = decoded_caption.replace('[END] ', '').strip()
+            reports[f'{os.path.basename(pt)}'] = decoded_caption
+            print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
 
-
+        return reports
 
     
 # [VALIDATION OF PRETRAINED MODELS]

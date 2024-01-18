@@ -7,6 +7,7 @@ XRAY Report Generator is a machine learning-based tool designed to assist radiol
 The XREP Captioning Model is an advanced deep learning architecture tailored for generating radiological reports from X-RAY scans. Leveraging state-of-the-art captioning techniques, this model combines the power of multi-layer convolutional neural networks (CNNs) for image feature extraction with a transformer-based architecture for sequence generation.
 
 ### Key Features
+
 **Image Feature Extraction**
 X-RAY scans are processed and dimensionality-reduced using a series of max-pooling layers. This process encodes each X-RAY scan into a compact feature vector, capturing essential information for generating detailed reports.
 
@@ -22,13 +23,11 @@ To ensure coherent report generation, the model employs causal masking on token 
 ## How to use
 Run the XRAYREP.py file to launch the script and use the main menu to navigate the different options. From the main menu, you can select one of the following options:
 
-**1) Preprocess XRAY dataset:** preprocess images and associated reports to build a training dataset
+**1) Pretrain XREP model** Preprocess data and pretrain the XREP captioning model 
 
-**2) Pretrain XREP model** pretrain the XREP captioning model on preprocessed data 
+**2) Generate reports based on images** Use a pretrained model to generate reports from raw X-RAY images
 
-**3) Generate reports based on images** Use a pretrained model to generate reports from raw images
-
-**4) Exit and close**
+**3) Exit and close**
 
 ### Configurations
 The configurations.py file allows to change the script configuration. The following parameters are available:
@@ -38,7 +37,6 @@ The configurations.py file allows to change the script configuration. The follow
 - `use_mixed_precision:` whether or not to use mixed precision for faster training (mix float16/float32)
 - `use_tensorboard:` activate or deactivate tensorboard logging
 - `XLA_acceleration:` use of linear algebra acceleration for faster training 
-- `CUDA_async:` allocate GPU memory asynchronously (low vRAM machines)
 
 **Settings for pretraining parameters:**
 - `training_device:` select the training device (CPU or GPU)
@@ -48,7 +46,6 @@ The configurations.py file allows to change the script configuration. The follow
 - `embedding_size:` embedding dimensions (valid for both models)
 - `kernel_size:` size of convolutional kernel (image encoder)
 - `num_heads:` number of attention heads
-
 
 **Settings for data preprocessing and predictions:**
 - `picture_size:` scaled size of the x-ray images
