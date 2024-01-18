@@ -20,30 +20,36 @@ from modules.components.training_assets import ModelTraining, RealTimeHistory, D
 import modules.global_variables as GlobVar
 import configurations as cnf
 
-# [LOAD DATA AND ADD IMAGES PATHS TO DATASET]
+# [PREPROCESS DATA AND INITIALIZE COMPONENTS]
 #==============================================================================
-# Load the csv with data and transform the tokenized text column to convert the
-# strings into a series of integers
+# Load the preprocessing module and then load saved preprocessed data from csv 
 #==============================================================================
+
+# load preprocessing submodule
+#------------------------------------------------------------------------------
+import modules.XREPORT_preprocessing
+
+# load preprocessed csv files
+#------------------------------------------------------------------------------
 file_loc = os.path.join(GlobVar.data_path, 'XREP_train.csv') 
 df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 file_loc = os.path.join(GlobVar.data_path, 'XREP_test.csv') 
 df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 
-# assign paths to images in the dataset
+# initialize training ops and create model savefolder
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-df_train = preprocessor.images_pathfinder(GlobVar.images_path, df_train, 'id')
-df_test = preprocessor.images_pathfinder(GlobVar.images_path, df_test, 'id')
+model_savepath = preprocessor.model_savefolder(GlobVar.model_path, 'XREP')
+trainworker = ModelTraining(device = cnf.training_device)
 
 # initialize training ops and create model savefolder
 #------------------------------------------------------------------------------
 model_savepath = preprocessor.model_savefolder(GlobVar.model_path, 'XREP')
 trainworker = ModelTraining(device = cnf.training_device)
 
-# [ESTABLISH DATA GENERATOR]
+# [CREATE DATA GENERATOR]
 #==============================================================================
-# module for the selection of different operations
+# initialize a custom generator to load data on the fly
 #==============================================================================
 
 # load tokenizer to get padding length and vocabulary size
