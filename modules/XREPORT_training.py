@@ -57,10 +57,12 @@ vocab_size = len(tokenizer.word_index) + 1
 
 # initialize generators for X and Y subsets
 #------------------------------------------------------------------------------
-train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_size, cnf.num_channels, shuffle=True)
-test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_size, cnf.num_channels, shuffle=True)
 num_train_samples = df_train.shape[0]
 num_test_samples = df_test.shape[0]
+train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_size, 
+                              cnf.num_channels, shuffle=True, augmentation=cnf.data_augmentation)
+test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_size, 
+                             cnf.num_channels, shuffle=True, augmentation=cnf.data_augmentation)
 
 # define the output signature of the generator using tf.TensorSpec, in order to
 # successfully build a tf.dataset object from the custom generator
