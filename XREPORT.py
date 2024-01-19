@@ -20,12 +20,6 @@ print(ascii_art)
 # Starting DITK analyzer, checking for dictionary presence and perform conditional
 # import of modules
 # =============================================================================
-print('''
--------------------------------------------------------------------------------
-XRAY REPORTER
--------------------------------------------------------------------------------
-...
-''')
 user_operations = UserOperations()
 operations_menu = {'1': 'Pretrain XREPORT model',                   
                    '2': 'Generate reports based on images',
