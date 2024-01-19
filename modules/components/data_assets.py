@@ -1,5 +1,4 @@
 import os
-from datetime import datetime
 import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer, tokenizer_from_json
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -176,32 +175,9 @@ class PreProcessing:
                 padded_text_str.append(x_string)
             padded_text = padded_text_str          
         
-        return padded_text    
+        return padded_text     
     
     
-    #--------------------------------------------------------------------------
-    def model_savefolder(self, path, model_name):
-
-        '''
-        Creates a folder with the current date and time to save the model.
-    
-        Keyword arguments:
-            path (str):       A string containing the path where the folder will be created.
-            model_name (str): A string containing the name of the model.
-    
-        Returns:
-            str: A string containing the path of the folder where the model will be saved.
-        
-        '''        
-        raw_today_datetime = str(datetime.now())
-        truncated_datetime = raw_today_datetime[:-10]
-        today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
-        model_name = f'{model_name}_{today_datetime}'
-        model_savepath = os.path.join(path, model_name)
-        if not os.path.exists(model_savepath):
-            os.mkdir(model_savepath)               
-            
-        return model_savepath 
 
     #--------------------------------------------------------------------------
     def load_tokenizer(self, path, filename):  
