@@ -21,8 +21,9 @@ num_heads = 4
 picture_size = (124, 124)
 num_channels = 1
 image_shape = picture_size + (num_channels,)
-num_samples = 10000
-test_size = 0.3
+num_samples = 30000
+test_size = 0.2
+data_augmentation = False
 
 
 

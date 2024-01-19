@@ -75,7 +75,8 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, dataframe, batch_size=6, image_size=(244, 244), channels=3, shuffle=True):        
+    def __init__(self, dataframe, batch_size=6, image_size=(244, 244), channels=3, 
+                 shuffle=True, augmentation=True):        
         self.dataframe = dataframe
         self.path_col='images_path'        
         self.label_col='tokenized_text'
@@ -85,6 +86,7 @@ class DataGenerator(keras.utils.Sequence):
         self.batch_size = batch_size  
         self.batch_index = 0              
         self.shuffle = shuffle
+        self.augmentation = augmentation
         self.on_epoch_end()       
 
     # define length of the custom generator      
@@ -100,7 +102,7 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, idx): 
         path_batch = self.dataframe[self.path_col][idx * self.batch_size:(idx + 1) * self.batch_size]        
         label_batch = self.dataframe[self.label_col][idx * self.batch_size:(idx + 1) * self.batch_size]
-        x1_batch = [self.__images_generation(image_path) for image_path in path_batch]
+        x1_batch = [self.__images_generation(image_path, self.augmentation) for image_path in path_batch]
         x2_batch = [self.__labels_generation(label_id) for label_id in label_batch] 
         y_batch = [self.__labels_generation(label_id) for label_id in label_batch]
         X1_tensor = tf.convert_to_tensor(x1_batch)
@@ -118,15 +120,16 @@ class DataGenerator(keras.utils.Sequence):
 
     # define method to load images and perform data augmentation    
     #--------------------------------------------------------------------------
-    def __images_generation(self, path):
+    def __images_generation(self, path, augmentation=False):
         image = tf.io.read_file(path)
         image = tf.image.decode_image(image, channels=self.num_channels)
         resized_image = tf.image.resize(image, self.image_size)
         if self.num_channels==3:
             resized_image = tf.reverse(resized_image, axis=[-1])
-        norm_image = resized_image/255.0              
-        pp_image = tf.keras.preprocessing.image.random_shift(norm_image, 0.2, 0.3)
-        pp_image = tf.image.random_flip_left_right(pp_image)        
+        pp_image = resized_image/255.0  
+        if augmentation==True:            
+            pp_image = tf.keras.preprocessing.image.random_shift(pp_image, 0.2, 0.3)
+            pp_image = tf.image.random_flip_left_right(pp_image)        
 
         return pp_image       
     

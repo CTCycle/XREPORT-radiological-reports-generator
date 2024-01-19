@@ -53,6 +53,7 @@ The configurations.py file allows to change the script configuration. The follow
 - `image_shape:` automatically calculated full image shape
 - `num_samples:` number of images to consider prior to generating train and test datasets
 - `test_size:` fraction of num_samples to use as validation data
+- `data_augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
 
 ### Requirements
 This application has been developed and tested using the following dependencies (Python 3.10.12):
