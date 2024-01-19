@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import json
+from datetime import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
@@ -311,8 +312,8 @@ class TransformerDecoderBlock(layers.Layer):
         self.layernorm2 = LayerNormalization()
         self.layernorm3 = LayerNormalization()        
         self.outmax = Dense(self.vocab_size, activation='softmax')
-        self.dropout1 = Dropout(0.2, seed=seed)
-        self.dropout2 = Dropout(0.3, seed=seed) 
+        self.dropout1 = Dropout(0.3, seed=seed)
+        self.dropout2 = Dropout(0.5, seed=seed) 
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
@@ -602,7 +603,30 @@ class ModelTraining:
         with open(path, 'w') as f:
             json.dump(parameters_dict, f) 
 
+    #--------------------------------------------------------------------------
+    def model_savefolder(self, path, model_name):
 
+        '''
+        Creates a folder with the current date and time to save the model.
+    
+        Keyword arguments:
+            path (str):       A string containing the path where the folder will be created.
+            model_name (str): A string containing the name of the model.
+    
+        Returns:
+            str: A string containing the path of the folder where the model will be saved.
+        
+        '''        
+        raw_today_datetime = str(datetime.now())
+        truncated_datetime = raw_today_datetime[:-10]
+        today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
+        model_name = f'{model_name}_{today_datetime}'
+        model_savepath = os.path.join(path, model_name)
+        if not os.path.exists(model_savepath):
+            os.mkdir(model_savepath)               
+            
+        return model_savepath 
+    
     #--------------------------------------------------------------------------   
     def save_model(self, model, path):        
         weights_path = os.path.join(path, 'model_weights.h5')  
