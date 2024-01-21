@@ -16,7 +16,7 @@ if __name__ == '__main__':
 # import modules and classes
 #------------------------------------------------------------------------------    
 from modules.components.data_assets import PreProcessing
-from modules.components.training_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel
+from modules.components.training_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel, LRSchedule
 import modules.global_variables as GlobVar
 import configurations as cnf
 
@@ -104,10 +104,15 @@ Caption length:          {caption_shape[1]}
 -------------------------------------------------------------------------------
 ''')
 
+# initialize learning rate scheduler
+#------------------------------------------------------------------------------
+lr_schedule = LRSchedule(cnf.learning_rate, warmup_steps=10)
+
 # initialize, compile and print the summary of the captioning model
 #------------------------------------------------------------------------------
-caption_model = XREPCaptioningModel(cnf.image_shape, caption_shape[1], vocab_size, cnf.embedding_dims,
-                                    cnf.kernel_size, cnf.num_heads, cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
+caption_model = XREPCaptioningModel(cnf.image_shape, caption_shape[1], vocab_size, 
+                                    cnf.embedding_dims, cnf.kernel_size, cnf.num_heads, 
+                                    lr_schedule, cnf.XLA_acceleration, cnf.seed)
 caption_model.compile()
 caption_model.summary()
 
@@ -124,7 +129,7 @@ if cnf.generate_model_graph == True:
 #python -m tensorboard.main --logdir tensorboard/
 #==============================================================================
 
-# initialize real time plot callback
+# initialize real time plot callback 
 #------------------------------------------------------------------------------
 RTH_callback = RealTimeHistory(model_savepath, validation=True)
 
