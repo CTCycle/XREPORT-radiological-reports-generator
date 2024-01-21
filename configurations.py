@@ -9,20 +9,20 @@ XLA_acceleration = False
 #------------------------------------------------------------------------------
 seed = 42
 training_device = 'GPU'
-epochs = 30
+epochs = 50
 learning_rate = 0.001
 batch_size = 100
-embedding_dims = 256
-kernel_size = 4
+embedding_dims = 512
+kernel_size = 3
 num_heads = 4
 
 # define variables for data processing
 #------------------------------------------------------------------------------
-picture_size = (124, 124)
+picture_size = (144, 144)
 num_channels = 1
 image_shape = picture_size + (num_channels,)
 num_samples = 30000
-test_size = 0.2
+test_size = 0.1
 data_augmentation = False
 
 
