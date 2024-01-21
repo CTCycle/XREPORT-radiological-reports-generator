@@ -20,14 +20,7 @@ from tqdm import tqdm
 #==============================================================================
 class RealTimeHistory(keras.callbacks.Callback):
     
-    """ 
-    A class including the callback to show a real time plot of the training history. 
-      
-    Methods:
-        
-    __init__(plot_path): initializes the class with the plot savepath       
-    
-    """   
+     
     def __init__(self, plot_path, validation=True):        
         super().__init__()
         self.plot_path = plot_path
@@ -148,7 +141,26 @@ class DataGenerator(keras.utils.Sequence):
 
         return self.__getitem__(next_index)
 
-  
+# [LEARNING RATE SCHEDULER]
+#==============================================================================
+# Generate data on the fly to avoid memory burdening
+#==============================================================================
+class LRSchedule(keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, post_warmup_learning_rate, warmup_steps):
+        super().__init__()
+        self.post_warmup_learning_rate = post_warmup_learning_rate
+        self.warmup_steps = warmup_steps
+
+    # implement encoder through call method  
+    #--------------------------------------------------------------------------
+    def __call__(self, step):
+        global_step = tf.cast(step, tf.float32)
+        warmup_steps = tf.cast(self.warmup_steps, tf.float32)
+        warmup_progress = global_step/warmup_steps
+        warmup_learning_rate = self.post_warmup_learning_rate * warmup_progress
+        return tf.cond(global_step < warmup_steps, lambda: warmup_learning_rate,
+                       lambda: self.post_warmup_learning_rate)
+      
 # [IMAGE ENCODER MODEL]
 #==============================================================================
 # Custom encoder model
@@ -173,7 +185,10 @@ class ImageEncoder(layers.Layer):
         self.maxpool2 = MaxPooling2D((2, 2), padding='same')
         self.maxpool3 = MaxPooling2D((2, 2), padding='same')
         self.maxpool4 = MaxPooling2D((2, 2), padding='same')
-        self.reshape = Reshape((-1, 1024))   
+        self.reshape = Reshape((-1, 1024))  
+        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -188,9 +203,12 @@ class ImageEncoder(layers.Layer):
         layer = self.conv5(layer) 
         layer = self.conv6(layer)               
         layer = self.maxpool4(layer) 
-        layer = self.reshape(layer)               
+        layer = self.reshape(layer)
+        layer = self.dense1(layer) 
+        layer = self.dense2(layer)              
+        output = self.dense3(layer)
         
-        return layer
+        return output
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------
@@ -260,25 +278,34 @@ class PositionalEmbedding(layers.Layer):
 # Custom transformer encoder
 #============================================================================== 
 class TransformerEncoderBlock(layers.Layer):
-    def __init__(self, embedding_dims, num_heads):
+    def __init__(self, embedding_dims, num_heads, seed):
         super(TransformerEncoderBlock, self).__init__()
         self.embedding_dims = embedding_dims       
-        self.num_heads = num_heads        
+        self.num_heads = num_heads  
+        self.seed = seed       
         self.attention = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
         self.layernorm1 = LayerNormalization()
         self.layernorm2 = LayerNormalization()
         self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dropout1 = Dropout(0.2, seed=seed)
+        self.dropout2 = Dropout(0.2, seed=seed)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
     def call(self, inputs, training):        
         inputs = self.layernorm1(inputs)
-        inputs = self.dense1(inputs)       
+        inputs = self.dense1(inputs)
+        inputs = self.dropout1(inputs)  
+        inputs = self.dense2(inputs)            
         attention_output = self.attention(query=inputs, value=inputs, key=inputs,
                                           attention_mask=None, training=training)        
         layernorm = self.layernorm2(inputs + attention_output)
-        output = self.dense2(layernorm)
+        layer = self.dense3(layernorm)
+        layer = self.dropout2(layer)
+        output = self.dense4(layer)        
 
         return output
     
@@ -287,7 +314,8 @@ class TransformerEncoderBlock(layers.Layer):
     def get_config(self):
         config = super(TransformerEncoderBlock, self).get_config()
         config.update({'embedding_dims': self.embedding_dims,
-                       'num_heads': self.num_heads})
+                       'num_heads': self.num_heads,
+                       'seed': self.seed})
         return config
 
     @classmethod
@@ -307,16 +335,18 @@ class TransformerDecoderBlock(layers.Layer):
         self.num_heads = num_heads
         self.seed = seed
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
-        self.MHA_1 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.1)
-        self.MHA_2 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.1)
-        self.FFN_1 = Dense(512, activation='relu')
-        self.FFN_2 = Dense(self.embedding_dims)
+        self.MHA_1 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
+        self.MHA_2 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
+        self.FFN_1 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_2 = Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
         self.layernorm1 = LayerNormalization()
         self.layernorm2 = LayerNormalization()
-        self.layernorm3 = LayerNormalization()        
+        self.layernorm3 = LayerNormalization()
+        self.dense = Dense(1024, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = Dense(self.vocab_size, activation='softmax')
         self.dropout1 = Dropout(0.3, seed=seed)
-        self.dropout2 = Dropout(0.5, seed=seed) 
+        self.dropout2 = Dropout(0.4, seed=seed) 
+        self.dropout3 = Dropout(0.5, seed=seed)
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
@@ -342,7 +372,9 @@ class TransformerDecoderBlock(layers.Layer):
         ffn_out = self.dropout1(ffn_out, training=training)
         ffn_out = self.FFN_2(ffn_out)
         ffn_out = self.layernorm3(ffn_out + output2, training=training)
-        ffn_out = self.dropout2(ffn_out, training=training)        
+        ffn_out = self.dropout2(ffn_out, training=training)         
+        ffn_out = self.dense(ffn_out)   
+        ffn_out = self.dropout3(ffn_out, training=training)     
         preds = self.outmax(ffn_out)
 
         return preds
@@ -354,7 +386,7 @@ class TransformerDecoderBlock(layers.Layer):
         batch_size, sequence_length = input_shape[0], input_shape[1]
         i = tf.range(sequence_length)[:, tf.newaxis]
         j = tf.range(sequence_length)
-        mask = tf.cast(i >= j, dtype="int32")
+        mask = tf.cast(i >= j, dtype='int32')
         mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))
         mult = tf.concat([tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)],
                           axis=0)
@@ -385,8 +417,8 @@ class XREPCaptioningModel(keras.Model):
     def __init__(self, pic_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
                  num_heads, learning_rate, XLA_state, seed=42):   
         super(XREPCaptioningModel, self).__init__()
-        self.loss_tracker = keras.metrics.Mean(name="loss")
-        self.acc_tracker = keras.metrics.Mean(name="accuracy")
+        self.loss_tracker = keras.metrics.Mean(name='loss')
+        self.acc_tracker = keras.metrics.Mean(name='accuracy')
         self.pic_shape = pic_shape
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
@@ -397,7 +429,7 @@ class XREPCaptioningModel(keras.Model):
         self.XLA_state = XLA_state 
         self.seed = seed                         
         self.image_encoder = ImageEncoder(kernel_size)        
-        self.encoder = TransformerEncoderBlock(embedding_dims, num_heads)
+        self.encoder = TransformerEncoderBlock(embedding_dims, num_heads, seed)
         self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, num_heads, seed) 
 
     # calculate loss
@@ -447,8 +479,8 @@ class XREPCaptioningModel(keras.Model):
         self.loss_tracker.update_state(loss)
         self.acc_tracker.update_state(acc)              
         
-        return {"loss": self.loss_tracker.result(),
-                "acc": self.acc_tracker.result()}
+        return {'loss': self.loss_tracker.result(),
+                'acc': self.acc_tracker.result()}
 
     # define test step
     #--------------------------------------------------------------------------
@@ -460,8 +492,8 @@ class XREPCaptioningModel(keras.Model):
         self.loss_tracker.update_state(loss)
         self.acc_tracker.update_state(acc)        
 
-        return {"loss": self.loss_tracker.result(),
-                "acc": self.acc_tracker.result()}
+        return {'loss': self.loss_tracker.result(),
+                'acc': self.acc_tracker.result()}
         
  
     # implement captioning model through call method  
