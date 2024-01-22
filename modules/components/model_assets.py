@@ -166,9 +166,10 @@ class LRSchedule(keras.optimizers.schedules.LearningRateSchedule):
 # Custom encoder model
 #==============================================================================    
 class ImageEncoder(layers.Layer):
-    def __init__(self, kernel_size):
+    def __init__(self, kernel_size, seed):
         super(ImageEncoder, self).__init__()
         self.kernel_size = kernel_size
+        self.seed = seed
         self.conv1 = Conv2D(64, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv2 = Conv2D(128, kernel_size, strides=1, padding='same', 
@@ -181,18 +182,21 @@ class ImageEncoder(layers.Layer):
                             activation='relu', kernel_initializer='he_uniform') 
         self.conv6 = Conv2D(1024, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.maxpool1 = MaxPooling2D((2, 2), padding='same')
-        self.maxpool2 = MaxPooling2D((2, 2), padding='same')
-        self.maxpool3 = MaxPooling2D((2, 2), padding='same')
-        self.maxpool4 = MaxPooling2D((2, 2), padding='same')
-        self.reshape = Reshape((-1, 1024))  
-        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.maxpool1 = MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool2 = MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool3 = MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool4 = MaxPooling2D((2, 2), strides=2, padding='same')          
+        self.dense1 = Dense(1024, activation='LeakyReLU', kernel_initializer='he_uniform')
+        self.dense2 = Dense(768, activation='LeakyReLU', kernel_initializer='he_uniform')
+        self.dense3 = Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')
+        self.reshape = Reshape((-1, 512))
+        self.dropout1 = Dropout(0.2, seed=seed)
+        self.dropout2 = Dropout(0.2, seed=seed)
+        self.dropout3 = Dropout(0.3, seed=seed)
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
-    def call(self, x):              
+    def call(self, x, training):              
         layer = self.conv1(x)                  
         layer = self.maxpool1(layer) 
         layer = self.conv2(layer)                     
@@ -202,11 +206,14 @@ class ImageEncoder(layers.Layer):
         layer = self.maxpool3(layer)                
         layer = self.conv5(layer) 
         layer = self.conv6(layer)               
-        layer = self.maxpool4(layer) 
-        layer = self.reshape(layer)
+        layer = self.maxpool4(layer)         
         layer = self.dense1(layer) 
-        layer = self.dense2(layer)              
-        output = self.dense3(layer)
+        layer = self.dropout1(layer, training)
+        layer = self.dense2(layer)
+        layer = self.dropout2(layer, training)
+        layer = self.dense3(layer)
+        layer = self.dropout3(layer, training)
+        output = self.reshape(layer)              
         
         return output
     
@@ -214,7 +221,8 @@ class ImageEncoder(layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(ImageEncoder, self).get_config()       
-        config.update({'kernel_size': self.kernel_size})
+        config.update({'kernel_size': self.kernel_size,
+                       'seed' : self.seed})
         return config
 
     @classmethod
@@ -290,8 +298,8 @@ class TransformerEncoderBlock(layers.Layer):
         self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = Dense(768, activation='relu', kernel_initializer='he_uniform')
         self.dense4 = Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dropout1 = Dropout(0.2, seed=seed)
-        self.dropout2 = Dropout(0.2, seed=seed)
+        self.dropout1 = Dropout(0.3, seed=seed)
+        self.dropout2 = Dropout(0.3, seed=seed)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -415,7 +423,7 @@ class TransformerDecoderBlock(layers.Layer):
 #==============================================================================  
 class XREPCaptioningModel(keras.Model):    
     def __init__(self, pic_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
-                 num_heads, learning_rate, XLA_state, seed=42):   
+                 num_heads, seed=42):   
         super(XREPCaptioningModel, self).__init__()
         self.loss_tracker = keras.metrics.Mean(name='loss')
         self.acc_tracker = keras.metrics.Mean(name='accuracy')
@@ -424,12 +432,11 @@ class XREPCaptioningModel(keras.Model):
         self.vocab_size = vocab_size 
         self.embedding_dims = embedding_dims
         self.kernel_size = kernel_size
-        self.num_heads = num_heads
-        self.learning_rate = learning_rate
-        self.XLA_state = XLA_state 
+        self.num_heads = num_heads       
         self.seed = seed                         
-        self.image_encoder = ImageEncoder(kernel_size)        
-        self.encoder = TransformerEncoderBlock(embedding_dims, num_heads, seed)
+        self.image_encoder = ImageEncoder(kernel_size, seed)        
+        self.encoder1 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
+        self.encoder2 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
         self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, num_heads, seed) 
 
     # calculate loss
@@ -458,7 +465,8 @@ class XREPCaptioningModel(keras.Model):
         batch_seq_inp = batch_seq[:, :-1]
         batch_seq_true = batch_seq[:, 1:]
         mask = tf.math.not_equal(batch_seq_true, 0)
-        encoder_out = self.encoder(img_embed, training=training)        
+        encoder_out = self.encoder1(img_embed, training=training)
+        encoder_out = self.encoder2(encoder_out, training=training)         
         batch_seq_pred = self.decoder(batch_seq_inp, encoder_out, training=training, mask=mask)
         loss = self.calculate_loss(batch_seq_true, batch_seq_pred, mask)
         acc = self.calculate_accuracy(batch_seq_true, batch_seq_pred, mask)
@@ -473,7 +481,7 @@ class XREPCaptioningModel(keras.Model):
         img_embed = self.image_encoder(batch_img)       
         with tf.GradientTape() as tape:
             loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=True)        
-        train_vars = self.encoder.trainable_variables + self.decoder.trainable_variables        
+        train_vars = self.encoder1.trainable_variables + self.encoder2.trainable_variables + self.decoder.trainable_variables        
         grads = tape.gradient(loss, train_vars)
         self.optimizer.apply_gradients(zip(grads, train_vars))        
         self.loss_tracker.update_state(loss)
@@ -502,7 +510,8 @@ class XREPCaptioningModel(keras.Model):
         images, sequences = inputs        
         mask = tf.math.not_equal(sequences, 0)             
         image_features = self.image_encoder(images)        
-        encoder = self.encoder(image_features, training)
+        encoder = self.encoder1(image_features, training)
+        encoder = self.encoder2(encoder, training)
         decoder = self.decoder(sequences, encoder, training, mask)
 
         return decoder        
@@ -511,18 +520,9 @@ class XREPCaptioningModel(keras.Model):
     #--------------------------------------------------------------------------
     @property
     def metrics(self):
-        return [self.loss_tracker, self.acc_tracker]       
-        
+        return [self.loss_tracker, self.acc_tracker]         
     
-    # compile the model
-    #--------------------------------------------------------------------------
-    def compile(self):
-        loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False, 
-                                                          reduction=keras.losses.Reduction.NONE)  
-        metric = keras.metrics.SparseCategoricalAccuracy()  
-        opt = keras.optimizers.Adam(learning_rate=self.learning_rate)          
-        super(XREPCaptioningModel, self).compile(optimizer=opt, loss=loss, metrics=metric, 
-                                                 run_eagerly=False, jit_compile=self.XLA_state)
+    
 
     # print summary
     #--------------------------------------------------------------------------
@@ -556,9 +556,7 @@ class XREPCaptioningModel(keras.Model):
                   'vocab_size': self.vocab_size,
                   'embedding_dims': self.embedding_dims,
                   'kernel_size': self.kernel_size,
-                  'num_heads': self.num_heads,
-                  'learning_rate': 0.001,
-                  'XLA_state': self.XLA_state,
+                  'num_heads': self.num_heads,                 
                   'seed' : self.seed}
         return config
 
@@ -616,7 +614,19 @@ class ModelTraining:
             tf.config.set_visible_devices([], 'GPU')
             print('CPU is set as active device')
             print('-------------------------------------------------------------------------------')
-            print()        
+            print()
+
+    # compile the model
+    #--------------------------------------------------------------------------
+    def model_compile(self, model, lr, XLA_state):
+        loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False, 
+                                                          reduction=keras.losses.Reduction.NONE)  
+        metric = keras.metrics.SparseCategoricalAccuracy()  
+        opt = keras.optimizers.Adam(learning_rate=lr)          
+        model.compile(optimizer=opt, loss=loss, metrics=metric, 
+                      run_eagerly=False, jit_compile=XLA_state) 
+
+        return model      
     
     #-------------------------------------------------------------------------- 
     def model_parameters(self, parameters_dict, savepath):
