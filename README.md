@@ -55,25 +55,34 @@ The configurations.py file allows to change the script configuration. The follow
 - `test_size:` fraction of num_samples to use as validation data
 - `data_augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
 
-### Requirements
-This application has been developed and tested using the following dependencies (Python 3.10.12):
+## Installation 
+First, ensure that you have Python 3.10.12 installed on your system. Then, you can easily install the required Python packages using the provided requirements.txt file:
 
-- `keras==2.10.0`
-- `matplotlib==3.7.2`
-- `numpy==1.25.2`
-- `pandas==2.0.3`
-- `scikit-learn==1.3.0`
-- `seaborn==0.12.2`
-- `tensorflow==2.10.0`
-- `xlrd==2.0.1`
-- `XlsxWriter==3.1.3`
-- `pydot==1.4.2`
-- `graphviz==0.20.1`
+`pip install -r requirements.txt` 
 
-These dependencies are specified in the provided `requirements.txt` file to ensure full compatibility with the application. 
+In addition to the Python packages, certain extra dependencies may be required for specific functionalities. These dependencies can be installed using conda or other external installation methods, depending on your operating system. Specifically, you will need to install graphviz and pydot to enable the visualization of the 2D model architecture:
+- graphviz version 2.38.0
+- pydot version 1.4.2
+
+You can install these dependencies using the appropriate package manager for your system. For instance, you might use conda or an external installation method based on your operating system's requirements.
+
+## CUDA GPU Support (Optional, for GPU Acceleration)
+If you have an NVIDIA GPU and want to harness the power of GPU acceleration using CUDA, please follow these additional steps. The application is built using TensorFlow 2.10.0 to ensure native Windows GPU support, so remember to install the appropriate versions:
+
+### 1. Install NVIDIA CUDA Toolkit (Version 11.2)
+
+To enable GPU acceleration, you'll need to install the NVIDIA CUDA Toolkit. Visit the [NVIDIA CUDA Toolkit download page](https://developer.nvidia.com/cuda-downloads) and select the version that matches your GPU and operating system. Follow the installation instructions provided. Alternatively, you can install `cuda-toolkit` as a package within your environment.
+
+### 2. Install cuDNN (NVIDIA Deep Neural Network Library, Version 8.1.0.77)
+
+Next, you'll need to install cuDNN, which is the NVIDIA Deep Neural Network Library. Visit the [cuDNN download page](https://developer.nvidia.com/cudnn) and download the cuDNN library version that corresponds to your CUDA version (in this case, version 8.1.0.77). Follow the installation instructions provided.
+
+### 3. Additional Package (If CUDA Toolkit Is Installed)
+
+If you've installed the NVIDIA CUDA Toolkit within your environment, you may also need to install an additional package called `cuda-nvcc` (Version 12.3.107). This package provides the CUDA compiler and tools necessary for building CUDA-enabled applications.
+
+By following these steps, you can ensure that your environment is configured to take full advantage of GPU acceleration for enhanced performance.                 
 
 ## License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
 
-## Disclaimer
-...
