@@ -44,8 +44,8 @@ df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or 
 
 # initialize training device
 #------------------------------------------------------------------------------
-trainworker = ModelTraining(device = cnf.training_device)
-model_savepath = trainworker.model_savefolder(GlobVar.model_path, 'XREP')
+trainer = ModelTraining(device = cnf.training_device)
+model_savepath = trainer.model_savefolder(GlobVar.model_path, 'XREP')
 
 
 # load tokenizer to get padding length and vocabulary size
@@ -112,8 +112,9 @@ lr_schedule = LRSchedule(cnf.learning_rate, warmup_steps=10)
 #------------------------------------------------------------------------------
 caption_model = XREPCaptioningModel(cnf.image_shape, caption_shape[1], vocab_size, 
                                     cnf.embedding_dims, cnf.kernel_size, cnf.num_heads, 
-                                    lr_schedule, cnf.XLA_acceleration, cnf.seed)
-caption_model.compile()
+                                    cnf.seed)
+
+caption_model = trainer.model_compile(caption_model, lr_schedule, cnf.XLA_acceleration)
 caption_model.summary()
 
 # generate graphviz plot fo the model layout
@@ -147,7 +148,7 @@ else:
 training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
                              callbacks=callbacks, workers=6, use_multiprocessing=True)                          
 
-trainworker.save_model(caption_model, model_savepath)
+trainer.save_model(caption_model, model_savepath)
 
 
 
