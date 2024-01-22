@@ -557,7 +557,7 @@ class XREPCaptioningModel(keras.Model):
                   'embedding_dims': self.embedding_dims,
                   'kernel_size': self.kernel_size,
                   'num_heads': self.num_heads,
-                  'learning_rate': self.learning_rate,
+                  'learning_rate': 0.001,
                   'XLA_state': self.XLA_state,
                   'seed' : self.seed}
         return config
