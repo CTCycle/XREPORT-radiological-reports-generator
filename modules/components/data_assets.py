@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+from datetime import datetime
 from tensorflow.keras.preprocessing.text import Tokenizer, tokenizer_from_json
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
@@ -136,12 +137,9 @@ class PreProcessing:
         train_tokenized = self.tokenizer.texts_to_sequences(train_text)        
         test_tokenized = self.tokenizer.texts_to_sequences(test_text)        
         self.vocabulary = self.tokenizer.word_index
-        self.vocabulary_size = len(self.vocabulary)
-        token_directory = os.path.join(savepath, 'Tokenizers')
-        if not os.path.exists(token_directory):
-            os.mkdir(token_directory) 
+        self.vocabulary_size = len(self.vocabulary)         
         tokenizer_json = self.tokenizer.to_json()          
-        json_path = os.path.join(token_directory, 'word_tokenizer.json')
+        json_path = os.path.join(savepath, 'word_tokenizer.json')
         with open(json_path, 'w', encoding = 'utf-8') as f:
             f.write(tokenizer_json)
 
@@ -188,6 +186,30 @@ class PreProcessing:
             tokenizer = tokenizer_from_json(json_string)
 
         return tokenizer
+    
+    #--------------------------------------------------------------------------
+    def model_savefolder(self, path, model_name):
+
+        '''
+        Creates a folder with the current date and time to save the model.
+    
+        Keyword arguments:
+            path (str):       A string containing the path where the folder will be created.
+            model_name (str): A string containing the name of the model.
+    
+        Returns:
+            str: A string containing the path of the folder where the model will be saved.
+        
+        '''        
+        raw_today_datetime = str(datetime.now())
+        truncated_datetime = raw_today_datetime[:-10]
+        today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
+        model_name = f'{model_name}_{today_datetime}'
+        model_savepath = os.path.join(path, model_name)
+        if not os.path.exists(model_savepath):
+            os.mkdir(model_savepath)               
+            
+        return model_savepath
 
 
 

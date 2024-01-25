@@ -1,16 +1,14 @@
 import os
 import numpy as np
 import json
-from datetime import datetime
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from keras import backend as K
+from tensorflow.keras.utils import register_keras_serializable
 from keras.models import Model
 from keras.layers import Dense, Conv2D, MaxPooling2D, LayerNormalization
 from keras.layers import Input, Reshape, Embedding, MultiHeadAttention, Dropout
-from keras import layers 
-from keras.utils import plot_model
 from tqdm import tqdm
 
     
@@ -86,7 +84,6 @@ class DataGenerator(keras.utils.Sequence):
     #--------------------------------------------------------------------------
     def __len__(self):
         length = int(np.ceil(self.num_of_samples)/self.batch_size)
-
         return length
     
     # define method to get X and Y data through custom functions, and subsequently
@@ -101,7 +98,6 @@ class DataGenerator(keras.utils.Sequence):
         X1_tensor = tf.convert_to_tensor(x1_batch)
         X2_tensor = tf.convert_to_tensor(x2_batch)
         Y_tensor = tf.convert_to_tensor(y_batch)
-
         return (X1_tensor, X2_tensor), Y_tensor
     
     # define method to perform data operations on epoch end
@@ -129,8 +125,7 @@ class DataGenerator(keras.utils.Sequence):
     # define method to load labels    
     #--------------------------------------------------------------------------
     def __labels_generation(self, sequence):
-        pp_sequence = np.array(sequence.split(' '), dtype=np.float32) 
-
+        pp_sequence = np.array(sequence.split(' '), dtype=np.float32)
         return pp_sequence
     
     # define method to call the elements of the generator    
@@ -138,7 +133,6 @@ class DataGenerator(keras.utils.Sequence):
     def next(self):
         next_index = (self.batch_index + 1) % self.__len__()
         self.batch_index = next_index
-
         return self.__getitem__(next_index)
 
 # [LEARNING RATE SCHEDULER]
@@ -165,7 +159,8 @@ class LRSchedule(keras.optimizers.schedules.LearningRateSchedule):
 #==============================================================================
 # Custom encoder model
 #==============================================================================    
-class ImageEncoder(layers.Layer):
+@register_keras_serializable(package='image_encoder')
+class ImageEncoder(keras.layers.Layer):
     def __init__(self, kernel_size, seed):
         super(ImageEncoder, self).__init__()
         self.kernel_size = kernel_size
@@ -176,7 +171,7 @@ class ImageEncoder(layers.Layer):
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv3 = Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')  
-        self.conv4 = Conv2D(256, kernel_size, strides=1, padding='same', 
+        self.conv4 = Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv5 = Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform') 
@@ -186,9 +181,9 @@ class ImageEncoder(layers.Layer):
         self.maxpool2 = MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool3 = MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool4 = MaxPooling2D((2, 2), strides=2, padding='same')          
-        self.dense1 = Dense(1024, activation='LeakyReLU', kernel_initializer='he_uniform')
-        self.dense2 = Dense(768, activation='LeakyReLU', kernel_initializer='he_uniform')
-        self.dense3 = Dense(512, activation='LeakyReLU', kernel_initializer='he_uniform')
+        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.reshape = Reshape((-1, 512))
         self.dropout1 = Dropout(0.2, seed=seed)
         self.dropout2 = Dropout(0.2, seed=seed)
@@ -233,7 +228,8 @@ class ImageEncoder(layers.Layer):
 #==============================================================================
 # Custom positional embedding layer
 #==============================================================================
-class PositionalEmbedding(layers.Layer):
+@register_keras_serializable(package='embedders')
+class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True):
         super(PositionalEmbedding, self).__init__()
         self.sequence_length = sequence_length
@@ -285,7 +281,8 @@ class PositionalEmbedding(layers.Layer):
 #==============================================================================
 # Custom transformer encoder
 #============================================================================== 
-class TransformerEncoderBlock(layers.Layer):
+@register_keras_serializable(package='transformer_encoder')
+class TransformerEncoderBlock(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed):
         super(TransformerEncoderBlock, self).__init__()
         self.embedding_dims = embedding_dims       
@@ -294,10 +291,10 @@ class TransformerEncoderBlock(layers.Layer):
         self.attention = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
         self.layernorm1 = LayerNormalization()
         self.layernorm2 = LayerNormalization()
-        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense1 = Dense(2048, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = Dense(1536, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = Dense(768, activation='relu', kernel_initializer='he_uniform')
         self.dropout1 = Dropout(0.3, seed=seed)
         self.dropout2 = Dropout(0.3, seed=seed)
 
@@ -334,7 +331,8 @@ class TransformerEncoderBlock(layers.Layer):
 #==============================================================================
 # Custom transformer decoder
 #============================================================================== 
-class TransformerDecoderBlock(layers.Layer):
+@register_keras_serializable(package='transformer_decoder')
+class TransformerDecoderBlock(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed):
         super(TransformerDecoderBlock, self).__init__()
         self.sequence_length = sequence_length
@@ -345,12 +343,12 @@ class TransformerDecoderBlock(layers.Layer):
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
         self.MHA_1 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.FFN_1 = Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
         self.FFN_2 = Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
         self.layernorm1 = LayerNormalization()
         self.layernorm2 = LayerNormalization()
         self.layernorm3 = LayerNormalization()
-        self.dense = Dense(1024, activation='relu', kernel_initializer='he_uniform')         
+        self.dense = Dense(2048, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = Dense(self.vocab_size, activation='softmax')
         self.dropout1 = Dropout(0.3, seed=seed)
         self.dropout2 = Dropout(0.4, seed=seed) 
@@ -421,9 +419,10 @@ class TransformerDecoderBlock(layers.Layer):
 #==============================================================================
 # Custom captioning model
 #==============================================================================  
+@register_keras_serializable(package='full_model')
 class XREPCaptioningModel(keras.Model):    
     def __init__(self, pic_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
-                 num_heads, seed=42):   
+                 num_heads, learning_rate, XLA_state, seed=42):   
         super(XREPCaptioningModel, self).__init__()
         self.loss_tracker = keras.metrics.Mean(name='loss')
         self.acc_tracker = keras.metrics.Mean(name='accuracy')
@@ -432,7 +431,9 @@ class XREPCaptioningModel(keras.Model):
         self.vocab_size = vocab_size 
         self.embedding_dims = embedding_dims
         self.kernel_size = kernel_size
-        self.num_heads = num_heads       
+        self.num_heads = num_heads
+        self.learning_rate = learning_rate
+        self.XLA_state = XLA_state                
         self.seed = seed                         
         self.image_encoder = ImageEncoder(kernel_size, seed)        
         self.encoder1 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
@@ -501,8 +502,7 @@ class XREPCaptioningModel(keras.Model):
         self.acc_tracker.update_state(acc)        
 
         return {'loss': self.loss_tracker.result(),
-                'acc': self.acc_tracker.result()}
-        
+                'acc': self.acc_tracker.result()}        
  
     # implement captioning model through call method  
     #--------------------------------------------------------------------------    
@@ -514,50 +514,47 @@ class XREPCaptioningModel(keras.Model):
         encoder = self.encoder2(encoder, training)
         decoder = self.decoder(sequences, encoder, training, mask)
 
-        return decoder        
+        return decoder
     
+    # print summary
+    #--------------------------------------------------------------------------
+    def get_model(self):
+        image_input = Input(shape=self.pic_shape)    
+        seq_input = Input(shape=(self.sequence_length, ))
+        model = Model(inputs=[image_input, seq_input], outputs = self.call([image_input, seq_input], 
+                      training=False)) 
+        return model       
+
+    # compile the model
+    #--------------------------------------------------------------------------
+    def compile(self):
+        lr_schedule = LRSchedule(self.learning_rate, warmup_steps=10)
+        loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False, 
+                                                          reduction=keras.losses.Reduction.NONE)  
+        metric = keras.metrics.SparseCategoricalAccuracy()  
+        opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
+        super(XREPCaptioningModel, self).compile(optimizer=opt, loss=loss, metrics=metric, 
+                                                 run_eagerly=False, jit_compile=self.XLA_state)
+        
     # track metrics and losses  
     #--------------------------------------------------------------------------
     @property
     def metrics(self):
-        return [self.loss_tracker, self.acc_tracker]         
-    
-    
-
-    # print summary
-    #--------------------------------------------------------------------------
-    def summary(self):
-        image_input = Input(shape=self.pic_shape)    
-        seq_input = Input(shape=(self.sequence_length, ))
-        model = Model(inputs=[image_input, seq_input], 
-                      outputs = self.call([image_input, seq_input], 
-                      training=False))
-        
-        model.summary()
-
-    # plot model as 2D schematics
-    #--------------------------------------------------------------------------
-    def plot_model(self, model_savepath):
-        image_input = Input(shape=self.pic_shape)    
-        seq_input = Input(shape=(self.sequence_length, ))
-        model = Model(inputs=[image_input, seq_input], 
-                      outputs = self.call([image_input, seq_input], 
-                      training=False))
-        plot_path = os.path.join(model_savepath, 'XREP_scheme.png')       
-        plot_model(model, to_file = plot_path, show_shapes = True, 
-               show_layer_names = True, show_layer_activations = True, 
-               expand_nested = True, rankdir='TB', dpi = 400) 
-
+        return [self.loss_tracker, self.acc_tracker]     
+ 
     # serialize layer for saving  
     #--------------------------------------------------------------------------
     def get_config(self):
-        config = {'pic_shape': self.pic_shape,
-                  'sequence_length': self.sequence_length,
-                  'vocab_size': self.vocab_size,
-                  'embedding_dims': self.embedding_dims,
-                  'kernel_size': self.kernel_size,
-                  'num_heads': self.num_heads,                 
-                  'seed' : self.seed}
+        config = super(XREPCaptioningModel, self).get_config()
+        config.update({'pic_shape': self.pic_shape,
+                       'sequence_length': self.sequence_length,
+                       'vocab_size': self.vocab_size,
+                       'embedding_dims': self.embedding_dims,
+                       'kernel_size': self.kernel_size,
+                       'num_heads': self.num_heads,
+                       'learning_rate' : self.learning_rate,
+                       'XLA_state' : self.XLA_state,                 
+                       'seed' : self.seed})
         return config
 
     @classmethod
@@ -614,19 +611,7 @@ class ModelTraining:
             tf.config.set_visible_devices([], 'GPU')
             print('CPU is set as active device')
             print('-------------------------------------------------------------------------------')
-            print()
-
-    # compile the model
-    #--------------------------------------------------------------------------
-    def model_compile(self, model, lr, XLA_state):
-        loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False, 
-                                                          reduction=keras.losses.Reduction.NONE)  
-        metric = keras.metrics.SparseCategoricalAccuracy()  
-        opt = keras.optimizers.Adam(learning_rate=lr)          
-        model.compile(optimizer=opt, loss=loss, metrics=metric, 
-                      run_eagerly=False, jit_compile=XLA_state) 
-
-        return model      
+            print()         
     
     #-------------------------------------------------------------------------- 
     def model_parameters(self, parameters_dict, savepath):
@@ -646,31 +631,7 @@ class ModelTraining:
         '''
         path = os.path.join(savepath, 'model_parameters.json')      
         with open(path, 'w') as f:
-            json.dump(parameters_dict, f) 
-
-    #--------------------------------------------------------------------------
-    def model_savefolder(self, path, model_name):
-
-        '''
-        Creates a folder with the current date and time to save the model.
-    
-        Keyword arguments:
-            path (str):       A string containing the path where the folder will be created.
-            model_name (str): A string containing the name of the model.
-    
-        Returns:
-            str: A string containing the path of the folder where the model will be saved.
-        
-        '''        
-        raw_today_datetime = str(datetime.now())
-        truncated_datetime = raw_today_datetime[:-10]
-        today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
-        model_name = f'{model_name}_{today_datetime}'
-        model_savepath = os.path.join(path, model_name)
-        if not os.path.exists(model_savepath):
-            os.mkdir(model_savepath)               
-            
-        return model_savepath 
+            json.dump(parameters_dict, f)     
     
     #--------------------------------------------------------------------------   
     def save_model(self, model, path):        
@@ -679,7 +640,10 @@ class ModelTraining:
         config = model.get_config()
         config_path = os.path.join(path, 'model_configuration.json')
         with open(config_path, 'w') as json_file:
-            json.dump(config, json_file)      
+            json.dump(config, json_file)
+        config_path = os.path.join(path, 'model_architecture.json')
+        with open(config_path, 'w') as json_file:
+            json_file.write(model.to_json())      
             
     
     
@@ -687,7 +651,7 @@ class ModelTraining:
 #==============================================================================
 # Custom training operations
 #==============================================================================
-class InferenceTools:
+class Inference:
    
     #--------------------------------------------------------------------------
     def load_pretrained_model(self, path):
@@ -737,22 +701,32 @@ class InferenceTools:
             self.model_path = os.path.join(path, model_folders[dir_index - 1])
 
         elif len(model_folders) == 1:
-            self.model_path = os.path.join(path, model_folders[0])            
+            self.model_path = os.path.join(path, model_folders[0])           
         
+        # read model serialization configurationcreate and initialize it  
         path = os.path.join(self.model_path, 'model_configuration.json')
         with open(path, 'r') as f:
-            config = json.load(f)
+            config = json.load(f)        
+        model = XREPCaptioningModel.from_config(config)
 
+        # read model parameters  
+        path = os.path.join(self.model_path, 'model_parameters.json')
+        with open(path, 'r') as f:
+            self.parameters = json.load(f)
+
+        # set inputs to build the model 
         pic_shape = tuple(config['pic_shape'])
         sequence_length = config['sequence_length']
-        model = XREPCaptioningModel.from_config(config)
-        weights_path = os.path.join(self.model_path, 'model_weights.h5')
         build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
         model(build_inputs, training=False)
+        
+        # load weights into the model
+        weights_path = os.path.join(self.model_path, 'model_weights.h5')
         model.load_weights(weights_path)
 
-        return model, config
+        return model, config    
+                         
 
     #--------------------------------------------------------------------------    
     def generate_reports(self, model, paths, num_channels, image_size,
@@ -772,6 +746,7 @@ class InferenceTools:
             features = model.image_encoder(input_image)
             encoded_img = model.encoder(features, training=False)   
 
+            # teacher forging method to generate tokens through the decoder
             decoded_caption = '[START]'
             for i in range(max_length):                
                 tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
