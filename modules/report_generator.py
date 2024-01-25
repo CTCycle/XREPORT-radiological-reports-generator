@@ -14,7 +14,7 @@ if __name__ == '__main__':
 # import modules and components
 #------------------------------------------------------------------------------
 from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import InferenceTools
+from modules.components.model_assets import Inference
 import modules.global_variables as GlobVar
 import configurations as cnf
 
@@ -24,7 +24,7 @@ import configurations as cnf
 #==============================================================================        
 print(f'''
 -------------------------------------------------------------------------------
-XREPORT generation
+XREPORT fine tuning
 -------------------------------------------------------------------------------
 ...
 ''')
@@ -44,7 +44,7 @@ Report generation will start once you've selected the model.
 
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
-inference = InferenceTools() 
+inference = Inference() 
 model, configurations = inference.load_pretrained_model(GlobVar.model_path)
 model.summary()
 

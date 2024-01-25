@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import tensorflow as tf
+from keras.utils import plot_model
 
 # set warnings
 #------------------------------------------------------------------------------
@@ -27,15 +28,14 @@ import configurations as cnf
 
 # load preprocessing module
 #------------------------------------------------------------------------------
-import modules.XREPORT_preprocessing
+import modules.data_preprocessing
 
 # load preprocessed csv files (train and test datasets)
 #------------------------------------------------------------------------------
-file_loc = os.path.join(GlobVar.data_path, 'XREP_train.csv') 
+file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_train.csv') 
 df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
-file_loc = os.path.join(GlobVar.data_path, 'XREP_test.csv') 
+file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_test.csv') 
 df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
-
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
@@ -44,14 +44,12 @@ df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or 
 
 # initialize training device
 #------------------------------------------------------------------------------
-trainer = ModelTraining(device = cnf.training_device)
-model_savepath = trainer.model_savefolder(GlobVar.model_path, 'XREP')
-
+preprocessor = PreProcessing()
+trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
 # load tokenizer to get padding length and vocabulary size
 #------------------------------------------------------------------------------
-preprocessor = PreProcessing()
-tokenizer_path = os.path.join(GlobVar.data_path, 'Tokenizers')
+tokenizer_path = os.path.join(GlobVar.model_savepath, 'preprocessing')
 tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
 vocab_size = len(tokenizer.word_index) + 1
 
@@ -104,23 +102,26 @@ Caption length:          {caption_shape[1]}
 -------------------------------------------------------------------------------
 ''')
 
-# initialize learning rate scheduler
-#------------------------------------------------------------------------------
-lr_schedule = LRSchedule(cnf.learning_rate, warmup_steps=10)
-
-# initialize, compile and print the summary of the captioning model
+# initialize and compile the captioning model
 #------------------------------------------------------------------------------
 caption_model = XREPCaptioningModel(cnf.image_shape, caption_shape[1], vocab_size, 
-                                    cnf.embedding_dims, cnf.kernel_size, cnf.num_heads, 
-                                    cnf.seed)
+                                    cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
+                                    cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
 
-caption_model = trainer.model_compile(caption_model, lr_schedule, cnf.XLA_acceleration)
-caption_model.summary()
+caption_model.compile()
+
+# invoke call method to build a showcase model (in order to show summary and plot)
+#------------------------------------------------------------------------------
+showcase_model = caption_model.get_model()
+showcase_model.summary()
 
 # generate graphviz plot fo the model layout
 #------------------------------------------------------------------------------
 if cnf.generate_model_graph == True:
-    caption_model.plot_model(model_savepath)
+    plot_path = os.path.join(GlobVar.model_savepath, 'XREP_scheme.png')       
+    plot_model(showcase_model, to_file = plot_path, show_shapes = True, 
+               show_layer_names = True, show_layer_activations = True, 
+               expand_nested = True, rankdir='TB', dpi = 400)    
     
 # [TRAIN XREPORT MODEL]
 #==============================================================================
@@ -132,23 +133,30 @@ if cnf.generate_model_graph == True:
 
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
-RTH_callback = RealTimeHistory(model_savepath, validation=True)
+RTH_callback = RealTimeHistory(GlobVar.model_savepath, validation=True)
 
 # initialize tensorboard
 #------------------------------------------------------------------------------
 if cnf.use_tensorboard == True:
-    log_path = os.path.join(model_savepath, 'tensorboard')
+    log_path = os.path.join(GlobVar.model_savepath, 'tensorboard')
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
     callbacks = [RTH_callback, tensorboard_callback]    
 else:    
     callbacks = [RTH_callback]
 
+# save model parameters in json files
+#------------------------------------------------------------------------------
+parameters = {'Epochs' : cnf.epochs,
+              'Seed' : cnf.seed}
+
+trainer.model_parameters(parameters, GlobVar.model_savepath)
+
 # define and execute training loop, then save the model weights at end
 #------------------------------------------------------------------------------
 training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
-                             callbacks=callbacks, workers=6, use_multiprocessing=True)                          
+                             callbacks=callbacks, workers=6, use_multiprocessing=True) 
 
-trainer.save_model(caption_model, model_savepath)
+trainer.save_model(caption_model, GlobVar.model_savepath)
 
 
 
