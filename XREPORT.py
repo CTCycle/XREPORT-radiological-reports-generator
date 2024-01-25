@@ -32,10 +32,10 @@ while True:
     op_sel = user_operations.menu_selection(operations_menu)
     print()      
     if op_sel == 1:
-        import modules.XREPORT_training
+        import modules.model_training
         del sys.modules['modules.XREPORT_training']
     elif op_sel == 2:
-        import modules.XREPORT_generator
+        import modules.report_generator
         del sys.modules['modules.XREPORT_generator']
     elif op_sel == 3:
         break

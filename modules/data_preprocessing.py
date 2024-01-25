@@ -31,14 +31,16 @@ The XRAY dataset must be preprocessed before feeding it to the training model.
 The preprocessing procedure comprises the tokenization and padding on the text sequences
 ''')
 
-# load data from csv
+# create model folder
+#------------------------------------------------------------------------------
+preprocessor = PreProcessing()
+model_savepath = preprocessor.model_savefolder(GlobVar.model_path, 'XREP')
+GlobVar.model_savepath = model_savepath
+
+# load data from csv, add paths and select a subset of data
 #------------------------------------------------------------------------------
 file_loc = os.path.join(GlobVar.data_path, 'XREP_dataset.csv') 
 dataset = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory = False)
-
-# select only a part of the main dataset
-#------------------------------------------------------------------------------
-preprocessor = PreProcessing()
 dataset = preprocessor.images_pathfinder(GlobVar.images_path, dataset, 'id')
 dataset = dataset.sample(n=cnf.num_samples, random_state=cnf.seed)
 
@@ -53,13 +55,22 @@ train_data, test_data = train_test_split(dataset, test_size=cnf.test_size, rando
 print('''STEP 1 ----> Text tokenization using word tokenizer
 ''')
 
-# extract text sequences as list perform tokenization
+# create subfolder for preprocessing data
+#------------------------------------------------------------------------------
+pp_path = os.path.join(model_savepath, 'preprocessing')
+if not os.path.exists(pp_path):
+    os.mkdir(pp_path) 
+
+# clean text corpus
 #------------------------------------------------------------------------------
 train_text = train_data['text'].to_list()
 test_text = test_data['text'].to_list()
 train_text = preprocessor.text_preparation(train_text)
 test_text = preprocessor.text_preparation(test_text)
-tokenized_train_text, tokenized_test_text = preprocessor.text_tokenization(train_text, test_text, GlobVar.data_path)
+
+# extract text sequences as list perform tokenization
+#------------------------------------------------------------------------------
+tokenized_train_text, tokenized_test_text = preprocessor.text_tokenization(train_text, test_text, pp_path)
 
 # [PAD SEQUENCES]
 #==============================================================================
@@ -72,8 +83,8 @@ pad_length = max([len(x.split()) for x in train_text])
 
 # perform padding of sequences
 #------------------------------------------------------------------------------
-padded_train_text = preprocessor.sequence_padding(tokenized_train_text, pad_length, output = 'string')
-padded_test_text = preprocessor.sequence_padding(tokenized_test_text, pad_length, output = 'string')
+padded_train_text = preprocessor.sequence_padding(tokenized_train_text, pad_length, output='string')
+padded_test_text = preprocessor.sequence_padding(tokenized_test_text, pad_length, output='string')
 train_data['tokenized_text'] = padded_train_text
 test_data['tokenized_text'] = padded_test_text
 
@@ -81,9 +92,9 @@ test_data['tokenized_text'] = padded_test_text
 #==============================================================================
 # module for the selection of different operations
 #==============================================================================
-file_loc = os.path.join(GlobVar.data_path, 'XREP_train.csv')  
+file_loc = os.path.join(pp_path, 'XREP_train.csv')  
 train_data.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')
-file_loc = os.path.join(GlobVar.data_path, 'XREP_test.csv')  
+file_loc = os.path.join(pp_path, 'XREP_test.csv')  
 test_data.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')
 
 
