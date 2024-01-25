@@ -24,7 +24,7 @@ import configurations as cnf
 #==============================================================================        
 print(f'''
 -------------------------------------------------------------------------------
-XREPORT fine tuning
+XREPORT report generation
 -------------------------------------------------------------------------------
 ...
 ''')
@@ -46,12 +46,13 @@ Report generation will start once you've selected the model.
 #------------------------------------------------------------------------------
 inference = Inference() 
 model, configurations = inference.load_pretrained_model(GlobVar.model_path)
+model_path = inference.model_path
 model.summary()
 
 # Load the tokenizer
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-tokenizer_path = os.path.join(GlobVar.data_path, 'Tokenizers')
+tokenizer_path = os.path.join(model_path, 'preprocessing')
 tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
 
 # [GENERATE REPORTS]
