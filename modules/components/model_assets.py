@@ -66,13 +66,11 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, dataframe, batch_size=6, image_size=(244, 244), channels=3, 
-                 shuffle=True, augmentation=True):        
+    def __init__(self, dataframe, batch_size=6, image_size=(244, 244), shuffle=True, augmentation=True):        
         self.dataframe = dataframe
         self.path_col='images_path'        
         self.label_col='tokenized_text'
-        self.num_of_samples = dataframe.shape[0]
-        self.num_channels = channels
+        self.num_of_samples = dataframe.shape[0]        
         self.image_size = image_size       
         self.batch_size = batch_size  
         self.batch_index = 0              
@@ -111,10 +109,8 @@ class DataGenerator(keras.utils.Sequence):
     #--------------------------------------------------------------------------
     def __images_generation(self, path, augmentation=False):
         image = tf.io.read_file(path)
-        image = tf.image.decode_image(image, channels=self.num_channels)
-        resized_image = tf.image.resize(image, self.image_size)
-        if self.num_channels==3:
-            resized_image = tf.reverse(resized_image, axis=[-1])
+        image = tf.image.decode_image(image, channels=1)
+        resized_image = tf.image.resize(image, self.image_size)        
         pp_image = resized_image/255.0  
         if augmentation==True:            
             pp_image = tf.keras.preprocessing.image.random_shift(pp_image, 0.2, 0.3)
@@ -185,9 +181,7 @@ class ImageEncoder(keras.layers.Layer):
         self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.reshape = Reshape((-1, 512))
-        self.dropout1 = Dropout(0.2, seed=seed)
-        self.dropout2 = Dropout(0.2, seed=seed)
-        self.dropout3 = Dropout(0.3, seed=seed)
+        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -202,12 +196,9 @@ class ImageEncoder(keras.layers.Layer):
         layer = self.conv5(layer) 
         layer = self.conv6(layer)               
         layer = self.maxpool4(layer)         
-        layer = self.dense1(layer) 
-        layer = self.dropout1(layer, training)
-        layer = self.dense2(layer)
-        layer = self.dropout2(layer, training)
-        layer = self.dense3(layer)
-        layer = self.dropout3(layer, training)
+        layer = self.dense1(layer)        
+        layer = self.dense2(layer)       
+        layer = self.dense3(layer)       
         output = self.reshape(layer)              
         
         return output
@@ -295,8 +286,8 @@ class TransformerEncoderBlock(keras.layers.Layer):
         self.dense2 = Dense(1536, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
         self.dense4 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dropout1 = Dropout(0.3, seed=seed)
-        self.dropout2 = Dropout(0.3, seed=seed)
+        self.dropout1 = Dropout(0.2, seed=seed)
+        self.dropout2 = Dropout(0.2, seed=seed)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -350,9 +341,9 @@ class TransformerDecoderBlock(keras.layers.Layer):
         self.layernorm3 = LayerNormalization()
         self.dense = Dense(2048, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = Dense(self.vocab_size, activation='softmax')
-        self.dropout1 = Dropout(0.3, seed=seed)
-        self.dropout2 = Dropout(0.4, seed=seed) 
-        self.dropout3 = Dropout(0.5, seed=seed)
+        self.dropout1 = Dropout(0.2, seed=seed)
+        self.dropout2 = Dropout(0.3, seed=seed) 
+        self.dropout3 = Dropout(0.3, seed=seed)
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
@@ -365,8 +356,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
         if mask is not None:
             padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
             combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
-            combined_mask = tf.minimum(combined_mask, causal_mask)            
-        
+            combined_mask = tf.minimum(combined_mask, causal_mask)           
         attention_output1 = self.MHA_1(query=inputs, value=inputs, key=inputs,
                                        attention_mask=combined_mask, training=training)
         output1 = self.layernorm1(inputs + attention_output1)                       
@@ -523,6 +513,7 @@ class XREPCaptioningModel(keras.Model):
         seq_input = Input(shape=(self.sequence_length, ))
         model = Model(inputs=[image_input, seq_input], outputs = self.call([image_input, seq_input], 
                       training=False)) 
+        
         return model       
 
     # compile the model
@@ -560,7 +551,6 @@ class XREPCaptioningModel(keras.Model):
     @classmethod
     def from_config(cls, config):
         return cls(**config)   
-
     
 
 # [TRAINING OPTIONS]
