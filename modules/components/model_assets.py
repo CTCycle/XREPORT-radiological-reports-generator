@@ -66,12 +66,12 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, dataframe, batch_size=6, image_size=(244, 244), shuffle=True, augmentation=True):        
+    def __init__(self, dataframe, batch_size=6, picture_size=(244, 244, 1), shuffle=True, augmentation=True):        
         self.dataframe = dataframe
         self.path_col='images_path'        
         self.label_col='tokenized_text'
         self.num_of_samples = dataframe.shape[0]        
-        self.image_size = image_size       
+        self.picture_size = picture_size       
         self.batch_size = batch_size  
         self.batch_index = 0              
         self.shuffle = shuffle
@@ -110,7 +110,7 @@ class DataGenerator(keras.utils.Sequence):
     def __images_generation(self, path, augmentation=False):
         image = tf.io.read_file(path)
         image = tf.image.decode_image(image, channels=1)
-        resized_image = tf.image.resize(image, self.image_size)        
+        resized_image = tf.image.resize(image, self.picture_size[:-1])        
         pp_image = resized_image/255.0  
         if augmentation==True:            
             pp_image = tf.keras.preprocessing.image.random_shift(pp_image, 0.2, 0.3)
@@ -135,7 +135,7 @@ class DataGenerator(keras.utils.Sequence):
 #==============================================================================
 # Generate data on the fly to avoid memory burdening
 #==============================================================================
-class LRSchedule(keras.optimizers.schedules.LearningRateSchedule):
+class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, post_warmup_learning_rate, warmup_steps):
         super().__init__()
         self.post_warmup_learning_rate = post_warmup_learning_rate
@@ -148,6 +148,7 @@ class LRSchedule(keras.optimizers.schedules.LearningRateSchedule):
         warmup_steps = tf.cast(self.warmup_steps, tf.float32)
         warmup_progress = global_step/warmup_steps
         warmup_learning_rate = self.post_warmup_learning_rate * warmup_progress
+
         return tf.cond(global_step < warmup_steps, lambda: warmup_learning_rate,
                        lambda: self.post_warmup_learning_rate)
       
@@ -180,8 +181,7 @@ class ImageEncoder(keras.layers.Layer):
         self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.reshape = Reshape((-1, 512))
-        
+        self.reshape = Reshape((-1, 512))        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -250,7 +250,6 @@ class PositionalEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
-
         return tf.math.not_equal(inputs, 0)
     
     # serialize layer for saving  
@@ -519,7 +518,7 @@ class XREPCaptioningModel(keras.Model):
     # compile the model
     #--------------------------------------------------------------------------
     def compile(self):
-        lr_schedule = LRSchedule(self.learning_rate, warmup_steps=10)
+        lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
         loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False, 
                                                           reduction=keras.losses.Reduction.NONE)  
         metric = keras.metrics.SparseCategoricalAccuracy()  
@@ -537,7 +536,7 @@ class XREPCaptioningModel(keras.Model):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(XREPCaptioningModel, self).get_config()
-        config.update({'pic_shape': self.pic_shape,
+        config.update({'picture_shape': self.pic_shape,
                        'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dims,
@@ -633,8 +632,7 @@ class ModelTraining:
             json.dump(config, json_file)
         config_path = os.path.join(path, 'model_architecture.json')
         with open(config_path, 'w') as json_file:
-            json_file.write(model.to_json())      
-            
+            json_file.write(model.to_json())             
     
     
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
@@ -705,7 +703,7 @@ class Inference:
             self.parameters = json.load(f)
 
         # set inputs to build the model 
-        pic_shape = tuple(config['pic_shape'])
+        pic_shape = tuple(config['picture_shape'])
         sequence_length = config['sequence_length']
         build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
@@ -715,11 +713,10 @@ class Inference:
         weights_path = os.path.join(self.model_path, 'model_weights.h5')
         model.load_weights(weights_path)
 
-        return model, config    
-                         
+        return model, config                         
 
     #--------------------------------------------------------------------------    
-    def generate_reports(self, model, paths, num_channels, image_size,
+    def generate_reports(self, model, paths, num_channels, picture_size,
                          max_length, tokenizer):
         
         reports = {}
@@ -728,7 +725,7 @@ class Inference:
         for pt in tqdm(paths):
             image = tf.io.read_file(pt)
             image = tf.image.decode_image(image, channels=num_channels)
-            image = tf.image.resize(image, image_size)
+            image = tf.image.resize(image, picture_size)
             if num_channels==3:
                 image = tf.reverse(image, axis=[-1])
             image = image/255.0 
@@ -768,23 +765,8 @@ class ModelValidation:
         
         self.model = model
 
-    # sequential model as generator with Keras module
-    #========================================================================== 
+    # model validation
+    #-------------------------------------------------------------------------- 
     def XREPORT_validation(self, real_images, predicted_images, path):
         
-        num_pics = len(real_images)
-        fig_path = os.path.join(path, 'FEXT_validation.jpeg')
-        fig, axs = plt.subplots(num_pics, 2, figsize=(4, num_pics * 2))
-        for i, (real, pred) in enumerate(zip(real_images, predicted_images)):            
-            axs[i, 0].imshow(real)
-            if i == 0:
-                axs[i, 0].set_title('Original picture')
-            axs[i, 0].axis('off')
-            axs[i, 1].imshow(pred)
-            if i == 0:
-                axs[i, 1].set_title('Reconstructed picture')
-            axs[i, 1].axis('off')
-        plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=400)
-        plt.show(block=False)
-        plt.close()
+        pass

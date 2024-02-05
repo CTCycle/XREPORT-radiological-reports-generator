@@ -2,7 +2,6 @@ import os
 import sys
 import pandas as pd
 import tensorflow as tf
-from keras.utils import plot_model
 
 # set warnings
 #------------------------------------------------------------------------------
@@ -17,7 +16,7 @@ if __name__ == '__main__':
 # import modules and classes
 #------------------------------------------------------------------------------    
 from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel, Inference
+from modules.components.model_assets import ModelTraining, DataGenerator, Inference
 import modules.global_variables as GlobVar
 import configurations as cnf
 
@@ -30,8 +29,7 @@ print(f'''
 XREPORT model evaluation
 -------------------------------------------------------------------------------
 ...
-''')
- 
+''') 
 
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
@@ -68,10 +66,10 @@ trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 #------------------------------------------------------------------------------
 num_train_samples = df_train.shape[0]
 num_test_samples = df_test.shape[0]
-train_datagen = DataGenerator(df_train, 128, parameters['pic_shape'], 
-                              shuffle=True, augmentation=cnf.data_augmentation)
-test_datagen = DataGenerator(df_test, 128, parameters['pic_shape'], 
-                             shuffle=True, augmentation=cnf.data_augmentation)
+train_datagen = DataGenerator(df_train, 200, parameters['pic_shape'], 
+                              shuffle=True, augmentation=False)
+test_datagen = DataGenerator(df_test, 200, parameters['pic_shape'], 
+                             shuffle=True, augmentation=False)
 
 # define the output signature of the generator using tf.TensorSpec, in order to
 # successfully build a tf.dataset object from the custom generator
@@ -92,9 +90,10 @@ df_test = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature
 df_train = df_train.prefetch(buffer_size=tf.data.AUTOTUNE)
 df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
 
-# [BUILD XREPORT MODEL]
+
+# [EVALUATE XREPORT MODEL]
 #==============================================================================
-# ....
+# ...
 #==============================================================================
 
 # Print report with info about the training parameters
@@ -113,15 +112,6 @@ Caption length:          {caption_shape[1]}
 -------------------------------------------------------------------------------
 ''')
     
-# [EVALUATE XREPORT MODEL]
-#==============================================================================
-# Setting callbacks and training routine for the XRAY captioning model. 
-# to visualize tensorboard report, use command prompt on the model folder and 
-# upon activating environment, use the bash command: 
-# python -m tensorboard.main --logdir tensorboard/
-#==============================================================================
-
-
 
 
 

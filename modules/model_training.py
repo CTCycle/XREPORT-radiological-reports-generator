@@ -17,7 +17,7 @@ if __name__ == '__main__':
 # import modules and classes
 #------------------------------------------------------------------------------    
 from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel, LRSchedule
+from modules.components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel
 import modules.global_variables as GlobVar
 import configurations as cnf
 
@@ -55,12 +55,10 @@ vocab_size = len(tokenizer.word_index) + 1
 
 # initialize generators for X and Y subsets
 #------------------------------------------------------------------------------
-num_train_samples = df_train.shape[0]
-num_test_samples = df_test.shape[0]
-train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_size, 
-                              shuffle=True, augmentation=cnf.data_augmentation)
-test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_size, 
-                             shuffle=True, augmentation=cnf.data_augmentation)
+train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_shape, 
+                              shuffle=True, augmentation=cnf.augmentation)
+test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_shape, 
+                             shuffle=True, augmentation=cnf.augmentation)
 
 # define the output signature of the generator using tf.TensorSpec, in order to
 # successfully build a tf.dataset object from the custom generator
@@ -92,8 +90,8 @@ print(f'''
 -------------------------------------------------------------------------------
 XRAYREP training report
 -------------------------------------------------------------------------------
-Number of train samples: {num_train_samples}
-Number of test samples:  {num_test_samples}
+Number of train samples: {cnf.num_train_samples}
+Number of test samples:  {cnf.num_test_samples}
 -------------------------------------------------------------------------------
 Batch size:              {cnf.batch_size}
 Epochs:                  {cnf.epochs}
@@ -104,7 +102,7 @@ Caption length:          {caption_shape[1]}
 
 # initialize and compile the captioning model
 #------------------------------------------------------------------------------
-caption_model = XREPCaptioningModel(cnf.image_shape, caption_shape[1], vocab_size, 
+caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape[1], vocab_size, 
                                     cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
                                     cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
 
@@ -143,13 +141,6 @@ if cnf.use_tensorboard == True:
     callbacks = [RTH_callback, tensorboard_callback]    
 else:    
     callbacks = [RTH_callback]
-
-# save model parameters in json files
-#------------------------------------------------------------------------------
-parameters = {'Epochs' : cnf.epochs,
-              'Seed' : cnf.seed}
-
-trainer.model_parameters(parameters, GlobVar.model_savepath)
 
 # define and execute training loop, then save the model weights at end
 #------------------------------------------------------------------------------
