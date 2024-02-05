@@ -17,12 +17,10 @@ num_heads = 4
 
 # define variables for data processing
 #------------------------------------------------------------------------------
-picture_size = (144, 144)
-num_channels = 1
-image_shape = picture_size + (num_channels,)
-num_samples = 80000
-test_size = 0.2
-data_augmentation = False
+picture_shape = (144, 144, 1)
+num_train_samples = 70000
+num_test_samples = 10000
+augmentation = False
 
 
 
