@@ -1,6 +1,4 @@
 __pycache__
-dataset/XREP_train.csv
-dataset/XREP_test.csv
 dataset/XRAY images/*
 dataset/Tokenizers/*
 documents/
