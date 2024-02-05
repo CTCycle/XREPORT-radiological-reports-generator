@@ -34,7 +34,6 @@ The configurations.py file allows to change the script configuration. The follow
 
 **Settings for training performance and monitoring options:**
 - `generate_model_graph:` generate and save 2D model graph (as .png file)
-- `use_mixed_precision:` whether or not to use mixed precision for faster training (mix float16/float32)
 - `use_tensorboard:` activate or deactivate tensorboard logging
 - `XLA_acceleration:` use of linear algebra acceleration for faster training 
 
@@ -48,12 +47,10 @@ The configurations.py file allows to change the script configuration. The follow
 - `num_heads:` number of attention heads
 
 **Settings for data preprocessing and predictions:**
-- `picture_size:` scaled size of the x-ray images
-- `num_channels:` number of channels per image (set to 1 for gray-scale, 3 for RGB)
-- `image_shape:` automatically calculated full image shape
-- `num_samples:` number of images to consider prior to generating train and test datasets
-- `test_size:` fraction of num_samples to use as validation data
-- `data_augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
+- `picture_size:` shapeof the images as (height, width, channels)
+- `num_train_samples:` number of images to use for the model training
+- `num_test_samples:` number of images to use for the model validation
+- `augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
 
 ## Installation 
 First, ensure that you have Python 3.10.12 installed on your system. Then, you can easily install the required Python packages using the provided requirements.txt file:
