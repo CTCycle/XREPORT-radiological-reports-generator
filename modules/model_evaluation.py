@@ -34,22 +34,22 @@ XREPORT model evaluation
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference() 
-model, parameters = inference.load_pretrained_model(GlobVar.model_path)
+model, parameters = inference.load_pretrained_model(GlobVar.models_path)
 model_path = inference.model_path
 model.summary()
 
 # Load the tokenizer
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-tokenizer_path = os.path.join(model_path, 'preprocessing')
-tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
+preprocessing_path = os.path.join(model_path, 'preprocessing')
+tokenizer = preprocessor.load_tokenizer(preprocessing_path, 'word_tokenizer')
 vocab_size = len(tokenizer.word_index) + 1
 
 # load preprocessed csv files (train and test datasets)
 #------------------------------------------------------------------------------
-file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_train.csv') 
+file_loc = os.path.join(preprocessing_path, 'XREP_train.csv') 
 df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
-file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_test.csv') 
+file_loc = os.path.join(preprocessing_path, 'XREP_test.csv') 
 df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 
 # [CREATE DATA GENERATOR]
@@ -66,9 +66,9 @@ trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 #------------------------------------------------------------------------------
 num_train_samples = df_train.shape[0]
 num_test_samples = df_test.shape[0]
-train_datagen = DataGenerator(df_train, 200, parameters['pic_shape'], 
+train_datagen = DataGenerator(df_train, 200, parameters['picture_shape'], 
                               shuffle=True, augmentation=False)
-test_datagen = DataGenerator(df_test, 200, parameters['pic_shape'], 
+test_datagen = DataGenerator(df_test, 200, parameters['picture_shape'], 
                              shuffle=True, augmentation=False)
 
 # define the output signature of the generator using tf.TensorSpec, in order to
@@ -89,7 +89,6 @@ df_train = tf.data.Dataset.from_generator(lambda : train_datagen, output_signatu
 df_test = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature=output_signature)
 df_train = df_train.prefetch(buffer_size=tf.data.AUTOTUNE)
 df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
-
 
 # [EVALUATE XREPORT MODEL]
 #==============================================================================
