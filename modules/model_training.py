@@ -32,9 +32,9 @@ import modules.data_preprocessing
 
 # load preprocessed csv files (train and test datasets)
 #------------------------------------------------------------------------------
-file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_train.csv') 
+file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_train.csv') 
 df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
-file_loc = os.path.join(GlobVar.model_savepath, 'preprocessing', 'XREP_test.csv') 
+file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_test.csv') 
 df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 
 # [CREATE DATA GENERATOR]
@@ -49,7 +49,7 @@ trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
 # load tokenizer to get padding length and vocabulary size
 #------------------------------------------------------------------------------
-tokenizer_path = os.path.join(GlobVar.model_savepath, 'preprocessing')
+tokenizer_path = os.path.join(GlobVar.model_folder_path, 'preprocessing')
 tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
 vocab_size = len(tokenizer.word_index) + 1
 
@@ -105,7 +105,6 @@ Caption length:          {caption_shape[1]}
 caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape[1], vocab_size, 
                                     cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
                                     cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
-
 caption_model.compile()
 
 # invoke call method to build a showcase model (in order to show summary and plot)
@@ -116,7 +115,7 @@ showcase_model.summary()
 # generate graphviz plot fo the model layout
 #------------------------------------------------------------------------------
 if cnf.generate_model_graph == True:
-    plot_path = os.path.join(GlobVar.model_savepath, 'XREP_scheme.png')       
+    plot_path = os.path.join(GlobVar.model_folder_path, 'XREP_scheme.png')       
     plot_model(showcase_model, to_file = plot_path, show_shapes = True, 
                show_layer_names = True, show_layer_activations = True, 
                expand_nested = True, rankdir='TB', dpi = 400)    
@@ -126,17 +125,17 @@ if cnf.generate_model_graph == True:
 # Setting callbacks and training routine for the XRAY captioning model. 
 # to visualize tensorboard report, use command prompt on the model folder and 
 # upon activating environment, use the bash command: 
-#python -m tensorboard.main --logdir tensorboard/
+# python -m tensorboard.main --logdir tensorboard/
 #==============================================================================
 
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
-RTH_callback = RealTimeHistory(GlobVar.model_savepath, validation=True)
+RTH_callback = RealTimeHistory(GlobVar.model_folder_path, validation=True)
 
 # initialize tensorboard
 #------------------------------------------------------------------------------
 if cnf.use_tensorboard == True:
-    log_path = os.path.join(GlobVar.model_savepath, 'tensorboard')
+    log_path = os.path.join(GlobVar.model_folder_path, 'tensorboard')
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
     callbacks = [RTH_callback, tensorboard_callback]    
 else:    
@@ -147,7 +146,13 @@ else:
 training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
                              callbacks=callbacks, workers=6, use_multiprocessing=True) 
 
-trainer.save_model(caption_model, GlobVar.model_savepath)
+trainer.save_model(caption_model, GlobVar.model_folder_path)
+
+print(f'''
+-------------------------------------------------------------------------------
+Training session is over. Model has been saved in folder {GlobVar.model_folder_name}
+-------------------------------------------------------------------------------
+''')
 
 
 
