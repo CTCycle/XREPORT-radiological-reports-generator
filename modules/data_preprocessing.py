@@ -34,8 +34,9 @@ The preprocessing procedure comprises the tokenization and padding on the text s
 # create model folder
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-model_savepath = preprocessor.model_savefolder(GlobVar.model_path, 'XREP')
-GlobVar.model_savepath = model_savepath
+model_folder = preprocessor.model_savefolder(GlobVar.models_path, 'XREP')
+GlobVar.model_folder_path = model_folder
+GlobVar.model_folder_name = preprocessor.folder_name
 
 # load data from csv, add paths to images 
 #------------------------------------------------------------------------------
@@ -60,7 +61,7 @@ train_data, test_data = train_test_split(dataset, test_size=test_size, random_st
 
 # create subfolder for preprocessing data
 #------------------------------------------------------------------------------
-pp_path = os.path.join(model_savepath, 'preprocessing')
+pp_path = os.path.join(model_folder, 'preprocessing')
 if not os.path.exists(pp_path):
     os.mkdir(pp_path)
 
@@ -94,7 +95,6 @@ test_data['tokenized_text'] = padded_test_text
 #==============================================================================
 file_loc = os.path.join(pp_path, 'XREP_train.csv')  
 train_data.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')
-
 file_loc = os.path.join(pp_path, 'XREP_test.csv')  
 test_data.to_csv(file_loc, index = False, sep = ';', encoding = 'utf-8')
 
