@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from keras import backend as K
-from tensorflow.keras.utils import register_keras_serializable
 from keras.models import Model
-from keras.layers import Dense, Conv2D, MaxPooling2D, LayerNormalization
-from keras.layers import Input, Reshape, Embedding, MultiHeadAttention, Dropout
+from keras import layers
+from tensorflow.keras.utils import register_keras_serializable
 from tqdm import tqdm
 
     
@@ -16,8 +15,7 @@ from tqdm import tqdm
 #==============================================================================
 # Real time history callback
 #==============================================================================
-class RealTimeHistory(keras.callbacks.Callback):
-    
+class RealTimeHistory(keras.callbacks.Callback):    
      
     def __init__(self, plot_path, validation=True):        
         super().__init__()
@@ -37,8 +35,7 @@ class RealTimeHistory(keras.callbacks.Callback):
             if self.validation==True:
                 self.loss_val_hist.append(logs[list(logs.keys())[2]])            
                 self.metric_val_hist.append(logs[list(logs.keys())[3]])
-        if epoch % 5 == 0:            
-            #------------------------------------------------------------------
+        if epoch % 5 == 0:              
             fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
             plt.subplot(2, 1, 1)
             plt.plot(self.epochs, self.loss_hist, label='training loss')
@@ -58,7 +55,8 @@ class RealTimeHistory(keras.callbacks.Callback):
             plt.xlabel('epoch')       
             plt.tight_layout()
             plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi = 300)
-            plt.close()    
+            plt.close() 
+
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 #==============================================================================
@@ -130,6 +128,7 @@ class DataGenerator(keras.utils.Sequence):
         next_index = (self.batch_index + 1) % self.__len__()
         self.batch_index = next_index
         return self.__getitem__(next_index)
+    
 
 # [LEARNING RATE SCHEDULER]
 #==============================================================================
@@ -156,36 +155,36 @@ class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
 #==============================================================================
 # Custom encoder model
 #==============================================================================    
-@register_keras_serializable(package='image_encoder')
+@register_keras_serializable(package='Encoders', name='image_encoder')
 class ImageEncoder(keras.layers.Layer):
-    def __init__(self, kernel_size, seed):
-        super(ImageEncoder, self).__init__()
+    def __init__(self, kernel_size, seed, **kwargs):
+        super(ImageEncoder, self).__init__(**kwargs)
         self.kernel_size = kernel_size
         self.seed = seed
-        self.conv1 = Conv2D(64, kernel_size, strides=1, padding='same', 
+        self.conv1 = layers.Conv2D(64, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.conv2 = Conv2D(128, kernel_size, strides=1, padding='same', 
+        self.conv2 = layers.Conv2D(128, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.conv3 = Conv2D(256, kernel_size, strides=1, padding='same', 
+        self.conv3 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')  
-        self.conv4 = Conv2D(512, kernel_size, strides=1, padding='same', 
+        self.conv4 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.conv5 = Conv2D(512, kernel_size, strides=1, padding='same', 
+        self.conv5 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform') 
-        self.conv6 = Conv2D(1024, kernel_size, strides=1, padding='same', 
+        self.conv6 = layers.Conv2D(1024, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.maxpool1 = MaxPooling2D((2, 2), strides=2, padding='same')
-        self.maxpool2 = MaxPooling2D((2, 2), strides=2, padding='same')
-        self.maxpool3 = MaxPooling2D((2, 2), strides=2, padding='same')
-        self.maxpool4 = MaxPooling2D((2, 2), strides=2, padding='same')          
-        self.dense1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.reshape = Reshape((-1, 512))        
+        self.maxpool1 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool2 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool3 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
+        self.maxpool4 = layers.MaxPooling2D((2, 2), strides=2, padding='same')          
+        self.dense1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.reshape = layers.Reshape((-1, 512))        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
-    def call(self, x, training):              
+    def call(self, x, training=True):              
         layer = self.conv1(x)                  
         layer = self.maxpool1(layer) 
         layer = self.conv2(layer)                     
@@ -221,14 +220,14 @@ class ImageEncoder(keras.layers.Layer):
 #==============================================================================
 @register_keras_serializable(package='embedders')
 class PositionalEmbedding(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True):
-        super(PositionalEmbedding, self).__init__()
+    def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True, **kwargs):
+        super(PositionalEmbedding, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
         self.embedding_dim = embedding_dims
         self.mask_zero = mask_zero
-        self.token_embeddings = Embedding(input_dim=self.vocab_size, output_dim=embedding_dims)                
-        self.position_embeddings = Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
+        self.token_embeddings = layers.Embedding(input_dim=self.vocab_size, output_dim=embedding_dims)                
+        self.position_embeddings = layers.Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
         self.embedding_scale = tf.math.sqrt(tf.cast(embedding_dims, tf.float32))        
     
     # implement positional embedding through call method  
@@ -271,26 +270,26 @@ class PositionalEmbedding(keras.layers.Layer):
 #==============================================================================
 # Custom transformer encoder
 #============================================================================== 
-@register_keras_serializable(package='transformer_encoder')
+@register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoderBlock(keras.layers.Layer):
-    def __init__(self, embedding_dims, num_heads, seed):
-        super(TransformerEncoderBlock, self).__init__()
+    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
+        super(TransformerEncoderBlock, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims       
         self.num_heads = num_heads  
         self.seed = seed       
-        self.attention = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
-        self.layernorm1 = LayerNormalization()
-        self.layernorm2 = LayerNormalization()
-        self.dense1 = Dense(2048, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = Dense(1536, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dropout1 = Dropout(0.2, seed=seed)
-        self.dropout2 = Dropout(0.2, seed=seed)
+        self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
+        self.layernorm1 = layers.LayerNormalization()
+        self.layernorm2 = layers.LayerNormalization()
+        self.dense1 = layers.Dense(2048, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(1536, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dropout1 = layers.Dropout(0.2, seed=seed)
+        self.dropout2 = layers.Dropout(0.2, seed=seed)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
-    def call(self, inputs, training):        
+    def call(self, inputs, training=True):        
         inputs = self.layernorm1(inputs)
         inputs = self.dense1(inputs)
         inputs = self.dropout1(inputs)  
@@ -321,33 +320,33 @@ class TransformerEncoderBlock(keras.layers.Layer):
 #==============================================================================
 # Custom transformer decoder
 #============================================================================== 
-@register_keras_serializable(package='transformer_decoder')
+@register_keras_serializable(package='Decoders')
 class TransformerDecoderBlock(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed):
-        super(TransformerDecoderBlock, self).__init__()
+    def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed, **kwargs):
+        super(TransformerDecoderBlock, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size
         self.embedding_dims = embedding_dims        
         self.num_heads = num_heads
         self.seed = seed
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
-        self.MHA_1 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.MHA_2 = MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.FFN_1 = Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.FFN_2 = Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
-        self.layernorm1 = LayerNormalization()
-        self.layernorm2 = LayerNormalization()
-        self.layernorm3 = LayerNormalization()
-        self.dense = Dense(2048, activation='relu', kernel_initializer='he_uniform')         
-        self.outmax = Dense(self.vocab_size, activation='softmax')
-        self.dropout1 = Dropout(0.2, seed=seed)
-        self.dropout2 = Dropout(0.3, seed=seed) 
-        self.dropout3 = Dropout(0.3, seed=seed)
+        self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
+        self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
+        self.FFN_1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_2 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
+        self.layernorm1 = layers.LayerNormalization()
+        self.layernorm2 = layers.LayerNormalization()
+        self.layernorm3 = layers.LayerNormalization()
+        self.dense = layers.Dense(2048, activation='relu', kernel_initializer='he_uniform')         
+        self.outmax = layers.Dense(self.vocab_size, activation='softmax')
+        self.dropout1 = layers.Dropout(0.2, seed=seed)
+        self.dropout2 = layers.Dropout(0.3, seed=seed) 
+        self.dropout3 = layers.Dropout(0.3, seed=seed)
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------
-    def call(self, inputs, encoder_outputs, training, mask):
+    def call(self, inputs, encoder_outputs, training=True, mask=None):
         inputs = self.posembedding(inputs)
         causal_mask = self.get_causal_attention_mask(inputs)        
         padding_mask = None
@@ -408,14 +407,14 @@ class TransformerDecoderBlock(keras.layers.Layer):
 #==============================================================================
 # Custom captioning model
 #==============================================================================  
-@register_keras_serializable(package='full_model')
+@register_keras_serializable(package='CaptionModel')
 class XREPCaptioningModel(keras.Model):    
-    def __init__(self, pic_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
-                 num_heads, learning_rate, XLA_state, seed=42):   
-        super(XREPCaptioningModel, self).__init__()
+    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
+                 num_heads, learning_rate, XLA_state, seed=42, **kwargs):   
+        super(XREPCaptioningModel, self).__init__(**kwargs)
         self.loss_tracker = keras.metrics.Mean(name='loss')
         self.acc_tracker = keras.metrics.Mean(name='accuracy')
-        self.pic_shape = pic_shape
+        self.picture_shape = picture_shape
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
         self.embedding_dims = embedding_dims
@@ -508,8 +507,8 @@ class XREPCaptioningModel(keras.Model):
     # print summary
     #--------------------------------------------------------------------------
     def get_model(self):
-        image_input = Input(shape=self.pic_shape)    
-        seq_input = Input(shape=(self.sequence_length, ))
+        image_input = layers.Input(shape=self.picture_shape)    
+        seq_input = layers.Input(shape=(self.sequence_length, ))
         model = Model(inputs=[image_input, seq_input], outputs = self.call([image_input, seq_input], 
                       training=False)) 
         
@@ -536,7 +535,7 @@ class XREPCaptioningModel(keras.Model):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(XREPCaptioningModel, self).get_config()
-        config.update({'picture_shape': self.pic_shape,
+        config.update({'picture_shape': self.picture_shape,
                        'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dims,
@@ -691,29 +690,24 @@ class Inference:
         elif len(model_folders) == 1:
             self.model_path = os.path.join(path, model_folders[0])           
         
-        # read model serialization configurationcreate and initialize it  
+        # read model serialization configuration and initialize it  
         path = os.path.join(self.model_path, 'model_configuration.json')
         with open(path, 'r') as f:
             config = json.load(f)        
-        model = XREPCaptioningModel.from_config(config)
-
-        # read model parameters  
-        path = os.path.join(self.model_path, 'model_parameters.json')
-        with open(path, 'r') as f:
-            self.parameters = json.load(f)
+        model = XREPCaptioningModel.from_config(config)        
 
         # set inputs to build the model 
         pic_shape = tuple(config['picture_shape'])
         sequence_length = config['sequence_length']
         build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
-        model(build_inputs, training=False)
-        
+        model(build_inputs, training=False) 
+
         # load weights into the model
         weights_path = os.path.join(self.model_path, 'model_weights.h5')
         model.load_weights(weights_path)
 
-        return model, config                         
+        return model, config                          
 
     #--------------------------------------------------------------------------    
     def generate_reports(self, model, paths, num_channels, picture_size,

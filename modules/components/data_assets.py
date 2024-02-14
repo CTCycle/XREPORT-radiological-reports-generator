@@ -47,17 +47,14 @@ class UserOperations:
                     continue
             break
         
-        return op_sel    
+        return op_sel
     
-
-
     
 # [PREPROCESSING PIPELINE]
 #==============================================================================
 # Preprocess data
 #==============================================================================
-class PreProcessing: 
-
+class PreProcessing:
 
     #--------------------------------------------------------------------------
     def images_pathfinder(self, path, dataframe, id_col):
@@ -173,9 +170,7 @@ class PreProcessing:
                 padded_text_str.append(x_string)
             padded_text = padded_text_str          
         
-        return padded_text     
-    
-    
+        return padded_text   
 
     #--------------------------------------------------------------------------
     def load_tokenizer(self, path, filename):  
@@ -201,15 +196,15 @@ class PreProcessing:
             str: A string containing the path of the folder where the model will be saved.
         
         '''        
-        raw_today_datetime = str(datetime.now())
-        truncated_datetime = raw_today_datetime[:-10]
+        today_datetime = str(datetime.now())
+        truncated_datetime = today_datetime[:-10]
         today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
-        model_name = f'{model_name}_{today_datetime}'
-        model_savepath = os.path.join(path, model_name)
-        if not os.path.exists(model_savepath):
-            os.mkdir(model_savepath)               
-            
-        return model_savepath
+        self.folder_name = f'{model_name}_{today_datetime}'
+        model_folder_path = os.path.join(path, self.folder_name)
+        if not os.path.exists(model_folder_path):
+            os.mkdir(model_folder_path) 
+                    
+        return model_folder_path
 
 
 
