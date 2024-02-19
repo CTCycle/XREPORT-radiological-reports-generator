@@ -1,7 +1,6 @@
 __pycache__
-dataset/XRAY images/*
-dataset/Tokenizers/*
+data/images/*
+data/reports/*
 documents/
 models/*
-reports/*
 

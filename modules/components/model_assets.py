@@ -7,7 +7,6 @@ from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
 from keras import layers
-from tensorflow.keras.utils import register_keras_serializable
 from tqdm import tqdm
 
     
@@ -134,10 +133,11 @@ class DataGenerator(keras.utils.Sequence):
 #==============================================================================
 # Generate data on the fly to avoid memory burdening
 #==============================================================================
+@keras.utils.register_keras_serializable(package='LRScheduler')
 class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, post_warmup_learning_rate, warmup_steps):
+    def __init__(self, post_warmup_lr, warmup_steps):
         super().__init__()
-        self.post_warmup_learning_rate = post_warmup_learning_rate
+        self.post_warmup_lr = post_warmup_lr
         self.warmup_steps = warmup_steps
 
     # implement encoder through call method  
@@ -146,16 +146,31 @@ class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
         global_step = tf.cast(step, tf.float32)
         warmup_steps = tf.cast(self.warmup_steps, tf.float32)
         warmup_progress = global_step/warmup_steps
-        warmup_learning_rate = self.post_warmup_learning_rate * warmup_progress
+        warmup_learning_rate = self.post_warmup_lr * warmup_progress
 
         return tf.cond(global_step < warmup_steps, lambda: warmup_learning_rate,
-                       lambda: self.post_warmup_learning_rate)
+                       lambda: self.post_warmup_lr)
+    
+    # custom configurations
+    #--------------------------------------------------------------------------
+    def get_config(self):
+        config = super(LRScheduler, self).get_config()
+        config.update({'post_warmup_lr': self.post_warmup_lr,
+                       'warmup_steps': self.warmup_steps})
+        return config        
+    
+    # deserialization method 
+    #--------------------------------------------------------------------------
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
       
 # [IMAGE ENCODER MODEL]
 #==============================================================================
 # Custom encoder model
 #==============================================================================    
-@register_keras_serializable(package='Encoders', name='image_encoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='ImageEncoder')
 class ImageEncoder(keras.layers.Layer):
     def __init__(self, kernel_size, seed, **kwargs):
         super(ImageEncoder, self).__init__(**kwargs)
@@ -210,15 +225,18 @@ class ImageEncoder(keras.layers.Layer):
                        'seed' : self.seed})
         return config
 
+    # deserialization method 
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+    
 
 # [POSITIONAL EMBEDDING]
 #==============================================================================
 # Custom positional embedding layer
 #==============================================================================
-@register_keras_serializable(package='embedders')
+@keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
@@ -261,6 +279,8 @@ class PositionalEmbedding(keras.layers.Layer):
                        'mask_zero': self.mask_zero})
         return config
 
+    # deserialization method 
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -270,7 +290,7 @@ class PositionalEmbedding(keras.layers.Layer):
 #==============================================================================
 # Custom transformer encoder
 #============================================================================== 
-@register_keras_serializable(package='Encoders', name='TransformerEncoder')
+@keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoderBlock')
 class TransformerEncoderBlock(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerEncoderBlock, self).__init__(**kwargs)
@@ -312,15 +332,17 @@ class TransformerEncoderBlock(keras.layers.Layer):
                        'seed': self.seed})
         return config
 
+    # deserialization method 
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
-        return cls(**config) 
+        return cls(**config)
 
 # [TRANSFORMER DECODER]
 #==============================================================================
 # Custom transformer decoder
 #============================================================================== 
-@register_keras_serializable(package='Decoders')
+@keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoderBlock')
 class TransformerDecoderBlock(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerDecoderBlock, self).__init__(**kwargs)
@@ -398,6 +420,8 @@ class TransformerDecoderBlock(keras.layers.Layer):
                        'seed': self.seed})
         return config
 
+    # deserialization method 
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -407,7 +431,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
 #==============================================================================
 # Custom captioning model
 #==============================================================================  
-@register_keras_serializable(package='CaptionModel')
+@keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
     def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
                  num_heads, learning_rate, XLA_state, seed=42, **kwargs):   
@@ -494,15 +518,16 @@ class XREPCaptioningModel(keras.Model):
  
     # implement captioning model through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, training):
+    def call(self, inputs, training=True):
+
         images, sequences = inputs        
         mask = tf.math.not_equal(sequences, 0)             
         image_features = self.image_encoder(images)        
-        encoder = self.encoder1(image_features, training)
+        encoder = self.encoder1(image_features, training=training)
         encoder = self.encoder2(encoder, training)
-        decoder = self.decoder(sequences, encoder, training, mask)
+        decoder = self.decoder(sequences, encoder, training=training, mask=mask)
 
-        return decoder
+        return decoder   
     
     # print summary
     #--------------------------------------------------------------------------
@@ -523,7 +548,7 @@ class XREPCaptioningModel(keras.Model):
         metric = keras.metrics.SparseCategoricalAccuracy()  
         opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
         super(XREPCaptioningModel, self).compile(optimizer=opt, loss=loss, metrics=metric, 
-                                                 run_eagerly=False, jit_compile=self.XLA_state)
+                                                 run_eagerly=False, jit_compile=self.XLA_state)   
         
     # track metrics and losses  
     #--------------------------------------------------------------------------
@@ -546,9 +571,11 @@ class XREPCaptioningModel(keras.Model):
                        'seed' : self.seed})
         return config
 
+    # deserialization method 
+    #--------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
-        return cls(**config)   
+        return cls(**config)  
     
 
 # [TRAINING OPTIONS]
@@ -622,7 +649,7 @@ class ModelTraining:
             json.dump(parameters_dict, f)     
     
     #--------------------------------------------------------------------------   
-    def save_model(self, model, path):        
+    def save_subclassed_model(self, model, path):        
         weights_path = os.path.join(path, 'model_weights.h5')  
         model.save_weights(weights_path)        
         config = model.get_config()
@@ -685,29 +712,31 @@ class Inference:
                     print()
                 except:
                     continue
-            self.model_path = os.path.join(path, model_folders[dir_index - 1])
+            self.folder_path = os.path.join(path, model_folders[dir_index - 1])
 
         elif len(model_folders) == 1:
-            self.model_path = os.path.join(path, model_folders[0])           
+            self.folder_path = os.path.join(path, model_folders[0])                   
         
-        # read model serialization configuration and initialize it  
-        path = os.path.join(self.model_path, 'model_configuration.json')
+        # read model serialization configuration and initialize it           
+        path = os.path.join(self.folder_path, 'model', 'model_configuration.json')
         with open(path, 'r') as f:
-            config = json.load(f)        
-        model = XREPCaptioningModel.from_config(config)        
+            configuration = json.load(f)        
+        model = XREPCaptioningModel.from_config(configuration)             
 
         # set inputs to build the model 
-        pic_shape = tuple(config['picture_shape'])
-        sequence_length = config['sequence_length']
+        pic_shape = tuple(configuration['picture_shape'])
+        sequence_length = configuration['sequence_length']
         build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
-                       tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
+                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
         model(build_inputs, training=False) 
 
-        # load weights into the model
-        weights_path = os.path.join(self.model_path, 'model_weights.h5')
-        model.load_weights(weights_path)
+        # load weights into the model 
+        weights_path = os.path.join(self.folder_path, 'model', 'model_weights.h5')
+        model.load_weights(weights_path)                       
+        
+        return model, configuration
 
-        return model, config                          
+                                
 
     #--------------------------------------------------------------------------    
     def generate_reports(self, model, paths, num_channels, picture_size,
@@ -725,7 +754,7 @@ class Inference:
             image = image/255.0 
             input_image = tf.expand_dims(image, 0)
             features = model.image_encoder(input_image)
-            encoded_img = model.encoder(features, training=False)   
+            encoded_img = model.encoder1(features, training=False)   
 
             # teacher forging method to generate tokens through the decoder
             decoded_caption = '[START]'

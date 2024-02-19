@@ -1,11 +1,12 @@
 import os
-import tensorflow as tf
+import numpy as np
+import cv2
 from datetime import datetime
-from tensorflow.keras.preprocessing.text import Tokenizer, tokenizer_from_json
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+import tensorflow as tf
+from keras.api._v2.keras import preprocessing
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 tqdm.pandas()
-
 
 
 # [CONSOLE USER OPERATIONS]
@@ -72,20 +73,27 @@ class PreProcessing:
         return dataframe 
 
     #--------------------------------------------------------------------------
-    def load_images(self, paths, num_channels, image_size):
+    def load_images(self, paths, image_size, as_tensor=True, normalize=True):
         
         images = []
         for pt in tqdm(paths):
-            image = tf.io.read_file(pt)
-            image = tf.image.decode_image(image, channels=num_channels)
-            image = tf.image.resize(image, image_size)
-            if num_channels==3:
+            if as_tensor==False:                
+                image = cv2.imread(pt)             
+                image = cv2.resize(image, image_size)            
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
+                if normalize==True:
+                    image = image/255.0
+            else:
+                image = tf.io.read_file(pt)
+                image = tf.image.decode_image(image, channels=3)
+                image = tf.image.resize(image, image_size)
                 image = tf.reverse(image, axis=[-1])
-            image = image/255.0 
+                if normalize==True:
+                    image = image/255.0
+            
             images.append(image) 
 
-        return images    
-        
+        return images        
 
     #--------------------------------------------------------------------------
     def text_preparation(self, strings):
@@ -129,7 +137,7 @@ class PreProcessing:
             tokenized_text (list or numpy.ndarray): The tokenized texts in the specified output format.
         
         '''
-        self.tokenizer = Tokenizer()
+        self.tokenizer = preprocessing.text.Tokenizer()
         self.tokenizer.fit_on_texts(train_text)
         train_tokenized = self.tokenizer.texts_to_sequences(train_text)        
         test_tokenized = self.tokenizer.texts_to_sequences(test_text)        
@@ -161,7 +169,7 @@ class PreProcessing:
             padded_text (list): A list of padded sequences in the specified output format.
         
         '''
-        padded_text = pad_sequences(sequences, maxlen = pad_length, value = 0, 
+        padded_text = preprocessing.sequence.pad_sequences(sequences, maxlen = pad_length, value = 0, 
                                     dtype = 'int32', padding = 'post')
         if output == 'string':
             padded_text_str = []
@@ -178,7 +186,7 @@ class PreProcessing:
         json_path = os.path.join(path, f'{filename}.json')
         with open(json_path, 'r', encoding='utf-8') as f:
             json_string = f.read()
-            tokenizer = tokenizer_from_json(json_string)
+            tokenizer = preprocessing.text.tokenizer_from_json(json_string)
 
         return tokenizer
     
@@ -205,8 +213,30 @@ class PreProcessing:
             os.mkdir(model_folder_path) 
                     
         return model_folder_path
+    
 
+# [VALIDATION OF DATA]
+#==============================================================================
+# Series of methods and functions to preprocess data for model training
+#==============================================================================
+class DataValidation:
 
+    def pixel_intensity_histograms(self, image_set_1, image_set_2, path,
+                                   names=['First set', 'Second set']):
+        
+        pixel_intensities_1 = np.concatenate([image.flatten() for image in image_set_1])
+        pixel_intensities_2 = np.concatenate([image.flatten() for image in image_set_2])        
+        plt.hist(pixel_intensities_1, bins='auto', alpha=0.5, color='blue', label=names[0])
+        plt.hist(pixel_intensities_2, bins='auto', alpha=0.5, color='red', label=names[1])
+        plt.title('Pixel Intensity Histograms')
+        plt.xlabel('Pixel Intensity')
+        plt.ylabel('Frequency')
+        plt.legend()            
+        plt.tight_layout()
+        plot_loc = os.path.join(path, 'pixel_intensities.jpeg')
+        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)            
+        plt.close()
+        
 
 
 
