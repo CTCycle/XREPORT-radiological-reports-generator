@@ -33,9 +33,9 @@ import modules.data_preprocessing
 # load preprocessed csv files (train and test datasets)
 #------------------------------------------------------------------------------
 file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_train.csv') 
-df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
+df_train = pd.read_csv(file_loc, encoding='utf-8', sep=(';' or ',' or ' ' or  ':'), low_memory=False)
 file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_test.csv') 
-df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
+df_test = pd.read_csv(file_loc, encoding='utf-8', sep=(';' or ',' or ' ' or  ':'), low_memory=False)
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
@@ -49,8 +49,8 @@ trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
 # load tokenizer to get padding length and vocabulary size
 #------------------------------------------------------------------------------
-tokenizer_path = os.path.join(GlobVar.model_folder_path, 'preprocessing')
-tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
+pp_path = os.path.join(GlobVar.model_folder_path, 'preprocessing')
+tokenizer = preprocessor.load_tokenizer(pp_path, 'word_tokenizer')
 vocab_size = len(tokenizer.word_index) + 1
 
 # initialize generators for X and Y subsets
@@ -141,12 +141,21 @@ if cnf.use_tensorboard == True:
 else:    
     callbacks = [RTH_callback]
 
-# define and execute training loop, then save the model weights at end
+# define and execute training loop, 
 #------------------------------------------------------------------------------
+multiprocessing = cnf.num_processors > 1
 training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
-                             callbacks=callbacks, workers=6, use_multiprocessing=True) 
+                             batch_size=cnf.batch_size, callbacks=callbacks, workers=6, 
+                             use_multiprocessing=multiprocessing) 
 
-trainer.save_model(caption_model, GlobVar.model_folder_path)
+model_files_path = os.path.join(GlobVar.model_folder_path, 'model')
+if not os.path.exists(model_files_path):
+    os.mkdir(model_files_path)
+
+# save model by saving weights and configurations, due to it being a subclassed model
+# with custom train_step function 
+#------------------------------------------------------------------------------
+trainer.save_subclassed_model(caption_model, model_files_path)
 
 print(f'''
 -------------------------------------------------------------------------------
@@ -154,6 +163,21 @@ Training session is over. Model has been saved in folder {GlobVar.model_folder_n
 -------------------------------------------------------------------------------
 ''')
 
+# save model parameters in json files
+#------------------------------------------------------------------------------
+parameters = {'train_samples': cnf.num_train_samples,
+              'test_samples': cnf.num_test_samples,
+              'picture_shape' : cnf.picture_shape,             
+              'kernel_size' : cnf.kernel_size, 
+              'num_heads' : cnf.num_heads,             
+              'augmentation' : cnf.augmentation,              
+              'batch_size' : cnf.batch_size,
+              'learning_rate' : cnf.learning_rate,
+              'epochs' : cnf.epochs,
+              'seed' : cnf.seed,
+              'tensorboard' : cnf.use_tensorboard}
+
+trainer.model_parameters(parameters, GlobVar.model_folder_path)
 
 
 
