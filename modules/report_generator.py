@@ -45,8 +45,8 @@ Report generation will start once you've selected the model.
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference() 
-model, configurations = inference.load_pretrained_model(GlobVar.model_path)
-model_path = inference.model_path
+model, parameters = inference.load_pretrained_model(GlobVar.models_path)
+model_path = inference.folder_path
 model.summary()
 
 # Load the tokenizer
@@ -64,10 +64,10 @@ print('''Generate the reports for XRAY images
 
 # generate captions
 #------------------------------------------------------------------------------ 
-scan_size = tuple(configurations['picture_shape'][:-1])
-channels = configurations['picture_shape'][-1]
-vocab_size = configurations['vocab_size']
-report_length = configurations['sequence_length']
+scan_size = tuple(parameters['picture_shape'][:-1])
+channels = parameters['picture_shape'][-1]
+vocab_size = parameters['vocab_size']
+report_length = parameters['sequence_length']
 generated_reports = inference.generate_reports(model, scan_paths, channels, scan_size, report_length, tokenizer)
 
 
