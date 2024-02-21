@@ -33,7 +33,7 @@ XREPORT model evaluation
 
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
-inference = Inference() 
+inference = Inference(cnf.seed) 
 model, parameters = inference.load_pretrained_model(GlobVar.models_path)
 model_path = inference.folder_path
 model.summary()
