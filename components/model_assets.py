@@ -127,7 +127,11 @@ class DataGenerator(keras.utils.Sequence):
         next_index = (self.batch_index + 1) % self.__len__()
         self.batch_index = next_index
         return self.__getitem__(next_index)
-    
+
+# [EMBEDDINGS]
+#==============================================================================
+# Custom embeddings
+#==============================================================================   
 
 # [LEARNING RATE SCHEDULER]
 #==============================================================================
