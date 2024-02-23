@@ -8,21 +8,27 @@ import tensorflow as tf
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# add modules path to sys
+# add parent folder path to the namespace
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import ModelTraining, DataGenerator, Inference
-import modules.global_variables as GlobVar
+from components.data_assets import PreProcessing
+from components.model_assets import ModelTraining, DataGenerator, Inference
+import components.global_paths as globpt
 import configurations as cnf
+
+# specify relative paths from global paths and create subfolders
+#------------------------------------------------------------------------------
+images_path = os.path.join(globpt.data_path, 'images') 
+cp_path = os.path.join(globpt.model_path, 'checkpoints') 
+os.mkdir(images_path) if not os.path.exists(images_path) else None
+os.mkdir(cp_path) if not os.path.exists(cp_path) else None
+ 
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
-# ....
 #==============================================================================        
 print(f'''
 -------------------------------------------------------------------------------
@@ -34,7 +40,7 @@ XREPORT model evaluation
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(GlobVar.models_path)
+model, parameters = inference.load_pretrained_model(globpt.model_path)
 model_path = inference.folder_path
 model.summary()
 
@@ -54,12 +60,10 @@ df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or 
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
-# initialize a custom generator to load data on the fly
 #==============================================================================
 
 # initialize training device
 #------------------------------------------------------------------------------
-preprocessor = PreProcessing()
 trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
 # initialize generators for X and Y subsets
@@ -92,7 +96,6 @@ df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 # [EVALUATE XREPORT MODEL]
 #==============================================================================
-# ...
 #==============================================================================
 
 # Print report with info about the training parameters
