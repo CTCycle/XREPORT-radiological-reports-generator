@@ -32,7 +32,7 @@ This folder hosts the data utilized for both model training and evaluation purpo
 - `data/validation` stores the outcomes of data validation processes. 
 - Execute `data_validation.py` to conduct an in-depth analysis leveraging the original image dataset.
 
-**Model**
+**Training**
 Contained within this folder are the necessary files for conducting model training and evaluation, especially for pre-trained models:
 - `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored.
 - Run `model_training.py` to initiate the training process for deep learning models.
