@@ -21,13 +21,25 @@ The heart of the model comprises a transformer encoder and decoder. The transfor
 To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 ## How to use
-Run the XRAYREP.py file to launch the script and use the main menu to navigate the different options. From the main menu, you can select one of the following options:
+Within the project folder, you'll find several key subfolders:
 
-**1) Pretrain XREP model** Preprocess data and pretrain the XREP captioning model 
+**Components**
+This directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could jeopardize the script's integrity.
 
-**2) Generate reports based on images** Use a pretrained model to generate reports from raw X-RAY images
+**Data**
+This folder hosts the data utilized for both model training and evaluation purposes:
+- `data/images` holds the image data employed for various tasks.
+- `data/validation` stores the outcomes of data validation processes. 
+- Execute `data_validation.py` to conduct an in-depth analysis leveraging the original image dataset.
 
-**3) Exit and close**
+**Model**
+Contained within this folder are the necessary files for conducting model training and evaluation, especially for pre-trained models:
+- `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored.
+- Run `model_training.py` to initiate the training process for deep learning models.
+- Run `model_evaluation.py` to evaluate the performance metrics of pre-trained models.
+
+**Inference**
+Utilizing `report_generator.py` from this directory facilitates the loading and inferencing of pre-trained model checkpoints to generate radiological reports from the source X-ray images located within `inference/reports`. The reports are saved as .csv file and will be available within the same directory.
 
 ### Configurations
 The configurations.py file allows to change the script configuration. The following parameters are available:

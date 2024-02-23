@@ -6,21 +6,24 @@ import sys
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# add modules path if this file is launched as __main__
+# add parent folder path to the namespace
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..')) 
 
 # import modules and components
 #------------------------------------------------------------------------------
-from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import Inference
-import modules.global_variables as GlobVar
+from components.data_assets import PreProcessing
+from components.model_assets import Inference
+import components.global_paths as globpt
 import configurations as cnf
+
+# specify relative paths from global paths and create subfolders
+#------------------------------------------------------------------------------
+rep_path = os.path.join(globpt.inference_path, 'reports') 
+os.mkdir(rep_path) if not os.path.exists(rep_path) else None  
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
-# ....
 #==============================================================================        
 print(f'''
 -------------------------------------------------------------------------------
@@ -31,33 +34,30 @@ XREPORT report generation
 
 # check report folder and generate list of images paths
 #------------------------------------------------------------------------------
-if not os.listdir(GlobVar.rep_path):
+if not os.listdir(rep_path):
     print('''No XRAY scans found in the report generation folder, please add them before continuing,
-the script will now be closed!
-''')
+the script will now be closed!\n''')
     sys.exit()
 else:
-    scan_paths = [os.path.join(root, file) for root, dirs, files in os.walk(GlobVar.rep_path) for file in files]
+    scan_paths = [os.path.join(root, file) for root, dirs, files in os.walk(rep_path) for file in files]
     print(f'''XRAY images found: {len(scan_paths)}
-Report generation will start once you've selected the model.
-''')    
+Report generation will start once you've selected the model.\n''')    
 
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(GlobVar.models_path)
+model, parameters = inference.load_pretrained_model(globpt.model_path)
 model_path = inference.folder_path
 model.summary()
 
 # Load the tokenizer
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-tokenizer_path = os.path.join(model_path, 'preprocessing')
-tokenizer = preprocessor.load_tokenizer(tokenizer_path, 'word_tokenizer')
+pp_path = os.path.join(model_path, 'preprocessing')
+tokenizer = preprocessor.load_tokenizer(pp_path, 'word_tokenizer')
 
 # [GENERATE REPORTS]
 #==============================================================================
-# ....
 #==============================================================================
 print('''Generate the reports for XRAY images
 ''')

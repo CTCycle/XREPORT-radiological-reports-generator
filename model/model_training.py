@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import tensorflow as tf
+from sklearn.model_selection import train_test_split
 from keras.utils import plot_model
 
 # set warnings
@@ -9,55 +10,103 @@ from keras.utils import plot_model
 import warnings
 warnings.simplefilter(action='ignore', category = Warning)
 
-# add modules path to sys
+# add parent folder path to the namespace
 #------------------------------------------------------------------------------
-if __name__ == '__main__':
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))  
+sys.path.append(os.path.join(os.path.dirname(__file__), '..')) 
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from modules.components.data_assets import PreProcessing
-from modules.components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel
-import modules.global_variables as GlobVar
+from components.data_assets import PreProcessing
+from components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel
+import components.global_paths as globpt
 import configurations as cnf
 
-# [PREPROCESS DATA AND INITIALIZE TRINING DEVICE]
+# specify relative paths from global paths and create subfolders
+#------------------------------------------------------------------------------
+images_path = os.path.join(globpt.data_path, 'images') 
+cp_path = os.path.join(globpt.model_path, 'checkpoints')
+os.mkdir(images_path) if not os.path.exists(images_path) else None 
+os.mkdir(cp_path) if not os.path.exists(cp_path) else None
+
+
+# [LOAD DATA]
 #==============================================================================
-# Load the preprocessing module and then load saved preprocessed data from csv 
 #==============================================================================
 
-# load preprocessing module
+# create model folder
 #------------------------------------------------------------------------------
-import modules.data_preprocessing
+preprocessor = PreProcessing()
+model_folder = preprocessor.model_savefolder(globpt.model_path, 'XREP')
+model_folder_name = preprocessor.folder_name
 
-# load preprocessed csv files (train and test datasets)
+# load data from csv, add paths to images 
 #------------------------------------------------------------------------------
-file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_train.csv') 
-df_train = pd.read_csv(file_loc, encoding='utf-8', sep=(';' or ',' or ' ' or  ':'), low_memory=False)
-file_loc = os.path.join(GlobVar.model_folder_path, 'preprocessing', 'XREP_test.csv') 
-df_test = pd.read_csv(file_loc, encoding='utf-8', sep=(';' or ',' or ' ' or  ':'), low_memory=False)
+file_loc = os.path.join(globpt.data_path, 'XREP_dataset.csv') 
+dataset = pd.read_csv(file_loc, encoding = 'utf-8', sep=';', low_memory=False)
+dataset = preprocessor.images_pathfinder(images_path, dataset, 'id')
+
+# select subset of data
+#------------------------------------------------------------------------------
+total_samples = cnf.num_train_samples + cnf.num_test_samples
+dataset = dataset.sample(n=total_samples, random_state=cnf.seed)
+
+# split data into train and test dataset and start preprocessor
+#------------------------------------------------------------------------------
+test_size = cnf.num_test_samples/total_samples
+train_data, test_data = train_test_split(dataset, test_size=test_size, random_state=cnf.seed)
+
+# [PREPROCESS DATA]
+#==============================================================================
+#==============================================================================
+
+# create subfolder for preprocessing data
+#------------------------------------------------------------------------------
+pp_path = os.path.join(model_folder, 'preprocessing')
+os.mkdir(pp_path) if not os.path.exists(pp_path) else None 
+
+# clean text corpus
+#------------------------------------------------------------------------------
+train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list()
+train_text = preprocessor.text_preparation(train_text)
+test_text = preprocessor.text_preparation(test_text)
+
+# extract text sequences and perform tokenization
+#------------------------------------------------------------------------------
+print('''STEP 1 ----> Text tokenization using word tokenizer\n''')
+tokenized_train_text, tokenized_test_text = preprocessor.text_tokenization(train_text, test_text, pp_path)
+tokenizer = preprocessor.tokenizer
+vocab_size = len(tokenizer.word_index) + 1
+
+# perform padding of sequences
+#------------------------------------------------------------------------------
+print('''STEP 2 ----> Sequence padding to equalize sequence length\n''')
+pad_length = max([len(x.split()) for x in train_text])
+padded_train_text = preprocessor.sequence_padding(tokenized_train_text, pad_length, output='string')
+padded_test_text = preprocessor.sequence_padding(tokenized_test_text, pad_length, output='string')
+train_data['tokenized_text'] = padded_train_text
+test_data['tokenized_text'] = padded_test_text
+
+# save preprocessed data
+#------------------------------------------------------------------------------
+file_loc = os.path.join(pp_path, 'XREP_train.csv')  
+train_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
+file_loc = os.path.join(pp_path, 'XREP_test.csv')  
+test_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
+
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
-# initialize a custom generator to load data on the fly
 #==============================================================================
 
 # initialize training device
 #------------------------------------------------------------------------------
-preprocessor = PreProcessing()
 trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
-
-# load tokenizer to get padding length and vocabulary size
-#------------------------------------------------------------------------------
-pp_path = os.path.join(GlobVar.model_folder_path, 'preprocessing')
-tokenizer = preprocessor.load_tokenizer(pp_path, 'word_tokenizer')
-vocab_size = len(tokenizer.word_index) + 1
 
 # initialize generators for X and Y subsets
 #------------------------------------------------------------------------------
-train_datagen = DataGenerator(df_train, cnf.batch_size, cnf.picture_shape, 
+train_datagen = DataGenerator(train_data, cnf.batch_size, cnf.picture_shape, 
                               shuffle=True, augmentation=cnf.augmentation)
-test_datagen = DataGenerator(df_test, cnf.batch_size, cnf.picture_shape, 
+test_datagen = DataGenerator(test_data, cnf.batch_size, cnf.picture_shape, 
                              shuffle=True, augmentation=cnf.augmentation)
 
 # define the output signature of the generator using tf.TensorSpec, in order to
@@ -81,7 +130,6 @@ df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 # [BUILD XREPORT MODEL]
 #==============================================================================
-# ....
 #==============================================================================
 
 # Print report with info about the training parameters
@@ -115,7 +163,7 @@ showcase_model.summary()
 # generate graphviz plot fo the model layout
 #------------------------------------------------------------------------------
 if cnf.generate_model_graph == True:
-    plot_path = os.path.join(GlobVar.model_folder_path, 'XREP_scheme.png')       
+    plot_path = os.path.join(model_folder, 'XREP_scheme.png')       
     plot_model(showcase_model, to_file = plot_path, show_shapes = True, 
                show_layer_names = True, show_layer_activations = True, 
                expand_nested = True, rankdir='TB', dpi = 400)    
@@ -130,12 +178,12 @@ if cnf.generate_model_graph == True:
 
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
-RTH_callback = RealTimeHistory(GlobVar.model_folder_path, validation=True)
+RTH_callback = RealTimeHistory(model_folder, validation=True)
 
 # initialize tensorboard
 #------------------------------------------------------------------------------
 if cnf.use_tensorboard == True:
-    log_path = os.path.join(GlobVar.model_folder_path, 'tensorboard')
+    log_path = os.path.join(model_folder, 'tensorboard')
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1)
     callbacks = [RTH_callback, tensorboard_callback]    
 else:    
@@ -145,10 +193,10 @@ else:
 #------------------------------------------------------------------------------
 multiprocessing = cnf.num_processors > 1
 training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
-                             batch_size=cnf.batch_size, callbacks=callbacks, workers=6, 
-                             use_multiprocessing=multiprocessing) 
+                             batch_size=cnf.batch_size, callbacks=callbacks, 
+                             workers=cnf.num_processors, use_multiprocessing=multiprocessing) 
 
-model_files_path = os.path.join(GlobVar.model_folder_path, 'model')
+model_files_path = os.path.join(model_folder, 'model')
 if not os.path.exists(model_files_path):
     os.mkdir(model_files_path)
 
@@ -159,7 +207,7 @@ trainer.save_subclassed_model(caption_model, model_files_path)
 
 print(f'''
 -------------------------------------------------------------------------------
-Training session is over. Model has been saved in folder {GlobVar.model_folder_name}
+Training session is over. Model has been saved in folder {model_folder_name}
 -------------------------------------------------------------------------------
 ''')
 
@@ -177,7 +225,7 @@ parameters = {'train_samples': cnf.num_train_samples,
               'seed' : cnf.seed,
               'tensorboard' : cnf.use_tensorboard}
 
-trainer.model_parameters(parameters, GlobVar.model_folder_path)
+trainer.model_parameters(parameters, model_folder)
 
 
 
