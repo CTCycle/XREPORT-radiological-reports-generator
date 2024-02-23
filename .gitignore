@@ -1,6 +1,7 @@
 __pycache__
 data/images/*
-data/reports/*
-documents/
-models/*
+data/validation/*
+model/checkpoints/*
+inference/reports/*
+documents/*
 
