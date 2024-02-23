@@ -46,7 +46,7 @@ Report generation will start once you've selected the model.\n''')
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(globpt.model_path)
+model, parameters = inference.load_pretrained_model(globpt.train_path)
 model_path = inference.folder_path
 model.summary()
 
