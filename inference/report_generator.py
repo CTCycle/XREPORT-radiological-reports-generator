@@ -20,7 +20,9 @@ import configurations as cnf
 # specify relative paths from global paths and create subfolders
 #------------------------------------------------------------------------------
 rep_path = os.path.join(globpt.inference_path, 'reports') 
-os.mkdir(rep_path) if not os.path.exists(rep_path) else None  
+cp_path = os.path.join(globpt.train_path, 'checkpoints') 
+os.mkdir(rep_path) if not os.path.exists(rep_path) else None
+os.mkdir(cp_path) if not os.path.exists(cp_path) else None  
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
@@ -46,7 +48,7 @@ Report generation will start once you've selected the model.\n''')
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(globpt.train_path)
+model, parameters = inference.load_pretrained_model(cp_path)
 model_path = inference.folder_path
 model.summary()
 

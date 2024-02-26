@@ -14,8 +14,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from components.data_assets import PreProcessing
-from components.model_assets import ModelTraining, DataGenerator, Inference
+from components.data_assets import PreProcessing, DataGenerator, TensorDataSet
+from components.model_assets import ModelTraining, Inference
 import components.global_paths as globpt
 import configurations as cnf
 
@@ -40,7 +40,7 @@ XREPORT model evaluation
 # Load pretrained model and its parameters
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
-model, parameters = inference.load_pretrained_model(globpt.train_path)
+model, parameters = inference.load_pretrained_model(cp_path)
 model_path = inference.folder_path
 model.summary()
 
@@ -54,9 +54,9 @@ vocab_size = len(tokenizer.word_index) + 1
 # load preprocessed csv files (train and test datasets)
 #------------------------------------------------------------------------------
 file_loc = os.path.join(preprocessing_path, 'XREP_train.csv') 
-df_train = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
+train_data = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 file_loc = os.path.join(preprocessing_path, 'XREP_test.csv') 
-df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
+test_data = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or  ':'), low_memory=False)
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
@@ -66,37 +66,26 @@ df_test = pd.read_csv(file_loc, encoding = 'utf-8', sep = (';' or ',' or ' ' or 
 #------------------------------------------------------------------------------
 trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
-# initialize generators for X and Y subsets
+# initialize the images generator for the train and test data, and create the 
+# tf.dataset according to batch shapes
 #------------------------------------------------------------------------------
-num_train_samples = df_train.shape[0]
-num_test_samples = df_test.shape[0]
-train_datagen = DataGenerator(df_train, 200, parameters['picture_shape'], 
-                              shuffle=True, augmentation=False)
-test_datagen = DataGenerator(df_test, 200, parameters['picture_shape'], 
-                             shuffle=True, augmentation=False)
+train_generator = DataGenerator(train_data, cnf.batch_size, cnf.picture_shape, 
+                                shuffle=True, augmentation=cnf.augmentation)
+test_generator = DataGenerator(test_data, cnf.batch_size, cnf.picture_shape, 
+                               shuffle=True, augmentation=cnf.augmentation)
 
-# define the output signature of the generator using tf.TensorSpec, in order to
-# successfully build a tf.dataset object from the custom generator
-#------------------------------------------------------------------------------
-x_batch, y_batch = train_datagen.__getitem__(0)
-img_shape = x_batch[0].shape
-tokenseq_shape = x_batch[1].shape
-caption_shape = y_batch.shape
-output_signature = ((tf.TensorSpec(shape=img_shape, dtype=tf.float32),
-                     tf.TensorSpec(shape=tokenseq_shape, dtype=tf.float32)),
-                     tf.TensorSpec(shape=caption_shape, dtype=tf.float32))
-
-# generate tf.dataset from the initialized generator using the output signaturs.
-# set prefetch (auto-tune) on the freshly created tf.dataset
-#------------------------------------------------------------------------------
-df_train = tf.data.Dataset.from_generator(lambda : train_datagen, output_signature=output_signature)
-df_test = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature=output_signature)
-df_train = df_train.prefetch(buffer_size=tf.data.AUTOTUNE)
-df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
+# initialize the TensorDataSet class with the generator instances
+# create the tf.datasets using the previously initialized generators 
+datamaker = TensorDataSet()
+train_dataset = datamaker.create_tf_dataset(train_generator)
+test_dataset = datamaker.create_tf_dataset(test_generator)
+caption_shape = datamaker.y_batch.shape[1]
 
 # [EVALUATE XREPORT MODEL]
 #==============================================================================
 #==============================================================================
+num_train_samples = train_data.shape[0]
+num_test_samples = test_data.shape[0]
 
 # Print report with info about the training parameters
 #------------------------------------------------------------------------------
@@ -110,7 +99,7 @@ Number of test samples:  {num_test_samples}
 Batch size:              {cnf.batch_size}
 Epochs:                  {cnf.epochs}
 Vocabulary size:         {vocab_size + 1}
-Caption length:          {caption_shape[1]} 
+Caption length:          {caption_shape} 
 -------------------------------------------------------------------------------
 ''')
     
