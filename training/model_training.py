@@ -16,8 +16,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from components.data_assets import PreProcessing
-from components.model_assets import ModelTraining, RealTimeHistory, DataGenerator, XREPCaptioningModel
+from components.data_assets import PreProcessing, DataGenerator, TensorDataSet
+from components.model_assets import ModelTraining, RealTimeHistory, XREPCaptioningModel
 import components.global_paths as globpt
 import configurations as cnf
 
@@ -36,7 +36,7 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 # create model folder
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
-model_folder = preprocessor.model_savefolder(globpt.train_path, 'XREP')
+model_folder = preprocessor.model_savefolder(cp_path, 'XREP')
 model_folder_name = preprocessor.folder_name
 
 # load data from csv, add paths to images 
@@ -102,31 +102,21 @@ test_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
 #------------------------------------------------------------------------------
 trainer = ModelTraining(device=cnf.training_device, seed=cnf.seed)
 
-# initialize generators for X and Y subsets
+# initialize the images generator for the train and test data, and create the 
+# tf.dataset according to batch shapes
 #------------------------------------------------------------------------------
-train_datagen = DataGenerator(train_data, cnf.batch_size, cnf.picture_shape, 
-                              shuffle=True, augmentation=cnf.augmentation)
-test_datagen = DataGenerator(test_data, cnf.batch_size, cnf.picture_shape, 
-                             shuffle=True, augmentation=cnf.augmentation)
+train_generator = DataGenerator(train_data, cnf.batch_size, cnf.picture_shape, 
+                                shuffle=True, augmentation=cnf.augmentation)
+test_generator = DataGenerator(test_data, cnf.batch_size, cnf.picture_shape, 
+                               shuffle=True, augmentation=cnf.augmentation)
 
-# define the output signature of the generator using tf.TensorSpec, in order to
-# successfully build a tf.dataset object from the custom generator
-#------------------------------------------------------------------------------
-x_batch, y_batch = train_datagen.__getitem__(0)
-img_shape = x_batch[0].shape
-tokenseq_shape = x_batch[1].shape
-caption_shape = y_batch.shape
-output_signature = ((tf.TensorSpec(shape=img_shape, dtype=tf.float32),
-                     tf.TensorSpec(shape=tokenseq_shape, dtype=tf.float32)),
-                     tf.TensorSpec(shape=caption_shape, dtype=tf.float32))
+# initialize the TensorDataSet class with the generator instances
+# create the tf.datasets using the previously initialized generators 
+datamaker = TensorDataSet()
+train_dataset = datamaker.create_tf_dataset(train_generator)
+test_dataset = datamaker.create_tf_dataset(test_generator)
+caption_shape = datamaker.y_batch.shape[1]
 
-# generate tf.dataset from the initialized generator using the output signaturs.
-# set prefetch (auto-tune) on the freshly created tf.dataset
-#------------------------------------------------------------------------------
-df_train = tf.data.Dataset.from_generator(lambda : train_datagen, output_signature=output_signature)
-df_test = tf.data.Dataset.from_generator(lambda : test_datagen, output_signature=output_signature)
-df_train = df_train.prefetch(buffer_size=tf.data.AUTOTUNE)
-df_test = df_test.prefetch(buffer_size=tf.data.AUTOTUNE)
 
 # [BUILD XREPORT MODEL]
 #==============================================================================
@@ -144,13 +134,13 @@ Number of test samples:  {cnf.num_test_samples}
 Batch size:              {cnf.batch_size}
 Epochs:                  {cnf.epochs}
 Vocabulary size:         {vocab_size + 1}
-Caption length:          {caption_shape[1]} 
+Caption length:          {caption_shape} 
 -------------------------------------------------------------------------------
 ''')
 
 # initialize and compile the captioning model
 #------------------------------------------------------------------------------
-caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape[1], vocab_size, 
+caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape, vocab_size, 
                                     cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
                                     cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
 caption_model.compile()
@@ -189,20 +179,18 @@ if cnf.use_tensorboard == True:
 else:    
     callbacks = [RTH_callback]
 
-# define and execute training loop, 
+# define and execute training loop,
 #------------------------------------------------------------------------------
 multiprocessing = cnf.num_processors > 1
-training = caption_model.fit(df_train, validation_data=df_test, epochs=cnf.epochs, 
+training = caption_model.fit(train_dataset, validation_data=test_dataset, epochs=cnf.epochs, 
                              batch_size=cnf.batch_size, callbacks=callbacks, 
                              workers=cnf.num_processors, use_multiprocessing=multiprocessing) 
-
-model_files_path = os.path.join(model_folder, 'model')
-if not os.path.exists(model_files_path):
-    os.mkdir(model_files_path)
 
 # save model by saving weights and configurations, due to it being a subclassed model
 # with custom train_step function 
 #------------------------------------------------------------------------------
+model_files_path = os.path.join(model_folder, 'model')
+os.mkdir(model_files_path) if not os.path.exists(model_files_path) else None
 trainer.save_subclassed_model(caption_model, model_files_path)
 
 print(f'''

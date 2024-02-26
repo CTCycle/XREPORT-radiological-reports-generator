@@ -22,8 +22,8 @@ generate_model_graph = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_train_samples = 500
-num_test_samples = 100
+num_train_samples = 5000
+num_test_samples = 500
 augmentation = False
 
 # General settings 
