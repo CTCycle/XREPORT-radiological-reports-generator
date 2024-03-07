@@ -290,7 +290,8 @@ class DataValidation:
         plt.legend()            
         plt.tight_layout()
         plot_loc = os.path.join(path, 'pixel_intensities.jpeg')
-        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)            
+        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)
+        plt.show()            
         plt.close()
         
 
