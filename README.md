@@ -1,30 +1,17 @@
-# XRAY-report-generator
+# XRAYREP: Radiological Reports Generation
 
-## Project description
+## Project Overview
 XRAY Report Generator is a machine learning-based tool designed to assist radiologists in generating descriptive reports from X-ray images. This project aims to reduce the time and effort required by radiologists to write detailed reports based on the XRAY scan description, thereby increasing efficiency and turnover. The generative model is trained using combinations of XRAY images and their labels (descriptions), in the same fashion as image captioning models learn a sequence of word tokens associated to specific parts of the image. The XREPORT Deep Learning (DL) model developed for this scope makes use of a transformer encoder-decoder architecture, which relies on both self attention and cross attention to improve text significance within the clinical image context. The images features are extracted using a custom convolutional encoder with pooling layers to reduce dimensionality. Once a pretrained model is obtained leveraging a large number of X-RAY scans and their descriptions, the model can be used in inference mode to generate radiological reports from the raw pictures. 
 
-## XREP model
-The XREP Captioning Model is an advanced deep learning architecture tailored for generating radiological reports from X-RAY scans. Leveraging state-of-the-art captioning techniques, this model combines the power of multi-layer convolutional neural networks (CNNs) for image feature extraction with a transformer-based architecture for sequence generation.
+## XREP Captioning model
+The XREP Captioning Model is based on an advanced deep learning architecture tailored for generating radiological reports from X-RAY scans. Leveraging state-of-the-art captioning techniques, this model combines the power of multi-layer convolutional neural networks (CNNs) for image feature extraction with a transformer-based architecture for sequence generation. 
 
-### Key Features
+Firstly, X-RAY scans are processed and dimensionality-reduced using a series of max-pooling layers. This process encodes each X-RAY scan into a compact feature vector, capturing essential information for generating detailed reports. The model implements positional embedding by seamlessly blending token embeddings with positional embeddings. It also supports masking for variable-length sequences, ensuring adaptability to diverse radiological reports.
 
-**Image Feature Extraction**
-X-RAY scans are processed and dimensionality-reduced using a series of max-pooling layers. This process encodes each X-RAY scan into a compact feature vector, capturing essential information for generating detailed reports.
-
-**Positional Embedding**
-The model implements positional embedding by seamlessly blending token embeddings with positional embeddings. It also supports masking for variable-length sequences, ensuring adaptability to diverse radiological reports.
-
-**Transformer-Based Architecture**
-The heart of the model comprises a transformer encoder and decoder. The transformer encoder employs multi-head self-attention and feedforward blocks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs.
-
-**Auto-Regressive Sequence Generation**
-To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
+The heart of the model comprises a transformer encoder and decoder. The transformer encoder employs multi-head self-attention and feedforward blocks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 ## How to use
-Within the project folder, you'll find several key subfolders:
-
-**Components**
-This directory serves as the home for fundamental files crucial for the flawless operation of the program. It's imperative not to tamper with these files as any modifications could jeopardize the script's integrity.
+The project is organized into subfolders, each dedicated to specific tasks. The `utils/` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
 
 **Data**
 This folder hosts the data utilized for both model training and evaluation purposes:
