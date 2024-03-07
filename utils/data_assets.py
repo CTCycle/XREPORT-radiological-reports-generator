@@ -2,11 +2,13 @@ import os
 import numpy as np
 import cv2
 from datetime import datetime
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 import tensorflow as tf
 from tensorflow import keras
 from keras.api._v2.keras import preprocessing
-import matplotlib.pyplot as plt
-from tqdm import tqdm
+from transformers import AutoTokenizer, AutoModel
+
 
     
     
@@ -52,38 +54,10 @@ class PreProcessing:
             
             images.append(image) 
 
-        return images        
-
-    #--------------------------------------------------------------------------
-    def text_preparation(self, strings):
-
-        '''
-        text_preparation(strings)
-
-        Prepares a list of strings for tokenization by converting them to lowercase, 
-        adding spaces around punctuation symbols and delimiting the strings with start
-        and end sequence tokens 
-
-        Keyword arguments:
-            strings (list): A list of strings to be prepared.
-
-        Returns:
-            processed_strings (list): A list of prepared strings.
-        
-        '''
-        symbols = ['.', ',', ';', ':', '"', '-', '=', '/']       
-        processed_strings = []
-        for st in strings:
-            string = st.lower()        
-            for sb in symbols:
-                string = string.replace(sb, '')
-            delimited_str = '[START] ' + string + ' [END]'
-            processed_strings.append(delimited_str)
-
-        return processed_strings
+        return images      
     
     #--------------------------------------------------------------------------
-    def text_tokenization(self, train_text, test_text, savepath):
+    def BioBERT_tokenization(self, train_text, test_text, path):
 
         '''        
         Tokenizes a list of texts and saves the tokenizer to a specified path.
@@ -96,18 +70,14 @@ class PreProcessing:
             tokenized_text (list or numpy.ndarray): The tokenized texts in the specified output format.
         
         '''
-        self.tokenizer = preprocessing.text.Tokenizer()
-        self.tokenizer.fit_on_texts(train_text)
-        train_tokenized = self.tokenizer.texts_to_sequences(train_text)        
-        test_tokenized = self.tokenizer.texts_to_sequences(test_text)        
-        self.vocabulary = self.tokenizer.word_index
-        self.vocabulary_size = len(self.vocabulary)         
-        tokenizer_json = self.tokenizer.to_json()          
-        json_path = os.path.join(savepath, 'word_tokenizer.json')
-        with open(json_path, 'w', encoding = 'utf-8') as f:
-            f.write(tokenizer_json)
-
-        return train_tokenized, test_tokenized
+        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
+        print('\nLoading BioBERT Base v1.1 tokenizer\n')        
+        tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
+        train_tokens = tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
+        test_tokens = tokenizer(test_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
+        self.vocab_size = len(tokenizer.vocab)        
+        
+        return train_tokens, test_tokens
  
     #--------------------------------------------------------------------------
     def sequence_padding(self, sequences, pad_length, output = 'array'):
@@ -128,7 +98,7 @@ class PreProcessing:
             padded_text (list): A list of padded sequences in the specified output format.
         
         '''
-        padded_text = preprocessing.sequence.pad_sequences(sequences, maxlen = pad_length, value = 0, 
+        padded_text = preprocessing.sequence.pad_sequences(sequences, maxlen=pad_length, value=0, 
                                     dtype = 'int32', padding = 'post')
         if output == 'string':
             padded_text_str = []
@@ -183,7 +153,7 @@ class DataGenerator(keras.utils.Sequence):
     def __init__(self, dataframe, batch_size=6, picture_size=(244, 244, 1), shuffle=True, augmentation=True):        
         self.dataframe = dataframe
         self.path_col='images_path'        
-        self.label_col='tokenized_text'
+        self.label_col='tokens'
         self.num_of_samples = dataframe.shape[0]        
         self.picture_size = picture_size       
         self.batch_size = batch_size  
@@ -234,9 +204,8 @@ class DataGenerator(keras.utils.Sequence):
     
     # define method to load labels    
     #--------------------------------------------------------------------------
-    def __labels_generation(self, sequence):
-        pp_sequence = np.array(sequence.split(' '), dtype=np.float32)
-        return pp_sequence
+    def __labels_generation(self, sequence):        
+        return sequence
     
     # define method to call the elements of the generator    
     #--------------------------------------------------------------------------
