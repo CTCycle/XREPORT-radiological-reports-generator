@@ -669,60 +669,8 @@ class Inference:
         weights_path = os.path.join(self.folder_path, 'model', 'model_weights.h5')
         model.load_weights(weights_path)                       
         
-        return model, configuration
-    
-    #-------------------------------------------------------------------------- 
-    def dropdown_model_selection(self, path):
-
-        '''
-        Load pretrained keras model (in folders) from the specified directory. 
-        If multiple model directories are found, the user is prompted to select one,
-        while if only one model directory is found, that model is loaded directly.
-        If `load_parameters` is True, the function also loads the model parameters 
-        from the target .json file in the same directory. 
-
-        Keyword arguments:
-            path (str): The directory path where the pretrained models are stored.
-            load_parameters (bool, optional): If True, the function also loads the 
-                                              model parameters from a JSON file. 
-                                              Default is True.
-
-        Returns:
-            model (keras.Model): The loaded Keras model.
-
-        '''        
-        model_folders = [entry.name for entry in os.scandir(path) if entry.is_dir()]
-    
-        if len(model_folders) > 1:
-            model_folders.sort()
-            dropdown = Dropdown(options=model_folders, description='Select Model:')
-            display(dropdown)
-            # Wait for the user to select a model. This cell should be manually executed again after selection.            
-            self.folder_path = os.path.join(path, dropdown.value)
-
-        elif len(model_folders) == 1:
-            self.folder_path = os.path.join(path, model_folders[0])
-        else:
-            raise FileNotFoundError('No model directories found in the specified path.')
-        
-        # read model serialization configuration and initialize it           
-        path = os.path.join(self.folder_path, 'model', 'model_configuration.json')
-        with open(path, 'r') as f:
-            configuration = json.load(f)        
-        model = XREPCaptioningModel.from_config(configuration)             
-
-        # set inputs to build the model 
-        pic_shape = tuple(configuration['picture_shape'])
-        sequence_length = configuration['sequence_length']
-        build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
-                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
-        model(build_inputs, training=False) 
-
-        # load weights into the model 
-        weights_path = os.path.join(self.folder_path, 'model', 'model_weights.h5')
-        model.load_weights(weights_path) 
-            
-        return model, configuration                                 
+        return model, configuration   
+                   
 
     #--------------------------------------------------------------------------    
     def generate_reports(self, model, paths, num_channels, picture_size,
