@@ -2,6 +2,7 @@ __pycache__
 data/images/*
 data/validation/*
 training/checkpoints/*
+training/BioBERT/*
 inference/reports/*
 documents/*
 

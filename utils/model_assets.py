@@ -8,8 +8,7 @@ from keras import backend as K
 from keras.models import Model
 from keras import layers
 from tqdm import tqdm
-from IPython.display import display
-from ipywidgets import Dropdown
+from transformers import TFAutoModelForMaskedLM
 
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
@@ -167,13 +166,19 @@ class ImageEncoder(keras.layers.Layer):
 #==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True, **kwargs):
+    def __init__(self, sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
         self.embedding_dim = embedding_dims
+        self.bio_path = bio_path
         self.mask_zero = mask_zero
-        self.token_embeddings = layers.Embedding(input_dim=self.vocab_size, output_dim=embedding_dims)                
+
+        # token embedding using BioBERT, embedding dims is 768
+        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
+        biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
+        self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
+        self.token_embeddings.trainable = True                           
         self.position_embeddings = layers.Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
         self.embedding_scale = tf.math.sqrt(tf.cast(embedding_dims, tf.float32))        
     
@@ -182,7 +187,7 @@ class PositionalEmbedding(keras.layers.Layer):
     def call(self, inputs):
         length = tf.shape(inputs)[-1]
         positions = tf.range(start=0, limit=length, delta=1)        
-        embedded_tokens = self.token_embeddings(inputs)        
+        embedded_tokens = self.token_embeddings(inputs)  
         embedded_tokens = embedded_tokens * self.embedding_scale
         embedded_positions = self.position_embeddings(positions)
         full_embedding = embedded_tokens + embedded_positions        
@@ -205,6 +210,7 @@ class PositionalEmbedding(keras.layers.Layer):
         config.update({'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dim,
+                       'bio_path' : self.bio_path,
                        'mask_zero': self.mask_zero})
         return config
 
@@ -229,10 +235,10 @@ class TransformerEncoderBlock(keras.layers.Layer):
         self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
-        self.dense1 = layers.Dense(2048, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(1536, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.2, seed=seed)
 
@@ -274,14 +280,15 @@ class TransformerEncoderBlock(keras.layers.Layer):
 #============================================================================== 
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoderBlock')
 class TransformerDecoderBlock(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed, **kwargs):
+    def __init__(self, sequence_length, vocab_size, embedding_dims, bio_path, num_heads, seed, **kwargs):
         super(TransformerDecoderBlock, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size
-        self.embedding_dims = embedding_dims        
+        self.embedding_dims = embedding_dims 
+        self.bio_path = bio_path       
         self.num_heads = num_heads
-        self.seed = seed
-        self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
+        self.seed = seed        
+        self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True)          
         self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.FFN_1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
@@ -289,7 +296,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.layernorm3 = layers.LayerNormalization()
-        self.dense = layers.Dense(2048, activation='relu', kernel_initializer='he_uniform')         
+        self.dense = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = layers.Dense(self.vocab_size, activation='softmax')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.3, seed=seed) 
@@ -299,6 +306,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------
     def call(self, inputs, encoder_outputs, training=True, mask=None):
+        inputs = tf.cast(inputs, tf.int32)
         inputs = self.posembedding(inputs)
         causal_mask = self.get_causal_attention_mask(inputs)        
         padding_mask = None
@@ -346,6 +354,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
         config.update({'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dims,
+                       'bio_path' : self.bio_path,
                        'num_heads': self.num_heads,
                        'seed': self.seed})
         return config
@@ -363,7 +372,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
 #==============================================================================  
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
-    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
+    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, bio_path, kernel_size,
                  num_heads, learning_rate, XLA_state, seed=42, **kwargs):   
         super(XREPCaptioningModel, self).__init__(**kwargs)
         self.loss_tracker = keras.metrics.Mean(name='loss')
@@ -372,6 +381,7 @@ class XREPCaptioningModel(keras.Model):
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
         self.embedding_dims = embedding_dims
+        self.bio_path = bio_path
         self.kernel_size = kernel_size
         self.num_heads = num_heads
         self.learning_rate = learning_rate
@@ -380,7 +390,8 @@ class XREPCaptioningModel(keras.Model):
         self.image_encoder = ImageEncoder(kernel_size, seed)        
         self.encoder1 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
         self.encoder2 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
-        self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, num_heads, seed) 
+        self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, 
+                                               bio_path, num_heads, seed) 
 
     # calculate loss
     #--------------------------------------------------------------------------
@@ -494,6 +505,7 @@ class XREPCaptioningModel(keras.Model):
                        'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dims,
+                       'bio_path' : self.bio_path,
                        'kernel_size': self.kernel_size,
                        'num_heads': self.num_heads,
                        'learning_rate' : self.learning_rate,

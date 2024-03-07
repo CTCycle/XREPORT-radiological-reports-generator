@@ -25,8 +25,10 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 images_path = os.path.join(globpt.data_path, 'images') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints')
+biob_path = os.path.join(globpt.train_path, 'BioBERT')
 os.mkdir(images_path) if not os.path.exists(images_path) else None 
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None
+os.mkdir(biob_path) if not os.path.exists(biob_path) else None
 
 
 # [LOAD DATA]
@@ -48,12 +50,13 @@ dataset = preprocessor.images_pathfinder(images_path, dataset, 'id')
 # select subset of data
 #------------------------------------------------------------------------------
 total_samples = cnf.num_train_samples + cnf.num_test_samples
+dataset = dataset[dataset['text'].apply(lambda x: len(x.split()) <= 200)]
 dataset = dataset.sample(n=total_samples, random_state=cnf.seed)
 
 # split data into train and test dataset and start preprocessor
 #------------------------------------------------------------------------------
 test_size = cnf.num_test_samples/total_samples
-train_data, test_data = train_test_split(dataset, test_size=test_size, random_state=cnf.seed)
+train_data, test_data = train_test_split(dataset, test_size=test_size, random_state=cnf.split_seed)
 
 # [PREPROCESS DATA]
 #==============================================================================
@@ -64,27 +67,20 @@ train_data, test_data = train_test_split(dataset, test_size=test_size, random_st
 pp_path = os.path.join(model_folder, 'preprocessing')
 os.mkdir(pp_path) if not os.path.exists(pp_path) else None 
 
-# clean text corpus
+# preprocess text corpus for BioBERT pretrained model deployment
 #------------------------------------------------------------------------------
 train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list()
-train_text = preprocessor.text_preparation(train_text)
-test_text = preprocessor.text_preparation(test_text)
 
-# extract text sequences and perform tokenization
-#------------------------------------------------------------------------------
-print('''STEP 1 ----> Text tokenization using word tokenizer\n''')
-tokenized_train_text, tokenized_test_text = preprocessor.text_tokenization(train_text, test_text, pp_path)
-tokenizer = preprocessor.tokenizer
-vocab_size = len(tokenizer.word_index) + 1
-
-# perform padding of sequences
-#------------------------------------------------------------------------------
-print('''STEP 2 ----> Sequence padding to equalize sequence length\n''')
+# preprocess text with BioBERT tokenization
 pad_length = max([len(x.split()) for x in train_text])
-padded_train_text = preprocessor.sequence_padding(tokenized_train_text, pad_length, output='string')
-padded_test_text = preprocessor.sequence_padding(tokenized_test_text, pad_length, output='string')
-train_data['tokenized_text'] = padded_train_text
-test_data['tokenized_text'] = padded_test_text
+train_tokens, test_tokens = preprocessor.BioBERT_tokenization(train_text, test_text, biob_path)
+vocab_size = preprocessor.vocab_size
+
+# add tokenized text to dataframe (after converting it to string)
+train_ids = train_tokens['input_ids'].numpy().tolist()
+test_ids = test_tokens['input_ids'].numpy().tolist()
+train_data['tokens'] = [' '.join(map(str, ids)) for ids in train_ids]
+test_data['tokens'] = [' '.join(map(str, ids)) for ids in test_ids]
 
 # save preprocessed data
 #------------------------------------------------------------------------------
@@ -93,10 +89,11 @@ train_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
 file_loc = os.path.join(pp_path, 'XREP_test.csv')  
 test_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
 
-
 # [CREATE DATA GENERATOR]
 #==============================================================================
 #==============================================================================
+train_data['tokens'] = train_ids
+test_data['tokens'] = test_ids
 
 # initialize training device
 #------------------------------------------------------------------------------
@@ -116,7 +113,6 @@ datamaker = TensorDataSet()
 train_dataset = datamaker.create_tf_dataset(train_generator)
 test_dataset = datamaker.create_tf_dataset(test_generator)
 caption_shape = datamaker.y_batch.shape[1]
-
 
 # [BUILD XREPORT MODEL]
 #==============================================================================
@@ -141,7 +137,7 @@ Caption length:          {caption_shape}
 # initialize and compile the captioning model
 #------------------------------------------------------------------------------
 caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape, vocab_size, 
-                                    cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
+                                    cnf.embedding_dims, biob_path, cnf.kernel_size, cnf.num_heads,
                                     cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
 caption_model.compile()
 
