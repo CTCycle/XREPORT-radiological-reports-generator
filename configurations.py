@@ -8,27 +8,28 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 1
+epochs = 10
 learning_rate = 0.001
-batch_size = 25
+batch_size = 10
 
 # Model settings
 #------------------------------------------------------------------------------
-picture_shape = (256, 256, 1)
-embedding_dims = 512
+picture_shape = (196, 196, 1)
+embedding_dims = 768
 kernel_size = 2
 num_heads = 4
 generate_model_graph = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_train_samples = 5000
-num_test_samples = 500
+num_train_samples = 20000
+num_test_samples = 2000
 augmentation = False
 
 # General settings 
 #------------------------------------------------------------------------------
 seed = 72
+split_seed = 45
 
 
 
