@@ -57,7 +57,7 @@ class PreProcessing:
         return images      
     
     #--------------------------------------------------------------------------
-    def BioBERT_tokenization(self, train_text, test_text, path):
+    def BioBERT_tokenization(self, train_text, test_text, path=None):
 
         '''        
         Tokenizes a list of texts and saves the tokenizer to a specified path.
@@ -69,7 +69,7 @@ class PreProcessing:
         Returns:
             tokenized_text (list or numpy.ndarray): The tokenized texts in the specified output format.
         
-        '''
+        '''        
         model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
         print('\nLoading BioBERT Base v1.1 tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
@@ -150,7 +150,8 @@ class PreProcessing:
 #==============================================================================
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, dataframe, batch_size=6, picture_size=(244, 244, 1), shuffle=True, augmentation=True):        
+    def __init__(self, dataframe, batch_size=6, picture_size=(244, 244, 1), 
+                 shuffle=True, augmentation=True):        
         self.dataframe = dataframe
         self.path_col='images_path'        
         self.label_col='tokens'
@@ -267,5 +268,10 @@ class DataValidation:
 
 
 
-        
+
+if __name__ == '__main__':
+    
+    pp = PreProcessing()
+    
+
       
