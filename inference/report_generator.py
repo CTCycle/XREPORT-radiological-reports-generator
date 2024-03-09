@@ -21,8 +21,10 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 rep_path = os.path.join(globpt.inference_path, 'reports') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints') 
+biob_path = os.path.join(globpt.train_path, 'BioBERT')
 os.mkdir(rep_path) if not os.path.exists(rep_path) else None
-os.mkdir(cp_path) if not os.path.exists(cp_path) else None  
+os.mkdir(cp_path) if not os.path.exists(cp_path) else None 
+os.mkdir(biob_path) if not os.path.exists(biob_path) else None 
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
@@ -34,29 +36,26 @@ XREPORT report generation
 ...
 ''')
 
+preprocessor = PreProcessing()
+
 # check report folder and generate list of images paths
 #------------------------------------------------------------------------------
 if not os.listdir(rep_path):
-    print('''No XRAY scans found in the report generation folder, please add them before continuing,
-the script will now be closed!\n''')
+    print('No XRAY scans found in the report generation folder, please add them before continuing\n')
     sys.exit()
 else:
     scan_paths = [os.path.join(root, file) for root, dirs, files in os.walk(rep_path) for file in files]
-    print(f'''XRAY images found: {len(scan_paths)}
-Report generation will start once you've selected the model.\n''')    
+    print(f'XRAY images found: {len(scan_paths)}\n')
 
-# Load pretrained model and its parameters
+# Load pretrained model and tokenizer
 #------------------------------------------------------------------------------
 inference = Inference(cnf.seed) 
 model, parameters = inference.load_pretrained_model(cp_path)
 model_path = inference.folder_path
 model.summary()
 
-# Load the tokenizer
-#------------------------------------------------------------------------------
-preprocessor = PreProcessing()
-pp_path = os.path.join(model_path, 'preprocessing')
-tokenizer = preprocessor.load_tokenizer(pp_path, 'word_tokenizer')
+# load BioBERT tokenizer
+tokenizer = preprocessor.get_BioBERT_tokenizer(biob_path)
 
 # [GENERATE REPORTS]
 #==============================================================================
@@ -70,6 +69,8 @@ scan_size = tuple(parameters['picture_shape'][:-1])
 channels = parameters['picture_shape'][-1]
 vocab_size = parameters['vocab_size']
 report_length = parameters['sequence_length']
-generated_reports = inference.generate_reports(model, scan_paths, channels, scan_size, report_length, tokenizer)
+generated_reports = inference.generate_reports(model, scan_paths, 
+                                               channels, scan_size, 
+                                               report_length, tokenizer)
 
 

@@ -54,10 +54,19 @@ class PreProcessing:
             
             images.append(image) 
 
-        return images      
+        return images
+
+    #--------------------------------------------------------------------------
+    def get_BioBERT_tokenizer(self, path):
+
+        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
+        print('\nLoading BioBERT Base v1.1 tokenizer\n')        
+        tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
+
+        return tokenizer      
     
     #--------------------------------------------------------------------------
-    def BioBERT_tokenization(self, train_text, test_text, path=None):
+    def BioBERT_tokenization(self, train_text, test_text=None, path=None):
 
         '''        
         Tokenizes a list of texts and saves the tokenizer to a specified path.
@@ -72,10 +81,14 @@ class PreProcessing:
         '''        
         model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
         print('\nLoading BioBERT Base v1.1 tokenizer\n')        
-        tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
-        train_tokens = tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
-        test_tokens = tokenizer(test_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
-        self.vocab_size = len(tokenizer.vocab)        
+        self.tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
+        train_tokens = self.tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
+        if test_text is not None:
+            test_tokens = self.tokenizer(test_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
+        else:
+            test_tokens = None
+        
+        self.vocab_size = len(self.tokenizer.vocab)        
         
         return train_tokens, test_tokens
  
@@ -108,16 +121,6 @@ class PreProcessing:
             padded_text = padded_text_str          
         
         return padded_text   
-
-    #--------------------------------------------------------------------------
-    def load_tokenizer(self, path, filename):  
-
-        json_path = os.path.join(path, f'{filename}.json')
-        with open(json_path, 'r', encoding='utf-8') as f:
-            json_string = f.read()
-            tokenizer = preprocessing.text.tokenizer_from_json(json_string)
-
-        return tokenizer
     
     #--------------------------------------------------------------------------
     def model_savefolder(self, path, model_name):
@@ -272,6 +275,26 @@ class DataValidation:
 if __name__ == '__main__':
     
     pp = PreProcessing()
+    bio_path = os.path.join(os.getcwd(), 'training', 'BioBERT')
     
+    text = ['Text example to understand the tokenizer capabilities.']
+    text_tokens, _ = pp.BioBERT_tokenization(text, test_text=None, path=bio_path)
+    tokenizer = pp.tokenizer    
 
-      
+    text_ids = text_tokens['input_ids'].numpy().tolist()
+    text_tokens = tokenizer.convert_ids_to_tokens(text_tokens['input_ids'][0])
+
+    print('Text tokens upon tokenization: ', text_tokens)
+    print('Text ids upon tokenization: ', text_ids)
+
+    cleaned_tokens = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in text_tokens if token not in ['[CLS]', '[SEP]']]
+
+    # Join the tokens to form a sentence
+    sentence = ''.join(cleaned_tokens).strip()
+
+    print(sentence)
+
+   
+
+
+    
