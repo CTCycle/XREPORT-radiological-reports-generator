@@ -178,7 +178,7 @@ class PositionalEmbedding(keras.layers.Layer):
         model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
         biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
         self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
-        self.token_embeddings.trainable = True                           
+        self.token_embeddings.trainable = True                         
         self.position_embeddings = layers.Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
         self.embedding_scale = tf.math.sqrt(tf.cast(embedding_dims, tf.float32))        
     
@@ -689,7 +689,9 @@ class Inference:
                          max_length, tokenizer):
         
         reports = {}
-        vocabulary = tokenizer.word_index
+        vocabulary = tokenizer.get_vocab()
+        start_token = '[CLS]'
+        end_token = '[SEP]'        
         index_lookup = dict(zip(range(len(vocabulary)), vocabulary))
         for pt in tqdm(paths):
             image = tf.io.read_file(pt)
@@ -703,23 +705,26 @@ class Inference:
             encoded_img = model.encoder1(features, training=False)   
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = '[START]'
-            for i in range(max_length):                
-                tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
-                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
-                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
+            decoded_caption = [start_token]                   
+            for i in range(max_length):     
+                tokenized_outputs = tokenizer(decoded_caption, padding=True, truncation=True, 
+                                              max_length=200, return_tensors='tf')
+                tokenized_caption = tokenized_outputs['input_ids'].numpy().tolist()                         
+                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32) 
+                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                             
                 mask = tf.math.not_equal(tokenized_caption, 0)
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
+                print(tokenized_caption)
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                          
                 sampled_token_index = np.argmax(predictions[0, i, :])
-                sampled_token = index_lookup[sampled_token_index]
-                if sampled_token == '[END]': 
+                sampled_token = index_lookup[sampled_token_index]                    
+                if sampled_token == end_token: 
                     break
-                decoded_caption += ' ' + sampled_token
+                decoded_caption.append(sampled_token)                
 
-            decoded_caption = decoded_caption.replace('[START] ', '')
-            decoded_caption = decoded_caption.replace('[END] ', '').strip()
-            reports[f'{os.path.basename(pt)}'] = decoded_caption
-            print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
+            cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
+            caption = ''.join(cleaned_caption)
+            reports[f'{os.path.basename(pt)}'] = caption
+            print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
 
         return reports
 
@@ -739,3 +744,17 @@ class ModelValidation:
     def XREPORT_validation(self, real_images, predicted_images, path):
         
         pass
+
+
+
+if __name__ == '__main__':
+
+
+    bio_path = os.path.join(os.getcwd(), 'training', 'BioBERT')
+    print(bio_path)
+
+
+    model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
+    biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
+    token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
+    token_embeddings.trainable = True
