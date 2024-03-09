@@ -110,20 +110,20 @@ class ImageEncoder(keras.layers.Layer):
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv3 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')  
-        self.conv4 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
+        self.conv4 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv5 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform') 
-        self.conv6 = layers.Conv2D(1024, kernel_size, strides=1, padding='same', 
+        self.conv6 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.maxpool1 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool2 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool3 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool4 = layers.MaxPooling2D((2, 2), strides=2, padding='same')          
-        self.dense1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.reshape = layers.Reshape((-1, 512))        
+        self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(128, activation='relu', kernel_initializer='he_uniform')
+        self.reshape = layers.Reshape((-1, 128))        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -235,10 +235,10 @@ class TransformerEncoderBlock(keras.layers.Layer):
         self.attention = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims)
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
-        self.dense1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(768, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.2, seed=seed)
 
@@ -291,12 +291,12 @@ class TransformerDecoderBlock(keras.layers.Layer):
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True)          
         self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.FFN_1 = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.FFN_2 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.layernorm3 = layers.LayerNormalization()
-        self.dense = layers.Dense(1024, activation='relu', kernel_initializer='he_uniform')         
+        self.dense = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = layers.Dense(self.vocab_size, activation='softmax')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.3, seed=seed) 
