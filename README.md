@@ -38,14 +38,13 @@ If you've installed the NVIDIA CUDA Toolkit within your environment, you may als
 
 By following these steps, you can ensure that your environment is configured to take full advantage of GPU acceleration for enhanced performance.                 
 
-
 ## How to use
 The project is organized into subfolders, each dedicated to specific tasks. The `utils/` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
 
 **Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `data/images`.
-Run the jupyter notebook `data_validation.ipynb` to perform in-depth analysis of the image-to-report dataset, with the results being saved in `data/validation`. 
+Run the jupyter notebook `data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `data/validation`. 
 
-**Training:** contains the necessary files for conducting model training and evaluation. `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.py` to evaluate the performance metrics of pre-trained models.
+**Training:** contains the necessary files for conducting model training and evaluation. `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
 
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `inference/reports`. The reports are saved as .csv file in the same directory.
 
