@@ -685,8 +685,7 @@ class Inference:
                    
 
     #--------------------------------------------------------------------------    
-    def generate_reports(self, model, paths, num_channels, picture_size,
-                         max_length, tokenizer):
+    def generate_reports(self, model, paths, picture_size, max_length, tokenizer):
         
         reports = {}
         vocabulary = tokenizer.get_vocab()
@@ -695,19 +694,17 @@ class Inference:
         index_lookup = dict(zip(range(len(vocabulary)), vocabulary))
         for pt in tqdm(paths):
             image = tf.io.read_file(pt)
-            image = tf.image.decode_image(image, channels=num_channels)
-            image = tf.image.resize(image, picture_size)
-            if num_channels==3:
-                image = tf.reverse(image, axis=[-1])
+            image = tf.image.decode_image(image, channels=1)
+            image = tf.image.resize(image, picture_size)            
             image = image/255.0 
             input_image = tf.expand_dims(image, 0)
             features = model.image_encoder(input_image)
             encoded_img = model.encoder1(features, training=False)   
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = [start_token]                   
+            decoded_caption = start_token]                  
             for i in range(max_length):     
-                tokenized_outputs = tokenizer(decoded_caption, padding=True, truncation=True, 
+                tokenized_outputs = tokenizer([decoded_caption], padding=True, truncation=True, 
                                               max_length=200, return_tensors='tf')
                 tokenized_caption = tokenized_outputs['input_ids'].numpy().tolist()                         
                 tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32) 
@@ -727,6 +724,27 @@ class Inference:
             print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
 
         return reports
+    
+
+    def template(self):
+        # teacher forging method to generate tokens through the decoder
+        decoded_caption = '[START]'
+        for i in range(max_length):                
+            tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
+            tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
+            tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
+            mask = tf.math.not_equal(tokenized_caption, 0)
+            predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
+            sampled_token_index = np.argmax(predictions[0, i, :])
+            sampled_token = index_lookup[sampled_token_index]
+            if sampled_token == '[END]': 
+                break
+            decoded_caption += ' ' + sampled_token
+
+            decoded_caption = decoded_caption.replace('[START] ', '')
+            decoded_caption = decoded_caption.replace('[END] ', '').strip()
+            reports[f'{os.path.basename(pt)}'] = decoded_caption
+            print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
 
     
 # [VALIDATION OF PRETRAINED MODELS]
