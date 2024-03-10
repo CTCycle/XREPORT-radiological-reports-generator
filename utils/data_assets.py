@@ -19,17 +19,17 @@ from transformers import AutoTokenizer, AutoModel
 class PreProcessing:
 
     #--------------------------------------------------------------------------
-    def images_pathfinder(self, path, dataframe, id_col):
+    def find_images_path(self, path, dataframe):
 
         images_paths = {}
-        for pic in os.listdir(path):
+        for pic in os.listdir(path):                       
             pic_name = pic.split('.')[0]
             pic_path = os.path.join(path, pic)                        
             path_pair = {pic_name : pic_path}        
-            images_paths.update(path_pair)
+            images_paths.update(path_pair)            
         
-        dataframe['images_path'] = dataframe[id_col].map(images_paths)
-        dataframe = dataframe.dropna(subset=['images_path']).reset_index(drop = True)
+        dataframe['path'] = dataframe['id'].map(images_paths)
+        dataframe = dataframe.dropna(subset=['path']).reset_index(drop = True)
 
         return dataframe 
 
@@ -156,7 +156,7 @@ class DataGenerator(keras.utils.Sequence):
     def __init__(self, dataframe, batch_size=6, picture_size=(244, 244, 1), 
                  shuffle=True, augmentation=True):        
         self.dataframe = dataframe
-        self.path_col='images_path'        
+        self.path_col='path'        
         self.label_col='tokens'
         self.num_of_samples = dataframe.shape[0]        
         self.picture_size = picture_size       
