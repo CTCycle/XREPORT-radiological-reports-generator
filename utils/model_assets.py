@@ -591,7 +591,18 @@ class ModelTraining:
             json.dump(parameters_dict, f)     
     
     #--------------------------------------------------------------------------   
-    def save_subclassed_model(self, model, path):        
+    def save_subclassed_model(self, model, path):
+
+        '''
+        Saves a subclassed Keras model's weights and configuration to the specified directory.
+
+        Keyword Arguments:
+            model (keras.Model): The model to save.
+            path (str): Directory path for saving model weights and configuration.        
+
+        Returns:
+            None
+        '''        
         weights_path = os.path.join(path, 'model_weights.h5')  
         model.save_weights(weights_path)        
         config = model.get_config()
@@ -726,25 +737,25 @@ class Inference:
         return reports
     
 
-    def template(self):
-        # teacher forging method to generate tokens through the decoder
-        decoded_caption = '[START]'
-        for i in range(max_length):                
-            tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
-            tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
-            tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
-            mask = tf.math.not_equal(tokenized_caption, 0)
-            predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
-            sampled_token_index = np.argmax(predictions[0, i, :])
-            sampled_token = index_lookup[sampled_token_index]
-            if sampled_token == '[END]': 
-                break
-            decoded_caption += ' ' + sampled_token
+    # def template(self):
+    #     # teacher forging method to generate tokens through the decoder
+    #     decoded_caption = '[START]'
+    #     for i in range(max_length):                
+    #         tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
+    #         tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
+    #         tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
+    #         mask = tf.math.not_equal(tokenized_caption, 0)
+    #         predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
+    #         sampled_token_index = np.argmax(predictions[0, i, :])
+    #         sampled_token = index_lookup[sampled_token_index]
+    #         if sampled_token == '[END]': 
+    #             break
+    #         decoded_caption += ' ' + sampled_token
 
-            decoded_caption = decoded_caption.replace('[START] ', '')
-            decoded_caption = decoded_caption.replace('[END] ', '').strip()
-            reports[f'{os.path.basename(pt)}'] = decoded_caption
-            print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
+    #         decoded_caption = decoded_caption.replace('[START] ', '')
+    #         decoded_caption = decoded_caption.replace('[END] ', '').strip()
+    #         reports[f'{os.path.basename(pt)}'] = decoded_caption
+    #         print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
 
     
 # [VALIDATION OF PRETRAINED MODELS]

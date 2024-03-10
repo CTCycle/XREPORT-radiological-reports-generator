@@ -21,6 +21,21 @@ class PreProcessing:
     #--------------------------------------------------------------------------
     def find_images_path(self, path, dataframe):
 
+        '''
+        Maps image file paths to their corresponding entries in a dataframe.
+        This function iterates over all images in a specified directory, 
+        creating a mapping from image names (without the file extension) 
+        to their full file paths. 
+
+        Keyword Arguments:
+            path (str): The directory containing the images.
+            dataframe (pandas.DataFrame): The dataframe to be updated with image paths.
+
+        Returns:
+            pandas.DataFrame: The updated dataframe with a new 'path' column containing 
+                              the file paths for images, excluding rows without a corresponding image file.
+        
+        '''
         images_paths = {}
         for pic in os.listdir(path):                       
             pic_name = pic.split('.')[0]
@@ -35,7 +50,24 @@ class PreProcessing:
 
     #--------------------------------------------------------------------------
     def load_images(self, paths, image_size, as_tensor=True, normalize=True):
-        
+
+        '''
+        Loads and preprocesses a list of images from the specified paths. Reads images 
+        from given file paths, resizes them to the specified size, optionally 
+        normalizes pixel values, and can return them as either raw NumPy arrays or 
+        TensorFlow tensors. 
+
+        Keyword Arguments:
+            paths (list of str): File paths to the images to be loaded.
+            image_size (tuple of int): The target size for resizing the images (width, height).
+            as_tensor (bool, optional): If True, returns images as TensorFlow tensors; 
+                                        otherwise, returns them as NumPy arrays. Default is True.
+            normalize (bool, optional): If True, normalizes image pixel values to the range [0, 1]. Default is True.
+
+        Returns:
+            list: A list containing the loaded and processed images.
+
+        '''        
         images = []
         for pt in tqdm(paths):
             if as_tensor==False:                
@@ -46,7 +78,7 @@ class PreProcessing:
                     image = image/255.0
             else:
                 image = tf.io.read_file(pt)
-                image = tf.image.decode_image(image, channels=3)
+                image = tf.image.decode_image(image, channels=1)
                 image = tf.image.resize(image, image_size)
                 image = tf.reverse(image, axis=[-1])
                 if normalize==True:
@@ -59,6 +91,18 @@ class PreProcessing:
     #--------------------------------------------------------------------------
     def get_BioBERT_tokenizer(self, path):
 
+        '''
+        Loads and initializes the BioBERT Base v1.1 tokenizer. It optionally
+        accepts a path to cache the tokenizer.
+
+        Keyword Arguments:
+            path (str, optional): Directory path to cache the tokenizer. 
+                                  If not specified, the default cache location is used.
+
+        Returns:
+            tokenizer (AutoTokenizer): The loaded BioBERT tokenizer.
+
+        '''
         model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
         print('\nLoading BioBERT Base v1.1 tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
@@ -68,16 +112,24 @@ class PreProcessing:
     #--------------------------------------------------------------------------
     def BioBERT_tokenization(self, train_text, test_text=None, path=None):
 
-        '''        
-        Tokenizes a list of texts and saves the tokenizer to a specified path.
+        '''
+        Tokenizes text data using the BioBERT Base v1.1 tokenizer. Loads the BioBERT 
+        tokenizer and applies it to tokenize the provided training (and optionally testing)
+        text datasets. It supports padding, truncation, and returns the tokenized data 
+        in TensorFlow tensors. 
 
-        Keyword arguments:
-            text (list): A list of texts to be tokenized.
-            savepath (str): The path to save the tokenizer as a JSON file.
-            
+        Keyword Arguments:
+            train_text (list of str): The text data for training to tokenize.
+            test_text (list of str, optional): The text data for testing to tokenize. 
+                                               Default is None, indicating no test text.
+            path (str, optional): Path to cache the BioBERT tokenizer. 
+                                  Default is None, using the default cache directory.
+
         Returns:
-            tokenized_text (list or numpy.ndarray): The tokenized texts in the specified output format.
-        
+            tuple: A tuple containing two elements:
+                - train_tokens (tf.Tensor): Tokenized version of `train_text`.
+                - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
+
         '''        
         model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
         print('\nLoading BioBERT Base v1.1 tokenizer\n')        
@@ -225,12 +277,26 @@ class DataGenerator(keras.utils.Sequence):
 # tf.dataset with prefetching
 #==============================================================================
 class TensorDataSet():
-
     
-    # create tensorflow dataset from generator    
+     
     #--------------------------------------------------------------------------
     def create_tf_dataset(self, generator, buffer_size=tf.data.AUTOTUNE):
 
+        '''
+        Creates a TensorFlow dataset from a generator. This function initializes 
+        a TensorFlow dataset using a provided generator that yields batches of 
+        inputs and targets. It sets up the dataset with an appropriate output 
+        signature based on the first batch of data from the generator and applies 
+        prefetching to improve data loading efficiency.
+
+        Keyword Arguments:
+            generator (Generator): A generator function or an instance with a `__getitem__` method that yields batches of data.
+            buffer_size (int, optional): The number of elements to prefetch in the dataset. Default is `tf.data.AUTOTUNE`, allowing TensorFlow to automatically tune the buffer size.
+
+        Returns:
+            tf.data.Dataset: A TensorFlow dataset ready for model training or evaluation.
+
+        '''
         self.x_batch, self.y_batch = generator.__getitem__(0)
         x1_shape = self.x_batch[0].shape
         x2_shape = self.x_batch[1].shape
@@ -250,13 +316,31 @@ class TensorDataSet():
 #==============================================================================
 class DataValidation:
 
+
+    #--------------------------------------------------------------------------
     def pixel_intensity_histograms(self, image_set_1, image_set_2, path,
                                    names=['First set', 'Second set']):
         
+        '''
+        Generates and saves histograms of pixel intensities for two sets of images.
+        This function computes the pixel intensity distributions for two sets 
+        of images and plots their histograms for comparison. The histograms are 
+        saved as a JPEG file in the specified path. 
+
+        Keyword Arguments:
+            image_set_1 (list of ndarray): The first set of images for histogram comparison
+            image_set_2 (list of ndarray): The second set of images for histogram comparison
+            path (str): Directory path where the histogram image will be saved
+            names (list of str, optional): Labels for the two image sets. Default to ['First set', 'Second set']
+        
+        Returns:
+            None
+        '''
+        
         pixel_intensities_1 = np.concatenate([image.flatten() for image in image_set_1])
         pixel_intensities_2 = np.concatenate([image.flatten() for image in image_set_2])        
-        plt.hist(pixel_intensities_1, bins='auto', alpha=0.5, color='blue', label=names[0])
-        plt.hist(pixel_intensities_2, bins='auto', alpha=0.5, color='red', label=names[1])
+        plt.hist(pixel_intensities_1, bins=255, alpha=0.5, density=True, color='blue', label=names[0])
+        plt.hist(pixel_intensities_2, bins=255, alpha=0.7, density=True, color='green', label=names[1])
         plt.title('Pixel Intensity Histograms')
         plt.xlabel('Pixel Intensity')
         plt.ylabel('Frequency')
@@ -266,7 +350,35 @@ class DataValidation:
         plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)
         plt.show()            
         plt.close()
+
+    #--------------------------------------------------------------------------
+    def calculate_psnr(self, img_path_1, img_path_2):
         
+        img1 = cv2.imread(img_path_1)
+        img2 = cv2.imread(img_path_2)      
+        
+        img1 = img1.astype(np.float32)
+        img2 = img2.astype(np.float32)
+        
+        # Calculate MSE
+        mse = np.mean((img1 - img2) ** 2)
+        if mse == 0:
+            # The images are exactly the same
+            return float('inf')
+        
+        # Assuming the pixel values range from 0 to 255
+        PIXEL_MAX = 255.0
+        
+        # Calculate PSNR
+        psnr = 20 * np.log10(PIXEL_MAX / np.sqrt(mse))
+        return psnr
+
+        # Example usage
+        image1_path = 'path_to_your_first_image.jpg'
+        image2_path = 'path_to_your_second_image.jpg'
+        psnr_value = calculate_psnr(image1_path, image2_path)
+        print(f"PSNR: {psnr_value} dB")
+            
 
 
 
