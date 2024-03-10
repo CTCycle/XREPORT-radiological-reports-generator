@@ -44,8 +44,8 @@ model_folder_name = preprocessor.folder_name
 # load data from csv, add paths to images 
 #------------------------------------------------------------------------------
 file_loc = os.path.join(globpt.data_path, 'XREP_dataset.csv') 
-dataset = pd.read_csv(file_loc, encoding = 'utf-8', sep=';', low_memory=False)
-dataset = preprocessor.images_pathfinder(images_path, dataset, 'id')
+dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';', low_memory=False)
+dataset = preprocessor.find_images_path(images_path, dataset)
 
 # select subset of data
 #------------------------------------------------------------------------------
@@ -67,7 +67,8 @@ train_data, test_data = train_test_split(dataset, test_size=test_size, random_st
 pp_path = os.path.join(model_folder, 'preprocessing')
 os.mkdir(pp_path) if not os.path.exists(pp_path) else None 
 
-# preprocess text corpus for BioBERT pretrained model deployment
+# preprocess text corpus using pretrained BioBERT tokenizer. Text is tokenized
+# using subwords and these are eventually mapped to integer indexes
 #------------------------------------------------------------------------------
 train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list()
 
@@ -76,7 +77,8 @@ pad_length = max([len(x.split()) for x in train_text])
 train_tokens, test_tokens = preprocessor.BioBERT_tokenization(train_text, test_text, biob_path)
 vocab_size = preprocessor.vocab_size
 
-# add tokenized text to dataframe (after converting it to string)
+# add tokenized text to dataframe. Sequences are converted to strings to make 
+# it easy to save the files as .csv
 train_ids = train_tokens['input_ids'].numpy().tolist()
 test_ids = test_tokens['input_ids'].numpy().tolist()
 train_data['tokens'] = [' '.join(map(str, ids)) for ids in train_ids]
