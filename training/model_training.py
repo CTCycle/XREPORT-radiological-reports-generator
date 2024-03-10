@@ -17,7 +17,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # import modules and classes
 #------------------------------------------------------------------------------    
 from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
-from utils.model_assets import ModelTraining, RealTimeHistory, XREPCaptioningModel
+from utils.model_assets import ModelTraining, XREPCaptioningModel
+from utils.callbacks import RealTimeHistory
 import utils.global_paths as globpt
 import configurations as cnf
 
