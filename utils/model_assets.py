@@ -118,19 +118,18 @@ class ImageEncoder(keras.layers.Layer):
 #==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True, **kwargs):
+    def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
-        self.embedding_dim = embedding_dims
-        self.bio_path = bio_path
+        self.embedding_dim = embedding_dims        
         self.mask_zero = mask_zero
-
         # token embedding using BioBERT, embedding dims is 768
-        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
-        biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
-        self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
-        self.token_embeddings.trainable = True                         
+        # model_identifier = 'dmis-lab/biobert-v1.1'
+        # biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
+        # self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
+        # self.token_embeddings.trainable = True 
+        self.token_embeddings = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dims)                        
         self.position_embeddings = layers.Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
         self.embedding_scale = tf.math.sqrt(tf.cast(embedding_dims, tf.float32))        
     
@@ -232,15 +231,14 @@ class TransformerEncoderBlock(keras.layers.Layer):
 #============================================================================== 
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoderBlock')
 class TransformerDecoderBlock(keras.layers.Layer):
-    def __init__(self, sequence_length, vocab_size, embedding_dims, bio_path, num_heads, seed, **kwargs):
+    def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerDecoderBlock, self).__init__(**kwargs)
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size
-        self.embedding_dims = embedding_dims 
-        self.bio_path = bio_path       
+        self.embedding_dims = embedding_dims              
         self.num_heads = num_heads
         self.seed = seed        
-        self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True)          
+        self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
         self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.FFN_1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
@@ -324,7 +322,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
 #==============================================================================  
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
-    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, bio_path, kernel_size,
+    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
                  num_heads, learning_rate, XLA_state, seed=42, **kwargs):   
         super(XREPCaptioningModel, self).__init__(**kwargs)
         self.loss_tracker = keras.metrics.Mean(name='loss')
@@ -332,8 +330,7 @@ class XREPCaptioningModel(keras.Model):
         self.picture_shape = picture_shape
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
-        self.embedding_dims = embedding_dims
-        self.bio_path = bio_path
+        self.embedding_dims = embedding_dims       
         self.kernel_size = kernel_size
         self.num_heads = num_heads
         self.learning_rate = learning_rate
@@ -343,7 +340,7 @@ class XREPCaptioningModel(keras.Model):
         self.encoder1 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
         self.encoder2 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
         self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, 
-                                               bio_path, num_heads, seed) 
+                                               num_heads, seed) 
 
     # calculate loss
     #--------------------------------------------------------------------------
@@ -456,8 +453,7 @@ class XREPCaptioningModel(keras.Model):
         config.update({'picture_shape': self.picture_shape,
                        'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
-                       'embedding_dims': self.embedding_dims,
-                       'bio_path' : self.bio_path,
+                       'embedding_dims': self.embedding_dims,                       
                        'kernel_size': self.kernel_size,
                        'num_heads': self.num_heads,
                        'learning_rate' : self.learning_rate,
@@ -648,7 +644,7 @@ class Inference:
                    
 
     #--------------------------------------------------------------------------    
-    def beam_search_generator(self, model, paths, picture_size, max_length, tokenizer):
+    def greed_search_generator(self, model, paths, picture_size, max_length, tokenizer):
         
         reports = {}
         vocabulary = tokenizer.get_vocab()
@@ -672,7 +668,7 @@ class Inference:
                 tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                   
                 tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                    
                 mask = tf.math.not_equal(tokenized_caption, 0)                                
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                         
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                        
                 sampled_token_index = np.argmax(predictions[0, i, :])                
                 sampled_token = index_lookup[sampled_token_index]                                               
                 if sampled_token == end_token: 
@@ -684,8 +680,64 @@ class Inference:
             reports[f'{os.path.basename(pt)}'] = caption
             print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
 
-        return reports   
+        return reports
 
+    #--------------------------------------------------------------------------
+    def beam_search_generator(self, model, paths, picture_size, max_length, tokenizer, beam_width=3):
+        reports = {}
+        vocabulary = tokenizer.get_vocab()
+        start_token = '[CLS]'
+        end_token = '[SEP]'
+        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))        
+        for pt in paths:
+            print(f'\nGenerating report for image {os.path.basename(pt)}\n')
+            image = tf.io.read_file(pt)
+            image = tf.image.decode_image(image, channels=1)
+            image = tf.image.resize(image, picture_size)            
+            image = image / 255.0 
+            input_image = tf.expand_dims(image, 0)
+            features = model.image_encoder(input_image)
+            encoded_img = model.encoder1(features, training=False)
+
+            # Initialize beam search variables
+            sequences = [[start_token]]
+            sequence_scores = [0]
+            
+            for _ in range(max_length):
+                all_candidates = []
+                for i, seq in enumerate(sequences):
+                    if seq[-1] == end_token:
+                        all_candidates.append((seq, sequence_scores[i]))
+                        continue
+                    
+                    tokenized_caption = tokenizer.convert_tokens_to_ids(seq)
+                    tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
+                    tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
+                    mask = tf.math.not_equal(tokenized_caption, 0)
+                    predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
+                    
+                    # Get logits for the last token and select top beam_width candidates
+                    logits = predictions[0, -1, :]
+                    top_indices = np.argpartition(logits, -beam_width)[-beam_width:]
+                    for index in top_indices:
+                        next_seq = seq + [index_lookup[index]]
+                        score = sequence_scores[i] + logits[index].numpy()  # Cumulative score
+                        all_candidates.append((next_seq, score))
+                
+                # Choose top beam_width sequences
+                ordered = sorted(all_candidates, key=lambda tup: tup[1], reverse=True)
+                sequences, sequence_scores = zip(*ordered[:beam_width])
+            
+            # Select the sequence with the highest score that reached [SEP]
+            reports[os.path.basename(pt)] = max([(seq, score) for seq, score in zip(sequences, sequence_scores) if seq[-1] == end_token], key=lambda tup: tup[1], default=(sequences[0], sequence_scores[0]))[0]
+            
+            # Cleanup and format the report
+            cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in reports[os.path.basename(pt)] if token not in [start_token, end_token]]
+            caption = ''.join(cleaned_caption)
+            reports[os.path.basename(pt)] = caption
+            print(f'Predicted report for image: {os.path.basename(pt)}', caption)
+
+        return reports
 
 
     
