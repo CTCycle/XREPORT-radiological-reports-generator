@@ -60,15 +60,14 @@ tokenizer = preprocessor.get_BioBERT_tokenizer(biob_path)
 # [GENERATE REPORTS]
 #==============================================================================
 #==============================================================================
-print('''Generate the reports for XRAY images
-''')
 
 # generate captions
 #------------------------------------------------------------------------------ 
+print('Generate the reports for XRAY images\n')
 scan_size = tuple(parameters['picture_shape'][:-1])
 vocab_size = parameters['vocab_size']
 report_length = parameters['sequence_length']
-generated_reports = inference.generate_reports(model, scan_paths, scan_size, 
-                                               report_length, tokenizer)
+generated_reports = inference.beam_search_generator(model, scan_paths, scan_size, 
+                                                    report_length, tokenizer)
 
 
