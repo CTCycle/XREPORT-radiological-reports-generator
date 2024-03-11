@@ -25,15 +25,12 @@ You can install these dependencies using the appropriate package manager for you
 If you have an NVIDIA GPU and want to harness the power of GPU acceleration using CUDA, please follow these additional steps. The application is built using TensorFlow 2.10.0 to ensure native Windows GPU support, so remember to install the appropriate versions:
 
 ### 1. Install NVIDIA CUDA Toolkit (Version 11.2)
-
 To enable GPU acceleration, you'll need to install the NVIDIA CUDA Toolkit. Visit the [NVIDIA CUDA Toolkit download page](https://developer.nvidia.com/cuda-downloads) and select the version that matches your GPU and operating system. Follow the installation instructions provided. Alternatively, you can install `cuda-toolkit` as a package within your environment.
 
 ### 2. Install cuDNN (NVIDIA Deep Neural Network Library, Version 8.1.0.77)
-
 Next, you'll need to install cuDNN, which is the NVIDIA Deep Neural Network Library. Visit the [cuDNN download page](https://developer.nvidia.com/cudnn) and download the cuDNN library version that corresponds to your CUDA version (in this case, version 8.1.0.77). Follow the installation instructions provided.
 
 ### 3. Additional Package (If CUDA Toolkit Is Installed)
-
 If you've installed the NVIDIA CUDA Toolkit within your environment, you may also need to install an additional package called `cuda-nvcc` (Version 12.3.107). This package provides the CUDA compiler and tools necessary for building CUDA-enabled applications.
 
 By following these steps, you can ensure that your environment is configured to take full advantage of GPU acceleration for enhanced performance.                 

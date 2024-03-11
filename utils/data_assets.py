@@ -103,8 +103,8 @@ class PreProcessing:
             tokenizer (AutoTokenizer): The loaded BioBERT tokenizer.
 
         '''
-        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
-        print('\nLoading BioBERT Base v1.1 tokenizer\n')        
+        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
+        print('\nLoading BioClinicalBERT tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
 
         return tokenizer      
@@ -131,8 +131,8 @@ class PreProcessing:
                 - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
 
         '''        
-        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
-        print('\nLoading BioBERT Base v1.1 tokenizer\n')        
+        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
+        print('\nLoading BioClinicalBERT tokenizer\n')        
         self.tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
         train_tokens = self.tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
         if test_text is not None:

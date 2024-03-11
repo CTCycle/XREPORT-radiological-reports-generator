@@ -8,13 +8,13 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 250
-learning_rate = 0.001
+epochs = 100
+learning_rate = 0.0001
 batch_size = 10
 
 # Model settings
 #------------------------------------------------------------------------------
-picture_shape = (160, 160, 1)
+picture_shape = (144, 144, 1)
 embedding_dims = 768 # compatible with BioBERT embedding dimensions
 kernel_size = 2
 num_heads = 4
