@@ -66,11 +66,9 @@ print('''Generate the reports for XRAY images
 # generate captions
 #------------------------------------------------------------------------------ 
 scan_size = tuple(parameters['picture_shape'][:-1])
-channels = parameters['picture_shape'][-1]
 vocab_size = parameters['vocab_size']
 report_length = parameters['sequence_length']
-generated_reports = inference.generate_reports(model, scan_paths, 
-                                               channels, scan_size, 
+generated_reports = inference.generate_reports(model, scan_paths, scan_size, 
                                                report_length, tokenizer)
 
 

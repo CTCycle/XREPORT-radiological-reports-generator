@@ -6,9 +6,7 @@ from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
 from keras import layers
-from tqdm import tqdm
 from transformers import TFAutoModelForMaskedLM
-
     
            
 # [LEARNING RATE SCHEDULER]
@@ -129,7 +127,7 @@ class PositionalEmbedding(keras.layers.Layer):
         self.mask_zero = mask_zero
 
         # token embedding using BioBERT, embedding dims is 768
-        model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
+        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
         biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
         self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
         self.token_embeddings.trainable = True                         
@@ -190,11 +188,11 @@ class TransformerEncoderBlock(keras.layers.Layer):
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = layers.Dense(128, activation='relu', kernel_initializer='he_uniform')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
-        self.dropout2 = layers.Dropout(0.2, seed=seed)
+        self.dropout2 = layers.Dropout(0.3, seed=seed)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -245,12 +243,12 @@ class TransformerDecoderBlock(keras.layers.Layer):
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, bio_path, mask_zero=True)          
         self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.FFN_1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
         self.FFN_2 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.layernorm3 = layers.LayerNormalization()
-        self.dense = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')         
+        self.dense = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = layers.Dense(self.vocab_size, activation='softmax')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.3, seed=seed) 
@@ -657,7 +655,8 @@ class Inference:
         start_token = '[CLS]'
         end_token = '[SEP]'        
         index_lookup = dict(zip(range(len(vocabulary)), vocabulary))
-        for pt in tqdm(paths):
+        for pt in paths:
+            print(f'\nGenerating report for images {os.path.basename(pt)}\n')
             image = tf.io.read_file(pt)
             image = tf.image.decode_image(image, channels=1)
             image = tf.image.resize(image, picture_size)            
@@ -667,49 +666,27 @@ class Inference:
             encoded_img = model.encoder1(features, training=False)   
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = start_token                 
+            decoded_caption = [start_token]                 
             for i in range(max_length):     
-                tokenized_outputs = tokenizer([decoded_caption], padding=True, truncation=True, 
-                                              max_length=200, return_tensors='tf')
-                tokenized_caption = tokenized_outputs['input_ids'].numpy().tolist()                         
-                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32) 
-                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                             
-                mask = tf.math.not_equal(tokenized_caption, 0)
-                print(tokenized_caption)
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                          
-                sampled_token_index = np.argmax(predictions[0, i, :])
-                sampled_token = index_lookup[sampled_token_index]                    
+                tokenized_caption = tokenizer.convert_tokens_to_ids(decoded_caption)                                                       
+                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                   
+                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                    
+                mask = tf.math.not_equal(tokenized_caption, 0)                                
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                         
+                sampled_token_index = np.argmax(predictions[0, i, :])                
+                sampled_token = index_lookup[sampled_token_index]                                               
                 if sampled_token == end_token: 
                     break
-                decoded_caption.append(sampled_token)                
+                decoded_caption.append(sampled_token)                            
 
             cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
             caption = ''.join(cleaned_caption)
             reports[f'{os.path.basename(pt)}'] = caption
             print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
 
-        return reports
-    
+        return reports   
 
-    # def template(self):
-    #     # teacher forging method to generate tokens through the decoder
-    #     decoded_caption = '[START]'
-    #     for i in range(max_length):                
-    #         tokenized_caption = tokenizer.texts_to_sequences([decoded_caption])[0]                          
-    #         tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
-    #         tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
-    #         mask = tf.math.not_equal(tokenized_caption, 0)
-    #         predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
-    #         sampled_token_index = np.argmax(predictions[0, i, :])
-    #         sampled_token = index_lookup[sampled_token_index]
-    #         if sampled_token == '[END]': 
-    #             break
-    #         decoded_caption += ' ' + sampled_token
 
-    #         decoded_caption = decoded_caption.replace('[START] ', '')
-    #         decoded_caption = decoded_caption.replace('[END] ', '').strip()
-    #         reports[f'{os.path.basename(pt)}'] = decoded_caption
-    #         print(f'Predicted report for image: {os.path.basename(pt)}', decoded_caption)
 
     
 # [VALIDATION OF PRETRAINED MODELS]
