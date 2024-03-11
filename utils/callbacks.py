@@ -58,8 +58,9 @@ class RealTimeHistory(keras.callbacks.Callback):
 #==============================================================================
 class ReportQuality(keras.callbacks.Callback):    
      
-    def __init__(self, plot_path):        
+    def __init__(self):        
         super().__init__()
+        self.start_token = '[CLS]'
              
     #--------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs = {}):
