@@ -648,7 +648,7 @@ class Inference:
                    
 
     #--------------------------------------------------------------------------    
-    def generate_reports(self, model, paths, picture_size, max_length, tokenizer):
+    def beam_search_generator(self, model, paths, picture_size, max_length, tokenizer):
         
         reports = {}
         vocabulary = tokenizer.get_vocab()

@@ -14,7 +14,7 @@ batch_size = 10
 
 # Model settings
 #------------------------------------------------------------------------------
-picture_shape = (144, 144, 1)
+picture_shape = (160, 160, 1)
 embedding_dims = 768 # compatible with BioBERT embedding dimensions
 kernel_size = 2
 num_heads = 4
@@ -22,8 +22,8 @@ generate_model_graph = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_train_samples = 2000
-num_test_samples = 200
+num_train_samples = 5000
+num_test_samples = 500
 augmentation = False
 
 # General settings 
