@@ -26,10 +26,10 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 images_path = os.path.join(globpt.data_path, 'images') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints')
-biob_path = os.path.join(globpt.train_path, 'BioBERT')
+bert_path = os.path.join(globpt.train_path, 'BERT')
 os.mkdir(images_path) if not os.path.exists(images_path) else None 
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None
-os.mkdir(biob_path) if not os.path.exists(biob_path) else None
+os.mkdir(bert_path) if not os.path.exists(bert_path) else None
 
 
 # [LOAD DATA]
@@ -75,7 +75,7 @@ train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list(
 
 # preprocess text with BioBERT tokenization
 pad_length = max([len(x.split()) for x in train_text])
-train_tokens, test_tokens = preprocessor.BioBERT_tokenization(train_text, test_text, biob_path)
+train_tokens, test_tokens = preprocessor.BERT_tokenization(train_text, test_text, bert_path)
 vocab_size = preprocessor.vocab_size
 
 # add tokenized text to dataframe. Sequences are converted to strings to make 
@@ -140,7 +140,7 @@ Caption length:          {caption_shape}
 # initialize and compile the captioning model
 #------------------------------------------------------------------------------
 caption_model = XREPCaptioningModel(cnf.picture_shape, caption_shape, vocab_size, 
-                                    cnf.embedding_dims, biob_path, cnf.kernel_size, cnf.num_heads,
+                                    cnf.embedding_dims, cnf.kernel_size, cnf.num_heads,
                                     cnf.learning_rate, cnf.XLA_acceleration, cnf.seed)
 caption_model.compile()
 

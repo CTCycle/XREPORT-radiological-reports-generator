@@ -7,9 +7,7 @@ from tqdm import tqdm
 import tensorflow as tf
 from tensorflow import keras
 from keras.api._v2.keras import preprocessing
-from transformers import AutoTokenizer, AutoModel
-
-
+from transformers import AutoTokenizer, BertTokenizer, AutoModel
     
     
 # [PREPROCESSING PIPELINE]
@@ -89,7 +87,7 @@ class PreProcessing:
         return images
 
     #--------------------------------------------------------------------------
-    def get_BioBERT_tokenizer(self, path):
+    def get_BERT_tokenizer(self, path):
 
         '''
         Loads and initializes the BioBERT Base v1.1 tokenizer. It optionally
@@ -103,14 +101,14 @@ class PreProcessing:
             tokenizer (AutoTokenizer): The loaded BioBERT tokenizer.
 
         '''
-        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
-        print('\nLoading BioClinicalBERT tokenizer\n')        
+        model_identifier = 'dmis-lab/biobert-v1.1'
+        print('\nLoading BioBERT tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
 
         return tokenizer      
     
     #--------------------------------------------------------------------------
-    def BioBERT_tokenization(self, train_text, test_text=None, path=None):
+    def BERT_tokenization(self, train_text, test_text=None, path=None):
 
         '''
         Tokenizes text data using the BioBERT Base v1.1 tokenizer. Loads the BioBERT 
@@ -131,9 +129,9 @@ class PreProcessing:
                 - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
 
         '''        
-        model_identifier = 'emilyalsentzer/Bio_ClinicalBERT'
-        print('\nLoading BioClinicalBERT tokenizer\n')        
-        self.tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path)        
+        model_identifier = 'bert-base-uncased'
+        print('\nLoading BERT subword tokenizer\n')        
+        self.tokenizer = BertTokenizer.from_pretrained(model_identifier, cache_dir=path)        
         train_tokens = self.tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
         if test_text is not None:
             test_tokens = self.tokenizer(test_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
