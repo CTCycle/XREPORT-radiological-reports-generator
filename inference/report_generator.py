@@ -21,10 +21,10 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 rep_path = os.path.join(globpt.inference_path, 'reports') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints') 
-biob_path = os.path.join(globpt.train_path, 'BioBERT')
+bert_path = os.path.join(globpt.train_path, 'BioBERT')
 os.mkdir(rep_path) if not os.path.exists(rep_path) else None
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None 
-os.mkdir(biob_path) if not os.path.exists(biob_path) else None 
+os.mkdir(bert_path) if not os.path.exists(bert_path) else None 
 
 # [LOAD MODEL AND DATA]
 #==============================================================================
@@ -55,7 +55,7 @@ model_path = inference.folder_path
 model.summary()
 
 # load BioBERT tokenizer
-tokenizer = preprocessor.get_BioBERT_tokenizer(biob_path)
+tokenizer = preprocessor.get_BERT_tokenizer(bert_path)
 
 # [GENERATE REPORTS]
 #==============================================================================
@@ -67,7 +67,7 @@ print('Generate the reports for XRAY images\n')
 scan_size = tuple(parameters['picture_shape'][:-1])
 vocab_size = parameters['vocab_size']
 report_length = parameters['sequence_length']
-generated_reports = inference.beam_search_generator(model, scan_paths, scan_size, 
+generated_reports = inference.greed_search_generator(model, scan_paths, scan_size, 
                                                     report_length, tokenizer)
 
 
