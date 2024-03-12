@@ -102,7 +102,7 @@ class PreProcessing:
 
         '''
         model_identifier = 'dmis-lab/biobert-v1.1'
-        print('\nLoading BioBERT tokenizer\n')        
+        print('\nLoading BERT tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
 
         return tokenizer      
