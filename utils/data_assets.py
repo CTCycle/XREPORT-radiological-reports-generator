@@ -129,7 +129,7 @@ class PreProcessing:
                 - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
 
         '''        
-        model_identifier = 'bert-base-uncased'
+        model_identifier = 'google-bert/bert-base-uncased'
         print('\nLoading BERT subword tokenizer\n')        
         self.tokenizer = BertTokenizer.from_pretrained(model_identifier, cache_dir=path)        
         train_tokens = self.tokenizer(train_text, padding=True, truncation=True, max_length=200, return_tensors='tf')
