@@ -18,7 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 #------------------------------------------------------------------------------    
 from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
 from utils.model_assets import ModelTraining, XREPCaptioningModel
-from utils.callbacks import RealTimeHistory
+from utils.callbacks import RealTimeHistory, GenerateTextCallback
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -76,6 +76,7 @@ train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list(
 # preprocess text with BioBERT tokenization
 pad_length = max([len(x.split()) for x in train_text])
 train_tokens, test_tokens = preprocessor.BERT_tokenization(train_text, test_text, bert_path)
+tokenizer = preprocessor.tokenizer
 vocab_size = preprocessor.vocab_size
 
 # add tokenized text to dataframe. Sequences are converted to strings to make 
@@ -168,6 +169,7 @@ if cnf.generate_model_graph == True:
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
 RTH_callback = RealTimeHistory(model_folder, validation=True)
+#GT_callback = GenerateTextCallback(tokenizer, max_len=200)
 
 # initialize tensorboard
 #------------------------------------------------------------------------------
