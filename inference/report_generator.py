@@ -21,7 +21,7 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 rep_path = os.path.join(globpt.inference_path, 'reports') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints') 
-bert_path = os.path.join(globpt.train_path, 'BioBERT')
+bert_path = os.path.join(globpt.train_path, 'BERT')
 os.mkdir(rep_path) if not os.path.exists(rep_path) else None
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None 
 os.mkdir(bert_path) if not os.path.exists(bert_path) else None 
