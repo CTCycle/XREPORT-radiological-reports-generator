@@ -17,7 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # import modules and classes
 #------------------------------------------------------------------------------    
 from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
-from utils.model_assets import ModelTraining, XREPCaptioningModel
+from utils.model_assets import ModelTraining, XREPCaptioningModel, ModelValidation
 from utils.callbacks import RealTimeHistory, GenerateTextCallback
 import utils.global_paths as globpt
 import configurations as cnf
@@ -166,6 +166,22 @@ if cnf.generate_model_graph == True:
 # python -m tensorboard.main --logdir tensorboard/
 #==============================================================================
 
+# save model parameters in json files
+#------------------------------------------------------------------------------
+parameters = {'train_samples': cnf.num_train_samples,
+              'test_samples': cnf.num_test_samples,
+              'picture_shape' : cnf.picture_shape,             
+              'kernel_size' : cnf.kernel_size, 
+              'num_heads' : cnf.num_heads,             
+              'augmentation' : cnf.augmentation,              
+              'batch_size' : cnf.batch_size,
+              'learning_rate' : cnf.learning_rate,
+              'epochs' : cnf.epochs,
+              'seed' : cnf.seed,
+              'tensorboard' : cnf.use_tensorboard}
+
+trainer.model_parameters(parameters, model_folder)
+
 # initialize real time plot callback 
 #------------------------------------------------------------------------------
 RTH_callback = RealTimeHistory(model_folder, validation=True)
@@ -200,21 +216,11 @@ Training session is over. Model has been saved in folder {model_folder_name}
 -------------------------------------------------------------------------------
 ''')
 
-# save model parameters in json files
+# check model weights
 #------------------------------------------------------------------------------
-parameters = {'train_samples': cnf.num_train_samples,
-              'test_samples': cnf.num_test_samples,
-              'picture_shape' : cnf.picture_shape,             
-              'kernel_size' : cnf.kernel_size, 
-              'num_heads' : cnf.num_heads,             
-              'augmentation' : cnf.augmentation,              
-              'batch_size' : cnf.batch_size,
-              'learning_rate' : cnf.learning_rate,
-              'epochs' : cnf.epochs,
-              'seed' : cnf.seed,
-              'tensorboard' : cnf.use_tensorboard}
+validator = ModelValidation()
+validator.model_weigths_check(caption_model, model_folder)
 
-trainer.model_parameters(parameters, model_folder)
 
 
 
