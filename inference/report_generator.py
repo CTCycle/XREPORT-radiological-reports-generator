@@ -68,6 +68,6 @@ scan_size = tuple(parameters['picture_shape'][:-1])
 vocab_size = parameters['vocab_size']
 report_length = parameters['sequence_length']
 generated_reports = inference.greed_search_generator(model, scan_paths, scan_size, 
-                                                    report_length, tokenizer)
+                                                     report_length, tokenizer)
 
 
