@@ -101,7 +101,7 @@ class PreProcessing:
             tokenizer (AutoTokenizer): The loaded BioBERT tokenizer.
 
         '''
-        model_identifier = 'dmis-lab/biobert-v1.1'
+        model_identifier = 'google-bert/bert-base-uncased'
         print('\nLoading BERT tokenizer\n')        
         tokenizer = AutoTokenizer.from_pretrained(model_identifier, cache_dir=path) 
 

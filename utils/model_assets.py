@@ -56,13 +56,13 @@ class ImageEncoder(keras.layers.Layer):
         super(ImageEncoder, self).__init__(**kwargs)
         self.kernel_size = kernel_size
         self.seed = seed
-        self.conv1 = layers.Conv2D(64, kernel_size, strides=1, padding='same', 
+        self.conv1 = layers.Conv2D(128, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
-        self.conv2 = layers.Conv2D(128, kernel_size, strides=1, padding='same', 
+        self.conv2 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv3 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')  
-        self.conv4 = layers.Conv2D(256, kernel_size, strides=1, padding='same', 
+        self.conv4 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform')        
         self.conv5 = layers.Conv2D(512, kernel_size, strides=1, padding='same', 
                             activation='relu', kernel_initializer='he_uniform') 
@@ -73,9 +73,9 @@ class ImageEncoder(keras.layers.Layer):
         self.maxpool3 = layers.MaxPooling2D((2, 2), strides=2, padding='same')
         self.maxpool4 = layers.MaxPooling2D((2, 2), strides=2, padding='same')          
         self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = layers.Dense(128, activation='relu', kernel_initializer='he_uniform')
-        self.reshape = layers.Reshape((-1, 128))        
+        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
+        self.dense3 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.reshape = layers.Reshape((-1, 256))        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -123,12 +123,7 @@ class PositionalEmbedding(keras.layers.Layer):
         self.sequence_length = sequence_length
         self.vocab_size = vocab_size 
         self.embedding_dim = embedding_dims        
-        self.mask_zero = mask_zero
-        # token embedding using BioBERT, embedding dims is 768
-        # model_identifier = 'dmis-lab/biobert-v1.1'
-        # biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
-        # self.token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
-        # self.token_embeddings.trainable = True 
+        self.mask_zero = mask_zero        
         self.token_embeddings = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dims)                        
         self.position_embeddings = layers.Embedding(input_dim=sequence_length, output_dim=embedding_dims)        
         self.embedding_scale = tf.math.sqrt(tf.cast(embedding_dims, tf.float32))        
@@ -187,9 +182,9 @@ class TransformerEncoderBlock(keras.layers.Layer):
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.dense3 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
-        self.dense4 = layers.Dense(128, activation='relu', kernel_initializer='he_uniform')
+        self.dense4 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.3, seed=seed)
 
@@ -241,12 +236,12 @@ class TransformerDecoderBlock(keras.layers.Layer):
         self.posembedding = PositionalEmbedding(sequence_length, vocab_size, embedding_dims, mask_zero=True)          
         self.MHA_1 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
         self.MHA_2 = layers.MultiHeadAttention(num_heads=num_heads, key_dim=self.embedding_dims, dropout=0.2)
-        self.FFN_1 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
+        self.FFN_1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
         self.FFN_2 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
         self.layernorm1 = layers.LayerNormalization()
         self.layernorm2 = layers.LayerNormalization()
         self.layernorm3 = layers.LayerNormalization()
-        self.dense = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')         
+        self.dense = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')         
         self.outmax = layers.Dense(self.vocab_size, activation='softmax')
         self.dropout1 = layers.Dropout(0.2, seed=seed)
         self.dropout2 = layers.Dropout(0.3, seed=seed) 
@@ -337,11 +332,9 @@ class XREPCaptioningModel(keras.Model):
         self.XLA_state = XLA_state                
         self.seed = seed                         
         self.image_encoder = ImageEncoder(kernel_size, seed)        
-        self.encoder1 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
-        self.encoder2 = TransformerEncoderBlock(embedding_dims, num_heads, seed)
+        self.encoders = [TransformerEncoderBlock(embedding_dims, num_heads, seed) for i in range(3)]        
         self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, 
-                                               num_heads, seed) 
-
+                                                 num_heads, seed) 
     # calculate loss
     #--------------------------------------------------------------------------
     def calculate_loss(self, y_true, y_pred, mask):               
@@ -368,8 +361,9 @@ class XREPCaptioningModel(keras.Model):
         batch_seq_inp = batch_seq[:, :-1]
         batch_seq_true = batch_seq[:, 1:]
         mask = tf.math.not_equal(batch_seq_true, 0)
-        encoder_out = self.encoder1(img_embed, training=training)
-        encoder_out = self.encoder2(encoder_out, training=training)         
+        encoder_out = img_embed        
+        for encoder in self.encoders:
+            encoder_out = encoder(encoder_out, training=training) 
         batch_seq_pred = self.decoder(batch_seq_inp, encoder_out, training=training, mask=mask)
         loss = self.calculate_loss(batch_seq_true, batch_seq_pred, mask)
         acc = self.calculate_accuracy(batch_seq_true, batch_seq_pred, mask)
@@ -383,8 +377,9 @@ class XREPCaptioningModel(keras.Model):
         batch_img, batch_seq = x_data        
         img_embed = self.image_encoder(batch_img)       
         with tf.GradientTape() as tape:
-            loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=True)        
-        train_vars = self.encoder1.trainable_variables + self.encoder2.trainable_variables + self.decoder.trainable_variables        
+            loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=True) 
+        encoder_vars = [var for encoder in self.encoders for var in encoder.trainable_variables]   
+        train_vars = encoder_vars + self.decoder.trainable_variables        
         grads = tape.gradient(loss, train_vars)
         self.optimizer.apply_gradients(zip(grads, train_vars))        
         self.loss_tracker.update_state(loss)
@@ -412,12 +407,14 @@ class XREPCaptioningModel(keras.Model):
 
         images, sequences = inputs        
         mask = tf.math.not_equal(sequences, 0)             
-        image_features = self.image_encoder(images)        
-        encoder = self.encoder1(image_features, training=training)
-        encoder = self.encoder2(encoder, training)
-        decoder = self.decoder(sequences, encoder, training=training, mask=mask)
+        image_features = self.image_encoder(images) 
+        encoder_out = image_features 
+        batch_seq_pred = sequences       
+        for encoder in self.encoders:
+            encoder_out = encoder(encoder_out, training=training) 
+        decoder_out = self.decoder(batch_seq_pred, encoder_out, training=training, mask=mask)        
 
-        return decoder   
+        return decoder_out  
     
     # print summary
     #--------------------------------------------------------------------------
@@ -662,18 +659,21 @@ class Inference:
             encoded_img = model.encoder1(features, training=False)   
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = [start_token]                 
+            decoded_caption = start_token               
             for i in range(max_length):     
-                tokenized_caption = tokenizer.convert_tokens_to_ids(decoded_caption)                                                       
+                tokenized_outputs = tokenizer(decoded_caption, add_special_tokens=False, return_tensors='tf',
+                                              padding='max_length', max_length=200)   
+                tokenized_caption = tokenized_outputs['input_ids']                                                                  
                 tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                   
                 tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                    
                 mask = tf.math.not_equal(tokenized_caption, 0)                                
                 predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                        
                 sampled_token_index = np.argmax(predictions[0, i, :])                
-                sampled_token = index_lookup[sampled_token_index]                                               
+                sampled_token = index_lookup[sampled_token_index] 
+                print(sampled_token)                                              
                 if sampled_token == end_token: 
                     break
-                decoded_caption.append(sampled_token)                            
+                #decoded_caption =+ sampled_token                           
 
             cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
             caption = ''.join(cleaned_caption)
