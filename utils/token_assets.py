@@ -1,13 +1,8 @@
 import os
-import numpy as np
 import json
-import tensorflow as tf
-from tensorflow import keras
-from keras import backend as K
-from keras.models import Model
-from keras import layers
-from transformers import TFAutoModelForMaskedLM
-from transformers import AutoTokenizer, BertTokenizer, AutoModel
+from collections import Counter, defaultdict
+from transformers import AutoTokenizer, BertTokenizer
+from tqdm import tqdm
 
 
 
@@ -15,25 +10,34 @@ from transformers import AutoTokenizer, BertTokenizer, AutoModel
 #==============================================================================
 # Custom training operations
 #==============================================================================
-class BPE_Tokenizer:
-    def __init__(self, max_vocab_size=1000):        
-        self.max_vocab_size = max_vocab_size
-        self.vocab = {}
-        self.bpe_codes = {}
+class BPETokenizer:
+
     
+
+    def __init__(self, vocab=None, bpe_merges=None):
+        self.vocab = vocab if vocab is not None else {}
+        self.bpe_merges = bpe_merges if bpe_merges is not None else []
+
     #--------------------------------------------------------------------------
-    def get_stats(self, vocabulary):
-        pairs = {}
-        for word, freq in vocabulary.items():
+    def build_vocab(self, text):       
+        
+        words = text.split()
+        vocab = Counter(words)
+        return {' '.join(word) + ' </w>': count for word, count in vocab.items()}
+
+    #--------------------------------------------------------------------------
+    def get_stats(self, vocab):
+        
+        pairs = defaultdict(int)
+        for word, freq in vocab.items():
             symbols = word.split()
             for i in range(len(symbols)-1):
-                pair = (symbols[i], symbols[i+1])
-                current_freq = pairs.get(pair, 0)
-                pairs[pair] = current_freq + freq
+                pairs[symbols[i], symbols[i+1]] += freq
         return pairs
 
     #--------------------------------------------------------------------------
     def merge_vocab(self, pair, v_in):
+        
         v_out = {}
         bigram = ' '.join(pair)
         replacer = ''.join(pair)
@@ -43,34 +47,64 @@ class BPE_Tokenizer:
         return v_out
 
     #--------------------------------------------------------------------------
-    def build_vocab(self, text):
-        vocab = {}
-        for word in text.split(' '):
-            word = ' '.join(list(word)) + ' </w>'  
-            if word in vocab:
-                vocab[word] += 1
-            else:
-                vocab[word] = 1
-        return vocab
-
-    #--------------------------------------------------------------------------
-    def train(self, text):
+    def learn_bpe(self, text, num_merges=100):
+       
         self.vocab = self.build_vocab(text)
-        for i in range(self.vocab_size):
+        for i in tqdm(range(num_merges)):
             pairs = self.get_stats(self.vocab)
             if not pairs:
                 break
             best = max(pairs, key=pairs.get)
             self.vocab = self.merge_vocab(best, self.vocab)
-            self.bpe_codes[best] = i
+            self.bpe_merges.append(best)
 
     #--------------------------------------------------------------------------
-    def encode(self, text):
-        text = ' '.join(list(text)) + ' </w>'
-        for bpe_code in sorted(self.bpe_codes, key=lambda x: self.bpe_codes[x]):
-            if bpe_code in text:
-                text = text.replace(' '.join(bpe_code), ''.join(bpe_code))
-        return text.split()
+    def apply_bpe(self, text):
+        
+        words = text.split()
+        tokens = []
+        for word in words:
+            word = ' '.join(word) + ' </w>'
+            for bpe_merge in self.bpe_merges:
+                while True:
+                    bigram = ' '.join(bpe_merge)
+                    if bigram in word:
+                        word = word.replace(bigram, ''.join(bpe_merge))
+                    else:
+                        break
+            tokens.extend(word.split())
+        return tokens
+
+    #--------------------------------------------------------------------------
+    def finalize_vocab(self):
+        
+        subwords = set()
+        for word in self.vocab:
+            subwords.update(word.split())        
+        self.subword_to_id = {subword: i + 1 for i, subword in enumerate(sorted(subwords))}
+
+    #--------------------------------------------------------------------------
+    def vectorize(self, text):
+        
+        tokens = self.apply_bpe(text)
+        return [self.subword_to_id[token] for token in tokens if token in self.subword_to_id]
+
+    #--------------------------------------------------------------------------
+    def save(self, filepath):
+       
+        with open(filepath, 'w') as f:
+            json.dump({'vocab': self.vocab,
+                       'bpe_merges': self.bpe_merges,
+                       'subword_to_id': self.subword_to_id}, f, indent=4)
+
+    #--------------------------------------------------------------------------
+    @classmethod
+    def load(cls, filepath):
+       
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls(vocab=data['vocab'], bpe_merges=data['bpe_merges'], subword_to_id=data['subword_to_id'])
+
     
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
