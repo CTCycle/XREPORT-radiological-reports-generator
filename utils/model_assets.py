@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 import json
 import tensorflow as tf
@@ -635,8 +636,7 @@ class Inference:
         weights_path = os.path.join(self.folder_path, 'model', 'model_weights.h5')
         model.load_weights(weights_path)                       
         
-        return model, configuration   
-                   
+        return model, configuration                  
 
     #--------------------------------------------------------------------------    
     def greed_search_generator(self, model, paths, picture_size, max_length, tokenizer):
@@ -659,90 +659,28 @@ class Inference:
             encoded_img = model.layers[3](encoded_img, training=False)  
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = [start_token]               
-            for i in range(max_length):     
+            decoded_caption = start_token              
+            for i in range(max_length):                     
                 tokenized_outputs = tokenizer(decoded_caption, add_special_tokens=False, return_tensors='tf',
-                                              padding='max_length', max_length=200) 
+                                              padding='max_length', max_length=max_length) 
                   
-                tokenized_caption = tokenized_outputs['input_ids']                                                                                            
-                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                                    
-                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                               
+                tokenized_caption = tokenized_outputs['input_ids']                                                                                                        
+                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                                                      
                 mask = tf.math.not_equal(tokenized_caption, 0)                                                
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                                      
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                                                    
                 sampled_token_index = np.argmax(predictions[0, i, :])                               
-                sampled_token = index_lookup[sampled_token_index]
-                print(sampled_token)                                                              
-            #     if sampled_token == end_token: 
-            #          break
-            #     decoded_caption.append(sampled_token)
-            #     print(decoded_caption)                         
+                sampled_token = index_lookup[sampled_token_index]                      
+                if sampled_token == end_token: 
+                      break                
+                decoded_caption = decoded_caption + f' {sampled_token}'
 
-            # print(tokenized_caption) 
-            # print(predictions)  
-            # cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
-            # caption = ''.join(cleaned_caption)
-            # reports[f'{os.path.basename(pt)}'] = caption
-            # print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
+            text = re.sub(r'##', '', decoded_caption)
+            text = re.sub(r'\s+', ' ', text)           
+            print(f'Predicted report for image: {os.path.basename(pt)}', text)          
 
         return reports
 
-    #--------------------------------------------------------------------------
-    def beam_search_generator(self, model, paths, picture_size, max_length, tokenizer, beam_width=3):
-        reports = {}
-        vocabulary = tokenizer.get_vocab()
-        start_token = '[CLS]'
-        end_token = '[SEP]'
-        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))        
-        for pt in paths:
-            print(f'\nGenerating report for image {os.path.basename(pt)}\n')
-            image = tf.io.read_file(pt)
-            image = tf.image.decode_image(image, channels=1)
-            image = tf.image.resize(image, picture_size)            
-            image = image / 255.0 
-            input_image = tf.expand_dims(image, 0)
-            features = model.image_encoder(input_image)
-            encoded_img = model.encoder1(features, training=False)
-
-            # Initialize beam search variables
-            sequences = [[start_token]]
-            sequence_scores = [0]
-            
-            for _ in range(max_length):
-                all_candidates = []
-                for i, seq in enumerate(sequences):
-                    if seq[-1] == end_token:
-                        all_candidates.append((seq, sequence_scores[i]))
-                        continue
-                    
-                    tokenized_caption = tokenizer.convert_tokens_to_ids(seq)
-                    tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)
-                    tokenized_caption = tf.reshape(tokenized_caption, (1, -1))
-                    mask = tf.math.not_equal(tokenized_caption, 0)
-                    predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)
-                    
-                    # Get logits for the last token and select top beam_width candidates
-                    logits = predictions[0, -1, :]
-                    top_indices = np.argpartition(logits, -beam_width)[-beam_width:]
-                    for index in top_indices:
-                        next_seq = seq + [index_lookup[index]]
-                        score = sequence_scores[i] + logits[index].numpy()  # Cumulative score
-                        all_candidates.append((next_seq, score))
-                
-                # Choose top beam_width sequences
-                ordered = sorted(all_candidates, key=lambda tup: tup[1], reverse=True)
-                sequences, sequence_scores = zip(*ordered[:beam_width])
-            
-            # Select the sequence with the highest score that reached [SEP]
-            reports[os.path.basename(pt)] = max([(seq, score) for seq, score in zip(sequences, sequence_scores) if seq[-1] == end_token], key=lambda tup: tup[1], default=(sequences[0], sequence_scores[0]))[0]
-            
-            # Cleanup and format the report
-            cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in reports[os.path.basename(pt)] if token not in [start_token, end_token]]
-            caption = ''.join(cleaned_caption)
-            reports[os.path.basename(pt)] = caption
-            print(f'Predicted report for image: {os.path.basename(pt)}', caption)
-
-        return reports
-    
+   
 
 # [VALIDATION OF PRETRAINED MODELS]
 #==============================================================================
@@ -750,7 +688,6 @@ class Inference:
 #==============================================================================
 class ModelValidation:
 
-    
 
     # model weights check
     #-------------------------------------------------------------------------- 
