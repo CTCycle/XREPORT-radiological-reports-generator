@@ -8,7 +8,7 @@ num_processors = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 10
+epochs = 50
 learning_rate = 0.0001
 batch_size = 10
 
@@ -23,7 +23,7 @@ generate_model_graph = True
 # Settings for training data 
 #------------------------------------------------------------------------------
 num_train_samples = 4000
-num_test_samples = 500
+num_test_samples = 400
 augmentation = False
 
 # General settings 
