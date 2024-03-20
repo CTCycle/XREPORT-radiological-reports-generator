@@ -664,20 +664,21 @@ class Inference:
                 tokenized_outputs = tokenizer(decoded_caption, add_special_tokens=False, return_tensors='tf',
                                               padding='max_length', max_length=200) 
                   
-                tokenized_caption = tokenized_outputs['input_ids']                                                                             
+                tokenized_caption = tokenized_outputs['input_ids']                                                                                            
                 tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                                    
                 tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                               
                 mask = tf.math.not_equal(tokenized_caption, 0)                                                
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                         
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                                      
                 sampled_token_index = np.argmax(predictions[0, i, :])                               
-                sampled_token = index_lookup[sampled_token_index]                                                             
-                if sampled_token == end_token: 
-                     break
-                decoded_caption.append(sampled_token)
-                print(decoded_caption)                         
+                sampled_token = index_lookup[sampled_token_index]
+                print(sampled_token)                                                              
+            #     if sampled_token == end_token: 
+            #          break
+            #     decoded_caption.append(sampled_token)
+            #     print(decoded_caption)                         
 
-            print(tokenized_caption) 
-            print(predictions)  
+            # print(tokenized_caption) 
+            # print(predictions)  
             # cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
             # caption = ''.join(cleaned_caption)
             # reports[f'{os.path.basename(pt)}'] = caption
