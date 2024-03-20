@@ -46,56 +46,28 @@ Run the jupyter notebook `data_validation.ipynb` to perform Explorative Data ana
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `inference/reports`. The reports are saved as .csv file in the same directory.
 
 ### 4.1 Configurations
-The configurations.py file allows to change the script configuration. The following parameters are available:
-
-**Advanced settings for training:**
-- `use_mixed_precision:` whether or not to use mixed precision for faster training (mix float16/float32)
-- `use_tensorboard:` activate or deactivate tensorboard logging
-- `XLA_acceleration:` use of linear algebra acceleration for faster training 
-- `training_device:` select the training device (CPU or GPU)
-- `num_processors:` number of processors (cores) to be used during training; if set to 1, multiprocessing is not used
-
-**Settings for training routine:**
-- `epochs:` number of training iterations
-- `learning_rate:` learning rate of the model 
-- `batch_size:` size of batches to be fed to the model during training
-
-**Model settings:**
-- `picture_shape:` full shape of the images as (height, width, channels)
-- `embedding_size:` embedding dimensions (valid for both models)
-- `kernel_size:` size of convolutional kernel (image encoder)
-- `num_heads:` number of attention heads
-- `generate_model_graph:` generate and save 2D model graph (as .png file)
-
-**Settings for training data:**
-- `num_train_samples:` number of images to use for the model training 
-- `num_test_samples:` number of samples to use as validation data
-- `augmentation:` whether or not to perform data agumentation on images (significant impact on training time)
-
-**General settings:**
-- `seed:` global random seed
-- `split_seed:` seed of dataset splitting
+The configurations.py file allows to change the script configuration. 
 
 | Category                | Setting                | Description                                                       |
 |-------------------------|------------------------|-------------------------------------------------------------------|
-| Advanced settings       | `use_mixed_precision`  | Whether to use mixed precision for faster training (float16/32).  |
-|                         | `use_tensorboard`      | Activate/deactivate tensorboard logging.                          |
-|                         | `XLA_acceleration`     | Use linear algebra acceleration for faster training.              |
-|                         | `training_device`      | Select the training device (CPU or GPU).                          |
-|                         | `num_processors`       | Number of processors (cores) to use; 1 disables multiprocessing.  |
-| Training routine        | `epochs`               | Number of training iterations.                                    |
-|                         | `learning_rate`        | Learning rate of the model.                                       |
-|                         | `batch_size`           | Size of batches for model training.                               |
-| Model settings          | `picture_shape`        | Full shape of the images as (height, width, channels).            |
-|                         | `embedding_size`       | Embedding dimensions (valid for both models).                     |
-|                         | `kernel_size`          | Size of convolutional kernel (image encoder).                     |
-|                         | `num_heads`            | Number of attention heads.                                        |
-|                         | `generate_model_graph` | Generate/save 2D model graph (as .png file).                      |
-| Training data           | `num_train_samples`    | Number of images for model training.                              |
-|                         | `num_test_samples`     | Number of samples for validation data.                            |
-|                         | `augmentation`         | Perform data augmentation on images (affects training time).      |
-| General settings        | `seed`                 | Global random seed.                                               |
-|                         | `split_seed`           | Seed for dataset splitting.
+| Advanced settings       | use_mixed_precision  | Whether to use mixed precision for faster training (float16/32).  |
+|                         | use_tensorboard      | Activate/deactivate tensorboard logging.                          |
+|                         | XLA_acceleration     | Use linear algebra acceleration for faster training.              |
+|                         | training_device      | Select the training device (CPU or GPU).                          |
+|                         | num_processors       | Number of processors (cores) to use; 1 disables multiprocessing.  |
+| Training routine        | epochs               | Number of training iterations.                                    |
+|                         | learning_rate        | Learning rate of the model.                                       |
+|                         | batch_size           | Size of batches for model training.                               |
+| Model settings          | picture_shape        | Full shape of the images as (height, width, channels).            |
+|                         | embedding_size       | Embedding dimensions (valid for both models).                     |
+|                         | kernel_size          | Size of convolutional kernel (image encoder).                     |
+|                         | num_heads            | Number of attention heads.                                        |
+|                         | generate_model_graph | Generate/save 2D model graph (as .png file).                      |
+| Training data           | num_train_samples    | Number of images for model training.                              |
+|                         | num_test_samples     | Number of samples for validation data.                            |
+|                         | augmentation         | Perform data augmentation on images (affects training time).      |
+| General settings        | seed                 | Global random seed.                                               |
+|                         | split_seed           | Seed for dataset splitting.                                       |
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
