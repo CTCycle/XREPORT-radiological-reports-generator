@@ -75,7 +75,7 @@ train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list(
 
 # preprocess text with BioBERT tokenization
 pad_length = max([len(x.split()) for x in train_text])
-train_tokens, test_tokens = preprocessor.BERT_tokenization(train_text, test_text, bert_path)
+train_tokens, test_tokens = preprocessor.BPE_tokenization(train_text, test_text, bert_path)
 tokenizer = preprocessor.tokenizer
 vocab_size = preprocessor.vocab_size
 
