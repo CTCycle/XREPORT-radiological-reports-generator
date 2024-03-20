@@ -1,10 +1,10 @@
 import os
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow import keras
 import tensorflow as tf
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
@@ -59,18 +59,19 @@ class RealTimeHistory(keras.callbacks.Callback):
 # Real time history callback
 #==============================================================================
 class GenerateTextCallback(tf.keras.callbacks.Callback):
-    def __init__(self, tokenizer, max_len=200):       
+    def __init__(self, image, sequence, tokenizer, ):       
         
+        self.image = image
+        self.sequence = sequence
         self.tokenizer = tokenizer
-        self.start_seq = '[CLS]'
-        self.max_len = max_len
+        self.start_seq = '[CLS]'        
 
     def on_epoch_end(self, epoch, logs=None): 
         if epoch % 1 == 0:         
-            caption = self.generate_caption(self.input_image)
+            caption = self._generate_caption(self.input_image)
             print(f'\nSample caption at epoch {epoch}: {caption}')
 
-    def generate_caption(self, image):
+    def _generate_caption(self, image):
         # Convert start sequence to tokens and initialize the sequence
         sequence = [self.tokenizer.convert_tokens_to_ids([self.start_seq])]
         for _ in range(self.max_len):
