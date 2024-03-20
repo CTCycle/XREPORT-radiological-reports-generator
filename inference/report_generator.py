@@ -54,7 +54,7 @@ model, parameters = inference.load_pretrained_model(cp_path)
 model_path = inference.folder_path
 model.summary()
 
-# load BioBERT tokenizer
+# load BERT tokenizer
 tokenizer = preprocessor.get_BERT_tokenizer(bert_path)
 
 # [GENERATE REPORTS]
