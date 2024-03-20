@@ -6,7 +6,6 @@ from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
 from keras import layers
-from transformers import TFAutoModelForMaskedLM
     
            
 # [LEARNING RATE SCHEDULER]
@@ -298,8 +297,7 @@ class TransformerDecoderBlock(keras.layers.Layer):
         config = super(TransformerDecoderBlock, self).get_config()
         config.update({'sequence_length': self.sequence_length,
                        'vocab_size': self.vocab_size,
-                       'embedding_dims': self.embedding_dims,
-                       'bio_path' : self.bio_path,
+                       'embedding_dims': self.embedding_dims,                       
                        'num_heads': self.num_heads,
                        'seed': self.seed})
         return config
@@ -807,13 +805,7 @@ class ModelValidation:
 if __name__ == '__main__':
 
 
-    bio_path = os.path.join(os.getcwd(), 'training', 'BioBERT')
-    print(bio_path)
-    model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
-    biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
-    token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
-    token_embeddings.trainable = True
-
+    pass
 
     
     
