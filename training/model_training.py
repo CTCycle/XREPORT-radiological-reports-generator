@@ -18,6 +18,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 #------------------------------------------------------------------------------    
 from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
 from utils.model_assets import ModelTraining, XREPCaptioningModel, ModelValidation
+from utils.token_assets import BPETokenizer
 from utils.callbacks import RealTimeHistory, GenerateTextCallback
 import utils.global_paths as globpt
 import configurations as cnf
@@ -26,19 +27,23 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 images_path = os.path.join(globpt.data_path, 'images') 
 cp_path = os.path.join(globpt.train_path, 'checkpoints')
-bert_path = os.path.join(globpt.train_path, 'BERT')
+tok_path = os.path.join(globpt.train_path, 'BPE tokenizer')
 os.mkdir(images_path) if not os.path.exists(images_path) else None 
 os.mkdir(cp_path) if not os.path.exists(cp_path) else None
-os.mkdir(bert_path) if not os.path.exists(bert_path) else None
+os.mkdir(tok_path) if not os.path.exists(tok_path) else None
 
 
 # [LOAD DATA]
 #==============================================================================
 #==============================================================================
 
-# create model folder
+# initialize classes from utils
 #------------------------------------------------------------------------------
 preprocessor = PreProcessing()
+tokenization = BPETokenizer(max_vocab_size=20000)
+
+# create model folder
+#------------------------------------------------------------------------------
 model_folder = preprocessor.model_savefolder(cp_path, 'XREP')
 model_folder_name = preprocessor.folder_name
 
@@ -68,16 +73,19 @@ train_data, test_data = train_test_split(dataset, test_size=test_size, random_st
 pp_path = os.path.join(model_folder, 'preprocessing')
 os.mkdir(pp_path) if not os.path.exists(pp_path) else None 
 
-# preprocess text corpus using pretrained BioBERT tokenizer. Text is tokenized
+# preprocess text corpus using pretrained BPE tokenizer. Text is tokenized
 # using subwords and these are eventually mapped to integer indexes
 #------------------------------------------------------------------------------
 train_text, test_text = train_data['text'].to_list(), test_data['text'].to_list()
 
-# preprocess text with BioBERT tokenization
+# load BPE tokenizer
 pad_length = max([len(x.split()) for x in train_text])
-train_tokens, test_tokens = preprocessor.BPE_tokenization(train_text, test_text, bert_path)
-tokenizer = preprocessor.tokenizer
-vocab_size = preprocessor.vocab_size
+tokenizer = tokenization.load_tokenizer(tok_path)
+
+# encode text using BPE tokenizer
+train_tokens = tokenization.encode(train_text)
+test_tokens = tokenization.encode(test_text)
+vocab_size = tokenization.vocab_size
 
 # add tokenized text to dataframe. Sequences are converted to strings to make 
 # it easy to save the files as .csv
