@@ -73,6 +73,9 @@ class BPETokenizer:
                     else:
                         break
             tokens.extend(word.split())
+        
+        self.finalize_vocab()
+
         return tokens
 
     #--------------------------------------------------------------------------
@@ -90,8 +93,9 @@ class BPETokenizer:
         return [self.subword_to_id[token] for token in tokens if token in self.subword_to_id]
 
     #--------------------------------------------------------------------------
-    def save(self, filepath):
+    def save(self, path):
        
+        filepath = os.path.join(path, 'BPE_tokenizer.json')
         with open(filepath, 'w') as f:
             json.dump({'vocab': self.vocab,
                        'bpe_merges': self.bpe_merges,
@@ -99,8 +103,9 @@ class BPETokenizer:
 
     #--------------------------------------------------------------------------
     @classmethod
-    def load(cls, filepath):
+    def load(cls, path):
        
+        filepath = os.path.join(path, 'BPE_tokenizer.json')
         with open(filepath, 'r') as f:
             data = json.load(f)
         return cls(vocab=data['vocab'], bpe_merges=data['bpe_merges'], subword_to_id=data['subword_to_id'])

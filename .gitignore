@@ -2,7 +2,6 @@ __pycache__
 data/images/*
 data/validation/*
 training/checkpoints/*
-training/BERT/*
 inference/reports/*
 documents/*
 

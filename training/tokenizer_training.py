@@ -17,6 +17,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # import modules and classes
 #------------------------------------------------------------------------------    
 from utils.token_assets import BPETokenizer
+from utils.data_assets import PreProcessing
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -40,11 +41,15 @@ text_corpus = ' '.join(text_corpus_fragments)
 #==============================================================================
 #==============================================================================
 
+# clean text corpus
+#------------------------------------------------------------------------------
+preprocessor = PreProcessing()  
+tokenizer.learn_bpe(text_corpus, num_merges=20000)
+
 # pretrain BPE algorithm on the entire text corpus
 #------------------------------------------------------------------------------
 tokenizer = BPETokenizer()  
-tokenizer.learn_bpe(text_corpus, num_merges=5000)
-tokenizer.finalize_vocab()
+tokenizer.learn_bpe(text_corpus, num_merges=20000)
 
 # Example of encoding
 encoded_text = tokenizer.apply_bpe('This is a simple example.')
