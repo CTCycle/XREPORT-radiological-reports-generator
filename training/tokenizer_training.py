@@ -16,9 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
-from utils.token_assets import *
-from utils.callbacks import RealTimeHistory
+from utils.token_assets import BPETokenizer
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -26,7 +24,6 @@ import configurations as cnf
 #------------------------------------------------------------------------------
 bpe_path = os.path.join(globpt.train_path, 'BPE tokenizer')
 os.mkdir(bpe_path) if not os.path.exists(bpe_path) else None
-
 
 # [LOAD DATA]
 #==============================================================================
@@ -36,7 +33,8 @@ os.mkdir(bpe_path) if not os.path.exists(bpe_path) else None
 #------------------------------------------------------------------------------
 file_loc = os.path.join(globpt.data_path, 'XREP_dataset.csv') 
 dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';', low_memory=False)
-text_corpus = dataset['text'].to_list()
+text_corpus_fragments = dataset['text'].to_list()
+text_corpus = ' '.join(text_corpus_fragments)
 
 # [TRAIN TOKENIZER]
 #==============================================================================
@@ -44,37 +42,21 @@ text_corpus = dataset['text'].to_list()
 
 # pretrain BPE algorithm on the entire text corpus
 #------------------------------------------------------------------------------
-tokenizer = BPE_Tokenizer(max_vocab_size=None)  
-tokenizer.train(text_corpus)
+tokenizer = BPETokenizer()  
+tokenizer.learn_bpe(text_corpus, num_merges=5000)
+tokenizer.finalize_vocab()
 
 # Example of encoding
-encoded_text = tokenizer.encode("This is a simple example.")
+encoded_text = tokenizer.apply_bpe('This is a simple example.')
+vectorized_text = tokenizer.vectorize('This is a simple example.')
 print(encoded_text)
+print(vectorized_text)
+
+# save tokenizer
+tokenizer.save(bpe_path)
 
 
 
-
-
-
-# [BUILD XREPORT MODEL]
-#==============================================================================
-#==============================================================================
-
-# Print report with info about the training parameters
-#------------------------------------------------------------------------------
-print(f'''
--------------------------------------------------------------------------------
-XRAYREP training report
--------------------------------------------------------------------------------
-Number of train samples: {cnf.num_train_samples}
-Number of test samples:  {cnf.num_test_samples}
--------------------------------------------------------------------------------
-Batch size:              {cnf.batch_size}
-Epochs:                  {cnf.epochs}
-Vocabulary size:         {vocab_size + 1}
-Caption length:          {caption_shape} 
--------------------------------------------------------------------------------
-''')
 
 
 

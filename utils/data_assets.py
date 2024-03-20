@@ -84,7 +84,15 @@ class PreProcessing:
             
             images.append(image) 
 
-        return images   
+        return images  
+
+    #--------------------------------------------------------------------------
+    def process_text(self, text_sequences):
+
+        
+        a = 1
+            
+        return a
  
     #--------------------------------------------------------------------------
     def sequence_padding(self, sequences, pad_length, output = 'array'):
