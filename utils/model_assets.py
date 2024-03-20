@@ -647,7 +647,7 @@ class Inference:
         vocabulary = tokenizer.get_vocab()
         start_token = '[CLS]'
         end_token = '[SEP]'        
-        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))
+        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))        
         for pt in paths:
             print(f'\nGenerating report for images {os.path.basename(pt)}\n')
             image = tf.io.read_file(pt)
@@ -655,30 +655,35 @@ class Inference:
             image = tf.image.resize(image, picture_size)            
             image = image/255.0 
             input_image = tf.expand_dims(image, 0)
-            features = model.image_encoder(input_image)
-            encoded_img = model.encoder1(features, training=False)   
+            features = model.image_encoder(input_image)           
+            encoded_img = model.layers[1](features, training=False)   
+            encoded_img = model.layers[2](encoded_img, training=False)  
+            encoded_img = model.layers[3](encoded_img, training=False)  
 
             # teacher forging method to generate tokens through the decoder
-            decoded_caption = start_token               
+            decoded_caption = [start_token]               
             for i in range(max_length):     
                 tokenized_outputs = tokenizer(decoded_caption, add_special_tokens=False, return_tensors='tf',
-                                              padding='max_length', max_length=200)   
-                tokenized_caption = tokenized_outputs['input_ids']                                                                  
-                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                   
-                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                    
-                mask = tf.math.not_equal(tokenized_caption, 0)                                
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                        
-                sampled_token_index = np.argmax(predictions[0, i, :])                
-                sampled_token = index_lookup[sampled_token_index] 
-                print(sampled_token)                                              
+                                              padding='max_length', max_length=200) 
+                  
+                tokenized_caption = tokenized_outputs['input_ids']                                                                             
+                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                                    
+                tokenized_caption = tf.reshape(tokenized_caption, (1, -1))                                               
+                mask = tf.math.not_equal(tokenized_caption, 0)                                                
+                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                         
+                sampled_token_index = np.argmax(predictions[0, i, :])                               
+                sampled_token = index_lookup[sampled_token_index]                                                             
                 if sampled_token == end_token: 
-                    break
-                #decoded_caption =+ sampled_token                           
+                     break
+                decoded_caption.append(sampled_token)
+                print(decoded_caption)                         
 
-            cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
-            caption = ''.join(cleaned_caption)
-            reports[f'{os.path.basename(pt)}'] = caption
-            print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
+            print(tokenized_caption) 
+            print(predictions)  
+            # cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in decoded_caption if token not in ['[CLS]', '[SEP]']]
+            # caption = ''.join(cleaned_caption)
+            # reports[f'{os.path.basename(pt)}'] = caption
+            # print(f'Predicted report for image: {os.path.basename(pt)}', caption)          
 
         return reports
 
@@ -804,10 +809,11 @@ if __name__ == '__main__':
 
     bio_path = os.path.join(os.getcwd(), 'training', 'BioBERT')
     print(bio_path)
-
-
     model_identifier = 'dmis-lab/biobert-base-cased-v1.1'
     biobert_model = TFAutoModelForMaskedLM.from_pretrained(model_identifier, from_pt=True, cache_dir=bio_path) 
     token_embeddings = biobert_model.get_input_embeddings() # Extract embedding layer  
     token_embeddings.trainable = True
+
+
+    
     
