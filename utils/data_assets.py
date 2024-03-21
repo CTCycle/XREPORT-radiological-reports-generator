@@ -9,8 +9,6 @@ import tensorflow as tf
 from tensorflow import keras
 from keras.api._v2.keras import preprocessing
 from transformers import DistilBertTokenizer
-
-
     
     
 # [PREPROCESSING PIPELINE]
@@ -200,7 +198,6 @@ class PreProcessing:
         return model_folder_path
 
 
-
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 #==============================================================================
 # Generate data on the fly to avoid memory burdening
@@ -280,7 +277,6 @@ class DataGenerator(keras.utils.Sequence):
 #==============================================================================
 class TensorDataSet():
     
-     
     #--------------------------------------------------------------------------
     def create_tf_dataset(self, generator, buffer_size=tf.data.AUTOTUNE):
 
@@ -357,56 +353,32 @@ class DataValidation:
     def calculate_psnr(self, img_path_1, img_path_2):
         
         img1 = cv2.imread(img_path_1)
-        img2 = cv2.imread(img_path_2)      
-        
+        img2 = cv2.imread(img_path_2)       
         img1 = img1.astype(np.float32)
         img2 = img2.astype(np.float32)
         
         # Calculate MSE
         mse = np.mean((img1 - img2) ** 2)
-        if mse == 0:
-            # The images are exactly the same
-            return float('inf')
-        
-        # Assuming the pixel values range from 0 to 255
-        PIXEL_MAX = 255.0
-        
+        if mse == 0:            
+            return float('inf')      
+               
         # Calculate PSNR
-        psnr = 20 * np.log10(PIXEL_MAX / np.sqrt(mse))
-        return psnr
+        PIXEL_MAX = 255.0 
+        psnr = 20 * np.log10(PIXEL_MAX/np.sqrt(mse))
 
-        # Example usage
-        image1_path = 'path_to_your_first_image.jpg'
-        image2_path = 'path_to_your_second_image.jpg'
-        psnr_value = calculate_psnr(image1_path, image2_path)
-        print(f"PSNR: {psnr_value} dB")
+        return psnr
             
 
 
 
 
-
+# [MAIN]
+#==============================================================================
+#==============================================================================
 if __name__ == '__main__':
     
     pp = PreProcessing()
-    bio_path = os.path.join(os.getcwd(), 'training', 'BioBERT')
     
-    text = ['Text example to understand the tokenizer capabilities.']
-    text_tokens, _ = pp.BioBERT_tokenization(text, test_text=None, path=bio_path)
-    tokenizer = pp.tokenizer    
-
-    text_ids = text_tokens['input_ids'].numpy().tolist()
-    text_tokens = tokenizer.convert_ids_to_tokens(text_tokens['input_ids'][0])
-
-    print('Text tokens upon tokenization: ', text_tokens)
-    print('Text ids upon tokenization: ', text_ids)
-
-    cleaned_tokens = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in text_tokens if token not in ['[CLS]', '[SEP]']]
-
-    # Join the tokens to form a sentence
-    sentence = ''.join(cleaned_tokens).strip()
-
-    print(sentence)
 
    
 
