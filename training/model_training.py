@@ -32,7 +32,6 @@ os.mkdir(cp_path) if not os.path.exists(cp_path) else None
 os.mkdir(bert_path) if not os.path.exists(bert_path) else None
 
 
-
 # [LOAD DATA]
 #==============================================================================
 #==============================================================================
@@ -93,9 +92,9 @@ test_data['tokens'] = [' '.join(map(str, ids)) for ids in test_ids]
 # save preprocessed data
 #------------------------------------------------------------------------------
 file_loc = os.path.join(pp_path, 'XREP_train.csv')  
-train_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
+train_data.to_csv(file_loc, index=False, sep =';', encoding='utf-8')
 file_loc = os.path.join(pp_path, 'XREP_test.csv')  
-test_data.to_csv(file_loc, index = False, sep = ';', encoding='utf-8')
+test_data.to_csv(file_loc, index=False, sep=';', encoding='utf-8')
 
 # [CREATE DATA GENERATOR]
 #==============================================================================
