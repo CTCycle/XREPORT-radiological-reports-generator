@@ -21,16 +21,16 @@ In addition to the Python packages, certain extra dependencies may be required f
 
 You can install these dependencies using the appropriate package manager for your system. For instance, you might use conda or an external installation method based on your operating system's requirements.
 
-## 3.1 CUDA GPU Support (Optional, for GPU Acceleration)
+### 3.1 CUDA GPU Support (Optional, for GPU Acceleration)
 If you have an NVIDIA GPU and want to harness the power of GPU acceleration using CUDA, please follow these additional steps. The application is built using TensorFlow 2.10.0 to ensure native Windows GPU support, so remember to install the appropriate versions:
 
-### 3.1.1 Install NVIDIA CUDA Toolkit (Version 11.2)
+#### 3.1.1 Install NVIDIA CUDA Toolkit (Version 11.2)
 To enable GPU acceleration, you'll need to install the NVIDIA CUDA Toolkit. Visit the [NVIDIA CUDA Toolkit download page](https://developer.nvidia.com/cuda-downloads) and select the version that matches your GPU and operating system. Follow the installation instructions provided. Alternatively, you can install `cuda-toolkit` as a package within your environment.
 
-### 3.1.2 Install cuDNN (NVIDIA Deep Neural Network Library, Version 8.1.0.77)
+#### 3.1.2 Install cuDNN (NVIDIA Deep Neural Network Library, Version 8.1.0.77)
 Next, you'll need to install cuDNN, which is the NVIDIA Deep Neural Network Library. Visit the [cuDNN download page](https://developer.nvidia.com/cudnn) and download the cuDNN library version that corresponds to your CUDA version (in this case, version 8.1.0.77). Follow the installation instructions provided.
 
-### 3.2 Additional Package (If CUDA Toolkit Is Installed)
+#### 3.1.3 Additional Package (If CUDA Toolkit Is Installed)
 If you've installed the NVIDIA CUDA Toolkit within your environment, you may also need to install an additional package called `cuda-nvcc` (Version 12.3.107). This package provides the CUDA compiler and tools necessary for building CUDA-enabled applications.
 
 By following these steps, you can ensure that your environment is configured to take full advantage of GPU acceleration for enhanced performance.                 
@@ -50,24 +50,24 @@ The configurations.py file allows to change the script configuration.
 
 | Category                | Setting                | Description                                                       |
 |-------------------------|------------------------|-------------------------------------------------------------------|
-| Advanced settings       | use_mixed_precision  | Whether to use mixed precision for faster training (float16/32).  |
-|                         | use_tensorboard      | Activate/deactivate tensorboard logging.                          |
-|                         | XLA_acceleration     | Use linear algebra acceleration for faster training.              |
-|                         | training_device      | Select the training device (CPU or GPU).                          |
-|                         | num_processors       | Number of processors (cores) to use; 1 disables multiprocessing.  |
-| Training routine        | epochs               | Number of training iterations.                                    |
-|                         | learning_rate        | Learning rate of the model.                                       |
-|                         | batch_size           | Size of batches for model training.                               |
-| Model settings          | picture_shape        | Full shape of the images as (height, width, channels).            |
-|                         | embedding_size       | Embedding dimensions (valid for both models).                     |
-|                         | kernel_size          | Size of convolutional kernel (image encoder).                     |
-|                         | num_heads            | Number of attention heads.                                        |
-|                         | generate_model_graph | Generate/save 2D model graph (as .png file).                      |
-| Training data           | num_train_samples    | Number of images for model training.                              |
-|                         | num_test_samples     | Number of samples for validation data.                            |
-|                         | augmentation         | Perform data augmentation on images (affects training time).      |
-| General settings        | seed                 | Global random seed.                                               |
-|                         | split_seed           | Seed for dataset splitting.                                       |
+| Advanced settings       | use_mixed_precision    | Whether to use mixed precision for faster training (float16/32).  |
+|                         | use_tensorboard        | Activate/deactivate tensorboard logging.                          |
+|                         | XLA_acceleration       | Use linear algebra acceleration for faster training.              |
+|                         | training_device        | Select the training device (CPU or GPU).                          |
+|                         | num_processors         | Number of processors (cores) to use; 1 disables multiprocessing.  |
+| Training routine        | epochs                 | Number of training iterations.                                    |
+|                         | learning_rate          | Learning rate of the model.                                       |
+|                         | batch_size             | Size of batches for model training.                               |
+| Model settings          | picture_shape          | Full shape of the images as (height, width, channels).            |
+|                         | embedding_size         | Embedding dimensions (valid for both models).                     |
+|                         | kernel_size            | Size of convolutional kernel (image encoder).                     |
+|                         | num_heads              | Number of attention heads.                                        |
+|                         | generate_model_graph   | Generate/save 2D model graph (as .png file).                      |
+| Training data           | num_train_samples      | Number of images for model training.                              |
+|                         | num_test_samples       | Number of samples for validation data.                            |
+|                         | augmentation           | Perform data augmentation on images (affects training time).      |
+| General settings        | seed                   | Global random seed.                                               |
+|                         | split_seed             | Seed for dataset splitting.                                       |
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
