@@ -316,7 +316,7 @@ class DataValidation:
 
 
     #--------------------------------------------------------------------------
-    def pixel_intensity_histograms(self, image_set_1, image_set_2, path,
+    def pixel_intensity_histograms(self, image_set_1, image_set_2, path, params,
                                    names=['First set', 'Second set']):
         
         '''
@@ -333,20 +333,20 @@ class DataValidation:
         
         Returns:
             None
-        '''
-        
+
+        '''       
         pixel_intensities_1 = np.concatenate([image.flatten() for image in image_set_1])
         pixel_intensities_2 = np.concatenate([image.flatten() for image in image_set_2])        
-        plt.hist(pixel_intensities_1, bins=255, alpha=0.5, density=True, color='blue', label=names[0])
-        plt.hist(pixel_intensities_2, bins=255, alpha=0.7, density=True, color='green', label=names[1])
-        plt.title('Pixel Intensity Histograms')
-        plt.xlabel('Pixel Intensity')
-        plt.ylabel('Frequency')
+        plt.hist(pixel_intensities_1, bins='auto', alpha=0.5, color='blue', label=names[0])
+        plt.hist(pixel_intensities_2, bins='auto', alpha=0.5, color='red', label=names[1])
+        plt.title(params['title'],)
+        plt.xlabel('Pixel Intensity', fontsize=params['fontsize_labels'])
+        plt.ylabel(params['ylabel'],  fontsize=params['fontsize_labels'])
         plt.legend()            
         plt.tight_layout()
-        plot_loc = os.path.join(path, 'pixel_intensities.jpeg')
-        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)
-        plt.show()            
+        plot_loc = os.path.join(path, params['filename'])
+        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)   
+        plt.show()         
         plt.close()
 
     #--------------------------------------------------------------------------
