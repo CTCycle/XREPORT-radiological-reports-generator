@@ -16,8 +16,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and classes
 #------------------------------------------------------------------------------    
-from utils.data_assets import PreProcessing, DataGenerator, TensorDataSet
-from utils.model_assets import ModelTraining, XREPCaptioningModel, ModelValidation
+from utils.preprocessing import PreProcessing, find_images_path
+from utils.generators import DataGenerator, TensorDataSet
+from utils.models import ModelTraining, XREPCaptioningModel, ModelValidation, model_savefolder
 from utils.callbacks import RealTimeHistory, GenerateTextCallback
 import utils.global_paths as globpt
 import configurations as cnf
@@ -42,14 +43,13 @@ preprocessor = PreProcessing()
 
 # create model folder
 #------------------------------------------------------------------------------
-model_folder = preprocessor.model_savefolder(cp_path, 'XREP')
-model_folder_name = preprocessor.folder_name
+model_folder, model_folder_name = model_savefolder(cp_path, 'XREP')
 
 # load data from csv, add paths to images 
 #------------------------------------------------------------------------------
 file_loc = os.path.join(globpt.data_path, 'XREP_dataset.csv') 
 dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';', low_memory=False)
-dataset = preprocessor.find_images_path(images_path, dataset)
+dataset = find_images_path(images_path, dataset)
 
 # select subset of data
 #------------------------------------------------------------------------------
