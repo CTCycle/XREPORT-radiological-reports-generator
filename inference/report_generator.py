@@ -12,8 +12,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # import modules and components
 #------------------------------------------------------------------------------
-from utils.data_assets import PreProcessing
-from utils.model_assets import Inference
+from utils.preprocessing import PreProcessing
+from utils.models import Inference
 import utils.global_paths as globpt
 import configurations as cnf
 
@@ -29,13 +29,6 @@ os.mkdir(bert_path) if not os.path.exists(bert_path) else None
 # [LOAD MODEL AND DATA]
 #==============================================================================
 #==============================================================================        
-print(f'''
--------------------------------------------------------------------------------
-XREPORT report generation
--------------------------------------------------------------------------------
-...
-''')
-
 preprocessor = PreProcessing()
 
 # check report folder and generate list of images paths
