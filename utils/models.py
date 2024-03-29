@@ -7,7 +7,34 @@ from tensorflow import keras
 from keras import backend as K
 from keras.models import Model
 from keras import layers
+from datetime import datetime
+
     
+# function to create a folder where to save model checkpoints
+#------------------------------------------------------------------------------
+def model_savefolder(path, model_name):
+
+    '''
+    Creates a folder with the current date and time to save the model.
+    
+    Keyword arguments:
+        path (str):       A string containing the path where the folder will be created.
+        model_name (str): A string containing the name of the model.
+    
+    Returns:
+        str: A string containing the path of the folder where the model will be saved.
+        
+    '''        
+    today_datetime = str(datetime.now())
+    truncated_datetime = today_datetime[:-10]
+    today_datetime = truncated_datetime.replace(':', '').replace('-', '').replace(' ', 'H') 
+    folder_name = f'{model_name}_{today_datetime}'
+    model_folder_path = os.path.join(path, folder_name)
+    if not os.path.exists(model_folder_path):
+        os.mkdir(model_folder_path) 
+                    
+    return model_folder_path, folder_name
+
            
 # [LEARNING RATE SCHEDULER]
 #==============================================================================
@@ -679,7 +706,6 @@ class Inference:
             print(f'Predicted report for image: {os.path.basename(pt)}', text)          
 
         return reports
-
    
 
 # [VALIDATION OF PRETRAINED MODELS]
@@ -732,18 +758,6 @@ class ModelValidation:
             else:
                 print(f'Layer {layer1.name} does not have weights to compare')
             
-
-
-    
-
- 
-
-
-
-if __name__ == '__main__':
-
-
-    pass
 
     
     
