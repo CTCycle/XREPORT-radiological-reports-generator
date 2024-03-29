@@ -4,5 +4,4 @@ data/validation/*
 training/checkpoints/*
 training/BERT/*
 inference/reports/*
-documents/*
 
