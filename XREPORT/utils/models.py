@@ -9,6 +9,27 @@ from keras.models import Model
 from keras import layers
 from datetime import datetime
 
+
+
+def save_model_parameters(parameters_dict, savepath):
+
+    '''
+    Saves the model parameters to a JSON file. The parameters are provided 
+    as a dictionary and are written to a file named 'model_parameters.json' 
+    in the specified directory.
+
+    Keyword arguments:
+        parameters_dict (dict): A dictionary containing the parameters to be saved.
+        savepath (str): The directory path where the parameters will be saved.
+
+    Returns:
+        None       
+
+    '''
+    path = os.path.join(savepath, 'model_parameters.json')      
+    with open(path, 'w') as f:
+        json.dump(parameters_dict, f)
+
     
 # function to create a folder where to save model checkpoints
 #------------------------------------------------------------------------------
@@ -37,8 +58,6 @@ def model_savefolder(path, model_name):
 
            
 # [LEARNING RATE SCHEDULER]
-#==============================================================================
-# Generate data on the fly to avoid memory burdening
 #==============================================================================
 @keras.utils.register_keras_serializable(package='LRScheduler')
 class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
@@ -74,9 +93,7 @@ class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     
       
 # [IMAGE ENCODER MODEL]
-#==============================================================================
-# Custom encoder model
-#==============================================================================    
+#==============================================================================  
 @keras.utils.register_keras_serializable(package='Encoders', name='ImageEncoder')
 class ImageEncoder(keras.layers.Layer):
     def __init__(self, kernel_size, seed, **kwargs):
@@ -141,8 +158,6 @@ class ImageEncoder(keras.layers.Layer):
 
 # [POSITIONAL EMBEDDING]
 #==============================================================================
-# Custom positional embedding layer
-#==============================================================================
 @keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, mask_zero=True, **kwargs):
@@ -196,8 +211,6 @@ class PositionalEmbedding(keras.layers.Layer):
 
 # [TRANSFORMER ENCODER]
 #==============================================================================
-# Custom transformer encoder
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoderBlock')
 class TransformerEncoderBlock(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
@@ -249,8 +262,6 @@ class TransformerEncoderBlock(keras.layers.Layer):
 
 # [TRANSFORMER DECODER]
 #==============================================================================
-# Custom transformer decoder
-#============================================================================== 
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoderBlock')
 class TransformerDecoderBlock(keras.layers.Layer):
     def __init__(self, sequence_length, vocab_size, embedding_dims, num_heads, seed, **kwargs):
@@ -339,8 +350,6 @@ class TransformerDecoderBlock(keras.layers.Layer):
 
 # [XREP CAPTIONING MODEL]
 #==============================================================================
-# Custom captioning model
-#==============================================================================  
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
     def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
@@ -491,40 +500,26 @@ class XREPCaptioningModel(keras.Model):
         return cls(**config)  
     
 
-# [TRAINING OPTIONS]
+# [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
 #==============================================================================
-# Custom training operations
-#==============================================================================
-class ModelTraining:
-
-    '''
-    ModelTraining - A class for configuring the device and settings for model training.
-
-    Keyword Arguments:
-        device (str):                         The device to be used for training. 
-                                              Should be one of ['default', 'GPU', 'CPU'].
-                                              Defaults to 'default'.
-        seed (int, optional):                 The seed for random initialization. Defaults to 42.
-        use_mixed_precision (bool, optional): Whether to use mixed precision for improved training performance.
-                                              Defaults to False.
-    
-    '''      
-    def __init__(self, device='default', seed=42, use_mixed_precision=False):                            
+class ModelTraining:    
+       
+    def __init__(self, seed=42):                            
         np.random.seed(seed)
         tf.random.set_seed(seed)         
-        self.available_devices = tf.config.list_physical_devices()
-        print('-------------------------------------------------------------------------------')        
-        print('The current devices are available: ')
-        print('-------------------------------------------------------------------------------')
-        for dev in self.available_devices:
-            print()
+        self.available_devices = tf.config.list_physical_devices()               
+        print('The current devices are available:\n')        
+        for dev in self.available_devices:            
             print(dev)
-        print()
-        print('-------------------------------------------------------------------------------')
+
+    # set device
+    #--------------------------------------------------------------------------
+    def set_device(self, device='default', use_mixed_precision=False):
+
         if device == 'GPU':
             self.physical_devices = tf.config.list_physical_devices('GPU')
             if not self.physical_devices:
-                print('No GPU found. Falling back to CPU')
+                print('\nNo GPU found. Falling back to CPU\n')
                 tf.config.set_visible_devices([], 'GPU')
             else:
                 if use_mixed_precision == True:
@@ -532,34 +527,11 @@ class ModelTraining:
                     keras.mixed_precision.set_global_policy(policy) 
                 tf.config.set_visible_devices(self.physical_devices[0], 'GPU')
                 os.environ['TF_GPU_ALLOCATOR']='cuda_malloc_async'                 
-                print('GPU is set as active device')
-            print('-------------------------------------------------------------------------------')
-            print()        
+                print('\nGPU is set as active device\n')
+                   
         elif device == 'CPU':
             tf.config.set_visible_devices([], 'GPU')
-            print('CPU is set as active device')
-            print('-------------------------------------------------------------------------------')
-            print()         
-    
-    #-------------------------------------------------------------------------- 
-    def model_parameters(self, parameters_dict, savepath):
-
-        '''
-        Saves the model parameters to a JSON file. The parameters are provided 
-        as a dictionary and are written to a file named 'model_parameters.json' 
-        in the specified directory.
-
-        Keyword arguments:
-            parameters_dict (dict): A dictionary containing the parameters to be saved.
-            savepath (str): The directory path where the parameters will be saved.
-
-        Returns:
-            None       
-
-        '''
-        path = os.path.join(savepath, 'model_parameters.json')      
-        with open(path, 'w') as f:
-            json.dump(parameters_dict, f)     
+            print('\nCPU is set as active device\n')    
     
     #--------------------------------------------------------------------------   
     def save_subclassed_model(self, model, path):
@@ -586,8 +558,6 @@ class ModelTraining:
     
     
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
-#==============================================================================
-# Custom training operations
 #==============================================================================
 class Inference:
 
@@ -709,8 +679,6 @@ class Inference:
    
 
 # [VALIDATION OF PRETRAINED MODELS]
-#==============================================================================
-# Validation and evaluation of model performances
 #==============================================================================
 class ModelValidation:
 
