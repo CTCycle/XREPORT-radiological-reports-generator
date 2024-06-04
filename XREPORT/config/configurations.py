@@ -1,35 +1,35 @@
 # Advanced settings for training 
 #------------------------------------------------------------------------------
-use_mixed_precision = True
-use_tensorboard = False
-XLA_acceleration = False
-training_device = 'GPU'
-num_processors = 6
+MIXED_PRECISION = True
+USE_TENSORBOARD = False
+XLA_STATE = False
+ML_DEVICE = 'GPU'
+NUM_PROCESSORS = 6
 
 # Settings for training routine
 #------------------------------------------------------------------------------
-epochs = 20
-learning_rate = 0.0001
-batch_size = 10
+EPOCHS = 1
+LEARNING_RATE = 0.0001
+BATCH_SIZE = 40
 
-# Model settings
+# model settings
 #------------------------------------------------------------------------------
-picture_shape = (224, 224, 1)
-embedding_dims = 512 # 768 is compatible with BioBERT embedding dimensions
-kernel_size = 2
-num_heads = 6
-generate_model_graph = True
+IMG_SHAPE = (256, 256, 3)
+EMBEDDING_DIMS = 512 
+KERNEL_SIZE = 2
+NUM_HEADS = 6
+SAVE_MODEL_PLOT = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-num_train_samples = 40000
-num_test_samples = 4000
-augmentation = False
+TRAIN_SAMPLES = 2000
+TEST_SAMPLES = 200
+IMG_AUGMENT = False
 
 # General settings 
 #------------------------------------------------------------------------------
-seed = 12
-split_seed = 125
+SEED = 54
+SPLIT_SEED = 45
 
 
 

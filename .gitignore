@@ -1,7 +1,9 @@
 __pycache__
-data/images/*
-data/validation/*
-training/checkpoints/*
-training/BERT/*
-inference/reports/*
+XREPORT/data/images/*
+XREPORT/data/validation/*
+XREPORT/training/checkpoints/*
+XREPORT/training/BERT/*
+XREPORT/inference/reports/*
+
+!.gitkeep
 
