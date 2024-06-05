@@ -174,7 +174,8 @@ class PositionalEmbedding(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def call(self, inputs):
         length = tf.shape(inputs)[-1]
-        positions = tf.range(start=0, limit=length, delta=1)        
+        positions = tf.range(start=0, limit=length, delta=1) 
+        positions = tf.cast(positions, dtype=inputs.dtype)       
         embedded_tokens = self.token_embeddings(inputs)  
         embedded_tokens = embedded_tokens * self.embedding_scale
         embedded_positions = self.position_embeddings(positions)
