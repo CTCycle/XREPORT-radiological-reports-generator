@@ -10,64 +10,52 @@ The XREPORT model is based on a transformer encoder-decoder architecture. Three 
 
 **XREP transformers:** the body of the model comprises a series of transformer encoders/decoders. The transformer encoder employs multi-head self-attention and feedforward networks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
-## 3. Installation 
-First, ensure that you have Python 3.10.12 installed on your system. Then, you can easily install the required Python packages using the provided requirements.txt file:
+## 3. Installation
+The installation process is designed for simplicity, using .bat scripts to automatically create a virtual environment with all necessary dependencies. Please ensure that Anaconda or Miniconda is installed on your system before proceeding.
 
-`pip install -r requirements.txt` 
+- To set up a CPU-only environment, run `setup/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
+- For GPU support, which is necessary for model training on a GPU, use `setup/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
+- Once the environment has been created, run `scripts/package_setup.bat` to install the app package locally.
+- **IMPORTANT:** run `scripts/package_setup.bat` if you move the project folder somewhere else after installation, or the app won't work! 
 
-In addition to the Python packages, certain extra dependencies may be required for specific functionalities. These dependencies can be installed using conda or other external installation methods, depending on your operating system. Specifically, you will need to install graphviz and pydot to enable the visualization of the 2D model architecture:
-- graphviz version 2.38.0
-- pydot version 1.4.2
+### 3.1 Additional Package for XLA Acceleration
+XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. 
 
-You can install these dependencies using the appropriate package manager for your system. For instance, you might use conda or an external installation method based on your operating system's requirements.
-
-### 3.1 CUDA GPU Support (Optional, for GPU Acceleration)
-If you have an NVIDIA GPU and want to harness the power of GPU acceleration using CUDA, please follow these additional steps. The application is built using TensorFlow 2.10.0 to ensure native Windows GPU support, so remember to install the appropriate versions:
-
-#### 3.1.1 Install NVIDIA CUDA Toolkit (Version 11.2)
-To enable GPU acceleration, you'll need to install the NVIDIA CUDA Toolkit. Visit the [NVIDIA CUDA Toolkit download page](https://developer.nvidia.com/cuda-downloads) and select the version that matches your GPU and operating system. Follow the installation instructions provided. Alternatively, you can install `cuda-toolkit` as a package within your environment.
-
-#### 3.1.2 Install cuDNN (NVIDIA Deep Neural Network Library, Version 8.1.0.77)
-Next, you'll need to install cuDNN, which is the NVIDIA Deep Neural Network Library. Visit the [cuDNN download page](https://developer.nvidia.com/cudnn) and download the cuDNN library version that corresponds to your CUDA version (in this case, version 8.1.0.77). Follow the installation instructions provided.
-
-#### 3.1.3 Additional Package (If CUDA Toolkit Is Installed)
-If you've installed the NVIDIA CUDA Toolkit within your environment, you may also need to install an additional package called `cuda-nvcc` (Version 12.3.107). This package provides the CUDA compiler and tools necessary for building CUDA-enabled applications.
-
-By following these steps, you can ensure that your environment is configured to take full advantage of GPU acceleration for enhanced performance.                 
+To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## 4. How to use
-The project is organized into subfolders, each dedicated to specific tasks. The `utils/` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
+The project is organized into subfolders, each dedicated to specific tasks. The `XREPORT/utils` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
 
-**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `data/images`.
-Run the jupyter notebook `data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `data/validation`. 
+**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`.
+Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
 
-**Training:** contains the necessary files for conducting model training and evaluation. `model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
+**Training:** contains the necessary files for conducting model training and evaluation. `XREPORT/model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
 
-**Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `inference/reports`. The reports are saved as .csv file in the same directory.
+**Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
 
 ### 4.1 Configurations
 The configurations.py file allows to change the script configuration. 
 
 | Category                | Setting                | Description                                                       |
 |-------------------------|------------------------|-------------------------------------------------------------------|
-| Advanced settings       | use_mixed_precision    | use mixed precision for faster training (float16/32)              |
-|                         | use_tensorboard        | Activate/deactivate tensorboard logging                           |
-|                         | XLA_acceleration       | Use linear algebra acceleration for faster training               |
-|                         | training_device        | Select the training device (CPU or GPU)                           |
-|                         | num_processors         | Number of processors (cores) to use; 1 disables multiprocessing   |
-| Training routine        | epochs                 | Number of training iterations                                     |
-|                         | learning_rate          | Learning rate of the model                                        |
-|                         | batch_size             | Size of batches for model training                                |
-| Model settings          | picture_shape          | Full shape of the images as (height, width, channels)             |
-|                         | embedding_size         | Embedding dimensions (valid for both models)                      |
-|                         | kernel_size            | Size of convolutional kernel (image encoder)                      |
-|                         | num_heads              | Number of attention heads                                         |
-|                         | generate_model_graph   | Generate/save 2D model graph (as .png file)                       |
-| Training data           | num_train_samples      | Number of images for model training                               |
-|                         | num_test_samples       | Number of samples for validation data                             |
-|                         | augmentation           | Perform data augmentation on images (affects training time)       |
-| General settings        | seed                   | Global random seed                                                |
-|                         | split_seed             | Seed for dataset splitting                                        |
+| Advanced settings       | USE_MIXED_PRECISION    | use mixed precision for faster training (float16/32)              |
+|                         | USE_TENSORBOARD        | Activate/deactivate tensorboard logging                           |
+|                         | XLA_STATE              | Use linear algebra acceleration for faster training               |
+|                         | ML_DEVICE              | Select the training device (CPU or GPU)                           |
+|                         | NUM_PROCESSORS         | Number of processors (cores) to use; 1 disables multiprocessing   |
+| Training routine        | EPOCHS                 | Number of training iterations                                     |
+|                         | LEARNING_RATE          | Learning rate of the model                                        |
+|                         | BATCH_SIZE             | Size of batches for model training                                |
+| Model settings          | IMG_SHAPE              | Full shape of the images as (height, width, channels)             |
+|                         | EMBEDDING_DIMS         | Embedding dimensions (valid for both models)                      |
+|                         | KERNEL_SIZE            | Size of convolutional kernel (image encoder)                      |
+|                         | NUM_HEADS              | Number of attention heads                                         |
+|                         | SAVE_MODEL_PLOT        | Generate/save 2D model graph (as .png file)                       |
+| Training data           | TRAIN_SAMPLES          | Number of images for model training                               |
+|                         | TEST_SAMPLES           | Number of samples for validation data                             |
+|                         | IMG_AUGMENT            | Perform data augmentation on images (affects training time)       |
+| General settings        | SEED                   | Global random seed                                                |
+|                         | SPLIT_SEED             | Seed for dataset splitting                                        |
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
