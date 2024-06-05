@@ -41,8 +41,7 @@ if __name__ == '__main__':
                                              random_state=cnf.SPLIT_SEED)
 
     # 2. [PREPROCESS DATA]
-    #-------------------------------------------------------------------------- 
-
+    #--------------------------------------------------------------------------
     # create subfolder for preprocessing data    
     pp_path = os.path.join(model_folder, 'preprocessing')
     os.mkdir(pp_path) if not os.path.exists(pp_path) else None 
@@ -125,8 +124,7 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the XRAY captioning model. 
     # to visualize tensorboard report, use command prompt on the model folder and 
     # upon activating environment, use the bash command: 
-    # python -m tensorboard.main --logdir tensorboard/
-    
+    # python -m tensorboard.main --logdir tensorboard/    
 
     # initialize real time plot callback    
     RTH_callback = RealTimeHistory(model_folder, validation=True)
