@@ -24,7 +24,7 @@ XLA is designed to optimize computations for speed and efficiency, particularly 
 To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## 4. How to use
-The project is organized into subfolders, each dedicated to specific tasks. The `XREPORT/utils` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
+The project is organized into subfolders, each dedicated to specific tasks. 
 
 **Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`. Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
 
@@ -33,7 +33,7 @@ The project is organized into subfolders, each dedicated to specific tasks. The 
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
 
 ### 4.1 Configurations
-The configurations.py file allows to change the script configuration. 
+For customization, you can modify the main script parameters via the `XREPORT/commons/configurations.py` file. 
 
 | Category                | Setting                | Description                                                       |
 |-------------------------|------------------------|-------------------------------------------------------------------|
