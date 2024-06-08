@@ -26,8 +26,7 @@ To enable XLA acceleration globally across your system, you need to set an envir
 ## 4. How to use
 The project is organized into subfolders, each dedicated to specific tasks. The `XREPORT/utils` folder houses crucial components utilized by various scripts. It's critical to avoid modifying these files, as doing so could compromise the overall integrity and functionality of the program.
 
-**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`.
-Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
+**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`. Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
 
 **Training:** contains the necessary files for conducting model training and evaluation. `XREPORT/model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
 
