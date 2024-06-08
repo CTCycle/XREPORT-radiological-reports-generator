@@ -6,10 +6,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.utils.preprocessing import PreProcessing
-from XREPORT.utils.models import Inference
-from XREPORT.config.pathfinder import REPORT_PATH, CHECKPOINT_PATH, BERT_PATH
-import XREPORT.config.configurations as cnf
+from XREPORT.commons.utils.preprocessing import PreProcessing
+from XREPORT.commons.utils.models import Inference
+from XREPORT.commons.pathfinder import REPORT_PATH, CHECKPOINT_PATH, BERT_PATH
+import XREPORT.commons.configurations as cnf
 
 
 # [RUN MAIN]
