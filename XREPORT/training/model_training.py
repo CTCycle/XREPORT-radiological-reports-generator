@@ -9,8 +9,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.preprocessing import PreProcessing, find_images_path
-from XREPORT.commons.utils.generators import DataGenerator, TensorDataSet
+from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
+from XREPORT.commons.utils.dataloader.generators import DataGenerator, build_tensor_dataset
 from XREPORT.commons.utils.models import ModelTraining, XREPCaptioningModel, ModelValidation, model_savefolder, save_model_parameters
 from XREPORT.commons.utils.callbacks import RealTimeHistory, GenerateTextCallback
 from XREPORT.commons.pathfinder import IMG_DATA_PATH, DATA_PATH, CHECKPOINT_PATH, BERT_PATH
