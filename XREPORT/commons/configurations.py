@@ -22,8 +22,9 @@ SAVE_MODEL_PLOT = True
 
 # Settings for training data 
 #------------------------------------------------------------------------------
-TRAIN_SAMPLES = 20000
-TEST_SAMPLES = 2000
+SAMPLE_SIZE = 0.3
+VALIDATION_SIZE = 0.2
+TEST_SIZE = 0.1
 IMG_AUGMENT = False
 
 # General settings 

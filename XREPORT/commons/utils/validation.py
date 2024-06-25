@@ -8,42 +8,30 @@ import matplotlib.pyplot as plt
 #------------------------------------------------------------------------------
 class DataValidation:
 
+    def __init__(self):
+        self.DPI = 400
+        self.file_type = 'jpeg'
+
     #--------------------------------------------------------------------------
-    def pixel_intensity_histograms(self, image_set_1, image_set_2, path, params,
-                                   names=['First set', 'Second set']):
-        
-        '''
-        Generates and saves histograms of pixel intensities for two sets of images.
-        This function computes the pixel intensity distributions for two sets 
-        of images and plots their histograms for comparison. The histograms are 
-        saved as a JPEG file in the specified path. 
+    def pixel_intensity_histograms(self, image_dict, path):
 
-        Keyword Arguments:
-            image_set_1 (list of ndarray): The first set of images for histogram comparison
-            image_set_2 (list of ndarray): The second set of images for histogram comparison
-            path (str): Directory path where the histogram image will be saved
-            names (list of str, optional): Labels for the two image sets. Default to ['First set', 'Second set']
+        figure_path = os.path.join(path, 'pixel_intensity_histograms.jpeg')
+        plt.figure(figsize=(16, 14))        
+        for name, image_set in image_dict.items():
+            pixel_intensities = np.concatenate([image.flatten() for image in image_set])
+            plt.hist(pixel_intensities, bins='auto', alpha=0.5, label=name)
         
-        Returns:
-            None
-
-        '''       
-        pixel_intensities_1 = np.concatenate([image.flatten() for image in image_set_1])
-        pixel_intensities_2 = np.concatenate([image.flatten() for image in image_set_2])        
-        plt.hist(pixel_intensities_1, bins='auto', alpha=0.5, color='blue', label=names[0])
-        plt.hist(pixel_intensities_2, bins='auto', alpha=0.5, color='red', label=names[1])
-        plt.title(params['title'],)
-        plt.xlabel('Pixel Intensity', fontsize=params['fontsize_labels'])
-        plt.ylabel(params['ylabel'],  fontsize=params['fontsize_labels'])
-        plt.legend()            
-        plt.tight_layout()
-        plot_loc = os.path.join(path, params['filename'])
-        plt.savefig(plot_loc, bbox_inches='tight', format='jpeg', dpi=400)   
-        plt.show()         
+        plt.title('Pixel Intensity Histograms', fontsize=16)
+        plt.xlabel('Pixel Intensity', fontsize=12)
+        plt.ylabel('Frequency', fontsize=12)
+        plt.legend()
+        plt.tight_layout()        
+        plt.savefig(figure_path, bbox_inches='tight', format=self.file_type, dpi=self.DPI)
+        plt.show()
         plt.close()
 
     #--------------------------------------------------------------------------
-    def calculate_psnr(self, img_path_1, img_path_2):
+    def calculate_PSNR(self, img_path_1, img_path_2):
         
         img1 = cv2.imread(img_path_1)
         img2 = cv2.imread(img_path_2)       

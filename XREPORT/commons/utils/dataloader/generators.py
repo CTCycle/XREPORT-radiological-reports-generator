@@ -46,17 +46,17 @@ class DataGenerator(keras.utils.Sequence):
     #--------------------------------------------------------------------------
     def on_epoch_end(self):        
         self.indexes = np.arange(self.num_of_samples)
-        if self.shuffle == True:
+        if self.shuffle:
             np.random.shuffle(self.indexes)
 
     # define method to load images and perform data augmentation    
     #--------------------------------------------------------------------------
-    def __images_generation(self, path, augmentation=False):
+    def __images_generation(self, path):
         image = tf.io.read_file(path)
         image = tf.image.decode_image(image, channels=1)
         resized_image = tf.image.resize(image, IMG_SHAPE[:-1])        
         pp_image = resized_image/255.0  
-        if augmentation==True:            
+        if IMG_AUGMENT:            
             pp_image = tf.keras.preprocessing.image.random_shift(pp_image, 0.2, 0.3)
             pp_image = tf.image.random_flip_left_right(pp_image)        
 

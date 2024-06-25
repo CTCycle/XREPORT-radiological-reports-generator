@@ -7,13 +7,13 @@ from datetime import datetime
 import tensorflow as tf
 from keras.utils import plot_model
 
-from XREPORT.commons.utils.models.captioner import XReport
+from XREPORT.commons.utils.models.captioner import XREPCaptioningModel
 from XREPORT.commons.configurations import SAVE_MODEL_PLOT, IMG_SHAPE
 from XREPORT.commons.pathfinder import CHECKPOINT_PATH
 
 
 #------------------------------------------------------------------------------
-def get_images_from_dataset(path, dataframe):   
+def get_images_from_dataset(path, dataframe, sample_size=None):   
     
 
     '''
@@ -30,18 +30,24 @@ def get_images_from_dataset(path, dataframe):
         pandas.DataFrame: The updated dataframe with a new 'path' column containing 
                             the file paths for images, excluding rows without a corresponding image file.
     
-    '''   
-    images_paths = {}
-    for pic in os.listdir(path):                       
-        pic_name = pic.split('.')[0]
-        pic_path = os.path.join(path, pic)                        
-        path_pair = {pic_name : pic_path}        
-        images_paths.update(path_pair)            
-    
-    dataframe['path'] = dataframe['id'].map(images_paths)
-    dataframe = dataframe.dropna(subset=['path']).reset_index(drop = True)
+    ''' 
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}  
+    images_path = {}
 
-    return dataframe 
+    for root, _, files in os.walk(path):
+        if sample_size is not None:
+            files = files[:int(sample_size*len(files))]           
+        for file in files:
+            if os.path.splitext(file)[1].lower() in valid_extensions:
+                img_name = file.split('.')[0]  
+                img_path = os.path.join(path, file)                                    
+                path_pair = {img_name : img_path}        
+                images_path.update(path_pair) 
+
+    dataframe['path'] = dataframe['id'].map(images_path)
+    dataframe = dataframe.dropna(subset=['path']).reset_index(drop=True)             
+
+    return dataframe    
 
 
 #------------------------------------------------------------------------------
