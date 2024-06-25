@@ -16,7 +16,7 @@ from keras import layers
  
 
 # [XREP CAPTIONING MODEL]
-#==============================================================================
+#------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
     def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
