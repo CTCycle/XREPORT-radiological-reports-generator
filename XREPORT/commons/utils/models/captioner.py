@@ -9,7 +9,10 @@ from keras.models import Model
 from keras import layers
 
 
-    
+from XREPORT.commons.utils.models.transformers import TransformerEncoderBlock, TransformerDecoderBlock
+from XREPORT.commons.utils.models.image_encoding import ImageEncoder
+from XREPORT.commons.configurations import BATCH_SIZE, IMG_SHAPE
+from XREPORT.commons.pathfinder import CHECKPOINT_PATH
 
     
 
@@ -19,21 +22,14 @@ from keras import layers
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
-    def __init__(self, picture_shape, sequence_length, vocab_size, embedding_dims, kernel_size,
-                 num_heads, learning_rate, XLA_state, seed=42, **kwargs):   
+    def __init__(self, vocab_size, embedding_dims, **kwargs):   
         super(XREPCaptioningModel, self).__init__(**kwargs)
         self.loss_tracker = keras.metrics.Mean(name='loss')
-        self.acc_tracker = keras.metrics.Mean(name='accuracy')
-        self.picture_shape = picture_shape
-        self.sequence_length = sequence_length
+        self.acc_tracker = keras.metrics.Mean(name='accuracy')        
         self.vocab_size = vocab_size 
-        self.embedding_dims = embedding_dims       
-        self.kernel_size = kernel_size
-        self.num_heads = num_heads
-        self.learning_rate = learning_rate
-        self.XLA_state = XLA_state                
-        self.seed = seed                         
-        self.image_encoder = ImageEncoder(kernel_size, seed)        
+        self.embedding_dims = embedding_dims      
+            
+        self.image_encoder = ImageEncoder()        
         self.encoders = [TransformerEncoderBlock(embedding_dims, num_heads, seed) for i in range(3)]        
         self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, 
                                                  num_heads, seed) 

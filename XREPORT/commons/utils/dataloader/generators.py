@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-
 from XREPORT.commons.configurations import BATCH_SIZE, IMG_SHAPE, IMG_AUGMENT
     
 
@@ -12,14 +11,13 @@ from XREPORT.commons.configurations import BATCH_SIZE, IMG_SHAPE, IMG_AUGMENT
 # tf.dataset with prefetching
 class DataGenerator(keras.utils.Sequence):
 
-    def __init__(self, dataframe, shuffle=True, augmentation=True):        
+    def __init__(self, dataframe, shuffle=True):        
         self.dataframe = dataframe
         self.path_col='path'        
         self.label_col='tokens'
         self.num_of_samples = dataframe.shape[0]         
         self.batch_index = 0              
-        self.shuffle = shuffle
-        self.augmentation = augmentation
+        self.shuffle = shuffle        
         self.on_epoch_end()       
 
     # define length of the custom generator      
@@ -34,7 +32,7 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, idx): 
         path_batch = self.dataframe[self.path_col][idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]        
         label_batch = self.dataframe[self.label_col][idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]
-        x1_batch = [self.__images_generation(image_path, self.augmentation) for image_path in path_batch]
+        x1_batch = [self.__images_generation(image_path) for image_path in path_batch]
         x2_batch = [self.__labels_generation(label_id) for label_id in label_batch] 
         y_batch = [self.__labels_generation(label_id) for label_id in label_batch]
         X1_tensor = tf.convert_to_tensor(x1_batch)
@@ -64,8 +62,9 @@ class DataGenerator(keras.utils.Sequence):
     
     # define method to load labels    
     #--------------------------------------------------------------------------
-    def __labels_generation(self, sequence):        
-        return sequence
+    def __labels_generation(self, sequence):
+        token_seq = [int(x) for x in sequence.split(' ')]       
+        return token_seq
     
     # define method to call the elements of the generator    
     #--------------------------------------------------------------------------
@@ -80,7 +79,7 @@ class DataGenerator(keras.utils.Sequence):
 def build_tensor_dataset(dataframe, buffer_size=tf.data.AUTOTUNE):
 
 
-    generator = DataGenerator(dataframe, shuffle=True, normalization=True)                              
+    generator = DataGenerator(dataframe, shuffle=True)                              
         
     x_batch, y_batch = generator.__getitem__(0)
     x1_shape = x_batch[0].shape
