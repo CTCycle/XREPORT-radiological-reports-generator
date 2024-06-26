@@ -82,15 +82,16 @@ class DataSerializer:
 
     # ...
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data, validation_data, test_data, path):        
+    def save_preprocessed_data(self, train_data, validation_data, path=''): 
 
-        combined_data = {'train': train_data, 
-                         'validation': validation_data, 
-                         'test': test_data}
+        
+        train_pp_path = os.path.join(path, 'XREP_train.csv')
+        val_pp_path = os.path.join(path, 'XREP_validation.csv')
+        
+        train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
+        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8')       
 
-        with open(os.path.join(path, 'preprocessed_data.json'), 'w') as json_file:
-            json.dump(combined_data, json_file)
-
+        
     # ...
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self, path):
@@ -103,12 +104,10 @@ class DataSerializer:
             combined_data = json.load(json_file)
         
         train_data = combined_data.get('train')
-        validation_data = combined_data.get('validation')
-        test_data = combined_data.get('test')
+        validation_data = combined_data.get('validation')        
         
         return {'train': train_data, 
-                'validation': validation_data, 
-                'test': test_data}
+                'validation': validation_data}
         
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------

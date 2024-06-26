@@ -26,6 +26,7 @@ SAMPLE_SIZE = 0.3
 VALIDATION_SIZE = 0.2
 TEST_SIZE = 0.1
 IMG_AUGMENT = False
+MAX_CAPTION_SIZE = 200
 
 # General settings 
 #------------------------------------------------------------------------------
