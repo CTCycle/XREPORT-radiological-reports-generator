@@ -1,6 +1,7 @@
 __pycache__
 XREPORT/data/images/*
 XREPORT/data/validation/*
+XREPORT/data/datasets/*
 XREPORT/training/checkpoints/*
 XREPORT/training/BERT/*
 XREPORT/inference/reports/*
