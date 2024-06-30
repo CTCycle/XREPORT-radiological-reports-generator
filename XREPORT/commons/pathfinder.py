@@ -1,11 +1,11 @@
 from os.path import join, dirname, abspath 
 
 PROJECT_DIR = dirname(dirname(abspath(__file__)))
-DATA_PATH = join(PROJECT_DIR, 'data')
-IMG_DATA_PATH = join(DATA_PATH, 'images')
-VAL_PATH = join(DATA_PATH, 'validation')
-TABLES_PATH = join(DATA_PATH, 'datasets')
-CHECKPOINT_PATH = join(PROJECT_DIR, 'training', 'checkpoints')
-BERT_PATH = join(PROJECT_DIR, 'training', 'BERT')
-REPORT_PATH = join(PROJECT_DIR, 'inference', 'reports')
-
+RSC_PATH = join(PROJECT_DIR, 'resources')
+DATA_PATH = join(RSC_PATH, 'dataset')
+IMG_DATA_PATH = join(RSC_PATH, 'dataset', 'images')
+RESULTS_PATH = join(RSC_PATH, 'results')
+TOKENIZER_PATH = join(RSC_PATH, 'tokenizer', 'BERT')
+CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
+GENERATION_INPUT_PATH = join(RSC_PATH, 'generation', 'input_images')
+GENERATION_OUTPUT_PATH = join(RSC_PATH, 'generation', 'reports')

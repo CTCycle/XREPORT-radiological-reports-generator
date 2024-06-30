@@ -63,7 +63,9 @@ class BERTokenizer:
 
         '''         
         print('\nLoading distilBERT tokenizer and apply tokenization\n')        
-        self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=self.path)        
+        self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=self.path) 
+        
+               
         train_tokens = self.tokenizer(self.train_text, padding=True, 
                                       truncation=True, 
                                       max_length=200, 

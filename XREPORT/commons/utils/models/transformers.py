@@ -29,7 +29,7 @@ class AddNorm(keras.layers.Layer):
     # serialize layer for saving  
     #--------------------------------------------------------------------------
     def get_config(self):
-        config = super(TransformerEncoderBlock, self).get_config()
+        config = super(AddNorm, self).get_config()
         config.update({})
         return config
 
@@ -39,12 +39,13 @@ class AddNorm(keras.layers.Layer):
     def from_config(cls, config):
         return cls(**config)
     
+    
 # [FEED FORWARD]
 #------------------------------------------------------------------------------
-@keras.utils.register_keras_serializable(package='CustomLayers', name='AddNorm')
+@keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
 class FeedForward(keras.layers.Layer):
     def __init__(self, dense_units, dropout, **kwargs):
-        super(AddNorm, self).__init__(**kwargs)
+        super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout = dropout
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
@@ -64,7 +65,7 @@ class FeedForward(keras.layers.Layer):
     # serialize layer for saving  
     #--------------------------------------------------------------------------
     def get_config(self):
-        config = super(TransformerEncoderBlock, self).get_config()
+        config = super(FeedForward, self).get_config()
         config.update({'dense_units' : self.dense_units,
                        'dropout' : self.dropout,
                        'seed' : SEED})
@@ -75,16 +76,51 @@ class FeedForward(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+    
          
+# [CLASSIFIER]
+#------------------------------------------------------------------------------
+@keras.utils.register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
+class SoftMaxClassifier(keras.layers.Layer):
+    def __init__(self, dense_units, output_size, **kwargs):
+        super(SoftMaxClassifier, self).__init__(**kwargs)
+        self.dense_units = dense_units
+        self.output_size = output_size
+        self.dense1 = layers.Dense(dense_units, activation='relu', 
+                                   kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(output_size, activation='softmax', 
+                                   kernel_initializer='he_uniform', dtype=tf.float32)       
+        
 
+    # implement transformer encoder through call method  
+    #--------------------------------------------------------------------------
+    def call(self, x, training=None):
+
+        x = self.dense1(x)
+        output = self.dense2(x)          
+
+        return output
+    
+    # serialize layer for saving  
+    #--------------------------------------------------------------------------
+    def get_config(self):
+        config = super(SoftMaxClassifier, self).get_config()
+        config.update({'dense_units' : self.dense_units,
+                       'output_size' : self.output_size})
+        return config
+
+    # deserialization method 
+    #--------------------------------------------------------------------------
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 # [TRANSFORMER ENCODER]
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoderBlock')
 class TransformerEncoderBlock(keras.layers.Layer):
     def __init__(self, **kwargs):
-        super(TransformerEncoderBlock, self).__init__(**kwargs)
-          
+        super(TransformerEncoderBlock, self).__init__(**kwargs)          
         self.attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
@@ -93,11 +129,17 @@ class TransformerEncoderBlock(keras.layers.Layer):
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
     def call(self, inputs, training=True):        
-                  
+
+        # self attention with causal masking, using the embedded captions as input
+        # for query, value and key. The output of this attention layer is then summed
+        # to the inputs and normalized     
         attention_output = self.attention(query=inputs, value=inputs, key=inputs,
                                           attention_mask=None, training=training)
          
         addnorm = self.addnorm1([inputs, attention_output])
+
+        # feed forward network with ReLU activation to firther process the output
+        # addition and layer normalization of inputs and outputs
         ffn_out = self.ffn1(addnorm)
         output = self.addnorm2([addnorm, ffn_out])      
 
@@ -129,13 +171,11 @@ class TransformerDecoderBlock(keras.layers.Layer):
             
         self.posembedding = PositionalEmbedding(MAX_CAPTION_SIZE, vocab_size, EMBEDDING_DIMS, mask_zero=True)          
         self.self_attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS, dropout=0.2)
-        self.cross_attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS, dropout=0.2)
-        self.FFN_1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.FFN_2 = layers.Dense(EMBEDDING_DIMS, activation='relu', kernel_initializer='he_uniform')
+        self.cross_attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS, dropout=0.2)        
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(512, 0.2)   
-        self.ffn2 = FeedForward(512, 0.4)    
+        self.addnorm3 = AddNorm()
+        self.ffn1 = FeedForward(EMBEDDING_DIMS, 0.2)            
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
@@ -157,26 +197,23 @@ class TransformerDecoderBlock(keras.layers.Layer):
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
         self_masked_MHA = self.self_attention(query=inputs, value=inputs, key=inputs,
-                                              attention_mask=combined_mask, training=training)
-        
-        addnorm_out = self.addnorm1(inputs + self_masked_MHA) 
+                                              attention_mask=combined_mask, training=training)        
+        addnorm_out1 = self.addnorm1(inputs + self_masked_MHA) 
 
         # cross attention using the encoder output as value and key and the output
         # of the addnorm layer as query. The output of this attention layer is then summed
         # to the inputs and normalized
-        attention_output2 = self.cross_attention(query=addnorm_out, value=encoder_outputs,
+        cross_MHA = self.cross_attention(query=addnorm_out1, value=encoder_outputs,
                                                  key=encoder_outputs, attention_mask=padding_mask,
-                                                 training=training)
-        
-        output2 = self.layernorm2(output1 + attention_output2)
-        ffn_out = self.FFN_1(output2)
-        ffn_out = self.dropout1(ffn_out, training=training)
-        ffn_out = self.FFN_2(ffn_out)
-        ffn_out = self.layernorm3(ffn_out + output2, training=training)
-        ffn_out = self.dropout2(ffn_out, training=training)         
-        ffn_out = self.dense(ffn_out)   
-        ffn_out = self.dropout3(ffn_out, training=training)     
-        preds = self.outmax(ffn_out)
+                                                 training=training)        
+        addnorm_out2 = self.addnorm2(addnorm_out1 + cross_MHA) 
+
+        # feed forward network with ReLU activation to firther process the output
+        # addition and layer normalization of inputs and outputs
+        ffn = self.ffn1(addnorm_out2)
+        addnorm_out3 = self.addnorm2(ffn + addnorm_out2) 
+           
+        output = self.outmax(ffn_out)
 
         return preds
 
