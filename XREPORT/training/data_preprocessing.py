@@ -9,8 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
-from XREPORT.commons.pathfinder import DATA_PATH, IMG_DATA_PATH, TOKENIZER_PATH
-from XREPORT.commons.configurations import SAMPLE_SIZE
+from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
 
 
 # [RUN MAIN]
@@ -19,9 +18,10 @@ if __name__ == '__main__':
     # 1. [LOAD MODEL]
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
+    sample_size = CONFIG["dataset"]["SAMPLE_SIZE"] 
     file_loc = os.path.join(DATA_PATH, 'XREP_dataset.csv') 
-    dataset = pd.read_csv(file_loc, encoding = 'utf-8', sep =';', low_memory=False)
-    dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=SAMPLE_SIZE)
+    dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';', low_memory=False)
+    dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=sample_size)
 
     # split data
     print('\nPreparing dataset of images based on splitting sizes')  
@@ -31,8 +31,9 @@ if __name__ == '__main__':
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
-    # using subwords and these are eventually mapped to integer indexes 
-    tokenization = BERTokenizer(train_data, validation_data, path=TOKENIZER_PATH)    
+    # using subwords and these are eventually mapped to integer indexes
+    print('\nLoading distilBERT tokenizer and apply tokenization\n')     
+    tokenization = BERTokenizer(train_data, validation_data)    
     train_tokens, validation_tokens = tokenization.BERT_tokenization()
     tokenizer = tokenization.tokenizer
     vocab_size = tokenization.vocab_size
