@@ -3,9 +3,8 @@ from tensorflow import keras
 from keras import layers    
 
 from XREPORT.commons.utils.models.embeddings import PositionalEmbedding
-from XREPORT.commons.pathfinder import CHECKPOINT_PATH
-from XREPORT.commons.configurations import (BATCH_SIZE, IMG_SHAPE, EMBEDDING_DIMS,
-                                            MAX_CAPTION_SIZE, NUM_HEADS, SEED)
+from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH
+
 
 
 # [ADD NORM LAYER]
@@ -50,7 +49,7 @@ class FeedForward(keras.layers.Layer):
         self.dropout = dropout
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
-        self.dropout = layers.Dropout(dropout, SEED)
+        self.dropout = layers.Dropout(dropout, CONFIG["SEED"])
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -68,7 +67,7 @@ class FeedForward(keras.layers.Layer):
         config = super(FeedForward, self).get_config()
         config.update({'dense_units' : self.dense_units,
                        'dropout' : self.dropout,
-                       'seed' : SEED})
+                       'seed' : CONFIG["SEED"]})
         return config
 
     # deserialization method 
@@ -114,14 +113,20 @@ class SoftMaxClassifier(keras.layers.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
+    
 
 # [TRANSFORMER ENCODER]
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoderBlock')
 class TransformerEncoderBlock(keras.layers.Layer):
     def __init__(self, **kwargs):
-        super(TransformerEncoderBlock, self).__init__(**kwargs)          
-        self.attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS)
+        super(TransformerEncoderBlock, self).__init__(**kwargs)
+
+        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
+        self.num_heads = CONFIG["model"]["NUM_HEADS"]  
+                 
+        self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
+                                                   key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.ffn1 = FeedForward(512, 0.2)        
@@ -149,9 +154,8 @@ class TransformerEncoderBlock(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerEncoderBlock, self).get_config()
-        config.update({'embedding_dims': EMBEDDING_DIMS,
-                       'num_heads': NUM_HEADS,
-                       'seed': SEED})
+        config.update({'embedding_dims': self.embedding_dims,
+                       'num_heads': self.num_heads})
         return config
 
     # deserialization method 
@@ -167,21 +171,25 @@ class TransformerEncoderBlock(keras.layers.Layer):
 class TransformerDecoderBlock(keras.layers.Layer):
     def __init__(self, vocab_size, **kwargs):
         super(TransformerDecoderBlock, self).__init__(**kwargs)
-        self.vocab_size = vocab_size
-            
-        self.posembedding = PositionalEmbedding(MAX_CAPTION_SIZE, vocab_size, EMBEDDING_DIMS, mask_zero=True)          
-        self.self_attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS, dropout=0.2)
-        self.cross_attention = layers.MultiHeadAttention(num_heads=NUM_HEADS, key_dim=EMBEDDING_DIMS, dropout=0.2)        
+        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"]
+        self.num_heads = CONFIG["model"]["NUM_HEADS"]  
+        self.vocab_size = vocab_size           
+        self.posembedding = PositionalEmbedding(vocab_size, mask_zero=True)          
+        self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
+                                                        key_dim=self.embedding_dims, 
+                                                        dropout=0.2)
+        self.cross_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
+                                                         key_dim=self.embedding_dims, 
+                                                         dropout=0.2)        
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
-        self.ffn1 = FeedForward(EMBEDDING_DIMS, 0.2)            
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2)            
         self.supports_masking = True 
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------
     def call(self, inputs, encoder_outputs, training=True, mask=None):
-
         
         inputs = self.posembedding(inputs)
         causal_mask = self.get_causal_attention_mask(inputs)
@@ -204,18 +212,16 @@ class TransformerDecoderBlock(keras.layers.Layer):
         # of the addnorm layer as query. The output of this attention layer is then summed
         # to the inputs and normalized
         cross_MHA = self.cross_attention(query=addnorm_out1, value=encoder_outputs,
-                                                 key=encoder_outputs, attention_mask=padding_mask,
-                                                 training=training)        
+                                         key=encoder_outputs, attention_mask=padding_mask,
+                                         training=training)        
         addnorm_out2 = self.addnorm2(addnorm_out1 + cross_MHA) 
 
         # feed forward network with ReLU activation to firther process the output
         # addition and layer normalization of inputs and outputs
         ffn = self.ffn1(addnorm_out2)
-        addnorm_out3 = self.addnorm2(ffn + addnorm_out2) 
-           
-        output = self.outmax(ffn_out)
+        logits = self.addnorm2(ffn + addnorm_out2)        
 
-        return preds
+        return logits
 
     # generate causal attention mask   
     #--------------------------------------------------------------------------
@@ -235,11 +241,9 @@ class TransformerDecoderBlock(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerDecoderBlock, self).get_config()
-        config.update({'sequence_length': self.sequence_length,
-                       'vocab_size': self.vocab_size,
+        config.update({'vocab_size': self.vocab_size,
                        'embedding_dims': self.embedding_dims,                       
-                       'num_heads': self.num_heads,
-                       'seed': self.seed})
+                       'num_heads': self.num_heads})
         return config
 
     # deserialization method 

@@ -8,8 +8,8 @@ import tensorflow as tf
 from keras.utils import plot_model
 
 from XREPORT.commons.utils.models.captioner import XREPCaptioningModel
-from XREPORT.commons.configurations import SAVE_MODEL_PLOT, IMG_SHAPE
-from XREPORT.commons.pathfinder import CHECKPOINT_PATH
+from XREPORT.configurations import SAMPLE_SIZE, TEST_SIZE, VALIDATION_SIZE, SAVE_MODEL_PLOT, IMG_SHAPE
+from XREPORT.commons.constants import CHECKPOINT_PATH
 
 
 #------------------------------------------------------------------------------
@@ -84,12 +84,24 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, train_data, validation_data, path=''): 
 
-        
+        processing_info = {'sample_size' : SAMPLE_SIZE,
+                           'train_size' : 1.0 - TEST_SIZE - VALIDATION_SIZE,
+                           'validation_size' : VALIDATION_SIZE,
+                           'test_size' : TEST_SIZE,
+                           'date': datetime.now().strftime("%Y-%m-%d")}
+
+        # define paths of .csv and .json files
         train_pp_path = os.path.join(path, 'XREP_train.csv')
         val_pp_path = os.path.join(path, 'XREP_validation.csv')
+        json_info_path = os.path.join(path, 'preprocessing_info.json')
         
+        # save train and validation data as .csv in the dataset folder
         train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
-        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8')       
+        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8')  
+
+        # save the preprocessing info as .json file in the dataset folder
+        with open(json_info_path, 'w') as file:
+            json.dump(processing_info, file, indent=4)     
 
         
     # ...

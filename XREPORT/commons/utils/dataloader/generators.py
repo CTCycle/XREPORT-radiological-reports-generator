@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from XREPORT.commons.configurations import BATCH_SIZE, IMG_SHAPE, IMG_AUGMENT
+from XREPORT.commons.constants import CONFIG
     
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
@@ -13,6 +13,8 @@ class DataGenerator(keras.utils.Sequence):
 
     def __init__(self, dataframe, shuffle=True):        
         self.dataframe = dataframe
+        self.batch_size = CONFIG["training"]["BATCH_SIZE"]
+        self.img_shape = CONFIG["model"]["IMG_SHAPE"]  
         self.path_col='path'        
         self.label_col='tokens'
         self.num_of_samples = dataframe.shape[0]         
@@ -23,15 +25,15 @@ class DataGenerator(keras.utils.Sequence):
     # define length of the custom generator      
     #--------------------------------------------------------------------------
     def __len__(self):
-        length = int(np.ceil(self.num_of_samples)/BATCH_SIZE)
+        length = int(np.ceil(self.num_of_samples)/self.batch_size)
         return length
     
     # define method to get X and Y data through custom functions, and subsequently
     # create a batch of data converted to tensors
     #--------------------------------------------------------------------------
     def __getitem__(self, idx): 
-        path_batch = self.dataframe[self.path_col][idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]        
-        label_batch = self.dataframe[self.label_col][idx * BATCH_SIZE:(idx + 1) * BATCH_SIZE]
+        path_batch = self.dataframe[self.path_col][idx * self.batch_size:(idx + 1) * self.batch_size]        
+        label_batch = self.dataframe[self.label_col][idx * self.batch_size:(idx + 1) * self.batch_size]
         x1_batch = [self.__images_generation(image_path) for image_path in path_batch]
         x2_batch = [self.__labels_generation(label_id) for label_id in label_batch] 
         y_batch = [self.__labels_generation(label_id) for label_id in label_batch]
@@ -52,11 +54,13 @@ class DataGenerator(keras.utils.Sequence):
     def __images_generation(self, path):
         image = tf.io.read_file(path)
         image = tf.image.decode_image(image, channels=1)
-        resized_image = tf.image.resize(image, IMG_SHAPE[:-1])        
-        pp_image = resized_image/255.0  
-        if IMG_AUGMENT:            
+        pp_image = tf.image.resize(image, self.img_shape[:-1])        
+        
+        if CONFIG["dataset"]["IMG_AUGMENT"]:            
             pp_image = tf.keras.preprocessing.image.random_shift(pp_image, 0.2, 0.3)
-            pp_image = tf.image.random_flip_left_right(pp_image)        
+            pp_image = tf.image.random_flip_left_right(pp_image)  
+        if CONFIG["dataset"]["IMG_NORMALIZE"]:
+            pp_image = pp_image/255.0      
 
         return pp_image       
     

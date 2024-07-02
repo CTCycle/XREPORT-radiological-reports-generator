@@ -1,18 +1,12 @@
 import os
 
 import numpy as np
-
 import tensorflow as tf
 from tensorflow import keras
 
-
-
 from XREPORT.commons.utils.models.callbacks import RealTimeHistory
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
-from XREPORT.commons.configurations import (SEED, MIXED_PRECISION, ML_DEVICE, 
-                                         USE_TENSORBOARD, NUM_PROCESSORS,
-                                         EPOCHS, BATCH_SIZE, IMG_AUGMENT,
-                                         IMG_SHAPE, LEARNING_RATE)
+from XREPORT.commons.constants import CONFIG
 
 
            
@@ -21,8 +15,8 @@ from XREPORT.commons.configurations import (SEED, MIXED_PRECISION, ML_DEVICE,
 class ModelTraining:    
        
     def __init__(self):                            
-        np.random.seed(SEED)
-        tf.random.set_seed(SEED)         
+        np.random.seed(CONFIG["SEED"])
+        tf.random.set_seed(CONFIG["SEED"])         
         self.available_devices = tf.config.list_physical_devices()               
         print('The current devices are available:\n')        
         for dev in self.available_devices:            
@@ -32,20 +26,20 @@ class ModelTraining:
     #--------------------------------------------------------------------------
     def set_device(self):
        
-        if ML_DEVICE == 'GPU':
+        if CONFIG["training"]["ML_DEVICE"] == 'GPU':
             self.physical_devices = tf.config.list_physical_devices('GPU')
             if not self.physical_devices:
                 print('\nNo GPU found. Falling back to CPU\n')
                 tf.config.set_visible_devices([], 'GPU')
             else:
-                if MIXED_PRECISION:
+                if CONFIG["training"]["MIXED_PRECISION"]:
                     policy = keras.mixed_precision.Policy('mixed_float16')
                     keras.mixed_precision.set_global_policy(policy) 
                 tf.config.set_visible_devices(self.physical_devices[0], 'GPU')
                 os.environ['TF_GPU_ALLOCATOR']='cuda_malloc_async'                 
                 print('\nGPU is set as active device\n')
                    
-        elif ML_DEVICE == 'CPU':
+        elif CONFIG["training"]["ML_DEVICE"] == 'CPU':
             tf.config.set_visible_devices([], 'GPU')
             print('\nCPU is set as active device\n')    
 

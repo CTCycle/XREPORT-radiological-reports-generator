@@ -8,8 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import PreProcessing
 from XREPORT.commons.utils.models import Inference
-from XREPORT.commons.pathfinder import REPORT_PATH, CHECKPOINT_PATH, BERT_PATH
-import XREPORT.commons.configurations as cnf
+from XREPORT.commons.constants import REPORT_PATH, CHECKPOINT_PATH, BERT_PATH
+import XREPORT.configurations as cnf
 
 
 # [RUN MAIN]
