@@ -1,6 +1,7 @@
-import os
 import pandas as pd
 from transformers import DistilBertTokenizer
+
+from XREPORT.commons.constants import CONFIG, TOKENIZER_PATH
 
     
 # [PREPROCESSING PIPELINE]
@@ -8,37 +9,18 @@ from transformers import DistilBertTokenizer
 class BERTokenizer:  
 
 
-    def __init__(self, train_data : pd.DataFrame, validation_data : pd.DataFrame, path=''):
-
-        self.path = path
+    def __init__(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
+        
         self.train_data = train_data
         self.validation_data = validation_data
+        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"]
         
         self.train_text = train_data['text'].to_list()
         self.validation_text = validation_data['text'].to_list()
             
-        self.model_identifier = 'distilbert/distilbert-base-uncased'  
-
-    #--------------------------------------------------------------------------
-    def get_BERT_tokenizer(self):
-
-        '''
-        Loads and initializes the BioBERT Base v1.1 tokenizer. It optionally
-        accepts a path to cache the tokenizer.
-
-        Keyword Arguments:
-            path (str, optional): Directory path to cache the tokenizer. 
-                                  If not specified, the default cache location is used.
-
-        Returns:
-            tokenizer (AutoTokenizer): The loaded BioBERT tokenizer.
-
-        '''
-        
-        print('\nLoading BERT tokenizer\n')        
-        tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=self.path) 
-
-        return tokenizer      
+        self.model_identifier = 'distilbert/distilbert-base-uncased' 
+        self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=TOKENIZER_PATH) 
+        self.vocab_size = len(self.tokenizer.vocab)              
     
     #--------------------------------------------------------------------------
     def BERT_tokenization(self):
@@ -61,21 +43,16 @@ class BERTokenizer:
                 - train_tokens (tf.Tensor): Tokenized version of `train_text`.
                 - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
 
-        '''         
-        print('\nLoading distilBERT tokenizer and apply tokenization\n')        
-        self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=self.path) 
-        
-               
+        '''
+        # tokenize train text using loaded tokenizer 
         train_tokens = self.tokenizer(self.train_text, padding=True, 
                                       truncation=True, 
-                                      max_length=200, 
+                                      max_length=self.max_caption_size, 
                                       return_tensors='tf')
         validation_tokens = self.tokenizer(self.validation_text, padding=True, 
                                            truncation=True, 
-                                           max_length=200, 
-                                           return_tensors='tf')        
-        
-        self.vocab_size = len(self.tokenizer.vocab)
+                                           max_length=self.max_caption_size, 
+                                           return_tensors='tf')       
         
         # extract only token ids from the tokenizer output
         train_tokens = train_tokens['input_ids'].numpy().tolist() 
