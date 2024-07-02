@@ -1,5 +1,6 @@
 import pandas as pd
-from XREPORT.commons.configurations import TEST_SIZE, VALIDATION_SIZE
+
+from XREPORT.commons.constants import CONFIG
 
 # [DATA SPLITTING]
 #------------------------------------------------------------------------------
@@ -11,8 +12,8 @@ class DatasetSplit:
             raise TypeError('dataframe must be a pandas DataFrame')
 
         # Set the sizes for the train, validation, and test datasets
-        self.test_size = TEST_SIZE
-        self.validation_size = VALIDATION_SIZE
+        self.test_size = CONFIG["dataset"]["TEST_SIZE"]
+        self.validation_size = CONFIG["dataset"]["VALIDATION_SIZE"]
         self.train_size = 1.0 - self.test_size - self.validation_size
         self.dataframe = dataframe.sample(frac=1).reset_index(drop=True)  # Shuffle the DataFrame
 

@@ -11,8 +11,7 @@ from keras import layers
 
 from XREPORT.commons.utils.models.transformers import TransformerEncoderBlock, TransformerDecoderBlock
 from XREPORT.commons.utils.models.image_encoding import ImageEncoder
-from XREPORT.commons.configurations import BATCH_SIZE, IMG_SHAPE
-from XREPORT.commons.pathfinder import CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG
 
     
 
@@ -22,24 +21,32 @@ from XREPORT.commons.pathfinder import CHECKPOINT_PATH
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Models', name='XREPCaptioningModel')
 class XREPCaptioningModel(keras.Model):    
-    def __init__(self, vocab_size, embedding_dims, **kwargs):   
-        super(XREPCaptioningModel, self).__init__(**kwargs)
+    def __init__(self, vocab_size, **kwargs):   
+        super(XREPCaptioningModel, self).__init__(**kwargs)        
+        self.learning_rate = CONFIG["training"]["LEARNING_RATE"] 
+        self.xla_state = CONFIG["training"]["XLA_STATE"]
+        self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]
+        self.num_decoders = CONFIG["model"]["NUM_DECODERS"]
+        
+        # add loss and metrics tracker to average value for all batches
         self.loss_tracker = keras.metrics.Mean(name='loss')
         self.acc_tracker = keras.metrics.Mean(name='accuracy')        
         self.vocab_size = vocab_size 
-        self.embedding_dims = embedding_dims      
-            
+          
+        # initialize custom blocks and layers            
         self.image_encoder = ImageEncoder()        
-        self.encoders = [TransformerEncoderBlock(embedding_dims, num_heads, seed) for i in range(3)]        
-        self.decoder = TransformerDecoderBlock(sequence_length, self.vocab_size, embedding_dims, 
-                                                 num_heads, seed) 
+        self.encoders = [TransformerEncoderBlock() for i in range(self.num_encoders)]        
+        self.decoders = [TransformerDecoderBlock(self.vocab_size) for i in range(self.num_decoders)] 
+
     # calculate loss
     #--------------------------------------------------------------------------
     def calculate_loss(self, y_true, y_pred, mask):               
         loss = self.loss(y_true, y_pred)
         mask = tf.cast(mask, dtype=loss.dtype)
         loss *= mask
-        return tf.reduce_sum(loss)/(tf.reduce_sum(mask) + keras.backend.epsilon())
+        loss = tf.reduce_sum(loss)/(tf.reduce_sum(mask) + keras.backend.epsilon())
+
+        return loss
     
     # calculate accuracy
     #--------------------------------------------------------------------------
@@ -50,67 +57,69 @@ class XREPCaptioningModel(keras.Model):
         accuracy = tf.math.logical_and(mask, accuracy)
         accuracy = tf.cast(accuracy, dtype=tf.float32)
         mask = tf.cast(mask, dtype=tf.float32)
+        accuracy = tf.reduce_sum(accuracy) / (tf.reduce_sum(mask) + keras.backend.epsilon())
 
-        return tf.reduce_sum(accuracy)/(tf.reduce_sum(mask) + keras.backend.epsilon())
+        return accuracy
 
-    # calculate the caption loss and accuracy
-    #--------------------------------------------------------------------------
-    def _compute_caption_loss_and_acc(self, img_embed, batch_seq, training=True):        
-        batch_seq_inp = batch_seq[:, :-1]
-        batch_seq_true = batch_seq[:, 1:]
-        mask = tf.math.not_equal(batch_seq_true, 0)
-        encoder_out = img_embed        
-        for encoder in self.encoders:
-            encoder_out = encoder(encoder_out, training=training) 
-        batch_seq_pred = self.decoder(batch_seq_inp, encoder_out, training=training, mask=mask)
-        loss = self.calculate_loss(batch_seq_true, batch_seq_pred, mask)
-        acc = self.calculate_accuracy(batch_seq_true, batch_seq_pred, mask)
-
-        return loss, acc
+    
     
     # define train step
     #--------------------------------------------------------------------------
     def train_step(self, batch_data):
         x_data, y_data = batch_data
-        batch_img, batch_seq = x_data        
-        img_embed = self.image_encoder(batch_img)       
+        batch_img, batch_seq = x_data
+        img_embed = self.image_encoder(batch_img)
         with tf.GradientTape() as tape:
-            loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=True) 
-        encoder_vars = [var for encoder in self.encoders for var in encoder.trainable_variables]   
-        train_vars = encoder_vars + self.decoder.trainable_variables        
+
+            batch_seq_inp = batch_seq[:, :-1]
+            batch_seq_true = batch_seq[:, 1:]            
+            encoder_out = img_embed
+            for encoder in self.encoders:
+                encoder_out = encoder(encoder_out, training=training)
+            batch_seq_pred = batch_seq_inp
+            for decoder in self.decoders:
+                batch_seq_pred = decoder(batch_seq_pred, encoder_out, training=training, mask=mask)
+            loss = self.calculate_loss(batch_seq_true, batch_seq_pred, mask)
+            acc = self.calculate_accuracy(batch_seq_true, batch_seq_pred, mask)
+
+
+        encoder_vars = [var for encoder in self.encoders for var in encoder.trainable_variables]
+        train_vars = encoder_vars + [var for decoder in self.decoders for var in decoder.trainable_variables]
         grads = tape.gradient(loss, train_vars)
-        self.optimizer.apply_gradients(zip(grads, train_vars))        
+        self.optimizer.apply_gradients(zip(grads, train_vars))
         self.loss_tracker.update_state(loss)
-        self.acc_tracker.update_state(acc)              
-        
-        return {'loss': self.loss_tracker.result(),
-                'acc': self.acc_tracker.result()}
+        self.acc_tracker.update_state(acc)
+
+        return {'loss': self.loss_tracker.result(), 
+                'accuracy': self.acc_tracker.result()}
 
     # define test step
     #--------------------------------------------------------------------------
     def test_step(self, batch_data):
         x_data, y_data = batch_data
-        batch_img, batch_seq = x_data         
-        img_embed = self.image_encoder(batch_img)        
-        loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=False)         
+        batch_img, batch_seq = x_data
+        img_embed = self.image_encoder(batch_img)
+        loss, acc = self._compute_caption_loss_and_acc(img_embed, batch_seq, training=False)
         self.loss_tracker.update_state(loss)
-        self.acc_tracker.update_state(acc)        
+        self.acc_tracker.update_state(acc)
 
-        return {'loss': self.loss_tracker.result(),
-                'acc': self.acc_tracker.result()}        
+        return {'loss': self.loss_tracker.result(), 
+                'accuracy': self.acc_tracker.result()}    
  
     # implement captioning model through call method  
     #--------------------------------------------------------------------------    
     def call(self, inputs, training=True):
 
-        images, sequences = inputs        
-        mask = tf.math.not_equal(sequences, 0)             
-        image_features = self.image_encoder(images) 
-        encoder_out = image_features 
-        batch_seq_pred = sequences       
+        images, sequences = inputs
+        mask = tf.math.not_equal(sequences, 0)
+        image_features = self.image_encoder(images)
+        encoder_out = image_features
+        batch_seq_pred = sequences
         for encoder in self.encoders:
-            encoder_out = encoder(encoder_out, training=training) 
-        decoder_out = self.decoder(batch_seq_pred, encoder_out, training=training, mask=mask)        
+            encoder_out = encoder(encoder_out, training=training)
+        decoder_out = batch_seq_pred
+        for decoder in self.decoders:
+            decoder_out = decoder(decoder_out, encoder_out, training=training, mask=mask)
 
         return decoder_out  
     
