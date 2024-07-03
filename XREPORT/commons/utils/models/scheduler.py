@@ -26,9 +26,10 @@ class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     # custom configurations
     #--------------------------------------------------------------------------
     def get_config(self):
-        config = super(LRScheduler, self).get_config()
-        config.update({'post_warmup_lr': self.post_warmup_lr,
-                       'warmup_steps': self.warmup_steps})
+        
+        config = {'post_warmup_lr': self.post_warmup_lr,
+                 'warmup_steps': self.warmup_steps}
+        
         return config        
     
     # deserialization method 
