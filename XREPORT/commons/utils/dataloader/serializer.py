@@ -1,13 +1,11 @@
 import os
 import cv2
 import json
-import random
 from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf
 from keras.utils import plot_model
 
-from XREPORT.commons.utils.models.captioner import XREPCaptioningModel
 from XREPORT.configurations import SAMPLE_SIZE, TEST_SIZE, VALIDATION_SIZE, SAVE_MODEL_PLOT, IMG_SHAPE
 from XREPORT.commons.constants import CHECKPOINT_PATH
 
@@ -55,7 +53,7 @@ class DataSerializer:
 
     def __init__(self):
         
-        self.model_name = 'FeXT'
+        self.model_name = 'XREPORT'
        
     #------------------------------------------------------------------------------
     def load_images(self, paths, as_tensor=True, normalize=True):
@@ -66,14 +64,14 @@ class DataSerializer:
                 image = cv2.imread(pt)             
                 image = cv2.resize(image, IMG_SHAPE[:-1])            
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
-                if normalize==True:
+                if normalize:
                     image = image/255.0
             else:
                 image = tf.io.read_file(pt)
                 image = tf.image.decode_image(image, channels=3)
                 image = tf.image.resize(image, IMG_SHAPE[:-1])
                 image = tf.reverse(image, axis=[-1])
-                if normalize==True:
+                if normalize:
                     image = image/255.0
             
             images.append(image) 
@@ -156,6 +154,13 @@ class ModelSerializer:
         pass
 
     #--------------------------------------------------------------------------
+    def save_pretrained_model(self, model : tf.keras.Model, path):
+
+        model_files_path = os.path.join(path, 'model')
+        model.save(model_files_path, save_format='tf')
+        print(f'\nTraining session is over. Model has been saved in folder {path}')
+
+    #--------------------------------------------------------------------------
     def save_model_parameters(self, path, parameters_dict):
 
         '''
@@ -182,8 +187,9 @@ class ModelSerializer:
             plot_path = os.path.join(path, 'model_layout.png')       
             plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
-                    expand_nested=True, rankdir='TB', dpi=400)
-            
+                    expand_nested=True, rankdir='TB', dpi=400)           
+    
+    
     #-------------------------------------------------------------------------- 
     def load_pretrained_model(self):
 
@@ -215,14 +221,14 @@ class ModelSerializer:
         if len(model_folders) > 1:
             model_folders.sort()
             index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
-            print('Please select a pretrained model:') 
+            print('Currently available pretrained models:') 
             print()
             for i, directory in enumerate(model_folders):
                 print(f'{i + 1} - {directory}')        
             print()               
             while True:
                 try:
-                    dir_index = int(input('Type the model index to select it: '))
+                    dir_index = int(input('Select the pretrained model: '))
                     print()
                 except ValueError:
                     continue
@@ -247,97 +253,5 @@ class ModelSerializer:
         else:
             print('Warning: model_parameters.json file not found. Model parameters were not loaded.')
             
-        return model, configuration
-    
-    #--------------------------------------------------------------------------
-    def save_XREPORT_model(self, model, path):
-
-        '''
-        Saves a subclassed Keras model's weights and configuration to the specified directory.
-
-        Keyword Arguments:
-            model (keras.Model): The model to save.
-            path (str): Directory path for saving model weights and configuration.        
-
-        Returns:
-            None
-        '''        
-        weights_path = os.path.join(path, 'model_weights.h5')  
-        model.save_weights(weights_path)        
-        config = model.get_config()
-        config_path = os.path.join(path, 'model_configuration.json')
-        with open(config_path, 'w') as json_file:
-            json.dump(config, json_file)
-        config_path = os.path.join(path, 'model_architecture.json')
-        with open(config_path, 'w') as json_file:
-            json_file.write(model.to_json())
-
-    #--------------------------------------------------------------------------
-    def load_XREPORT_model(self, path):
-
-        '''
-        Load pretrained keras model (in folders) from the specified directory. 
-        If multiple model directories are found, the user is prompted to select one,
-        while if only one model directory is found, that model is loaded directly.
-        If `load_parameters` is True, the function also loads the model parameters 
-        from the target .json file in the same directory. 
-
-        Keyword arguments:
-            path (str): The directory path where the pretrained models are stored.
-            load_parameters (bool, optional): If True, the function also loads the 
-                                              model parameters from a JSON file. 
-                                              Default is True.
-
-        Returns:
-            model (keras.Model): The loaded Keras model.
-
-        '''        
-        model_folders = []
-        for entry in os.scandir(path):
-            if entry.is_dir():
-                model_folders.append(entry.name)
-        if len(model_folders) > 1:
-            model_folders.sort()
-            index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
-            print('Please select a pretrained model:') 
-            print()
-            for i, directory in enumerate(model_folders):
-                print(f'{i + 1} - {directory}')        
-            print()               
-            while True:
-                try:
-                    dir_index = int(input('Type the model index to select it: '))
-                    print()
-                except:
-                    continue
-                break                         
-            while dir_index not in index_list:
-                try:
-                    dir_index = int(input('Input is not valid! Try again: '))
-                    print()
-                except:
-                    continue
-            self.folder_path = os.path.join(path, model_folders[dir_index - 1])
-
-        elif len(model_folders) == 1:
-            self.folder_path = os.path.join(path, model_folders[0])                   
-        
-        # read model serialization configuration and initialize it           
-        path = os.path.join(self.folder_path, 'model', 'model_configuration.json')
-        with open(path, 'r') as f:
-            configuration = json.load(f)        
-        model = XREPCaptioningModel.from_config(configuration)             
-
-        # set inputs to build the model 
-        pic_shape = tuple(configuration['picture_shape'])
-        sequence_length = configuration['sequence_length']
-        build_inputs = (tf.constant(0.0, shape=(1, *pic_shape)),
-                        tf.constant(0, shape=(1, sequence_length), dtype=tf.int32))
-        model(build_inputs, training=False) 
-
-        # load weights into the model 
-        weights_path = os.path.join(self.folder_path, 'model', 'model_weights.h5')
-        model.load_weights(weights_path)                       
-        
-        return model, configuration             
+        return model, configuration            
     

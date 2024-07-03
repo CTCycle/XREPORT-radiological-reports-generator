@@ -1,6 +1,8 @@
 from tensorflow import keras
 from keras import layers
 
+from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH
+
 
       
 # [IMAGE ENCODER MODEL]
@@ -9,7 +11,7 @@ from keras import layers
 class ImageEncoder(keras.layers.Layer):
     def __init__(self, **kwargs):
         super(ImageEncoder, self).__init__(**kwargs)
-      
+        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
         self.conv1 = layers.Conv2D(128, (2,2), strides=1, padding='same', 
                                    activation='relu', kernel_initializer='he_uniform')        
         self.conv2 = layers.Conv2D(256, (2,2), strides=1, padding='same', 
@@ -26,10 +28,9 @@ class ImageEncoder(keras.layers.Layer):
         self.maxpool2 = layers.MaxPooling2D((2,2), strides=2, padding='same')
         self.maxpool3 = layers.MaxPooling2D((2,2), strides=2, padding='same')
         self.maxpool4 = layers.MaxPooling2D((2,2), strides=2, padding='same')          
-        self.dense1 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(512, activation='relu', kernel_initializer='he_uniform')
-        self.dense3 = layers.Dense(256, activation='relu', kernel_initializer='he_uniform')
-        self.reshape = layers.Reshape((-1, 256))        
+        self.dense1 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(self.embedding_dims, activation='relu', kernel_initializer='he_uniform')        
+        self.reshape = layers.Reshape((-1, self.embedding_dims))        
 
     # implement encoder through call method  
     #--------------------------------------------------------------------------
@@ -45,8 +46,7 @@ class ImageEncoder(keras.layers.Layer):
         layer = self.conv6(layer)               
         layer = self.maxpool4(layer)         
         layer = self.dense1(layer)        
-        layer = self.dense2(layer)       
-        layer = self.dense3(layer)       
+        layer = self.dense2(layer)            
         output = self.reshape(layer)              
         
         return output
