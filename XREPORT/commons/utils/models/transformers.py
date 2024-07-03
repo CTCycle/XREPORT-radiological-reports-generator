@@ -2,8 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers    
 
-from XREPORT.commons.utils.models.embeddings import PositionalEmbedding
-from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG
 
 
 
@@ -17,7 +16,7 @@ class AddNorm(keras.layers.Layer):
         self.layernorm = layers.LayerNormalization()
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------
+    #--------------------------------------------------------------------------    
     def call(self, x1, x2):
 
         x_add = self.add([x1, x2])
@@ -49,7 +48,7 @@ class FeedForward(keras.layers.Layer):
         self.dropout = dropout
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
-        self.dropout = layers.Dropout(dropout, CONFIG["SEED"])
+        self.dropout = layers.Dropout(rate=dropout, seed=CONFIG["SEED"])
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
@@ -94,7 +93,6 @@ class SoftMaxClassifier(keras.layers.Layer):
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
     def call(self, x, training=None):
-
         x = self.dense1(x)
         output = self.dense2(x)          
 

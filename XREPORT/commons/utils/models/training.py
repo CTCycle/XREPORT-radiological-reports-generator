@@ -73,7 +73,7 @@ class ModelTraining:
         parameters = {'picture_shape' : CONFIG["model"]["IMG_SHAPE"],                           
                       'augmentation' : CONFIG["dataset"]["IMG_AUGMENT"],              
                       'batch_size' : CONFIG["training"]["BATCH_SIZE"],
-                      'learning_rate' : CONFIG["training"]["LEARNING_RATE"],
+                      'learning_rate' : CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"],
                       'epochs' : CONFIG["training"]["EPOCHS"],
                       'seed' : CONFIG["SEED"],
                       'tensorboard' : CONFIG["training"]["USE_TENSORBOARD"]}

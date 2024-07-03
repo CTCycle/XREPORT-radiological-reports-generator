@@ -16,8 +16,8 @@ from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSer
 from XREPORT.commons.utils.models.training import ModelTraining
 from XREPORT.commons.utils.models.captioner import XREPORTModel
 
-from XREPORT.commons.constants import DATA_PATH, IMG_DATA_PATH
-from XREPORT.configurations import MAX_CAPTION_SIZE, BATCH_SIZE, EPOCHS
+from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
+
 
 
 # [RUN MAIN]
@@ -63,10 +63,10 @@ if __name__ == '__main__':
     print('--------------------------------------------------------------------') 
     print(f'Number of train samples:      {len(train_data)}')
     print(f'Number of validation samples: {len(validation_data)}')      
-    print(f'Batch size:                   {BATCH_SIZE}')
-    print(f'Epochs:                       {EPOCHS}')
+    print(f'Batch size:                   {CONFIG["training"]["BATCH_SIZE"]}')
+    print(f'Epochs:                       {CONFIG["training"]["EPOCHS"]}')
     print(f'Vocabulary size:              {vocab_size}')
-    print(f'Max caption length:           {MAX_CAPTION_SIZE}')
+    print(f'Max caption length:           {CONFIG["dataset"]["MAX_CAPTION_SIZE"]}')
     print('--------------------------------------------------------------------')    
 
     # initialize and compile the captioning model    
