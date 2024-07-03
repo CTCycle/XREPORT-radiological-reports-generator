@@ -40,6 +40,9 @@ class DataGenerator(keras.utils.Sequence):
         X1_tensor = tf.convert_to_tensor(x1_batch)
         X2_tensor = tf.convert_to_tensor(x2_batch)
         Y_tensor = tf.convert_to_tensor(y_batch)
+
+        X2_tensor, Y_tensor = X2_tensor[:, :-1], Y_tensor[:, 1:]
+
         return (X1_tensor, X2_tensor), Y_tensor
     
     # define method to perform data operations on epoch end
@@ -67,7 +70,8 @@ class DataGenerator(keras.utils.Sequence):
     # define method to load labels    
     #--------------------------------------------------------------------------
     def __labels_generation(self, sequence):
-        token_seq = [int(x) for x in sequence.split(' ')]       
+        token_seq = [int(x) for x in sequence.split(' ')]        
+                 
         return token_seq
     
     # define method to call the elements of the generator    

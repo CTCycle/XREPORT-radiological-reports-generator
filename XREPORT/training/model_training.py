@@ -11,10 +11,10 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.generators import build_tensor_dataset
-from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer, ModelSerializer
+from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 
 from XREPORT.commons.utils.models.training import ModelTraining
-from XREPORT.commons.utils.models.captioner import XREPCaptioningModel
+from XREPORT.commons.utils.models.captioner import XREPORTModel
 
 from XREPORT.commons.constants import DATA_PATH, IMG_DATA_PATH
 from XREPORT.configurations import MAX_CAPTION_SIZE, BATCH_SIZE, EPOCHS
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # initialize training device 
     # allows changing device prior to initializing the generators
-    print('Building XREPORT model and data loaders\n')     
+    print('\nBuilding XREPORT model and data loaders\n')     
     trainer = ModelTraining()
     trainer.set_device()
 
@@ -67,23 +67,18 @@ if __name__ == '__main__':
     print(f'Epochs:                       {EPOCHS}')
     print(f'Vocabulary size:              {vocab_size}')
     print(f'Max caption length:           {MAX_CAPTION_SIZE}')
-    print('--------------------------------------------------------------------') 
-   
+    print('--------------------------------------------------------------------')    
 
     # initialize and compile the captioning model    
-    caption_model = XREPCaptioningModel(vocab_size)
-    caption_model.compile()
-
-    # invoke call method to build a showcase model (in order to show summary and plot)    
-    showcase_model = caption_model.get_model()
-    showcase_model.summary()
+    captioner = XREPORTModel(vocab_size)
+    model = captioner.get_model(summary=True) 
 
     # generate graphviz plot fo the model layout 
     modelserializer = ModelSerializer()     
     modelserializer.save_model_plot(model, model_folder_path)              
 
     # perform training and save model at the end
-    trainer.training_session(model, train_dataset, validation_dataset, model_folder_path)
+    trainer.train_model(model, train_dataset, validation_dataset, model_folder_path)
         
     
 
