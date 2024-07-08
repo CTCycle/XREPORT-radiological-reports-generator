@@ -3,7 +3,7 @@ from keras.api._v2.keras import preprocessing
 
  
 #------------------------------------------------------------------------------
-def sequence_padding(sequences, pad_length, output = 'array'):
+def sequence_padding(sequences, pad_length, output='array'):
 
     '''
     sequence_padding(sequences, pad_value, pad_length, output='array')
@@ -15,7 +15,8 @@ def sequence_padding(sequences, pad_length, output = 'array'):
         pad_value (int): The value to use for padding.
         pad_length (int): The length to pad the sequences to.
         output (str): The format of the output. If 'array', the function returns a list of 
-        padded sequences as numpy arrays. If 'string', the function returns a list of padded sequences as strings.
+                      padded sequences as numpy arrays. If 'string', 
+                      the function returns a list of padded sequences as strings.
 
     Returns:
         padded_text (list): A list of padded sequences in the specified output format.

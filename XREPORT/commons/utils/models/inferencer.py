@@ -1,20 +1,23 @@
 import os
 import re
 import numpy as np
-import json
-import tensorflow as tf           
+import tensorflow as tf    
+
+from XREPORT.commons.utils.dataloader.serializer import DataSerializer
+from XREPORT.commons.constants import CONFIG
 
 
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
 #------------------------------------------------------------------------------
-class Inference:
+class TextGenerator:
 
-    def __init__(self, seed):
-        self.seed = seed
-        np.random.seed(seed)
-        tf.random.set_seed(seed)
-   
+    def __init__(self, model):
+        
+        np.random.seed(CONFIG["SEED"])
+        tf.random.set_seed(CONFIG["SEED"])
+        self.dataserializer = DataSerializer()
+        self.model = model   
     
     #--------------------------------------------------------------------------    
     def greed_search_generator(self, model, paths, picture_size, max_length, tokenizer):

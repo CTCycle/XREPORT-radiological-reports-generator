@@ -10,11 +10,11 @@
     "model" : {"IMG_SHAPE" : [196, 196, 1],
                "NUM_HEADS" : 3,
                "NUM_LAYERS" : 2,      
-               "EMBEDDING_DIMS" : 400, 
+               "EMBEDDING_DIMS" : 256, 
                "SAVE_MODEL_PLOT" : true},
 
-    "training" : {"EPOCHS" : 5,
-                  "BATCH_SIZE" : 20,
+    "training" : {"EPOCHS" : 10,
+                  "BATCH_SIZE" : 15,
                   "MIXED_PRECISION" : false,
                   "USE_TENSORBOARD" : false,
                   "XLA_STATE" : false,
@@ -23,6 +23,8 @@
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
                                     "WARMUP_STEPS" : 4}},
 
-    "evaluation" : {"BATCH_SIZE" : 20}     
+    "evaluation" : {"BATCH_SIZE" : 20,
+                    "SAMPLE_SIZE" : 0.05,
+                    "VALIDATION_SIZE" : 0.2}     
       
 }
