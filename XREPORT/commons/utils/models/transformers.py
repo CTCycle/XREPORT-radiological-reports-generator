@@ -10,15 +10,18 @@ from XREPORT.commons.constants import CONFIG
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='CustomLayers', name='AddNorm')
 class AddNorm(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, epsilon=10e-5, **kwargs):
         super(AddNorm, self).__init__(**kwargs)
+        self.epsilon = epsilon
         self.add = layers.Add()
-        self.layernorm = layers.LayerNormalization()
+        self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)
+    
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, x1, x2):
+    def call(self, inputs):
 
+        x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
 
@@ -28,7 +31,7 @@ class AddNorm(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(AddNorm, self).get_config()
-        config.update({})
+        config.update({'epsilon' : self.epsilon})
         return config
 
     # deserialization method 
@@ -41,11 +44,11 @@ class AddNorm(keras.layers.Layer):
 # [FEED FORWARD]
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
-class FeedForward(keras.layers.Layer):
+class FeedForward(tf.keras.layers.Layer):
     def __init__(self, dense_units, dropout, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
-        self.dropout = dropout
+        self.dropout_rate = dropout
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
         self.dropout = layers.Dropout(rate=dropout, seed=CONFIG["SEED"])
@@ -53,11 +56,9 @@ class FeedForward(keras.layers.Layer):
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
     def call(self, x, training=None):
-
         x = self.dense1(x)
         x = self.dense2(x)  
         output = self.dropout(x, training=training) 
-
         return output
     
     # serialize layer for saving  
@@ -65,7 +66,7 @@ class FeedForward(keras.layers.Layer):
     def get_config(self):
         config = super(FeedForward, self).get_config()
         config.update({'dense_units' : self.dense_units,
-                       'dropout' : self.dropout,
+                       'dropout_rate' : self.dropout_rate,
                        'seed' : CONFIG["SEED"]})
         return config
 
@@ -137,12 +138,12 @@ class TransformerEncoder(keras.layers.Layer):
         attention_output = self.attention(query=inputs, value=inputs, key=inputs,
                                           attention_mask=None, training=training)
          
-        addnorm = self.addnorm1(inputs, attention_output)
+        addnorm = self.addnorm1([inputs, attention_output])
 
         # feed forward network with ReLU activation to firther process the output
         # addition and layer normalization of inputs and outputs
         ffn_out = self.ffn1(addnorm)
-        output = self.addnorm2(addnorm, ffn_out)      
+        output = self.addnorm2([addnorm, ffn_out])      
 
         return output
     
@@ -199,7 +200,7 @@ class TransformerDecoder(keras.layers.Layer):
         # to the inputs and normalized
         self_masked_MHA = self.self_attention(query=inputs, value=inputs, key=inputs,
                                               attention_mask=combined_mask, training=training)        
-        addnorm_out1 = self.addnorm1(inputs, self_masked_MHA) 
+        addnorm_out1 = self.addnorm1([inputs, self_masked_MHA]) 
 
         # cross attention using the encoder output as value and key and the output
         # of the addnorm layer as query. The output of this attention layer is then summed
@@ -207,12 +208,12 @@ class TransformerDecoder(keras.layers.Layer):
         cross_MHA = self.cross_attention(query=addnorm_out1, value=encoder_outputs,
                                          key=encoder_outputs, attention_mask=padding_mask,
                                          training=training)        
-        addnorm_out2 = self.addnorm2(addnorm_out1, cross_MHA) 
+        addnorm_out2 = self.addnorm2([addnorm_out1, cross_MHA]) 
 
         # feed forward network with ReLU activation to firther process the output
         # addition and layer normalization of inputs and outputs
         ffn = self.ffn1(addnorm_out2)
-        logits = self.addnorm2(ffn, addnorm_out2)        
+        logits = self.addnorm3([ffn, addnorm_out2])        
 
         return logits
 
