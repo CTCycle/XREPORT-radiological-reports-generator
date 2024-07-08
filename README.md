@@ -33,28 +33,49 @@ The project is organized into subfolders, each dedicated to specific tasks.
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
 
 ### 4.1 Configurations
-For customization, you can modify the main script parameters via the `XREPORT/commons/configurations.py` file. 
+For customization, you can modify the main configuration parameters using `configurations.json` in the root project folder. 
 
-| Category                | Setting                | Description                                                       |
-|-------------------------|------------------------|-------------------------------------------------------------------|
-| Advanced settings       | USE_MIXED_PRECISION    | use mixed precision for faster training (float16/32)              |
-|                         | USE_TENSORBOARD        | Activate/deactivate tensorboard logging                           |
-|                         | XLA_STATE              | Use linear algebra acceleration for faster training               |
-|                         | ML_DEVICE              | Select the training device (CPU or GPU)                           |
-|                         | NUM_PROCESSORS         | Number of processors (cores) to use; 1 disables multiprocessing   |
-| Training routine        | EPOCHS                 | Number of training iterations                                     |
-|                         | LEARNING_RATE          | Learning rate of the model                                        |
-|                         | BATCH_SIZE             | Size of batches for model training                                |
-| Model settings          | IMG_SHAPE              | Full shape of the images as (height, width, channels)             |
-|                         | EMBEDDING_DIMS         | Embedding dimensions (valid for both models)                      |
-|                         | KERNEL_SIZE            | Size of convolutional kernel (image encoder)                      |
-|                         | NUM_HEADS              | Number of attention heads                                         |
-|                         | SAVE_MODEL_PLOT        | Generate/save 2D model graph (as .png file)                       |
-| Training data           | TRAIN_SAMPLES          | Number of images for model training                               |
-|                         | TEST_SAMPLES           | Number of samples for validation data                             |
-|                         | IMG_AUGMENT            | Perform data augmentation on images (affects training time)       |
-| General settings        | SEED                   | Global random seed                                                |
-|                         | SPLIT_SEED             | Seed for dataset splitting                                        |
+#### Dataset Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| SAMPLE_SIZE        | Number of samples to use from the dataset                |
+| VALIDATION_SIZE    | Proportion of the dataset to use for validation          |
+| IMG_NORMALIZE      | Whether to normalize image data                          |
+| IMG_AUGMENT        | Whether to apply data augmentation to images             |
+| MAX_CAPTION_SIZE   | Max length of text report                                |
+| SPLIT_SEED         | Seed for random splitting of the dataset                 |
+
+#### Model Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| IMG_SHAPE          | Shape of the input images (height, width, channels)      |
+| EMBEDDING_DIMS     | Embedding dimensions (valid for both models)             |  
+| NUM_HEADS          | Number of attention heads                                | 
+| NUM_LAYERS         | Number ofencoder/decoder layers                          |
+| SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
+
+#### Training Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| EPOCHS             | Number of epochs to train the model                      |
+| LEARNING_RATE      | Learning rate for the optimizer                          |
+| BATCH_SIZE         | Number of samples per batch                              |
+| MIXED_PRECISION    | Whether to use mixed precision training                  |
+| USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
+| XLA_STATE          | Whether to enable XLA (Accelerated Linear Algebra)       |
+| ML_DEVICE          | Device to use for training (e.g., GPU)                   |
+| NUM_PROCESSORS     | Number of processors to use for data loading             |
+         
+
+#### Evaluation Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| BATCH_SIZE         | Number of samples per batch during evaluation            | 
+
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.

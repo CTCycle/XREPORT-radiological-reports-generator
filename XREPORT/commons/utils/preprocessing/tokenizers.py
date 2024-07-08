@@ -27,32 +27,28 @@ class BERTokenizer:
 
         '''
         Tokenizes text data using the distilBERT Base v1.1 tokenizer. Loads the distilBERT 
-        tokenizer and applies it to tokenize the provided training (and optionally testing)
-        text datasets. It supports padding, truncation, and returns the tokenized data 
-        in TensorFlow tensors. 
+        tokenizer and applies it to tokenize the provided training and validation text datasets.
+        It supports padding, truncation, and returns the tokenized data in lists of token ids. 
+        Additionally, it updates the source dataframes with the tokenized text.
 
         Keyword Arguments:
-            train_text (list of str): The text data for training to tokenize.
-            test_text (list of str, optional): The text data for testing to tokenize. 
-                                               Default is None, indicating no test text.
-            path (str, optional): Path to cache the BioBERT tokenizer. 
-                                  Default is None, using the default cache directory.
+            None. Assumes `self.train_text`, `self.validation_text`, `self.max_caption_size`, 
+            `self.train_data`, and `self.validation_data` are already set.
 
         Returns:
             tuple: A tuple containing two elements:
-                - train_tokens (tf.Tensor): Tokenized version of `train_text`.
-                - test_tokens (tf.Tensor or None): Tokenized version of `test_text` if provided, otherwise None.
+                - train_tokens (list of list of int): Tokenized version of `self.train_text` as lists of token ids.
+                - val_tokens (list of list of int): Tokenized version of `self.validation_text` as lists of token ids.
 
         '''
-        # tokenize train text using loaded tokenizer 
-        train_tokens = self.tokenizer(self.train_text, padding=True, 
-                                      truncation=True, 
-                                      max_length=self.max_caption_size, 
-                                      return_tensors='tf')
-        validation_tokens = self.tokenizer(self.validation_text, padding=True, 
-                                           truncation=True, 
-                                           max_length=self.max_caption_size, 
-                                           return_tensors='tf')       
+
+        full_sequence_len = self.max_caption_size + 2
+        
+        # tokenize train and validation text using loaded tokenizer 
+        train_tokens = self.tokenizer(self.train_text, padding=True, truncation=True,
+                                      max_length=full_sequence_len, return_tensors='tf')
+        validation_tokens = self.tokenizer(self.validation_text, padding=True, truncation=True, 
+                                           max_length=full_sequence_len, return_tensors='tf')       
         
         # extract only token ids from the tokenizer output
         train_tokens = train_tokens['input_ids'].numpy().tolist() 
