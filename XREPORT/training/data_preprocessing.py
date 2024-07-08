@@ -24,9 +24,9 @@ if __name__ == '__main__':
     dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=sample_size)
 
     # split data
-    print('\nPreparing dataset of images based on splitting sizes')  
+    print('\nPreparing dataset of images based on splitting size')  
     splitter = DatasetSplit(dataset)     
-    train_data, validation_data, test_data = splitter.split_data()       
+    train_data, validation_data = splitter.split_data()       
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
