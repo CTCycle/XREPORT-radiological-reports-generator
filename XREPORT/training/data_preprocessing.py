@@ -33,17 +33,14 @@ if __name__ == '__main__':
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
     # using subwords and these are eventually mapped to integer indexes
     print('\nLoading distilBERT tokenizer and apply tokenization\n')     
-    tokenization = BERTokenizer(train_data, validation_data)    
-    train_tokens, validation_tokens = tokenization.BERT_tokenization()
+    tokenization = BERTokenizer()    
+    train_data, validation_data = tokenization.BERT_tokenization(train_data, validation_data)
     tokenizer = tokenization.tokenizer
     vocab_size = tokenization.vocab_size
 
     # save preprocessed data
     dataserializer = DataSerializer()
-    dataserializer.save_preprocessed_data(tokenization.train_data, 
-                                          tokenization.validation_data, 
-                                          DATA_PATH)
-
+    dataserializer.save_preprocessed_data(train_data, validation_data, DATA_PATH)
     print(f'\nData has been succesfully preprocessed and saved in {DATA_PATH}') 
     
 
