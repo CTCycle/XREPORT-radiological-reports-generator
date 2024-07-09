@@ -14,7 +14,6 @@ from XREPORT.commons.utils.models.captioner import XREPORTModel
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 
 
-
 # [RUN MAIN]
 if __name__ == '__main__':
 

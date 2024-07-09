@@ -1,5 +1,6 @@
 __pycache__
 XREPORT/resources/dataset/images/*
+XREPORT/resources/dataset/preprocessing_info.json
 XREPORT/resources/results/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/tokenizer/BERT/*
@@ -8,4 +9,5 @@ XREPORT/resources/generation/input_images/*
 *.egg-info
 *.csv
 !.gitkeep
+
 

@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.2,
+    "dataset": {"SAMPLE_SIZE" : 0.02,
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
@@ -13,7 +13,7 @@
                "EMBEDDING_DIMS" : 256, 
                "SAVE_MODEL_PLOT" : true},
 
-    "training" : {"EPOCHS" : 10,
+    "training" : {"EPOCHS" : 5,
                   "BATCH_SIZE" : 15,
                   "MIXED_PRECISION" : false,
                   "USE_TENSORBOARD" : false,
@@ -22,6 +22,8 @@
                   "NUM_PROCESSORS": 6,
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
                                     "WARMUP_STEPS" : 4}},
+                                    
+    "inference" : {"TEMPERATURE" : 1.0},
 
     "evaluation" : {"BATCH_SIZE" : 20,
                     "SAMPLE_SIZE" : 0.05,

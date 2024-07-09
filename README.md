@@ -13,10 +13,10 @@ The XREPORT model is based on a transformer encoder-decoder architecture. Three 
 ## 3. Installation
 The installation process is designed for simplicity, using .bat scripts to automatically create a virtual environment with all necessary dependencies. Please ensure that Anaconda or Miniconda is installed on your system before proceeding.
 
-- To set up a CPU-only environment, run `setup/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
-- For GPU support, which is necessary for model training on a GPU, use `setup/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
+- To set up a CPU-only environment, run `scripts/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
+- For GPU support, which is necessary for model training on a GPU, use `scripts/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
 - Once the environment has been created, run `scripts/package_setup.bat` to install the app package locally.
-- **IMPORTANT:** run `scripts/package_setup.bat` if you move the project folder somewhere else after installation, or the app won't work! 
+- **IMPORTANT:** run `scripts/package_setup.bat` if the path to the project folder is changed for any reason after installation, or the app won't work! 
 
 ### 3.1 Additional Package for XLA Acceleration
 XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. 
@@ -26,11 +26,13 @@ To enable XLA acceleration globally across your system, you need to set an envir
 ## 4. How to use
 The project is organized into subfolders, each dedicated to specific tasks. 
 
-**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`. Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
+**resources:** includes various subfolders for organizing data and results for data validation and model training and evaluation. The `resources/dataset/` folder contains images used to train the XREPORT model. `resources/generation/` holds both input images and generated reports from pretrained models. The `resources/results/` folder is used to save the results of data validation, while `resources/checkpoints/` contains the pretrained model checkpoints. 
 
-**Training:** contains the necessary files for conducting model training and evaluation. `XREPORT/model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
+**training:** contained within this folder are the necessary files for conducting model training and evaluation. The training model checkpoints are saved in `resources/checkpoints/`. Run `model_training.py` to initiate the training process for the autoencoder, or launch the jupyter notebook `model_evaluation.py` to evaluate the performance of pretrained model checkpoints using different metrics.
 
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
+
+**inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/generation/input_images`. The reports are saved as .csv file `resources/generation/reports`
 
 ### 4.1 Configurations
 For customization, you can modify the main configuration parameters using `configurations.json` in the root project folder. 
@@ -53,7 +55,7 @@ For customization, you can modify the main configuration parameters using `confi
 | IMG_SHAPE          | Shape of the input images (height, width, channels)      |
 | EMBEDDING_DIMS     | Embedding dimensions (valid for both models)             |  
 | NUM_HEADS          | Number of attention heads                                | 
-| NUM_LAYERS         | Number ofencoder/decoder layers                          |
+| NUM_LAYERS         | Number of encoder/decoder layers                          |
 | SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
 
 #### Training Configuration
@@ -75,6 +77,8 @@ For customization, you can modify the main configuration parameters using `confi
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
 | BATCH_SIZE         | Number of samples per batch during evaluation            | 
+| SAMPLE_SIZE        | Number of samples from the dataset (evaluation only)     |
+| VALIDATION_SIZE    | Fraction of validation data (evaluation only)            |
 
 
 ## 5. License

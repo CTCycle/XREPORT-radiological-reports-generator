@@ -1,3 +1,4 @@
+import sys
 import os
 import cv2
 import json
@@ -6,13 +7,13 @@ from datetime import datetime
 import tensorflow as tf
 from keras.utils import plot_model
 
-from XREPORT.configurations import SAMPLE_SIZE, TEST_SIZE, VALIDATION_SIZE, SAVE_MODEL_PLOT, IMG_SHAPE
-from XREPORT.commons.constants import CHECKPOINT_PATH
+from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
+from XREPORT.commons.utils.models.scheduler import LRScheduler
+from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH, GENERATION_INPUT_PATH
 
 
 #------------------------------------------------------------------------------
-def get_images_from_dataset(path, dataframe, sample_size=None):   
-    
+def get_images_from_dataset(path, dataframe, sample_size=None):     
 
     '''
     Maps image file paths to their corresponding entries in a dataframe.
@@ -45,31 +46,52 @@ def get_images_from_dataset(path, dataframe, sample_size=None):
     dataframe['path'] = dataframe['id'].map(images_path)
     dataframe = dataframe.dropna(subset=['path']).reset_index(drop=True)             
 
-    return dataframe    
+    return dataframe
 
 
+#------------------------------------------------------------------------------
+def get_images_path():
+
+    
+    # check report folder and generate list of images paths    
+    if not os.listdir(GENERATION_INPUT_PATH):
+        print('No XRAY scans found in the report generation folder, please add them before continuing\n')
+        sys.exit()
+    else:
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')
+        images_path = []
+        for root, _, files in os.walk(GENERATION_INPUT_PATH):                 
+            for file in files:
+                if os.path.splitext(file)[1].lower() in valid_extensions:
+                    images_path.append(os.path.join(root, file))                
+
+        return images_path
+    
+
+# [LOAD AND SAVE DATA]
 #------------------------------------------------------------------------------
 class DataSerializer:
 
     def __init__(self):
         
+        self.img_shape = CONFIG["model"]["IMG_SHAPE"]
         self.model_name = 'XREPORT'
        
     #------------------------------------------------------------------------------
     def load_images(self, paths, as_tensor=True, normalize=True):
             
-        images = []
+        images = []        
         for pt in tqdm(paths):
             if as_tensor==False:                
                 image = cv2.imread(pt)             
-                image = cv2.resize(image, IMG_SHAPE[:-1])            
+                image = cv2.resize(image, self.img_shape[:-1])            
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
                 if normalize:
                     image = image/255.0
             else:
                 image = tf.io.read_file(pt)
                 image = tf.image.decode_image(image, channels=3)
-                image = tf.image.resize(image, IMG_SHAPE[:-1])
+                image = tf.image.resize(image, self.img_shape[:-1])
                 image = tf.reverse(image, axis=[-1])
                 if normalize:
                     image = image/255.0
@@ -82,10 +104,9 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, train_data, validation_data, path=''): 
 
-        processing_info = {'sample_size' : SAMPLE_SIZE,
-                           'train_size' : 1.0 - TEST_SIZE - VALIDATION_SIZE,
-                           'validation_size' : VALIDATION_SIZE,
-                           'test_size' : TEST_SIZE,
+        processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
+                           'train_size' : 1.0 - - CONFIG["dataset"]["VALIDATION_SIZE"],
+                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
         # define paths of .csv and .json files
@@ -146,7 +167,7 @@ class DataSerializer:
     
     
 
-# [...]
+# [LOAD AND SAVE MODELS]
 #------------------------------------------------------------------------------
 class ModelSerializer:
 
@@ -183,7 +204,7 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):
 
-        if SAVE_MODEL_PLOT:
+        if CONFIG["model"]["SAVE_MODEL_PLOT"]:
             plot_path = os.path.join(path, 'model_layout.png')       
             plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
@@ -240,10 +261,15 @@ class ModelSerializer:
             self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[dir_index - 1])
 
         elif len(model_folders) == 1:
-            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])                 
-            
+            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])        
+
+        # Set dictionary of custom objects     
+        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
+                          'MaskedAccuracy': MaskedAccuracy, 
+                          'LRScheduler': LRScheduler}  
+        # Load the model with the custom objects  
         model_path = os.path.join(self.loaded_model_folder, 'model') 
-        model = tf.keras.models.load_model(model_path)
+        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)  
         
         configuration = None
         config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
