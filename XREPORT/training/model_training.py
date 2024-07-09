@@ -38,7 +38,7 @@ if __name__ == '__main__':
     trainer.set_device()
 
     # get tokenizers and its info
-    tokenization = BERTokenizer(train_data, validation_data)    
+    tokenization = BERTokenizer()    
     tokenizer = tokenization.tokenizer
 
     # initialize the TensorDataSet class with the generator instances
