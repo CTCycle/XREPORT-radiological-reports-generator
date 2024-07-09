@@ -1,0 +1,6 @@
+{
+    "sample_size": 0.02,
+    "train_size": 1.2,
+    "validation_size": 0.2,
+    "date": "2024-07-09"
+}

@@ -1,10 +1,13 @@
 __pycache__
-XREPORT/data/images/*
-XREPORT/data/validation/*
-XREPORT/training/checkpoints/*
-XREPORT/training/BERT/*
-XREPORT/inference/reports/*
+XREPORT/resources/dataset/images/*
+XREPORT/resources/dataset/preprocessing_info.json
+XREPORT/resources/results/*
+XREPORT/resources/checkpoints/*
+XREPORT/resources/tokenizer/BERT/*
+XREPORT/resources/generation/input_images/*
 
 *.egg-info
+*.csv
 !.gitkeep
+
 

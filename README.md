@@ -13,10 +13,10 @@ The XREPORT model is based on a transformer encoder-decoder architecture. Three 
 ## 3. Installation
 The installation process is designed for simplicity, using .bat scripts to automatically create a virtual environment with all necessary dependencies. Please ensure that Anaconda or Miniconda is installed on your system before proceeding.
 
-- To set up a CPU-only environment, run `setup/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
-- For GPU support, which is necessary for model training on a GPU, use `setup/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
+- To set up a CPU-only environment, run `scripts/create_cpu_environment.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
+- For GPU support, which is necessary for model training on a GPU, use `scripts/create_gpu_environment.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
 - Once the environment has been created, run `scripts/package_setup.bat` to install the app package locally.
-- **IMPORTANT:** run `scripts/package_setup.bat` if you move the project folder somewhere else after installation, or the app won't work! 
+- **IMPORTANT:** run `scripts/package_setup.bat` if the path to the project folder is changed for any reason after installation, or the app won't work! 
 
 ### 3.1 Additional Package for XLA Acceleration
 XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. 
@@ -26,35 +26,60 @@ To enable XLA acceleration globally across your system, you need to set an envir
 ## 4. How to use
 The project is organized into subfolders, each dedicated to specific tasks. 
 
-**Data:** this folder contains the data used for the model training, which should include a folder with X-ray images and a .csv file reporting the images name and related radiological reports. X-ray scan must be loaded in `XREPORT/data/images`. Run the jupyter notebook `XREPORT/data_validation.ipynb` to perform Explorative Data analysis (EDA) of the dataset, with the results being saved in `XREPORT/data/validation`. 
+**resources:** includes various subfolders for organizing data and results for data validation and model training and evaluation. The `resources/dataset/` folder contains images used to train the XREPORT model. `resources/generation/` holds both input images and generated reports from pretrained models. The `resources/results/` folder is used to save the results of data validation, while `resources/checkpoints/` contains the pretrained model checkpoints. 
 
-**Training:** contains the necessary files for conducting model training and evaluation. `XREPORT/model/checkpoints` acts as the default repository where checkpoints of pre-trained models are stored. Run `model_training.py` to initiate the training process for deep learning models, or launch `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
+**training:** contained within this folder are the necessary files for conducting model training and evaluation. The training model checkpoints are saved in `resources/checkpoints/`. Run `model_training.py` to initiate the training process for the autoencoder, or launch the jupyter notebook `model_evaluation.py` to evaluate the performance of pretrained model checkpoints using different metrics.
 
 **Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
 
-### 4.1 Configurations
-For customization, you can modify the main script parameters via the `XREPORT/commons/configurations.py` file. 
+**inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/generation/input_images`. The reports are saved as .csv file `resources/generation/reports`
 
-| Category                | Setting                | Description                                                       |
-|-------------------------|------------------------|-------------------------------------------------------------------|
-| Advanced settings       | USE_MIXED_PRECISION    | use mixed precision for faster training (float16/32)              |
-|                         | USE_TENSORBOARD        | Activate/deactivate tensorboard logging                           |
-|                         | XLA_STATE              | Use linear algebra acceleration for faster training               |
-|                         | ML_DEVICE              | Select the training device (CPU or GPU)                           |
-|                         | NUM_PROCESSORS         | Number of processors (cores) to use; 1 disables multiprocessing   |
-| Training routine        | EPOCHS                 | Number of training iterations                                     |
-|                         | LEARNING_RATE          | Learning rate of the model                                        |
-|                         | BATCH_SIZE             | Size of batches for model training                                |
-| Model settings          | IMG_SHAPE              | Full shape of the images as (height, width, channels)             |
-|                         | EMBEDDING_DIMS         | Embedding dimensions (valid for both models)                      |
-|                         | KERNEL_SIZE            | Size of convolutional kernel (image encoder)                      |
-|                         | NUM_HEADS              | Number of attention heads                                         |
-|                         | SAVE_MODEL_PLOT        | Generate/save 2D model graph (as .png file)                       |
-| Training data           | TRAIN_SAMPLES          | Number of images for model training                               |
-|                         | TEST_SAMPLES           | Number of samples for validation data                             |
-|                         | IMG_AUGMENT            | Perform data augmentation on images (affects training time)       |
-| General settings        | SEED                   | Global random seed                                                |
-|                         | SPLIT_SEED             | Seed for dataset splitting                                        |
+### 4.1 Configurations
+For customization, you can modify the main configuration parameters using `configurations.json` in the root project folder. 
+
+#### Dataset Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| SAMPLE_SIZE        | Number of samples to use from the dataset                |
+| VALIDATION_SIZE    | Proportion of the dataset to use for validation          |
+| IMG_NORMALIZE      | Whether to normalize image data                          |
+| IMG_AUGMENT        | Whether to apply data augmentation to images             |
+| MAX_CAPTION_SIZE   | Max length of text report                                |
+| SPLIT_SEED         | Seed for random splitting of the dataset                 |
+
+#### Model Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| IMG_SHAPE          | Shape of the input images (height, width, channels)      |
+| EMBEDDING_DIMS     | Embedding dimensions (valid for both models)             |  
+| NUM_HEADS          | Number of attention heads                                | 
+| NUM_LAYERS         | Number of encoder/decoder layers                          |
+| SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
+
+#### Training Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| EPOCHS             | Number of epochs to train the model                      |
+| LEARNING_RATE      | Learning rate for the optimizer                          |
+| BATCH_SIZE         | Number of samples per batch                              |
+| MIXED_PRECISION    | Whether to use mixed precision training                  |
+| USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
+| XLA_STATE          | Whether to enable XLA (Accelerated Linear Algebra)       |
+| ML_DEVICE          | Device to use for training (e.g., GPU)                   |
+| NUM_PROCESSORS     | Number of processors to use for data loading             |
+         
+
+#### Evaluation Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| BATCH_SIZE         | Number of samples per batch during evaluation            | 
+| SAMPLE_SIZE        | Number of samples from the dataset (evaluation only)     |
+| VALIDATION_SIZE    | Fraction of validation data (evaluation only)            |
+
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
