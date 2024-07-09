@@ -36,6 +36,16 @@ if errorlevel 1 (
     goto :eof
 )
 
+@echo off
+rem install packages in editable mode
+echo STEP 5: Install utils packages in editable mode
+call cd .. && pip install -e .
+if errorlevel 1 (
+    echo Failed to install the package in editable mode
+    goto :eof
+)
+
+
 rem Print the list of dependencies installed in the environment
 echo List of installed dependencies
 call conda list
