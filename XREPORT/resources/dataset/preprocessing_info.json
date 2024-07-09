@@ -1,7 +1,6 @@
 {
-    "sample_size": 0.5,
-    "train_size": 0.7,
+    "sample_size": 0.02,
+    "train_size": 1.2,
     "validation_size": 0.2,
-    "test_size": 0.1,
-    "date": "2024-07-08"
+    "date": "2024-07-09"
 }

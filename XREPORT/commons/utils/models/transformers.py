@@ -166,11 +166,10 @@ class TransformerEncoder(keras.layers.Layer):
 #------------------------------------------------------------------------------
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoder')
 class TransformerDecoder(keras.layers.Layer):
-    def __init__(self, vocab_size, **kwargs):
+    def __init__(self, **kwargs):
         super(TransformerDecoder, self).__init__(**kwargs)
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"]
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]  
-        self.vocab_size = vocab_size               
+        self.num_heads = CONFIG["model"]["NUM_HEADS"]                       
         self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                         key_dim=self.embedding_dims, 
                                                         dropout=0.2)
@@ -187,7 +186,7 @@ class TransformerDecoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def call(self, inputs, encoder_outputs, training=True, mask=None):        
         
-        causal_mask = self.get_causal_attention_mask(inputs)
+        causal_mask = self.get_causal_attention_mask(inputs)        
         padding_mask = None
         combined_mask = None
         if mask is not None:
@@ -235,8 +234,7 @@ class TransformerDecoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerDecoder, self).get_config()
-        config.update({'vocab_size': self.vocab_size,
-                       'embedding_dims': self.embedding_dims,                       
+        config.update({'embedding_dims': self.embedding_dims,                       
                        'num_heads': self.num_heads})
         return config
 
