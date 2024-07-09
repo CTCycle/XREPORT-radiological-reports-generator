@@ -8,6 +8,7 @@ XREPORT/resources/generation/input_images/*
 
 *.egg-info
 *.csv
+*/preprocessing_info.json
 !.gitkeep
 
 
