@@ -1,10 +1,16 @@
 import os
-import re
 import numpy as np
-import tensorflow as tf    
+import tensorflow as tf 
+from tqdm import tqdm   
 
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer
-from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.utils.dataloader.serializer import DataSerializer, get_images_path
+from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
+from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
+
+
+
+
+
 
 
 
@@ -12,53 +18,61 @@ from XREPORT.commons.constants import CONFIG
 #------------------------------------------------------------------------------
 class TextGenerator:
 
-    def __init__(self, model):
-        
+    def __init__(self, model):        
+
+        self.img_paths = get_images_path()
+        self.img_shape = CONFIG["model"]["IMG_SHAPE"]
+        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"] + 1
         np.random.seed(CONFIG["SEED"])
         tf.random.set_seed(CONFIG["SEED"])
-        self.dataserializer = DataSerializer()
-        self.model = model   
+        self.dataserializer = DataSerializer()      
+        self.model = model  
+
+        self.layer_names = [layer.name for layer in model.layers]     
+        self.encoder_layer_names = [x for x in self.layer_names if 'tranformer_encoder' in x] 
+        self.decoder_layer_names = [x for x in self.layer_names if 'tranformer_decoder' in x] 
+
+        # get tokenizers and its info
+        tokenization = BERTokenizer()    
+        self.tokenizer = tokenization.tokenizer 
     
     #--------------------------------------------------------------------------    
-    def greed_search_generator(self, model, paths, picture_size, max_length, tokenizer):
+    def greed_search_generator(self):
         
         reports = {}
-        vocabulary = tokenizer.get_vocab()
+        vocabulary = self.tokenizer.get_vocab()
         start_token = '[CLS]'
-        end_token = '[SEP]'        
-        index_lookup = dict(zip(range(len(vocabulary)), vocabulary))        
-        for pt in paths:
-            print(f'\nGenerating report for images {os.path.basename(pt)}\n')
+        end_token = '[SEP]'
+
+        # Convert start and end tokens to their corresponding indices
+        start_token_idx = vocabulary[start_token]        
+        index_lookup = {v: k for k, v in vocabulary.items()}  # Reverse the vocabulary mapping
+
+        for pt in self.img_paths:
+            print(f'\nGenerating report for image {os.path.basename(pt)}\n')
             image = tf.io.read_file(pt)
             image = tf.image.decode_image(image, channels=1)
-            image = tf.image.resize(image, picture_size)            
-            image = image/255.0 
+            image = tf.image.resize(image, self.img_shape[:-1])
+            image = image / 255.0
             input_image = tf.expand_dims(image, 0)
-            features = model.image_encoder(input_image)           
-            encoded_img = model.layers[1](features, training=False)   
-            encoded_img = model.layers[2](encoded_img, training=False)  
-            encoded_img = model.layers[3](encoded_img, training=False)  
+            
+            seq_input = np.zeros((1, self.max_caption_size), dtype=np.int32)
+            seq_input[0, 0] = start_token_idx  # Initialize with start token
 
-            # teacher forging method to generate tokens through the decoder
-            decoded_caption = start_token              
-            for i in range(max_length):                     
-                tokenized_outputs = tokenizer(decoded_caption, add_special_tokens=False, return_tensors='tf',
-                                              padding='max_length', max_length=max_length) 
-                  
-                tokenized_caption = tokenized_outputs['input_ids']                                                                                                        
-                tokenized_caption = tf.constant(tokenized_caption, dtype=tf.int32)                                                      
-                mask = tf.math.not_equal(tokenized_caption, 0)                                                
-                predictions = model.decoder(tokenized_caption, encoded_img, training=False, mask=mask)                                                                                                                    
-                sampled_token_index = np.argmax(predictions[0, i, :])                               
-                sampled_token = index_lookup[sampled_token_index]                      
-                if sampled_token == end_token: 
-                      break                
-                decoded_caption = decoded_caption + f' {sampled_token}'
+            for i in tqdm(range(1, self.max_caption_size)):
+                # Predict the next token
+                predictions = self.model.predict([input_image, seq_input], verbose=0)
+                next_token_idx = np.argmax(predictions[0, i-1, :])
+                next_token = index_lookup[next_token_idx]
+                
+                # Stop if end token is generated
+                if next_token == end_token:
+                    break
+                
+                seq_input[0, i] = next_token_idx
 
-            text = re.sub(r'##', '', decoded_caption)
-            text = re.sub(r'\s+', ' ', text)           
-            print(f'Predicted report for image: {os.path.basename(pt)}', text)          
-
+            # Convert indices to tokens
+            token_sequence = [index_lookup[idx] for idx in seq_input[0] if idx in index_lookup and idx != 0]
+            reports[pt] = token_sequence
+           
         return reports
-   
-
