@@ -1,7 +1,8 @@
-import sys
 import os
+import sys
 import cv2
 import json
+import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf
@@ -10,6 +11,7 @@ from keras.utils import plot_model
 from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.models.scheduler import LRScheduler
 from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH, GENERATION_INPUT_PATH
+from XREPORT.commons.logger import logger
 
 
 #------------------------------------------------------------------------------
@@ -30,7 +32,8 @@ def get_images_from_dataset(path, dataframe, sample_size=None):
                             the file paths for images, excluding rows without a corresponding image file.
     
     ''' 
-    valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}  
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'} 
+    logger.debug(f'Valid extensions are: {valid_extensions}') 
     images_path = {}
 
     for root, _, files in os.walk(path):
@@ -55,10 +58,11 @@ def get_images_path():
     
     # check report folder and generate list of images paths    
     if not os.listdir(GENERATION_INPUT_PATH):
-        print('No XRAY scans found in the report generation folder, please add them before continuing\n')
+        logger.error('No XRAY scans found in the inference input folder, please add them before using this module!\n')
         sys.exit()
     else:
         valid_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')
+        logger.debug(f'Valid extensions are: {valid_extensions}') 
         images_path = []
         for root, _, files in os.walk(GENERATION_INPUT_PATH):                 
             for file in files:
@@ -72,10 +76,11 @@ def get_images_path():
 #------------------------------------------------------------------------------
 class DataSerializer:
 
-    def __init__(self):
-        
+    def __init__(self):        
+        self.color_encoding = cv2.COLOR_BGR2RGB
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.model_name = 'XREPORT'
+        self.resized_img_shape = self.img_shape[:-1]
+        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]       
        
     #------------------------------------------------------------------------------
     def load_images(self, paths, as_tensor=True, normalize=True):
@@ -84,14 +89,14 @@ class DataSerializer:
         for pt in tqdm(paths):
             if as_tensor==False:                
                 image = cv2.imread(pt)             
-                image = cv2.resize(image, self.img_shape[:-1])            
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) 
+                image = cv2.resize(image, self.resized_img_shape)            
+                image = cv2.cvtColor(image, self.color_encoding) 
                 if normalize:
                     image = image/255.0
             else:
                 image = tf.io.read_file(pt)
-                image = tf.image.decode_image(image, channels=3)
-                image = tf.image.resize(image, self.img_shape[:-1])
+                image = tf.image.decode_image(image, channels=1)
+                image = tf.image.resize(image, self.resized_img_shape)
                 image = tf.reverse(image, axis=[-1])
                 if normalize:
                     image = image/255.0
@@ -102,7 +107,8 @@ class DataSerializer:
 
     # ...
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data, validation_data, path=''): 
+    def save_preprocessed_data(self, train_data : pd.DataFrame, 
+                               validation_data : pd.DataFrame, path=''): 
 
         processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
                            'train_size' : 1.0 - - CONFIG["dataset"]["VALIDATION_SIZE"],
@@ -116,20 +122,22 @@ class DataSerializer:
         
         # save train and validation data as .csv in the dataset folder
         train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
-        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8')  
+        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8') 
+        logger.debug(f'Preprocessed train data has been saved at {train_pp_path}') 
+        logger.debug(f'Preprocessed validation data has been saved at {val_pp_path}') 
 
         # save the preprocessing info as .json file in the dataset folder
         with open(json_info_path, 'w') as file:
-            json.dump(processing_info, file, indent=4)     
+            json.dump(processing_info, file, indent=4) 
+            logger.debug('Preprocessing info:\n', file)
 
-        
     # ...
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self, path):
 
         json_file_path = os.path.join(path, 'preprocessed_data.json')    
         if not os.path.exists(json_file_path):
-            raise FileNotFoundError(f"The file {json_file_path} does not exist.")
+            logger.error(f'The file {json_file_path} does not exist.')
         
         with open(json_file_path, 'r') as json_file:
             combined_data = json.load(json_file)
@@ -137,9 +145,17 @@ class DataSerializer:
         train_data = combined_data.get('train')
         validation_data = combined_data.get('validation')        
         
-        return {'train': train_data, 
-                'validation': validation_data}
-        
+        return {'train': train_data, 'validation': validation_data}  
+    
+    
+
+# [LOAD AND SAVE MODELS]
+#------------------------------------------------------------------------------
+class ModelSerializer:
+
+    def __init__(self):
+        self.model_name = 'XREPORT'
+
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
     def create_checkpoint_folder(self):
@@ -164,22 +180,13 @@ class DataSerializer:
         os.makedirs(self.preprocessing_path, exist_ok=True)
         
         return checkpoint_folder_path
-    
-    
-
-# [LOAD AND SAVE MODELS]
-#------------------------------------------------------------------------------
-class ModelSerializer:
-
-    def __init__(self):
-        pass
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : tf.keras.Model, path):
 
         model_files_path = os.path.join(path, 'model')
         model.save(model_files_path, save_format='tf')
-        print(f'\nTraining session is over. Model has been saved in folder {path}')
+        logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
     def save_model_parameters(self, path, parameters_dict):
@@ -200,11 +207,13 @@ class ModelSerializer:
         path = os.path.join(path, 'model_parameters.json')      
         with open(path, 'w') as f:
             json.dump(parameters_dict, f)
+            logger.debug(f'Model parameters have been saved at {path}')
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):
 
         if CONFIG["model"]["SAVE_MODEL_PLOT"]:
+            logger.debug('Generating model architecture graph')
             plot_path = os.path.join(path, 'model_layout.png')       
             plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
@@ -234,50 +243,55 @@ class ModelSerializer:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)
-    
-        if not model_folders:
-            raise FileNotFoundError('No model directories found in the specified path.')
+                model_folders.append(entry.name)       
+
+        if len(model_folders) == 0:
+            logger.error('No pretrained model checkpoints in resources')
+            sys.exit()
         
         if len(model_folders) > 1:
             model_folders.sort()
             index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
-            print('Currently available pretrained models:') 
-            print()
+            print('Currently available pretrained models:')             
             for i, directory in enumerate(model_folders):
-                print(f'{i + 1} - {directory}')        
-            print()               
+                print(f'{i + 1} - {directory}')                         
             while True:
                 try:
-                    dir_index = int(input('Select the pretrained model: '))
+                    dir_index = int(input('\nSelect the pretrained model: '))
                     print()
                 except ValueError:
+                    logger.error('Invalid choice for the pretrained model, asking again')
                     continue
                 if dir_index in index_list:
                     break
                 else:
-                    print('Input is not valid! Try again:')
+                    logger.warning('Model does not exist, please select a valid index')
                     
             self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[dir_index - 1])
 
         elif len(model_folders) == 1:
-            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])        
-
+            logger.info('Loading pretrained model directly as only one is available')
+            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])                 
+            
         # Set dictionary of custom objects     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
-                          'LRScheduler': LRScheduler}  
+                          'LRScheduler': LRScheduler} 
+         
         # Load the model with the custom objects  
         model_path = os.path.join(self.loaded_model_folder, 'model') 
-        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)  
+        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)        
         
-        configuration = None
+        # load configuration data from .json file in checkpoint folder
         config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
-                configuration = json.load(f)       
+                configuration = json.load(f)                   
         else:
-            print('Warning: model_parameters.json file not found. Model parameters were not loaded.')
+            logger.warning('model_parameters.json file not found. Model parameters were not loaded.')
+            configuration = None  
             
-        return model, configuration            
+        return model, configuration        
+
+             
     

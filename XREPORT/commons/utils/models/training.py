@@ -3,9 +3,10 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 
-from XREPORT.commons.utils.models.callbacks import RealTimeHistory
+from XREPORT.commons.utils.models.callbacks import RealTimeHistory, LoggingCallback
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
 
 
            
@@ -17,9 +18,9 @@ class ModelTraining:
         np.random.seed(CONFIG["SEED"])
         tf.random.set_seed(CONFIG["SEED"])         
         self.available_devices = tf.config.list_physical_devices()               
-        print('The current devices are available:\n')        
+        logger.info('The current devices are available:\n')        
         for dev in self.available_devices:            
-            print(dev)
+            logger.info(dev)
 
     # set device
     #--------------------------------------------------------------------------
@@ -28,7 +29,7 @@ class ModelTraining:
         if CONFIG["training"]["ML_DEVICE"] == 'GPU':
             self.physical_devices = tf.config.list_physical_devices('GPU')
             if not self.physical_devices:
-                print('\nNo GPU found. Falling back to CPU\n')
+                logger.info('No GPU found. Falling back to CPU')
                 tf.config.set_visible_devices([], 'GPU')
             else:
                 if CONFIG["training"]["MIXED_PRECISION"]:
@@ -36,11 +37,11 @@ class ModelTraining:
                     keras.mixed_precision.set_global_policy(policy) 
                 tf.config.set_visible_devices(self.physical_devices[0], 'GPU')
                 os.environ['TF_GPU_ALLOCATOR']='cuda_malloc_async'                 
-                print('\nGPU is set as active device\n')
+                logger.info('GPU is set as active device')
                    
         elif CONFIG["training"]["ML_DEVICE"] == 'CPU':
             tf.config.set_visible_devices([], 'GPU')
-            print('\nCPU is set as active device\n')    
+            logger.info('CPU is set as active device')    
 
     #--------------------------------------------------------------------------
     def train_model(self, model : tf.keras.Model, train_data, 
@@ -48,10 +49,12 @@ class ModelTraining:
 
         # initialize the real time history callback    
         RTH_callback = RealTimeHistory(current_checkpoint_path, validation=True)
-        callbacks_list = [RTH_callback]
+        logger_callback = LoggingCallback()
+        callbacks_list = [RTH_callback, logger_callback]
 
         # initialize tensorboard if requested    
         if CONFIG["training"]["USE_TENSORBOARD"]:
+            logger.debug('Using tensorboard during training')
             log_path = os.path.join(current_checkpoint_path, 'tensorboard')
             callbacks_list.append(tf.keras.callbacks.TensorBoard(log_dir=log_path, 
                                                                  histogram_freq=1))

@@ -2,6 +2,7 @@ import pandas as pd
 from transformers import DistilBertTokenizer
 
 from XREPORT.commons.constants import CONFIG, TOKENIZER_PATH
+from XREPORT.commons.logger import logger
 
     
 # [PREPROCESSING PIPELINE]
@@ -9,14 +10,13 @@ from XREPORT.commons.constants import CONFIG, TOKENIZER_PATH
 class BERTokenizer:  
 
 
-    def __init__(self):
+    def __init__(self):        
         
-        
-        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"]       
-            
+        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"]            
         self.model_identifier = 'distilbert/distilbert-base-uncased' 
         self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=TOKENIZER_PATH) 
-        self.vocab_size = len(self.tokenizer.vocab)              
+        self.vocab_size = len(self.tokenizer.vocab)      
+        logger.debug(f'Using {self.model_identifier} as tokenizer')        
     
     #--------------------------------------------------------------------------
     def BERT_tokenization(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
@@ -37,7 +37,6 @@ class BERTokenizer:
                 - val_tokens (list of list of int): Tokenized version of `self.validation_text` as lists of token ids.
 
         '''
-
         full_sequence_len = self.max_caption_size + 2
         self.train_text = train_data['text'].to_list()
         self.validation_text = validation_data['text'].to_list()

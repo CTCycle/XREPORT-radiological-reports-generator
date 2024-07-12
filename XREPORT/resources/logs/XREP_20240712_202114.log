@@ -1,0 +1,12 @@
+12-07-2024 20:21:16 - tensorflow - DEBUG - Falling back to TensorFlow client; we recommended you install the Cloud TPU client directly with pip install cloud-tpu-client.
+12-07-2024 20:21:16 - h5py._conv - DEBUG - Creating converter from 7 to 5
+12-07-2024 20:21:16 - h5py._conv - DEBUG - Creating converter from 5 to 7
+12-07-2024 20:21:16 - h5py._conv - DEBUG - Creating converter from 7 to 5
+12-07-2024 20:21:16 - h5py._conv - DEBUG - Creating converter from 5 to 7
+12-07-2024 20:21:19 - matplotlib - DEBUG - matplotlib data path: c:\Anaconda\envs\tensorvault\lib\site-packages\matplotlib\mpl-data
+12-07-2024 20:21:19 - matplotlib - DEBUG - CONFIGDIR=C:\Users\Thomas V\.matplotlib
+12-07-2024 20:21:19 - matplotlib - DEBUG - interactive is False
+12-07-2024 20:21:19 - matplotlib - DEBUG - platform is win32
+12-07-2024 20:21:19 - matplotlib - DEBUG - CACHEDIR=C:\Users\Thomas V\.matplotlib
+12-07-2024 20:21:19 - matplotlib.font_manager - DEBUG - Using fontManager instance from C:\Users\Thomas V\.matplotlib\fontlist-v330.json
+12-07-2024 20:21:19 - root - INFO - Loading pretrained model directly as only one is available

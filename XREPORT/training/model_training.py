@@ -8,10 +8,12 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.generators import build_tensor_dataset
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
 from XREPORT.commons.utils.models.training import ModelTraining
 from XREPORT.commons.utils.models.captioner import XREPORTModel
 from XREPORT.commons.constants import CONFIG, DATA_PATH
+from XREPORT.commons.logger import logger
+
 
 
 # [RUN MAIN]
@@ -26,14 +28,14 @@ if __name__ == '__main__':
     validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
 
     # create subfolder for preprocessing data    
-    dataserializer = DataSerializer()
-    model_folder_path = dataserializer.create_checkpoint_folder()    
+    modelserializer = ModelSerializer()
+    model_folder_path = modelserializer.create_checkpoint_folder()    
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
     # initialize training device 
     # allows changing device prior to initializing the generators
-    print('\nBuilding XREPORT model and data loaders\n')     
+    logger.info('Building XREPORT model and data loaders')     
     trainer = ModelTraining()
     trainer.set_device()
 
@@ -52,16 +54,15 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-
-    print('\nXREPORT training report')
-    print('--------------------------------------------------------------------') 
-    print(f'Number of train samples:      {len(train_data)}')
-    print(f'Number of validation samples: {len(validation_data)}')      
-    print(f'Batch size:                   {CONFIG["training"]["BATCH_SIZE"]}')
-    print(f'Epochs:                       {CONFIG["training"]["EPOCHS"]}')
-    print(f'Vocabulary size:              {vocab_size}')
-    print(f'Max caption length:           {CONFIG["dataset"]["MAX_CAPTION_SIZE"]}')
-    print('--------------------------------------------------------------------')    
+    logger.info('XREPORT training report')
+    logger.info('--------------------------------------------------------------') 
+    logger.info(f'Number of train samples:      {len(train_data)}')
+    logger.info(f'Number of validation samples: {len(validation_data)}')      
+    logger.info(f'Batch size:                   {CONFIG["training"]["BATCH_SIZE"]}')
+    logger.info(f'Epochs:                       {CONFIG["training"]["EPOCHS"]}')
+    logger.info(f'Vocabulary size:              {vocab_size}')
+    logger.info(f'Max caption length:           {CONFIG["dataset"]["MAX_CAPTION_SIZE"]}')
+    logger.info('--------------------------------------------------------------')    
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocab_size)

@@ -9,6 +9,7 @@ from XREPORT.commons.utils.models.image_encoding import ImageEncoder
 from XREPORT.commons.utils.models.embeddings import PositionalEmbedding
 from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
 
 
 # [XREP CAPTIONING MODEL]

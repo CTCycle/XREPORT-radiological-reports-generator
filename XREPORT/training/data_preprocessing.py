@@ -10,6 +10,7 @@ from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
 from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
+from XREPORT.commons.logger import logger
 
 
 # [RUN MAIN]
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=sample_size)
 
     # split data
-    print('\nPreparing dataset of images based on splitting size')  
+    logger.info('Preparing dataset of images based on splitting size')  
     splitter = DatasetSplit(dataset)     
     train_data, validation_data = splitter.split_data()       
 
@@ -32,7 +33,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
     # using subwords and these are eventually mapped to integer indexes
-    print('\nLoading distilBERT tokenizer and apply tokenization\n')     
+    logger.info('Loading distilBERT tokenizer and apply tokenization')     
     tokenization = BERTokenizer()    
     train_data, validation_data = tokenization.BERT_tokenization(train_data, validation_data)
     tokenizer = tokenization.tokenizer
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     # save preprocessed data
     dataserializer = DataSerializer()
     dataserializer.save_preprocessed_data(train_data, validation_data, DATA_PATH)
-    print(f'\nData has been succesfully preprocessed and saved in {DATA_PATH}') 
+    logger.info('Data has been succesfully preprocessed and saved in {DATA_PATH}') 
     
 
    
