@@ -19,8 +19,7 @@ class DataValidation:
         plt.figure(figsize=(16, 14))        
         for name, image_set in image_dict.items():
             pixel_intensities = np.concatenate([image.flatten() for image in image_set])
-            plt.hist(pixel_intensities, bins='auto', alpha=0.5, label=name)
-        
+            plt.hist(pixel_intensities, bins='auto', alpha=0.5, label=name)        
         plt.title('Pixel Intensity Histograms', fontsize=16)
         plt.xlabel('Pixel Intensity', fontsize=12)
         plt.ylabel('Frequency', fontsize=12)
@@ -56,7 +55,6 @@ class ModelValidation:
 
     def __init__(self, model):        
         self.model = model
-
 
     # # model weights check
     # #-------------------------------------------------------------------------- 

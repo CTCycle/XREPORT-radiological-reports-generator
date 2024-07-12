@@ -6,58 +6,99 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
+
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
-#==============================================================================
-# Real time history callback
-#==============================================================================
-class RealTimeHistory(keras.callbacks.Callback):    
-     
-    def __init__(self, plot_path, validation=True):        
-        super().__init__()
+#------------------------------------------------------------------------------
+class RealTimeHistory(keras.callbacks.Callback):
+    
+    '''
+    Custom Keras callback to visualize training and validation metrics in real-time.
+
+    This callback logs training and validation metrics (loss and metrics) after each epoch
+    and periodically generates plots of these metrics. It saves the plots as JPEG images 
+    in the specified directory.
+
+    Parameters:    
+        plot_path : str
+            Directory path where the plots will be saved.
+        update_frequency : int, optional (default=2)
+            Frequency (in epochs) at which to update the logging of metrics.
+        plot_frequency : int, optional (default=5)
+            Frequency (in epochs) at which to generate and save plots.
+        validation : bool, optional (default=True)
+            Whether to log and plot validation metrics.
+
+    Methods:    
+        on_epoch_end(epoch, logs)
+            Method called by Keras at the end of each epoch to update metrics and potentially generate plots.
+
+        plot_training_history()
+            Generates and saves plots of training and validation metrics.
+
+    '''    
+    def __init__(self, plot_path, update_epoch_gap=2, **kwargs):
+        super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path
-        self.epochs = []
-        self.loss_hist = []
-        self.metric_hist = []
-        self.loss_val_hist = []        
-        self.metric_val_hist = []
-        self.validation = validation            
-    #--------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs = {}):
-        if epoch % 2 == 0:                    
-            self.epochs.append(epoch)
-            self.loss_hist.append(logs[list(logs.keys())[0]])
-            self.metric_hist.append(logs[list(logs.keys())[1]])
-            if self.validation==True:
-                self.loss_val_hist.append(logs[list(logs.keys())[2]])            
-                self.metric_val_hist.append(logs[list(logs.keys())[3]])
-        if epoch % 5 == 0:              
-            fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
-            plt.subplot(2, 1, 1)
-            plt.plot(self.epochs, self.loss_hist, label='training loss')
-            if self.validation==True:
-                plt.plot(self.epochs, self.loss_val_hist, label='validation loss')
-                plt.legend(loc='best', fontsize = 8)
-            plt.title('Loss plot')
-            plt.ylabel('Categorical Crossentropy')
-            plt.xlabel('epoch')
-            plt.subplot(2, 1, 2)
-            plt.plot(self.epochs, self.metric_hist, label='train metrics') 
-            if self.validation==True: 
-                plt.plot(self.epochs, self.metric_val_hist, label='validation metrics') 
-                plt.legend(loc='best', fontsize = 8)
-            plt.title('metrics plot')
-            plt.ylabel('Categorical accuracy')
-            plt.xlabel('epoch')       
-            plt.tight_layout()
-            plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi = 300)
-            plt.close() 
+        self.update_epoch_gap = update_epoch_gap
+        self.plot_epoch_gap = CONFIG["training"]["PLOT_EPOCH_GAP"]
+                
+        # Initialize dictionaries to store history
+        self.history = {}
+        self.val_history = {}
+        
+        # Ensure plot directory exists
+        os.makedirs(self.plot_path, exist_ok=True)
+    
+    def on_epoch_end(self, epoch, logs={}):
+        # Log metrics and losses
+        for key, value in logs.items():
+            if key.startswith('val_'):
+                if key not in self.val_history:
+                    self.val_history[key] = []
+                self.val_history[key].append(value)
+            else:
+                if key not in self.history:
+                    self.history[key] = []
+                self.history[key].append(value)
+        
+        # Update plots if necessary
+        if epoch % self.plot_epoch_gap == 0:
+            self.plot_training_history()
+
+    def plot_training_history(self):
+        fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
+        plt.figure(figsize=(10, 8))
+        
+        # Plot each metric
+        for i, (metric, values) in enumerate(self.history.items()):
+            plt.subplot(len(self.history), 1, i + 1)
+            plt.plot(range(len(values)), values, label=f'train {metric}')
+            if f'val_{metric}' in self.val_history:
+                plt.plot(range(len(self.val_history[f'val_{metric}'])), self.val_history[f'val_{metric}'], label=f'val {metric}')
+                plt.legend(loc='best', fontsize=8)
+            plt.title(f'{metric} Plot')
+            plt.ylabel(metric)
+            plt.xlabel('Epoch')
+        
+        plt.tight_layout()
+        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)
+        plt.close()
+
+
+# [LOGGING]
+#------------------------------------------------------------------------------
+# Define custom Keras callback for logging
+class LoggingCallback(keras.callbacks.Callback):
+    def on_epoch_end(self, epoch, logs=None):
+        if logs is not None:
+            logger.debug(f"Epoch {epoch + 1}: {logs}")
 
             
 # [CALLBACK TO GENERATE REPORTS]
-#==============================================================================
-# Real time history callback
-#==============================================================================
+#------------------------------------------------------------------------------
 class GenerateTextCallback(tf.keras.callbacks.Callback):
     def __init__(self, image, sequence, tokenizer, ):       
         
