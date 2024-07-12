@@ -3,7 +3,7 @@ from tensorflow import keras
 from keras import layers    
 
 from XREPORT.commons.constants import CONFIG
-
+from XREPORT.commons.logger import logger
 
 
 # [ADD NORM LAYER]
@@ -14,8 +14,7 @@ class AddNorm(keras.layers.Layer):
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
         self.add = layers.Add()
-        self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)
-    
+        self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)    
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    

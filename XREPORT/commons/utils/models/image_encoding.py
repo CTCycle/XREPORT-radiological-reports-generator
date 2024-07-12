@@ -1,7 +1,8 @@
 from tensorflow import keras
 from keras import layers
 
-from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
 
 
       

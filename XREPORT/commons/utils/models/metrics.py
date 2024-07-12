@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 import keras.backend as K
 
+from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
 
 
 # [LOSS FUNCTION]
@@ -64,7 +66,6 @@ class MaskedAccuracy(tf.keras.metrics.Metric):
         # Update the state variables
         self.total.assign_add(tf.reduce_sum(accuracy))
         self.count.assign_add(tf.reduce_sum(mask))
-
     
     #--------------------------------------------------------------------------
     def result(self):
