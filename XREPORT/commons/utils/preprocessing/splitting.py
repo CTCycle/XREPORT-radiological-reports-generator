@@ -1,6 +1,7 @@
 import pandas as pd
 
 from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.logger import logger
 
 # [DATA SPLITTING]
 #------------------------------------------------------------------------------
@@ -11,7 +12,7 @@ class DatasetSplit:
         # Set the sizes for the train and validation datasets        
         self.validation_size = CONFIG["dataset"]["VALIDATION_SIZE"]
         self.train_size = 1.0 - self.validation_size
-        self.dataframe = dataframe.sample(frac=1).reset_index(drop=True)  
+        self.dataframe = dataframe.reset_index(drop=True)  
 
         # Compute the sizes of each split
         total_samples = len(dataframe)
