@@ -4,7 +4,7 @@
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
-                "MAX_CAPTION_SIZE" : 200,
+                "MAX_REPORT_SIZE" : 200,
                 "SPLIT_SEED" : 52}, 
 
     "model" : {"IMG_SHAPE" : [144, 144, 1],

@@ -10,7 +10,7 @@ from keras.utils import plot_model
 
 from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.models.scheduler import LRScheduler
-from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH, GENERATION_INPUT_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -112,13 +112,14 @@ class DataSerializer:
 
         processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
                            'train_size' : 1.0 - - CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],                           
+                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
+                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
         # define paths of .csv and .json files
         train_pp_path = os.path.join(path, 'XREP_train.csv')
         val_pp_path = os.path.join(path, 'XREP_validation.csv')
-        json_info_path = os.path.join(path, 'preprocessing_info.json')
+        json_info_path = os.path.join(path, 'preprocessing_metadata.json')
         
         # save train and validation data as .csv in the dataset folder
         train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
@@ -129,23 +130,23 @@ class DataSerializer:
         # save the preprocessing info as .json file in the dataset folder
         with open(json_info_path, 'w') as file:
             json.dump(processing_info, file, indent=4) 
-            logger.debug('Preprocessing info:\n', file)
+            logger.debug('Preprocessing info:\n%s', file)
 
     # ...
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self, path):
+    def load_preprocessed_data(self):
 
-        json_file_path = os.path.join(path, 'preprocessed_data.json')    
-        if not os.path.exists(json_file_path):
-            logger.error(f'The file {json_file_path} does not exist.')
+        # load preprocessed train and validation data
+        train_file_path = os.path.join(DATA_PATH, 'XREP_train.csv') 
+        val_file_path = os.path.join(DATA_PATH, 'XREP_validation.csv')
+        train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
+        validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
+        # load preprocessing metadata
+        metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
+        with open(metadata_path, 'r') as file:
+            metadata = json.load(file)
         
-        with open(json_file_path, 'r') as json_file:
-            combined_data = json.load(json_file)
-        
-        train_data = combined_data.get('train')
-        validation_data = combined_data.get('validation')        
-        
-        return {'train': train_data, 'validation': validation_data}  
+        return train_data, validation_data, metadata
     
     
 
