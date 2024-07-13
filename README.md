@@ -15,8 +15,7 @@ The installation process is designed for simplicity, using .bat scripts to autom
 
 - To set up a CPU-only environment, run `scripts/cpu_environment_setup.bat`. This script installs the base version of TensorFlow, which is lighter and does not include CUDA libraries.
 - For GPU support, which is necessary for model training on a GPU, use `scripts/gpu_environment_setup.bat`. This script includes all required CUDA dependencies to enable GPU utilization.
-- Once the environment has been created, run `scripts/package_setup.bat` to install the app package locally.
-- **IMPORTANT:** run `scripts/package_setup.bat` if the path to the project folder is changed for any reason after installation, or the app won't work! 
+- **IMPORTANT:** run `scripts/package_setup.bat` if the path to the project folder is changed for any reason after installation, or the app won't work!
 
 ### 3.1 Additional Package for XLA Acceleration
 XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. 
