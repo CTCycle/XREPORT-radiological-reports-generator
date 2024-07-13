@@ -45,7 +45,7 @@ For customization, you can modify the main configuration parameters using `confi
 | VALIDATION_SIZE    | Proportion of the dataset to use for validation          |
 | IMG_NORMALIZE      | Whether to normalize image data                          |
 | IMG_AUGMENT        | Whether to apply data augmentation to images             |
-| MAX_CAPTION_SIZE   | Max length of text report                                |
+| MAX_REPORT_SIZE    | Max length of text report                                |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
 
 #### Model Configuration
@@ -55,7 +55,7 @@ For customization, you can modify the main configuration parameters using `confi
 | IMG_SHAPE          | Shape of the input images (height, width, channels)      |
 | EMBEDDING_DIMS     | Embedding dimensions (valid for both models)             |  
 | NUM_HEADS          | Number of attention heads                                | 
-| NUM_LAYERS         | Number of encoder/decoder layers                          |
+| NUM_LAYERS         | Number of encoder/decoder layers                         |
 | SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
 
 #### Training Configuration
@@ -69,8 +69,7 @@ For customization, you can modify the main configuration parameters using `confi
 | USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
 | XLA_STATE          | Whether to enable XLA (Accelerated Linear Algebra)       |
 | ML_DEVICE          | Device to use for training (e.g., GPU)                   |
-| NUM_PROCESSORS     | Number of processors to use for data loading             |
-         
+| NUM_PROCESSORS     | Number of processors to use for data loading             |         
 
 #### Evaluation Configuration
 

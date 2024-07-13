@@ -12,7 +12,7 @@ class BERTokenizer:
 
     def __init__(self):        
         
-        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"]            
+        self.max_caption_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]            
         self.model_identifier = 'distilbert/distilbert-base-uncased' 
         self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=TOKENIZER_PATH) 
         self.vocab_size = len(self.tokenizer.vocab)      

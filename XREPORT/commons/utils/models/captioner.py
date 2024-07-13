@@ -19,7 +19,7 @@ class XREPORTModel:
     def __init__(self, vocab_size): 
         self.vocab_size = vocab_size
         self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
-        self.sequence_length = CONFIG["dataset"]["MAX_CAPTION_SIZE"] + 1       
+        self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1       
         self.num_layers = CONFIG["model"]["NUM_LAYERS"]        
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
