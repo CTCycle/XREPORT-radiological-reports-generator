@@ -8,12 +8,11 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.generators import build_tensor_dataset
-from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
+from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.models.training import ModelTraining
 from XREPORT.commons.utils.models.captioner import XREPORTModel
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 from XREPORT.commons.logger import logger
-
 
 
 # [RUN MAIN]
@@ -22,10 +21,8 @@ if __name__ == '__main__':
     # 1. [LOAD PREPROCESSED DATA]
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
-    train_file_path = os.path.join(DATA_PATH, 'XREP_train.csv') 
-    val_file_path = os.path.join(DATA_PATH, 'XREP_validation.csv')
-    train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
-    validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
+    dataserializer = DataSerializer()
+    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()    
 
     # create subfolder for preprocessing data    
     modelserializer = ModelSerializer()
@@ -61,15 +58,14 @@ if __name__ == '__main__':
     logger.info(f'Batch size:                   {CONFIG["training"]["BATCH_SIZE"]}')
     logger.info(f'Epochs:                       {CONFIG["training"]["EPOCHS"]}')
     logger.info(f'Vocabulary size:              {vocab_size}')
-    logger.info(f'Max caption length:           {CONFIG["dataset"]["MAX_CAPTION_SIZE"]}')
+    logger.info(f'Max caption length:           {CONFIG["dataset"]["MAX_REPORT_SIZE"]}')
     logger.info('--------------------------------------------------------------')    
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocab_size)
     model = captioner.get_model(summary=True) 
 
-    # generate graphviz plot fo the model layout 
-    modelserializer = ModelSerializer()     
+    # generate graphviz plot fo the model layout       
     modelserializer.save_model_plot(model, model_folder_path)              
 
     # perform training and save model at the end
