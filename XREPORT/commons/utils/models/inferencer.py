@@ -20,7 +20,7 @@ class TextGenerator:
         tf.random.set_seed(CONFIG["SEED"])
         self.img_paths = get_images_path()
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.max_caption_size = CONFIG["dataset"]["MAX_CAPTION_SIZE"] + 1        
+        self.max_caption_size = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1        
         self.dataserializer = DataSerializer()      
         self.model = model  
 

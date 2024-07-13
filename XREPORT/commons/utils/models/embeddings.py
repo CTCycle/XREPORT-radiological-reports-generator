@@ -13,7 +13,7 @@ class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, vocab_size, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"]
-        self.sequence_length = CONFIG["dataset"]["MAX_CAPTION_SIZE"]
+        self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"]
         self.vocab_size = vocab_size
         self.mask_zero = mask_zero
         self.token_embeddings = layers.Embedding(input_dim=vocab_size, output_dim=self.embedding_dims, mask_zero=mask_zero)
