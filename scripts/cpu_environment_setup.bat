@@ -37,6 +37,12 @@ if errorlevel 1 (
     goto :eof
 )
 
+rem Clean cache
+echo Cleaning conda and pip cache 
+call conda clean -all -y
+call pip cache purge
+
+
 rem Print the list of dependencies installed in the environment
 echo List of installed dependencies
 call conda list
