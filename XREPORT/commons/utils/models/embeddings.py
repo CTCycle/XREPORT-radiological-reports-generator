@@ -41,7 +41,10 @@ class PositionalEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
-        return tf.math.not_equal(inputs, 0)
+
+        mask = tf.math.not_equal(inputs, 0)        
+        
+        return mask
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------

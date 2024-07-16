@@ -9,7 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
-from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH, DATASET_NAME
 from XREPORT.commons.logger import logger
 
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     sample_size = CONFIG["dataset"]["SAMPLE_SIZE"] 
-    file_loc = os.path.join(DATA_PATH, 'XREP_dataset.csv') 
+    file_loc = os.path.join(DATA_PATH, DATASET_NAME) 
     dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';', low_memory=False)
     dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=sample_size)
 

@@ -12,7 +12,7 @@ class BERTokenizer:
 
     def __init__(self):        
         
-        self.max_caption_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]            
+        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]            
         self.model_identifier = 'distilbert/distilbert-base-uncased' 
         self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=TOKENIZER_PATH) 
         self.vocab_size = len(self.tokenizer.vocab)      
@@ -28,7 +28,7 @@ class BERTokenizer:
         Additionally, it updates the source dataframes with the tokenized text.
 
         Keyword Arguments:
-            None. Assumes `self.train_text`, `self.validation_text`, `self.max_caption_size`, 
+            None. Assumes `self.train_text`, `self.validation_text`, `self.max_report_size`, 
             `self.train_data`, and `self.validation_data` are already set.
 
         Returns:
@@ -37,7 +37,7 @@ class BERTokenizer:
                 - val_tokens (list of list of int): Tokenized version of `self.validation_text` as lists of token ids.
 
         '''
-        full_sequence_len = self.max_caption_size + 2
+        full_sequence_len = self.max_report_size + 2
         self.train_text = train_data['text'].to_list()
         self.validation_text = validation_data['text'].to_list()
         

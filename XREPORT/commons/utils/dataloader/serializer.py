@@ -2,6 +2,7 @@ import os
 import sys
 import cv2
 import json
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
@@ -99,7 +100,7 @@ class DataSerializer:
                 image = tf.image.resize(image, self.resized_img_shape)
                 image = tf.reverse(image, axis=[-1])
                 if normalize:
-                    image = image/255.0
+                    image = image/255.0 
             
             images.append(image) 
 
@@ -141,6 +142,10 @@ class DataSerializer:
         val_file_path = os.path.join(DATA_PATH, 'XREP_validation.csv')
         train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
         validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
+
+        # transform text strings into array of words
+        train_data['tokens'] = train_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
+        validation_data['tokens'] = validation_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
         # load preprocessing metadata
         metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
         with open(metadata_path, 'r') as file:
