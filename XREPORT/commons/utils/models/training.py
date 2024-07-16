@@ -48,7 +48,7 @@ class ModelTraining:
                     validation_data, current_checkpoint_path):
 
         # initialize the real time history callback    
-        RTH_callback = RealTimeHistory(current_checkpoint_path, validation=True)
+        RTH_callback = RealTimeHistory(current_checkpoint_path)
         logger_callback = LoggingCallback()
         callbacks_list = [RTH_callback, logger_callback]
 

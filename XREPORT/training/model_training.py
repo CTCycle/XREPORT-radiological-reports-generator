@@ -1,17 +1,14 @@
-import os
-import pandas as pd
-
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
-from XREPORT.commons.utils.dataloader.generators import build_tensor_dataset
+from XREPORT.commons.utils.dataloader.generators import data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.models.training import ModelTraining
 from XREPORT.commons.utils.models.captioner import XREPORTModel
-from XREPORT.commons.constants import CONFIG, DATA_PATH
+from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
 
@@ -39,11 +36,9 @@ if __name__ == '__main__':
     # get tokenizers and its info
     tokenization = BERTokenizer()    
     tokenizer = tokenization.tokenizer
-
-    # initialize the TensorDataSet class with the generator instances
+       
     # create the tf.datasets using the previously initialized generators    
-    train_dataset = build_tensor_dataset(train_data)
-    validation_dataset = build_tensor_dataset(validation_data)
+    train_dataset, validation_dataset = data_pipeline(train_data, validation_data)
     vocab_size = len(tokenizer.vocab) + 1
 
     # 3. [TRAINING MODEL]  
