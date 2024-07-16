@@ -27,6 +27,12 @@ if errorlevel 1 (
     goto :eof
 )
 
+rem Clean cache
+echo Cleaning conda and pip cache 
+call conda clean -all -y
+call pip cache purge
+
+
 rem Install additional tools
 echo STEP 4: Install additional libraries
 call conda install graphviz -y
