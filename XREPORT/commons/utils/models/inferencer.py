@@ -20,7 +20,7 @@ class TextGenerator:
         tf.random.set_seed(CONFIG["SEED"])
         self.img_paths = get_images_path()
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.max_caption_size = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1        
+        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1        
         self.dataserializer = DataSerializer()      
         self.model = model  
 
@@ -52,12 +52,12 @@ class TextGenerator:
             image = image/255.0
             input_image = tf.expand_dims(image, 0)
             
-            seq_input = np.zeros((1, self.max_caption_size), dtype=np.int32)
+            seq_input = np.zeros((1, self.max_report_size), dtype=np.int32)
             seq_input[0, 0] = start_token_idx  
 
-            for i in tqdm(range(1, self.max_caption_size)):                
-                predictions = self.model.predict([input_image, seq_input], verbose=0)
-                next_token_idx = np.argmax(predictions[0, i-1, :])
+            for i in tqdm(range(1, self.max_report_size)):                
+                predictions = self.model.predict([input_image, seq_input], verbose=0)                
+                next_token_idx = np.argmax(predictions[0, i-1, :], axis=-1)
                 next_token = index_lookup[next_token_idx]
                 
                 # Stop if end token is generated

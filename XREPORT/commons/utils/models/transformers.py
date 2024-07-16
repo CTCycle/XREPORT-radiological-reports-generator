@@ -185,13 +185,12 @@ class TransformerDecoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def call(self, inputs, encoder_outputs, training=True, mask=None):        
         
-        causal_mask = self.get_causal_attention_mask(inputs)        
-        padding_mask = None
-        combined_mask = None
+        causal_mask = self.get_causal_attention_mask(inputs)
+        combined_mask = causal_mask
+
         if mask is not None:
             padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
-            combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
-            combined_mask = tf.minimum(combined_mask, causal_mask) 
+            combined_mask = tf.minimum(tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32), causal_mask)
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -208,7 +207,7 @@ class TransformerDecoder(keras.layers.Layer):
                                          training=training)        
         addnorm_out2 = self.addnorm2([addnorm_out1, cross_MHA]) 
 
-        # feed forward network with ReLU activation to firther process the output
+        # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
         ffn = self.ffn1(addnorm_out2)
         logits = self.addnorm3([ffn, addnorm_out2])        
@@ -218,15 +217,14 @@ class TransformerDecoder(keras.layers.Layer):
     # generate causal attention mask   
     #--------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs):
-        input_shape = tf.shape(inputs)
-        batch_size, sequence_length = input_shape[0], input_shape[1]
+
+        batch_size, sequence_length = tf.shape(inputs)[0], tf.shape(inputs)[1]
         i = tf.range(sequence_length)[:, tf.newaxis]
         j = tf.range(sequence_length)
-        mask = tf.cast(i >= j, dtype='int32')
-        mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))
-        mult = tf.concat([tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)],
-                          axis=0)
-        
+        mask = tf.cast(i >= j, dtype=tf.int32)
+        mask = tf.reshape(mask, (1, sequence_length, sequence_length))
+        mult = tf.concat([tf.expand_dims(batch_size, -1), [1, 1]], axis=0)
+
         return tf.tile(mask, mult) 
     
     # serialize layer for saving  

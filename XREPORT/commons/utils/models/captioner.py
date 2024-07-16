@@ -20,7 +20,8 @@ class XREPORTModel:
         self.vocab_size = vocab_size
         self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
         self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1       
-        self.num_layers = CONFIG["model"]["NUM_LAYERS"]        
+        self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
+        self.num_decoders = CONFIG["model"]["NUM_ENCODERS"]      
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
         self.xla_state = CONFIG["training"]["XLA_STATE"]  
@@ -29,8 +30,8 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input') 
         self.image_encoder = ImageEncoder()
-        self.encoders = [TransformerEncoder() for _ in range(self.num_layers)]
-        self.decoders = [TransformerDecoder() for _ in range(self.num_layers)]        
+        self.encoders = [TransformerEncoder() for _ in range(self.num_encoders)]
+        self.decoders = [TransformerDecoder() for _ in range(self.num_decoders)]        
         self.embeddings = PositionalEmbedding(self.vocab_size) 
         self.classifier = SoftMaxClassifier(1024, self.vocab_size)     
                 
@@ -41,14 +42,18 @@ class XREPORTModel:
        
         # encode images using the convolutional encoder
         image_features = self.image_encoder(self.img_input)      
-        embeddings = self.embeddings(self.seq_input)        
-
+        embeddings = self.embeddings(self.seq_input) 
+        padding_mask = self.embeddings.compute_mask(self.seq_input) 
+        
         # handle the connections between transformers blocks        
         encoder_output = image_features
         decoder_output = embeddings
-        for encoder, decoder in zip(self.encoders, self.decoders):
+    
+        for encoder in self.encoders:
             encoder_output = encoder(encoder_output, training=False)
-            decoder_output = decoder(decoder_output, encoder_output, training=False, mask=None)
+        for decoder in self.decoders:
+            decoder_output = decoder(decoder_output, encoder_output, 
+                                     training=False, mask=padding_mask)
 
         # apply the softmax classifier layer
         output = self.classifier(decoder_output)    
