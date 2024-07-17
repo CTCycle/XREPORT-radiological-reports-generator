@@ -4,7 +4,7 @@ from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
  
-#------------------------------------------------------------------------------
+###############################################################################
 def sequence_padding(sequences, pad_length, output='array'):
 
     '''
