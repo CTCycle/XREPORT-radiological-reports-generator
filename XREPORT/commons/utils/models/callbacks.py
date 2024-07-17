@@ -11,7 +11,7 @@ from XREPORT.commons.logger import logger
 
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
-#------------------------------------------------------------------------------
+###############################################################################
 class RealTimeHistory(keras.callbacks.Callback):
     
     '''
@@ -24,12 +24,10 @@ class RealTimeHistory(keras.callbacks.Callback):
     Parameters:    
         plot_path : str
             Directory path where the plots will be saved.
-        update_frequency : int, optional (default=2)
+        update_epoch_gap : int, optional (default=2)
             Frequency (in epochs) at which to update the logging of metrics.
-        plot_frequency : int, optional (default=5)
+        plot_epoch_gap : int, optional
             Frequency (in epochs) at which to generate and save plots.
-        validation : bool, optional (default=True)
-            Whether to log and plot validation metrics.
 
     Methods:    
         on_epoch_end(epoch, logs)
@@ -89,7 +87,7 @@ class RealTimeHistory(keras.callbacks.Callback):
 
 
 # [LOGGING]
-#------------------------------------------------------------------------------
+###############################################################################
 # Define custom Keras callback for logging
 class LoggingCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
@@ -98,7 +96,7 @@ class LoggingCallback(keras.callbacks.Callback):
 
             
 # [CALLBACK TO GENERATE REPORTS]
-#------------------------------------------------------------------------------
+###############################################################################
 class GenerateTextCallback(tf.keras.callbacks.Callback):
     def __init__(self, image, sequence, tokenizer, ):       
         

@@ -7,7 +7,7 @@ from XREPORT.commons.logger import logger
 
 
 # [POOLING CONVOLUTIONAL BLOCKS]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='BatchNormConv')
 class BatchNormConv(layers.Layer):
     def __init__(self, units, num_layers=3, **kwargs):
@@ -47,7 +47,7 @@ class BatchNormConv(layers.Layer):
           
 
 # [POOLING CONVOLUTIONAL BLOCKS]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedFowardBN')
 class FeedFowardBN(layers.Layer):
     def __init__(self, units, num_layers=3, **kwargs):
@@ -84,7 +84,7 @@ class FeedFowardBN(layers.Layer):
 
       
 # [IMAGE ENCODER MODEL]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='ImageEncoder')
 class ImageEncoder(keras.Model):
     def __init__(self, **kwargs):
