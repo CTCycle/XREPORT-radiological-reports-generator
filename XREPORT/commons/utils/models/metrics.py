@@ -7,7 +7,7 @@ from XREPORT.commons.logger import logger
 
 
 # [LOSS FUNCTION]
-#------------------------------------------------------------------------------
+###############################################################################
 class MaskedSparseCategoricalCrossentropy(tf.keras.losses.Loss):
     
     def __init__(self, name='MaskedSparseCategoricalCrossentropy', **kwargs):
@@ -36,7 +36,7 @@ class MaskedSparseCategoricalCrossentropy(tf.keras.losses.Loss):
     
     
 # [METRICS]
-#------------------------------------------------------------------------------
+###############################################################################
 class MaskedAccuracy(tf.keras.metrics.Metric):
 
     def __init__(self, name='MaskedAccuracy', **kwargs):

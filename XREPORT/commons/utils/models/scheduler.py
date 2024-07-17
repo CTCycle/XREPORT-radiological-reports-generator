@@ -5,7 +5,7 @@ from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
            
 # [LEARNING RATE SCHEDULER]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='LRScheduler')
 class LRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, post_warmup_lr, warmup_steps):

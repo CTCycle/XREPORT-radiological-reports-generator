@@ -10,7 +10,7 @@ current_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 log_filename = os.path.join(LOGS_PATH, f'XREP_{current_timestamp}.log')
 
 # Define logger configuration
-#------------------------------------------------------------------------------
+###############################################################################
 LOG_CONFIG =  {
     'version': 1,
     'disable_existing_loggers': False,
@@ -53,7 +53,7 @@ LOG_CONFIG =  {
 
 
 # override logger configuration and load the latter
-#------------------------------------------------------------------------------
+###############################################################################
 logging.config.dictConfig(LOG_CONFIG)
 logger = logging.getLogger()
 

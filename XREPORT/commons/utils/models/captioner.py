@@ -1,4 +1,3 @@
-import tensorflow as tf
 from tensorflow import keras
 from keras.models import Model
 from keras import layers
@@ -13,7 +12,7 @@ from XREPORT.commons.logger import logger
 
 
 # [XREP CAPTIONING MODEL]
-#------------------------------------------------------------------------------
+###############################################################################
 class XREPORTModel: 
 
     def __init__(self, vocab_size): 

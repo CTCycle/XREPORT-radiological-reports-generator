@@ -11,7 +11,7 @@ from XREPORT.commons.logger import logger
 
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
-#------------------------------------------------------------------------------
+###############################################################################
 class TextGenerator:
 
     def __init__(self, model):        

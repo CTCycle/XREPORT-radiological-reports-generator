@@ -1,20 +1,18 @@
-import pandas as pd
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
     
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
-#------------------------------------------------------------------------------
+###############################################################################
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
+###############################################################################
 class DataGenerator():
 
-    def __init__(self):              
-        
+    def __init__(self):        
         
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]       
         self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]
@@ -54,7 +52,7 @@ class DataGenerator():
         return pp_image 
               
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #------------------------------------------------------------------------------
+    ###############################################################################
     def build_tensor_dataset(self, paths, tokens, buffer_size=tf.data.AUTOTUNE):
 
         num_samples = len(paths) 
@@ -72,7 +70,8 @@ class DataGenerator():
         return dataset
         
 
-#------------------------------------------------------------------------------
+# wrapper function to run the data pipeline from raw inputs to tensor dataset
+###############################################################################
 def data_pipeline(train_data, validation_data):    
         
         generator = DataGenerator()                 

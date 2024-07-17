@@ -7,7 +7,7 @@ from XREPORT.commons.logger import logger
 
 
 # [ADD NORM LAYER]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='AddNorm')
 class AddNorm(keras.layers.Layer):
     def __init__(self, epsilon=10e-5, **kwargs):
@@ -41,7 +41,7 @@ class AddNorm(keras.layers.Layer):
     
     
 # [FEED FORWARD]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
 class FeedForward(tf.keras.layers.Layer):
     def __init__(self, dense_units, dropout, **kwargs):
@@ -77,7 +77,7 @@ class FeedForward(tf.keras.layers.Layer):
     
          
 # [CLASSIFIER]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
 class SoftMaxClassifier(keras.layers.Layer):
     def __init__(self, dense_units, output_size, **kwargs):
@@ -114,7 +114,7 @@ class SoftMaxClassifier(keras.layers.Layer):
     
 
 # [TRANSFORMER ENCODER]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoder(keras.layers.Layer):
     def __init__(self, **kwargs):
@@ -162,7 +162,7 @@ class TransformerEncoder(keras.layers.Layer):
     
 
 # [TRANSFORMER DECODER]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoder')
 class TransformerDecoder(keras.layers.Layer):
     def __init__(self, **kwargs):

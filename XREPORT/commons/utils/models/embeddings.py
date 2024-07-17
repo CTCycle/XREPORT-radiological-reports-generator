@@ -7,7 +7,7 @@ from XREPORT.commons.logger import logger
       
 
 # [POSITIONAL EMBEDDING]
-#------------------------------------------------------------------------------
+###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, vocab_size, mask_zero=True, **kwargs):
@@ -41,7 +41,6 @@ class PositionalEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
-
         mask = tf.math.not_equal(inputs, 0)        
         
         return mask

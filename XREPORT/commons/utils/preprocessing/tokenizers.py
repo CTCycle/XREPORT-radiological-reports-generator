@@ -6,10 +6,9 @@ from XREPORT.commons.logger import logger
 
     
 # [PREPROCESSING PIPELINE]
-#------------------------------------------------------------------------------
-class BERTokenizer:  
-
-
+###############################################################################
+class BERTokenizer:
+    
     def __init__(self):        
         
         self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]            

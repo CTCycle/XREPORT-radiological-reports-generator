@@ -15,7 +15,8 @@ from XREPORT.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH, GENERA
 from XREPORT.commons.logger import logger
 
 
-#------------------------------------------------------------------------------
+# get images from the paths specified in a pandas dataframe 
+###############################################################################
 def get_images_from_dataset(path, dataframe, sample_size=None):     
 
     '''
@@ -52,8 +53,8 @@ def get_images_from_dataset(path, dataframe, sample_size=None):
 
     return dataframe
 
-
-#------------------------------------------------------------------------------
+# get the path of multiple images from a given directory
+###############################################################################
 def get_images_path():
 
     
@@ -73,8 +74,8 @@ def get_images_path():
         return images_path
     
 
-# [LOAD AND SAVE DATA]
-#------------------------------------------------------------------------------
+# [DATA SERIALIZATION]
+###############################################################################
 class DataSerializer:
 
     def __init__(self):        
@@ -83,7 +84,7 @@ class DataSerializer:
         self.resized_img_shape = self.img_shape[:-1]
         self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]       
        
-    #------------------------------------------------------------------------------
+    ###############################################################################
     def load_images(self, paths, as_tensor=True, normalize=True):
             
         images = []        
@@ -155,8 +156,8 @@ class DataSerializer:
     
     
 
-# [LOAD AND SAVE MODELS]
-#------------------------------------------------------------------------------
+# [MODEL SERIALIZATION]
+###############################################################################
 class ModelSerializer:
 
     def __init__(self):
@@ -223,38 +224,41 @@ class ModelSerializer:
             plot_path = os.path.join(path, 'model_layout.png')       
             plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
-                    expand_nested=True, rankdir='TB', dpi=400)           
-    
-    
+                    expand_nested=True, rankdir='TB', dpi=400)
+            
     #-------------------------------------------------------------------------- 
     def load_pretrained_model(self):
 
         '''
-        Load pretrained keras model (in folders) from the specified directory. 
-        If multiple model directories are found, the user is prompted to select one,
-        while if only one model directory is found, that model is loaded directly.
-        If `load_parameters` is True, the function also loads the model parameters 
-        from the target .json file in the same directory. 
+        Load a pretrained Keras model from the specified directory. If multiple model 
+        directories are found, the user is prompted to select one. If only one model 
+        directory is found, that model is loaded directly. If a 'model_parameters.json' 
+        file is present in the selected directory, the function also loads the model 
+        parameters.
 
         Keyword arguments:
             path (str): The directory path where the pretrained models are stored.
             load_parameters (bool, optional): If True, the function also loads the 
-                                              model parameters from a JSON file. 
-                                              Default is True.
+                                            model parameters from a JSON file. 
+                                            Default is True.
 
         Returns:
             model (keras.Model): The loaded Keras model.
+            configuration (dict): The loaded model parameters, or None if the parameters file is not found.
 
-        '''        
+        '''  
+        # look into checkpoint folder to get pretrained model names      
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)       
+                model_folders.append(entry.name)
 
+        # quit the script if no pretrained models are found 
         if len(model_folders) == 0:
             logger.error('No pretrained model checkpoints in resources')
             sys.exit()
-        
+
+        # select model if multiple checkpoints are available
         if len(model_folders) > 1:
             model_folders.sort()
             index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
@@ -275,6 +279,7 @@ class ModelSerializer:
                     
             self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[dir_index - 1])
 
+        # load directly the pretrained model if only one is available 
         elif len(model_folders) == 1:
             logger.info('Loading pretrained model directly as only one is available')
             self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])                 
@@ -286,7 +291,7 @@ class ModelSerializer:
          
         # Load the model with the custom objects  
         model_path = os.path.join(self.loaded_model_folder, 'model') 
-        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)        
+        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)   
         
         # load configuration data from .json file in checkpoint folder
         config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
@@ -295,9 +300,9 @@ class ModelSerializer:
                 configuration = json.load(f)                   
         else:
             logger.warning('model_parameters.json file not found. Model parameters were not loaded.')
-            configuration = None  
+            configuration = None    
             
-        return model, configuration        
+        return model, configuration    
 
              
     
