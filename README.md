@@ -23,17 +23,34 @@ XLA is designed to optimize computations for speed and efficiency, particularly 
 To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## 4. How to use
-The project is organized into subfolders, each dedicated to specific tasks. 
+The project is organized into subfolders, each dedicated to specific tasks.
 
-**resources:** includes various subfolders for organizing data and results for data validation and model training and evaluation. The `resources/dataset/images` folder contains images used to train the XREPORT model, and the file `XREP_dataset.csv` must be provided in the parent folder. Here, the images name should be located under the "id" column and the corresponding text should be in the "text" column. `resources/generation/` holds both input images and generated reports from pretrained models. The `resources/results/` folder is used to save the results of data validation, while `resources/checkpoints/` contains the pretrained model checkpoints. 
+### Resources
+This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
- However, one must provide a source data file named `XREP_dataset.csv` within  `XREP_dataset.csv`
+- **dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREP_dataset.csv` that should be provided for training purposes. Within this .csv file, the images name should be located under the "id" column and the corresponding text should be in the "text" column. 
 
-**training:** contained within this folder are the necessary files for conducting model training and evaluation. The training model checkpoints are saved in `resources/checkpoints/`. Run `model_training.py` to initiate the training process for the autoencoder, or launch the jupyter notebook `model_evaluation.py` to evaluate the performance of pretrained model checkpoints using different metrics.
+- **generation:** 
+- `input_images:` this is where you place images intended for inference using the pretrained XREPORT model.
+- `reports:` the generated radiological reports from input images are saved within this folder. 
 
-**Inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/inference/reports`. The reports are saved as .csv file in the same directory.
+- **results:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
-**inference:** use `report_generator.py` to load pretrain model checkpoints and run them in inference mode. Generate radiological reports from the source X-ray images located within `XREPORT/generation/input_images`. The reports are saved as .csv file `resources/generation/reports`
+- **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+
+### Inference
+Here you can find the necessary files to run pretrained models in inference mode, and use them to generate radiological reports from input X-ray scans.
+
+- Run `images_encoding.py` to use the pretrained encoder from a model checkpoint to extract abstract representation of image features in the form of lower-dimension embeddings. 
+
+### Training
+This folder contains the necessary files for conducting model training and evaluation. 
+- Run `model_training.py` to initiate the training process for the autoencoder
+
+### Validation
+Data validation and pretrained model evaluations are performed using the scripts within this folder.
+- Launch the jupyter notebook `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
+- Launch the jupyter notebook `data_validation.ipynb` to validate the available data with different metrics.
 
 ### 4.1 Configurations
 For customization, you can modify the main configuration parameters using `configurations.json` in the root project folder. 
