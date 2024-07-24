@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 from keras.activations import relu
@@ -21,6 +22,7 @@ class BatchNormConv(layers.Layer):
         
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, inputs, training=None):
         layer = inputs
         for conv, bn in zip(self.convolutions, self.batch_norm_layers):
@@ -60,6 +62,7 @@ class FeedFowardBN(layers.Layer):
         
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, inputs, training=None):
         layer = inputs
         for dense in self.dense_layers:

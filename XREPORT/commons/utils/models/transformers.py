@@ -17,7 +17,8 @@ class AddNorm(keras.layers.Layer):
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)    
 
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------    
+    #--------------------------------------------------------------------------
+    @tf.function    
     def call(self, inputs):
 
         x1, x2 = inputs
@@ -54,6 +55,7 @@ class FeedForward(tf.keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, x, training=None):
         x = self.dense1(x)
         x = self.dense2(x)  
@@ -92,6 +94,7 @@ class SoftMaxClassifier(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, x, training=None):
         x = self.dense1(x)
         output = self.dense2(x)          
@@ -129,6 +132,7 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, inputs, training=True):        
 
         # self attention with causal masking, using the embedded captions as input
@@ -183,6 +187,7 @@ class TransformerDecoder(keras.layers.Layer):
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, inputs, encoder_outputs, training=True, mask=None):        
         
         causal_mask = self.get_causal_attention_mask(inputs)

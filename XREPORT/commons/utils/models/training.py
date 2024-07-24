@@ -45,8 +45,9 @@ class ModelTraining:
 
     #--------------------------------------------------------------------------
     def train_model(self, model : tf.keras.Model, train_data, 
-                    validation_data, current_checkpoint_path):
-
+                    validation_data, current_checkpoint_path, from_epoch=0,
+                    session_index=0):
+        
         # initialize the real time history callback    
         RTH_callback = RealTimeHistory(current_checkpoint_path)
         logger_callback = LoggingCallback()
@@ -61,12 +62,15 @@ class ModelTraining:
 
         # training loop and save model at end of training
         serializer = ModelSerializer() 
-        num_processors = CONFIG["training"]["NUM_PROCESSORS"]  
-        epochs = CONFIG["training"]["EPOCHS"] 
+        num_processors = CONFIG["training"]["NUM_PROCESSORS"]
+
+         # calculate number of epochs taking into account possible training resumption
+        additional_epochs = from_epoch if session_index > 0 else 0
+        epochs = CONFIG["training"]["EPOCHS"] + additional_epochs 
         multiprocessing = num_processors > 1
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
                              callbacks=callbacks_list, workers=num_processors, 
-                             use_multiprocessing=multiprocessing)
+                            use_multiprocessing=multiprocessing, initial_epoch=from_epoch)
 
         serializer.save_pretrained_model(model, current_checkpoint_path)
 
@@ -75,9 +79,10 @@ class ModelTraining:
                       'augmentation' : CONFIG["dataset"]["IMG_AUGMENT"],              
                       'batch_size' : CONFIG["training"]["BATCH_SIZE"],
                       'learning_rate' : CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"],
-                      'epochs' : CONFIG["training"]["EPOCHS"],
+                      'epochs' : epochs,
                       'seed' : CONFIG["SEED"],
-                      'tensorboard' : CONFIG["training"]["USE_TENSORBOARD"]}
+                      'tensorboard' : CONFIG["training"]["USE_TENSORBOARD"],
+                      'session_ID': session_index}
 
         serializer.save_model_parameters(current_checkpoint_path, parameters)
 
