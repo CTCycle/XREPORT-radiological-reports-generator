@@ -13,7 +13,10 @@ call conda activate XREPORT
 
 rem Install additional packages with pip
 echo STEP 2: Install python libraries and packages
-call pip install numpy pandas scikit-learn matplotlib transformers python-opencv tensorflow==2.10 
+call pip install numpy==1.26.4 pandas==2.1.4 openpyxl==3.1.5 
+call pip install scikit-learn==1.2.2 matplotlib==3.9.1 python-opencv==4.10.0.84
+call pip install tensorflow==2.10 transformers==4.43.1
+
 if errorlevel 1 (
     echo Failed to install Python libraries.
     goto :eof
