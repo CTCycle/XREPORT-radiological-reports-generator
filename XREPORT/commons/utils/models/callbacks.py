@@ -124,9 +124,10 @@ class GenerateTextCallback(tf.keras.callbacks.Callback):
             # Append predicted word token to the sequence
             sequence[0].append(next_word_token)
 
-        # Decode the sequence to text
-        # Cleanup and format the report
-        cleaned_caption = [token.replace("##", "") if token.startswith("##") else f" {token}" for token in sequence if token not in ['[CLS]', '[SEP]']]
+        # Decode the sequence to text, then cleanup and format the report
+        cleaned_caption = [token.replace("##", "") if token.startswith("##") 
+                           else f" {token}" for token in sequence 
+                           if token not in ['[CLS]', '[SEP]']]
         caption = ''.join(cleaned_caption)              
      
         return caption

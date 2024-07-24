@@ -150,9 +150,9 @@ class DataSerializer:
         # load preprocessing metadata
         metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
         with open(metadata_path, 'r') as file:
-            metadata = json.load(file)
+            self.metadata = json.load(file)
         
-        return train_data, validation_data, metadata
+        return train_data, validation_data
     
     
 

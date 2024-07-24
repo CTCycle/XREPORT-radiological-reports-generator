@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.3,
+    "dataset": {"SAMPLE_SIZE" : 0.05,
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
@@ -14,7 +14,7 @@
                "EMBEDDING_DIMS" : 256, 
                "SAVE_MODEL_PLOT" : true},
 
-    "training" : {"EPOCHS" : 10,
+    "training" : {"EPOCHS" : 2,
                   "BATCH_SIZE" : 25,
                   "MIXED_PRECISION" : false,
                   "USE_TENSORBOARD" : false,

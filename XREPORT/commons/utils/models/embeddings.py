@@ -22,6 +22,7 @@ class PositionalEmbedding(keras.layers.Layer):
     
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------
+    @tf.function
     def call(self, inputs):
         length = tf.shape(inputs)[-1]
         positions = tf.range(start=0, limit=length, delta=1)

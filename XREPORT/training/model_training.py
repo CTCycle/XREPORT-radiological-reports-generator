@@ -4,7 +4,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
-from XREPORT.commons.utils.dataloader.generators import data_pipeline
+from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.models.training import ModelTraining
 from XREPORT.commons.utils.models.captioner import XREPORTModel
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer()
-    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()    
+    train_data, validation_data = dataserializer.load_preprocessed_data()    
 
     # create subfolder for preprocessing data    
     modelserializer = ModelSerializer()
@@ -39,8 +39,8 @@ if __name__ == '__main__':
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = data_pipeline(train_data, validation_data)
-    vocab_size = len(tokenizer.vocab) + 1
+    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data)
+    vocab_size = len(tokenizer.vocab) + 1    
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
