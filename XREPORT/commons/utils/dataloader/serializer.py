@@ -177,21 +177,18 @@ class ModelSerializer:
             str: A string containing the path of the folder where the model will be saved.
         
         '''        
-        today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')
-        checkpoint_folder_name = f'{self.model_name}_{today_datetime}'
-        checkpoint_folder_path = os.path.join(CHECKPOINT_PATH, checkpoint_folder_name)        
-        # Create the directory if it does not exist
-        os.makedirs(checkpoint_folder_path, exist_ok=True)
-
-        self.preprocessing_path = os.path.join(checkpoint_folder_path, 'preprocessing')
-        os.makedirs(self.preprocessing_path, exist_ok=True)
+        today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
+        checkpoint_folder_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
+        os.makedirs(checkpoint_folder_path, exist_ok=True)        
+        os.makedirs(os.path.join(checkpoint_folder_path, 'data'), exist_ok=True)
+        logger.debug(f'Created checkpoint folder at {checkpoint_folder_path}')
         
-        return checkpoint_folder_path
+        return checkpoint_folder_path 
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : tf.keras.Model, path):
 
-        model_files_path = os.path.join(path, 'model')
+        model_files_path = os.path.join(path, 'model')        
         model.save(model_files_path, save_format='tf')
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
@@ -291,7 +288,14 @@ class ModelSerializer:
          
         # Load the model with the custom objects  
         model_path = os.path.join(self.loaded_model_folder, 'model') 
-        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)   
+        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)  
+
+        for layer in model.layers:
+            print(f"Layer Name: {layer.name}")
+            print(f"  Input Shape: {layer.input_shape}")
+            print(f"  Output Shape: {layer.output_shape}")
+            print(f"  Configuration: {layer.get_config()}")
+            print("-" * 50) 
         
         # load configuration data from .json file in checkpoint folder
         config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')

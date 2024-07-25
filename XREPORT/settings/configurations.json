@@ -1,14 +1,14 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.05,
+    "dataset": {"SAMPLE_SIZE" : 0.5,
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
                 "MAX_REPORT_SIZE" : 180,
                 "SPLIT_SEED" : 52}, 
 
-    "model" : {"IMG_SHAPE" : [256, 256, 1],
-               "NUM_HEADS" : 3,
+    "model" : {"IMG_SHAPE" : [224, 224, 1],
+               "NUM_HEADS" : 4,
                "NUM_ENCODERS" : 3,    
                "NUM_DECODERS" : 3,    
                "EMBEDDING_DIMS" : 256, 
