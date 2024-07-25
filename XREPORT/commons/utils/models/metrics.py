@@ -14,8 +14,7 @@ class MaskedSparseCategoricalCrossentropy(tf.keras.losses.Loss):
         super(MaskedSparseCategoricalCrossentropy, self).__init__(name=name, **kwargs)
         self.loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False)
         
-    #--------------------------------------------------------------------------
-    @tf.function
+    #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
         loss = self.loss(y_true, y_pred)
         mask = tf.math.not_equal(y_true, 0)

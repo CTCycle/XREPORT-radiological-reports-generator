@@ -21,8 +21,7 @@ class BatchNormConv(layers.Layer):
         self.batch_norm_layers = [layers.BatchNormalization() for _ in range(num_layers)]             
         
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------
-    @tf.function
+    #--------------------------------------------------------------------------    
     def call(self, inputs, training=None):
         layer = inputs
         for conv, bn in zip(self.convolutions, self.batch_norm_layers):
@@ -61,8 +60,7 @@ class FeedFowardBN(layers.Layer):
         self.batch_norm = layers.BatchNormalization()                  
         
     # implement transformer encoder through call method  
-    #--------------------------------------------------------------------------
-    @tf.function
+    #--------------------------------------------------------------------------    
     def call(self, inputs, training=None):
         layer = inputs
         for dense in self.dense_layers:
