@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
+import keras
 import keras.backend as K
 
 from XREPORT.commons.constants import CONFIG
@@ -8,7 +8,7 @@ from XREPORT.commons.logger import logger
 
 # [LOSS FUNCTION]
 ###############################################################################
-class MaskedSparseCategoricalCrossentropy(tf.keras.losses.Loss):
+class MaskedSparseCategoricalCrossentropy(keras.losses.Loss):
     
     def __init__(self, name='MaskedSparseCategoricalCrossentropy', **kwargs):
         super(MaskedSparseCategoricalCrossentropy, self).__init__(name=name, **kwargs)
@@ -36,7 +36,7 @@ class MaskedSparseCategoricalCrossentropy(tf.keras.losses.Loss):
     
 # [METRICS]
 ###############################################################################
-class MaskedAccuracy(tf.keras.metrics.Metric):
+class MaskedAccuracy(keras.metrics.Metric):
 
     def __init__(self, name='MaskedAccuracy', **kwargs):
         super(MaskedAccuracy, self).__init__(name=name, **kwargs)

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
+import keras
 from keras import layers    
 
 from XREPORT.commons.constants import CONFIG
@@ -44,7 +44,7 @@ class AddNorm(keras.layers.Layer):
 # [FEED FORWARD]
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
-class FeedForward(tf.keras.layers.Layer):
+class FeedForward(keras.layers.Layer):
     def __init__(self, dense_units, dropout, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
