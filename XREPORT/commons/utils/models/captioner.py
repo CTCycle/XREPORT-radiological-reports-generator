@@ -1,6 +1,5 @@
 import keras
-from keras.models import Model
-from keras import layers
+from keras import layers, Model
 
 from XREPORT.commons.utils.models.scheduler import LRScheduler
 from XREPORT.commons.utils.models.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
@@ -62,7 +61,7 @@ class XREPORTModel:
         # define model compilation parameters such as learning rate, loss, metrics and optimizer
         lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
         loss = MaskedSparseCategoricalCrossentropy()  
-        metric = MaskedAccuracy()
+        metric = [MaskedAccuracy()]
         opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=self.xla_state)         
         if summary:

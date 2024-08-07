@@ -1,3 +1,8 @@
+# [SET KERAS BACKEND]
+import os 
+os.environ["KERAS_BACKEND"] = "torch"
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
@@ -40,7 +45,7 @@ if __name__ == '__main__':
        
     # create the tf.datasets using the previously initialized generators    
     train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data)
-    vocab_size = len(tokenizer.vocab) + 1    
+    vocab_size = len(tokenizer.vocab) + 1   
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  

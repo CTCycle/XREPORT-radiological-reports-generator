@@ -1,4 +1,8 @@
-import os
+# [SET KERAS BACKEND]
+import os 
+os.environ["KERAS_BACKEND"] = "torch"
+
+# [IMPORT LIBRARIES]
 import pandas as pd
 
 # [SETTING WARNINGS]
