@@ -4,10 +4,10 @@ import cv2
 import json
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from datetime import datetime
+import keras
 import tensorflow as tf
-from keras.utils import plot_model
+
 
 from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.models.scheduler import LRScheduler
@@ -82,30 +82,26 @@ class DataSerializer:
         self.color_encoding = cv2.COLOR_BGR2RGB
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]
         self.resized_img_shape = self.img_shape[:-1]
-        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]       
-       
-    ###############################################################################
-    def load_images(self, paths, as_tensor=True, normalize=True):
-            
-        images = []        
-        for pt in tqdm(paths):
-            if as_tensor==False:                
-                image = cv2.imread(pt)             
-                image = cv2.resize(image, self.resized_img_shape)            
-                image = cv2.cvtColor(image, self.color_encoding) 
-                if normalize:
-                    image = image/255.0
-            else:
-                image = tf.io.read_file(pt)
-                image = tf.image.decode_image(image, channels=1)
-                image = tf.image.resize(image, self.resized_img_shape)
-                image = tf.reverse(image, axis=[-1])
-                if normalize:
-                    image = image/255.0 
-            
-            images.append(image) 
+        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]           
+    
+    #--------------------------------------------------------------------------
+    def load_image(self, path, as_tensor=True):               
+        
+        if as_tensor:
+            image = tf.io.read_file(path)
+            image = tf.image.decode_image(image, channels=3)
+            image = tf.image.resize(image, self.resized_img_shape)
+            image = tf.reverse(image, axis=[-1])
+            if self.normalization:
+                image = image/255.0              
+        else:
+            image = cv2.imread(path)             
+            image = cv2.resize(image, self.resized_img_shape)            
+            image = cv2.cvtColor(image, self.color_encoding) 
+            if self.normalization:
+                image = image/255.0           
 
-        return images
+        return image
 
     # ...
     #--------------------------------------------------------------------------
@@ -188,8 +184,8 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
 
-        model_files_path = os.path.join(path, 'model')        
-        model.save(model_files_path, save_format='tf')
+        model_files_path = os.path.join(path, 'saved_model.keras')
+        model.save(model_files_path)
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
@@ -219,9 +215,9 @@ class ModelSerializer:
         if CONFIG["model"]["SAVE_MODEL_PLOT"]:
             logger.debug('Generating model architecture graph')
             plot_path = os.path.join(path, 'model_layout.png')       
-            plot_model(model, to_file=plot_path, show_shapes=True, 
-                    show_layer_names=True, show_layer_activations=True, 
-                    expand_nested=True, rankdir='TB', dpi=400)
+            keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
+                       show_layer_names=True, show_layer_activations=True, 
+                       expand_nested=True, rankdir='TB', dpi=400)
             
     #-------------------------------------------------------------------------- 
     def load_pretrained_model(self):
@@ -284,10 +280,11 @@ class ModelSerializer:
         # Set dictionary of custom objects     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
-                          'LRScheduler': LRScheduler} 
-         
-        # Load the model with the custom objects  
-        model_path = os.path.join(self.loaded_model_folder, 'model') 
+                          'LRScheduler': LRScheduler}          
+        
+        # effectively load the model using keras builtin method
+        # Load the model with the custom objects 
+        model_path = os.path.join(self.loaded_model_folder, 'saved_model.keras')         
         model = keras.models.load_model(model_path, custom_objects=custom_objects)  
 
         for layer in model.layers:

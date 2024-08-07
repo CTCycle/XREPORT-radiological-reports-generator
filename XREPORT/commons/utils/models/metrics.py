@@ -1,6 +1,6 @@
-import tensorflow as tf
+import torch
 import keras
-import keras.backend as K
+import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -17,10 +17,10 @@ class MaskedSparseCategoricalCrossentropy(keras.losses.Loss):
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
         loss = self.loss(y_true, y_pred)
-        mask = tf.math.not_equal(y_true, 0)
-        mask = tf.cast(mask, dtype=loss.dtype)
+        mask = keras.ops.not_equal(y_true, 0)        
+        mask = keras.ops.cast(mask, dtype=loss.dtype)
         loss *= mask
-        loss = tf.reduce_sum(loss)/(tf.reduce_sum(mask) + keras.backend.epsilon())
+        loss = keras.ops.sum(loss)/(keras.ops.sum(mask) + keras.backend.epsilon())
 
         return loss
     
@@ -46,29 +46,29 @@ class MaskedAccuracy(keras.metrics.Metric):
     #--------------------------------------------------------------------------
     def update_state(self, y_true, y_pred, sample_weight=None):
         
-        y_true = tf.cast(y_true, dtype=tf.float32)
-        y_pred_argmax = tf.cast(tf.argmax(y_pred, axis=2), dtype=tf.float32)
-        accuracy = tf.equal(y_true, y_pred_argmax)        
+        y_true = keras.ops.cast(y_true, dtype=torch.float32)
+        y_pred_argmax = keras.ops.cast(keras.ops.argmax(y_pred, axis=2), dtype=torch.float32)
+        accuracy = keras.ops.equal(y_true, y_pred_argmax)        
         # Create a mask to ignore padding (assuming padding value is 0)
-        mask = tf.math.not_equal(y_true, 0)        
+        mask = keras.ops.not_equal(y_true, 0)        
         # Apply the mask to the accuracy
-        accuracy = tf.math.logical_and(mask, accuracy)        
+        accuracy = keras.ops.logical_and(mask, accuracy)        
         # Cast the boolean values to float32
-        accuracy = tf.cast(accuracy, dtype=tf.float32)
-        mask = tf.cast(mask, dtype=tf.float32)
+        accuracy = keras.ops.cast(accuracy, dtype=torch.float32)
+        mask = keras.ops.cast(mask, dtype=torch.float32)
         
         if sample_weight is not None:
-            sample_weight = tf.cast(sample_weight, dtype=tf.float32)
-            accuracy = tf.multiply(accuracy, sample_weight)
-            mask = tf.multiply(mask, sample_weight)
+            sample_weight = keras.ops.cast(sample_weight, dtype=torch.float32)
+            accuracy = keras.ops.multiply(accuracy, sample_weight)
+            mask = keras.ops.multiply(mask, sample_weight)
         
         # Update the state variables
-        self.total.assign_add(tf.reduce_sum(accuracy))
-        self.count.assign_add(tf.reduce_sum(mask))
+        self.total.assign_add(keras.ops.sum(accuracy))
+        self.count.assign_add(keras.ops.sum(mask))
     
     #--------------------------------------------------------------------------
     def result(self):
-        return self.total / (self.count + K.epsilon())
+        return self.total / (self.count + keras.backend.epsilon())
     
     #--------------------------------------------------------------------------
     def reset_states(self):
