@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import torch
-from torch.amp import GradScaler
-import tensorflow as tf
 import keras
+import tensorflow as tf
+from torch.amp import GradScaler
 
 from XREPORT.commons.utils.models.callbacks import RealTimeHistory, LoggingCallback
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
@@ -68,10 +68,9 @@ class ModelTraining:
          # calculate number of epochs taking into account possible training resumption
         additional_epochs = from_epoch if session_index > 0 else 0
         epochs = CONFIG["training"]["EPOCHS"] + additional_epochs 
-        multiprocessing = num_processors > 1
+                
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
-                             callbacks=callbacks_list, workers=num_processors, 
-                            use_multiprocessing=multiprocessing, initial_epoch=from_epoch)
+                             callbacks=callbacks_list, initial_epoch=from_epoch)
 
         serializer.save_pretrained_model(model, current_checkpoint_path)
 

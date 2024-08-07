@@ -27,15 +27,17 @@ The project is organized into subfolders, each dedicated to specific tasks.
 ### Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
-- **dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREP_dataset.csv` that should be provided for training purposes. Within this .csv file, the images name should be located under the "id" column and the corresponding text should be in the "text" column. 
+**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREP_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: 
+- `id` where the image names are located
+- `text` where the associated text is saved 
 
-- **generation:** 
+**generation:** 
 - `input_images:` this is where you place images intended for inference using the pretrained XREPORT model.
 - `reports:` the generated radiological reports from input images are saved within this folder. 
 
-- **results:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
+**results:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
-- **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+**checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
 ### Inference
 Here you can find the necessary files to run pretrained models in inference mode, and use them to generate radiological reports from input X-ray scans.
@@ -52,7 +54,7 @@ Data validation and pretrained model evaluations are performed using the scripts
 - Launch the jupyter notebook `data_validation.ipynb` to validate the available data with different metrics.
 
 ### 4.1 Configurations
-For customization, you can modify the main configuration parameters using `configurations.json` in the root project folder. 
+For customization, you can modify the main configuration parameters using `settings/configurations.json` 
 
 #### Dataset Configuration
 
