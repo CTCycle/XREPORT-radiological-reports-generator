@@ -45,14 +45,14 @@ class DataGenerator():
     # define method perform data augmentation    
     #--------------------------------------------------------------------------
     def image_augmentation(self, image):
-        pp_image = tf.keras.preprocessing.image.random_shift(image, 0.2, 0.3)
+        pp_image = keras.preprocessing.image.random_shift(image, 0.2, 0.3)
         pp_image = tf.image.random_flip_left_right(pp_image)
         pp_image = tf.image.random_flip_up_down(pp_image)
 
         return pp_image 
               
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    ###############################################################################
+    #--------------------------------------------------------------------------
     def build_tensor_dataset(self, paths, tokens, buffer_size=tf.data.AUTOTUNE):
 
         num_samples = len(paths) 

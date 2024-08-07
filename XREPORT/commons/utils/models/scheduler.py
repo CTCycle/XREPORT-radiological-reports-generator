@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger

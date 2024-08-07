@@ -1,7 +1,9 @@
 import os
 import numpy as np
+import torch
+from torch.amp import GradScaler
 import tensorflow as tf
-from tensorflow import keras
+import keras
 
 from XREPORT.commons.utils.models.callbacks import RealTimeHistory, LoggingCallback
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
@@ -14,37 +16,37 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self):                            
+    def __init__(self):
         np.random.seed(CONFIG["SEED"])
-        tf.random.set_seed(CONFIG["SEED"])         
-        self.available_devices = tf.config.list_physical_devices()               
-        logger.info('The current devices are available:\n')        
-        for dev in self.available_devices:            
-            logger.info(dev)
+        torch.manual_seed(CONFIG["SEED"])
+        tf.random.set_seed(CONFIG["SEED"])
+        self.device = torch.device('cpu')
+        self.scaler = GradScaler() if CONFIG["training"]["MIXED_PRECISION"] else None
+        self.set_device()        
 
     # set device
     #--------------------------------------------------------------------------
     def set_device(self):
-       
         if CONFIG["training"]["ML_DEVICE"] == 'GPU':
-            self.physical_devices = tf.config.list_physical_devices('GPU')
-            if not self.physical_devices:
+            if not torch.cuda.is_available():
                 logger.info('No GPU found. Falling back to CPU')
-                tf.config.set_visible_devices([], 'GPU')
+                self.device = torch.device('cpu')
             else:
+                self.device = torch.device('cuda:0')                
                 if CONFIG["training"]["MIXED_PRECISION"]:
-                    policy = keras.mixed_precision.Policy('mixed_float16')
-                    keras.mixed_precision.set_global_policy(policy) 
-                tf.config.set_visible_devices(self.physical_devices[0], 'GPU')
-                os.environ['TF_GPU_ALLOCATOR']='cuda_malloc_async'                 
+                    keras.mixed_precision.set_global_policy("mixed_float16")
+                    logger.info('Mixed precision policy is active during training')
+                torch.cuda.set_device(self.device)
                 logger.info('GPU is set as active device')
-                   
         elif CONFIG["training"]["ML_DEVICE"] == 'CPU':
-            tf.config.set_visible_devices([], 'GPU')
-            logger.info('CPU is set as active device')    
+            self.device = torch.device('cpu')
+            logger.info('CPU is set as active device')             
+        else:
+            logger.error(f'Unknown ML_DEVICE value: {CONFIG["training"]["ML_DEVICE"]}')
+            self.device = torch.device('cpu')    
 
     #--------------------------------------------------------------------------
-    def train_model(self, model : tf.keras.Model, train_data, 
+    def train_model(self, model : keras.Model, train_data, 
                     validation_data, current_checkpoint_path, from_epoch=0,
                     session_index=0):
         
@@ -57,8 +59,7 @@ class ModelTraining:
         if CONFIG["training"]["USE_TENSORBOARD"]:
             logger.debug('Using tensorboard during training')
             log_path = os.path.join(current_checkpoint_path, 'tensorboard')
-            callbacks_list.append(tf.keras.callbacks.TensorBoard(log_dir=log_path, 
-                                                                 histogram_freq=1))
+            callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))
 
         # training loop and save model at end of training
         serializer = ModelSerializer() 
