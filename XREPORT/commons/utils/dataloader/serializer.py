@@ -186,7 +186,7 @@ class ModelSerializer:
         return checkpoint_folder_path 
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model : tf.keras.Model, path):
+    def save_pretrained_model(self, model : keras.Model, path):
 
         model_files_path = os.path.join(path, 'model')        
         model.save(model_files_path, save_format='tf')
@@ -288,7 +288,7 @@ class ModelSerializer:
          
         # Load the model with the custom objects  
         model_path = os.path.join(self.loaded_model_folder, 'model') 
-        model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)  
+        model = keras.models.load_model(model_path, custom_objects=custom_objects)  
 
         for layer in model.layers:
             print(f"Layer Name: {layer.name}")

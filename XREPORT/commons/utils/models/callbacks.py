@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from tensorflow import keras
+import keras
 import tensorflow as tf
 import matplotlib
 matplotlib.use('Agg')
@@ -97,7 +97,7 @@ class LoggingCallback(keras.callbacks.Callback):
             
 # [CALLBACK TO GENERATE REPORTS]
 ###############################################################################
-class GenerateTextCallback(tf.keras.callbacks.Callback):
+class GenerateTextCallback(keras.callbacks.Callback):
     def __init__(self, image, sequence, tokenizer, ):       
         
         self.image = image
@@ -115,7 +115,7 @@ class GenerateTextCallback(tf.keras.callbacks.Callback):
         sequence = [self.tokenizer.convert_tokens_to_ids([self.start_seq])]
         for _ in range(self.max_len):
             # Predict the next word
-            token_list = tf.keras.preprocessing.sequence.pad_sequences(sequence, maxlen=self.max_len, padding='post')
+            token_list = keras.preprocessing.sequence.pad_sequences(sequence, maxlen=self.max_len, padding='post')
             preds = self.model.predict([image, token_list], verbose=0)
             next_word_token = np.argmax(preds, axis=-1)[0]
             # End loop if EOS token is predicted
