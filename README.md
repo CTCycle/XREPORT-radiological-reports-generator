@@ -22,7 +22,7 @@ XLA is designed to optimize computations for speed and efficiency, particularly 
 To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## 4. How to use
-The project is organized into subfolders, each dedicated to specific tasks.
+Within the main project folder (XREPORT) you will find other folders, each designated to specific tasks.
 
 ### Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
