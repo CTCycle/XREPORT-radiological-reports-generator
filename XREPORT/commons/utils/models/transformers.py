@@ -1,6 +1,7 @@
-import tensorflow as tf
-from tensorflow import keras
+import torch
+import keras
 from keras import layers    
+import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -16,11 +17,14 @@ class AddNorm(keras.layers.Layer):
         self.add = layers.Add()
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)    
 
-    # implement transformer encoder through call method  
+    # build method for the custom layer 
     #--------------------------------------------------------------------------
-        
-    def call(self, inputs):
+    def build(self, input_shape):        
+        super(AddNorm, self).build(input_shape)
 
+    # implement transformer encoder through call method  
+    #--------------------------------------------------------------------------        
+    def call(self, inputs):
         x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
@@ -44,7 +48,7 @@ class AddNorm(keras.layers.Layer):
 # [FEED FORWARD]
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
-class FeedForward(tf.keras.layers.Layer):
+class FeedForward(keras.layers.Layer):
     def __init__(self, dense_units, dropout, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
@@ -52,6 +56,11 @@ class FeedForward(tf.keras.layers.Layer):
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
         self.dropout = layers.Dropout(rate=dropout, seed=CONFIG["SEED"])
+
+    # build method for the custom layer 
+    #--------------------------------------------------------------------------
+    def build(self, input_shape):        
+        super(FeedForward, self).build(input_shape)
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
@@ -88,7 +97,12 @@ class SoftMaxClassifier(keras.layers.Layer):
         self.dense1 = layers.Dense(dense_units, activation='relu', 
                                    kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(output_size, activation='softmax', 
-                                   kernel_initializer='he_uniform', dtype=tf.float32)       
+                                   kernel_initializer='he_uniform', dtype=torch.float32)
+
+    # build method for the custom layer 
+    #--------------------------------------------------------------------------
+    def build(self, input_shape):        
+        super(SoftMaxClassifier, self).build(input_shape)     
         
 
     # implement transformer encoder through call method  
@@ -118,15 +132,20 @@ class SoftMaxClassifier(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoder(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, embedding_dims, num_heads, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)
-        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]                   
+        self.embedding_dims = embedding_dims
+        self.num_heads = num_heads                 
         self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                    key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2)        
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2)    
+
+    # build method for the custom layer 
+    #--------------------------------------------------------------------------
+    def build(self, input_shape):        
+        super(TransformerEncoder, self).build(input_shape)    
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
@@ -140,7 +159,7 @@ class TransformerEncoder(keras.layers.Layer):
          
         addnorm = self.addnorm1([inputs, attention_output])
 
-        # feed forward network with ReLU activation to firther process the output
+        # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
         ffn_out = self.ffn1(addnorm)
         output = self.addnorm2([addnorm, ffn_out])      
@@ -166,10 +185,10 @@ class TransformerEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoder')
 class TransformerDecoder(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, embedding_dims, num_heads, **kwargs):
         super(TransformerDecoder, self).__init__(**kwargs)
-        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"]
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]                       
+        self.embedding_dims = embedding_dims
+        self.num_heads = num_heads                         
         self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                         key_dim=self.embedding_dims, 
                                                         dropout=0.2)
@@ -182,6 +201,11 @@ class TransformerDecoder(keras.layers.Layer):
         self.ffn1 = FeedForward(self.embedding_dims, 0.2)            
         self.supports_masking = True 
 
+    # build method for the custom layer 
+    #--------------------------------------------------------------------------
+    def build(self, input_shape):        
+        super(TransformerDecoder, self).build(input_shape)
+
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------    
     def call(self, inputs, encoder_outputs, training=True, mask=None):        
@@ -190,8 +214,9 @@ class TransformerDecoder(keras.layers.Layer):
         combined_mask = causal_mask
 
         if mask is not None:
-            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
-            combined_mask = tf.minimum(tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32), causal_mask)
+            padding_mask = keras.ops.cast(keras.ops.expand_dims(mask, axis=2), dtype=torch.int32)
+            combined_mask = keras.ops.minimum(keras.ops.cast(keras.ops.expand_dims(mask, axis=1), 
+                                                             dtype=torch.int32), causal_mask)
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -219,14 +244,14 @@ class TransformerDecoder(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs):
 
-        batch_size, sequence_length = tf.shape(inputs)[0], tf.shape(inputs)[1]
-        i = tf.range(sequence_length)[:, tf.newaxis]
-        j = tf.range(sequence_length)
-        mask = tf.cast(i >= j, dtype=tf.int32)
-        mask = tf.reshape(mask, (1, sequence_length, sequence_length))
-        mult = tf.concat([tf.expand_dims(batch_size, -1), [1, 1]], axis=0)
-
-        return tf.tile(mask, mult) 
+        batch_size, sequence_length = keras.ops.shape(inputs)[0], keras.ops.shape(inputs)[1]
+        i = keras.ops.expand_dims(keras.ops.arange(sequence_length), axis=1)
+        j = keras.ops.arange(sequence_length)
+        mask = keras.ops.cast(i >= j, dtype=torch.int32)
+        mask = keras.ops.reshape(mask, (1, sequence_length, sequence_length))        
+        batch_mask = keras.ops.tile(mask, (batch_size, 1, 1))
+        
+        return batch_mask
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 import os
 import numpy as np
-import tensorflow as tf 
+import torch
+import keras
+import tensorflow as tf
 from tqdm import tqdm   
 
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, get_images_path
@@ -17,10 +19,11 @@ class TextGenerator:
     def __init__(self, model):        
 
         np.random.seed(CONFIG["SEED"])
+        torch.manual_seed(CONFIG["SEED"])
         tf.random.set_seed(CONFIG["SEED"])
         self.img_paths = get_images_path()
         self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1        
+        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]    
         self.dataserializer = DataSerializer()      
         self.model = model  
 
@@ -43,21 +46,21 @@ class TextGenerator:
         # Convert start and end tokens to their corresponding indices
         start_token_idx = vocabulary[start_token]        
         index_lookup = {v: k for k, v in vocabulary.items()}  # Reverse the vocabulary mapping
-
+       
         for pt in self.img_paths:
             logger.info(f'Generating report for image {os.path.basename(pt)}')
             image = tf.io.read_file(pt)
             image = tf.image.decode_image(image, channels=1)
             image = tf.image.resize(image, self.img_shape[:-1])
             image = image/255.0
-            input_image = tf.expand_dims(image, 0)
+            input_image = keras.ops.expand_dims(image, 0)
             
-            seq_input = np.zeros((1, self.max_report_size), dtype=np.int32)
+            seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
             seq_input[0, 0] = start_token_idx  
 
             for i in tqdm(range(1, self.max_report_size)):                
-                predictions = self.model.predict([input_image, seq_input], verbose=0)                
-                next_token_idx = np.argmax(predictions[0, i-1, :], axis=-1)
+                predictions = self.model.predict([input_image, seq_input[:, :-1]], verbose=0)                
+                next_token_idx = keras.ops.argmax(predictions[0, i-1, :], axis=-1).item()
                 next_token = index_lookup[next_token_idx]
                 
                 # Stop if end token is generated
@@ -67,7 +70,7 @@ class TextGenerator:
                 seq_input[0, i] = next_token_idx
 
             # Convert indices to tokens
-            token_sequence = [index_lookup[idx] for idx in seq_input[0] if idx in index_lookup and idx != 0]
+            token_sequence = [index_lookup[idx.item()] for idx in seq_input[0, :] if idx.item() in index_lookup and idx != 0]
             reports[pt] = token_sequence
             logger.info(token_sequence)
            
