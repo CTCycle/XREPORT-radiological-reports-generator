@@ -1,10 +1,10 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.1,
+    "dataset": {"SAMPLE_SIZE" : 0.02,
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
-                "MAX_REPORT_SIZE" : 180,
+                "MAX_REPORT_SIZE" : 160,
                 "SPLIT_SEED" : 52}, 
 
     "model" : {"IMG_SHAPE" : [224, 224, 1],
@@ -15,12 +15,12 @@
                "SAVE_MODEL_PLOT" : true},
 
     "training" : {"EPOCHS" : 1,
-                  "BATCH_SIZE" : 10,
+                  "BATCH_SIZE" : 15,
                   "MIXED_PRECISION" : false,
                   "USE_TENSORBOARD" : false,
                   "XLA_STATE" : false,
                   "ML_DEVICE" : "GPU",
-                  "NUM_PROCESSORS": 6,
+                  "NUM_PROCESSORS": 2,
                   "PLOT_EPOCH_GAP": 2,
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
                                     "WARMUP_STEPS" : 4}},
