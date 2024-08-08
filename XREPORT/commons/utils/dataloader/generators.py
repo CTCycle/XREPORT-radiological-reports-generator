@@ -44,26 +44,21 @@ class DataGenerator():
 
     # define method perform data augmentation    
     #--------------------------------------------------------------------------
-    def image_augmentation(self, image):
-        pp_image = tf.keras.preprocessing.image.random_shift(image, 0.2, 0.3)
-        pp_image = tf.image.random_flip_left_right(pp_image)
-        pp_image = tf.image.random_flip_up_down(pp_image)
+    def image_augmentation(self, image):    
 
-        return pp_image 
+        image = tf.image.random_flip_left_right(image)
+        image = tf.image.random_flip_up_down(image) 
+
+        return image
               
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    ###############################################################################
+    #--------------------------------------------------------------------------
     def build_tensor_dataset(self, paths, tokens, buffer_size=tf.data.AUTOTUNE):
 
-        num_samples = len(paths) 
-        paths = tf.convert_to_tensor(paths)
-        tokens = tf.convert_to_tensor(tokens)
-
+        num_samples = len(paths)         
         dataset = tf.data.Dataset.from_tensor_slices((paths, tokens))
-        dataset = dataset.shuffle(buffer_size=num_samples)  
-        # map preprocessing function
-        dataset = dataset.map(self.process_data, num_parallel_calls=buffer_size)   
-        # batch and prefetch dataset
+        dataset = dataset.shuffle(buffer_size=num_samples)          
+        dataset = dataset.map(self.process_data, num_parallel_calls=buffer_size)        
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)
 
@@ -74,16 +69,12 @@ class DataGenerator():
 ###############################################################################
 def training_data_pipeline(train_data, validation_data):    
         
-        generator = DataGenerator()                 
+        generator = DataGenerator()           
 
-        train_img_paths = train_data['path'].to_list()
-        train_reports = train_data['tokens'].to_list()
-        val_img_paths = validation_data['path'].to_list()
-        val_reports = validation_data['tokens'].to_list()
-
-        train_dataset = generator.build_tensor_dataset(train_img_paths, train_reports)
-        validation_dataset = generator.build_tensor_dataset(val_img_paths, val_reports)
-        # logging debug info about batch shapes
+        train_dataset = generator.build_tensor_dataset(train_data['path'].to_list(), 
+                                                       train_data['tokens'].to_list())
+        validation_dataset = generator.build_tensor_dataset(validation_data['path'].to_list(), 
+                                                            validation_data['tokens'].to_list())        
         for (x1, x2), y in train_dataset.take(1):
             logger.debug(f'X batch shape is: {x1.shape}')  
             logger.debug(f'Y batch shape is: {y.shape}') 

@@ -27,24 +27,25 @@ class BERTokenizer:
         Additionally, it updates the source dataframes with the tokenized text.
 
         Keyword Arguments:
-            None. Assumes `self.train_text`, `self.validation_text`, `self.max_report_size`, 
-            `self.train_data`, and `self.validation_data` are already set.
+            train_data (pd.DataFrame): DataFrame containing training data with a 'text' column.
+            validation_data (pd.DataFrame): DataFrame containing validation data with a 'text' column.
 
         Returns:
             tuple: A tuple containing two elements:
-                - train_tokens (list of list of int): Tokenized version of `self.train_text` as lists of token ids.
-                - val_tokens (list of list of int): Tokenized version of `self.validation_text` as lists of token ids.
+                - train_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
+                  tokenized version of the 'text' column as lists of token ids.
+                - validation_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
+                  tokenized version of the 'text' column as lists of token ids.
 
-        '''
-        full_sequence_len = self.max_report_size + 2
+        '''        
         self.train_text = train_data['text'].to_list()
         self.validation_text = validation_data['text'].to_list()
         
         # tokenize train and validation text using loaded tokenizer 
         train_tokens = self.tokenizer(self.train_text, padding=True, truncation=True,
-                                      max_length=full_sequence_len, return_tensors='tf')
+                                      max_length=self.max_report_size, return_tensors='pt')
         validation_tokens = self.tokenizer(self.validation_text, padding=True, truncation=True, 
-                                           max_length=full_sequence_len, return_tensors='tf')       
+                                           max_length=self.max_report_size, return_tensors='pt')       
         
         # extract only token ids from the tokenizer output
         train_tokens = train_tokens['input_ids'].numpy().tolist() 
