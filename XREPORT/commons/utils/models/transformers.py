@@ -132,10 +132,10 @@ class SoftMaxClassifier(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoder(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, embedding_dims, num_heads, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)
-        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]                   
+        self.embedding_dims = embedding_dims
+        self.num_heads = num_heads                 
         self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                    key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()
@@ -185,10 +185,10 @@ class TransformerEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoder')
 class TransformerDecoder(keras.layers.Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, embedding_dims, num_heads, **kwargs):
         super(TransformerDecoder, self).__init__(**kwargs)
-        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"]
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]                       
+        self.embedding_dims = embedding_dims
+        self.num_heads = num_heads                         
         self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                         key_dim=self.embedding_dims, 
                                                         dropout=0.2)

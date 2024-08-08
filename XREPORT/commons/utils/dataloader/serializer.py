@@ -146,9 +146,9 @@ class DataSerializer:
         # load preprocessing metadata
         metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
         with open(metadata_path, 'r') as file:
-            self.metadata = json.load(file)
+            metadata = json.load(file)
         
-        return train_data, validation_data
+        return train_data, validation_data, metadata 
     
     
 
@@ -285,14 +285,7 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # Load the model with the custom objects 
         model_path = os.path.join(self.loaded_model_folder, 'saved_model.keras')         
-        model = keras.models.load_model(model_path, custom_objects=custom_objects)  
-
-        for layer in model.layers:
-            print(f"Layer Name: {layer.name}")
-            print(f"  Input Shape: {layer.input_shape}")
-            print(f"  Output Shape: {layer.output_shape}")
-            print(f"  Configuration: {layer.get_config()}")
-            print("-" * 50) 
+        model = keras.models.load_model(model_path, custom_objects=custom_objects)        
         
         # load configuration data from .json file in checkpoint folder
         config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
