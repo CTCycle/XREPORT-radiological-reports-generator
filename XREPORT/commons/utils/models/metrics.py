@@ -12,13 +12,14 @@ class MaskedSparseCategoricalCrossentropy(keras.losses.Loss):
     
     def __init__(self, name='MaskedSparseCategoricalCrossentropy', **kwargs):
         super(MaskedSparseCategoricalCrossentropy, self).__init__(name=name, **kwargs)
-        self.loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False)
+        self.loss = keras.losses.SparseCategoricalCrossentropy(from_logits=False,
+                                                               reduction=None)
         
     #--------------------------------------------------------------------------    
     def call(self, y_true, y_pred):
         loss = self.loss(y_true, y_pred)
         mask = keras.ops.not_equal(y_true, 0)        
-        mask = keras.ops.cast(mask, dtype=loss.dtype)
+        mask = keras.ops.cast(mask, dtype=loss.dtype)        
         loss *= mask
         loss = keras.ops.sum(loss)/(keras.ops.sum(mask) + keras.backend.epsilon())
 

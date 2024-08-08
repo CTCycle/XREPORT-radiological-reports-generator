@@ -37,16 +37,15 @@ class BERTokenizer:
                 - validation_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
                   tokenized version of the 'text' column as lists of token ids.
 
-        '''
-        full_sequence_len = self.max_report_size + 2
+        '''        
         self.train_text = train_data['text'].to_list()
         self.validation_text = validation_data['text'].to_list()
         
         # tokenize train and validation text using loaded tokenizer 
         train_tokens = self.tokenizer(self.train_text, padding=True, truncation=True,
-                                      max_length=full_sequence_len, return_tensors='pt')
+                                      max_length=self.max_report_size, return_tensors='pt')
         validation_tokens = self.tokenizer(self.validation_text, padding=True, truncation=True, 
-                                           max_length=full_sequence_len, return_tensors='pt')       
+                                           max_length=self.max_report_size, return_tensors='pt')       
         
         # extract only token ids from the tokenizer output
         train_tokens = train_tokens['input_ids'].numpy().tolist() 
