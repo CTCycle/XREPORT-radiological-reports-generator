@@ -1,7 +1,6 @@
 # [SET KERAS BACKEND]
 import os 
 os.environ["KERAS_BACKEND"] = "torch"
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
 # [SETTING WARNINGS]
 import warnings
