@@ -1,6 +1,5 @@
-from tensorflow import keras
-from keras.models import Model
-from keras import layers
+import keras
+from keras import layers, Model
 
 from XREPORT.commons.utils.models.scheduler import LRScheduler
 from XREPORT.commons.utils.models.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
@@ -18,7 +17,9 @@ class XREPORTModel:
     def __init__(self, vocab_size): 
         self.vocab_size = vocab_size
         self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
-        self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] + 1       
+        self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] - 1 
+        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
+        self.num_heads = CONFIG["model"]["NUM_HEADS"]  
         self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
         self.num_decoders = CONFIG["model"]["NUM_ENCODERS"]      
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
@@ -29,9 +30,9 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input') 
         self.image_encoder = ImageEncoder()
-        self.encoders = [TransformerEncoder() for _ in range(self.num_encoders)]
-        self.decoders = [TransformerDecoder() for _ in range(self.num_decoders)]        
-        self.embeddings = PositionalEmbedding(self.vocab_size) 
+        self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads) for _ in range(self.num_encoders)]
+        self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads) for _ in range(self.num_decoders)]        
+        self.embeddings = PositionalEmbedding(self.vocab_size, self.embedding_dims, self.sequence_length) 
         self.classifier = SoftMaxClassifier(1024, self.vocab_size)     
                 
 
@@ -62,7 +63,7 @@ class XREPORTModel:
         # define model compilation parameters such as learning rate, loss, metrics and optimizer
         lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
         loss = MaskedSparseCategoricalCrossentropy()  
-        metric = MaskedAccuracy()
+        metric = [MaskedAccuracy()]
         opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=self.xla_state)         
         if summary:

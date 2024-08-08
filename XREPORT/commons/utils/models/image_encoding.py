@@ -1,7 +1,8 @@
+import torch
+import keras
 import tensorflow as tf
-from tensorflow import keras
-from keras import layers
-from keras.activations import relu
+from keras import activations, layers 
+
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -15,9 +16,9 @@ class BatchNormConv(layers.Layer):
         super(BatchNormConv, self).__init__(**kwargs)
         self.units = units        
         self.num_layers = num_layers              
-        self.pooling = layers.AveragePooling2D(padding='same')
-        self.convolutions = [layers.Conv2D(units, kernel_size=(2,2), padding='same', 
-                                                    activation=None) for _ in range(num_layers)]
+        self.pooling = layers.AveragePooling2D(pool_size=(2,2), padding='same')
+        self.convolutions = [layers.Conv2D(units, kernel_size=(3,3), strides=(1,1), 
+                                           padding='same', activation=None) for _ in range(num_layers)]
         self.batch_norm_layers = [layers.BatchNormalization() for _ in range(num_layers)]             
         
     # implement transformer encoder through call method  
@@ -27,7 +28,7 @@ class BatchNormConv(layers.Layer):
         for conv, bn in zip(self.convolutions, self.batch_norm_layers):
             layer = conv(layer) 
             layer = bn(layer, training=training)
-            layer = relu(layer)
+            layer = activations.relu(layer)
         output = self.pooling(layer)                  
         
         return output
