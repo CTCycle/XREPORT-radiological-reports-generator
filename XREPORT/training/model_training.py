@@ -24,7 +24,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer()
-    train_data, validation_data = dataserializer.load_preprocessed_data()    
+    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()    
 
     # create subfolder for preprocessing data    
     modelserializer = ModelSerializer()
