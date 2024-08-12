@@ -40,7 +40,7 @@ if __name__ == '__main__':
     logger.info('Building data loaders')       
 
     # load saved tf.datasets from the proper folders in the checkpoint directory     
-    train_data, validation_data = dataserializer.load_preprocessed_data()
+    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
