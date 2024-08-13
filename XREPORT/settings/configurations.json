@@ -27,8 +27,6 @@
                                     
     "inference" : {"TEMPERATURE" : 1.0},
 
-    "evaluation" : {"BATCH_SIZE" : 20,
-                    "SAMPLE_SIZE" : 0.05,
-                    "VALIDATION_SIZE" : 0.2}     
+    "evaluation" : {"BATCH_SIZE" : 20}    
       
 }

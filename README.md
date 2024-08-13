@@ -27,8 +27,8 @@ Within the main project folder (XREPORT) you will find other folders, each desig
 ### Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
-**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREP_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: 
-- `id` where the image names are located
+**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: 
+- `id` where the image names are given
 - `text` where the associated text is saved 
 
 **generation:** 
@@ -42,11 +42,11 @@ This folder is used to organize data and results for various stages of the proje
 ### Inference
 Here you can find the necessary files to run pretrained models in inference mode, and use them to generate radiological reports from input X-ray scans.
 
-- Run `images_encoding.py` to use the pretrained encoder from a model checkpoint to extract abstract representation of image features in the form of lower-dimension embeddings. 
+- Run `report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
 
 ### Training
 This folder contains the necessary files for conducting model training and evaluation. 
-- Run `model_training.py` to initiate the training process for the autoencoder
+- Run `model_training.py` to initiate the training process for the transformer model
 
 ### Validation
 Data validation and pretrained model evaluations are performed using the scripts within this folder.
