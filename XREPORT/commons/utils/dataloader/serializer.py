@@ -17,7 +17,7 @@ from XREPORT.commons.logger import logger
 
 # get images from the paths specified in a pandas dataframe 
 ###############################################################################
-def get_images_from_dataset(path, dataframe, sample_size=None):     
+def get_images_from_dataset(path, dataframe : pd.DataFrame, sample_size=None):     
 
     '''
     Maps image file paths to their corresponding entries in a dataframe.
@@ -42,10 +42,9 @@ def get_images_from_dataset(path, dataframe, sample_size=None):
         if sample_size is not None:
             files = files[:int(sample_size*len(files))]           
         for file in files:
-            if os.path.splitext(file)[1].lower() in valid_extensions:
-                img_name = file.split('.')[0]  
+            if os.path.splitext(file)[1].lower() in valid_extensions:                  
                 img_path = os.path.join(path, file)                                    
-                path_pair = {img_name : img_path}        
+                path_pair = {file.split('.')[0] : img_path}        
                 images_path.update(path_pair) 
 
     dataframe['path'] = dataframe['id'].map(images_path)
@@ -60,7 +59,7 @@ def get_images_path():
     
     # check report folder and generate list of images paths    
     if not os.listdir(GENERATION_INPUT_PATH):
-        logger.error('No XRAY scans found in the inference input folder, please add them before using this module!\n')
+        logger.error('No XRAY scans found in the inference input folder, please add them and try again.')
         sys.exit()
     else:
         valid_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')
@@ -109,14 +108,14 @@ class DataSerializer:
                                validation_data : pd.DataFrame, path=''): 
 
         processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
-                           'train_size' : 1.0 - - CONFIG["dataset"]["VALIDATION_SIZE"],
+                           'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
                            'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
                            'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
         # define paths of .csv and .json files
-        train_pp_path = os.path.join(path, 'XREP_train.csv')
-        val_pp_path = os.path.join(path, 'XREP_validation.csv')
+        train_pp_path = os.path.join(path, 'XREPORT_train.csv')
+        val_pp_path = os.path.join(path, 'XREPORT_validation.csv')
         json_info_path = os.path.join(path, 'preprocessing_metadata.json')
         
         # save train and validation data as .csv in the dataset folder
@@ -135,8 +134,8 @@ class DataSerializer:
     def load_preprocessed_data(self):
 
         # load preprocessed train and validation data
-        train_file_path = os.path.join(DATA_PATH, 'XREP_train.csv') 
-        val_file_path = os.path.join(DATA_PATH, 'XREP_validation.csv')
+        train_file_path = os.path.join(DATA_PATH, 'XREPORT_train.csv') 
+        val_file_path = os.path.join(DATA_PATH, 'XREPORT_validation.csv')
         train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
         validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
 

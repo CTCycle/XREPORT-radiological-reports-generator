@@ -7,7 +7,7 @@ from XREPORT.commons.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 current_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-log_filename = os.path.join(LOGS_PATH, f'XREP_{current_timestamp}.log')
+log_filename = os.path.join(LOGS_PATH, f'XREPORT_{current_timestamp}.log')
 
 # Define logger configuration
 ###############################################################################
