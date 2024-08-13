@@ -1,4 +1,4 @@
-from keras.api._v2.keras import preprocessing
+from keras.api.preprocessing import sequence
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -24,8 +24,8 @@ def sequence_padding(sequences, pad_length, output='array'):
         padded_text (list): A list of padded sequences in the specified output format.
     
     '''
-    padded_text = preprocessing.sequence.pad_sequences(sequences, maxlen=pad_length, value=0, 
-                                                        dtype='int32', padding='post')
+    padded_text = sequence.pad_sequences(sequences, maxlen=pad_length, value=0, 
+                                         dtype='int32', padding='post')
     if output == 'string':
         padded_text_str = []
         for x in padded_text:
