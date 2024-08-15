@@ -68,6 +68,7 @@ class DataValidation:
 
         return psnr
     
+    
 # [VALIDATION OF DATA]
 ###############################################################################
 class TextAnalysis:
