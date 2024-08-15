@@ -20,7 +20,7 @@ class DatasetSplit:
         self.val_size = int(total_samples * self.validation_size)
         
     #--------------------------------------------------------------------------
-    def split_data(self):
+    def split_train_and_validation(self):
 
         # Split the DataFrame based on the specified sizes
         train_data = self.dataframe.iloc[:self.train_size]

@@ -4,7 +4,7 @@ XREPORT/resources/dataset/preprocessing_metadata.json
 XREPORT/resources/results/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/tokenizer/BERT/*
-XREPORT/resources/generation/input_images/*
+XREPORT/resources/generation/radiography/*
 
 *.egg-info
 *.log
