@@ -52,6 +52,7 @@ def get_images_from_dataset(path, dataframe : pd.DataFrame, sample_size=None):
 
     return dataframe
 
+
 # get the path of multiple images from a given directory
 ###############################################################################
 def get_images_path():
