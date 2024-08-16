@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # initialize training device 
     # allows changing device prior to initializing the generators
     logger.info('Building XREPORT model and data loaders')     
-    trainer = ModelTraining()
+    trainer = ModelTraining(CONFIG) 
     trainer.set_device()
 
     # get tokenizers and its info

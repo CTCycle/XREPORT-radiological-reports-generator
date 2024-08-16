@@ -50,6 +50,7 @@ class RealTimeHistory(keras.callbacks.Callback):
         # Ensure plot directory exists
         os.makedirs(self.plot_path, exist_ok=True)
     
+    #--------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs={}):
         # Log metrics and losses
         for key, value in logs.items():
@@ -66,6 +67,7 @@ class RealTimeHistory(keras.callbacks.Callback):
         if epoch % self.plot_epoch_gap == 0:
             self.plot_training_history()
 
+    #--------------------------------------------------------------------------
     def plot_training_history(self):
         fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
         plt.figure(figsize=(10, 8))
