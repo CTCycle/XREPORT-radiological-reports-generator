@@ -189,7 +189,7 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_model_parameters(self, path, parameters_dict):
+    def save_session_configuration(self, path, history : dict, configurations : dict):
 
         '''
         Saves the model parameters to a JSON file. The parameters are provided 
@@ -198,16 +198,62 @@ class ModelSerializer:
 
         Keyword arguments:
             parameters_dict (dict): A dictionary containing the parameters to be saved.
-            savepath (str): The directory path where the parameters will be saved.
+            path (str): The directory path where the parameters will be saved.
 
         Returns:
-            None       
+            None  
 
         '''
-        path = os.path.join(path, 'model_parameters.json')      
-        with open(path, 'w') as f:
-            json.dump(parameters_dict, f)
-            logger.debug(f'Model parameters have been saved at {path}')
+        config_folder = os.path.join(path, 'configurations')
+        os.makedirs(config_folder, exist_ok=True)
+
+        # Paths to the JSON files
+        config_path = os.path.join(config_folder, 'configurations.json')
+        history_path = os.path.join(config_folder, 'session_history.json')
+
+        # Function to merge dictionaries
+        def merge_dicts(original, new_data):
+            for key, value in new_data.items():
+                if key in original:
+                    if isinstance(value, dict) and isinstance(original[key], dict):
+                        merge_dicts(original[key], value)
+                    elif isinstance(value, list) and isinstance(original[key], list):
+                        original[key].extend(value)
+                    else:
+                        original[key] = value
+                else:
+                    original[key] = value    
+
+        # Save the merged configurations
+        with open(config_path, 'w') as f:
+            json.dump(configurations, f)
+
+        # Load existing session history if the file exists and merge
+        if os.path.exists(history_path):
+            with open(history_path, 'r') as f:
+                existing_history = json.load(f)
+            merge_dicts(existing_history, history)
+        else:
+            existing_history = history
+
+        # Save the merged session history
+        with open(history_path, 'w') as f:
+            json.dump(existing_history, f)
+
+        logger.debug(f'Model configuration and session history have been saved and merged at {path}')      
+
+    #--------------------------------------------------------------------------
+    def load_session_configuration(self, path): 
+
+        config_path = os.path.join(path, 'configurations', 'configurations.json')        
+        with open(config_path, 'r') as f:
+            configurations = json.load(f)        
+
+        history_path = os.path.join(path, 'configurations', 'session_history.json')
+        with open(history_path, 'r') as f:
+            history = json.load(f)
+
+        return configurations, history   
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):
@@ -220,7 +266,7 @@ class ModelSerializer:
                        expand_nested=True, rankdir='TB', dpi=400)
             
     #-------------------------------------------------------------------------- 
-    def load_pretrained_model(self):
+    def load_pretrained_model(self): 
 
         '''
         Load a pretrained Keras model from the specified directory. If multiple model 
@@ -285,18 +331,12 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # Load the model with the custom objects 
         model_path = os.path.join(self.loaded_model_folder, 'saved_model.keras')         
-        model = keras.models.load_model(model_path, custom_objects=custom_objects)        
-        
+        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
+
         # load configuration data from .json file in checkpoint folder
-        config_path = os.path.join(self.loaded_model_folder, 'model_parameters.json')
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                configuration = json.load(f)                   
-        else:
-            logger.warning('model_parameters.json file not found. Model parameters were not loaded.')
-            configuration = None    
+        configuration, history = self.load_session_configuration(self.loaded_model_folder)          
             
-        return model, configuration    
+        return model, configuration, history
 
              
     

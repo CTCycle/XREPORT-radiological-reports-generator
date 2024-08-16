@@ -16,13 +16,15 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self):
-        np.random.seed(CONFIG["SEED"])
-        torch.manual_seed(CONFIG["SEED"])
-        tf.random.set_seed(CONFIG["SEED"])
+    def __init__(self, configuration):
+
+        self.configuration = configuration
+        np.random.seed(configuration["SEED"])
+        torch.manual_seed(configuration["SEED"])
+        tf.random.set_seed(configuration["SEED"])
         self.device = torch.device('cpu')
         self.scaler = GradScaler() if CONFIG["training"]["MIXED_PRECISION"] else None
-        self.set_device()        
+        self.set_device()         
 
     # set device
     #--------------------------------------------------------------------------
@@ -43,48 +45,50 @@ class ModelTraining:
             logger.info('CPU is set as active device')             
         else:
             logger.error(f'Unknown ML_DEVICE value: {CONFIG["training"]["ML_DEVICE"]}')
-            self.device = torch.device('cpu')    
+            self.device = torch.device('cpu')  
 
     #--------------------------------------------------------------------------
-    def train_model(self, model : keras.Model, train_data, 
-                    validation_data, current_checkpoint_path, from_epoch=0,
-                    session_index=0):
+    def train_model(self, model : keras.Model, train_data, validation_data, 
+                    current_checkpoint_path, is_resumed=False):
         
-        # initialize the real time history callback    
+        # initialize model serializer
+        serializer = ModelSerializer()  
+
+        # perform different initialization duties based on state of session:
+        # training from scratch vs resumed training
+        # calculate number of epochs taking into account possible training resumption
+        if not is_resumed:            
+            epochs = self.configuration["training"]["EPOCHS"] 
+            from_epoch = 0
+        else:
+            _, history = serializer.load_session_configuration(current_checkpoint_path)                     
+            epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
+            from_epoch = history['total_epochs']
+        
+        # add logger callback for the training session
         RTH_callback = RealTimeHistory(current_checkpoint_path)
         logger_callback = LoggingCallback()
+        # add all callbacks to the callback list
         callbacks_list = [RTH_callback, logger_callback]
 
         # initialize tensorboard if requested    
         if CONFIG["training"]["USE_TENSORBOARD"]:
             logger.debug('Using tensorboard during training')
             log_path = os.path.join(current_checkpoint_path, 'tensorboard')
-            callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))
-
-        # training loop and save model at end of training
-        serializer = ModelSerializer() 
-        num_processors = CONFIG["training"]["NUM_PROCESSORS"]
-
-         # calculate number of epochs taking into account possible training resumption
-        additional_epochs = from_epoch if session_index > 0 else 0
-        epochs = CONFIG["training"]["EPOCHS"] + additional_epochs 
-                
+            callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))        
+        
+        # run model fit using keras API method
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
                              callbacks=callbacks_list, initial_epoch=from_epoch)
-
-        serializer.save_pretrained_model(model, current_checkpoint_path)
-
-        # save model parameters in json files         
-        parameters = {'picture_shape' : CONFIG["model"]["IMG_SHAPE"],                           
-                      'augmentation' : CONFIG["dataset"]["IMG_AUGMENT"],              
-                      'batch_size' : CONFIG["training"]["BATCH_SIZE"],
-                      'learning_rate' : CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"],
-                      'epochs' : epochs,
-                      'seed' : CONFIG["SEED"],
-                      'tensorboard' : CONFIG["training"]["USE_TENSORBOARD"],
-                      'session_ID': session_index}
-
-        serializer.save_model_parameters(current_checkpoint_path, parameters)
+        
+        # save model parameters in json files
+        history = {'history' : RTH_callback.history, 
+                   'val_history' : RTH_callback.val_history,
+                   'total_epochs' : epochs}
+        
+        serializer.save_pretrained_model(model, current_checkpoint_path)       
+        serializer.save_session_configuration(current_checkpoint_path, 
+                                              history, self.configuration)
 
 
     
