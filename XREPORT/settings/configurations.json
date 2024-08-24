@@ -14,7 +14,7 @@
                "EMBEDDING_DIMS" : 256, 
                "SAVE_MODEL_PLOT" : true},
 
-    "training" : {"EPOCHS" : 1,
+    "training" : {"EPOCHS" : 2,
                   "ADDITIONAL_EPOCHS" : 2,
                   "BATCH_SIZE" : 16,
                   "MIXED_PRECISION" : false,
@@ -22,7 +22,7 @@
                   "XLA_STATE" : false,
                   "ML_DEVICE" : "GPU",
                   "NUM_PROCESSORS": 6,
-                  "PLOT_EPOCH_GAP": 2,
+                  "PLOT_EPOCH_GAP": 1,
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
                                     "WARMUP_STEPS" : 3}},
                                     

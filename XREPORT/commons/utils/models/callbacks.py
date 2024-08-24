@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import keras
-import tensorflow as tf
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -12,40 +11,20 @@ from XREPORT.commons.logger import logger
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
-class RealTimeHistory(keras.callbacks.Callback):
-    
-    '''
-    Custom Keras callback to visualize training and validation metrics in real-time.
-
-    This callback logs training and validation metrics (loss and metrics) after each epoch
-    and periodically generates plots of these metrics. It saves the plots as JPEG images 
-    in the specified directory.
-
-    Parameters:    
-        plot_path : str
-            Directory path where the plots will be saved.
-        update_epoch_gap : int, optional (default=2)
-            Frequency (in epochs) at which to update the logging of metrics.
-        plot_epoch_gap : int, optional
-            Frequency (in epochs) at which to generate and save plots.
-
-    Methods:    
-        on_epoch_end(epoch, logs)
-            Method called by Keras at the end of each epoch to update metrics and potentially generate plots.
-
-        plot_training_history()
-            Generates and saves plots of training and validation metrics.
-
-    '''    
-    def __init__(self, plot_path, update_epoch_gap=2, **kwargs):
+class RealTimeHistory(keras.callbacks.Callback):    
+        
+    def __init__(self, plot_path, past_logs=None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
-        self.plot_path = plot_path
-        self.update_epoch_gap = update_epoch_gap
+        self.plot_path = plot_path 
+        self.past_logs = past_logs       
         self.plot_epoch_gap = CONFIG["training"]["PLOT_EPOCH_GAP"]
                 
-        # Initialize dictionaries to store history
+        # Initialize dictionaries to store history 
         self.history = {}
         self.val_history = {}
+        if past_logs is not None:
+            self.history = past_logs['history']
+            self.val_history = past_logs['val_history']      
         
         # Ensure plot directory exists
         os.makedirs(self.plot_path, exist_ok=True)
