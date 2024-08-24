@@ -60,13 +60,14 @@ class ModelTraining:
         if not is_resumed:            
             epochs = self.configuration["training"]["EPOCHS"] 
             from_epoch = 0
+            history = None
         else:
             _, history = serializer.load_session_configuration(current_checkpoint_path)                     
             epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
             from_epoch = history['total_epochs']
         
         # add logger callback for the training session
-        RTH_callback = RealTimeHistory(current_checkpoint_path)
+        RTH_callback = RealTimeHistory(current_checkpoint_path, past_logs=history)
         logger_callback = LoggingCallback()
         # add all callbacks to the callback list
         callbacks_list = [RTH_callback, logger_callback]
