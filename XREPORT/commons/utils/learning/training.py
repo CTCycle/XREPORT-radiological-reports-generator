@@ -5,7 +5,7 @@ import keras
 import tensorflow as tf
 from torch.amp import GradScaler
 
-from XREPORT.commons.utils.models.callbacks import RealTimeHistory, LoggingCallback
+from XREPORT.commons.utils.learning.callbacks import RealTimeHistory, LoggingCallback
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -49,7 +49,7 @@ class ModelTraining:
 
     #--------------------------------------------------------------------------
     def train_model(self, model : keras.Model, train_data, validation_data, 
-                    current_checkpoint_path, is_resumed=False):
+                    current_checkpoint_path, from_checkpoint=False):
         
         # initialize model serializer
         serializer = ModelSerializer()  
@@ -57,7 +57,7 @@ class ModelTraining:
         # perform different initialization duties based on state of session:
         # training from scratch vs resumed training
         # calculate number of epochs taking into account possible training resumption
-        if not is_resumed:            
+        if not from_checkpoint:            
             epochs = self.configuration["training"]["EPOCHS"] 
             from_epoch = 0
             history = None

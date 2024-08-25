@@ -10,8 +10,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.models.training import ModelTraining
-from XREPORT.commons.utils.models.captioner import XREPORTModel
+from XREPORT.commons.utils.learning.training import ModelTraining
+from XREPORT.commons.utils.learning.captioner import XREPORTModel
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 

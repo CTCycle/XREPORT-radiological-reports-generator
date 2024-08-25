@@ -9,8 +9,8 @@ import keras
 import tensorflow as tf
 
 
-from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.commons.utils.models.scheduler import LRScheduler
+from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
+from XREPORT.commons.utils.learning.scheduler import LRScheduler
 from XREPORT.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
@@ -148,8 +148,7 @@ class DataSerializer:
         with open(metadata_path, 'r') as file:
             metadata = json.load(file)
         
-        return train_data, validation_data, metadata 
-    
+        return train_data, validation_data, metadata     
     
 
 # [MODEL SERIALIZATION]

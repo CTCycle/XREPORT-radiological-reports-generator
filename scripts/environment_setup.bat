@@ -16,7 +16,7 @@ echo STEP 2: Install python libraries and packages
 call --extra-index-url https://download.pytorch.org/whl/cu121
 call pip install torch==2.4.0+cu121
 call pip install torchvision==0.19.0+cu121
-call pip install tensorflow-cpu==2.17.0 keras==3.4.1 transformers==4.43.3
+call pip install tensorflow-cpu==2.17.0 keras==3.5.0 transformers==4.43.3
 call pip install numpy==1.26.4 pandas==2.2.2 openpyxl==3.1.5 tqdm==4.66.4 
 call pip install scikit-learn==1.2.2 matplotlib==3.9.0 opencv-python==4.10.0.84
 if errorlevel 1 (
