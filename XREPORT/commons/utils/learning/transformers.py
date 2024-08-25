@@ -1,7 +1,6 @@
 import torch
 import keras
 from keras import layers    
-import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
