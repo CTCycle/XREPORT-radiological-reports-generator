@@ -1,11 +1,11 @@
 import keras
 from keras import layers, Model
 
-from XREPORT.commons.utils.models.scheduler import LRScheduler
-from XREPORT.commons.utils.models.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
-from XREPORT.commons.utils.models.image_encoding import ImageEncoder
-from XREPORT.commons.utils.models.embeddings import PositionalEmbedding
-from XREPORT.commons.utils.models.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
+from XREPORT.commons.utils.learning.scheduler import LRScheduler
+from XREPORT.commons.utils.learning.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
+from XREPORT.commons.utils.learning.image_encoding import ImageEncoder
+from XREPORT.commons.utils.learning.embeddings import PositionalEmbedding
+from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
@@ -33,8 +33,7 @@ class XREPORTModel:
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads) for _ in range(self.num_decoders)]        
         self.embeddings = PositionalEmbedding(self.vocab_size, self.embedding_dims, self.sequence_length) 
-        self.classifier = SoftMaxClassifier(1024, self.vocab_size)     
-                
+        self.classifier = SoftMaxClassifier(1024, self.vocab_size)                
 
     # build model given the architecture
     #--------------------------------------------------------------------------
