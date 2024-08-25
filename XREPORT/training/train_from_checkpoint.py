@@ -9,7 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.models.training import ModelTraining
+from XREPORT.commons.utils.learning.training import ModelTraining
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -38,9 +38,8 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # initialize training device, allows changing device prior to initializing the generators
     #--------------------------------------------------------------------------
-    logger.info('Building data loaders')       
-
-    # load saved tf.datasets from the proper folders in the checkpoint directory     
+    # load saved tf.datasets from the proper folders in the checkpoint directory
+    logger.info('Building data loaders')        
     train_data, validation_data, metadata = dataserializer.load_preprocessed_data()
 
     # initialize the TensorDataSet class with the generator instances
@@ -65,6 +64,6 @@ if __name__ == '__main__':
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, model_folder,
-                        is_resumed=True)
+                        from_checkpoint=True)
 
 
