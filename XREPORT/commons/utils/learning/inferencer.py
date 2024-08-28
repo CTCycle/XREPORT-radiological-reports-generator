@@ -16,16 +16,17 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model):        
+    def __init__(self, model : keras.Model, configuration):        
 
-        np.random.seed(CONFIG["SEED"])
-        torch.manual_seed(CONFIG["SEED"])
-        tf.random.set_seed(CONFIG["SEED"])
+        np.random.seed(configuration["SEED"])
+        torch.manual_seed(configuration["SEED"])
+        tf.random.set_seed(configuration["SEED"])
         self.img_paths = get_images_path()
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]    
+        self.img_shape = configuration["model"]["IMG_SHAPE"]
+        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]    
         self.dataserializer = DataSerializer()      
-        self.model = model  
+        self.model = model 
+        self.configuration = configuration 
 
         self.layer_names = [layer.name for layer in model.layers]     
         self.encoder_layer_names = [x for x in self.layer_names if 'tranformer_encoder' in x] 
@@ -49,20 +50,15 @@ class TextGenerator:
        
         for pt in self.img_paths:
             logger.info(f'Generating report for image {os.path.basename(pt)}')
-            image = tf.io.read_file(pt)
-            image = tf.image.decode_image(image, channels=1)
-            image = tf.image.resize(image, self.img_shape[:-1])
-            image = image/255.0
-            input_image = keras.ops.expand_dims(image, 0)
+            image = self.dataserializer.load_image(pt, self.img_shape)
             
             seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
             seq_input[0, 0] = start_token_idx  
 
             for i in tqdm(range(1, self.max_report_size)):                
-                predictions = self.model.predict([input_image, seq_input[:, :-1]], verbose=0)                
+                predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)                
                 next_token_idx = keras.ops.argmax(predictions[0, i-1, :], axis=-1).item()
-                next_token = index_lookup[next_token_idx]
-                
+                next_token = index_lookup[next_token_idx]                
                 # Stop if end token is generated
                 if next_token == end_token:
                     break
