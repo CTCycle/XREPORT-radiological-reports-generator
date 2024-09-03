@@ -3,7 +3,6 @@ import keras
 import tensorflow as tf
 from keras import activations, layers 
 
-
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
@@ -17,7 +16,7 @@ class BatchNormConv(layers.Layer):
         self.units = units        
         self.num_layers = num_layers              
         self.pooling = layers.AveragePooling2D(pool_size=(2,2), padding='same')
-        self.convolutions = [layers.Conv2D(units, kernel_size=(3,3), strides=(1,1), 
+        self.convolutions = [layers.Conv2D(units, kernel_size=(2,2), strides=(1,1), 
                                            padding='same', activation=None) for _ in range(num_layers)]
         self.batch_norm_layers = [layers.BatchNormalization() for _ in range(num_layers)]             
         
@@ -94,7 +93,7 @@ class ImageEncoder(keras.Model):
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
         self.convblock1 = BatchNormConv(32, 2) 
         self.convblock2 = BatchNormConv(64, 2)
-        self.convblock3 = BatchNormConv(128, 2)
+        self.convblock3 = BatchNormConv(128, 3)
         self.convblock4 = BatchNormConv(256, 3)
         self.convblock5 = BatchNormConv(512, 3)
         self.ffn = FeedFowardBN(512, 3)            

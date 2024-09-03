@@ -3,7 +3,7 @@ from keras import layers, Model
 
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
 from XREPORT.commons.utils.learning.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
-from XREPORT.commons.utils.learning.image_encoding import ImageEncoder
+from XREPORT.commons.utils.learning.encoder import ImageEncoder
 from XREPORT.commons.utils.learning.embeddings import PositionalEmbedding
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.constants import CONFIG
