@@ -23,28 +23,28 @@ class ModelTraining:
         torch.manual_seed(configuration["SEED"])
         tf.random.set_seed(configuration["SEED"])
         self.device = torch.device('cpu')
-        self.scaler = GradScaler() if CONFIG["training"]["MIXED_PRECISION"] else None
+        self.scaler = GradScaler() if self.configuration["training"]["MIXED_PRECISION"] else None
         self.set_device()         
 
     # set device
     #--------------------------------------------------------------------------
     def set_device(self):
-        if CONFIG["training"]["ML_DEVICE"] == 'GPU':
+        if self.configuration["training"]["ML_DEVICE"] == 'GPU':
             if not torch.cuda.is_available():
                 logger.info('No GPU found. Falling back to CPU')
                 self.device = torch.device('cpu')
             else:
                 self.device = torch.device('cuda:0')                
-                if CONFIG["training"]["MIXED_PRECISION"]:
+                if self.configuration["training"]["MIXED_PRECISION"]:
                     keras.mixed_precision.set_global_policy("mixed_float16")
                     logger.info('Mixed precision policy is active during training')
                 torch.cuda.set_device(self.device)
                 logger.info('GPU is set as active device')
-        elif CONFIG["training"]["ML_DEVICE"] == 'CPU':
+        elif self.configuration["training"]["ML_DEVICE"] == 'CPU':
             self.device = torch.device('cpu')
             logger.info('CPU is set as active device')             
         else:
-            logger.error(f'Unknown ML_DEVICE value: {CONFIG["training"]["ML_DEVICE"]}')
+            logger.error(f'Unknown ML_DEVICE value: {self.configuration["training"]["ML_DEVICE"]}')
             self.device = torch.device('cpu')  
 
     #--------------------------------------------------------------------------
