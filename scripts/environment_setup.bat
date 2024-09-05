@@ -36,7 +36,7 @@ if errorlevel 1 (
 @echo off
 rem install packages in editable mode
 echo STEP 4: Install utils packages in editable mode
-call cd .. && pip install -e .
+call cd .. && pip install -e . --use-pep517
 if errorlevel 1 (
     echo Failed to install the package in editable mode
     goto :eof
