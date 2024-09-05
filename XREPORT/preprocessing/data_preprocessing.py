@@ -45,7 +45,6 @@ if __name__ == '__main__':
     # save preprocessed data using data serializer
     dataserializer = DataSerializer()
     dataserializer.save_preprocessed_data(train_data, validation_data, DATA_PATH)
-    logger.info(f'Data has been succesfully preprocessed and saved in {DATA_PATH}') 
     
 
    

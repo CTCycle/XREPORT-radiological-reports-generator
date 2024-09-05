@@ -3,8 +3,11 @@
 ## 1. Project Overview
 XRAY Report Generator is a machine learning-based tool designed to assist radiologists in generating descriptive reports from X-ray images. This project aims to reduce the time and effort required by radiologists to write detailed reports based on the XRAY scan description, thereby increasing efficiency and turnover. The generative model is trained using combinations of XRAY images and their labels (descriptions), in the same fashion as image captioning models learn a sequence of word tokens associated to specific parts of the image. While originally developed around the MIMIC-CXR Database (https://www.kaggle.com/datasets/wasifnafee/mimic-cxr), this project can be applied to any dataset with X-ray scans labeled with their respective radiological reports (or any kind of description). The XREPORT Deep Learning (DL) model developed for this scope makes use of a transformer encoder-decoder architecture, which relies on both self attention and cross attention to improve text significance within the clinical image context. The images features are extracted using a custom convolutional encoder with pooling layers to reduce dimensionality. Once a pretrained model is obtained leveraging a large number of X-RAY scans and their descriptions, the model can be used in inference mode to generate radiological reports from the raw pictures. 
 
+### 1.2 Supplementary information
+Further information are available in the `docs` folder (to be added).
+
 ## 2. XREPORT model
-The XREPORT model is based on a transformer encoder-decoder architecture. Three stacked encoders with multi-head self-attention and feedforward networks are used downstream to the convolutional image encoder network to generate vectors with extracted x-ray scan features. The X-RAY scans are processed and reduced in dimensionality using a series of convolutional layers followed by max-pooling operations. These image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs, to determine most important features in the images associated with specific words in the text. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.T
+The XREPORT model is based on a transformer encoder-decoder architecture. Three stacked encoders with multi-head self-attention and feedforward networks are used downstream to the convolutional image encoder network to generate vectors with extracted x-ray scan features. The X-RAY scans are processed and reduced in dimensionality using a series of convolutional layers followed by max-pooling operations. These image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs, to determine most important features in the images associated with specific words in the text. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 **DistilBERT tokenization:** to improve the vectorization and the semantic representation of the training text corpus, the pretrained tokenizer of the DistilBERT model has been used to split text into subwords and vectorize the tokens. The base model is taken from `distilbert/distilbert-base-uncased`, and is automatically downloaded in `training/BERT`. Once saved, the weights are loaded each time a new training session is called. The XREPORT model performs word embedding by coupling token embeddings with positional embeddings, and supports masking for variable-length sequences, ensuring adaptability to text sequences of different length.
 
@@ -17,19 +20,17 @@ The installation process is designed for simplicity, using .bat scripts to autom
 - **IMPORTANT:** run `scripts/package_setup.bat` if the path to the project folder is changed for any reason after installation, or the app won't work!
 
 ### 3.1 Additional Package for XLA Acceleration
-XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. By incorporating XLA acceleration, you can achieve significant performance improvements in numerical computations, especially for large-scale machine learning models. XLA integration is directly available in TensorFlow but may require enabling specific settings or flags. 
+XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. Since this project uses Keras 3 with PyTorch as backend, the approach for optimizing computations for speed and efficiency has shifted from XLA to PyTorch's native acceleration tools, particularly TorchScript. This latter allows for the compilation of PyTorch models into an optimized, efficient form that enhances performance, especially when working with large-scale machine learning models or deploying models in production. TorchScript is designed to accelerate both CPU and GPU computations without requiring additional environment variables or complex setup.
 
-To enable XLA acceleration globally across your system, you need to set an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
+For those who wish to use Tensorflow as backend in their own fork of the project, XLA acceleration can be globally enables across your system setting an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
 
 ## 4. How to use
 Within the main project folder (XREPORT) you will find other folders, each designated to specific tasks.
 
-### Resources
+### 4.1 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
-**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: 
-- `id` where the image names are given
-- `text` where the associated text is saved 
+**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: `id` where the image names are given, and `text` where the associated text is saved. 
 
 **generation:** 
 - `input_images:` this is where you place images intended for inference using the pretrained XREPORT model.
@@ -39,24 +40,24 @@ This folder is used to organize data and results for various stages of the proje
 
 **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-### Inference
+### 4.2 Inference
 Here you can find the necessary files to run pretrained models in inference mode, and use them to generate radiological reports from input X-ray scans.
 
 - Run `report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
 
-### Training
+### 4.3 Training
 This folder contains the necessary files for conducting model training and evaluation. 
 - Run `model_training.py` to initiate the training process for the transformer model
 
-### Validation
+### 4.4 Validation
 Data validation and pretrained model evaluations are performed using the scripts within this folder.
 - Launch the jupyter notebook `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
 - Launch the jupyter notebook `data_validation.ipynb` to validate the available data with different metrics.
 
-### 4.1 Configurations
+## 5. Configurations
 For customization, you can modify the main configuration parameters using `settings/configurations.json` 
 
-#### Dataset Configuration
+### Dataset Configuration
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
@@ -67,7 +68,7 @@ For customization, you can modify the main configuration parameters using `setti
 | MAX_REPORT_SIZE    | Max length of text report                                |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
 
-#### Model Configuration
+### Model Configuration
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
@@ -78,7 +79,7 @@ For customization, you can modify the main configuration parameters using `setti
 | NUM_DECODERS       | Number of decoder layers                                 |
 | SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
 
-#### Training Configuration
+### Training Configuration
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
@@ -91,7 +92,7 @@ For customization, you can modify the main configuration parameters using `setti
 | ML_DEVICE          | Device to use for training (e.g., GPU)                   |
 | NUM_PROCESSORS     | Number of processors to use for data loading             |         
 
-#### Evaluation Configuration
+### Evaluation Configuration
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
@@ -99,7 +100,6 @@ For customization, you can modify the main configuration parameters using `setti
 | SAMPLE_SIZE        | Number of samples from the dataset (evaluation only)     |
 | VALIDATION_SIZE    | Fraction of validation data (evaluation only)            |
 
-
-## 5. License
+## 6. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
 
