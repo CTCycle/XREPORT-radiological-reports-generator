@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, get_images_path
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
-from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -21,7 +21,7 @@ class TextGenerator:
         np.random.seed(configuration["SEED"])
         torch.manual_seed(configuration["SEED"])
         tf.random.set_seed(configuration["SEED"])
-        self.img_paths = get_images_path()
+        self.img_paths = get_images_path(GENERATION_INPUT_PATH)
         self.img_shape = configuration["model"]["IMG_SHAPE"]
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]    
         self.dataserializer = DataSerializer()      

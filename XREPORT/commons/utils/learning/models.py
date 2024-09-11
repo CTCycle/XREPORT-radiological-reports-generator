@@ -21,14 +21,15 @@ class XREPORTModel:
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
         self.num_heads = CONFIG["model"]["NUM_HEADS"]  
         self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
-        self.num_decoders = CONFIG["model"]["NUM_ENCODERS"]      
+        self.num_decoders = CONFIG["model"]["NUM_DECODERS"]      
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
         self.xla_state = CONFIG["training"]["XLA_STATE"]  
 
         # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
-        self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input') 
+        self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')
+         
         self.image_encoder = ImageEncoder()
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads) for _ in range(self.num_decoders)]        

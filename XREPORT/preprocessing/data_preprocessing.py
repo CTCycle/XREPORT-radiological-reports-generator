@@ -13,7 +13,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
-from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH, DATASET_NAME
+from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -23,11 +23,8 @@ if __name__ == '__main__':
 
     # 1. [LOAD MODEL]
     #--------------------------------------------------------------------------     
-    # load data from csv, add paths to images 
-    sample_size = CONFIG["dataset"]["SAMPLE_SIZE"] 
-    file_loc = os.path.join(DATA_PATH, DATASET_NAME) 
-    dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';')
-    dataset = get_images_from_dataset(IMG_DATA_PATH, dataset, sample_size=sample_size)
+    # load data from csv, add paths to images     
+    dataset = get_images_from_dataset(IMG_DATA_PATH)
 
     # split data into train set and validation set
     logger.info('Preparing dataset of images based on splitting size')  
@@ -42,9 +39,11 @@ if __name__ == '__main__':
     tokenization = BERTokenizer()    
     train_data, validation_data = tokenization.BERT_tokenization(train_data, validation_data)
     
+    # 3. [SAVE PREPROCESSED DATA]
+    #--------------------------------------------------------------------------
     # save preprocessed data using data serializer
     dataserializer = DataSerializer()
-    dataserializer.save_preprocessed_data(train_data, validation_data, DATA_PATH)
+    dataserializer.save_preprocessed_data(train_data, validation_data)
     
 
    
