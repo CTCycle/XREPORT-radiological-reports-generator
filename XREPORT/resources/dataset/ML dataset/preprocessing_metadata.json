@@ -1,0 +1,7 @@
+{
+    "sample_size": 0.5,
+    "train_size": 0.8,
+    "validation_size": 0.2,
+    "max_sequence_size": 160,
+    "date": "2024-09-02"
+}
