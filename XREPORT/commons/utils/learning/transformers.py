@@ -148,7 +148,7 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, training=True):        
+    def call(self, inputs, training=None):        
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -160,7 +160,7 @@ class TransformerEncoder(keras.layers.Layer):
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
-        ffn_out = self.ffn1(addnorm)
+        ffn_out = self.ffn1(addnorm, training=training)
         output = self.addnorm2([addnorm, ffn_out])      
 
         return output
@@ -207,7 +207,7 @@ class TransformerDecoder(keras.layers.Layer):
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, encoder_outputs, training=True, mask=None):        
+    def call(self, inputs, encoder_outputs, training=None, mask=None):        
         
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
@@ -234,7 +234,7 @@ class TransformerDecoder(keras.layers.Layer):
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
-        ffn = self.ffn1(addnorm_out2)
+        ffn = self.ffn1(addnorm_out2, training=training)
         logits = self.addnorm3([ffn, addnorm_out2])        
 
         return logits

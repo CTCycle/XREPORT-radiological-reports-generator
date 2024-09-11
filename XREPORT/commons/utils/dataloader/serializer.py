@@ -2,6 +2,7 @@ import os
 import sys
 import cv2
 import json
+import shutil
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -11,33 +12,21 @@ import tensorflow as tf
 
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
-from XREPORT.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH, GENERATION_INPUT_PATH
+from XREPORT.commons.constants import (CONFIG, DATA_PATH, ML_DATA_PATH, DATASET_NAME, 
+                                       CHECKPOINT_PATH, GENERATION_INPUT_PATH)
 from XREPORT.commons.logger import logger
 
 
 # get images from the paths specified in a pandas dataframe 
 ###############################################################################
-def get_images_from_dataset(path, dataframe : pd.DataFrame, sample_size=None):     
+def get_images_from_dataset(path, sample_size=None):     
 
-    '''
-    Maps image file paths to their corresponding entries in a dataframe.
-    This function iterates over all images in a specified directory, 
-    creating a mapping from image names (without the file extension) 
-    to their full file paths. 
+    if sample_size is None:
+        sample_size =  CONFIG["dataset"]["SAMPLE_SIZE"]
 
-    Keyword Arguments:
-        path (str): The directory containing the images.
-        dataframe (pandas.DataFrame): The dataframe to be updated with image paths.
-
-    Returns:
-        pandas.DataFrame: The updated dataframe with a new 'path' column containing 
-                            the file paths for images, excluding rows without a corresponding image file.
-    
-    ''' 
     valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'} 
     logger.debug(f'Valid extensions are: {valid_extensions}') 
     images_path = {}
-
     for root, _, files in os.walk(path):
         if sample_size is not None:
             files = files[:int(sample_size*len(files))]           
@@ -47,26 +36,29 @@ def get_images_from_dataset(path, dataframe : pd.DataFrame, sample_size=None):
                 path_pair = {file.split('.')[0] : img_path}        
                 images_path.update(path_pair) 
 
-    dataframe['path'] = dataframe['id'].map(images_path)
-    dataframe = dataframe.dropna(subset=['path']).reset_index(drop=True)             
+    # load dataset from resources/dataset, and map image names to their paths
+    file_loc = os.path.join(DATA_PATH, DATASET_NAME) 
+    dataset = pd.read_csv(file_loc, encoding='utf-8', sep=';')
+    dataset['path'] = dataset['id'].map(images_path)
+    dataset = dataset.dropna(subset=['path']).reset_index(drop=True)             
 
-    return dataframe
+    return dataset
 
 
 # get the path of multiple images from a given directory
 ###############################################################################
-def get_images_path():
+def get_images_path(path):
 
     
     # check report folder and generate list of images paths    
-    if not os.listdir(GENERATION_INPUT_PATH):
-        logger.error('No XRAY scans found in the inference input folder, please add them and try again.')
+    if not os.listdir(path):
+        logger.error(f'No XRAY scans found in {path}, please add them and try again.')
         sys.exit()
     else:
         valid_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif')
         logger.debug(f'Valid extensions are: {valid_extensions}') 
         images_path = []
-        for root, _, files in os.walk(GENERATION_INPUT_PATH):                 
+        for root, _, files in os.walk(path):                 
             for file in files:
                 if os.path.splitext(file)[1].lower() in valid_extensions:
                     images_path.append(os.path.join(root, file))                
@@ -106,7 +98,7 @@ class DataSerializer:
     # ...
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, train_data : pd.DataFrame, 
-                               validation_data : pd.DataFrame, path=''): 
+                               validation_data : pd.DataFrame): 
 
         processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
                            'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
@@ -115,9 +107,9 @@ class DataSerializer:
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
         # define paths of .csv and .json files
-        train_pp_path = os.path.join(path, 'XREPORT_train.csv')
-        val_pp_path = os.path.join(path, 'XREPORT_validation.csv')
-        json_info_path = os.path.join(path, 'preprocessing_metadata.json')
+        train_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_train.csv')
+        val_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_validation.csv')
+        json_info_path = os.path.join(ML_DATA_PATH, 'preprocessing_metadata.json')
         
         # save train and validation data as .csv in the dataset folder
         train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
@@ -132,11 +124,11 @@ class DataSerializer:
 
     # ...
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):
+    def load_preprocessed_data(self, path):
 
         # load preprocessed train and validation data
-        train_file_path = os.path.join(DATA_PATH, 'XREPORT_train.csv') 
-        val_file_path = os.path.join(DATA_PATH, 'XREPORT_validation.csv')
+        train_file_path = os.path.join(path, 'XREPORT_train.csv') 
+        val_file_path = os.path.join(path, 'XREPORT_validation.csv')
         train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
         validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
 
@@ -144,7 +136,7 @@ class DataSerializer:
         train_data['tokens'] = train_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
         validation_data['tokens'] = validation_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
         # load preprocessing metadata
-        metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
+        metadata_path = os.path.join(path, 'preprocessing_metadata.json')
         with open(metadata_path, 'r') as file:
             metadata = json.load(file)
         
@@ -179,6 +171,19 @@ class ModelSerializer:
         logger.debug(f'Created checkpoint folder at {checkpoint_folder_path}')
         
         return checkpoint_folder_path 
+    
+
+    # function to create a folder where to save model checkpoints
+    #--------------------------------------------------------------------------
+    def store_data_in_checkpoint_folder(self, checkpoint_folder):
+
+        data_cp_path = os.path.join(checkpoint_folder, 'data') 
+        for filename in os.listdir(ML_DATA_PATH):            
+            if filename != '.gitkeep':
+                file_path = os.path.join(ML_DATA_PATH, filename)                
+                if os.path.isfile(file_path):
+                    shutil.copy(file_path, data_cp_path)
+                    logger.debug(f'Successfully copied {filename} to {data_cp_path}')
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):

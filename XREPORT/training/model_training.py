@@ -11,8 +11,8 @@ from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
-from XREPORT.commons.utils.learning.captioner import XREPORTModel
-from XREPORT.commons.constants import CONFIG
+from XREPORT.commons.utils.learning.models import XREPORTModel
+from XREPORT.commons.constants import CONFIG, ML_DATA_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -24,11 +24,13 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer()
-    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()    
+    train_data, validation_data, metadata = dataserializer.load_preprocessed_data(ML_DATA_PATH)    
 
-    # create subfolder for preprocessing data    
+    # create subfolder for preprocessing data, move preprocessed data to the 
+    # checkpoint subfolder checkpoint/data   
     modelserializer = ModelSerializer()
-    model_folder_path = modelserializer.create_checkpoint_folder()    
+    model_folder_path = modelserializer.create_checkpoint_folder() 
+    modelserializer.store_data_in_checkpoint_folder(model_folder_path)   
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------

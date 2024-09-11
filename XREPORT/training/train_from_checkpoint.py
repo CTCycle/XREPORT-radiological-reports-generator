@@ -39,8 +39,9 @@ if __name__ == '__main__':
     # initialize training device, allows changing device prior to initializing the generators
     #--------------------------------------------------------------------------
     # load saved tf.datasets from the proper folders in the checkpoint directory
-    logger.info('Building data loaders')        
-    train_data, validation_data, metadata = dataserializer.load_preprocessed_data()
+    logger.info('Loading preprocessed data and building dataloaders')
+    pp_data_path = os.path.join(model_folder, 'data') 
+    train_data, validation_data, metadata = dataserializer.load_preprocessed_data(pp_data_path)
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
