@@ -14,20 +14,44 @@ The XREPORT model is based on a transformer encoder-decoder architecture. Three 
 **XREP transformers:** the body of the model comprises a series of transformer encoders/decoders. The transformer encoder employs multi-head self-attention and feedforward networks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 ## 3. Installation
-The installation process is designed for simplicity, using .bat scripts to automatically create a virtual environment with all necessary dependencies. Please ensure that Anaconda or Miniconda is properly installed on your system before proceeding.
+The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run `XREPORT_AutoEncoder.bat`. On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, you will need to install it manually. You can download and install Miniconda by following the instructions here: (https://docs.anaconda.com/miniconda/).
 
-- To set up the environment, run `scripts/environment_setup.bat`. This script installs Keras 3 with pytorch support as backend, and includes includes all required CUDA dependencies to enable GPU utilization (CUDA 12.1).
-- **IMPORTANT:** if the path to the project folder is changed for any reason after installation, the app will cease to work. Run `scripts/package_setup.bat` or alternatively use `pip install -e . --use-pep517` from cmd when in the project folder (upon activating the conda environment).
+After setting up Anaconda/Miniconda, the installation script will install all the necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.1) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing `setup/XREPORT_installer.bat`. You can also use a custom python environment by modifying `settings/launcher_configurations.ini` and setting use_custom_environment as true, while specifying the name of your custom environment.
+
+**Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
+
+- Open the main menu, select "XREPORT setup," and choose "Install project packages"
+- Manually run the following commands in the terminal, ensuring the project folder is set as the current working directory (CWD):
+
+    `conda activate XREPORT`
+
+    `pip install -e . --use-pep517` 
 
 ### 3.1 Additional Package for XLA Acceleration
-XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. Since this project uses Keras 3 with PyTorch as backend, the approach for optimizing computations for speed and efficiency has shifted from XLA to PyTorch's native acceleration tools, particularly TorchScript. This latter allows for the compilation of PyTorch models into an optimized, efficient form that enhances performance, especially when working with large-scale machine learning models or deploying models in production. TorchScript is designed to accelerate both CPU and GPU computations without requiring additional environment variables or complex setup.
-
-For those who wish to use Tensorflow as backend in their own fork of the project, XLA acceleration can be globally enables across your system setting an environment variable named `XLA_FLAGS`. The value of this variable should be `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` must be replaced with the actual directory path that leads to the folder containing the nvvm subdirectory. It is crucial that this path directs to the location where the file `libdevice.10.bc` resides, as this file is essential for the optimal functioning of XLA. This setup ensures that XLA can efficiently interface with the necessary CUDA components for GPU acceleration.
+XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. Since this project uses Keras 3 with PyTorch as backend, the approach for optimizing computations for speed and efficiency has shifted from XLA to PyTorch's native acceleration tools, particularly TorchScript (currently not implemented). For those who wish to use Tensorflow as backend, XLA acceleration can be globally enabled setting the `XLA_FLAGS` environmental variabile with the following value: `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` is the actual directory path to the folder containing the nvvm subdirectory (where the file `libdevice.10.bc` resides).
 
 ## 4. How to use
-Within the main project folder (XREPORT) you will find other folders, each designated to specific tasks.
+On Windows, run `XREPORT_AutoEncoder.bat` to launch the main navigation menu and browse through the various options. Alternatively, you can run each file separately using `python path/filename.py` or `jupyter path/notebook.ipynb`. 
 
-### 4.1 Resources
+### 4.1 Navigation menu
+
+**1) Data analysis:** perform data validation using a series of metrics for image statistics, running `validation/data_validation.ipynb`
+
+**2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running `preprocessing/data_preprocessing.py`
+
+**3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
+- **train from scratch:** runs `training/model_training.py` to start training an instance of the XREPORT model from scratch using the available data and parameters. 
+- **train from checkpoint:** runs `training/train_from_checkpoint.py` to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
+- **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics, thoruhg running the jupyter notebook `validation/model_validation.ipynb`.
+
+**4) Generate radiological reports:** Run `inference/report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
+
+**5) XREPORT setup:** allows running some options command such as **install project packages** to run the developer model project installation, and **remove logs** to remove all logs saved in `resources/logs`. 
+
+**6) Exit and close:** exit the program immediately
+
+
+### 4.2 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
 **dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: `id` where the image names are given, and `text` where the associated text is saved. 
@@ -39,20 +63,6 @@ This folder is used to organize data and results for various stages of the proje
 **results:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
-
-### 4.2 Inference
-Here you can find the necessary files to run pretrained models in inference mode, and use them to generate radiological reports from input X-ray scans.
-
-- Run `report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
-
-### 4.3 Training
-This folder contains the necessary files for conducting model training and evaluation. 
-- Run `model_training.py` to initiate the training process for the transformer model
-
-### 4.4 Validation
-Data validation and pretrained model evaluations are performed using the scripts within this folder.
-- Launch the jupyter notebook `model_evaluation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics.
-- Launch the jupyter notebook `data_validation.ipynb` to validate the available data with different metrics.
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using `settings/configurations.json` 
