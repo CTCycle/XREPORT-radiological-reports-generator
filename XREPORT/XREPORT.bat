@@ -122,7 +122,8 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate %env_name% && jupyter lab .validation\data_validation.ipynb"
+echo Currently not implemented within the navigator due to the file format (jupyter notebook)
+echo Please execute the following command from within XREPORT/validation ---> jupyter notebook data_validation.ipynb 
 pause
 goto :main_menu
 
@@ -186,11 +187,12 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run model evaluation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:modeleval
+:datanalysis
 cls
-start cmd /k "call conda activate %env_name% && jupyter lab .validation\model_validation.ipynb"
+echo Currently not implemented within the navigator due to the file format (jupyter notebook)
+echo Please execute the following command from within XREPORT/validation ---> jupyter notebook model_validation.ipynb 
 pause
-goto :ML_menu
+goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Show setup menu
@@ -214,7 +216,7 @@ pause
 goto :setup_menu
 
 :eggs
-call conda activate %env_name% && cd .. && pip install -e . --use-pep517
+call conda activate %env_name% && cd .. && pip install -e . --use-pep517 && cd XREPORT
 goto :setup_menu
 
 :logs
