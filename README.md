@@ -31,18 +31,18 @@ After setting up Anaconda/Miniconda, the installation script will install all th
 XLA is designed to optimize computations for speed and efficiency, particularly beneficial when working with TensorFlow and other machine learning frameworks that support XLA. Since this project uses Keras 3 with PyTorch as backend, the approach for optimizing computations for speed and efficiency has shifted from XLA to PyTorch's native acceleration tools, particularly TorchScript (currently not implemented). For those who wish to use Tensorflow as backend, XLA acceleration can be globally enabled setting the `XLA_FLAGS` environmental variabile with the following value: `--xla_gpu_cuda_data_dir=path\to\XLA`, where `path\to\XLA` is the actual directory path to the folder containing the nvvm subdirectory (where the file `libdevice.10.bc` resides).
 
 ## 4. How to use
-On Windows, run `XREPORT_AutoEncoder.bat` to launch the main navigation menu and browse through the various options. Alternatively, you can run each file separately using `python path/filename.py` or `jupyter path/notebook.ipynb`. 
+On Windows, run `XREPORT.bat` to launch the main navigation menu and browse through the various options. Alternatively, you can run each file separately using `python path/filename.py` or `jupyter path/notebook.ipynb`. 
 
 ### 4.1 Navigation menu
 
-**1) Data analysis:** perform data validation using a series of metrics for image statistics, running `validation/data_validation.ipynb`
+**1) Data analysis:** run `validation/data_validation.ipynb` to perform data validation using a series of metrics for the analysis of the dataset. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
 
 **2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running `preprocessing/data_preprocessing.py`
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 - **train from scratch:** runs `training/model_training.py` to start training an instance of the XREPORT model from scratch using the available data and parameters. 
 - **train from checkpoint:** runs `training/train_from_checkpoint.py` to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
-- **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics, thoruhg running the jupyter notebook `validation/model_validation.ipynb`.
+- **model evaluation:** run `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
 
 **4) Generate radiological reports:** Run `inference/report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
 
@@ -65,7 +65,7 @@ This folder is used to organize data and results for various stages of the proje
 **checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
 ## 5. Configurations
-For customization, you can modify the main configuration parameters using `settings/configurations.json` 
+For customization, you can modify the main configuration parameters using `settings/app_configurations.json` 
 
 ### Dataset Configuration
 
