@@ -206,7 +206,7 @@ echo 1. Install project dependencies
 echo 2. Remove logs
 echo 3. Back to main menu
 echo.
-set /p sub_choice="Select an option (1-4): "
+set /p sub_choice="Select an option (1-3): "
 
 if "%sub_choice%"=="1" goto :eggs
 if "%sub_choice%"=="2" goto :logs
@@ -222,4 +222,5 @@ goto :setup_menu
 :logs
 cd /d "%~dp0..\XREPORT\resources\logs"
 del *.log /q
+cd /d "%~dp0..\XREPORT"
 goto :setup_menu
