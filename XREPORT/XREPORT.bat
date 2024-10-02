@@ -128,14 +128,6 @@ pause
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Run model inference
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:inference
-cls
-call conda activate %env_name% && python .\inference\report_generator.py
-goto :main_menu
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run preprocessing
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :processing
@@ -144,7 +136,15 @@ call conda activate %env_name% && python .\preprocessing\data_preprocessing.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Check if NVIDIA GPU is available using nvidia-smi
+:: Run model inference
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:inference
+cls
+call conda activate %env_name% && python .\inference\report_generator.py
+goto :main_menu
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Start machine learning menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :ML_menu
 cls
