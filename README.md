@@ -14,7 +14,7 @@ The XREPORT model is based on a transformer encoder-decoder architecture. Three 
 **XREP transformers:** the body of the model comprises a series of transformer encoders/decoders. The transformer encoder employs multi-head self-attention and feedforward networks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 ## 3. Installation
-The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run `XREPORT_AutoEncoder.bat`. On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, you will need to install it manually. You can download and install Miniconda by following the instructions here: (https://docs.anaconda.com/miniconda/).
+The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run `XREPORT.bat`. On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, you will need to install it manually. You can download and install Miniconda by following the instructions here: (https://docs.anaconda.com/miniconda/).
 
 After setting up Anaconda/Miniconda, the installation script will install all the necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.1) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing `setup/XREPORT_installer.bat`. You can also use a custom python environment by modifying `settings/launcher_configurations.ini` and setting use_custom_environment as true, while specifying the name of your custom environment.
 
@@ -42,9 +42,9 @@ On Windows, run `XREPORT.bat` to launch the main navigation menu and browse thro
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 - **train from scratch:** runs `training/model_training.py` to start training an instance of the XREPORT model from scratch using the available data and parameters. 
 - **train from checkpoint:** runs `training/train_from_checkpoint.py` to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
-- **model evaluation:** run `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
+- **model evaluation:** runs `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
 
-**4) Generate radiological reports:** Run `inference/report_generator.py` to use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. 
+**4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes `inference/report_generator.py`.
 
 **5) XREPORT setup:** allows running some options command such as **install project packages** to run the developer model project installation, and **remove logs** to remove all logs saved in `resources/logs`. 
 
@@ -54,15 +54,15 @@ On Windows, run `XREPORT.bat` to launch the main navigation menu and browse thro
 ### 4.2 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
-**dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: `id` where the image names are given, and `text` where the associated text is saved. 
+- **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-**generation:** 
-- `input_images:` this is where you place images intended for inference using the pretrained XREPORT model.
-- `reports:` the generated radiological reports from input images are saved within this folder. 
+- **dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: `id` where the image names are given, and `text` where the associated text is saved. 
 
-**results:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
+- **generation:** contains `input_images` where you place images intended for inference using the pretrained XREPORT model, and `reports`. The generated radiological reports from input images are saved within this latter folder. 
 
-**checkpoints:** pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+- **logs:** the application logs are saved within this folder
+
+- **validation:** Used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using `settings/app_configurations.json` 
