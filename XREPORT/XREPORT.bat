@@ -122,9 +122,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-echo Currently not implemented within the navigator due to the file format (jupyter notebook)
-echo Please execute the following command from within XREPORT/validation ---> jupyter notebook data_validation.ipynb 
-pause
+start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\data_validation.ipynb"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -187,12 +185,10 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Run model evaluation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:datanalysis
+:modeleval
 cls
-echo Currently not implemented within the navigator due to the file format (jupyter notebook)
-echo Please execute the following command from within XREPORT/validation ---> jupyter notebook model_validation.ipynb 
-pause
-goto :main_menu
+start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\model_validation.ipynb"
+goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Show setup menu
