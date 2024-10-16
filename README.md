@@ -35,14 +35,14 @@ On Windows, run `XREPORT.bat` to launch the main navigation menu and browse thro
 
 ### 4.1 Navigation menu
 
-**1) Data analysis:** run `validation/data_validation.ipynb` to perform data validation using a series of metrics for the analysis of the dataset. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
+**1) Data analysis:** runs `validation/data_validation.ipynb` to perform data validation using a series of metrics for the analysis of the dataset. 
 
 **2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running `preprocessing/data_preprocessing.py`
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 - **train from scratch:** runs `training/model_training.py` to start training an instance of the XREPORT model from scratch using the available data and parameters. 
 - **train from checkpoint:** runs `training/train_from_checkpoint.py` to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
-- **model evaluation:** runs `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. This feature cannot be directly started from the launcher due to unpredictable behavior of .ipynb files when executed from batch scripts.
+- **model evaluation:** runs `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. 
 
 **4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes `inference/report_generator.py`.
 
