@@ -1,13 +1,14 @@
 # [SET KERAS BACKEND]
 import os 
 os.environ["KERAS_BACKEND"] = "torch"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
+from XREPORT.commons.utils.preprocessing.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     trainer.set_device()
 
     # get tokenizers and its info
-    tokenization = BERTokenizer()    
+    tokenization = TokenWizard()   
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    

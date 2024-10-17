@@ -4,9 +4,12 @@
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
-                "MAX_REPORT_SIZE" : 160,
-                "SPLIT_SEED" : 52}, 
-
+                "MAX_REPORT_SIZE" : 160,                
+                "SPLIT_SEED" : 52,
+                "TOKENIZER": "bert",
+                "PRESELECTED_TOKENIZERS": ["distilbert", "bert", "roberta",
+                                           "gpt2", "xlm"]},         
+    
     "model" : {"IMG_SHAPE" : [196, 196, 1],
                "NUM_HEADS" : 4,
                "NUM_ENCODERS" : 3,    

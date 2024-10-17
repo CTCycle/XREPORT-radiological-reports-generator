@@ -1,9 +1,8 @@
 __pycache__
 XREPORT/resources/dataset/images/*
 XREPORT/resources/dataset/preprocessing_metadata.json
-XREPORT/resources/results/*
 XREPORT/resources/checkpoints/*
-XREPORT/resources/tokenizer/BERT/*
+XREPORT/resources/tokenizers/*
 XREPORT/resources/generation/radiography/*
 
 *.egg-info

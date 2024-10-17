@@ -1,6 +1,6 @@
 # [SET KERAS BACKEND]
 import os 
-os.environ["KERAS_BACKEND"] = "torch"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # [IMPORT LIBRARIES]
 import pandas as pd
@@ -10,7 +10,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
+from XREPORT.commons.utils.preprocessing.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
 from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
@@ -34,10 +34,9 @@ if __name__ == '__main__':
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
-    # using subwords and these are eventually mapped to integer indexes 
-    logger.info('Loading distilBERT tokenizer and apply tokenization')     
-    tokenization = BERTokenizer()    
-    train_data, validation_data = tokenization.BERT_tokenization(train_data, validation_data)
+    # using subwords and these are eventually mapped to integer indexes          
+    tokenization = TokenWizard(CONFIG)    
+    train_data, validation_data = tokenization.tokenize_text_corpus(train_data, validation_data)
     
     # 3. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
