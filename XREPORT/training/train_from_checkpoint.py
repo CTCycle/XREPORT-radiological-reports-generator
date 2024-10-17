@@ -1,6 +1,7 @@
 # [SET KERAS BACKEND]
 import os 
 os.environ["KERAS_BACKEND"] = "torch"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # [SETTING WARNINGS]
 import warnings
