@@ -1,30 +1,56 @@
+import os
 import pandas as pd
-from transformers import DistilBertTokenizer
+from transformers import AutoTokenizer
 
-from XREPORT.commons.constants import CONFIG, TOKENIZER_PATH
+from XREPORT.commons.constants import CONFIG, TOKENIZERS_PATH
 from XREPORT.commons.logger import logger
 
-    
-# [PREPROCESSING PIPELINE]
+# [TOKENIZERS]
 ###############################################################################
-class BERTokenizer:
-    
-    def __init__(self):        
-        
-        self.max_report_size = CONFIG["dataset"]["MAX_REPORT_SIZE"]            
-        self.model_identifier = 'distilbert/distilbert-base-uncased' 
-        self.tokenizer = DistilBertTokenizer.from_pretrained(self.model_identifier, cache_dir=TOKENIZER_PATH) 
-        self.vocab_size = len(self.tokenizer.vocab)      
-        logger.debug(f'Using {self.model_identifier} as tokenizer')        
+class PretrainedTokenizers:
+
+    def __init__(self): 
+
+        self.tokenizer_strings = {'distilbert': 'distilbert/distilbert-base-uncased',
+                                  'bert': 'bert-base-uncased',
+                                  'roberta': 'roberta-base',
+                                  'gpt2': 'gpt2',
+                                  'xlm': 'xlm-mlm-enfr-1024'}
     
     #--------------------------------------------------------------------------
-    def BERT_tokenization(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
+    def get_tokenizer(self, tokenizer_name):
 
-        '''
-        Tokenizes text data using the distilBERT Base v1.1 tokenizer. Loads the distilBERT 
-        tokenizer and applies it to tokenize the provided training and validation text datasets.
-        It supports padding, truncation, and returns the tokenized data in lists of token ids. 
-        Additionally, it updates the source dataframes with the tokenized text.
+        if tokenizer_name not in self.tokenizer_strings:
+            tokenizer_string = tokenizer_string
+            logger.warning(f'{tokenizer_string} is not among preselected models.')
+        else:
+            tokenizer_string = self.tokenizer_strings[tokenizer_name]                            
+        
+        logger.info(f'Loading {tokenizer_string} for text tokenization...')
+        tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
+        os.makedirs(tokenizer_path, exist_ok=True)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_string, cache_dir=tokenizer_path)
+        vocab_size = len(tokenizer.vocab)            
+
+        return tokenizer, vocab_size 
+
+    
+# [TOKENIZER]
+###############################################################################
+class TokenWizard:
+    
+    def __init__(self, configuration):        
+        
+        tokenizer_name = configuration["dataset"]["TOKENIZER"] 
+        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
+        selector = PretrainedTokenizers()
+        self.tokenizer, self.vocab_size = selector.get_tokenizer(tokenizer_name)         
+    
+    #--------------------------------------------------------------------------
+    def tokenize_text_corpus(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
+
+        '''      
+        Tokenizes text data using the specified tokenizer and updates the input DataFrames.
 
         Keyword Arguments:
             train_data (pd.DataFrame): DataFrame containing training data with a 'text' column.
@@ -35,7 +61,7 @@ class BERTokenizer:
                 - train_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
                   tokenized version of the 'text' column as lists of token ids.
                 - validation_data (pd.DataFrame): DataFrame with an additional 'tokens' column containing 
-                  tokenized version of the 'text' column as lists of token ids.
+                  tokenized version of the 'text' column as lists of token ids.        
 
         '''        
         self.train_text = train_data['text'].to_list()
