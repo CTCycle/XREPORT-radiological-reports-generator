@@ -97,13 +97,14 @@ class DataSerializer:
 
     # ...
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data : pd.DataFrame, 
-                               validation_data : pd.DataFrame): 
+    def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
+                               vocabulary_size=None): 
 
         processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
                            'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
                            'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],                           
+                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],
+                           'vocabulary_size' : vocabulary_size,                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
         # define paths of .csv and .json files

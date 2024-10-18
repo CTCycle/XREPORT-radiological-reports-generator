@@ -20,9 +20,7 @@ class ModelTraining:
         self.selected_device = configuration["device"]["DEVICE"]
         self.device_id = configuration["device"]["DEVICE_ID"]
         self.mixed_precision = self.configuration["device"]["MIXED_PRECISION"]
-        self.scaler = GradScaler() if self.configuration["device"]["MIXED_PRECISION"] else None
-        self.set_device()        
-
+        
     # set device
     #--------------------------------------------------------------------------
     def set_device(self):
@@ -31,15 +29,15 @@ class ModelTraining:
                 logger.info('No GPU found. Falling back to CPU')
                 self.device = torch.device('cpu')
             else:
-                self.device = torch.device(f'cuda:{self.device_id}')                
+                self.device = torch.device(f'cuda:{self.device_id}')
+                torch.cuda.set_device(self.device)  
+                logger.info('GPU is set as active device')            
                 if self.mixed_precision:
                     keras.mixed_precision.set_global_policy("mixed_float16")
-                    logger.info('Mixed precision policy is active during training')
-                torch.cuda.set_device(self.device)
-                logger.info('GPU is set as active device')
+                    logger.info('Mixed precision policy is active during training')                   
         else:
             self.device = torch.device('cpu')
-            logger.info('CPU is set as active device')   
+            logger.info('CPU is set as active device')  
 
     #--------------------------------------------------------------------------
     def train_model(self, model : keras.Model, train_data, validation_data, 

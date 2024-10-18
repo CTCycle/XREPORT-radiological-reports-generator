@@ -30,9 +30,9 @@ class PretrainedTokenizers:
         tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
         os.makedirs(tokenizer_path, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_string, cache_dir=tokenizer_path)
-        vocab_size = len(tokenizer.vocab)            
+        vocabulary_size = len(tokenizer.vocab)            
 
-        return tokenizer, vocab_size 
+        return tokenizer, vocabulary_size 
 
     
 # [TOKENIZER]
@@ -44,7 +44,7 @@ class TokenWizard:
         tokenizer_name = configuration["dataset"]["TOKENIZER"] 
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
         selector = PretrainedTokenizers()
-        self.tokenizer, self.vocab_size = selector.get_tokenizer(tokenizer_name)         
+        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(tokenizer_name)         
     
     #--------------------------------------------------------------------------
     def tokenize_text_corpus(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
