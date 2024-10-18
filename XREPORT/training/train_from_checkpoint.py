@@ -11,6 +11,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
+from XREPORT.commons.utils.validation.reports import log_training_report
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -54,15 +55,10 @@ if __name__ == '__main__':
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/ 
     #--------------------------------------------------------------------------
-    logger.info('--------------------------------------------------------------')
-    logger.info('XREPORT resume training report')
-    logger.info('--------------------------------------------------------------')    
-    logger.info(f'Number of train samples:       {len(train_data)}')
-    logger.info(f'Number of validation samples:  {len(validation_data)}')      
-    logger.info(f'Picture shape:                 {configuration["model"]["IMG_SHAPE"]}')   
-    logger.info(f'Batch size:                    {configuration["training"]["BATCH_SIZE"]}')
-    logger.info(f'Epochs:                        {CONFIG["training"]["ADDITIONAL_EPOCHS"]}')  
-    logger.info('--------------------------------------------------------------\n')      
+    vocabulary_size = metadata['vocabulary_size']
+    log_training_report(train_data, validation_data, CONFIG, 
+                        additional_epochs=CONFIG['TRAINING']['ADDITIONAL_EPOCHS'],
+                        vocabulary_size=vocabulary_size)    
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, model_folder,
