@@ -37,12 +37,13 @@ if __name__ == '__main__':
     # using subwords and these are eventually mapped to integer indexes          
     tokenization = TokenWizard(CONFIG)    
     train_data, validation_data = tokenization.tokenize_text_corpus(train_data, validation_data)
+    vocabulary_size = tokenization.vocabulary_size
     
     # 3. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer
     dataserializer = DataSerializer()
-    dataserializer.save_preprocessed_data(train_data, validation_data)
+    dataserializer.save_preprocessed_data(train_data, validation_data, vocabulary_size)
     
 
    
