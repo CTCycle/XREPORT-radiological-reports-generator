@@ -42,7 +42,7 @@ if __name__ == '__main__':
     trainer.set_device()
 
     # get tokenizers and its info
-    tokenization = TokenWizard()   
+    tokenization = TokenWizard(CONFIG)   
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    

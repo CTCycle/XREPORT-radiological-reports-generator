@@ -16,16 +16,16 @@ class XREPORTModel:
 
     def __init__(self, vocab_size): 
         self.vocab_size = vocab_size
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
         self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] - 1 
+        self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
         self.num_heads = CONFIG["model"]["NUM_HEADS"]  
         self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
-        self.num_decoders = CONFIG["model"]["NUM_DECODERS"]      
+        self.num_decoders = CONFIG["model"]["NUM_DECODERS"]
+        self.jit_compile = CONFIG["training"]["JIT_COMPILE"]              
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
-        self.xla_state = CONFIG["training"]["XLA_STATE"]  
-
+        
         # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')
@@ -65,7 +65,7 @@ class XREPORTModel:
         loss = MaskedSparseCategoricalCrossentropy()  
         metric = [MaskedAccuracy()]
         opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=self.xla_state)         
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=self.jit_compile)         
         if summary:
             model.summary(expand_nested=True)
 
