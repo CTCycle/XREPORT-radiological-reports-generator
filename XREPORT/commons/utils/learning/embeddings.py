@@ -11,13 +11,13 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
-    def __init__(self, vocab_size, embedding_dims, sequence_length, mask_zero=True, **kwargs):
+    def __init__(self, vocabulary_size, embedding_dims, sequence_length, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.sequence_length = sequence_length 
-        self.vocab_size = vocab_size
+        self.vocabulary_size = vocabulary_size
         self.mask_zero = mask_zero
-        self.token_embeddings = layers.Embedding(input_dim=vocab_size, output_dim=self.embedding_dims, mask_zero=mask_zero)
+        self.token_embeddings = layers.Embedding(input_dim=vocabulary_size, output_dim=self.embedding_dims, mask_zero=mask_zero)
         self.position_embeddings = layers.Embedding(input_dim=self.sequence_length, output_dim=self.embedding_dims)
         self.embedding_scale = keras.ops.sqrt(keras.ops.cast(self.embedding_dims, torch.float32))       
     
@@ -50,7 +50,7 @@ class PositionalEmbedding(keras.layers.Layer):
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(PositionalEmbedding, self).get_config()
-        config.update({'vocab_size': self.vocab_size,
+        config.update({'vocabulary_size': self.vocabulary_size,
                        'sequence_length': self.sequence_length,                       
                        'embedding_dims': self.embedding_dims,                       
                        'mask_zero': self.mask_zero})

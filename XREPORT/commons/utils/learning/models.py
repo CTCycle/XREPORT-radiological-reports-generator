@@ -14,8 +14,8 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class XREPORTModel: 
 
-    def __init__(self, vocab_size): 
-        self.vocab_size = vocab_size
+    def __init__(self, vocabulary_size): 
+        self.vocabulary_size = vocabulary_size
         self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] - 1 
         self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
         self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
@@ -33,8 +33,8 @@ class XREPORTModel:
         self.image_encoder = ImageEncoder()
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads) for _ in range(self.num_decoders)]        
-        self.embeddings = PositionalEmbedding(self.vocab_size, self.embedding_dims, self.sequence_length) 
-        self.classifier = SoftMaxClassifier(1024, self.vocab_size)                
+        self.embeddings = PositionalEmbedding(self.vocabulary_size, self.embedding_dims, self.sequence_length) 
+        self.classifier = SoftMaxClassifier(1024, self.vocabulary_size)                
 
     # build model given the architecture
     #--------------------------------------------------------------------------
