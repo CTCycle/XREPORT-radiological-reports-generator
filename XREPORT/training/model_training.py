@@ -8,7 +8,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.preprocessing.tokenizers import TokenWizard
+from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocabulary_size)
-    model = captioner.get_model(summary=True) 
+    model = captioner.get_model(model_summary=True) 
 
     # generate graphviz plot fo the model layout       
     modelserializer.save_model_plot(model, model_folder_path)              

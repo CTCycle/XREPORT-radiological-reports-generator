@@ -1,6 +1,4 @@
-import torch
 import keras
-import tensorflow as tf
 from keras import activations, layers 
 
 from XREPORT.commons.constants import CONFIG

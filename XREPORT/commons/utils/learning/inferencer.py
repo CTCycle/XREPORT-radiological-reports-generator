@@ -6,7 +6,7 @@ import tensorflow as tf
 from tqdm import tqdm   
 
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, get_images_path
-from XREPORT.commons.utils.preprocessing.tokenizers import BERTokenizer
+from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
@@ -33,7 +33,7 @@ class TextGenerator:
         self.decoder_layer_names = [x for x in self.layer_names if 'tranformer_decoder' in x] 
 
         # get tokenizers and its info
-        tokenization = BERTokenizer()    
+        tokenization = TokenWizard(configuration)    
         self.tokenizer = tokenization.tokenizer 
     
     #--------------------------------------------------------------------------    

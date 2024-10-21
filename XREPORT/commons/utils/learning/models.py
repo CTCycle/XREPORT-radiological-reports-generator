@@ -1,5 +1,6 @@
 import keras
 from keras import layers, Model
+import torch
 
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
 from XREPORT.commons.utils.learning.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
@@ -22,7 +23,8 @@ class XREPORTModel:
         self.num_heads = CONFIG["model"]["NUM_HEADS"]  
         self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
         self.num_decoders = CONFIG["model"]["NUM_DECODERS"]
-        self.jit_compile = CONFIG["training"]["JIT_COMPILE"]              
+        self.jit_compile = CONFIG["model"]["JIT_COMPILE"]
+        self.jit_backend = CONFIG["model"]["JIT_BACKEND"]             
         self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
         
@@ -38,7 +40,7 @@ class XREPORTModel:
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, summary=True):                
+    def get_model(self, model_summary=True):                
        
         # encode images using the convolutional encoder
         image_features = self.image_encoder(self.img_input)      
@@ -65,8 +67,12 @@ class XREPORTModel:
         loss = MaskedSparseCategoricalCrossentropy()  
         metric = [MaskedAccuracy()]
         opt = keras.optimizers.Adam(learning_rate=lr_schedule)          
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=self.jit_compile)         
-        if summary:
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
+
+        if self.jit_compile:
+            torch.compile(model, backend=self.jit_backend, mode='default')       
+
+        if model_summary:
             model.summary(expand_nested=True)
 
         return model
