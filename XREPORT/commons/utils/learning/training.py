@@ -1,7 +1,6 @@
 import os
 import torch
 import keras
-from torch.amp import GradScaler
 
 from XREPORT.commons.utils.learning.callbacks import RealTimeHistory, LoggingCallback
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer

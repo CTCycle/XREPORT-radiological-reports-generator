@@ -10,10 +10,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.preprocessing.tokenizers import TokenWizard
+from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
-from XREPORT.commons.utils.preprocessing.splitting import DatasetSplit
-from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH
+from XREPORT.commons.utils.process.splitting import DatasetSplit
+from XREPORT.commons.constants import CONFIG, IMG_DATA_PATH
 from XREPORT.commons.logger import logger
 
 
