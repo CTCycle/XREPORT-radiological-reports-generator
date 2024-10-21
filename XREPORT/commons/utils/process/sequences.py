@@ -1,4 +1,4 @@
-from keras.api.preprocessing import sequence
+from keras.api.process import sequence
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
