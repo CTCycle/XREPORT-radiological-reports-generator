@@ -70,7 +70,7 @@ class XREPORTModel:
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
 
         if self.jit_compile:
-            torch.compile(model, backend=self.jit_backend, mode='default')       
+            model = torch.compile(model, backend=self.jit_backend, mode='default')       
 
         if model_summary:
             model.summary(expand_nested=True)
