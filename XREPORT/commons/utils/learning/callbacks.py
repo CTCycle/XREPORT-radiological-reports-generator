@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import keras
 import matplotlib
 matplotlib.use('Agg')
@@ -73,41 +72,32 @@ class LoggingCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         if logs is not None:
             logger.debug(f"Epoch {epoch + 1}: {logs}")
-
             
-# [CALLBACK TO GENERATE REPORTS]
+
+    
+# add logger callback for the training session
 ###############################################################################
-class GenerateTextCallback(keras.callbacks.Callback):
-    def __init__(self, image, sequence, tokenizer, ):       
-        
-        self.image = image
-        self.sequence = sequence
-        self.tokenizer = tokenizer
-        self.start_seq = '[CLS]'        
+def callbacks_handler(configuration, checkpoint_path, history):
 
-    def on_epoch_end(self, epoch, logs=None): 
-        if epoch % 1 == 0:         
-            caption = self._generate_caption(self.input_image)
-            print(f'\nSample caption at epoch {epoch}: {caption}')
+    RTH_callback = RealTimeHistory(checkpoint_path, past_logs=history)
+    logger_callback = LoggingCallback()   
+    callbacks_list = [RTH_callback, logger_callback]
 
-    def _generate_caption(self, image):
-        # Convert start sequence to tokens and initialize the sequence
-        sequence = [self.tokenizer.convert_tokens_to_ids([self.start_seq])]
-        for _ in range(self.max_len):
-            # Predict the next word
-            token_list = keras.process.sequence.pad_sequences(sequence, maxlen=self.max_len, padding='post')
-            preds = self.model.predict([image, token_list], verbose=0)
-            next_word_token = np.argmax(preds, axis=-1)[0]
-            # End loop if EOS token is predicted
-            if next_word_token == self.tokenizer.word_index['[end]']:
-                break
-            # Append predicted word token to the sequence
-            sequence[0].append(next_word_token)
+    # initialize tensorboard if requested    
+    if configuration["training"]["USE_TENSORBOARD"]:
+        logger.debug('Using tensorboard during training')
+        log_path = os.path.join(checkpoint_path, 'tensorboard')
+        callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))  
 
-        # Decode the sequence to text, then cleanup and format the report
-        cleaned_caption = [token.replace("##", "") if token.startswith("##") 
-                           else f" {token}" for token in sequence 
-                           if token not in ['[CLS]', '[SEP]']]
-        caption = ''.join(cleaned_caption)              
-     
-        return caption
+    # Add a checkpoint saving callback
+    if configuration["training"]["SAVE_CHECKPOINTS"]:
+        logger.debug('Adding checkpoint saving callback')
+        checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint.h5')
+        callbacks_list.append(keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,
+                                                              save_weights_only=False,  
+                                                              monitor='val_loss',       
+                                                              save_best_only=True,      
+                                                              mode='auto',              
+                                                              verbose=1))
+
+    return callbacks_list
