@@ -1,8 +1,7 @@
-import os
 import torch
 import keras
 
-from XREPORT.commons.utils.learning.callbacks import RealTimeHistory, LoggingCallback
+from XREPORT.commons.utils.learning.callbacks import callbacks_handler
 from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -40,7 +39,7 @@ class ModelTraining:
 
     #--------------------------------------------------------------------------
     def train_model(self, model : keras.Model, train_data, validation_data, 
-                    current_checkpoint_path, from_checkpoint=False):
+                    checkpoint_path, from_checkpoint=False):
         
         # initialize model serializer
         serializer = ModelSerializer()  
@@ -53,21 +52,12 @@ class ModelTraining:
             from_epoch = 0
             history = None
         else:
-            _, history = serializer.load_session_configuration(current_checkpoint_path)                     
+            _, history = serializer.load_session_configuration(checkpoint_path)                     
             epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
             from_epoch = history['total_epochs']
         
-        # add logger callback for the training session
-        RTH_callback = RealTimeHistory(current_checkpoint_path, past_logs=history)
-        logger_callback = LoggingCallback()
         # add all callbacks to the callback list
-        callbacks_list = [RTH_callback, logger_callback]
-
-        # initialize tensorboard if requested    
-        if CONFIG["training"]["USE_TENSORBOARD"]:
-            logger.debug('Using tensorboard during training')
-            log_path = os.path.join(current_checkpoint_path, 'tensorboard')
-            callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))        
+        RTH_callback, callbacks_list = callbacks_handler(self.configuration, checkpoint_path, history)            
         
         # run model fit using keras API method
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
@@ -78,9 +68,8 @@ class ModelTraining:
                    'val_history' : RTH_callback.val_history,
                    'total_epochs' : epochs}
         
-        serializer.save_pretrained_model(model, current_checkpoint_path)       
-        serializer.save_session_configuration(current_checkpoint_path, 
-                                              history, self.configuration)
+        serializer.save_pretrained_model(model, checkpoint_path)       
+        serializer.save_session_configuration(checkpoint_path, history, self.configuration)
 
 
     
