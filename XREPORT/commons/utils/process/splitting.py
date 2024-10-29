@@ -7,10 +7,10 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class DatasetSplit:
 
-    def __init__(self, dataframe: pd.DataFrame):
+    def __init__(self, configuration, dataframe: pd.DataFrame):
 
         # Set the sizes for the train and validation datasets        
-        self.validation_size = CONFIG["dataset"]["VALIDATION_SIZE"]
+        self.validation_size = configuration["dataset"]["VALIDATION_SIZE"]
         self.train_size = 1.0 - self.validation_size
         self.dataframe = dataframe.reset_index(drop=True)  
 

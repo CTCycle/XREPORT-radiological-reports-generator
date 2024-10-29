@@ -9,11 +9,13 @@ Further information are available in the `docs` folder (to be added).
 ## 2. XREPORT model
 The XREPORT model is based on a transformer encoder-decoder architecture. Three stacked encoders with multi-head self-attention and feedforward networks are used downstream to the convolutional image encoder network to generate vectors with extracted x-ray scan features. The X-RAY scans are processed and reduced in dimensionality using a series of convolutional layers followed by max-pooling operations. These image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs, to determine most important features in the images associated with specific words in the text. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
+![transformer architecture encoder](docs/transformers.png)
+General transformer model architecture
+
 **Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user’s choice.
 
 The selected tokenizer splits the input text into subword units (tokens) and transforms these into vectors. The tokenizer model is automatically downloaded and cached in the training/TOKENIZERS directory on the first run, with the weights being reused for future training sessions. For word embedding, the XREPORT model couples token embeddings with positional embeddings, allowing it to encode the relative positions of tokens within sequences. Additionally, the model supports masking for variable-length sequences, ensuring adaptability to text inputs of different lengths. This flexibility allows seamless processing of diverse textual data while maintaining accurate and meaningful representations.
 
-**XREP transformers:** the body of the model comprises a series of transformer encoders/decoders. The transformer encoder employs multi-head self-attention and feedforward networks to further process the encoded images. These transformed image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
 ## 3. Installation
 The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run `XREPORT.bat`. On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, you will need to install it manually. You can download and install Miniconda by following the instructions here: (https://docs.anaconda.com/miniconda/).
@@ -68,7 +70,13 @@ This folder is used to organize data and results for various stages of the proje
 - **validation:** Used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 ## 5. Configurations
-For customization, you can modify the main configuration parameters using `settings/app_configurations.json` 
+For customization, you can modify the main configuration parameters using `settings/app_configurations.json`. 
+
+#### General Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| SEED               | Global seed for all numerical operations                 |
 
 ### Dataset Configuration
 
@@ -91,7 +99,9 @@ For customization, you can modify the main configuration parameters using `setti
 | NUM_HEADS          | Number of attention heads                                | 
 | NUM_ENCODERS       | Number of encoder layers                                 |
 | NUM_DECODERS       | Number of decoder layers                                 |
-| SAVE_MODEL_PLOT    | Whether to save a plot of the model architecture         |
+| JIT_COMPILE        | Apply Just-In_time (JIT) compiler for model optimization |
+| JIT_BACKEND        | Just-In_time (JIT) backend                               |
+
 
 #### Device Configuration
 
@@ -107,10 +117,11 @@ For customization, you can modify the main configuration parameters using `setti
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
 | EPOCHS             | Number of epochs to train the model                      |
+| ADDITIONAL EPOCHS  | Number of epochs to train the model from checkpoint      |
 | LEARNING_RATE      | Learning rate for the optimizer                          |
 | BATCH_SIZE         | Number of samples per batch                              |
 | USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
-| COMPILE        | Use Just In Time (JIT) compiler                          |
+| SAVE_CHECKPOINTS   | Save checkpoints during training (at each epoch)         |
 | PLOT_EPOCH_GAP     | Epochs skipped between each point of the training plot   |       
 
 ### Evaluation Configuration

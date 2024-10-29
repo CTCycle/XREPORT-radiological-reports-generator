@@ -48,13 +48,14 @@ class AddNorm(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='FeedForward')
 class FeedForward(keras.layers.Layer):
-    def __init__(self, dense_units, dropout, **kwargs):
+    def __init__(self, dense_units, dropout, seed, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
         self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
-        self.dropout = layers.Dropout(rate=dropout, seed=CONFIG["SEED"])
+        self.dropout = layers.Dropout(rate=dropout, seed=seed)
+        self.seed = seed
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -75,7 +76,7 @@ class FeedForward(keras.layers.Layer):
         config = super(FeedForward, self).get_config()
         config.update({'dense_units' : self.dense_units,
                        'dropout_rate' : self.dropout_rate,
-                       'seed' : CONFIG["SEED"]})
+                       'seed' : self.seed})
         return config
 
     # deserialization method 
@@ -131,15 +132,16 @@ class SoftMaxClassifier(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='TransformerEncoder')
 class TransformerEncoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, num_heads, **kwargs):
+    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
-        self.num_heads = num_heads                 
+        self.num_heads = num_heads 
+        self.seed = seed                
         self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                    key_dim=self.embedding_dims)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2)    
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)    
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -170,7 +172,8 @@ class TransformerEncoder(keras.layers.Layer):
     def get_config(self):
         config = super(TransformerEncoder, self).get_config()
         config.update({'embedding_dims': self.embedding_dims,
-                       'num_heads': self.num_heads})
+                       'num_heads': self.num_heads,
+                       'seed' : self.seed})
         return config
 
     # deserialization method 
@@ -184,10 +187,11 @@ class TransformerEncoder(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Decoders', name='TransformerDecoder')
 class TransformerDecoder(keras.layers.Layer):
-    def __init__(self, embedding_dims, num_heads, **kwargs):
+    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerDecoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
-        self.num_heads = num_heads                         
+        self.num_heads = num_heads  
+        self.seed = seed                       
         self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                         key_dim=self.embedding_dims, 
                                                         dropout=0.2)
@@ -197,7 +201,7 @@ class TransformerDecoder(keras.layers.Layer):
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2)            
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)            
         self.supports_masking = True 
 
     # build method for the custom layer 
@@ -257,7 +261,8 @@ class TransformerDecoder(keras.layers.Layer):
     def get_config(self):
         config = super(TransformerDecoder, self).get_config()
         config.update({'embedding_dims': self.embedding_dims,                       
-                       'num_heads': self.num_heads})
+                       'num_heads': self.num_heads,
+                       'seed' : self.seed})
         return config
 
     # deserialization method 

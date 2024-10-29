@@ -11,20 +11,17 @@ from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
-
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
 ###############################################################################
 class TextGenerator:
 
     def __init__(self, model : keras.Model, configuration):        
 
-        np.random.seed(configuration["SEED"])
-        torch.manual_seed(configuration["SEED"])
-        tf.random.set_seed(configuration["SEED"])
+        
         self.img_paths = get_images_path(GENERATION_INPUT_PATH)
         self.img_shape = configuration["model"]["IMG_SHAPE"]
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]    
-        self.dataserializer = DataSerializer()      
+        self.dataserializer = DataSerializer(configuration)      
         self.model = model 
         self.configuration = configuration 
 

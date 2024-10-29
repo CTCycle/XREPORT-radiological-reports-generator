@@ -1,14 +1,14 @@
-from keras.api.process import sequence
+from keras.api.preprocessing import sequence
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
  
 ###############################################################################
-def sequence_padding(sequences, pad_length, output='array'):
+def PQ_series_padding(sequences, pad_length, output='array'):
 
     '''
-    sequence_padding(sequences, pad_value, pad_length, output='array')
+    PQ_series_padding(sequences, pad_value, pad_length, output='array')
 
     Pads a list of sequences to a specified length with a specified value.
 

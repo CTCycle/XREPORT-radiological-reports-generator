@@ -70,28 +70,21 @@ def get_images_path(path):
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self):        
+    def __init__(self, configuration):        
         self.color_encoding = cv2.COLOR_BGR2RGB
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"]
-        self.resized_img_shape = self.img_shape[:-1]
-        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]           
+        self.img_shape = configuration["model"]["IMG_SHAPE"]        
+        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
+        self.img_shape = self.img_shape[:-1] 
+        self.configuration = configuration          
     
     #--------------------------------------------------------------------------
-    def load_image(self, path, as_tensor=True):               
+    def load_image(self, path):               
         
-        if as_tensor:
-            image = tf.io.read_file(path)
-            image = tf.image.decode_image(image, channels=3)
-            image = tf.image.resize(image, self.resized_img_shape)
-            image = tf.reverse(image, axis=[-1])
-            if self.normalization:
-                image = image/255.0              
-        else:
-            image = cv2.imread(path)             
-            image = cv2.resize(image, self.resized_img_shape)            
-            image = cv2.cvtColor(image, self.color_encoding) 
-            if self.normalization:
-                image = image/255.0           
+        image = cv2.imread(path)             
+        image = cv2.resize(image, self.img_shape)            
+        image = cv2.cvtColor(image, self.color_encoding) 
+        if self.normalization:
+            image = image/255.0           
 
         return image
 
@@ -100,10 +93,10 @@ class DataSerializer:
     def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
                                vocabulary_size=None): 
 
-        processing_info = {'sample_size' : CONFIG["dataset"]["SAMPLE_SIZE"],
-                           'train_size' : 1.0 - CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'validation_size' : CONFIG["dataset"]["VALIDATION_SIZE"],
-                           'max_sequence_size' : CONFIG["dataset"]["MAX_REPORT_SIZE"],
+        processing_info = {'sample_size' : self.configuration["dataset"]["SAMPLE_SIZE"],
+                           'train_size' : 1.0 - self.configuration["dataset"]["VALIDATION_SIZE"],
+                           'validation_size' : self.configuration["dataset"]["VALIDATION_SIZE"],
+                           'max_sequence_size' : self.configuration["dataset"]["MAX_REPORT_SIZE"],
                            'vocabulary_size' : vocabulary_size,                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
 
@@ -154,25 +147,14 @@ class ModelSerializer:
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
     def create_checkpoint_folder(self):
-
-        '''
-        Creates a folder with the current date and time to save the model.
-
-        Keyword arguments:
-            None
-
-        Returns:
-            str: A string containing the path of the folder where the model will be saved.
-        
-        '''        
+              
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
         checkpoint_folder_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_folder_path, exist_ok=True)        
         os.makedirs(os.path.join(checkpoint_folder_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_folder_path}')
         
-        return checkpoint_folder_path 
-    
+        return checkpoint_folder_path    
 
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
@@ -195,20 +177,7 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def save_session_configuration(self, path, history : dict, configurations : dict):
-
-        '''
-        Saves the model parameters to a JSON file. The parameters are provided 
-        as a dictionary and are written to a file named 'model_parameters.json' 
-        in the specified directory.
-
-        Keyword arguments:
-            parameters_dict (dict): A dictionary containing the parameters to be saved.
-            path (str): The directory path where the parameters will be saved.
-
-        Returns:
-            None  
-
-        '''
+        
         config_folder = os.path.join(path, 'configurations')
         os.makedirs(config_folder, exist_ok=True)
 
@@ -262,35 +231,16 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):
-
-        if CONFIG["model"]["SAVE_MODEL_PLOT"]:
-            logger.debug('Generating model architecture graph')
-            plot_path = os.path.join(path, 'model_layout.png')       
-            keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
-                       show_layer_names=True, show_layer_activations=True, 
-                       expand_nested=True, rankdir='TB', dpi=400)
+       
+        logger.debug('Generating model architecture graph')
+        plot_path = os.path.join(path, 'model_layout.png')       
+        keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
+                    show_layer_names=True, show_layer_activations=True, 
+                    expand_nested=True, rankdir='TB', dpi=400)
             
     #-------------------------------------------------------------------------- 
     def load_pretrained_model(self): 
 
-        '''
-        Load a pretrained Keras model from the specified directory. If multiple model 
-        directories are found, the user is prompted to select one. If only one model 
-        directory is found, that model is loaded directly. If a 'model_parameters.json' 
-        file is present in the selected directory, the function also loads the model 
-        parameters.
-
-        Keyword arguments:
-            path (str): The directory path where the pretrained models are stored.
-            load_parameters (bool, optional): If True, the function also loads the 
-                                            model parameters from a JSON file. 
-                                            Default is True.
-
-        Returns:
-            model (keras.Model): The loaded Keras model.
-            configuration (dict): The loaded model parameters, or None if the parameters file is not found.
-
-        '''  
         # look into checkpoint folder to get pretrained model names      
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):

@@ -23,11 +23,9 @@ if __name__ == '__main__':
 
     # 1. [LOAD PRETRAINED MODEL]
     #--------------------------------------------------------------------------    
-    dataserializer = DataSerializer()   
-    modelserializer = ModelSerializer()     
-    
     # selected and load the pretrained model, then print the summary     
-    logger.info('Loading specific checkpoint from pretrained models')   
+    logger.info('Loading specific checkpoint from pretrained models') 
+    modelserializer = ModelSerializer()      
     model, configuration, history = modelserializer.load_pretrained_model()
     model_folder = modelserializer.loaded_model_folder
     model.summary(expand_nested=True)  
@@ -43,11 +41,12 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')
     pp_data_path = os.path.join(model_folder, 'data') 
+    dataserializer = DataSerializer(configuration) 
     train_data, validation_data, metadata = dataserializer.load_preprocessed_data(pp_data_path)
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data)
+    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data, configuration)
     
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
@@ -56,7 +55,7 @@ if __name__ == '__main__':
     # use the bash command: python -m tensorboard.main --logdir tensorboard/ 
     #--------------------------------------------------------------------------
     vocabulary_size = metadata['vocabulary_size']
-    log_training_report(train_data, validation_data, CONFIG, 
+    log_training_report(train_data, validation_data, configuration, 
                         additional_epochs=CONFIG['TRAINING']['ADDITIONAL_EPOCHS'],
                         vocabulary_size=vocabulary_size)    
 

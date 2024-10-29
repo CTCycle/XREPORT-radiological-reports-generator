@@ -15,26 +15,28 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class XREPORTModel: 
 
-    def __init__(self, vocabulary_size): 
+    def __init__(self, vocabulary_size, configuration): 
         self.vocabulary_size = vocabulary_size
-        self.sequence_length = CONFIG["dataset"]["MAX_REPORT_SIZE"] - 1 
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"] 
-        self.embedding_dims = CONFIG["model"]["EMBEDDING_DIMS"] 
-        self.num_heads = CONFIG["model"]["NUM_HEADS"]  
-        self.num_encoders = CONFIG["model"]["NUM_ENCODERS"]   
-        self.num_decoders = CONFIG["model"]["NUM_DECODERS"]
-        self.jit_compile = CONFIG["model"]["JIT_COMPILE"]
-        self.jit_backend = CONFIG["model"]["JIT_BACKEND"]             
-        self.learning_rate = CONFIG["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
-        self.warmup_steps = CONFIG["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
+        self.seed = configuration["SEED"]
+        self.sequence_length = configuration["dataset"]["MAX_REPORT_SIZE"] - 1 
+        self.img_shape = configuration["model"]["IMG_SHAPE"] 
+        self.embedding_dims = configuration["model"]["EMBEDDING_DIMS"] 
+        self.num_heads = configuration["model"]["NUM_HEADS"]  
+        self.num_encoders = configuration["model"]["NUM_ENCODERS"]   
+        self.num_decoders = configuration["model"]["NUM_DECODERS"]
+        self.jit_compile = configuration["model"]["JIT_COMPILE"]
+        self.jit_backend = configuration["model"]["JIT_BACKEND"]             
+        self.learning_rate = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
+        self.warmup_steps = configuration["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
+        self.configuration = configuration
         
         # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')
          
         self.image_encoder = ImageEncoder()
-        self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads) for _ in range(self.num_encoders)]
-        self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads) for _ in range(self.num_decoders)]        
+        self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
+        self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_decoders)]        
         self.embeddings = PositionalEmbedding(self.vocabulary_size, self.embedding_dims, self.sequence_length) 
         self.classifier = SoftMaxClassifier(1024, self.vocabulary_size)                
 
