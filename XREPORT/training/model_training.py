@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # 1. [LOAD PREPROCESSED DATA]
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
-    dataserializer = DataSerializer()
+    dataserializer = DataSerializer(CONFIG)
     train_data, validation_data, metadata = dataserializer.load_preprocessed_data(ML_DATA_PATH)    
 
     # create subfolder for preprocessing data, move preprocessed data to the 
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data)
+    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data, CONFIG)
     vocabulary_size = len(tokenizer.vocab) + 1   
 
     # 3. [TRAINING MODEL]  
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     log_training_report(train_data, validation_data, CONFIG, vocabulary_size=vocabulary_size)
 
     # initialize and compile the captioning model    
-    captioner = XREPORTModel(vocabulary_size)
+    captioner = XREPORTModel(vocabulary_size, CONFIG)
     model = captioner.get_model(model_summary=True) 
 
     # generate graphviz plot fo the model layout       

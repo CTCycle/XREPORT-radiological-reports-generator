@@ -1,6 +1,6 @@
 import torch
 import keras
-from keras import activations, layers 
+from keras import layers 
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
