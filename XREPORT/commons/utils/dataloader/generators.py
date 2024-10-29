@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
@@ -12,12 +13,13 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class DataGenerator():
 
-    def __init__(self):        
+    def __init__(self, configuration):        
         
-        self.img_shape = CONFIG["model"]["IMG_SHAPE"]       
-        self.normalization = CONFIG["dataset"]["IMG_NORMALIZE"]
-        self.augmentation = CONFIG["dataset"]["IMG_AUGMENT"]  
-        self.batch_size = CONFIG["training"]["BATCH_SIZE"]  
+        self.img_shape = configuration["model"]["IMG_SHAPE"]       
+        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
+        self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  
+        self.batch_size = configuration["training"]["BATCH_SIZE"] 
+        self.configuration = configuration 
     
     # load and preprocess a single image
     #--------------------------------------------------------------------------
@@ -53,33 +55,38 @@ class DataGenerator():
               
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_tensor_dataset(self, paths, tokens, buffer_size=tf.data.AUTOTUNE):
+    def build_tensor_dataset(self, paths, tokens, batch_size=None, buffer_size=tf.data.AUTOTUNE):
 
-        num_samples = len(paths)         
-        dataset = tf.data.Dataset.from_tensor_slices((paths, tokens))
-        dataset = dataset.shuffle(buffer_size=num_samples)          
+        num_samples = len(paths)  
+        if batch_size is None:
+            batch_size = self.configuration["training"]["BATCH_SIZE"]
+
+        dataset = tf.data.Dataset.from_tensor_slices((paths, tokens))                 
         dataset = dataset.map(self.process_data, num_parallel_calls=buffer_size)        
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(buffer_size=buffer_size)
+        dataset = dataset.shuffle(buffer_size=num_samples) 
 
         return dataset
         
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-def training_data_pipeline(train_data, validation_data):    
+def training_data_pipeline(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
+                           configuration, batch_size=None):    
         
-        generator = DataGenerator()           
+    generator = DataGenerator(configuration) 
+    train_dataset = generator.build_tensor_dataset(train_data['path'].to_list(), 
+                                                    train_data['tokens'].to_list(),
+                                                    batch_size)
+    validation_dataset = generator.build_tensor_dataset(validation_data['path'].to_list(), 
+                                                        validation_data['tokens'].to_list(),
+                                                        batch_size)       
+    for (x1, x2), y in train_dataset.take(1):
+        logger.debug(f'X batch shape is: {x1.shape}')  
+        logger.debug(f'Y batch shape is: {y.shape}') 
 
-        train_dataset = generator.build_tensor_dataset(train_data['path'].to_list(), 
-                                                       train_data['tokens'].to_list())
-        validation_dataset = generator.build_tensor_dataset(validation_data['path'].to_list(), 
-                                                            validation_data['tokens'].to_list())        
-        for (x1, x2), y in train_dataset.take(1):
-            logger.debug(f'X batch shape is: {x1.shape}')  
-            logger.debug(f'Y batch shape is: {y.shape}') 
-
-        return train_dataset, validation_dataset
+    return train_dataset, validation_dataset
 
 
 

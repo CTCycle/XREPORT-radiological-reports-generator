@@ -12,11 +12,11 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class RealTimeHistory(keras.callbacks.Callback):    
         
-    def __init__(self, plot_path, past_logs=None, **kwargs):
+    def __init__(self, plot_path, configuration, past_logs=None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path 
         self.past_logs = past_logs       
-        self.plot_epoch_gap = CONFIG["training"]["PLOT_EPOCH_GAP"]
+        self.plot_epoch_gap = configuration["training"]["PLOT_EPOCH_GAP"]
                 
         # Initialize dictionaries to store history 
         self.history = {}
@@ -69,17 +69,17 @@ class RealTimeHistory(keras.callbacks.Callback):
 ###############################################################################
 # Define custom Keras callback for logging
 class LoggingCallback(keras.callbacks.Callback):
+
     def on_epoch_end(self, epoch, logs=None):
         if logs is not None:
             logger.debug(f"Epoch {epoch + 1}: {logs}")
-            
-
+        
     
 # add logger callback for the training session
 ###############################################################################
 def callbacks_handler(configuration, checkpoint_path, history):
 
-    RTH_callback = RealTimeHistory(checkpoint_path, past_logs=history)
+    RTH_callback = RealTimeHistory(checkpoint_path, configuration, past_logs=history)
     logger_callback = LoggingCallback()   
     callbacks_list = [RTH_callback, logger_callback]
 
@@ -92,7 +92,7 @@ def callbacks_handler(configuration, checkpoint_path, history):
     # Add a checkpoint saving callback
     if configuration["training"]["SAVE_CHECKPOINTS"]:
         logger.debug('Adding checkpoint saving callback')
-        checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint.h5')
+        checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint.keras')
         callbacks_list.append(keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,
                                                               save_weights_only=False,  
                                                               monitor='val_loss',       
@@ -100,4 +100,4 @@ def callbacks_handler(configuration, checkpoint_path, history):
                                                               mode='auto',              
                                                               verbose=1))
 
-    return callbacks_list
+    return RTH_callback, callbacks_list
