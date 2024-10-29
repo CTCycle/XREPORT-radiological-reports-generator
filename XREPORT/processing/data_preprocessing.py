@@ -21,28 +21,30 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 if __name__ == '__main__':
 
-    # 1. [LOAD MODEL]
+    # 1. [LOAD DATA]
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images     
     dataset = get_images_from_dataset(IMG_DATA_PATH)
-
-    # split data into train set and validation set
-    logger.info('Preparing dataset of images based on splitting size')  
-    splitter = DatasetSplit(dataset)     
-    train_data, validation_data = splitter.split_train_and_validation()       
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
     # using subwords and these are eventually mapped to integer indexes          
     tokenization = TokenWizard(CONFIG)    
-    train_data, validation_data = tokenization.tokenize_text_corpus(train_data, validation_data)
+    dataset = tokenization.tokenize_text_corpus(dataset)   
     vocabulary_size = tokenization.vocabulary_size
+
+    # 3. [SPLIT DATA]
+    #--------------------------------------------------------------------------
+    # split data into train set and validation set
+    logger.info('Preparing dataset of images based on splitting size')  
+    splitter = DatasetSplit(CONFIG, dataset)     
+    train_data, validation_data = splitter.split_train_and_validation()       
     
-    # 3. [SAVE PREPROCESSED DATA]
+    # 4. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
     # save preprocessed data using data serializer
-    dataserializer = DataSerializer()
+    dataserializer = DataSerializer(CONFIG)
     dataserializer.save_preprocessed_data(train_data, validation_data, vocabulary_size)
     
 

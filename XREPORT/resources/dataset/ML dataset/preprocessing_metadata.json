@@ -1,7 +1,8 @@
 {
-    "sample_size": 0.5,
+    "sample_size": 0.8,
     "train_size": 0.8,
     "validation_size": 0.2,
     "max_sequence_size": 160,
-    "date": "2024-10-17"
+    "vocabulary_size": 30522,
+    "date": "2024-10-30"
 }
