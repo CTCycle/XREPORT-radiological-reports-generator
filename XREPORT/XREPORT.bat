@@ -95,13 +95,13 @@ if /i "%skip_CUDA_check%"=="true" (
 :main_menu
 echo.
 echo =======================================
-echo           XREPORT AutoEncoder
+echo                 XREPORT
 echo =======================================
-echo 1. Data analysis
-echo 2. Data preprocessing
+echo 1. Dataset analysis
+echo 2. Preprocess dataset
 echo 3. Model training and evaluation
 echo 4. Generate radiological reports
-echo 5. XREPORT setup
+echo 5. App setup & maintenance
 echo 6. Exit and close
 echo.
 set /p choice="Select an option (1-6): "
@@ -122,7 +122,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\data_validation.ipynb"
+start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\dataset_validation.ipynb"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -130,7 +130,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :processing
 cls
-call conda activate %env_name% && python .\preprocessing\data_preprocessing.py
+call conda activate %env_name% && python .\preprocessing\dataset_preprocessing.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -198,7 +198,7 @@ cls
 echo =======================================
 echo             XREPORT setup
 echo =======================================
-echo 1. Install project dependencies
+echo 1. Install project into environment
 echo 2. Remove logs
 echo 3. Back to main menu
 echo.
