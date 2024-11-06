@@ -3,6 +3,9 @@ import keras
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import webbrowser
+import subprocess
+import time
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -41,9 +44,7 @@ class RealTimeHistory(keras.callbacks.Callback):
                     self.history[key] = []
                 self.history[key].append(value)
         
-        # Update plots if necessary
-        if epoch % self.plot_epoch_gap == 0:
-            self.plot_training_history()
+        self.plot_training_history()
 
     #--------------------------------------------------------------------------
     def plot_training_history(self):
@@ -75,7 +76,7 @@ class LoggingCallback(keras.callbacks.Callback):
             logger.debug(f"Epoch {epoch + 1}: {logs}")
         
     
-# add logger callback for the training session
+# [CALLBACKS HANDLER]
 ###############################################################################
 def callbacks_handler(configuration, checkpoint_path, history):
 
@@ -88,6 +89,7 @@ def callbacks_handler(configuration, checkpoint_path, history):
         logger.debug('Using tensorboard during training')
         log_path = os.path.join(checkpoint_path, 'tensorboard')
         callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))  
+        start_tensorboard(log_path) 
 
     # Add a checkpoint saving callback
     if configuration["training"]["SAVE_CHECKPOINTS"]:
@@ -101,3 +103,13 @@ def callbacks_handler(configuration, checkpoint_path, history):
                                                               verbose=1))
 
     return RTH_callback, callbacks_list
+
+
+###############################################################################
+def start_tensorboard(log_dir):
+    
+    tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
+    subprocess.Popen(tensorboard_command)       
+    time.sleep(1)            
+    webbrowser.open("http://localhost:6006")       
+        
