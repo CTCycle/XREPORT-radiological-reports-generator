@@ -109,7 +109,7 @@ def callbacks_handler(configuration, checkpoint_path, history):
 def start_tensorboard(log_dir):
     
     tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
-    subprocess.Popen(tensorboard_command)       
-    time.sleep(1)            
-    webbrowser.open("http://localhost:6006")       
+    subprocess.Popen(tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)      
+    time.sleep(4)            
+    webbrowser.open("http://localhost:6006")    
         
