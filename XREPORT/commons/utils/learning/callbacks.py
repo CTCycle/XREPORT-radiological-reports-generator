@@ -19,7 +19,7 @@ class RealTimeHistory(keras.callbacks.Callback):
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path 
         self.past_logs = past_logs       
-        self.plot_epoch_gap = configuration["training"]["PLOT_EPOCH_GAP"]
+        
                 
         # Initialize dictionaries to store history 
         self.history = {}
