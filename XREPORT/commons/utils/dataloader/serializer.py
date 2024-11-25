@@ -17,6 +17,30 @@ from XREPORT.commons.constants import (CONFIG, DATA_PATH, ML_DATA_PATH, DATASET_
 from XREPORT.commons.logger import logger
 
 
+
+###############################################################################
+def checkpoint_selection_menu(models_list):
+
+    index_list = [idx + 1 for idx, item in enumerate(models_list)]     
+    print('Currently available pretrained models:')             
+    for i, directory in enumerate(models_list):
+        print(f'{i + 1} - {directory}')                         
+    while True:
+        try:
+            selection_index = int(input('\nSelect the pretrained model: '))
+            print()
+        except ValueError:
+            logger.error('Invalid choice for the pretrained model, asking again')
+            continue
+        if selection_index in index_list:
+            break
+        else:
+            logger.warning('Model does not exist, please select a valid index')
+
+    return selection_index
+
+
+
 # get images from the paths specified in a pandas dataframe 
 ###############################################################################
 def get_images_from_dataset(path, sample_size=None):     
@@ -48,7 +72,6 @@ def get_images_from_dataset(path, sample_size=None):
 # get the path of multiple images from a given directory
 ###############################################################################
 def get_images_path(path):
-
     
     # check report folder and generate list of images paths    
     if not os.listdir(path):
@@ -71,24 +94,26 @@ def get_images_path(path):
 class DataSerializer:
 
     def __init__(self, configuration):        
-        self.color_encoding = cv2.COLOR_BGR2RGB
-        self.img_shape = configuration["model"]["IMG_SHAPE"]        
+        
+        self.img_shape = configuration["model"]["IMG_SHAPE"] 
+        self.num_channels = self.img_shape[-1]        
         self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
-        self.img_shape = self.img_shape[:-1] 
+        
+        self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.configuration = configuration          
     
     #--------------------------------------------------------------------------
-    def load_image(self, path):               
+    def load_image(self, path):             
         
-        image = cv2.imread(path)             
-        image = cv2.resize(image, self.img_shape)            
-        image = cv2.cvtColor(image, self.color_encoding) 
+        image = cv2.imread(path)          
+        image = cv2.cvtColor(image, self.color_encoding)
+        image = cv2.resize(image, self.img_shape[:-1])        
+        image = np.asarray(image, dtype=np.float32)
         if self.normalization:
-            image = image/255.0           
+            image = image / 255.0       
 
         return image
 
-    # ...
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
                                vocabulary_size=None): 
@@ -116,7 +141,6 @@ class DataSerializer:
             json.dump(processing_info, file, indent=4) 
             logger.debug('Preprocessing info:\n%s', file)
 
-    # ...
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self, path):
 
@@ -214,7 +238,16 @@ class ModelSerializer:
         with open(history_path, 'w') as f:
             json.dump(existing_history, f)
 
-        logger.debug(f'Model configuration and session history have been saved and merged at {path}')      
+        logger.debug(f'Model configuration and session history have been saved and merged at {path}') 
+
+    #-------------------------------------------------------------------------- 
+    def scan_checkpoints_folder(self):
+        model_folders = []
+        for entry in os.scandir(CHECKPOINT_PATH):
+            if entry.is_dir():
+                model_folders.append(entry.name)
+        
+        return model_folders      
 
     #--------------------------------------------------------------------------
     def load_session_configuration(self, path): 
@@ -237,15 +270,26 @@ class ModelSerializer:
         keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
                     expand_nested=True, rankdir='TB', dpi=400)
+        
+    #--------------------------------------------------------------------------
+    def load_checkpoint(self, checkpoint_name):
+
+        # Set dictionary of custom objects     
+        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
+                          'MaskedAccuracy': MaskedAccuracy, 
+                          'LRScheduler': LRScheduler}        
+
+        model_folder_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
+        model_path = os.path.join(model_folder_path, 'saved_model.keras') 
+        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
+        
+        return model
             
     #-------------------------------------------------------------------------- 
-    def load_pretrained_model(self): 
+    def select_and_load_checkpoint(self): 
 
         # look into checkpoint folder to get pretrained model names      
-        model_folders = []
-        for entry in os.scandir(CHECKPOINT_PATH):
-            if entry.is_dir():
-                model_folders.append(entry.name)
+        model_folders = self.scan_checkpoints_folder()
 
         # quit the script if no pretrained models are found 
         if len(model_folders) == 0:
@@ -254,44 +298,25 @@ class ModelSerializer:
 
         # select model if multiple checkpoints are available
         if len(model_folders) > 1:
-            model_folders.sort()
-            index_list = [idx + 1 for idx, item in enumerate(model_folders)]     
-            print('Currently available pretrained models:')             
-            for i, directory in enumerate(model_folders):
-                print(f'{i + 1} - {directory}')                         
-            while True:
-                try:
-                    dir_index = int(input('\nSelect the pretrained model: '))
-                    print()
-                except ValueError:
-                    logger.error('Invalid choice for the pretrained model, asking again')
-                    continue
-                if dir_index in index_list:
-                    break
-                else:
-                    logger.warning('Model does not exist, please select a valid index')
-                    
-            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[dir_index - 1])
+            selection_index = checkpoint_selection_menu(model_folders)                    
+            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[selection_index-1])
 
         # load directly the pretrained model if only one is available 
         elif len(model_folders) == 1:
-            logger.info('Loading pretrained model directly as only one is available')
-            self.loaded_model_folder = os.path.join(CHECKPOINT_PATH, model_folders[0])                 
-            
+            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[0])
+            logger.info(f'Since only checkpoint {os.path.basename(checkpoint_path)} is available, it will be loaded directly')
+                   
         # Set dictionary of custom objects     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
                           'LRScheduler': LRScheduler}          
         
         # effectively load the model using keras builtin method
-        # Load the model with the custom objects 
-        model_path = os.path.join(self.loaded_model_folder, 'saved_model.keras')         
-        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
-
         # load configuration data from .json file in checkpoint folder
-        configuration, history = self.load_session_configuration(self.loaded_model_folder)          
+        model = self.load_checkpoint(checkpoint_path)       
+        configuration, history = self.load_session_configuration(checkpoint_path)           
             
-        return model, configuration, history
+        return model, configuration, history, checkpoint_path
 
              
     

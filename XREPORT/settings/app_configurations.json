@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.8,
+    "dataset": {"SAMPLE_SIZE" : 0.1,
                 "VALIDATION_SIZE" : 0.2,                
                 "IMG_NORMALIZE" : true,
                 "IMG_AUGMENT" : false,
@@ -15,7 +15,7 @@
                "NUM_ENCODERS" : 4,    
                "NUM_DECODERS" : 4,    
                "EMBEDDING_DIMS" : 256,               
-               "JIT_COMPILE" : false,
+               "JIT_COMPILE" : true,
                "JIT_BACKEND" : "inductor"},
 
     "device" : {"DEVICE" : "GPU",
@@ -23,16 +23,17 @@
                 "MIXED_PRECISION" : false,                           
                 "NUM_PROCESSORS": 6},
 
-    "training" : {"EPOCHS" : 20,
+    "training" : {"EPOCHS" : 1,
                   "ADDITIONAL_EPOCHS" : 20,
                   "LEARNING_RATE" : 0.002,
-                  "BATCH_SIZE" : 20,                  
-                  "USE_TENSORBOARD" : true,  
+                  "BATCH_SIZE" : 15,                  
+                  "USE_TENSORBOARD" : false,  
                   "SAVE_CHECKPOINTS": false,  
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
-                                    "WARMUP_STEPS" : 10}},   
+                                    "WARMUP_STEPS" : 5}},   
                                     
-    "inference" : {"TEMPERATURE" : 1.0},
+    "inference" : {"TEMPERATURE" : 1.0,
+                   "GEN_METHOD" : "greedy"},
 
     "evaluation" : {"BATCH_SIZE" : 20}    
       
