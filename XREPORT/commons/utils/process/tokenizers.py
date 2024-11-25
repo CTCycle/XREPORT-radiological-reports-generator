@@ -5,6 +5,7 @@ from transformers import AutoTokenizer
 from XREPORT.commons.constants import CONFIG, TOKENIZERS_PATH
 from XREPORT.commons.logger import logger
 
+
 # [TOKENIZERS]
 ###############################################################################
 class PretrainedTokenizers:
