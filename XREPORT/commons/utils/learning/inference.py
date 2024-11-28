@@ -50,9 +50,24 @@ class TextGenerator:
         return tokenizer_parameters
     
     #--------------------------------------------------------------------------    
+    def merge_tokens(self, tokens : list[str]):
+
+        processed_tokens = []
+        for token in tokens:
+            if token.startswith("##"):                
+                processed_tokens[-1] += token[2:]
+            else:                
+                processed_tokens.append(token)
+        
+        joint_text = ' '.join(processed_tokens)
+        
+        return joint_text
+    
+    #--------------------------------------------------------------------------    
     def translate_tokens_to_text(self, index_lookup, sequence, tokenizer_config):
 
-        # Convert indices to tokens
+        # convert indexes to token using tokenizer vocabulary
+        # define special tokens and remove them from generated tokens list
         token_sequence = [index_lookup[idx.item()] for idx in sequence[0, :] 
                           if idx.item() in index_lookup and idx != 0]
         
@@ -61,8 +76,9 @@ class TextGenerator:
                           tokenizer_config["pad_token"]]                          
        
         text_tokens = [token for token in token_sequence if token not in special_tokens]
+        processed_text = self.merge_tokens(text_tokens)        
         
-        return text_tokens
+        return processed_text
     
     #--------------------------------------------------------------------------    
     def greed_search_generator(self, tokenizer_config, image_path):
@@ -84,18 +100,24 @@ class TextGenerator:
         seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
         seq_input[0, 0] = start_token_idx  
 
-        for i in tqdm(range(1, self.max_report_size)):                
+        progress_bar = tqdm(total=self.max_report_size - 1)
+        for i in range(1, self.max_report_size):         
             predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)                
             next_token_idx = keras.ops.argmax(predictions[0, i-1, :], axis=-1).item()
             next_token = index_lookup[next_token_idx]                
             # Stop if end token is generated
-            if next_token == end_token:
+            if next_token == end_token:                
+                
+                progress_bar.n = progress_bar.total  # Set current progress to total
+                progress_bar.last_print_n = progress_bar.total  # Update visual display
+                progress_bar.update(0)  # Force update
                 break
             
             seq_input[0, i] = next_token_idx
-
-        report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)
-                
+            progress_bar.update(1)
+            
+        progress_bar.close()
+        report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)                
         logger.info(report)
            
         return report    
