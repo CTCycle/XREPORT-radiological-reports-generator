@@ -26,8 +26,7 @@ if __name__ == '__main__':
     # selected and load the pretrained model, then print the summary     
     logger.info('Loading specific checkpoint from pretrained models') 
     modelserializer = ModelSerializer()      
-    model, configuration, history = modelserializer.select_and_load_checkpoint()
-    model_folder = modelserializer.loaded_model_folder
+    model, configuration, history, model_folder = modelserializer.select_and_load_checkpoint()    
     model.summary(expand_nested=True)  
     
     # setting device for training    
