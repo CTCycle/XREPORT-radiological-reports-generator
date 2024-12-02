@@ -93,8 +93,7 @@ def get_images_path(path):
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):        
-        
+    def __init__(self, configuration):       
         self.img_shape = configuration["model"]["IMG_SHAPE"] 
         self.num_channels = self.img_shape[-1]        
         self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
@@ -305,12 +304,7 @@ class ModelSerializer:
         elif len(model_folders) == 1:
             checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[0])
             logger.info(f'Since only checkpoint {os.path.basename(checkpoint_path)} is available, it will be loaded directly')
-                   
-        # Set dictionary of custom objects     
-        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
-                          'MaskedAccuracy': MaskedAccuracy, 
-                          'LRScheduler': LRScheduler}          
-        
+                          
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         model = self.load_checkpoint(checkpoint_path)       

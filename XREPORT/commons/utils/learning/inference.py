@@ -81,9 +81,8 @@ class TextGenerator:
         return processed_text
     
     #--------------------------------------------------------------------------    
-    def greed_search_generator(self, tokenizer_config, image_path):
-        
-        reports = {}
+    def greed_search_generator(self, tokenizer_config, image_path):        
+       
         vocabulary = self.tokenizer.get_vocab()
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]

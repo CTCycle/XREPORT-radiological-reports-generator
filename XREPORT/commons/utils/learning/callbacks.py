@@ -18,8 +18,7 @@ class RealTimeHistory(keras.callbacks.Callback):
     def __init__(self, plot_path, configuration, past_logs=None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path 
-        self.past_logs = past_logs       
-        
+        self.past_logs = past_logs        
                 
         # Initialize dictionaries to store history 
         self.history = {}
@@ -62,7 +61,7 @@ class RealTimeHistory(keras.callbacks.Callback):
             plt.xlabel('Epoch')
         
         plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)
+        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)        
         plt.close()
 
 
