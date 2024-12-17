@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # selected and load the pretrained model, then print the summary     
     logger.info('Loading specific checkpoint from pretrained models') 
     modelserializer = ModelSerializer()      
-    model, configuration, history, model_folder = modelserializer.select_and_load_checkpoint()    
+    model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()    
     model.summary(expand_nested=True)  
     
     # setting device for training    
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')
-    pp_data_path = os.path.join(model_folder, 'data') 
+    pp_data_path = os.path.join(checkpoint_path, 'data') 
     dataserializer = DataSerializer(configuration) 
     train_data, validation_data, metadata = dataserializer.load_preprocessed_data(pp_data_path)
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
                         vocabulary_size=vocabulary_size)    
 
     # resume training from pretrained model    
-    trainer.train_model(model, train_dataset, validation_dataset, model_folder,
+    trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
                         from_checkpoint=True)
 
 

@@ -31,8 +31,8 @@ if __name__ == '__main__':
     # create subfolder for preprocessing data, move preprocessed data to the 
     # checkpoint subfolder checkpoint/data   
     modelserializer = ModelSerializer()
-    model_folder_path = modelserializer.create_checkpoint_folder() 
-    modelserializer.store_data_in_checkpoint_folder(model_folder_path)   
+    checkpoint_path = modelserializer.create_checkpoint_folder() 
+    modelserializer.store_data_in_checkpoint_folder(checkpoint_path)   
 
     # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
@@ -62,10 +62,10 @@ if __name__ == '__main__':
     model = captioner.get_model(model_summary=True) 
 
     # generate graphviz plot fo the model layout       
-    modelserializer.save_model_plot(model, model_folder_path)              
+    modelserializer.save_model_plot(model, checkpoint_path)              
 
     # perform training and save model at the end
-    trainer.train_model(model, train_dataset, validation_dataset, model_folder_path)
+    trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path)
         
     
 
