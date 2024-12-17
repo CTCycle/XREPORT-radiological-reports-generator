@@ -6,7 +6,7 @@ XRAY Report Generator is a machine learning-based tool designed to assist radiol
 ## 2. XREPORT model
 The XREPORT model is based on a transformer encoder-decoder architecture. Three stacked encoders with multi-head self-attention and feedforward networks are used downstream to the convolutional image encoder network to generate vectors with extracted x-ray scan features. The X-RAY scans are processed and reduced in dimensionality using a series of convolutional layers followed by max-pooling operations. These image vectors are then fed into the transformer decoder, which applies cross-attention between encoder and decoder inputs, to determine most important features in the images associated with specific words in the text. To ensure coherent report generation, the model employs causal masking on token sequences during decoding. This auto-regressive mechanism guarantees that generated reports consider the context of previously generated tokens.
 
-![transformer architecture encoder](docs/transformers.png)
+![transformer architecture encoder](XREPORT/commons/assets/transformers.png)
 General transformer model architecture
 
 **Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user’s choice.
@@ -21,7 +21,7 @@ After setting up Anaconda/Miniconda, the installation script will install all th
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
-- Open the main menu, select "App setup & maintenance" and choose "Install project packages"
+- Open the main menu, select "App setup and maintenance" and choose "Install project packages"
 - Manually run the following commands in the terminal, ensuring the project folder is set as the current working directory (CWD):
 
     `conda activate XREPORT`
@@ -47,7 +47,7 @@ On Windows, run `XREPORT.bat` to launch the main navigation menu and browse thro
 
 **4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes `inference/report_generator.py`.
 
-**5) App setup & maintenance:** allows running some options command such as **Install project into environment** to run the developer model project installation, and **remove logs** to remove all logs saved in `resources/logs`. 
+**5) App setup and maintenance:** allows running some options command such as **Install project into environment** to run the developer model project installation, and **remove logs** to remove all logs saved in `resources/logs`. 
 
 **6) Exit and close** 
 

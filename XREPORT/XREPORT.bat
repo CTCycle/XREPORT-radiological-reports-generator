@@ -101,7 +101,7 @@ echo 1. Dataset analysis
 echo 2. Preprocess dataset
 echo 3. Model training and evaluation
 echo 4. Generate radiological reports
-echo 5. App setup & maintenance
+echo 5. App setup and maintenance
 echo 6. Exit and close
 echo.
 set /p choice="Select an option (1-6): "
