@@ -11,7 +11,7 @@ from XREPORT.commons.logger import logger
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
 ###############################################################################
-class DataGenerator():
+class DatasetGenerator():
 
     def __init__(self, configuration):        
         
@@ -55,7 +55,7 @@ class DataGenerator():
               
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_tensor_dataset(self, paths, tokens, batch_size=None, buffer_size=tf.data.AUTOTUNE):
+    def build_dataset_from_generator(self, paths, tokens, batch_size=None, buffer_size=tf.data.AUTOTUNE):
 
         num_samples = len(paths)  
         if batch_size is None:
@@ -72,14 +72,14 @@ class DataGenerator():
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-def training_data_pipeline(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
+def ML_model_dataloader(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
                            configuration, batch_size=None):    
         
-    generator = DataGenerator(configuration) 
-    train_dataset = generator.build_tensor_dataset(train_data['path'].to_list(), 
+    generator = DatasetGenerator(configuration) 
+    train_dataset = generator.build_dataset_from_generator(train_data['path'].to_list(), 
                                                     train_data['tokens'].to_list(),
                                                     batch_size)
-    validation_dataset = generator.build_tensor_dataset(validation_data['path'].to_list(), 
+    validation_dataset = generator.build_dataset_from_generator(validation_data['path'].to_list(), 
                                                         validation_data['tokens'].to_list(),
                                                         batch_size)       
     for (x1, x2), y in train_dataset.take(1):

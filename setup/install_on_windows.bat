@@ -1,22 +1,47 @@
 @echo off
+cd /d "%~dp0"
+
+set "env_name=XREPORT"
+set "project_name=XREPORT"
+set "env_path=.\environment\%env_name%"
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Precheck for conda source 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:conda_activation
+where conda >nul 2>&1
+if %ERRORLEVEL% neq 0 (   
+    call "%~dp0miniconda\Scripts\activate.bat" "%~dp0miniconda"       
+    goto :main_menu
+) 
 
 :: [CHECK CUSTOM ENVIRONMENTS] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Check if XREPORT environment is available or use custom environment
+:: Check if FEXT environment is available or use custom environment
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-call conda config --add channels conda-forge
-call conda info --envs | findstr "XREPORT"
-if %ERRORLEVEL%==0 (
-    echo XREPORT environment detected
-    call conda activate XREPORT
-    goto :dependencies
-) else (
-    echo XREPORT environment has not been found, it will now be created using python 3.11
-    echo Depending on your internet connection, this may take a while!
-    call conda create -n XREPORT python=3.11 -y
-    call conda activate XREPORT
-    goto :dependencies
+call conda activate "%env_path%" 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo %env_name% is being created (python version = 3.11)
+    call conda create --prefix "%env_path%" python=3.11 -y
+    call conda activate "%env_path%"
 )
+goto :check_git
+
+:: [INSTALL GIT] 
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: Install git using conda
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:check_git
+echo.
+echo Checking git installation
+git --version >nul 2>&1
+if errorlevel 1 (
+    echo Git not found. Installing git using conda...
+    call conda install -y git
+) else (
+    echo Git is already installed.
+)
+goto :dependencies
 
 :: [INSTALL DEPENDENCIES] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -26,10 +51,9 @@ if %ERRORLEVEL%==0 (
 echo.
 echo Install python libraries and packages
 call pip install torch==2.5.0+cu124 torchvision==0.20.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
-call pip install tensorflow-cpu==2.18.0 keras==3.7.0 transformers==4.45.2
-call pip install -U tensorboard-plugin-profile==2.18.0
-call pip install scikit-learn==1.6.0 matplotlib==3.9.0 opencv-python==4.10.0.84
-call pip install numpy==2.1.2 pandas==2.2.3 tqdm==4.66.4 
+call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp311-cp311-win_amd64.whl
+call pip install keras==3.7.0 transformers==4.45.2 scikit-learn==1.6.0 opencv-python==4.10.0.84
+call pip install matplotlib==3.9.2 numpy==2.1.0 pandas==2.2.3 tqdm==4.66.4 matplotlib==3.9.0
 call pip install jupyter==1.1.1
 
 :: [INSTALL TRITON] 
@@ -38,7 +62,7 @@ call pip install jupyter==1.1.1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Installing triton from windows wheel
 cd triton
-call pip install triton-3.0.0-cp311-cp311-win_amd64.whl
+call pip install triton-3.1.0-cp311-cp311-win_amd64.whl
 cd ..
 
 :: [INSTALLATION OF PYDOT/PYDOTPLUS]
@@ -54,7 +78,7 @@ call conda install pydotplus -y
 :: Install project in developer mode
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Install utils packages in editable mode
-call cd .. && pip install -e . --use-pep517 && cd XREPORT
+call cd .. && pip install -e . --use-pep517 && cd %project_name%
 
 :: [CLEAN CACHE] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -72,7 +96,6 @@ call pip cache purge
 echo.
 echo List of installed dependencies:
 call conda list
-
 echo.
-echo Installation complete. You can now run XREPORT on this system!
+echo Installation complete. You can now run %env_name% on this system!
 pause

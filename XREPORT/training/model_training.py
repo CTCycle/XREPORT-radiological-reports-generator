@@ -9,7 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.dataloader.generators import training_data_pipeline
+from XREPORT.commons.utils.dataloader.generators import ML_model_dataloader
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = training_data_pipeline(train_data, validation_data, CONFIG)
+    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data, CONFIG)
     vocabulary_size = len(tokenizer.vocab) + 1   
 
     # 3. [TRAINING MODEL]  

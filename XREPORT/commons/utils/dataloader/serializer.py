@@ -7,13 +7,10 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import keras
-import tensorflow as tf
-
 
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
-from XREPORT.commons.constants import (CONFIG, DATA_PATH, ML_DATA_PATH, DATASET_NAME, 
-                                       CHECKPOINT_PATH, GENERATION_INPUT_PATH)
+from XREPORT.commons.constants import CONFIG, DATA_PATH, ML_DATA_PATH, DATASET_NAME, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -96,18 +93,15 @@ class DataSerializer:
     def __init__(self, configuration):       
         self.img_shape = configuration["model"]["IMG_SHAPE"] 
         self.num_channels = self.img_shape[-1]        
-        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
-        
+        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]        
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.configuration = configuration          
     
     #--------------------------------------------------------------------------
-    def load_image(self, path):             
-        
+    def load_image(self, path):       
         image = cv2.imread(path)          
         image = cv2.cvtColor(image, self.color_encoding)
-        image = cv2.resize(image, self.img_shape[:-1])        
-        image = np.asarray(image, dtype=np.float32)
+        image = np.asarray(cv2.resize(image, self.img_shape[:-1]), dtype=np.float32)            
         if self.normalization:
             image = image / 255.0       
 
@@ -169,8 +163,7 @@ class ModelSerializer:
 
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
-    def create_checkpoint_folder(self):
-              
+    def create_checkpoint_folder(self):              
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
         checkpoint_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True)        
@@ -182,7 +175,6 @@ class ModelSerializer:
     # function to create a folder where to save model checkpoints
     #--------------------------------------------------------------------------
     def store_data_in_checkpoint_folder(self, checkpoint_folder):
-
         data_cp_path = os.path.join(checkpoint_folder, 'data') 
         for filename in os.listdir(ML_DATA_PATH):            
             if filename != '.gitkeep':
@@ -193,51 +185,26 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
-
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_session_configuration(self, path, history : dict, configurations : dict):
-        
+    def save_session_configuration(self, path, history : dict, configurations : dict):        
         config_folder = os.path.join(path, 'configurations')
-        os.makedirs(config_folder, exist_ok=True)
-
-        # Paths to the JSON files
+        os.makedirs(config_folder, exist_ok=True)        
         config_path = os.path.join(config_folder, 'configurations.json')
-        history_path = os.path.join(config_folder, 'session_history.json')
-
-        # Function to merge dictionaries
-        def merge_dicts(original, new_data):
-            for key, value in new_data.items():
-                if key in original:
-                    if isinstance(value, dict) and isinstance(original[key], dict):
-                        merge_dicts(original[key], value)
-                    elif isinstance(value, list) and isinstance(original[key], list):
-                        original[key].extend(value)
-                    else:
-                        original[key] = value
-                else:
-                    original[key] = value    
+        history_path = os.path.join(config_folder, 'session_history.json')        
 
         # Save the merged configurations
         with open(config_path, 'w') as f:
-            json.dump(configurations, f)
-
-        # Load existing session history if the file exists and merge
-        if os.path.exists(history_path):
-            with open(history_path, 'r') as f:
-                existing_history = json.load(f)
-            merge_dicts(existing_history, history)
-        else:
-            existing_history = history
+            json.dump(configurations, f)       
 
         # Save the merged session history
         with open(history_path, 'w') as f:
-            json.dump(existing_history, f)
+            json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history have been saved and merged at {path}') 
+        logger.debug(f'Model configuration and session history have been saved at {path}')
 
     #-------------------------------------------------------------------------- 
     def scan_checkpoints_folder(self):
@@ -250,7 +217,6 @@ class ModelSerializer:
 
     #--------------------------------------------------------------------------
     def load_session_configuration(self, path): 
-
         config_path = os.path.join(path, 'configurations', 'configurations.json')        
         with open(config_path, 'r') as f:
             configurations = json.load(f)        
@@ -262,8 +228,7 @@ class ModelSerializer:
         return configurations, history   
 
     #--------------------------------------------------------------------------
-    def save_model_plot(self, model, path):
-       
+    def save_model_plot(self, model, path):       
         logger.debug('Generating model architecture graph')
         plot_path = os.path.join(path, 'model_layout.png')       
         keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
@@ -272,7 +237,6 @@ class ModelSerializer:
         
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint_name):
-
         # Set dictionary of custom objects     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
@@ -286,7 +250,6 @@ class ModelSerializer:
             
     #-------------------------------------------------------------------------- 
     def select_and_load_checkpoint(self): 
-
         # look into checkpoint folder to get pretrained model names      
         model_folders = self.scan_checkpoints_folder()
 

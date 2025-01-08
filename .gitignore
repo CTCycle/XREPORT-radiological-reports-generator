@@ -5,6 +5,9 @@ XREPORT/resources/checkpoints/*
 XREPORT/resources/tokenizers/*
 XREPORT/resources/generation/radiography/*
 
+setup/environment/*
+setup/miniconda/*
+
 *.egg-info
 *.log
 *.csv
