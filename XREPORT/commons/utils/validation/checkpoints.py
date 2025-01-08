@@ -12,7 +12,7 @@ from XREPORT.commons.logger import logger
 
 # [LOAD MODEL]
 ################################################################################
-class ModelEvaluationWorkflow:
+class ModelEvaluationSummary:
 
     def __init__(self, remove_invalid=False):
         self.remove_invalid = remove_invalid
@@ -23,7 +23,7 @@ class ModelEvaluationWorkflow:
         model_paths = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():                
-                pretrained_model_path = os.path.join(entry.path, 'pretrained_model.keras')                
+                pretrained_model_path = os.path.join(entry.path, 'saved_model.keras')                
                 if os.path.isfile(pretrained_model_path):
                     model_paths.append(entry.path)
                 elif not os.path.isfile(pretrained_model_path) and self.remove_invalid:                    
