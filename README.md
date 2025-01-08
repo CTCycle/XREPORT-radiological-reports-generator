@@ -15,16 +15,14 @@ The selected tokenizer splits the input text into subword units (tokens) and tra
 
 
 ## 3. Installation
-The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run `XREPORT.bat`. On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, you will need to install it manually. You can download and install Miniconda by following the instructions here: https://docs.anaconda.com/miniconda/.
-
-After setting up Anaconda/Miniconda, the installation script will install all the necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.1) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing `setup/XREPORT_installer.bat`. You can also use a custom python environment by modifying `settings/launcher_configurations.ini` and setting use_custom_environment as true, while specifying the name of your custom environment.
+The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. After setting up Anaconda/Miniconda, the installation script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.1) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing *setup/install_on_windows.bat*.
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
-- Open the main menu, select "App setup and maintenance" and choose "Install project packages"
+- Open the main menu, select *Setup and maintentance* and choose *Install project in editable mode*
 - Manually run the following commands in the terminal, ensuring the project folder is set as the current working directory (CWD):
 
-    `conda activate XREPORT`
+    `conda activate FEXT`
 
     `pip install -e . --use-pep517` 
 
@@ -32,40 +30,40 @@ After setting up Anaconda/Miniconda, the installation script will install all th
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. For Windows users, a precompiled Triton wheel is bundled with the installation, ensuring seamless integration and performance improvements.
 
 ## 4. How to use
-On Windows, run `XREPORT.bat` to launch the main navigation menu and browse through the various options. Alternatively, you can run each file separately using `python path/filename.py` or `jupyter path/notebook.ipynb`. 
+On Windows, run *start_on_windows.bat* to launch the main navigation menu and browse through the various options.  Alternatively, each file can be executed individually by running *python path/filename.py* for Python scripts or *jupyter notebook path/notebook.ipynb* for Jupyter notebooks. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
 
 ### 4.1 Navigation menu
 
-**1) Data analysis:** runs `validation/data_validation.ipynb` to perform data validation using a series of metrics for the analysis of the dataset. 
+**1) Data analysis:** runs *validation/data_validation.ipynb* to perform data validation using a series of metrics for the analysis of the dataset. 
 
-**2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running `preprocessing/data_preprocessing.py`
+**2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running *preprocessing/data_preprocessing.py*
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
-- **train from scratch:** runs `training/model_training.py` to start training an instance of the XREPORT model from scratch using the available data and parameters. 
-- **train from checkpoint:** runs `training/train_from_checkpoint.py` to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
-- **model evaluation:** runs `validation/model_validation.ipynb` to evaluate the performance of pretrained model checkpoints using different metrics. 
+- **train from scratch:** runs *training/model_training.py* to start training an instance of the XREPORT model from scratch using the available data and parameters. 
+- **train from checkpoint:** runs *training/train_from_checkpoint.py* to start training a pretrained XREPORT checkpoint for an additional amount of epochs, using pretrained model settings and data.  
+- **model evaluation:** runs *validation/model_evaluation.ipynb* to evaluate the performance of pretrained model checkpoints using different metrics. 
 
-**4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes `inference/report_generator.py`.
+**4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes *inference/report_generator.py*.
 
-**5) App setup and maintenance:** allows running some options command such as **Install project into environment** to run the developer model project installation, and **remove logs** to remove all logs saved in `resources/logs`. 
+**5) Setup and Maintenance:** execute optional commands such as *Install project into environment* to run the developer model project installation, and **remove logs** to remove all logs saved in *resources/logs*.
 
-**6) Exit and close** 
+**6) Exit:** close the program immediately
 
 ### 4.2 Resources
 This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here are the key subfolders:
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **dataset:** contains images used to train the XREPORT model (`dataset/images`), as well as the file `XREPORT_dataset.csv` that should be provided for training purposes. This .csv file must contain two columns: `id` where the image names are given, and `text` where the associated text is saved. 
+- **dataset:** contains images used to train the XREPORT model (*dataset/images*), as well as the file *XREPORT_dataset.csv* that should be provided for training purposes. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. 
 
-- **generation:** contains `input_images` where you place images intended for inference using the pretrained XREPORT model, and `reports`. The generated radiological reports from input images are saved within this latter folder. 
+- **generation:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
 
 - **logs:** the application logs are saved within this folder
 
 - **validation:** Used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 ## 5. Configurations
-For customization, you can modify the main configuration parameters using `settings/app_configurations.json`. 
+For customization, you can modify the main configuration parameters using *settings/configurations.json*. 
 
 #### General Configuration
 
