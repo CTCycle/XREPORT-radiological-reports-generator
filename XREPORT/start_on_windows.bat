@@ -111,7 +111,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\dataset_validation.ipynb"
+start cmd /k "call conda activate --prefix %env_path% && jupyter notebook .\validation\dataset_validation.ipynb"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -119,7 +119,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :processing
 cls
-call conda activate %env_name% && python .\preprocessing\dataset_preprocessing.py
+call conda activate --prefix %env_path% && python .\preprocessing\dataset_preprocessing.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -127,7 +127,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :inference
 cls
-call conda activate %env_name% && python .\inference\report_generator.py
+call conda activate --prefix %env_path% && python .\inference\report_generator.py
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -158,7 +158,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :train_fs
 cls
-call conda activate %env_name% && python .\training\model_training.py
+call conda activate --prefix %env_path% && python .\training\model_training.py
 pause
 goto :ML_menu
 
@@ -167,7 +167,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :train_ckpt
 cls
-call conda activate %env_name% && python .\training\train_from_checkpoint.py
+call conda activate --prefix %env_path% && python .\training\train_from_checkpoint.py
 goto :ML_menu
 
 
@@ -176,7 +176,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :modeleval
 cls
-start cmd /k "call conda activate %env_name% && jupyter notebook .\validation\model_validation.ipynb"
+start cmd /k "call conda activate --prefix %env_path% && jupyter notebook .\validation\model_evaluation.ipynb"
 goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
