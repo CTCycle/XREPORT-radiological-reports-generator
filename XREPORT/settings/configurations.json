@@ -1,8 +1,7 @@
 {   
     "SEED" : 54,   
     "dataset": {"SAMPLE_SIZE" : 0.1,
-                "VALIDATION_SIZE" : 0.2,                
-                "IMG_NORMALIZE" : true,
+                "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENT" : false,
                 "MAX_REPORT_SIZE" : 160,                
                 "SPLIT_SEED" : 52,

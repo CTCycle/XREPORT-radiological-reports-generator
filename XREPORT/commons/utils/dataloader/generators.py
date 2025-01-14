@@ -15,21 +15,20 @@ class DatasetGenerator():
 
     def __init__(self, configuration):        
         
-        self.img_shape = configuration["model"]["IMG_SHAPE"]       
-        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]
+        self.img_shape = configuration["model"]["IMG_SHAPE"]        
         self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  
         self.batch_size = configuration["training"]["BATCH_SIZE"] 
         self.configuration = configuration 
     
     # load and preprocess a single image
     #--------------------------------------------------------------------------
-    def load_image(self, path):
+    def load_image(self, path, normalize=True):
         image = tf.io.read_file(path)
         rgb_image = tf.image.decode_image(image, channels=1, expand_animations=False)        
         rgb_image = tf.image.resize(rgb_image, self.img_shape[:-1])
         if self.augmentation:
             rgb_image = self.image_augmentation(rgb_image)
-        if self.normalization:
+        if normalize:
             rgb_image = rgb_image/255.0 
 
         return rgb_image 
@@ -38,7 +37,7 @@ class DatasetGenerator():
     #--------------------------------------------------------------------------
     def process_data(self, path, text): 
 
-        rgb_image = self.load_image(path) 
+        rgb_image = self.load_image(path, normalize=True) 
         input_text = text[:-1]
         output_text = text[1:]      
 
@@ -46,8 +45,7 @@ class DatasetGenerator():
 
     # define method perform data augmentation    
     #--------------------------------------------------------------------------
-    def image_augmentation(self, image):    
-
+    def image_augmentation(self, image):  
         image = tf.image.random_flip_left_right(image)
         image = tf.image.random_flip_up_down(image) 
 
