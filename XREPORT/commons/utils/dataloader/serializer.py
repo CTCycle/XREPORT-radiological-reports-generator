@@ -92,17 +92,16 @@ class DataSerializer:
 
     def __init__(self, configuration):       
         self.img_shape = configuration["model"]["IMG_SHAPE"] 
-        self.num_channels = self.img_shape[-1]        
-        self.normalization = configuration["dataset"]["IMG_NORMALIZE"]        
+        self.num_channels = self.img_shape[-1]                
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.configuration = configuration          
     
     #--------------------------------------------------------------------------
-    def load_image(self, path):       
+    def load_image(self, path, normalize=True):       
         image = cv2.imread(path)          
         image = cv2.cvtColor(image, self.color_encoding)
         image = np.asarray(cv2.resize(image, self.img_shape[:-1]), dtype=np.float32)            
-        if self.normalization:
+        if normalize:
             image = image / 255.0       
 
         return image
@@ -177,11 +176,10 @@ class ModelSerializer:
     def store_data_in_checkpoint_folder(self, checkpoint_folder):
         data_cp_path = os.path.join(checkpoint_folder, 'data') 
         for filename in os.listdir(ML_DATA_PATH):            
-            if filename != '.gitkeep':
-                file_path = os.path.join(ML_DATA_PATH, filename)                
-                if os.path.isfile(file_path):
-                    shutil.copy(file_path, data_cp_path)
-                    logger.debug(f'Successfully copied {filename} to {data_cp_path}')
+            file_path = os.path.join(ML_DATA_PATH, filename)
+            if filename != '.gitkeep' and os.path.isfile(file_path):
+                shutil.copy(file_path, data_cp_path)
+                logger.debug(f'Successfully copied {filename} to {data_cp_path}')
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
@@ -250,7 +248,7 @@ class ModelSerializer:
             
     #-------------------------------------------------------------------------- 
     def select_and_load_checkpoint(self): 
-        # look into checkpoint folder to get pretrained model names      
+        
         model_folders = self.scan_checkpoints_folder()
 
         # quit the script if no pretrained models are found 
