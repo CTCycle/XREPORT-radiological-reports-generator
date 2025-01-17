@@ -1,9 +1,12 @@
 @echo off
-cd /d "%~dp0"
+setlocal enabledelayedexpansion
 
+for /f "delims=" %%i in ("%~dp0..") do set "project_folder=%%~fi"
 set "env_name=XREPORT"
 set "project_name=XREPORT"
-set "env_path=.\environment\%env_name%"
+set "env_path=%project_folder%\setup\environment\%env_name%"
+set "conda_path=%project_folder%\setup\miniconda"
+set "setup_path=%project_folder%\setup"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Precheck for conda source 
@@ -11,17 +14,18 @@ set "env_path=.\environment\%env_name%"
 :conda_activation
 where conda >nul 2>&1
 if %ERRORLEVEL% neq 0 (   
-    call "%~dp0miniconda\Scripts\activate.bat" "%~dp0miniconda"       
-    goto :main_menu
-) 
+    call "%conda_path%\Scripts\activate.bat" "%conda_path%"     
+    goto :check_env
+)  
 
 :: [CHECK CUSTOM ENVIRONMENTS] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Check if FEXT environment is available or use custom environment
+:: Check if the Python environment is available or else install it
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-call conda activate "%env_path%" 2>nul
+:check_env
+call conda activate %env_path% 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo %env_name% is being created (python version = 3.11)
+    echo Python v3.11 environment "%env_name%" is being created
     call conda create --prefix "%env_path%" python=3.11 -y
     call conda activate "%env_path%"
 )
@@ -78,7 +82,7 @@ call conda install pydotplus -y
 :: Install project in developer mode
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Install utils packages in editable mode
-call cd .. && pip install -e . --use-pep517 && cd %project_name%
+call cd "%project_folder%" && pip install -e . --use-pep517 && cd "%setup_path%"
 
 :: [CLEAN CACHE] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -97,5 +101,5 @@ echo.
 echo List of installed dependencies:
 call conda list
 echo.
-echo Installation complete. You can now run %env_name% on this system!
+echo Installation complete. You can now run '%env_name%' on this system!
 pause
