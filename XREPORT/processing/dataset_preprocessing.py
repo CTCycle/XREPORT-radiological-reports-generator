@@ -10,6 +10,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
+from XREPORT.commons.utils.process.sequences import TextSanitizer
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.serializer import get_images_from_dataset, DataSerializer
 from XREPORT.commons.utils.process.splitting import DatasetSplit
@@ -28,8 +29,11 @@ if __name__ == '__main__':
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
+    # sanitize text corpus by removing undesired symbols and punctuation     
+    sanitizer = TextSanitizer(CONFIG)
+    dataset = sanitizer.sanitize_text(dataset)
     # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
-    # using subwords and these are eventually mapped to integer indexes          
+    # using subwords and these are eventually mapped to integer indexes     
     tokenization = TokenWizard(CONFIG)    
     dataset = tokenization.tokenize_text_corpus(dataset)   
     vocabulary_size = tokenization.vocabulary_size
