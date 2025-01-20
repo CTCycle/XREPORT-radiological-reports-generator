@@ -5,6 +5,7 @@ for /f "delims=" %%i in ("%~dp0..") do set "project_folder=%%~fi"
 set "env_name=XREPORT"
 set "project_name=XREPORT"
 set "env_path=%project_folder%\setup\environment\%env_name%"
+set "app_path=%project_folder%\%project_name%"
 set "conda_path=%project_folder%\setup\miniconda"
 set "setup_path=%project_folder%\setup"
 
@@ -56,8 +57,8 @@ echo.
 echo Install python libraries and packages
 call pip install torch==2.5.0+cu124 torchvision==0.20.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
 call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp311-cp311-win_amd64.whl
-call pip install keras==3.7.0 transformers==4.45.2 scikit-learn==1.6.0 opencv-python==4.10.0.84
-call pip install matplotlib==3.9.2 numpy==2.1.0 pandas==2.2.3 tqdm==4.66.4 matplotlib==3.9.0
+call pip install keras==3.8.0 transformers==4.45.2 scikit-learn==1.6.1 opencv-python==4.11.0.86
+call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1
 call pip install jupyter==1.1.1
 
 :: [INSTALL TRITON] 
@@ -66,7 +67,7 @@ call pip install jupyter==1.1.1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Installing triton from windows wheel
 cd triton
-call pip install triton-3.1.0-cp311-cp311-win_amd64.whl
+call cd  "%setup_path%\triton" && pip install triton-3.1.0-cp311-cp311-win_amd64.whl
 cd ..
 
 :: [INSTALLATION OF PYDOT/PYDOTPLUS]
@@ -82,7 +83,7 @@ call conda install pydotplus -y
 :: Install project in developer mode
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Install utils packages in editable mode
-call cd "%project_folder%" && pip install -e . --use-pep517 && cd "%setup_path%"
+call cd "%project_folder%" && pip install -e . --use-pep517
 
 :: [CLEAN CACHE] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
