@@ -45,7 +45,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports starting from an input image. This option executes *inference/report_generator.py*.
 
-**5) Setup and Maintenance:** execute optional commands such as *Install project into environment* to run the developer model project installation, and **remove logs** to remove all logs saved in *resources/logs*.
+**5) Setup and Maintenance:** execute optional commands such as *Install project into environment* to run the developer model project installation, *update project* to pull the last updates from github, and *remove logs* to remove all logs saved in *resources/logs*.
 
 **6) Exit:** close the program immediately
 

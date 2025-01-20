@@ -40,16 +40,14 @@ class PretrainedTokenizers:
 ###############################################################################
 class TokenWizard:
     
-    def __init__(self, configuration):        
-        
+    def __init__(self, configuration):           
         tokenizer_name = configuration["dataset"]["TOKENIZER"] 
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
         selector = PretrainedTokenizers()
         self.tokenizer, self.vocabulary_size = selector.get_tokenizer(tokenizer_name)         
     
     #--------------------------------------------------------------------------
-    def tokenize_text_corpus(self, data : pd.DataFrame):
-        
+    def tokenize_text_corpus(self, data : pd.DataFrame):        
         # tokenize train and validation text using loaded tokenizer 
         text = data['text'].to_list()      
         tokens = self.tokenizer(text, padding=True, truncation=True,

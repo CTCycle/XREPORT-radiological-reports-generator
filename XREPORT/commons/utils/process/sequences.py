@@ -1,8 +1,25 @@
+import pandas as pd
 from keras.api.preprocessing import sequence
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
+
+
+# [TOKENIZER]
+###############################################################################
+class TextSanitizer:
+    
+    def __init__(self, configuration):        
+        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]
+        self.configuration = configuration    
+
+    #--------------------------------------------------------------------------
+    def sanitize_text(self, dataset: pd.DataFrame):        
+        dataset['text'] = dataset['text'].str.replace('[^a-zA-Z0-9\s]', '', regex=True)        
+        
+        return dataset
+    
  
 ###############################################################################
 def PQ_series_padding(sequences, pad_length, output='array'):
