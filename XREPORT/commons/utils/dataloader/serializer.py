@@ -235,7 +235,7 @@ class ModelSerializer:
         
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint_name):
-        # Set dictionary of custom objects     
+                     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
                           'LRScheduler': LRScheduler}        
