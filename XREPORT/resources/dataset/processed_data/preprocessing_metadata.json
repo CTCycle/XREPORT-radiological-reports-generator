@@ -1,0 +1,52 @@
+{
+    "SEED": 54,
+    "dataset": {
+        "SAMPLE_SIZE": 0.1,
+        "VALIDATION_SIZE": 0.2,
+        "IMG_AUGMENT": false,
+        "MAX_REPORT_SIZE": 160,
+        "SPLIT_SEED": 52,
+        "TOKENIZER": "distilbert"
+    },
+    "model": {
+        "IMG_SHAPE": [
+            144,
+            144,
+            1
+        ],
+        "NUM_HEADS": 3,
+        "NUM_ENCODERS": 4,
+        "NUM_DECODERS": 4,
+        "PRETRAINED_IMG_ENCODER": null,
+        "EMBEDDING_DIMS": 256,
+        "JIT_COMPILE": true,
+        "JIT_BACKEND": "inductor"
+    },
+    "device": {
+        "DEVICE": "GPU",
+        "DEVICE_ID": 0,
+        "MIXED_PRECISION": false,
+        "NUM_PROCESSORS": 6
+    },
+    "training": {
+        "EPOCHS": 1,
+        "ADDITIONAL_EPOCHS": 20,
+        "LEARNING_RATE": 0.002,
+        "BATCH_SIZE": 15,
+        "USE_TENSORBOARD": false,
+        "SAVE_CHECKPOINTS": false,
+        "LR_SCHEDULER": {
+            "POST_WARMUP_LR": 0.0005,
+            "WARMUP_STEPS": 5
+        }
+    },
+    "inference": {
+        "TEMPERATURE": 1.0,
+        "GEN_METHOD": "greedy"
+    },
+    "evaluation": {
+        "BATCH_SIZE": 20
+    },
+    "date": "2025-01-22",
+    "vocabulary_size": 30522
+}

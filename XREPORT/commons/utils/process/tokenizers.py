@@ -25,9 +25,8 @@ class PretrainedTokenizers:
             tokenizer_string = tokenizer_string
             logger.warning(f'{tokenizer_string} is not among preselected models.')
         else:
-            tokenizer_string = self.tokenizer_strings[tokenizer_name]                            
+            tokenizer_string = self.tokenizer_strings[tokenizer_name]        
         
-        logger.info(f'Loading {tokenizer_string} for text tokenization...')
         tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
         os.makedirs(tokenizer_path, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_string, cache_dir=tokenizer_path)
@@ -41,10 +40,10 @@ class PretrainedTokenizers:
 class TokenWizard:
     
     def __init__(self, configuration):           
-        tokenizer_name = configuration["dataset"]["TOKENIZER"] 
+        self.tokenizer_name = configuration["dataset"]["TOKENIZER"] 
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
         selector = PretrainedTokenizers()
-        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(tokenizer_name)         
+        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(self.tokenizer_name)         
     
     #--------------------------------------------------------------------------
     def tokenize_text_corpus(self, data : pd.DataFrame):        

@@ -15,10 +15,6 @@ GENERATION_INPUT_PATH = join(RSC_PATH, 'generation', 'radiography')
 GENERATION_OUTPUT_PATH = join(RSC_PATH, 'generation', 'reports')
 LOGS_PATH = join(PROJECT_DIR, 'resources', 'logs')
 
-# [FILENAMES]
-###############################################################################
-DATASET_NAME = 'XREPORT_dataset.csv'
-
 # [CONFIGURATIONS]
 ###############################################################################
 CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configurations.json')
