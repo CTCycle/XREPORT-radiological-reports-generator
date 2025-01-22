@@ -6,7 +6,6 @@ from os.path import join, dirname, abspath
 PROJECT_DIR = dirname(dirname(abspath(__file__)))
 RSC_PATH = join(PROJECT_DIR, 'resources')
 DATA_PATH = join(RSC_PATH, 'dataset')
-ML_DATA_PATH = join(DATA_PATH, 'ML dataset')
 IMG_DATA_PATH = join(RSC_PATH, 'dataset', 'images')
 VALIDATION_PATH = join(RSC_PATH, 'validation')
 TOKENIZERS_PATH = join(RSC_PATH, 'tokenizers')
