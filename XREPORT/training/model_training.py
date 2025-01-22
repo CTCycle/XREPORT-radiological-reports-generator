@@ -9,11 +9,12 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.dataloader.generators import ML_model_dataloader
+from XREPORT.commons.utils.process.splitting import DatasetSplit
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
 from XREPORT.commons.utils.validation.reports import log_training_report
-from XREPORT.commons.constants import CONFIG, ML_DATA_PATH
+from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
 
@@ -25,15 +26,21 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
-    train_data, validation_data, metadata = dataserializer.load_preprocessed_data(ML_DATA_PATH)    
+    processed_data, metadata = dataserializer.load_preprocessed_data() 
+
+    # 2. [SPLIT DATA]
+    #--------------------------------------------------------------------------
+    # split data into train set and validation set
+    logger.info('Preparing dataset of images and captions based on splitting size')  
+    splitter = DatasetSplit(CONFIG, processed_data)     
+    train_data, validation_data = splitter.split_train_and_validation()    
 
     # create subfolder for preprocessing data, move preprocessed data to the 
     # checkpoint subfolder checkpoint/data   
     modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder() 
-    modelserializer.store_data_in_checkpoint_folder(checkpoint_path)   
+    checkpoint_path = modelserializer.create_checkpoint_folder()       
 
-    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
+    # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
     # initialize training device 
     # allows changing device prior to initializing the generators
