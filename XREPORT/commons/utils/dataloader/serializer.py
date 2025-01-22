@@ -10,7 +10,7 @@ import keras
 
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
-from XREPORT.commons.constants import CONFIG, DATA_PATH, ML_DATA_PATH, DATASET_NAME, CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, DATASET_NAME, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -107,50 +107,33 @@ class DataSerializer:
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                               vocabulary_size=None): 
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None): 
 
-        processing_info = {'sample_size' : self.configuration["dataset"]["SAMPLE_SIZE"],
-                           'train_size' : 1.0 - self.configuration["dataset"]["VALIDATION_SIZE"],
-                           'validation_size' : self.configuration["dataset"]["VALIDATION_SIZE"],
+        processing_info = {'sample_size' : self.configuration["dataset"]["SAMPLE_SIZE"],                          
                            'max_sequence_size' : self.configuration["dataset"]["MAX_REPORT_SIZE"],
                            'vocabulary_size' : vocabulary_size,                           
                            'date': datetime.now().strftime("%Y-%m-%d")}
+      
+        csv_path = os.path.join(DATA_PATH, 'XREPORT_processed.csv')            
+        processed_data.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
 
-        # define paths of .csv and .json files
-        train_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_train.csv')
-        val_pp_path = os.path.join(ML_DATA_PATH, 'XREPORT_validation.csv')
-        json_info_path = os.path.join(ML_DATA_PATH, 'preprocessing_metadata.json')
-        
-        # save train and validation data as .csv in the dataset folder
-        train_data.to_csv(train_pp_path, index=False, sep=';', encoding='utf-8')
-        validation_data.to_csv(val_pp_path, index=False, sep=';', encoding='utf-8') 
-        logger.debug(f'Preprocessed train data has been saved at {train_pp_path}') 
-        logger.debug(f'Preprocessed validation data has been saved at {val_pp_path}') 
-
-        # save the preprocessing info as .json file in the dataset folder
-        with open(json_info_path, 'w') as file:
+        json_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json') 
+        with open(json_path, 'w') as file:
             json.dump(processing_info, file, indent=4) 
             logger.debug('Preprocessing info:\n%s', file)
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self, path):
-
-        # load preprocessed train and validation data
-        train_file_path = os.path.join(path, 'XREPORT_train.csv') 
-        val_file_path = os.path.join(path, 'XREPORT_validation.csv')
-        train_data = pd.read_csv(train_file_path, encoding='utf-8', sep=';', low_memory=False)
-        validation_data = pd.read_csv(val_file_path, encoding='utf-8', sep=';', low_memory=False)
-
-        # transform text strings into array of words
-        train_data['tokens'] = train_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
-        validation_data['tokens'] = validation_data['tokens'].apply(lambda x : [int(f) for f in x.split()])
-        # load preprocessing metadata
-        metadata_path = os.path.join(path, 'preprocessing_metadata.json')
+    def load_preprocessed_data(self):
+        
+        file_path = os.path.join(DATA_PATH, 'XREPORT_processed.csv')         
+        processed_data = pd.read_csv(file_path, encoding='utf-8', sep=';', low_memory=False)        
+        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])       
+       
+        metadata_path = os.path.join(DATA_PATH, 'preprocessing_metadata.json')
         with open(metadata_path, 'r') as file:
             metadata = json.load(file)
         
-        return train_data, validation_data, metadata     
+        return processed_data, metadata     
     
 
 # [MODEL SERIALIZATION]
@@ -169,17 +152,7 @@ class ModelSerializer:
         os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
-        return checkpoint_path    
-
-    # function to create a folder where to save model checkpoints
-    #--------------------------------------------------------------------------
-    def store_data_in_checkpoint_folder(self, checkpoint_folder):
-        data_cp_path = os.path.join(checkpoint_folder, 'data') 
-        for filename in os.listdir(ML_DATA_PATH):            
-            file_path = os.path.join(ML_DATA_PATH, filename)
-            if filename != '.gitkeep' and os.path.isfile(file_path):
-                shutil.copy(file_path, data_cp_path)
-                logger.debug(f'Successfully copied {filename} to {data_cp_path}')
+        return checkpoint_path        
 
     #--------------------------------------------------------------------------
     def save_pretrained_model(self, model : keras.Model, path):
