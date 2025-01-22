@@ -27,6 +27,7 @@ if __name__ == '__main__':
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata = dataserializer.load_preprocessed_data() 
+    processed_data = dataserializer.get_images_path_from_dataset(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
     # 2. [SPLIT DATA]
@@ -36,8 +37,7 @@ if __name__ == '__main__':
     splitter = DatasetSplit(CONFIG, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()    
 
-    # create subfolder for preprocessing data, move preprocessed data to the 
-    # checkpoint subfolder checkpoint/data   
+    # create subfolder for preprocessing data
     modelserializer = ModelSerializer()
     checkpoint_path = modelserializer.create_checkpoint_folder()       
 
