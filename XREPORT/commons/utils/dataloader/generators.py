@@ -71,15 +71,15 @@ class DatasetGenerator():
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
 def ML_model_dataloader(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
-                           configuration, batch_size=None):    
+                        configuration, batch_size=None):    
         
     generator = DatasetGenerator(configuration) 
     train_dataset = generator.build_dataset_from_generator(train_data['path'].to_list(), 
-                                                    train_data['tokens'].to_list(),
-                                                    batch_size)
+                                                           train_data['tokens'].to_list(),
+                                                           batch_size)
     validation_dataset = generator.build_dataset_from_generator(validation_data['path'].to_list(), 
-                                                        validation_data['tokens'].to_list(),
-                                                        batch_size)       
+                                                                validation_data['tokens'].to_list(),
+                                                                batch_size)       
     for (x1, x2), y in train_dataset.take(1):
         logger.debug(f'X batch shape is: {x1.shape}')  
         logger.debug(f'Y batch shape is: {y.shape}') 

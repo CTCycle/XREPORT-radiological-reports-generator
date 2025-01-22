@@ -118,7 +118,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :processing
 cls
-start cmd /k "call conda activate "%env_path%" && python "%app_path%"\processing\dataset_preprocessing.py"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\database\build_processed_dataset.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
