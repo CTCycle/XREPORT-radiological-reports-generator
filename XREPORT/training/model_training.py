@@ -27,6 +27,7 @@ if __name__ == '__main__':
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata = dataserializer.load_preprocessed_data() 
+    vocabulary_size = metadata['vocabulary_size']
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
@@ -48,13 +49,12 @@ if __name__ == '__main__':
     trainer = ModelTraining(CONFIG) 
     trainer.set_device()
 
-    # get tokenizers and its info
-    tokenization = TokenWizard(CONFIG)   
+    # get tokenizers from preprocessing configurations
+    tokenization = TokenWizard(metadata)   
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data, CONFIG)
-    vocabulary_size = len(tokenizer.vocab) + 1   
+    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data, CONFIG)      
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
