@@ -1,6 +1,6 @@
 __pycache__
 XREPORT/resources/dataset/images/*
-XREPORT/resources/dataset/preprocessing_metadata.json
+XREPORT/resources/dataset/processed_data/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/tokenizers/*
 XREPORT/resources/generation/radiography/*
