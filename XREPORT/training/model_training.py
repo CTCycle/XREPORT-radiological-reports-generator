@@ -8,8 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.dataloader.generators import ML_model_dataloader
-from XREPORT.commons.utils.process.splitting import DatasetSplit
+from XREPORT.commons.utils.dataloader.generators import build_model_dataloader
+from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
@@ -34,12 +34,13 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  
-    splitter = DatasetSplit(CONFIG, processed_data)     
+    splitter = TrainValidationSplit(CONFIG, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()    
 
     # create subfolder for preprocessing data
     modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder()       
+    checkpoint_path = modelserializer.create_checkpoint_folder()
+    dataserializer.copy_data_to_checkpoint(checkpoint_path)       
 
     # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
@@ -54,7 +55,7 @@ if __name__ == '__main__':
     tokenizer = tokenization.tokenizer
        
     # create the tf.datasets using the previously initialized generators    
-    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data, CONFIG)      
+    train_dataset, validation_dataset = build_model_dataloader(train_data, validation_data, CONFIG)      
 
     # 3. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  

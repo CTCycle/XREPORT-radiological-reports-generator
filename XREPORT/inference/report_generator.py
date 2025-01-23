@@ -8,7 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.learning.inference import TextGenerator
+from XREPORT.commons.utils.inference.generator import TextGenerator
 from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 

@@ -5,7 +5,7 @@ from XREPORT.commons.logger import logger
 
 # [DATA SPLITTING]
 ###############################################################################
-class DatasetSplit:
+class TrainValidationSplit:
 
     def __init__(self, configuration, dataframe: pd.DataFrame):
 
