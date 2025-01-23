@@ -13,8 +13,7 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class DatasetGenerator():
 
-    def __init__(self, configuration):        
-        
+    def __init__(self, configuration):         
         self.img_shape = configuration["model"]["IMG_SHAPE"]        
         self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  
         self.batch_size = configuration["training"]["BATCH_SIZE"] 
@@ -70,7 +69,7 @@ class DatasetGenerator():
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-def ML_model_dataloader(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
+def build_model_dataloader(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
                         configuration, batch_size=None):    
         
     generator = DatasetGenerator(configuration) 
