@@ -7,8 +7,8 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.dataloader.generators import ML_model_dataloader
-from XREPORT.commons.utils.process.splitting import DatasetSplit
+from XREPORT.commons.utils.dataloader.generators import build_model_dataloader
+from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.validation.reports import log_training_report
@@ -39,15 +39,15 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration) 
-    processed_data, metadata = dataserializer.load_preprocessed_data()
+    processed_data, metadata = dataserializer.load_data_from_checkpoint(checkpoint_path)
     processed_data = dataserializer.get_images_path_from_dataset(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
-    splitter = DatasetSplit(CONFIG, processed_data)     
+    splitter = TrainValidationSplit(configuration, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()        
-    train_dataset, validation_dataset = ML_model_dataloader(train_data, validation_data, configuration)
+    train_dataset, validation_dataset = build_model_dataloader(train_data, validation_data, configuration)
     
     # 3. [TRAINING MODEL]  
     # Setting callbacks and training routine for the features extraction model 

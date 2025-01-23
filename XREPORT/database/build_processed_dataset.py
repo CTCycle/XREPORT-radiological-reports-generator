@@ -18,7 +18,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv, add paths to images     
     dataserializer = DataSerializer(CONFIG)
-    dataset = dataserializer.get_dataset()    
+    dataset = dataserializer.load_dataset()    
 
     # 2. [PREPROCESS DATA]
     #--------------------------------------------------------------------------
