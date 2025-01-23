@@ -2,7 +2,6 @@ import os
 import sys
 import cv2
 import json
-import shutil
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -41,8 +40,7 @@ def checkpoint_selection_menu(models_list):
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):    
-           
+    def __init__(self, configuration):             
         self.img_shape = configuration["model"]["IMG_SHAPE"] 
         self.num_channels = self.img_shape[-1]                
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
@@ -55,11 +53,10 @@ class DataSerializer:
         self.metadata_path = os.path.join(self.processed_data_folder, 'preprocessing_metadata.json')
         
         self.parameters = configuration["dataset"]
-        self.configuration = configuration
+        self.configuration = configuration    
 
     #--------------------------------------------------------------------------
-    def get_dataset(self, sample_size=None):     
-
+    def load_dataset(self, sample_size=None): 
         dataset = pd.read_csv(self.dataset_path, encoding='utf-8', sep=';')             
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
@@ -108,24 +105,44 @@ class DataSerializer:
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):        
         metadata = self.configuration.copy()
         metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['vocabulary_size'] = vocabulary_size 
-        
+        metadata['vocabulary_size'] = vocabulary_size         
         processed_data.to_csv(self.processed_data_path, index=False, sep=';', encoding='utf-8')        
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):
-        
+    def load_preprocessed_data(self):        
+            
         processed_data = pd.read_csv(self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
         processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         
+        return processed_data, metadata 
+    
+    #--------------------------------------------------------------------------
+    def load_data_from_checkpoint(self, checkpoint_path):   
+        data_folder = os.path.join(checkpoint_path, 'data')   
+        data_path = os.path.join(data_folder, 'XREPORT_processed.csv')
+        metadata_path = os.path.join(data_folder, 'preprocessing_metadata.json')
+        processed_data = pd.read_csv(data_path, encoding='utf-8', sep=';', low_memory=False)        
+        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
+        with open(metadata_path, 'r') as file:
+            metadata = json.load(file)
+
         return processed_data, metadata
+
+    #--------------------------------------------------------------------------
+    def copy_data_to_checkpoint(self, checkpoint_path):        
+        data_folder = os.path.join(checkpoint_path, 'data')        
+        os.makedirs(data_folder, exist_ok=True)        
+        os.system(f'cp {self.processed_data_path} {data_folder}')
+        os.system(f'cp {self.metadata_path} {data_folder}')
+        
+    
     
 
 # [MODEL SERIALIZATION]
