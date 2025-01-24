@@ -29,6 +29,7 @@ class XREPORTModel:
         self.jit_backend = configuration["model"]["JIT_BACKEND"]             
         self.learning_rate = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = configuration["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
+        self.temperature = configuration["training"]["TEMPERATURE"]
         self.configuration = configuration
         
         # initialize the image encoder and the transformers encoders and decoders
@@ -40,12 +41,11 @@ class XREPORTModel:
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_decoders)]        
         self.embeddings = PositionalEmbedding(self.vocabulary_size, self.embedding_dims, self.sequence_length) 
-        self.classifier = SoftMaxClassifier(1024, self.vocabulary_size)
+        self.classifier = SoftMaxClassifier(1024, self.vocabulary_size, self.temperature)
 
     # build model given the architecture
     #--------------------------------------------------------------------------
     def initialize_image_encoder(self, encoder_name):
-
         feature_extractor = None
         encoder_name = 'custom' if encoder_name is None else encoder_name        
         encoder_mapping = {"custom": None,
@@ -65,8 +65,7 @@ class XREPORTModel:
 
     # build model given the architecture
     #--------------------------------------------------------------------------
-    def get_model(self, model_summary=True):                
-       
+    def get_model(self, model_summary=True):       
         # encode images and extract their features using the convolutional 
         # image encoder or a selected pretrained model
         image_features = self.image_encoder(self.img_input)      
