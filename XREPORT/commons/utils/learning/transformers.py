@@ -1,6 +1,6 @@
 import torch
 import keras
-from keras import layers    
+from keras import layers, activations    
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -90,26 +90,27 @@ class FeedForward(keras.layers.Layer):
 ###############################################################################
 @keras.utils.register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
 class SoftMaxClassifier(keras.layers.Layer):
-    def __init__(self, dense_units, output_size, **kwargs):
+    def __init__(self, dense_units, output_size, temperature=1.0, **kwargs):
         super(SoftMaxClassifier, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.output_size = output_size
-        self.dense1 = layers.Dense(dense_units, activation='relu', 
-                                   kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(output_size, activation='softmax', 
-                                   kernel_initializer='he_uniform', dtype=torch.float32)
+        self.temperature = temperature
+        self.dense1 = layers.Dense(dense_units, kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(output_size, kernel_initializer='he_uniform', dtype=torch.float32)        
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
     def build(self, input_shape):        
-        super(SoftMaxClassifier, self).build(input_shape)     
-        
+        super(SoftMaxClassifier, self).build(input_shape)             
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
     def call(self, x, training=None):
-        x = self.dense1(x)
-        output = self.dense2(x)          
+        layer = self.dense1(x)
+        layer = activations.relu(layer)
+        layer = self.dense2(layer)
+        layer = layer/self.temperature 
+        output = activations.softmax(layer)         
 
         return output
     
@@ -118,7 +119,8 @@ class SoftMaxClassifier(keras.layers.Layer):
     def get_config(self):
         config = super(SoftMaxClassifier, self).get_config()
         config.update({'dense_units' : self.dense_units,
-                       'output_size' : self.output_size})
+                       'output_size' : self.output_size,
+                       'temperature' : self.temperature})
         return config
 
     # deserialization method 
@@ -135,7 +137,7 @@ class TransformerEncoder(keras.layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
-        self.num_heads = num_heads 
+        self.num_heads = num_heads         
         self.seed = seed                
         self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
                                                    key_dim=self.embedding_dims)
