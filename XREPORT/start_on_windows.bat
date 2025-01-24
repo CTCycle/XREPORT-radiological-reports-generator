@@ -83,9 +83,9 @@ if %ERRORLEVEL% neq 0 (
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :main_menu
 echo.
-echo =======================================
-echo                 XREPORT
-echo =======================================
+echo ==========================================================================
+echo        XREPORT: generate radiological reports with machine learning
+echo ==========================================================================
 echo 1. Dataset analysis
 echo 2. Preprocess dataset
 echo 3. Model training and evaluation
@@ -134,9 +134,9 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :ML_menu
 cls
-echo =======================================
-echo              XREPORT ML
-echo =======================================
+echo ==========================================================================
+echo                               XREPORT ML
+echo ==========================================================================
 echo 1. Train from scratch
 echo 2. Train from checkpoint
 echo 3. Evaluate model performances
@@ -182,9 +182,9 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :setup_menu
 cls
-echo =======================================
-echo         Setup and Maintenance
-echo =======================================
+echo ==========================================================================
+echo                         Setup  and Maintenance                          
+echo ==========================================================================
 echo 1. Install project in editable mode
 echo 2. Update project
 echo 3. Remove logs
