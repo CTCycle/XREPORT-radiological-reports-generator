@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.utils import shuffle
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -11,8 +12,9 @@ class TrainValidationSplit:
 
         # Set the sizes for the train and validation datasets        
         self.validation_size = configuration["dataset"]["VALIDATION_SIZE"]
+        self.seed = configuration["dataset"]["SPLIT_SEED"]
         self.train_size = 1.0 - self.validation_size
-        self.dataframe = dataframe.reset_index(drop=True)  
+        self.dataframe = dataframe
 
         # Compute the sizes of each split
         total_samples = len(dataframe)
@@ -21,8 +23,7 @@ class TrainValidationSplit:
         
     #--------------------------------------------------------------------------
     def split_train_and_validation(self):
-
-        # Split the DataFrame based on the specified sizes
+        self.dataframe = shuffle(self.dataframe, random_state=self.seed).reset_index(drop=True) 
         train_data = self.dataframe.iloc[:self.train_size]
         validation_data = self.dataframe.iloc[self.train_size:self.train_size + self.val_size]
         
