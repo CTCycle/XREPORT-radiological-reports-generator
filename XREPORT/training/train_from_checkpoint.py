@@ -7,7 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.dataloader.generators import build_model_dataloader
+from XREPORT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
@@ -47,7 +47,10 @@ if __name__ == '__main__':
     # create the tf.datasets using the previously initialized generators
     splitter = TrainValidationSplit(configuration, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()        
-    train_dataset, validation_dataset = build_model_dataloader(train_data, validation_data, configuration)
+    
+    # create the tf.datasets using the previously initialized generators 
+    builder = TensorDatasetBuilder(configuration)   
+    train_dataset, validation_dataset = builder.build_model_dataloader(train_data, validation_data)    
     
     # 3. [TRAINING MODEL]  
     # Setting callbacks and training routine for the features extraction model 

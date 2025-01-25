@@ -9,7 +9,7 @@ import keras
 
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
-from XREPORT.commons.constants import CONFIG, DATA_PATH, IMG_DATA_PATH, CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, PROCESSED_PATH, IMG_DATA_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -45,12 +45,11 @@ class DataSerializer:
         self.num_channels = self.img_shape[-1]                
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}
-        self.seed = configuration['SEED']
-
-        self.processed_data_folder = os.path.join(DATA_PATH, 'processed_data')
+        self.seed = configuration['SEED']        
+        
         self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')
-        self.processed_data_path = os.path.join(self.processed_data_folder, 'XREPORT_processed.csv') 
-        self.metadata_path = os.path.join(self.processed_data_folder, 'preprocessing_metadata.json')
+        self.processed_data_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed.csv') 
+        self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json')
         
         self.parameters = configuration["dataset"]
         self.configuration = configuration    
