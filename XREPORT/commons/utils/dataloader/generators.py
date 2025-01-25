@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
@@ -30,9 +28,8 @@ class DatasetGenerator():
         if normalize:
             rgb_image = rgb_image/255.0 
 
-        return rgb_image 
-    
-    # ...
+        return rgb_image     
+ 
     #--------------------------------------------------------------------------
     def process_data(self, path, text): 
 
@@ -50,40 +47,10 @@ class DatasetGenerator():
 
         return image
               
-    # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #--------------------------------------------------------------------------
-    def build_dataset_from_generator(self, paths, tokens, batch_size=None, buffer_size=tf.data.AUTOTUNE):
-
-        num_samples = len(paths)  
-        if batch_size is None:
-            batch_size = self.configuration["training"]["BATCH_SIZE"]
-
-        dataset = tf.data.Dataset.from_tensor_slices((paths, tokens))                 
-        dataset = dataset.map(self.process_data, num_parallel_calls=buffer_size)        
-        dataset = dataset.batch(self.batch_size)
-        dataset = dataset.prefetch(buffer_size=buffer_size)
-        dataset = dataset.shuffle(buffer_size=num_samples) 
-
-        return dataset
+    
         
 
-# wrapper function to run the data pipeline from raw inputs to tensor dataset
-###############################################################################
-def build_model_dataloader(train_data : pd.DataFrame, validation_data : pd.DataFrame, 
-                        configuration, batch_size=None):    
-        
-    generator = DatasetGenerator(configuration) 
-    train_dataset = generator.build_dataset_from_generator(train_data['path'].to_list(), 
-                                                           train_data['tokens'].to_list(),
-                                                           batch_size)
-    validation_dataset = generator.build_dataset_from_generator(validation_data['path'].to_list(), 
-                                                                validation_data['tokens'].to_list(),
-                                                                batch_size)       
-    for (x1, x2), y in train_dataset.take(1):
-        logger.debug(f'X batch shape is: {x1.shape}')  
-        logger.debug(f'Y batch shape is: {y.shape}') 
 
-    return train_dataset, validation_dataset
 
 
 
