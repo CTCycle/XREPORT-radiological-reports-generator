@@ -9,7 +9,7 @@ from XREPORT.commons.logger import logger
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
 ###############################################################################
-class DatasetGenerator():
+class DataGenerator():
 
     def __init__(self, configuration):         
         self.img_shape = configuration["model"]["IMG_SHAPE"]        
@@ -31,8 +31,7 @@ class DatasetGenerator():
         return rgb_image     
  
     #--------------------------------------------------------------------------
-    def process_data(self, path, text): 
-
+    def process_data(self, path, text):
         rgb_image = self.load_image(path, normalize=True) 
         input_text = text[:-1]
         output_text = text[1:]      

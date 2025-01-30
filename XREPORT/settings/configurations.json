@@ -8,10 +8,9 @@
                 "TOKENIZER": "distilbert"},         
     
     "model" : {"IMG_SHAPE" : [144, 144, 1],
-               "NUM_HEADS" : 3,
+               "ATTENTION_HEADS" : 3,
                "NUM_ENCODERS" : 4,    
-               "NUM_DECODERS" : 4,
-               "PRETRAINED_IMG_ENCODER" : null,    
+               "NUM_DECODERS" : 4,                 
                "EMBEDDING_DIMS" : 256,               
                "JIT_COMPILE" : true,
                "JIT_BACKEND" : "inductor"},
