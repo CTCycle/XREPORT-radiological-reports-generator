@@ -63,8 +63,7 @@ class DataSerializer:
         return dataset
 
     #--------------------------------------------------------------------------
-    def get_images_path_from_dataset(self, dataset : pd.DataFrame):   
-                
+    def get_images_path_from_dataset(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_DATA_PATH):                      
             for file in files:
