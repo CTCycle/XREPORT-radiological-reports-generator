@@ -89,7 +89,7 @@ For customization, you can modify the main configuration parameters using *setti
 |--------------------|----------------------------------------------------------|
 | IMG_SHAPE          | Shape of the input images (height, width, channels)      |
 | EMBEDDING_DIMS     | Embedding dimensions (valid for both models)             |  
-| NUM_HEADS          | Number of attention heads                                | 
+| ATTENTION_HEADS    | Number of attention heads                                | 
 | NUM_ENCODERS       | Number of encoder layers                                 |
 | NUM_DECODERS       | Number of decoder layers                                 |
 | JIT_COMPILE        | Apply Just-In_time (JIT) compiler for model optimization |
