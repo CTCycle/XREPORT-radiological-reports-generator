@@ -73,7 +73,7 @@ class ModelEvaluationSummary:
                            'Inference Temperature': configuration["inference"].get("TEMPERATURE", 'NA'),                            
                            'Tokenizer': configuration["dataset"].get("TOKENIZER", 'NA'),                            
                            'Max Report Size': configuration["dataset"].get("MAX_REPORT_SIZE", 'NA'),
-                           'Number of Heads': configuration["model"].get("NUM_HEADS", 'NA'),
+                           'Number of Heads': configuration["model"].get("ATTENTION_HEADS", 'NA'),
                            'Number of Encoders': configuration["model"].get("NUM_ENCODERS", 'NA'),
                            'Number of Decoders': configuration["model"].get("NUM_DECODERS", 'NA'),
                            'Embedding Dimensions': configuration["model"].get("EMBEDDING_DIMS", 'NA')}

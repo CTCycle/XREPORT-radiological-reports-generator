@@ -22,7 +22,7 @@ class XREPORTModel:
         self.img_shape = configuration["model"]["IMG_SHAPE"] 
         self.pretrained_encoder = configuration["model"]["PRETRAINED_IMG_ENCODER"]
         self.embedding_dims = configuration["model"]["EMBEDDING_DIMS"] 
-        self.num_heads = configuration["model"]["NUM_HEADS"]  
+        self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
         self.num_encoders = configuration["model"]["NUM_ENCODERS"]   
         self.num_decoders = configuration["model"]["NUM_DECODERS"]
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
