@@ -41,8 +41,8 @@ def checkpoint_selection_menu(models_list):
 class DataSerializer:
 
     def __init__(self, configuration):             
-        self.img_shape = configuration["model"]["IMG_SHAPE"] 
-        self.num_channels = self.img_shape[-1]                
+        self.img_shape = (224, 224)
+        self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}
         self.seed = configuration['SEED']        

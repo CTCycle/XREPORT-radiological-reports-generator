@@ -3,6 +3,7 @@ XREPORT/resources/dataset/images/*
 XREPORT/resources/dataset/processed_data/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/tokenizers/*
+XREPORT/resources/encoders/*
 XREPORT/resources/generation/radiography/*
 
 setup/environment/*
