@@ -12,7 +12,7 @@ from XREPORT.commons.logger import logger
 class DataGenerator():
 
     def __init__(self, configuration):         
-        self.img_shape = configuration["model"]["IMG_SHAPE"]        
+        self.img_shape = (244, 244) # ResNet-50 input shape       
         self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  
         self.batch_size = configuration["training"]["BATCH_SIZE"] 
         self.configuration = configuration 
@@ -21,8 +21,8 @@ class DataGenerator():
     #--------------------------------------------------------------------------
     def load_image(self, path, normalize=True):
         image = tf.io.read_file(path)
-        rgb_image = tf.image.decode_image(image, channels=1, expand_animations=False)        
-        rgb_image = tf.image.resize(rgb_image, self.img_shape[:-1])
+        rgb_image = tf.image.decode_image(image, channels=3, expand_animations=False)        
+        rgb_image = tf.image.resize(rgb_image, self.img_shape)
         if self.augmentation:
             rgb_image = self.image_augmentation(rgb_image)
         if normalize:

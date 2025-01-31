@@ -1,6 +1,6 @@
 import torch
 from keras import layers, Model, optimizers
-from transformers import AutoFeatureExtractor, AutoModel
+
 
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
 from XREPORT.commons.utils.learning.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
@@ -19,8 +19,8 @@ class XREPORTModel:
         self.vocabulary_size = vocabulary_size
         self.seed = configuration["SEED"]
         self.sequence_length = configuration["dataset"]["MAX_REPORT_SIZE"] - 1 
-        self.img_shape = configuration["model"]["IMG_SHAPE"] 
-        self.pretrained_encoder = configuration["model"]["PRETRAINED_IMG_ENCODER"]
+        self.img_shape = (224, 224) 
+        
         self.embedding_dims = configuration["model"]["EMBEDDING_DIMS"] 
         self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
         self.num_encoders = configuration["model"]["NUM_ENCODERS"]   
@@ -36,32 +36,13 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')         
         
-        self.image_encoder, self.feature_extractor = self.initialize_image_encoder(self.pretrained_encoder)
+        img_encoder = ImageEncoder()
+        self.image_encoder, self.feature_extractor = img_encoder.build_image_encoder()
 
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_decoders)]        
         self.embeddings = PositionalEmbedding(self.vocabulary_size, self.embedding_dims, self.sequence_length) 
-        self.classifier = SoftMaxClassifier(1024, self.vocabulary_size, self.temperature)
-
-    # build model given the architecture
-    #--------------------------------------------------------------------------
-    def initialize_image_encoder(self, encoder_name):
-        feature_extractor = None
-        encoder_name = 'custom' if encoder_name is None else encoder_name        
-        encoder_mapping = {"custom": None,
-                           "vit-base": "google/vit-base-patch16-224",
-                           "convnext-base": "facebook/convnext-base-224",
-                           "swin-tiny": "microsoft/swin-tiny-patch4-window7-224"}
-        
-        selected_model = encoder_mapping[encoder_name]
-        if encoder_name not in encoder_mapping or selected_model is None:
-            logger.warning(f"Unsupported or unspecified image encoder: {encoder_name}. Falling back to custom image encoder.")
-            encoder = ImageEncoder()            
-        else:
-            feature_extractor = AutoFeatureExtractor.from_pretrained(selected_model, cache_dir=TOKENIZERS_PATH)
-            encoder = AutoModel.from_pretrained(selected_model, cache_dir=TOKENIZERS_PATH)
-
-        return encoder, feature_extractor                
+        self.classifier = SoftMaxClassifier(1024, self.vocabulary_size, self.temperature)                 
 
     # build model given the architecture
     #--------------------------------------------------------------------------
