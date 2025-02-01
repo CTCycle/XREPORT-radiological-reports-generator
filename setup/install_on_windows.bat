@@ -55,7 +55,7 @@ goto :dependencies
 :dependencies
 echo.
 echo Install python libraries and packages
-call pip install torch==2.5.0+cu124 torchvision==0.20.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
+call pip install torch==2.6.0+cu124 torchvision==0.21.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
 call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp311-cp311-win_amd64.whl
 call pip install keras==3.8.0 transformers==4.45.2 scikit-learn==1.6.1 opencv-python==4.11.0.86
 call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1
