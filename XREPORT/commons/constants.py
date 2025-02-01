@@ -6,15 +6,16 @@ from os.path import join, dirname, abspath
 PROJECT_DIR = dirname(dirname(abspath(__file__)))
 RSC_PATH = join(PROJECT_DIR, 'resources')
 DATA_PATH = join(RSC_PATH, 'dataset')
-IMG_DATA_PATH = join(RSC_PATH, 'dataset', 'images')
-PROCESSED_PATH = join(RSC_PATH, 'dataset', 'processed_data')
+IMG_DATA_PATH = join(DATA_PATH, 'images')
+PROCESSED_PATH = join(DATA_PATH, 'processed_data')
 VALIDATION_PATH = join(RSC_PATH, 'validation')
-TOKENIZERS_PATH = join(RSC_PATH, 'tokenizers')
-ENCODERS_PATH = join(RSC_PATH, 'encoders')
+MODELS_PATH = join(RSC_PATH, 'models')
+TOKENIZERS_PATH = join(MODELS_PATH, 'tokenizers')
+ENCODERS_PATH = join(MODELS_PATH, 'ResNet50')
 CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
 GENERATION_INPUT_PATH = join(RSC_PATH, 'generation', 'radiography')
 GENERATION_OUTPUT_PATH = join(RSC_PATH, 'generation', 'reports')
-LOGS_PATH = join(PROJECT_DIR, 'resources', 'logs')
+LOGS_PATH = join(RSC_PATH, 'logs')
 
 # [CONFIGURATIONS]
 ###############################################################################
