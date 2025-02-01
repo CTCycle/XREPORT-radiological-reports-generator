@@ -13,13 +13,7 @@ class TensorDatasetBuilder:
 
     def __init__(self, configuration):
         self.generator = DataGenerator(configuration) 
-        self.configuration = configuration
-
-    #--------------------------------------------------------------------------
-    def get_shape_fingerprint(self, dataset : tf.data.Dataset):
-        for (x1, x2), y in dataset.take(1):
-            logger.debug(f'X batch shape is: {x1.shape}')  
-            logger.debug(f'Y batch shape is: {y.shape}') 
+        self.configuration = configuration   
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
@@ -42,8 +36,7 @@ class TensorDatasetBuilder:
         
         train_dataset = self.build_tensor_dataset(train_data, batch_size)
         validation_dataset = self.build_tensor_dataset(validation_data, batch_size)      
-        self.get_shape_fingerprint(train_dataset)
-
+        
         return train_dataset, validation_dataset
 
 
