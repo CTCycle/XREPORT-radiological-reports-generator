@@ -2,6 +2,7 @@ import os
 import sys
 import cv2
 import json
+import shutil
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -112,8 +113,7 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):        
-            
+    def load_preprocessed_data(self):            
         processed_data = pd.read_csv(self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
         processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
         with open(self.metadata_path, 'r') as file:
@@ -136,10 +136,9 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def copy_data_to_checkpoint(self, checkpoint_path):        
         data_folder = os.path.join(checkpoint_path, 'data')        
-        os.makedirs(data_folder, exist_ok=True)        
-        os.system(f'cp {self.processed_data_path} {data_folder}')
-        os.system(f'cp {self.metadata_path} {data_folder}')
-        
+        os.makedirs(data_folder, exist_ok=True)            
+        shutil.copy(self.processed_data_path, data_folder)
+        shutil.copy(self.metadata_path, data_folder)
     
     
 
@@ -214,8 +213,7 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name):
-                     
+    def load_checkpoint(self, checkpoint_name):                     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
                           'LRScheduler': LRScheduler}        

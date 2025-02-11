@@ -36,8 +36,8 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')         
         
-        img_encoder = ImageEncoder()
-        self.image_encoder, self.feature_extractor = img_encoder.build_image_encoder()
+        encoder = ImageEncoder()
+        self.processor, self.image_encoder = encoder.build_image_encoder()
 
         self.encoders = [TransformerEncoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
         self.decoders = [TransformerDecoder(self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_decoders)]        

@@ -4,11 +4,10 @@ setlocal enabledelayedexpansion
 for /f "delims=" %%i in ("%~dp0..") do set "project_folder=%%~fi"
 set "env_name=XREPORT"
 set "project_name=XREPORT"
-set "env_path=%project_folder%\setup\environment\%env_name%"
-set "app_path=%project_folder%\%project_name%"
-set "conda_path=%project_folder%\setup\miniconda"
 set "setup_path=%project_folder%\setup"
-
+set "env_path=%setup_path%\environment\%env_name%"
+set "conda_path=%setup_path%\miniconda"
+set "app_path=%project_folder%\%project_name%"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Precheck for conda source 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
