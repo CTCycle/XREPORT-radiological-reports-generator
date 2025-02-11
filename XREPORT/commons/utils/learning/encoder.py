@@ -1,4 +1,4 @@
-from transformers import AutoImageProcessor, TFResNetModel
+from transformers import AutoImageProcessor, ResNetModel
 import torchvision.models as models
 
 from XREPORT.commons.constants import CONFIG, ENCODERS_PATH
@@ -16,10 +16,7 @@ class ImageEncoder:
     #--------------------------------------------------------------------------
     def build_image_encoder(self):
         processor = AutoImageProcessor.from_pretrained(self.encoder_name, cache_dir=ENCODERS_PATH)
-        model = TFResNetModel.from_pretrained(self.encoder_name, cache_dir=ENCODERS_PATH)
-
-        inputs = processor(image, return_tensors="tf")      
-        
+        model = ResNetModel.from_pretrained(self.encoder_name, cache_dir=ENCODERS_PATH)             
         
         return processor, model   
 
