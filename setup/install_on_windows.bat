@@ -25,8 +25,8 @@ if %ERRORLEVEL% neq 0 (
 :check_env
 call conda activate %env_path% 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo Python v3.11 environment "%env_name%" is being created
-    call conda create --prefix "%env_path%" python=3.11 -y
+    echo Python v3.12 environment "%env_name%" is being created
+    call conda create --prefix "%env_path%" python=3.12 -y
     call conda activate "%env_path%"
 )
 goto :check_git
@@ -55,7 +55,7 @@ goto :dependencies
 echo.
 echo Install python libraries and packages
 call pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
-call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp311-cp311-win_amd64.whl
+call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp312-cp312-win_amd64.whl
 call pip install keras==3.8.0 transformers==4.45.2 scikit-learn==1.6.1 opencv-python==4.11.0.86
 call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1
 call pip install jupyter==1.1.1
@@ -66,7 +66,7 @@ call pip install jupyter==1.1.1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo Installing triton from windows wheel
 cd triton
-call cd  "%setup_path%\triton" && pip install triton-3.1.0-cp311-cp311-win_amd64.whl
+call cd  "%setup_path%\triton" && pip install triton-3.2.0-cp312-cp312-win_amd64.whl
 cd ..
 
 :: [INSTALLATION OF PYDOT/PYDOTPLUS]
