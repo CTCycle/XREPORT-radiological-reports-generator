@@ -27,7 +27,7 @@ class XREPORTModel:
         self.num_decoders = configuration["model"]["NUM_DECODERS"]
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
         self.jit_backend = configuration["model"]["JIT_BACKEND"]             
-        self.learning_rate = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
+        self.post_warm_lr = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
         self.warmup_steps = configuration["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
         self.temperature = configuration["training"]["TEMPERATURE"]
         self.configuration = configuration
@@ -66,17 +66,17 @@ class XREPORTModel:
 
         # wrap the model and compile it with AdamW optimizer
         model = Model(inputs=[self.img_input, self.seq_input], outputs=output)       
-        lr_schedule = LRScheduler(self.learning_rate, warmup_steps=10)
+        lr_schedule = LRScheduler(self.post_warm_lr, self.warmup_steps)
         loss = MaskedSparseCategoricalCrossentropy()  
         metric = [MaskedAccuracy()]
         opt = optimizers.AdamW(learning_rate=lr_schedule)          
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
 
-        if self.jit_compile:
-            model = torch.compile(model, backend=self.jit_backend, mode='default')       
-
         if model_summary:
             model.summary(expand_nested=True)
+    
+        if self.jit_compile:
+            model = torch.compile(model, backend=self.jit_backend, mode='default')
 
         return model
        

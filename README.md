@@ -15,7 +15,7 @@ The selected tokenizer splits the input text into subword units (tokens) and tra
 
 
 ## 3. Installation
-The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. After setting up Anaconda/Miniconda, the installation script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.1) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing *setup/install_on_windows.bat*.
+The installation process on Windows has been designed for simplicity and ease of use. To begin, simply run *start_on_windows.bat.* On its first execution, the installation procedure will automatically start with minimal user input required. The script will check if either Anaconda or Miniconda is installed on your system. If neither is found, it will automatically download and install the latest Miniconda release from https://docs.anaconda.com/miniconda/. After setting up Anaconda/Miniconda, the installation script will proceed with the installation of all necessary Python dependencies. This includes Keras 3 (with PyTorch support as the backend) and the required CUDA dependencies (CUDA 12.4) to enable GPU acceleration. If you'd prefer to handle the installation process separately, you can run the standalone installer by executing *setup/install_on_windows.bat*.
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
@@ -111,10 +111,13 @@ For customization, you can modify the main configuration parameters using *setti
 |--------------------|----------------------------------------------------------|
 | EPOCHS             | Number of epochs to train the model                      |
 | ADDITIONAL EPOCHS  | Number of epochs to train the model from checkpoint      |
-| LEARNING_RATE      | Learning rate for the optimizer                          |
 | BATCH_SIZE         | Number of samples per batch                              |
 | USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
 | SAVE_CHECKPOINTS   | Save checkpoints during training (at each epoch)         |
+
+#### LR Scheduler Configuration
+| POST_WARMUP_LR     | Learning rate value after initial warmup                 |
+| WARMUP_STEPS       | Number of warmup epochs                                  |
 
 ### Evaluation Configuration
 
