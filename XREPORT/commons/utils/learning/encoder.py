@@ -9,10 +9,11 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 @keras.utils.register_keras_serializable(package='Encoders', name='BeitXRayImageEncoder')
 class BeitXRayImageEncoder(keras.layers.Layer):
-    def __init__(self, freeze_layers=False, **kwargs):
+    def __init__(self, freeze_layers=False, embedding_dims=256, **kwargs):
         super(BeitXRayImageEncoder, self).__init__(**kwargs)   
         self.encoder_name = 'microsoft/beit-base-patch16-224'        
-        self.freeze_layers = freeze_layers        
+        self.freeze_layers = freeze_layers
+        self.embedding_dims = embedding_dims        
 
         self.model = AutoModel.from_pretrained(self.encoder_name, cache_dir=ENCODERS_PATH)
         if self.freeze_layers is True:            
@@ -20,19 +21,26 @@ class BeitXRayImageEncoder(keras.layers.Layer):
                 param.requires_grad = False  
 
         self.processor = AutoImageProcessor.from_pretrained(
-            self.encoder_name, cache_dir=ENCODERS_PATH)     
+            self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True)  
+
+        self.dense = keras.layers.Dense(self.embedding_dims)   
 
     # call method
     #--------------------------------------------------------------------------
-    def call(self, inputs, **kwargs):              
+    def call(self, inputs, **kwargs): 
+        inputs = keras.ops.transpose(inputs, axes=(0, 3, 1, 2))             
         outputs = self.model(inputs, **kwargs)
-        return outputs.logits
+        output = outputs.last_hidden_state
+        output = self.dense(output)
+                
+        return output
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------
     def get_config(self):
         config = super(BeitXRayImageEncoder, self).get_config()
-        config.update({'freeze_layers': self.freeze_layers})
+        config.update({'freeze_layers': self.freeze_layers,
+                       'embedding_dims': self.embedding_dims})
 
         return config
 
