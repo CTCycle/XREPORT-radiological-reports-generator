@@ -10,10 +10,10 @@ from XREPORT.commons.logger import logger
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
 ###############################################################################
-class DataGenerator():
+class DatasetGenerator():
 
     def __init__(self, configuration):         
-        self.img_shape = (244, 244) 
+        self.img_shape = (224, 224) 
         self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)    
         self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  

@@ -1,6 +1,6 @@
-# [SET KERAS BACKEND]
-import os 
-os.environ["KERAS_BACKEND"] = "torch"
+# [SETTING ENVIRONMENT VARIABLES]
+from XREPORT.commons.variables import EnvironmentVariables
+EV = EnvironmentVariables()
 
 # [SETTING WARNINGS]
 import warnings

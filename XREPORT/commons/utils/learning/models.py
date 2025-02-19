@@ -24,6 +24,7 @@ class XREPORTModel:
         self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
         self.num_encoders = configuration["model"]["NUM_ENCODERS"]   
         self.num_decoders = configuration["model"]["NUM_DECODERS"]
+        self.freeze_img_encoder = configuration["model"]["FREEZE_IMG_ENCODER"]
         self.jit_compile = configuration["model"]["JIT_COMPILE"]
         self.jit_backend = configuration["model"]["JIT_BACKEND"]             
         self.post_warm_lr = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
@@ -35,7 +36,7 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')         
         
-        self.img_encoder = BeitXRayImageEncoder(freeze_layers=True)
+        self.img_encoder = BeitXRayImageEncoder(self.freeze_img_encoder)
         
         self.encoders = [TransformerEncoder(
             self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]

@@ -10,7 +10,8 @@
     "model" : {"ATTENTION_HEADS" : 3,
                "NUM_ENCODERS" : 4,    
                "NUM_DECODERS" : 4,                 
-               "EMBEDDING_DIMS" : 256,               
+               "EMBEDDING_DIMS" : 256,
+               "FREEZE_IMG_ENCODER" : true,             
                "JIT_COMPILE" : true,
                "JIT_BACKEND" : "inductor"},
 
