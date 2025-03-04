@@ -1,7 +1,5 @@
-import random 
-
 # [SETTING ENVIRONMENT VARIABLES]
-from FEXT.commons.variables import EnvironmentVariables
+from XREPORT.commons.variables import EnvironmentVariables
 EV = EnvironmentVariables()
 
 # [SETTING WARNINGS]
@@ -9,23 +7,20 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from FEXT.commons.utils.validation.reports import DataAnalysisPDF
-from FEXT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
-from FEXT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from FEXT.commons.utils.process.splitting import TrainValidationSplit
-from FEXT.commons.utils.inference.encoding import ImageEncoding
-from FEXT.commons.utils.validation.images import ImageReconstruction
-from FEXT.commons.utils.validation.checkpoints import ModelEvaluationSummary
-from FEXT.commons.utils.validation.reports import evaluation_report
-from FEXT.commons.constants import CONFIG, IMG_DATA_PATH, VALIDATION_PATH
-from FEXT.commons.logger import logger
+from XREPORT.commons.utils.process.tokenizers import TokenWizard
+from XREPORT.commons.utils.process.splitting import TrainValidationSplit
+from XREPORT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
+from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from XREPORT.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
+from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.constants import CONFIG, DATA_PATH
+from XREPORT.commons.logger import logger
 
 # [RUN MAIN]
 ###############################################################################
 if __name__ == '__main__':
 
-    evaluation_batch_size = 64
-    num_images_to_evaluate = 6
+    evaluation_batch_size = 20   
 
     # 1. [LOAD DATASET]
     #--------------------------------------------------------------------------  
@@ -39,42 +34,33 @@ if __name__ == '__main__':
     modelserializer = ModelSerializer()         
     model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)
-
-    # isolate the encoder from the autoencoder model   
-    encoder = ImageEncoding(model, configuration)
-    encoder_model = encoder.encoder_model   
-
+   
     # 3. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------
     dataserializer = DataSerializer(configuration)
-    images_path = dataserializer.get_images_path(IMG_DATA_PATH)
+    processed_data, metadata = dataserializer.load_preprocessed_data()
+    processed_data = dataserializer.get_images_path_from_dataset(processed_data)
+    vocabulary_size = metadata['vocabulary_size']
 
-    splitter = TrainValidationSplit(images_path, configuration)     
-    train_data, validation_data = splitter.split_train_and_validation()    
+    # initialize the TensorDataSet class with the generator instances
+    # create the tf.datasets using the previously initialized generators
+    splitter = TrainValidationSplit(configuration, processed_data)     
+    train_data, validation_data = splitter.split_train_and_validation() 
 
+    # 4. [BUILD DATA LOADERS]
+    #--------------------------------------------------------------------------
+    # get tokenizers and its info
+    tokenization = TokenWizard(configuration)    
+    tokenizer = tokenization.tokenizer
+    
     builder = TensorDatasetBuilder(configuration)      
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data, evaluation_batch_size)    
 
-    # 4. [EVALUATE ON TRAIN AND VALIDATION]
+    # 5. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------   
-    evaluation_report(model, train_dataset, validation_dataset) 
+    evaluation_report(model, train_dataset, validation_dataset)   
 
-    # 5. [COMPARE RECONTRUCTED IMAGES]
-    #--------------------------------------------------------------------------
-    validator = ImageReconstruction(model, checkpoint_path)
-    train_images_batch = [
-        dataserializer.load_image(path) for path in 
-        random.sample(train_data, num_images_to_evaluate)]
-    validation_images_batch = [
-        dataserializer.load_image(path) for path in 
-        random.sample(validation_data, num_images_to_evaluate)]
-    
-    logger.info('Generating comparison of reconstructed images versus input from train dataset')
-    validator.visualize_reconstructed_images(train_images_batch, data_name='train')
-    logger.info('Generating comparison of reconstructed images versus input from validation dataset')
-    validator.visualize_reconstructed_images(validation_images_batch, data_name='validation')
-
-    # 2. [INITIALIZE PDF REPORT]
+    # 6. [INITIALIZE PDF REPORT]
     #--------------------------------------------------------------------------
     report = DataAnalysisPDF()
