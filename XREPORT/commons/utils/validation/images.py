@@ -14,26 +14,13 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self):               
-        self.serializer = DataSerializer()
+    def __init__(self):         
         self.statistics_path = os.path.join(VALIDATION_PATH, 'dataset')
         self.plot_path = os.path.join(self.statistics_path, 'figures')
         os.makedirs(self.statistics_path, exist_ok=True)
         os.makedirs(self.plot_path, exist_ok=True)
         self.DPI = 400
-        self.file_type = 'jpg'        
-       
-    #--------------------------------------------------------------------------
-    def get_images_for_validation(self, data : pd.DataFrame):
-        images_paths = data['path'].to_list()
-        images = (self.serializer.load_image(pt) for pt in images_paths)        
-
-        return images
-
-    #--------------------------------------------------------------------------
-    def calculate_image_statistics(self, data : pd.DataFrame):
-        image_paths = data['path'].to_list()
-
+        self.file_type = 'jpg'     
 
     #--------------------------------------------------------------------------
     def calculate_image_statistics(self, data : pd.DataFrame): 
