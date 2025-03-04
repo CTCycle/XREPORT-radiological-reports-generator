@@ -12,7 +12,7 @@ from XREPORT.commons.utils.dataloader.serializer import DataSerializer
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.images import ImageAnalysis
 from XREPORT.commons.utils.validation.textual import TextAnalysis
-from XREPORT.commons.constants import CONFIG, IMG_DATA_PATH, DATA_PATH
+from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
 # [RUN MAIN]
@@ -40,10 +40,10 @@ if __name__ == '__main__':
     analyzer = ImageAnalysis()
     logger.info('Calculating image statistics and generating dataset report')
     logger.info('Focusing on mean pixel values, pixel standard deviation, image noise ratio')
-    images, image_statistics = analyzer.calculate_image_statistics(dataset)
+    image_statistics = analyzer.calculate_image_statistics(processed_data)
 
     logger.info('Generating the pixel intensity histogram')
-    analyzer.calculate_pixel_intensity(dataset)   
+    analyzer.calculate_pixel_intensity(processed_data)   
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
