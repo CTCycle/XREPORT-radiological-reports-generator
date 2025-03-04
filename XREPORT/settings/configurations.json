@@ -1,15 +1,15 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.1,
+    "dataset": {"SAMPLE_SIZE" : 0.25,
                 "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENT" : false,
                 "MAX_REPORT_SIZE" : 160,                
                 "SPLIT_SEED" : 52,
                 "TOKENIZER": "distilbert"},         
     
-    "model" : {"ATTENTION_HEADS" : 3,
-               "NUM_ENCODERS" : 4,    
-               "NUM_DECODERS" : 4,                 
+    "model" : {"ATTENTION_HEADS" : 2,
+               "NUM_ENCODERS" : 3,    
+               "NUM_DECODERS" : 3,                 
                "EMBEDDING_DIMS" : 256,
                "FREEZE_IMG_ENCODER" : true,             
                "JIT_COMPILE" : true,
@@ -20,19 +20,17 @@
                 "MIXED_PRECISION" : false,                           
                 "NUM_PROCESSORS": 6},
 
-    "training" : {"EPOCHS" : 1,
+    "training" : {"EPOCHS" : 10,
                   "ADDITIONAL_EPOCHS" : 20,
                   "LEARNING_RATE" : 0.002,
                   "BATCH_SIZE" : 15, 
                   "TEMPERATURE" : 1.0,                 
-                  "USE_TENSORBOARD" : false,  
+                  "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,  
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
                                     "WARMUP_STEPS" : 5}},   
                                     
     "inference" : {"TEMPERATURE" : 1.0,
-                   "GEN_METHOD" : "greedy"},
-
-    "evaluation" : {"BATCH_SIZE" : 20}    
+                   "GEN_METHOD" : "greedy"}        
       
 }

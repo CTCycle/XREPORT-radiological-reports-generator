@@ -2,12 +2,14 @@ __pycache__
 XREPORT/resources/dataset/images/*
 XREPORT/resources/dataset/processed_data/*
 XREPORT/resources/checkpoints/*
+FEXT/resources/validation/*
 XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
 XREPORT/resources/generation/radiography/*
 
 setup/environment/*
 setup/miniconda/*
+setup/variables/.env
 
 *.egg-info
 *.log

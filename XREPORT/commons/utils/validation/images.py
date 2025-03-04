@@ -3,6 +3,7 @@ import cv2
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer
 from XREPORT.commons.constants import CONFIG, VALIDATION_PATH
@@ -11,43 +12,106 @@ from XREPORT.commons.logger import logger
 
 # [VALIDATION OF DATA]
 ###############################################################################
-class ImageDatasetValidation:
+class ImageAnalysis:
 
-    def __init__(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
+    def __init__(self):               
+        self.serializer = DataSerializer()
+        self.statistics_path = os.path.join(VALIDATION_PATH, 'dataset')
+        self.plot_path = os.path.join(self.statistics_path, 'figures')
+        os.makedirs(self.statistics_path, exist_ok=True)
+        os.makedirs(self.plot_path, exist_ok=True)
         self.DPI = 400
-        self.file_type = 'jpg'
-        self.train_data = train_data['path'].to_list()
-        self.validation_data = validation_data['path'].to_list()
-        self.serializer = DataSerializer()             
+        self.file_type = 'jpg'        
        
     #--------------------------------------------------------------------------
-    def get_images_for_validation(self):
+    def get_images_for_validation(self, data : pd.DataFrame):
+        images_paths = data['path'].to_list()
+        images = (self.serializer.load_image(pt) for pt in images_paths)        
 
-        train_images = (self.serializer.load_image(pt) 
-                        for pt in self.train_data)
-        validation_images = (self.serializer.load_image(pt) 
-                             for pt in self.validation_data)
-
-        return {'train' : train_images, 'validation' : validation_images}
+        return images
 
     #--------------------------------------------------------------------------
-    def pixel_intensity_histograms(self):
+    def calculate_image_statistics(self, data : pd.DataFrame):
+        image_paths = data['path'].to_list()
 
-        images = self.get_images_for_validation()
-        figure_path = os.path.join(VALIDATION_PATH, 'pixel_intensity_histograms.jpeg')
-        plt.figure(figsize=(16, 14))        
-        for name, image_set in images.items():
-            pixel_intensities = np.concatenate([image.flatten() for image in image_set])
-            plt.hist(pixel_intensities, bins='auto', alpha=0.5, label=name)        
-        plt.title('Pixel Intensity Histograms', fontsize=16)
+
+    #--------------------------------------------------------------------------
+    def calculate_image_statistics(self, data : pd.DataFrame): 
+        images_path = data['path'].to_list()         
+        results= []     
+        for path in tqdm(
+            images_path, desc="Processing images", total=len(images_path), ncols=100):                  
+            img = cv2.imread(path)
+            
+            if img is None:
+                logger.warning(f"Warning: Unable to load image at {path}.")
+                continue
+
+            # Convert image to grayscale for analysis
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # Get image dimensions
+            height, width = gray.shape
+            # Compute basic statistics
+            mean_val = np.mean(gray)
+            median_val = np.median(gray)
+            std_val = np.std(gray)
+            min_val = np.min(gray)
+            max_val = np.max(gray)
+            pixel_range = max_val - min_val
+
+            # Estimate noise by comparing the image to a blurred version
+            blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+            noise = gray.astype(np.float32) - blurred.astype(np.float32)
+            noise_std = np.std(noise)
+            # Define the noise ratio (avoiding division by zero with a small epsilon)
+            noise_ratio = noise_std / (std_val + 1e-9)
+          
+            results.append({'name': os.path.basename(path),
+                            'height': height,
+                            'width': width,
+                            'mean': mean_val,
+                            'median': median_val,
+                            'std': std_val,
+                            'min': min_val,
+                            'max': max_val,
+                            'pixel_range': pixel_range,
+                            'noise_std': noise_std,
+                            'noise_ratio': noise_ratio})           
+        
+        stats_dataframe = pd.DataFrame(results)
+        csv_path = os.path.join(self.statistics_path, 'image_statistics.csv')
+        stats_dataframe.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
+        
+        return results
+    
+    #--------------------------------------------------------------------------
+    def calculate_pixel_intensity(self, data : pd.DataFrame):
+        images_path = data['path'].to_list()               
+        image_histograms = np.zeros(256, dtype=np.int64)        
+        for path in tqdm(
+            images_path, desc="Processing image histograms", total=len(images_path), ncols=100):            
+            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+            if img is None:
+                logger.warning(f"Warning: Unable to load image at {path}.")
+                continue
+
+            # Calculate histogram for grayscale values [0, 255]
+            hist = cv2.calcHist([img], [0], None, [256], [0, 256]).flatten()
+            image_histograms += hist.astype(np.int64)
+
+        # Plot the combined histogram
+        plt.figure(figsize=(14, 12))
+        plt.bar(np.arange(256),image_histograms, alpha=0.7)
+        plt.title('Combined Pixel Intensity Histogram', fontsize=16)
         plt.xlabel('Pixel Intensity', fontsize=12)
         plt.ylabel('Frequency', fontsize=12)
-        plt.legend()
-        plt.tight_layout()        
-        plt.savefig(figure_path, bbox_inches='tight', 
-                    format=self.file_type, dpi=self.DPI)
-        plt.show()
-        plt.close()
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(self.plot_path, 'pixel_intensity_histogram.jpeg'), 
+            dpi=self.DPI)
+        plt.close()        
+
+        return image_histograms    
 
     #--------------------------------------------------------------------------
     def calculate_PSNR(self, img_path_1, img_path_2):
@@ -67,5 +131,8 @@ class ImageDatasetValidation:
         psnr = 20 * np.log10(PIXEL_MAX/np.sqrt(mse))
 
         return psnr
+    
+
+
     
     
