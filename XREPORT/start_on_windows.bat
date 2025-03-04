@@ -8,6 +8,7 @@ set "setup_path=%project_folder%\setup"
 set "env_path=%setup_path%\environment\%env_name%"
 set "conda_path=%setup_path%\miniconda"
 set "app_path=%project_folder%\%project_name%"
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Check if conda is installed
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -109,7 +110,7 @@ goto :main_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :datanalysis
 cls
-start cmd /k "call conda activate "%env_path%" && jupyter notebook "%app_path%"\validation\dataset_validation.ipynb"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\validation\dataset_validation.py"
 goto :main_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -173,7 +174,7 @@ goto :ML_menu
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :modeleval
 cls
-start cmd /k "call conda activate "%env_path%" && jupyter notebook "%app_path%"\validation\model_evaluation.ipynb"
+start cmd /k "call conda activate "%env_path%" && python "%app_path%"\validation\model_evaluation.py"
 goto :ML_menu
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

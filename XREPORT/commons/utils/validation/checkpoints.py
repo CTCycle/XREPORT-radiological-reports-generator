@@ -32,11 +32,9 @@ class ModelEvaluationSummary:
         return model_paths  
 
     #---------------------------------------------------------------------------
-    def checkpoints_summary(self):
-       
+    def checkpoints_summary(self):       
         # look into checkpoint folder to get pretrained model names      
         model_paths = self.scan_checkpoint_folder()
-
         model_parameters = []            
         for model_path in model_paths:            
             model = self.serializer.load_checkpoint(model_path)

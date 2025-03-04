@@ -1,3 +1,7 @@
+# [SETTING ENVIRONMENT VARIABLES]
+from XREPORT.commons.variables import EnvironmentVariables
+EV = EnvironmentVariables()
+
 # [SETTING WARNINGS]
 import warnings
 warnings.simplefilter(action='ignore', category=Warning)
@@ -25,8 +29,8 @@ if __name__ == '__main__':
     # sanitize text corpus by removing undesired symbols and punctuation     
     sanitizer = TextSanitizer(CONFIG)
     processed_dataset = sanitizer.sanitize_text(dataset)
-    # preprocess text corpus using pretrained distillBERT tokenizer. Text is tokenized
-    # using subwords and these are eventually mapped to integer indexes        
+    # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
+    # into subunits and these are eventually mapped to integer indexes        
     tokenization = TokenWizard(CONFIG) 
     logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_name} tokenizer')    
     processed_dataset = tokenization.tokenize_text_corpus(processed_dataset)   
@@ -34,7 +38,9 @@ if __name__ == '__main__':
     
     # 3. [SAVE PREPROCESSED DATA]
     #--------------------------------------------------------------------------
-    # save preprocessed data using data serializer    
+    # save preprocessed data using data serializer 
+    logger.info(f'Dataset includes {processed_dataset.shape[0]} samples')  
+    logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
     dataserializer.save_preprocessed_data(processed_dataset, vocabulary_size)
     
 

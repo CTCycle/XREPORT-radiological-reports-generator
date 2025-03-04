@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration) 
-    processed_data, metadata = dataserializer.load_data_from_checkpoint(checkpoint_path)
+    processed_data, metadata = dataserializer.load_preprocessed_data()
     processed_data = dataserializer.get_images_path_from_dataset(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
