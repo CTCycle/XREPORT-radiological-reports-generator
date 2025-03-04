@@ -139,11 +139,13 @@ class TransformerEncoder(keras.layers.Layer):
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads         
         self.seed = seed                
-        self.attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
-                                                   key_dim=self.embedding_dims)
+        self.attention = layers.MultiHeadAttention(
+            num_heads=self.num_heads, key_dim=self.embedding_dims, 
+            seed=self.seed)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)    
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
+        self.supports_masking = True    
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -152,13 +154,13 @@ class TransformerEncoder(keras.layers.Layer):
 
     # implement transformer encoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, training=None):        
-
+    def call(self, inputs, mask=None, training=None): 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized     
-        attention_output = self.attention(query=inputs, value=inputs, key=inputs,
-                                          attention_mask=None, training=training)
+        attention_output = self.attention(
+            query=inputs, value=inputs, key=inputs, 
+            attention_mask=None, training=training)
          
         addnorm = self.addnorm1([inputs, attention_output])
 
@@ -194,12 +196,12 @@ class TransformerDecoder(keras.layers.Layer):
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads  
         self.seed = seed                       
-        self.self_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
-                                                        key_dim=self.embedding_dims, 
-                                                        dropout=0.2)
-        self.cross_attention = layers.MultiHeadAttention(num_heads=self.num_heads, 
-                                                         key_dim=self.embedding_dims, 
-                                                         dropout=0.2)        
+        self.self_attention = layers.MultiHeadAttention(
+            num_heads=self.num_heads, key_dim=self.embedding_dims, 
+            dropout=0.2, seed=self.seed)
+        self.cross_attention = layers.MultiHeadAttention(
+            num_heads=self.num_heads, key_dim=self.embedding_dims, 
+            dropout=0.2, seed=self.seed)        
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
@@ -213,29 +215,31 @@ class TransformerDecoder(keras.layers.Layer):
 
     # implement transformer decoder through call method  
     #--------------------------------------------------------------------------    
-    def call(self, inputs, encoder_outputs, training=None, mask=None):        
-        
+    def call(self, inputs, encoder_outputs, mask=None, training=None):        
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
 
         if mask is not None:
-            padding_mask = keras.ops.cast(keras.ops.expand_dims(mask, axis=2), dtype=torch.int32)
-            combined_mask = keras.ops.minimum(keras.ops.cast(keras.ops.expand_dims(mask, axis=1), 
-                                                             dtype=torch.int32), causal_mask)
+            padding_mask = keras.ops.cast(
+                keras.ops.expand_dims(mask, axis=2), dtype=torch.int32)
+            combined_mask = keras.ops.minimum(
+                keras.ops.cast(keras.ops.expand_dims(mask, axis=1),
+                               dtype=torch.int32), causal_mask)
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
-        self_masked_MHA = self.self_attention(query=inputs, value=inputs, key=inputs,
-                                              attention_mask=combined_mask, training=training)        
+        self_masked_MHA = self.self_attention(
+            query=inputs, value=inputs, key=inputs, attention_mask=combined_mask, 
+            training=training)        
         addnorm_out1 = self.addnorm1([inputs, self_masked_MHA]) 
 
         # cross attention using the encoder output as value and key and the output
         # of the addnorm layer as query. The output of this attention layer is then summed
         # to the inputs and normalized
-        cross_MHA = self.cross_attention(query=addnorm_out1, value=encoder_outputs,
-                                         key=encoder_outputs, attention_mask=padding_mask,
-                                         training=training)        
+        cross_MHA = self.cross_attention(
+            query=addnorm_out1, value=encoder_outputs, key=encoder_outputs, 
+            attention_mask=padding_mask, training=training)        
         addnorm_out2 = self.addnorm2([addnorm_out1, cross_MHA]) 
 
         # feed forward network with ReLU activation to further process the output
@@ -248,7 +252,6 @@ class TransformerDecoder(keras.layers.Layer):
     # generate causal attention mask   
     #--------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs):
-
         batch_size, sequence_length = keras.ops.shape(inputs)[0], keras.ops.shape(inputs)[1]
         i = keras.ops.expand_dims(keras.ops.arange(sequence_length), axis=1)
         j = keras.ops.arange(sequence_length)

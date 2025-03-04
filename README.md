@@ -123,6 +123,9 @@ For customization, you can modify the main configuration parameters using *setti
 | SAVE_CHECKPOINTS   | Save checkpoints during training (at each epoch)         |
 
 #### LR Scheduler Configuration
+
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
 | POST_WARMUP_LR     | Learning rate value after initial warmup                 |
 | WARMUP_STEPS       | Number of warmup epochs                                  |
 

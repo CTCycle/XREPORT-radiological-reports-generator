@@ -119,26 +119,7 @@ class DataSerializer:
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         
-        return processed_data, metadata 
-    
-    #--------------------------------------------------------------------------
-    def load_data_from_checkpoint(self, checkpoint_path):   
-        data_folder = os.path.join(checkpoint_path, 'data')   
-        data_path = os.path.join(data_folder, 'XREPORT_processed.csv')
-        metadata_path = os.path.join(data_folder, 'preprocessing_metadata.json')
-        processed_data = pd.read_csv(data_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
-        with open(metadata_path, 'r') as file:
-            metadata = json.load(file)
-
-        return processed_data, metadata
-
-    #--------------------------------------------------------------------------
-    def copy_data_to_checkpoint(self, checkpoint_path):        
-        data_folder = os.path.join(checkpoint_path, 'data')        
-        os.makedirs(data_folder, exist_ok=True)            
-        shutil.copy(self.processed_data_path, data_folder)
-        shutil.copy(self.metadata_path, data_folder)
+        return processed_data, metadata        
     
     
 
