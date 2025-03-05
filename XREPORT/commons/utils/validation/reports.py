@@ -10,9 +10,9 @@ def evaluation_report(model : keras.Model, train_dataset, validation_dataset):
     training = model.evaluate(train_dataset, verbose=1)
     validation = model.evaluate(validation_dataset, verbose=1)
     logger.info(
-        f'Training loss {training[0]:.3f} - Training cosine similarity {training[1]:.3f}')    
+        f'Training loss {training[0]:.3f} - Training metric {training[1]:.3f}')    
     logger.info(
-        f'Validation loss {validation[0]:.3f} - Validation cosine similarity {validation[1]:.3f}')  
+        f'Validation loss {validation[0]:.3f} - Validation metric {validation[1]:.3f}')  
     
 
 ###############################################################################
