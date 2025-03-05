@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # 2. [COMPUTE IMAGE STATISTICS]
     #--------------------------------------------------------------------------
     analyzer = TextAnalysis()
-    words = analyzer.words_counter(dataset)
+    words = analyzer.count_words_in_documents(dataset)
     logger.info(f'Number of words dataset:        {len(words)}')
     logger.info(f'Number of unique words dataset: {len(set(words))}')     
 
