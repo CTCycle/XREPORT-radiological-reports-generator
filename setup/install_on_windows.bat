@@ -41,7 +41,7 @@ echo.
 echo Checking git installation
 git --version >nul 2>&1
 if errorlevel 1 (
-    echo Git not found. Installing git using conda...
+    echo Git not found. Installing git using conda..
     call conda install -y git
 ) else (
     echo Git is already installed.
@@ -67,13 +67,13 @@ call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1 fpdf
 echo Installing triton from windows wheel
 cd triton
 call cd  "%setup_path%\triton" && pip install triton-3.2.0-cp312-cp312-win_amd64.whl
-cd ..
+cd .
 
 :: [INSTALLATION OF PYDOT/PYDOTPLUS]
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Install pydot/pydotplus for graphic model visualization
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: 
-echo Installing pydot and pydotplus...
+echo Installing pydot and pydotplus..
 call conda install pydot -y
 call conda install pydotplus -y
 
