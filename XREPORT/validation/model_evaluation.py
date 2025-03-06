@@ -9,7 +9,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
+from XREPORT.commons.utils.dataloader.tensordata import TrainingDatasetBuilder
 from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     tokenization = TokenWizard(configuration)    
     tokenizer = tokenization.tokenizer
     
-    builder = TensorDatasetBuilder(configuration)      
+    builder = TrainingDatasetBuilder(configuration)      
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data, evaluation_batch_size)    
 
