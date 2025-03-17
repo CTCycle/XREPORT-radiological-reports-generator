@@ -14,14 +14,14 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self):         
+    def __init__(self, configuration):         
         self.statistics_path = os.path.join(VALIDATION_PATH, 'dataset')
         self.plot_path = os.path.join(self.statistics_path, 'figures')
         os.makedirs(self.statistics_path, exist_ok=True)
         os.makedirs(self.plot_path, exist_ok=True)
-        self.DPI = 400
-        self.file_type = 'jpg'     
-
+        self.configuration = configuration
+        self.DPI = configuration['validation']['DPI']        
+   
     #--------------------------------------------------------------------------
     def calculate_image_statistics(self, data : pd.DataFrame): 
         images_path = data['path'].to_list()         
@@ -51,8 +51,7 @@ class ImageAnalysis:
             noise = gray.astype(np.float32) - blurred.astype(np.float32)
             noise_std = np.std(noise)
             # Define the noise ratio (avoiding division by zero with a small epsilon)
-            noise_ratio = noise_std / (std_val + 1e-9)
-          
+            noise_ratio = noise_std / (std_val + 1e-9)          
             results.append({'name': os.path.basename(path),
                             'height': height,
                             'width': width,
@@ -66,8 +65,10 @@ class ImageAnalysis:
                             'noise_ratio': noise_ratio})           
         
         stats_dataframe = pd.DataFrame(results)
-        csv_path = os.path.join(self.statistics_path, 'image_statistics.csv')
-        stats_dataframe.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
+        csv_path = os.path.join(
+            self.statistics_path, 'image_statistics.csv')
+        stats_dataframe.to_csv(
+            csv_path, index=False, sep=';', encoding='utf-8')
         
         return results
     
@@ -101,13 +102,11 @@ class ImageAnalysis:
         return image_histograms    
 
     #--------------------------------------------------------------------------
-    def calculate_PSNR(self, img_path_1, img_path_2):
-        
+    def calculate_PSNR(self, img_path_1, img_path_2):        
         img1 = cv2.imread(img_path_1)
         img2 = cv2.imread(img_path_2)       
         img1 = img1.astype(np.float32)
-        img2 = img2.astype(np.float32)
-        
+        img2 = img2.astype(np.float32)        
         # Calculate MSE
         mse = np.mean((img1 - img2) ** 2)
         if mse == 0:            
