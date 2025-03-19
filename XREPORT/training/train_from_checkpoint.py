@@ -7,9 +7,9 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.dataloader.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.validation.reports import log_training_report
 
