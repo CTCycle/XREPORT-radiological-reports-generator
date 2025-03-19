@@ -2,7 +2,7 @@
     "SEED" : 54,   
     "dataset": {"SAMPLE_SIZE" : 0.25,
                 "VALIDATION_SIZE" : 0.2,                  
-                "IMG_AUGMENT" : false,
+                "IMG_AUGMENTATION" : false,
                 "MAX_REPORT_SIZE" : 160,                
                 "SPLIT_SEED" : 52,
                 "TOKENIZER": "distilbert"},         

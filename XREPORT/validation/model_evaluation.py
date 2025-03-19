@@ -49,17 +49,20 @@ if __name__ == '__main__':
 
     # 4. [BUILD DATA LOADERS]
     #--------------------------------------------------------------------------
-    # get tokenizers and its info
+    # get tokenizers and related configurations
     tokenization = TokenWizard(configuration)    
     tokenizer = tokenization.tokenizer
     
-    builder = TrainingDatasetBuilder(configuration)      
-    train_dataset, validation_dataset = builder.build_model_dataloader(
-        train_data, validation_data, evaluation_batch_size)    
-
     # 5. [EVALUATE ON TRAIN AND VALIDATION]
-    #--------------------------------------------------------------------------   
-    evaluation_report(model, train_dataset, validation_dataset)   
+    #--------------------------------------------------------------------------  
+    # use tf.data.Dataset to build the model dataloader with a larger batch size
+    # the dataset is built on top of the training and validation data
+    builder = TrainingDatasetBuilder(CONFIG, evaluate=True)        
+    train_dataset, validation_dataset = builder.build_model_dataloader(
+        train_data, validation_data)
+
+    # evaluate model performance over the training and validation dataset    
+    evaluation_report(model, train_dataset, validation_dataset) 
 
     # 6. [INITIALIZE PDF REPORT]
     #--------------------------------------------------------------------------

@@ -47,11 +47,7 @@ if __name__ == '__main__':
     # allows changing device prior to initializing the generators
     logger.info('Building XREPORT model and data loaders')     
     trainer = ModelTraining(CONFIG) 
-    trainer.set_device()
-
-    # get tokenizers from preprocessing configurations
-    tokenization = TokenWizard(metadata)   
-    tokenizer = tokenization.tokenizer
+    trainer.set_device()        
        
     # create the tf.datasets using the previously initialized generators 
     builder = TrainingDatasetBuilder(CONFIG)   
@@ -63,7 +59,7 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-    log_training_report(train_data, validation_data, CONFIG, vocabulary_size=vocabulary_size)
+    log_training_report(train_data, validation_data, CONFIG, vocabulary_size)
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocabulary_size, CONFIG)

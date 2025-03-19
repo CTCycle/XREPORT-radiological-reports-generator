@@ -87,7 +87,7 @@ echo ==========================================================================
 echo        XREPORT: generate radiological reports with machine learning
 echo ==========================================================================
 echo 1. Dataset analysis
-echo 2. Preprocess dataset
+echo 2. Build ML dataset
 echo 3. Model training and evaluation
 echo 4. Generate radiological reports
 echo 5. Setup and Maintenance

@@ -50,7 +50,8 @@ if __name__ == '__main__':
     
     # create the tf.datasets using the previously initialized generators 
     builder = TrainingDatasetBuilder(configuration)   
-    train_dataset, validation_dataset = builder.build_model_dataloader(train_data, validation_data)    
+    train_dataset, validation_dataset = builder.build_model_dataloader(
+        train_data, validation_data)    
     
     # 3. [TRAINING MODEL]  
     # Setting callbacks and training routine for the features extraction model 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
     #--------------------------------------------------------------------------    
     log_training_report(train_data, validation_data, configuration, 
-                        vocabulary_size=vocabulary_size, from_checkpoint=True)    
+                        vocabulary_size=vocabulary_size)    
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
