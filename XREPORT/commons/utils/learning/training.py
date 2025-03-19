@@ -2,7 +2,7 @@ import torch
 import keras
 
 from XREPORT.commons.utils.learning.callbacks import callbacks_handler
-from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
+from XREPORT.commons.utils.data.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 

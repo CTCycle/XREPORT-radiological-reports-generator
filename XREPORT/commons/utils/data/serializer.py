@@ -2,12 +2,12 @@ import os
 import sys
 import cv2
 import json
-import sqlite3
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import keras
 
+from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
 from XREPORT.commons.constants import CONFIG, DATA_PATH, PROCESSED_PATH, IMG_DATA_PATH, CHECKPOINT_PATH
@@ -47,11 +47,13 @@ class DataSerializer:
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}               
+        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}              
         
-        self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')
-        self.db_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed_dataset.db')        
+        self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')               
         self.metadata_path = os.path.join(PROCESSED_PATH, 'XREPORT_metadata.json')
+
+        self.csv_kwargs = {'index': False, 'sep': ';', 'encoding': 'utf-8'}
+        self.database = XREPORTDatabase(configuration)
         
         self.seed = configuration['SEED']   
         self.parameters = configuration["dataset"]
@@ -60,7 +62,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_dataset(self, sample_size=None): 
-        dataset = pd.read_csv(self.dataset_path, encoding='utf-8', sep=';')             
+        dataset = pd.read_csv(self.dataset_path, **self.csv_kwargs)             
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -112,14 +114,11 @@ class DataSerializer:
         if self.save_as_csv:
             logger.info('Export to CSV requested. Now saving preprocessed data to CSV file') 
             csv_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed_dataset.csv')             
-            processed_data.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
+            processed_data.to_csv(csv_path, **self.csv_kwargs)  
 
-        # connect to sqlite database and save the preprocessed data as table
-        conn = sqlite3.connect(self.db_path)         
-        processed_data.to_sql('XREPORT_dataset', conn, if_exists='replace')
-        conn.commit()
-        conn.close() 
-            
+        # save dataframe as a table in sqlite database
+        self.database.save_to_database(processed_data) 
+
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -129,15 +128,13 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):  
-        # Connect to the database and inject a select all query
-        # convert the extracted data directly into a pandas dataframe          
-        conn = sqlite3.connect(self.db_path)        
-        processed_data = pd.read_sql_query(f"SELECT * FROM XREPORT_dataset", conn)
-        conn.close()  
+    def load_preprocessed_data(self): 
+        # load preprocessed data from database  
+        processed_data = self.database.load_from_database()
         # process text strings to obtain a list of separated token indices     
         processed_data['tokens'] = processed_data['tokens'].apply(
-            lambda x : [int(f) for f in x.split()])        
+            lambda x : [int(f) for f in x.split()]) 
+               
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         
