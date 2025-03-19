@@ -40,7 +40,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **1) Data analysis:** analyze and validate the image dataset using different metrics. Images statistics such as mean pixel values, standard deviation and noise ratio are reported in a detailed summary saved in *resources/validation/dataset/image_statistics.csv*. The average pixel distribution of the dataset is reported in *resources/validation/figures*.  
 
-**2) Data preprocessing:** prepare data from machine learning, starting from raw radiological images and their report in text format. This is done by running *preprocessing/data_preprocessing.py*
+**2) Build ML dataset:** Prepare the reports dataset for machine learning by processing and tokenizing X-ray descriptions and retrieving the associated image paths. Only one instance of the processed dataset is allowed at a time, and all training will be conducted using this data along with the corresponding processing metadata.
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
@@ -84,7 +84,7 @@ For customization, you can modify the main configuration parameters using *setti
 |--------------------|----------------------------------------------------------|
 | SAMPLE_SIZE        | Number of samples to use from the dataset                |
 | VALIDATION_SIZE    | Proportion of the dataset to use for validation          |
-| IMG_AUGMENT        | Whether to apply data augmentation to images             |
+| IMG_AUGMENTATION   | Whether to apply data augmentation to images             |
 | MAX_REPORT_SIZE    | Max length of text report (in tokens)                    |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
 | TOKENIZER          | Tokenizer string (or name if among preselected)          |
