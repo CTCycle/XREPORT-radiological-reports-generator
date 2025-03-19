@@ -2,7 +2,7 @@ import os
 import sys
 import cv2
 import json
-import shutil
+import sqlite3
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -50,11 +50,12 @@ class DataSerializer:
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}               
         
         self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')
-        self.processed_data_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed.csv') 
-        self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json')
+        self.db_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed_dataset.db')        
+        self.metadata_path = os.path.join(PROCESSED_PATH, 'XREPORT_metadata.json')
         
         self.seed = configuration['SEED']   
         self.parameters = configuration["dataset"]
+        self.save_as_csv = self.parameters["SAVE_CSV"]
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
@@ -106,9 +107,19 @@ class DataSerializer:
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):              
-        processed_data.to_csv(
-            self.processed_data_path, index=False, sep=';', encoding='utf-8') 
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):        
+        # save the preprocessed data as .csv if requested by configurations
+        if self.save_as_csv:
+            logger.info('Export to CSV requested. Now saving preprocessed data to CSV file') 
+            csv_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed_dataset.csv')             
+            processed_data.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
+
+        # connect to sqlite database and save the preprocessed data as table
+        conn = sqlite3.connect(self.db_path)         
+        processed_data.to_sql('XREPORT_dataset', conn, if_exists='replace')
+        conn.commit()
+        conn.close() 
+            
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -118,9 +129,13 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):            
-        processed_data = pd.read_csv(
-            self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
+    def load_preprocessed_data(self):  
+        # Connect to the database and inject a select all query
+        # convert the extracted data directly into a pandas dataframe          
+        conn = sqlite3.connect(self.db_path)        
+        processed_data = pd.read_sql_query(f"SELECT * FROM XREPORT_dataset", conn)
+        conn.close()  
+        # process text strings to obtain a list of separated token indices     
         processed_data['tokens'] = processed_data['tokens'].apply(
             lambda x : [int(f) for f in x.split()])        
         with open(self.metadata_path, 'r') as file:

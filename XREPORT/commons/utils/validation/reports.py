@@ -16,7 +16,8 @@ def evaluation_report(model : keras.Model, train_dataset, validation_dataset):
     
 
 ###############################################################################
-def log_training_report(train_data, validation_data, config : dict, vocabulary_size=None):
+def log_training_report(train_data, validation_data, config : dict, metadata : dict):
+    vocabulary_size = metadata['vocabulary_size']
     logger.info('--------------------------------------------------------------')
     logger.info('XREPORT training report')
     logger.info('--------------------------------------------------------------')    
