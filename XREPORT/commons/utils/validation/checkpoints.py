@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import keras
 
-from XREPORT.commons.utils.dataloader.serializer import ModelSerializer
+from XREPORT.commons.utils.data.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH, VALIDATION_PATH
 from XREPORT.commons.logger import logger
 

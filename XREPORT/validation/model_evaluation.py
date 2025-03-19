@@ -9,8 +9,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.dataloader.tensordata import TrainingDatasetBuilder
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
+from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from XREPORT.commons.constants import CONFIG, DATA_PATH

@@ -1,7 +1,7 @@
 import pandas as pd
 import tensorflow as tf
 
-from XREPORT.commons.utils.dataloader.generators import DatasetGenerator
+from XREPORT.commons.utils.data.generators import DatasetGenerator
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger   
 
