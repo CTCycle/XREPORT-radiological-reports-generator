@@ -1,6 +1,6 @@
-__pycache__
+XREPORT/resources/dataset/XREPORT_dataset.csv
 XREPORT/resources/dataset/images/*
-XREPORT/resources/dataset/processed_data/*
+XREPORT/resources/dataset/processed_dataset/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/validation/*
 XREPORT/resources/models/tokenizers/*
@@ -11,9 +11,10 @@ setup/environment/*
 setup/miniconda/*
 setup/variables/.env
 
+__pycache__
 *.egg-info
 *.log
-*.csv
+*.db
 !.gitkeep
 
 
