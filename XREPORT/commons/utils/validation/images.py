@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer
+from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.constants import CONFIG, VALIDATION_PATH
 from XREPORT.commons.logger import logger
 

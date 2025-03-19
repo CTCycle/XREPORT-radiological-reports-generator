@@ -5,7 +5,7 @@ import keras
 import tensorflow as tf
 from tqdm import tqdm   
 
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer
+from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
