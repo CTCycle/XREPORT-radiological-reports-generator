@@ -45,15 +45,17 @@ class DataSerializer:
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
-        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}
-        self.seed = configuration['SEED']        
+        self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}               
         
         self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')
         self.processed_data_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed.csv') 
         self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json')
         
+        self.seed = configuration['SEED']   
         self.parameters = configuration["dataset"]
-        self.configuration = configuration    
+        self.configuration = configuration
 
     #--------------------------------------------------------------------------
     def load_dataset(self, sample_size=None): 
@@ -78,8 +80,7 @@ class DataSerializer:
         return dataset
     
     #--------------------------------------------------------------------------
-    def get_images_path_from_folder(self, path):    
-          
+    def get_images_path_from_folder(self, path):           
         if not os.listdir(path):
             logger.error(f'No XRAY scans found in {path}, please add them and try again.')
             sys.exit()
@@ -99,23 +100,29 @@ class DataSerializer:
         image = cv2.cvtColor(image, self.color_encoding)
         image = np.asarray(cv2.resize(image, self.img_shape[:-1]), dtype=np.float32)            
         if normalize:
-            image = image / 255.0       
+            image = image/255.0        
+            image = (image - self.image_mean) / self.image_std      
 
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):        
-        metadata = self.configuration.copy()
-        metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['vocabulary_size'] = vocabulary_size         
-        processed_data.to_csv(self.processed_data_path, index=False, sep=';', encoding='utf-8')        
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):              
+        processed_data.to_csv(
+            self.processed_data_path, index=False, sep=';', encoding='utf-8') 
+        metadata = {'seed' : self.configuration['SEED'], 
+                    'dataset' : self.configuration['dataset'],
+                    'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'vocabulary_size' : vocabulary_size}  
+               
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self):            
-        processed_data = pd.read_csv(self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
+        processed_data = pd.read_csv(
+            self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
+        processed_data['tokens'] = processed_data['tokens'].apply(
+            lambda x : [int(f) for f in x.split()])        
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         

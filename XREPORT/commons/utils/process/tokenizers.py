@@ -43,7 +43,8 @@ class TokenWizard:
         self.tokenizer_name = configuration["dataset"]["TOKENIZER"] 
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
         selector = PretrainedTokenizers()
-        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(self.tokenizer_name)         
+        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(
+            self.tokenizer_name)         
     
     #--------------------------------------------------------------------------
     def tokenize_text_corpus(self, data : pd.DataFrame):        
