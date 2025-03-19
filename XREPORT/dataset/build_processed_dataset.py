@@ -41,6 +41,7 @@ if __name__ == '__main__':
     # save preprocessed data using data serializer 
     logger.info(f'Dataset includes {processed_dataset.shape[0]} samples')  
     logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+    logger.info('Saving preprocessed data to XREPORT database')     
     dataserializer.save_preprocessed_data(processed_dataset, vocabulary_size)
     
 

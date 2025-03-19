@@ -40,8 +40,7 @@ if __name__ == '__main__':
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration) 
     processed_data, metadata = dataserializer.load_preprocessed_data()
-    processed_data = dataserializer.get_images_path_from_dataset(processed_data)
-    vocabulary_size = metadata['vocabulary_size']
+    processed_data = dataserializer.get_images_path_from_dataset(processed_data)    
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
@@ -57,9 +56,9 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
-    #--------------------------------------------------------------------------    
-    log_training_report(train_data, validation_data, configuration, 
-                        vocabulary_size=vocabulary_size)    
+    #--------------------------------------------------------------------------        
+    log_training_report(train_data, validation_data, configuration, metadata) 
+                            
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,
