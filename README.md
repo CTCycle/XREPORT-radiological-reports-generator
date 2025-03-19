@@ -61,7 +61,7 @@ This folder is used to organize data and results for various stages of the proje
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **dataset:** contains images used to train the XREPORT model, as well as the file *XREPORT_dataset.csv* that should be provided for training purposes. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. 
+- **dataset:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided for training purposes. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Preprocessed data is saved within a database in the *preprocessed_dataset* subfolder, while the data can also be saved as .csv if requested in configurations.
 
 - **generation:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
 
@@ -88,7 +88,7 @@ For customization, you can modify the main configuration parameters using *setti
 | MAX_REPORT_SIZE    | Max length of text report (in tokens)                    |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
 | TOKENIZER          | Tokenizer string (or name if among preselected)          |
-
+| SAVE_CSV           | Save preprocessed data as .csv file                      |
 
 ### Model Configuration
 

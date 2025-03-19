@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-    log_training_report(train_data, validation_data, CONFIG, vocabulary_size)
+    log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocabulary_size, CONFIG)
