@@ -41,7 +41,7 @@ echo.
 echo Checking git installation
 git --version >nul 2>&1
 if errorlevel 1 (
-    echo Git not found. Installing git using conda...
+    echo Git not found. Installing git using conda..
     call conda install -y git
 ) else (
     echo Git is already installed.
@@ -56,9 +56,9 @@ goto :dependencies
 echo.
 echo Install python libraries and packages
 call pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
-call pip install https://storage.googleapis.com/tensorflow/versions/2.18.0/tensorflow-2.18.0-cp312-cp312-win_amd64.whl
+call pip install tensorflow==2.18.1
 call pip install keras==3.8.0 transformers==4.45.2 scikit-learn==1.6.1 opencv-python==4.11.0.86
-call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1 fpdf==1.7.2
+call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1 
 
 :: [INSTALL TRITON] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -67,13 +67,13 @@ call pip install matplotlib==3.10.0 numpy==2.0.2 pandas==2.2.3 tqdm==4.67.1 fpdf
 echo Installing triton from windows wheel
 cd triton
 call cd  "%setup_path%\triton" && pip install triton-3.2.0-cp312-cp312-win_amd64.whl
-cd ..
+cd .
 
 :: [INSTALLATION OF PYDOT/PYDOTPLUS]
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Install pydot/pydotplus for graphic model visualization
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: 
-echo Installing pydot and pydotplus...
+echo Installing pydot and pydotplus..
 call conda install pydot -y
 call conda install pydotplus -y
 

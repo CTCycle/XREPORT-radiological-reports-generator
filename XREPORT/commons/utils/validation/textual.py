@@ -13,7 +13,7 @@ class TextAnalysis:
         self.file_type = 'jpg'
 
     #--------------------------------------------------------------------------
-    def words_counter(self, data : pd.DataFrame):         
+    def count_words_in_documents(self, data : pd.DataFrame):         
         words = [word for text in data['text'].to_list() for word in text.split()]        
            
 
