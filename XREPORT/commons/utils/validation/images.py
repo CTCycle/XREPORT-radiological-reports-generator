@@ -15,7 +15,7 @@ from XREPORT.commons.logger import logger
 class ImageAnalysis:
 
     def __init__(self, configuration):         
-        self.csv_kwargs = {'index': 'false', 'sep': ';', 'encoding': 'utf-8'}
+        self.csv_kwargs = {'index': 'False', 'sep': ';', 'encoding': 'utf-8'}
         self.database = XREPORTDatabase(configuration)
         self.save_as_csv = configuration["dataset"]["SAVE_CSV"]
         self.DPI = configuration['validation']['DPI']        
