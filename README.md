@@ -63,13 +63,11 @@ The directory structure includes the following folders:
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **database:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Ensure your training data is placed in *database/images* and that all images are saved in the correct format (preferably either .jpg or .png). Graphic validation results are saved in *database/validation*. 
+- **database:** the data source must be provided in the form of the CSV file named XREPORT_dataset.csv, formatted according to the specified template. This CSV file should contain exactly two columns: *id* containing the image filenames and *text*, providing the corresponding descriptive text for each image. Processed data and validation results will be stored centrally within the main database *XREPORT_database.db*. All associated metadata will be promptly stored in *database/metadata*. For image training data, ensure all image files are placed in *database/images*, adhering to specified formats (.jpeg or .png). Graphical validation outputs will be saved separately within *database/validation*.
 
 - **inference:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
 
 - **logs:** log files are saved here
-
-- **validation:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using *settings/configurations.json*. 
