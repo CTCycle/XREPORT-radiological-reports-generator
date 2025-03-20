@@ -42,7 +42,7 @@ if __name__ == '__main__':
     image_statistics = analyzer.calculate_image_statistics(processed_data)
 
     logger.info('Generating the pixel intensity histogram')
-    analyzer.calculate_pixel_intensity(processed_data)   
+    analyzer.calculate_pixel_intensity_distribution(processed_data)   
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
