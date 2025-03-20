@@ -11,7 +11,7 @@ from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
+from XREPORT.commons.utils.validation.reports import evaluation_report
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 from XREPORT.commons.logger import logger
@@ -64,6 +64,4 @@ if __name__ == '__main__':
     # evaluate model performance over the training and validation dataset    
     evaluation_report(model, train_dataset, validation_dataset) 
 
-    # 6. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()
+  
