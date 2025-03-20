@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from XREPORT.commons.utils.data.serializer import DataSerializer
-from XREPORT.commons.constants import CONFIG, VALIDATION_PATH
+from XREPORT.commons.utils.data.database import XREPORTDatabase
+from XREPORT.commons.constants import CONFIG, DATA_PATH, VALIDATION_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -15,12 +15,11 @@ from XREPORT.commons.logger import logger
 class ImageAnalysis:
 
     def __init__(self, configuration):         
-        self.statistics_path = os.path.join(VALIDATION_PATH, 'dataset')
-        self.plot_path = os.path.join(self.statistics_path, 'figures')
-        os.makedirs(self.statistics_path, exist_ok=True)
-        os.makedirs(self.plot_path, exist_ok=True)
-        self.configuration = configuration
+        self.csv_kwargs = {'index': 'false', 'sep': ';', 'encoding': 'utf-8'}
+        self.database = XREPORTDatabase(configuration)
+        self.save_as_csv = configuration["dataset"]["SAVE_CSV"]
         self.DPI = configuration['validation']['DPI']        
+        self.configurations = configuration        
    
     #--------------------------------------------------------------------------
     def calculate_image_statistics(self, data : pd.DataFrame): 
@@ -64,13 +63,15 @@ class ImageAnalysis:
                             'noise_std': noise_std,
                             'noise_ratio': noise_ratio})           
         
-        stats_dataframe = pd.DataFrame(results)
-        csv_path = os.path.join(
-            self.statistics_path, 'image_statistics.csv')
-        stats_dataframe.to_csv(
-            csv_path, index=False, sep=';', encoding='utf-8')
+        stats_dataframe = pd.DataFrame(results)        
+        if self.save_as_csv:
+            logger.info('Export to CSV requested. Now savingimage statistics to CSV file')            
+            csv_path = os.path.join(DATA_PATH, 'image_statistics.csv')
+            stats_dataframe.to_csv(csv_path, **self.csv_kwargs)        
+
+        self.database.save_image_statistics(stats_dataframe)
         
-        return results
+        return stats_dataframe      
     
     #--------------------------------------------------------------------------
     def calculate_pixel_intensity(self, data : pd.DataFrame):
@@ -89,13 +90,13 @@ class ImageAnalysis:
 
         # Plot the combined histogram
         plt.figure(figsize=(14, 12))
-        plt.bar(np.arange(256),image_histograms, alpha=0.7)
+        plt.bar(np.arange(256), image_histograms, alpha=0.7)
         plt.title('Combined Pixel Intensity Histogram', fontsize=16)
         plt.xlabel('Pixel Intensity', fontsize=12)
         plt.ylabel('Frequency', fontsize=12)
         plt.tight_layout()
         plt.savefig(
-            os.path.join(self.plot_path, 'pixel_intensity_histogram.jpeg'), 
+            os.path.join(VALIDATION_PATH, 'pixel_intensity_histogram.jpeg'), 
             dpi=self.DPI)
         plt.close()        
 
