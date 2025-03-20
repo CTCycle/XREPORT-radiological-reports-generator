@@ -38,7 +38,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 ### 4.1 Navigation menu
 
-**1) Data analysis:** analyze and validate the image dataset using different metrics. Images statistics such as mean pixel values, standard deviation and noise ratio are reported in a detailed summary saved in *resources/validation/dataset/image_statistics.csv*. The average pixel distribution of the dataset is reported in *resources/validation/figures*.  
+**1) Data analysis:** analyze and validate the image dataset using different metrics. Images statistics such as mean pixel values, standard deviation and noise ratio are reported in a detailed summary within the validation database (*resources/validation/dataset/dataset_validation.csv*. The average pixel distribution of the dataset is reported in *resources/validation/figures*.  
 
 **2) Build ML dataset:** Prepare the reports dataset for machine learning by processing and tokenizing X-ray descriptions and retrieving the associated image paths. Only one instance of the processed dataset is allowed at a time, and all training will be conducted using this data along with the corresponding processing metadata.
 
@@ -57,17 +57,19 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 **6) Exit:** close the program immediately
 
 ### 4.2 Resources
-This folder is used to organize data and results for various stages of the project, including data validation, model training, and evaluation. Here you can find the following folders:
+This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database; however, users have the option to export data into separate CSV files if desired. To visualize and interact with SQLite database files, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
+
+The directory structure includes the following folders:
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **dataset:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided for training purposes. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Preprocessed data is saved within a database in the *preprocessed_dataset* subfolder, while the data can also be saved as .csv if requested in configurations.
+- **database:** contains images used to train the XREPORT model, as well as the source file *XREPORT_dataset.csv* that should be provided. This .csv file must contain two columns: *id* where the image names are given, and *text* where the associated text is saved. Ensure your training data is placed in *database/images* and that all images are saved in the correct format (preferably either .jpg or .png). Graphic validation results are saved in *database/validation*. 
 
-- **generation:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
+- **inference:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
 
 - **logs:** log files are saved here
 
-- **validation:** Used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
+- **validation:** used to save the results of data validation processes. This helps in keeping track of validation metrics and logs.
 
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using *settings/configurations.json*. 

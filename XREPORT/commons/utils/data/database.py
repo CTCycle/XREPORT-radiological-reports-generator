@@ -2,7 +2,7 @@ import os
 import sqlite3
 import pandas as pd
 
-from XREPORT.commons.constants import PROCESSED_PATH
+from XREPORT.commons.constants import DATA_PATH
 from XREPORT.commons.logger import logger
 
 # [DATABASE]
@@ -10,25 +10,61 @@ from XREPORT.commons.logger import logger
 class XREPORTDatabase:
 
     def __init__(self, configuration):             
-        self.db_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed_dataset.db') 
-        self.configuration = configuration        
+        self.db_path = os.path.join(DATA_PATH, 'XREPORT_database.db') 
+        self.configuration = configuration 
 
     #--------------------------------------------------------------------------
-    def save_to_database(self, data : pd.DataFrame): 
+    def load_source_data(self): 
+        # Connect to the database and inject a select all query
+        # convert the extracted data directly into a pandas dataframe          
+        conn = sqlite3.connect(self.db_path)        
+        data = pd.read_sql_query(f"SELECT * FROM SOURCE_DATA", conn)
+        conn.close()  
+
+        return data
+
+    #--------------------------------------------------------------------------
+    def load_preprocessed_data(self): 
+        # Connect to the database and inject a select all query
+        # convert the extracted data directly into a pandas dataframe          
+        conn = sqlite3.connect(self.db_path)        
+        data = pd.read_sql_query(f"SELECT * FROM PROCESSED_DATA", conn)
+        conn.close()  
+
+        return data       
+
+    #--------------------------------------------------------------------------
+    def save_source_data(self, data : pd.DataFrame): 
         # connect to sqlite database and save the preprocessed data as table
         conn = sqlite3.connect(self.db_path)         
-        data.to_sql('XREPORT_dataset', conn, if_exists='replace')
+        data.to_sql('SOURCE_DATA', conn, if_exists='replace')
         conn.commit()
         conn.close() 
         
     #--------------------------------------------------------------------------
-    def load_from_database(self): 
+    def save_preprocessed_data(self, processed_data : pd.DataFrame): 
         # Connect to the database and inject a select all query
         # convert the extracted data directly into a pandas dataframe          
         conn = sqlite3.connect(self.db_path)        
-        data = pd.read_sql_query(f"SELECT * FROM XREPORT_dataset", conn)
-        conn.close()  
+        processed_data.to_sql('PROCESSED_DATA', conn, if_exists='replace')
+        conn.close()
 
-        return data
+    #--------------------------------------------------------------------------
+    def save_image_statistics(self, data : pd.DataFrame): 
+        # connect to sqlite database and save the preprocessed data as table
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql('IMAGE_STATISTICS', conn, if_exists='replace')
+        conn.commit()
+        conn.close() 
+
+    #--------------------------------------------------------------------------
+    def save_checkpoints_summary(self, data : pd.DataFrame): 
+        # connect to sqlite database and save the preprocessed data as table
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql('CHECKPOINTS_SUMMARY', conn, if_exists='replace')
+        conn.commit()
+        conn.close()   
+
+ 
     
     
