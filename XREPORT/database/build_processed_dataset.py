@@ -7,12 +7,11 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
+from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.process.sequences import TextSanitizer
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer
-from XREPORT.commons.constants import CONFIG, IMG_DATA_PATH
+from XREPORT.commons.constants import CONFIG, IMG_PATH
 from XREPORT.commons.logger import logger
-
 
 # [RUN MAIN]
 ###############################################################################
@@ -41,10 +40,8 @@ if __name__ == '__main__':
     # save preprocessed data using data serializer 
     logger.info(f'Dataset includes {processed_dataset.shape[0]} samples')  
     logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
-    dataserializer.save_preprocessed_data(processed_dataset, vocabulary_size)
-    
-
-   
+    logger.info('Saving preprocessed data to XREPORT database')     
+    dataserializer.save_preprocessed_data(processed_dataset, vocabulary_size) 
 
   
 

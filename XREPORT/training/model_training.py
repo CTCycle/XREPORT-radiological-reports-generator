@@ -7,10 +7,9 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
+from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
 from XREPORT.commons.utils.validation.reports import log_training_report
@@ -47,14 +46,10 @@ if __name__ == '__main__':
     # allows changing device prior to initializing the generators
     logger.info('Building XREPORT model and data loaders')     
     trainer = ModelTraining(CONFIG) 
-    trainer.set_device()
-
-    # get tokenizers from preprocessing configurations
-    tokenization = TokenWizard(metadata)   
-    tokenizer = tokenization.tokenizer
+    trainer.set_device()        
        
     # create the tf.datasets using the previously initialized generators 
-    builder = TensorDatasetBuilder(CONFIG)   
+    builder = TrainingDatasetBuilder(CONFIG)   
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data)      
 
@@ -63,7 +58,7 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the features extraction model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-    log_training_report(train_data, validation_data, CONFIG, vocabulary_size=vocabulary_size)
+    log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
     captioner = XREPORTModel(vocabulary_size, CONFIG)

@@ -7,8 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.validation.reports import DataAnalysisPDF
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer
+from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.images import ImageAnalysis
 from XREPORT.commons.utils.validation.textual import TextAnalysis
@@ -30,20 +29,20 @@ if __name__ == '__main__':
     # 2. [COMPUTE IMAGE STATISTICS]
     #--------------------------------------------------------------------------
     analyzer = TextAnalysis()
-    words = analyzer.words_counter(dataset)
+    words = analyzer.count_words_in_documents(dataset)
     logger.info(f'Number of words dataset:        {len(words)}')
     logger.info(f'Number of unique words dataset: {len(set(words))}')     
 
     # 3. [COMPARE TRAIN AND TEST DATASETS]
     #--------------------------------------------------------------------------
     # load train and validation images as numpy arrays
-    analyzer = ImageAnalysis()
+    analyzer = ImageAnalysis(CONFIG)
     logger.info('Calculating image statistics and generating dataset report')
     logger.info('Focusing on mean pixel values, pixel standard deviation, image noise ratio')
     image_statistics = analyzer.calculate_image_statistics(processed_data)
 
     logger.info('Generating the pixel intensity histogram')
-    analyzer.calculate_pixel_intensity(processed_data)   
+    analyzer.calculate_pixel_intensity_distribution(processed_data)   
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------
@@ -53,6 +52,3 @@ if __name__ == '__main__':
     logger.info(f'Number of train samples: {len(train_data)}')
     logger.info(f'Number of validation samples: {len(validation_data)}')
 
-    # 2. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()

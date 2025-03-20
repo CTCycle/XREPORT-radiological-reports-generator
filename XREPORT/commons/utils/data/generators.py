@@ -1,9 +1,9 @@
-import keras
 import numpy as np
 import tensorflow as tf
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
+
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 ###############################################################################
@@ -16,7 +16,7 @@ class DatasetGenerator():
         self.img_shape = (224, 224) 
         self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)    
-        self.augmentation = configuration["dataset"]["IMG_AUGMENT"]  
+        self.augmentation = configuration["dataset"]["IMG_AUGMENTATION"]  
         self.batch_size = configuration["training"]["BATCH_SIZE"] 
         self.configuration = configuration        
 
@@ -33,9 +33,7 @@ class DatasetGenerator():
         rgb_image = self.load_image(path)
         rgb_image = self.image_normalization(rgb_image)
         rgb_image = self.image_augmentation(rgb_image) if self.augmentation else rgb_image
-
-        input_text = text[:-1]
-        output_text = text[1:]      
+        input_text, output_text = text[:-1], text[1:]          
 
         return (rgb_image, input_text), output_text    
 
