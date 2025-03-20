@@ -6,7 +6,7 @@
                 "MAX_REPORT_SIZE" : 160,                
                 "SPLIT_SEED" : 52,
                 "TOKENIZER": "distilbert",
-                "SAVE_CSV" : true},         
+                "SAVE_CSV" : false},         
     
     "model" : {"ATTENTION_HEADS" : 2,
                "NUM_ENCODERS" : 3,    
