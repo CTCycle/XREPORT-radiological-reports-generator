@@ -69,6 +69,8 @@ The directory structure includes the following folders:
 
 - **logs:** log files are saved here
 
+- **templates:** reference template files can be found here
+
 ## 5. Configurations
 For customization, you can modify the main configuration parameters using *settings/configurations.json*. 
 
