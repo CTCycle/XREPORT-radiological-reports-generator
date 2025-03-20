@@ -1,7 +1,7 @@
 import pandas as pd
 import tensorflow as tf
 
-from XREPORT.commons.utils.dataloader.generators import DatasetGenerator
+from XREPORT.commons.utils.data.generators import DatasetGenerator
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger   
 
@@ -9,7 +9,7 @@ from XREPORT.commons.logger import logger
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
-class TensorDatasetBuilder:
+class TrainingDatasetBuilder:
 
     def __init__(self, configuration, shuffle=True):
         self.generator = DatasetGenerator(configuration) 

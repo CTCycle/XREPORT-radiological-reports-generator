@@ -1,19 +1,23 @@
-__pycache__
-XREPORT/resources/dataset/images/*
-XREPORT/resources/dataset/processed_data/*
+XREPORT/resources/database/images/*
+XREPORT/resources/database/XREPORT_dataset.csv
+XREPORT/resources/database/metadata/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/validation/*
 XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
-XREPORT/resources/generation/radiography/*
+XREPORT/resources/inference/radiography/*
 
 setup/environment/*
 setup/miniconda/*
 setup/variables/.env
 
+__pycache__
+*.jpeg
+*.jpg
+*.png
 *.egg-info
 *.log
-*.csv
+*.db
 !.gitkeep
 
 

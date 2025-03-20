@@ -9,9 +9,9 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.dataloader.tensordata import TensorDatasetBuilder
-from XREPORT.commons.utils.dataloader.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.validation.reports import evaluation_report, DataAnalysisPDF
+from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
+from XREPORT.commons.utils.validation.reports import evaluation_report
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 from XREPORT.commons.logger import logger
@@ -49,18 +49,19 @@ if __name__ == '__main__':
 
     # 4. [BUILD DATA LOADERS]
     #--------------------------------------------------------------------------
-    # get tokenizers and its info
+    # get tokenizers and related configurations
     tokenization = TokenWizard(configuration)    
     tokenizer = tokenization.tokenizer
     
-    builder = TensorDatasetBuilder(configuration)      
-    train_dataset, validation_dataset = builder.build_model_dataloader(
-        train_data, validation_data, evaluation_batch_size)    
-
     # 5. [EVALUATE ON TRAIN AND VALIDATION]
-    #--------------------------------------------------------------------------   
-    evaluation_report(model, train_dataset, validation_dataset)   
+    #--------------------------------------------------------------------------  
+    # use tf.data.Dataset to build the model dataloader with a larger batch size
+    # the dataset is built on top of the training and validation data
+    builder = TrainingDatasetBuilder(CONFIG, evaluate=True)        
+    train_dataset, validation_dataset = builder.build_model_dataloader(
+        train_data, validation_data)
 
-    # 6. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()
+    # evaluate model performance over the training and validation dataset    
+    evaluation_report(model, train_dataset, validation_dataset) 
+
+  
