@@ -1,5 +1,4 @@
 import keras
-from fpdf import FPDF
 
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger

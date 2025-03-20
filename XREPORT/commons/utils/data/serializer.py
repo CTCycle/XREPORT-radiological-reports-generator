@@ -115,14 +115,13 @@ class DataSerializer:
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):        
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               
+        self.database.save_preprocessed_data(processed_data)
         # save the preprocessed data as .csv if requested by configurations
         if self.save_as_csv:
             logger.info('Export to CSV requested. Now saving preprocessed data to CSV file') 
             csv_path = os.path.join(DATA_PATH, 'XREPORT_processed_dataset.csv')             
             processed_data.to_csv(csv_path, **self.csv_kwargs)
-        
-        self.database.save_preprocessed_data(processed_data)
       
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],

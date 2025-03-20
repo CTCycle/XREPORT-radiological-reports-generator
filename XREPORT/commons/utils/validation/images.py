@@ -63,18 +63,18 @@ class ImageAnalysis:
                             'noise_std': noise_std,
                             'noise_ratio': noise_ratio})           
         
-        stats_dataframe = pd.DataFrame(results)        
+        stats_dataframe = pd.DataFrame(results)  
+        self.database.save_image_statistics(stats_dataframe)
+
         if self.save_as_csv:
             logger.info('Export to CSV requested. Now savingimage statistics to CSV file')            
             csv_path = os.path.join(DATA_PATH, 'image_statistics.csv')
-            stats_dataframe.to_csv(csv_path, **self.csv_kwargs)        
-
-        self.database.save_image_statistics(stats_dataframe)
+            stats_dataframe.to_csv(csv_path, **self.csv_kwargs)
         
         return stats_dataframe      
     
     #--------------------------------------------------------------------------
-    def calculate_pixel_intensity(self, data : pd.DataFrame):
+    def calculate_pixel_intensity_distribution(self, data : pd.DataFrame):
         images_path = data['path'].to_list()               
         image_histograms = np.zeros(256, dtype=np.int64)        
         for path in tqdm(

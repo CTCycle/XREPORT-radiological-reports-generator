@@ -1,3 +1,4 @@
+XREPORT/resources/database/images/*
 XREPORT/resources/database/XREPORT_dataset.csv
 XREPORT/resources/database/metadata/*
 XREPORT/resources/checkpoints/*
