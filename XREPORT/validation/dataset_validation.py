@@ -7,7 +7,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.validation.reports import DataAnalysisPDF
 from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.images import ImageAnalysis
@@ -53,6 +52,3 @@ if __name__ == '__main__':
     logger.info(f'Number of train samples: {len(train_data)}')
     logger.info(f'Number of validation samples: {len(validation_data)}')
 
-    # 2. [INITIALIZE PDF REPORT]
-    #--------------------------------------------------------------------------
-    report = DataAnalysisPDF()
