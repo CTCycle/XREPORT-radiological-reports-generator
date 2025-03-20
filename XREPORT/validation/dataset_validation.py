@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # 3. [COMPARE TRAIN AND TEST DATASETS]
     #--------------------------------------------------------------------------
     # load train and validation images as numpy arrays
-    analyzer = ImageAnalysis()
+    analyzer = ImageAnalysis(CONFIG)
     logger.info('Calculating image statistics and generating dataset report')
     logger.info('Focusing on mean pixel values, pixel standard deviation, image noise ratio')
     image_statistics = analyzer.calculate_image_statistics(processed_data)

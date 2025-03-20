@@ -1,11 +1,10 @@
 import os
 import shutil
 import pandas as pd
-import json
-import keras
 
+from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.data.serializer import ModelSerializer
-from XREPORT.commons.constants import CONFIG, CHECKPOINT_PATH, VALIDATION_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -14,9 +13,14 @@ from XREPORT.commons.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, remove_invalid=False):
+    def __init__(self, configuration, remove_invalid=False):
         self.remove_invalid = remove_invalid
         self.serializer = ModelSerializer()
+
+        self.csv_kwargs = {'index': 'false', 'sep': ';', 'encoding': 'utf-8'}
+        self.database = XREPORTDatabase(configuration)
+        self.save_as_csv = configuration["dataset"]["SAVE_CSV"]
+        self.configurations = configuration
 
     #---------------------------------------------------------------------------
     def scan_checkpoint_folder(self):
@@ -55,7 +59,9 @@ class ModelEvaluationSummary:
                            'Batch size': configuration["training"].get("BATCH_SIZE", 'NA'),           
                            'Split seed': configuration["dataset"].get("SPLIT_SEED", 'NA'),
                            'Image augmentation': configuration["dataset"].get("IMG_AUGMENTATION", 'NA'),
-                           'Image shape': (128, 128, 3),                            
+                           'Image height': 128,
+                           'Image width': 128,
+                           'Image channels': 3,                            
                            'JIT Compile': configuration["model"].get("JIT_COMPILE", 'NA'),
                            'JIT Backend': configuration["model"].get("JIT_BACKEND", 'NA'),
                            'Device': configuration["device"].get("DEVICE", 'NA'),
@@ -75,10 +81,13 @@ class ModelEvaluationSummary:
 
             model_parameters.append(chkp_config)
 
-        # Define the CSV path
         dataframe = pd.DataFrame(model_parameters)
-        csv_path = os.path.join(VALIDATION_PATH, 'summary_checkpoints.csv')        
-        dataframe.to_csv(csv_path, index=False, sep=';', encoding='utf-8')        
+        if self.save_as_csv:
+            logger.info('Export to CSV requested. Now saving checkpoint summary to CSV file')             
+            csv_path = os.path.join(DATA_PATH, 'checkpoints_summary.csv')     
+            dataframe.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
+
+        self.database.save_checkpoints_summary(dataframe)         
             
         return dataframe
     
