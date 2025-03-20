@@ -2,15 +2,15 @@ import os
 import sys
 import cv2
 import json
-import shutil
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import keras
 
+from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import LRScheduler
-from XREPORT.commons.constants import CONFIG, DATA_PATH, PROCESSED_PATH, IMG_DATA_PATH, CHECKPOINT_PATH
+from XREPORT.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -45,19 +45,30 @@ class DataSerializer:
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
-        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}
-        self.seed = configuration['SEED']        
+        self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         
-        self.dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')
-        self.processed_data_path = os.path.join(PROCESSED_PATH, 'XREPORT_processed.csv') 
-        self.metadata_path = os.path.join(PROCESSED_PATH, 'preprocessing_metadata.json')
+        self.metadata_path = os.path.join(METADATA_PATH, 'XREPORT_metadata.json') 
+        self.csv_kwargs = {'sep': ';', 'encoding': 'utf-8'}
+        self.database = XREPORTDatabase(configuration)
         
+        self.seed = configuration['SEED']   
         self.parameters = configuration["dataset"]
-        self.configuration = configuration    
+        self.save_as_csv = self.parameters["SAVE_CSV"]
+        self.configuration = configuration
 
     #--------------------------------------------------------------------------
-    def load_dataset(self, sample_size=None): 
-        dataset = pd.read_csv(self.dataset_path, encoding='utf-8', sep=';')             
+    def load_dataset(self, sample_size=None):
+        # load source data from database (if available) else load it from csv file 
+        try: 
+            dataset = self.database.load_source_data()
+        except:
+            dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')   
+            dataset = pd.read_csv(dataset_path, **self.csv_kwargs)
+            # if the source data is not found in the database, save it as a new table
+            self.database.save_source_data(dataset)
+
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -66,10 +77,10 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def get_images_path_from_dataset(self, dataset : pd.DataFrame):                
         images_path = {}
-        for root, _, files in os.walk(IMG_DATA_PATH):                      
+        for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
                 if os.path.splitext(file)[1].lower() in self.valid_extensions:                                                       
-                    path_pair = {file.split('.')[0] : os.path.join(IMG_DATA_PATH, file)}        
+                    path_pair = {file.split('.')[0] : os.path.join(IMG_PATH, file)}        
                     images_path.update(path_pair)         
 
         dataset['path'] = dataset['id'].map(images_path)
@@ -78,8 +89,7 @@ class DataSerializer:
         return dataset
     
     #--------------------------------------------------------------------------
-    def get_images_path_from_folder(self, path):    
-          
+    def get_images_path_from_folder(self, path):           
         if not os.listdir(path):
             logger.error(f'No XRAY scans found in {path}, please add them and try again.')
             sys.exit()
@@ -99,23 +109,36 @@ class DataSerializer:
         image = cv2.cvtColor(image, self.color_encoding)
         image = np.asarray(cv2.resize(image, self.img_shape[:-1]), dtype=np.float32)            
         if normalize:
-            image = image / 255.0       
+            image = image/255.0        
+            image = (image - self.image_mean) / self.image_std      
 
         return image
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):        
-        metadata = self.configuration.copy()
-        metadata['date'] = datetime.now().strftime("%Y-%m-%d")
-        metadata['vocabulary_size'] = vocabulary_size         
-        processed_data.to_csv(self.processed_data_path, index=False, sep=';', encoding='utf-8')        
+    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               
+        self.database.save_preprocessed_data(processed_data)
+        # save the preprocessed data as .csv if requested by configurations
+        if self.save_as_csv:
+            logger.info('Export to CSV requested. Now saving preprocessed data to CSV file') 
+            csv_path = os.path.join(DATA_PATH, 'XREPORT_processed_dataset.csv')             
+            processed_data.to_csv(csv_path, **self.csv_kwargs)
+      
+        metadata = {'seed' : self.configuration['SEED'], 
+                    'dataset' : self.configuration['dataset'],
+                    'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'vocabulary_size' : vocabulary_size}
+                
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4)          
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self):            
-        processed_data = pd.read_csv(self.processed_data_path, encoding='utf-8', sep=';', low_memory=False)        
-        processed_data['tokens'] = processed_data['tokens'].apply(lambda x : [int(f) for f in x.split()])        
+    def load_preprocessed_data(self): 
+        # load preprocessed data from database  
+        processed_data = self.database.load_preprocessed_data()
+        # process text strings to obtain a list of separated token indices     
+        processed_data['tokens'] = processed_data['tokens'].apply(
+            lambda x : [int(f) for f in x.split()]) 
+               
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         
