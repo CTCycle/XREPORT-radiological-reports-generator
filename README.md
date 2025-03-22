@@ -57,13 +57,13 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 **6) Exit:** close the program immediately
 
 ### 4.2 Resources
-This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database; however, users have the option to export data into separate CSV files if desired. To visualize and interact with SQLite database files, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
+This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database, which will automatically fetch input data from *database/dataset/XREPORT_dataset.csv*. To visualize and interact with the SQLite database, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/.
 
 The directory structure includes the following folders:
 
 - **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
 
-- **database:** the data source must be provided in the form of the CSV file named XREPORT_dataset.csv, formatted according to the specified template. This CSV file should contain exactly two columns: *id* containing the image filenames and *text*, providing the corresponding descriptive text for each image. Processed data and validation results will be stored centrally within the main database *XREPORT_database.db*. All associated metadata will be promptly stored in *database/metadata*. For image training data, ensure all image files are placed in *database/images*, adhering to specified formats (.jpeg or .png). Graphical validation outputs will be saved separately within *database/validation*.
+- **database:** the data source must be provided in *database/dataset/XREPORT_dataset.csv*, formatted according to the specified template (column *id* containing the image filenames and column *text* providing the corresponding description for each image). Processed data and validation results will be stored centrally within the main database *XREPORT_database.db*. All associated metadata will be promptly stored in *database/metadata*. For image training data, ensure all image files are placed in *database/images*, adhering to specified formats (.jpeg or .png). Graphical validation outputs will be saved separately within *database/validation*.
 
 - **inference:** contains *images* where you place images intended for inference using the pretrained XREPORT model, and *reports*. The generated radiological reports from input images are saved within this latter folder. 
 
@@ -90,7 +90,6 @@ For customization, you can modify the main configuration parameters using *setti
 | MAX_REPORT_SIZE    | Max length of text report (in tokens)                    |
 | SPLIT_SEED         | Seed for random splitting of the dataset                 |
 | TOKENIZER          | Tokenizer string (or name if among preselected)          |
-| SAVE_CSV           | Save preprocessed data as .csv file                      |
 
 ### Model Configuration
 
