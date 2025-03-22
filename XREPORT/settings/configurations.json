@@ -1,12 +1,11 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.25,
+    "dataset": {"SAMPLE_SIZE" : 0.5,
                 "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENTATION" : false,
                 "MAX_REPORT_SIZE" : 160,                
                 "SPLIT_SEED" : 52,
-                "TOKENIZER": "distilbert",
-                "SAVE_CSV" : false},         
+                "TOKENIZER": "distilbert"},         
     
     "model" : {"ATTENTION_HEADS" : 2,
                "NUM_ENCODERS" : 3,    

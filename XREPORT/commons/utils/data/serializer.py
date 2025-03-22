@@ -14,7 +14,6 @@ from XREPORT.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, IMG_PATH
 from XREPORT.commons.logger import logger
 
 
-
 ###############################################################################
 def checkpoint_selection_menu(models_list):
 
@@ -49,26 +48,16 @@ class DataSerializer:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         
-        self.metadata_path = os.path.join(METADATA_PATH, 'XREPORT_metadata.json') 
-        self.csv_kwargs = {'sep': ';', 'encoding': 'utf-8'}
+        self.metadata_path = os.path.join(METADATA_PATH, 'XREPORT_metadata.json')         
         self.database = XREPORTDatabase(configuration)
         
         self.seed = configuration['SEED']   
-        self.parameters = configuration["dataset"]
-        self.save_as_csv = self.parameters["SAVE_CSV"]
+        self.parameters = configuration["dataset"]        
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
-    def load_dataset(self, sample_size=None):
-        # load source data from database (if available) else load it from csv file 
-        try: 
-            dataset = self.database.load_source_data()
-        except:
-            dataset_path = os.path.join(DATA_PATH, 'XREPORT_dataset.csv')   
-            dataset = pd.read_csv(dataset_path, **self.csv_kwargs)
-            # if the source data is not found in the database, save it as a new table
-            self.database.save_source_data(dataset)
-
+    def load_dataset(self, sample_size=None):        
+        dataset = self.database.load_source_data()
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -116,24 +105,18 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               
-        self.database.save_preprocessed_data(processed_data)
-        # save the preprocessed data as .csv if requested by configurations
-        if self.save_as_csv:
-            logger.info('Export to CSV requested. Now saving preprocessed data to CSV file') 
-            csv_path = os.path.join(DATA_PATH, 'XREPORT_processed_dataset.csv')             
-            processed_data.to_csv(csv_path, **self.csv_kwargs)
-      
+        self.database.save_preprocessed_data(processed_data)      
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'vocabulary_size' : vocabulary_size}
                 
         with open(self.metadata_path, 'w') as file:
-            json.dump(metadata, file, indent=4)          
+            json.dump(metadata, file, indent=4)         
 
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self): 
-        # load preprocessed data from database  
+        # load preprocessed data from database table 
         processed_data = self.database.load_preprocessed_data()
         # process text strings to obtain a list of separated token indices     
         processed_data['tokens'] = processed_data['tokens'].apply(
@@ -157,7 +140,8 @@ class ModelSerializer:
     #--------------------------------------------------------------------------
     def create_checkpoint_folder(self):              
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
+        checkpoint_path = os.path.join(
+            CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True)        
         os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
@@ -184,16 +168,7 @@ class ModelSerializer:
         with open(history_path, 'w') as f:
             json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history have been saved at {path}')
-
-    #-------------------------------------------------------------------------- 
-    def scan_checkpoints_folder(self):
-        model_folders = []
-        for entry in os.scandir(CHECKPOINT_PATH):
-            if entry.is_dir():
-                model_folders.append(entry.name)
-        
-        return model_folders      
+        logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
     def load_session_configuration(self, path): 
@@ -205,7 +180,16 @@ class ModelSerializer:
         with open(history_path, 'r') as f:
             history = json.load(f)
 
-        return configurations, history   
+        return configurations, history  
+
+    #-------------------------------------------------------------------------- 
+    def scan_checkpoints_folder(self):
+        model_folders = []
+        for entry in os.scandir(CHECKPOINT_PATH):
+            if entry.is_dir():
+                model_folders.append(entry.name)
+        
+        return model_folders      
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path):       
@@ -228,10 +212,8 @@ class ModelSerializer:
         return model
             
     #-------------------------------------------------------------------------- 
-    def select_and_load_checkpoint(self): 
-        
+    def select_and_load_checkpoint(self):        
         model_folders = self.scan_checkpoints_folder()
-
         # quit the script if no pretrained models are found 
         if len(model_folders) == 0:
             logger.error('No pretrained model checkpoints in resources')
@@ -240,7 +222,8 @@ class ModelSerializer:
         # select model if multiple checkpoints are available
         if len(model_folders) > 1:
             selection_index = checkpoint_selection_menu(model_folders)                    
-            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[selection_index-1])
+            checkpoint_path = os.path.join(
+                CHECKPOINT_PATH, model_folders[selection_index-1])
 
         # load directly the pretrained model if only one is available 
         elif len(model_folders) == 1:

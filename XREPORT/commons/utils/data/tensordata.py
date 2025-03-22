@@ -3,8 +3,7 @@ import tensorflow as tf
 
 from XREPORT.commons.utils.data.generators import DatasetGenerator
 from XREPORT.commons.constants import CONFIG
-from XREPORT.commons.logger import logger   
-
+from XREPORT.commons.logger import logger
         
 
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
@@ -32,10 +31,11 @@ class TrainingDatasetBuilder:
         
     #--------------------------------------------------------------------------
     def build_model_dataloader(self, train_data : pd.DataFrame, validation_data : pd.DataFrame, 
-                               batch_size=None):            
-        
-        train_dataset = self.compose_tensor_dataset(train_data, batch_size)
-        validation_dataset = self.compose_tensor_dataset(validation_data, batch_size)      
+                               batch_size=None):        
+        train_dataset = self.compose_tensor_dataset(
+            train_data, batch_size)
+        validation_dataset = self.compose_tensor_dataset(
+            validation_data, batch_size)      
         
         return train_dataset, validation_dataset
 

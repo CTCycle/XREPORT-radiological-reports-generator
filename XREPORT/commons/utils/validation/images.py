@@ -14,10 +14,8 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, configuration):         
-        self.csv_kwargs = {'index': 'False', 'sep': ';', 'encoding': 'utf-8'}
-        self.database = XREPORTDatabase(configuration)
-        self.save_as_csv = configuration["dataset"]["SAVE_CSV"]
+    def __init__(self, configuration):       
+        self.database = XREPORTDatabase(configuration)        
         self.DPI = configuration['validation']['DPI']        
         self.configurations = configuration        
    
@@ -64,12 +62,7 @@ class ImageAnalysis:
                             'noise_ratio': noise_ratio})           
         
         stats_dataframe = pd.DataFrame(results)  
-        self.database.save_image_statistics(stats_dataframe)
-
-        if self.save_as_csv:
-            logger.info('Export to CSV requested. Now savingimage statistics to CSV file')            
-            csv_path = os.path.join(DATA_PATH, 'image_statistics.csv')
-            stats_dataframe.to_csv(csv_path, **self.csv_kwargs)
+        self.database.save_image_statistics(stats_dataframe)        
         
         return stats_dataframe      
     

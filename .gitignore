@@ -1,5 +1,5 @@
 XREPORT/resources/database/images/*
-XREPORT/resources/database/XREPORT_dataset.csv
+XREPORT/resources/database/dataset/*
 XREPORT/resources/database/metadata/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/validation/*
