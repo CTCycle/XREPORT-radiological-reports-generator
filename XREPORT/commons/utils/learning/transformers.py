@@ -52,8 +52,10 @@ class FeedForward(keras.layers.Layer):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
-        self.dense1 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(dense_units, activation='relu', kernel_initializer='he_uniform')        
+        self.dense1 = layers.Dense(
+            dense_units, activation='relu', kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(
+            dense_units, activation='relu', kernel_initializer='he_uniform')        
         self.dropout = layers.Dropout(rate=dropout, seed=seed)
         self.seed = seed
 
@@ -95,8 +97,10 @@ class SoftMaxClassifier(keras.layers.Layer):
         self.dense_units = dense_units
         self.output_size = output_size
         self.temperature = temperature
-        self.dense1 = layers.Dense(dense_units, kernel_initializer='he_uniform')
-        self.dense2 = layers.Dense(output_size, kernel_initializer='he_uniform', dtype=torch.float32)        
+        self.dense1 = layers.Dense(
+            dense_units, kernel_initializer='he_uniform')
+        self.dense2 = layers.Dense(
+            output_size, kernel_initializer='he_uniform', dtype=torch.float32)        
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -145,6 +149,7 @@ class TransformerEncoder(keras.layers.Layer):
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
+        self.attention_scores = {}
         self.supports_masking = True    
 
     # build method for the custom layer 
@@ -158,10 +163,11 @@ class TransformerEncoder(keras.layers.Layer):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized     
-        attention_output = self.attention(
-            query=inputs, value=inputs, key=inputs, 
-            attention_mask=None, training=training)
+        attention_output, attention_scores = self.attention(
+            query=inputs, value=inputs, key=inputs, attention_mask=None, 
+            training=training, return_attention_scores=True)
          
+        self.attention_scores['attention_scores'] = attention_scores
         addnorm = self.addnorm1([inputs, attention_output])
 
         # feed forward network with ReLU activation to further process the output
@@ -170,6 +176,10 @@ class TransformerEncoder(keras.layers.Layer):
         output = self.addnorm2([addnorm, ffn_out])      
 
         return output
+    
+    #--------------------------------------------------------------------------
+    def get_attention_scores(self):        
+        return self.attention_scores
     
     # serialize layer for saving  
     #--------------------------------------------------------------------------
@@ -205,7 +215,8 @@ class TransformerDecoder(keras.layers.Layer):
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)            
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)    
+        self.attention_scores = {}        
         self.supports_masking = True 
 
     # build method for the custom layer 
@@ -229,18 +240,22 @@ class TransformerDecoder(keras.layers.Layer):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
-        self_masked_MHA = self.self_attention(
+        self_masked_MHA, self_attention_scores = self.self_attention(
             query=inputs, value=inputs, key=inputs, attention_mask=combined_mask, 
-            training=training)        
-        addnorm_out1 = self.addnorm1([inputs, self_masked_MHA]) 
+            training=training, return_attention_scores=True)       
+        addnorm_out1 = self.addnorm1([inputs, self_masked_MHA])
+
+        self.attention_scores['self_attention_scores'] = self_attention_scores 
 
         # cross attention using the encoder output as value and key and the output
         # of the addnorm layer as query. The output of this attention layer is then summed
         # to the inputs and normalized
-        cross_MHA = self.cross_attention(
+        cross_MHA, cross_attention_scores  = self.cross_attention(
             query=addnorm_out1, value=encoder_outputs, key=encoder_outputs, 
-            attention_mask=padding_mask, training=training)        
+            attention_mask=padding_mask, training=training, return_attention_scores=True)        
         addnorm_out2 = self.addnorm2([addnorm_out1, cross_MHA]) 
+
+        self.attention_scores['cross_attention_scores'] = cross_attention_scores 
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
@@ -248,6 +263,10 @@ class TransformerDecoder(keras.layers.Layer):
         logits = self.addnorm3([ffn, addnorm_out2])        
 
         return logits
+    
+    #--------------------------------------------------------------------------
+    def get_attention_scores(self):        
+        return self.attention_scores
 
     # generate causal attention mask   
     #--------------------------------------------------------------------------

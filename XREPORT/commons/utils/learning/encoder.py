@@ -13,16 +13,16 @@ class BeitXRayImageEncoder(keras.layers.Layer):
         super(BeitXRayImageEncoder, self).__init__(**kwargs)   
         self.encoder_name = 'microsoft/beit-base-patch16-224'        
         self.freeze_layers = freeze_layers
-        self.embedding_dims = embedding_dims        
+        self.embedding_dims = embedding_dims       
 
-        self.model = AutoModel.from_pretrained(self.encoder_name, cache_dir=ENCODERS_PATH)
+        self.model = AutoModel.from_pretrained(
+            self.encoder_name, cache_dir=ENCODERS_PATH)
         if self.freeze_layers is True:            
             for param in self.model.parameters():
                 param.requires_grad = False  
 
         self.processor = AutoImageProcessor.from_pretrained(
-            self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True)  
-
+            self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True)
         self.dense = keras.layers.Dense(self.embedding_dims)   
 
     # call method
