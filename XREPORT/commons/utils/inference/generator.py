@@ -15,9 +15,9 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration):          
-       
-        self.img_shape = configuration["model"]["IMG_SHAPE"]
+    def __init__(self, model : keras.Model, configuration):      
+        self.img_shape = (224, 224)
+        self.num_channels = 3   
         self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]
             
         self.dataserializer = DataSerializer(configuration)      
@@ -25,8 +25,10 @@ class TextGenerator:
         self.configuration = configuration 
 
         self.layer_names = [layer.name for layer in model.layers]     
-        self.encoder_layer_names = [x for x in self.layer_names if 'transformer_encoder' in x] 
-        self.decoder_layer_names = [x for x in self.layer_names if 'transformer_decoder' in x] 
+        self.encoder_layer_names = [
+            x for x in self.layer_names if 'transformer_encoder' in x] 
+        self.decoder_layer_names = [
+            x for x in self.layer_names if 'transformer_decoder' in x] 
 
         # Get tokenizer and its info
         self.tokenization = TokenWizard(self.configuration)
@@ -39,19 +41,19 @@ class TextGenerator:
         
     #--------------------------------------------------------------------------
     def get_tokenizer_parameters(self): 
-
         tokenizer_parameters = {"vocabulary_size": self.tokenization.vocabulary_size,
                                 "start_token": self.tokenizer.cls_token,
                                 "end_token": self.tokenizer.sep_token,
                                 "pad_token": self.tokenizer.pad_token_id,
-                                "start_token_idx": self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token),
-                                "end_token_idx": self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)}
+                                "start_token_idx": self.tokenizer.convert_tokens_to_ids(
+                                    self.tokenizer.cls_token),
+                                "end_token_idx": self.tokenizer.convert_tokens_to_ids(
+                                    self.tokenizer.sep_token)}
         
         return tokenizer_parameters
     
     #--------------------------------------------------------------------------    
     def merge_tokens(self, tokens : list[str]):
-
         processed_tokens = []
         for token in tokens:
             if token.startswith("##"):                
@@ -65,7 +67,6 @@ class TextGenerator:
     
     #--------------------------------------------------------------------------    
     def translate_tokens_to_text(self, index_lookup, sequence, tokenizer_config):
-
         # convert indexes to token using tokenizer vocabulary
         # define special tokens and remove them from generated tokens list
         token_sequence = [index_lookup[idx.item()] for idx in sequence[0, :] 
@@ -82,7 +83,7 @@ class TextGenerator:
     
     #--------------------------------------------------------------------------    
     def greed_search_generator(self, tokenizer_config, image_path):        
-       
+        # extract vocabulary from the tokenizers
         vocabulary = self.tokenizer.get_vocab()
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
@@ -95,18 +96,20 @@ class TextGenerator:
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
         image = self.dataserializer.load_image(image_path)
         image = keras.ops.expand_dims(image, axis=0)
-        
+        # initialize an array with same size of max expected report length
+        # set the start token as the first element
         seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
         seq_input[0, 0] = start_token_idx  
-
+        # initialize progress bar for better output formatting
         progress_bar = tqdm(total=self.max_report_size - 1)
-        for i in range(1, self.max_report_size):         
-            predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)                
+        for i in range(1, self.max_report_size): 
+            # predict the next token based on the truncated sequence (last token removed)         
+            predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)  
+            # apply argmax (greedy search) to identify the most probable token              
             next_token_idx = keras.ops.argmax(predictions[0, i-1, :], axis=-1).item()
             next_token = index_lookup[next_token_idx]                
-            # Stop if end token is generated
-            if next_token == end_token:                
-                
+            # Stop sequence generation if end token is generated
+            if next_token == end_token:               
                 progress_bar.n = progress_bar.total  # Set current progress to total
                 progress_bar.last_print_n = progress_bar.total  # Update visual display
                 progress_bar.update(0)  # Force update
@@ -116,14 +119,14 @@ class TextGenerator:
             progress_bar.update(1)
             
         progress_bar.close()
-        report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)                
+        report = self.translate_tokens_to_text(
+            index_lookup, seq_input, tokenizer_config)                
         logger.info(report)
            
         return report    
 
     #--------------------------------------------------------------------------    
     def generate_radiological_reports(self, images_path):
-
         reports = {}         
         tokenizer_config = self.get_tokenizer_parameters()
         for path in images_path:
