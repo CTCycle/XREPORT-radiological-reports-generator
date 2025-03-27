@@ -53,7 +53,7 @@ if __name__ == '__main__':
         train_data, validation_data)    
     
     # 3. [TRAINING MODEL]  
-    # Setting callbacks and training routine for the features extraction model 
+    # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
     #--------------------------------------------------------------------------        
