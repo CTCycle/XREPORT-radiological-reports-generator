@@ -30,9 +30,8 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------
     dataserializer = DataSerializer(CONFIG)  
     img_paths = dataserializer.get_images_path_from_folder(GENERATION_INPUT_PATH)
-
     logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
-    logger.info(f'{len(img_paths)} images have been found in resources/encoding/images')    
+    logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')    
     generator = TextGenerator(model, configuration) 
     generated_reports = generator.generate_radiological_reports(img_paths)
 
