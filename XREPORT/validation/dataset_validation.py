@@ -8,7 +8,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.data.serializer import DataSerializer
-from XREPORT.commons.utils.process.splitting import TrainValidationSplit
+from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.images import ImageAnalysis
 from XREPORT.commons.utils.validation.textual import TextAnalysis
 from XREPORT.commons.constants import CONFIG

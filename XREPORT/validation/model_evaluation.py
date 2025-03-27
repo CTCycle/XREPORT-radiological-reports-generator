@@ -7,10 +7,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.process.splitting import TrainValidationSplit
-from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.loader import TrainingDataLoader
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
+from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
+from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.reports import evaluation_report
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from XREPORT.commons.constants import CONFIG, DATA_PATH
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------  
     # use tf.data.Dataset to build the model dataloader with a larger batch size
     # the dataset is built on top of the training and validation data
-    builder = TrainingDatasetBuilder(CONFIG, evaluate=True)        
+    builder = TrainingDataLoader(CONFIG, evaluate=True)        
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data)
 

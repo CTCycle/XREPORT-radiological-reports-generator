@@ -8,8 +8,8 @@ warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.commons.utils.data.serializer import DataSerializer
-from XREPORT.commons.utils.process.sequences import TextSanitizer
-from XREPORT.commons.utils.process.tokenizers import TokenWizard
+from XREPORT.commons.utils.data.process.sequences import TextSanitizer
+from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
 from XREPORT.commons.constants import CONFIG, IMG_PATH
 from XREPORT.commons.logger import logger
 

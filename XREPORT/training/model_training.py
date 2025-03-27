@@ -7,9 +7,9 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.data.tensordata import TrainingDatasetBuilder
+from XREPORT.commons.utils.data.loader import TrainingDataLoader
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.process.splitting import TrainValidationSplit
+from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
 from XREPORT.commons.utils.validation.reports import log_training_report
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     trainer.set_device()        
        
     # create the tf.datasets using the previously initialized generators 
-    builder = TrainingDatasetBuilder(CONFIG)   
+    builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_model_dataloader(
         train_data, validation_data)      
 
