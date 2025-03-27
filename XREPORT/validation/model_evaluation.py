@@ -7,7 +7,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=Warning)
 
 # [IMPORT CUSTOM MODULES]
-from XREPORT.commons.utils.data.loader import TrainingDataLoader
+from XREPORT.commons.utils.data.loader import InferenceDataLoader
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
@@ -18,13 +18,11 @@ from XREPORT.commons.logger import logger
 
 # [RUN MAIN]
 ###############################################################################
-if __name__ == '__main__':
-
-    evaluation_batch_size = 20   
+if __name__ == '__main__':    
 
     # 1. [LOAD DATASET]
     #--------------------------------------------------------------------------  
-    summarizer = ModelEvaluationSummary()    
+    summarizer = ModelEvaluationSummary(CONFIG)    
     checkpoints_summary = summarizer.checkpoints_summary() 
     logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     
@@ -45,23 +43,23 @@ if __name__ == '__main__':
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
     splitter = TrainValidationSplit(configuration, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation() 
+    train_data, validation_data = splitter.split_train_and_validation()
+       
+    # 4. [EVALUATE ON TRAIN AND VALIDATION]
+    #--------------------------------------------------------------------------  
+    # use tf.data.Dataset to build the model dataloader with a larger batch size
+    # the dataset is built on top of the training and validation data
+    loader = InferenceDataLoader(CONFIG)        
+    train_dataset = loader.build_inference_dataloader(train_data)
+    validation_dataset = loader.build_inference_dataloader(validation_data)
 
-    # 4. [BUILD DATA LOADERS]
+    # evaluate model performance over the training and validation dataset    
+    evaluation_report(model, train_dataset, validation_dataset) 
+
+    # 5. [TOKENIZERS]
     #--------------------------------------------------------------------------
     # get tokenizers and related configurations
     tokenization = TokenWizard(configuration)    
     tokenizer = tokenization.tokenizer
-    
-    # 5. [EVALUATE ON TRAIN AND VALIDATION]
-    #--------------------------------------------------------------------------  
-    # use tf.data.Dataset to build the model dataloader with a larger batch size
-    # the dataset is built on top of the training and validation data
-    builder = TrainingDataLoader(CONFIG, evaluate=True)        
-    train_dataset, validation_dataset = builder.build_model_dataloader(
-        train_data, validation_data)
-
-    # evaluate model performance over the training and validation dataset    
-    evaluation_report(model, train_dataset, validation_dataset) 
 
   
