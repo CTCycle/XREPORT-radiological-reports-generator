@@ -1,12 +1,12 @@
 import os
-import numpy as np
 import torch
 import keras
-import tensorflow as tf
+import numpy as np
 from tqdm import tqdm   
 
 from XREPORT.commons.utils.data.serializer import DataSerializer
-from XREPORT.commons.utils.process.tokenizers import TokenWizard
+from XREPORT.commons.utils.data.loader import InferenceDataLoader
+from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
 from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
@@ -15,12 +15,12 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration):      
+    def __init__(self, model : keras.Model, configuration):
+        keras.utils.set_random_seed(configuration["SEED"])  
+        self.dataloader = InferenceDataLoader(configuration)      
         self.img_shape = (224, 224)
         self.num_channels = 3   
-        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]
-            
-        self.dataserializer = DataSerializer(configuration)      
+        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]               
         self.model = model 
         self.configuration = configuration 
 
@@ -94,7 +94,7 @@ class TextGenerator:
         index_lookup = {v: k for k, v in vocabulary.items()}  
                
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
-        image = self.dataserializer.load_image(image_path)
+        image = self.dataloader.load_image_as_array(image_path)
         image = keras.ops.expand_dims(image, axis=0)
         # initialize an array with same size of max expected report length
         # set the start token as the first element
@@ -123,7 +123,82 @@ class TextGenerator:
             index_lookup, seq_input, tokenizer_config)                
         logger.info(report)
            
-        return report    
+        return report 
+
+    #--------------------------------------------------------------------------
+    def beam_search_generator(self, tokenizer_config, image_path, beam_width=3):
+        # Extract tokenizer and token parameters
+        vocabulary = self.tokenizer.get_vocab()
+        start_token = tokenizer_config["start_token"]
+        end_token = tokenizer_config["end_token"]
+        start_token_idx = tokenizer_config["start_token_idx"]
+        end_token_idx = tokenizer_config["end_token_idx"]
+        index_lookup = {v: k for k, v in vocabulary.items()}
+
+        logger.info(f'Generating report for image {os.path.basename(image_path)}')
+        image = self.dataloader.load_image_as_array(image_path)
+        image = keras.ops.expand_dims(image, axis=0)
+
+        # Initialize the beam with a single sequence containing only the start token and a score of 0.0 (log-prob)
+        beams = [([start_token_idx], 0.0)]
+        
+        # Loop over the maximum report length
+        for step in range(1, self.max_report_size):
+            new_beams = []
+            # Expand each beam in the current list
+            for seq, score in beams:
+                # If the sequence has already generated the end token, carry it forward unchanged.
+                if seq[-1] == end_token_idx:
+                    new_beams.append((seq, score))
+                    continue
+
+                # Prepare a padded sequence input.
+                # We create an array of zeros with shape (1, max_report_size) and fill in the current sequence.
+                seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
+                for j, token in enumerate(seq):
+                    seq_input[0, j] = token
+
+                # Use only the part of the sequence that has been generated so far.
+                # (Following your greedy method, the model expects a truncated sequence, excluding the final slot.)
+                current_input = seq_input[:, :len(seq)]
+                predictions = self.model.predict([image, current_input], verbose=0)
+
+                # Get the prediction corresponding to the last token in the sequence.
+                # In your greedy search, predictions[0, i-1, :] was used; here len(seq)-1 corresponds to the same position.
+                next_token_logits = predictions[0, len(seq)-1, :]
+
+                # Convert logits/probabilities to log probabilities.
+                # We clip to avoid log(0) issues.
+                log_probs = np.log(np.clip(next_token_logits, 1e-12, 1.0))
+
+                # Select the top `beam_width` token indices.
+                top_indices = np.argsort(log_probs)[-beam_width:][::-1]
+
+                # Create new beams for each candidate token.
+                for token_idx in top_indices:
+                    new_seq = seq + [int(token_idx)]
+                    new_score = score + log_probs[token_idx]
+                    new_beams.append((new_seq, new_score))
+                    
+            # Sort all new beams by their cumulative score (in descending order) and keep the top `beam_width` beams.
+            beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]
+            
+            # If every beam in the list ends with the end token, we can stop early.
+            if all(seq[-1] == end_token_idx for seq, _ in beams):
+                break
+
+        # Choose the best beam (the one with the highest score)
+        best_seq, best_score = beams[0]
+        
+        # Create a full padded sequence from the best beam for conversion to text.
+        seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
+        for i, token in enumerate(best_seq):
+            seq_input[0, i] = token
+
+        report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)
+        logger.info(report)
+
+        return report   
 
     #--------------------------------------------------------------------------    
     def generate_radiological_reports(self, images_path):
