@@ -24,7 +24,7 @@ class XREPORTDatabase:
 
         create_source_data_table = '''
         CREATE TABLE IF NOT EXISTS SOURCE_DATA (
-            index INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             image TEXT,
             text TEXT            
         );
@@ -32,7 +32,7 @@ class XREPORTDatabase:
 
         create_processed_data_table = '''
         CREATE TABLE IF NOT EXISTS PROCESSED_DATA (
-            index INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             text TEXT,
             tokens TEXT
         );
@@ -40,7 +40,7 @@ class XREPORTDatabase:
 
         create_inference_data_table = '''
         CREATE TABLE IF NOT EXISTS GENERATED_REPORTS (
-            index INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             image TEXT,
             report TEXT
             checkpoint TEXT
@@ -49,7 +49,7 @@ class XREPORTDatabase:
       
         create_image_statistics_table = '''
         CREATE TABLE IF NOT EXISTS IMAGE_STATISTICS (
-            index INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             height INTEGER,
             width INTEGER,
@@ -66,7 +66,7 @@ class XREPORTDatabase:
         
         create_checkpoints_summary_table = '''
         CREATE TABLE IF NOT EXISTS CHECKPOINTS_SUMMARY (
-            index INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             checkpoint_name TEXT,
             sample_size REAL,
             validation_size REAL,
