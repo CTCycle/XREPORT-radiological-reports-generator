@@ -144,13 +144,14 @@ class TransformerEncoder(keras.layers.Layer):
         self.num_heads = num_heads         
         self.seed = seed                
         self.attention = layers.MultiHeadAttention(
-            num_heads=self.num_heads, key_dim=self.embedding_dims, 
-            seed=self.seed)
+            num_heads=self.num_heads, key_dim=self.embedding_dims, seed=self.seed)
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
-        self.attention_scores = {}
-        self.supports_masking = True    
+        # set mask supports to True but mask propagation is handled
+        # through the attention layer call        
+        self.supports_masking = True   
+        self.attention_scores = {} 
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -165,10 +166,10 @@ class TransformerEncoder(keras.layers.Layer):
         # to the inputs and normalized     
         attention_output, attention_scores = self.attention(
             query=inputs, value=inputs, key=inputs, attention_mask=None, 
-            training=training, return_attention_scores=True)
-         
-        self.attention_scores['attention_scores'] = attention_scores
+            training=training, return_attention_scores=True)       
         addnorm = self.addnorm1([inputs, attention_output])
+        # store self-attention scores for later retrieval
+        self.attention_scores['self_attention_scores'] = attention_scores
 
         # feed forward network with ReLU activation to further process the output
         # addition and layer normalization of inputs and outputs
@@ -215,9 +216,11 @@ class TransformerDecoder(keras.layers.Layer):
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)    
-        self.attention_scores = {}        
+        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed) 
+        # set mask supports to True but mask propagation is handled
+        # through the attention layer call              
         self.supports_masking = True 
+        self.attention_scores = {} 
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -244,7 +247,7 @@ class TransformerDecoder(keras.layers.Layer):
             query=inputs, value=inputs, key=inputs, attention_mask=combined_mask, 
             training=training, return_attention_scores=True)       
         addnorm_out1 = self.addnorm1([inputs, self_masked_MHA])
-
+        # store self-attention scores for later retrieval
         self.attention_scores['self_attention_scores'] = self_attention_scores 
 
         # cross attention using the encoder output as value and key and the output
@@ -254,7 +257,7 @@ class TransformerDecoder(keras.layers.Layer):
             query=addnorm_out1, value=encoder_outputs, key=encoder_outputs, 
             attention_mask=padding_mask, training=training, return_attention_scores=True)        
         addnorm_out2 = self.addnorm2([addnorm_out1, cross_MHA]) 
-
+        # store cross-attention scores for later retrieval
         self.attention_scores['cross_attention_scores'] = cross_attention_scores 
 
         # feed forward network with ReLU activation to further process the output

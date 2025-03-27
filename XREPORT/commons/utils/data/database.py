@@ -14,7 +14,7 @@ class XREPORTDatabase:
         self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
         self.configuration = configuration 
         self.initialize_database()
-        self.update_source_data()
+        self.update_database()
 
     #--------------------------------------------------------------------------       
     def initialize_database(self):        
@@ -34,6 +34,15 @@ class XREPORTDatabase:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             text TEXT,
             tokens TEXT
+        );
+        '''
+
+        create_inference_data_table = '''
+        CREATE TABLE IF NOT EXISTS GENERATED_REPORTS (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            image TEXT,
+            report TEXT
+            checkpoint TEXT
         );
         '''
       
@@ -81,8 +90,10 @@ class XREPORTDatabase:
             lr_scheduler_decay_steps REAL
         );
         '''
+        
         cursor.execute(create_source_data_table)  
         cursor.execute(create_processed_data_table)  
+        cursor.execute(create_inference_data_table) 
         cursor.execute(create_image_statistics_table)        
         cursor.execute(create_checkpoints_summary_table)
 
@@ -90,7 +101,7 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def update_source_data(self):               
+    def update_database(self):               
         dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')        
         self.save_source_data(dataset)
 
@@ -110,7 +121,7 @@ class XREPORTDatabase:
         data = pd.read_sql_query(f"SELECT * FROM PROCESSED_DATA", conn)
         conn.close()  
 
-        return data       
+        return data          
 
     #--------------------------------------------------------------------------
     def save_source_data(self, data : pd.DataFrame): 
@@ -127,6 +138,14 @@ class XREPORTDatabase:
         conn = sqlite3.connect(self.db_path)        
         processed_data.to_sql('PROCESSED_DATA', conn, if_exists='replace')
         conn.close()
+
+    #--------------------------------------------------------------------------
+    def save_inference_statistics(self, data : pd.DataFrame): 
+        # connect to sqlite database and save the preprocessed data as table
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql('GENERATED_REPORTS', conn, if_exists='replace')
+        conn.commit()
+        conn.close() 
 
     #--------------------------------------------------------------------------
     def save_image_statistics(self, data : pd.DataFrame): 
