@@ -63,8 +63,10 @@ class DataSerializer:
 
         return dataset
 
+    # takes a reference dataset with images name and finds these images within the
+    # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def get_images_path_from_dataset(self, dataset : pd.DataFrame):                
+    def get_training_images_path(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -77,10 +79,11 @@ class DataSerializer:
 
         return dataset
     
+    # get all valid images within a specified directory and return a list of paths
     #--------------------------------------------------------------------------
-    def get_images_path_from_folder(self, path):           
+    def get_images_path_from_directory(self, path):           
         if not os.listdir(path):
-            logger.error(f'No XRAY scans found in {path}, please add them and try again.')
+            logger.error(f'No images found in {path}, please add them and try again.')
             sys.exit()
         else:            
             logger.debug(f'Valid extensions are: {self.valid_extensions}') 
@@ -90,18 +93,7 @@ class DataSerializer:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path                 
-    
-    #--------------------------------------------------------------------------
-    def load_image(self, path, normalize=True):       
-        image = cv2.imread(path)          
-        image = cv2.cvtColor(image, self.color_encoding)
-        image = np.asarray(cv2.resize(image, self.img_shape[:-1]), dtype=np.float32)            
-        if normalize:
-            image = image/255.0        
-            image = (image - self.image_mean) / self.image_std      
-
-        return image
+            return images_path    
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               

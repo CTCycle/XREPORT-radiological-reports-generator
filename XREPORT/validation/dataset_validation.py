@@ -23,7 +23,7 @@ if __name__ == '__main__':
     dataserializer = DataSerializer(CONFIG)
     dataset = dataserializer.load_dataset()
     processed_data, metadata = dataserializer.load_preprocessed_data()
-    processed_data = dataserializer.get_images_path_from_dataset(processed_data)
+    processed_data = dataserializer.get_training_images_path(processed_data)
     logger.info(f'Number of reports and related images: {dataset.shape[0]}')
      
     # 2. [COMPUTE IMAGE STATISTICS]
