@@ -4,10 +4,8 @@ import keras
 import numpy as np
 from tqdm import tqdm   
 
-from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.data.loader import InferenceDataLoader
 from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
-from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -15,28 +13,30 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration):
+    def __init__(self, model : keras.Model, configuration, checkpoint_path : str):
         keras.utils.set_random_seed(configuration["SEED"])  
-        self.dataloader = InferenceDataLoader(configuration)      
-        self.img_shape = (224, 224)
-        self.num_channels = 3   
-        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]               
+        self.dataloader = InferenceDataLoader(configuration)
+        self.checkpoint_name = os.path.basename(checkpoint_path)        
+        self.configuration = configuration
         self.model = model 
-        self.configuration = configuration 
-
+        # define image and text parameters for inference
+        self.img_shape = (224, 224)
+        self.num_channels = 3           
+        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]  
+        # get encoder and decoder layers names from loaded model
         self.layer_names = [layer.name for layer in model.layers]     
         self.encoder_layer_names = [
             x for x in self.layer_names if 'transformer_encoder' in x] 
         self.decoder_layer_names = [
             x for x in self.layer_names if 'transformer_decoder' in x] 
 
-        # Get tokenizer and its info
+        # Get tokenizer and related configurations
         self.tokenization = TokenWizard(self.configuration)
         self.tokenizer = self.tokenization.tokenizer
-
+        # report generation methods 
         self.selected_method = configuration["inference"]["GEN_METHOD"]
         self.generator_methods = {'greedy' : self.greed_search_generator,
-                                  'beam' : None}
+                                  'beam' : self.beam_search_generator}
 
         
     #--------------------------------------------------------------------------
@@ -162,15 +162,12 @@ class TextGenerator:
                 # (Following your greedy method, the model expects a truncated sequence, excluding the final slot.)
                 current_input = seq_input[:, :len(seq)]
                 predictions = self.model.predict([image, current_input], verbose=0)
-
                 # Get the prediction corresponding to the last token in the sequence.
                 # In your greedy search, predictions[0, i-1, :] was used; here len(seq)-1 corresponds to the same position.
                 next_token_logits = predictions[0, len(seq)-1, :]
-
                 # Convert logits/probabilities to log probabilities.
                 # We clip to avoid log(0) issues.
                 log_probs = np.log(np.clip(next_token_logits, 1e-12, 1.0))
-
                 # Select the top `beam_width` token indices.
                 top_indices = np.argsort(log_probs)[-beam_width:][::-1]
 
@@ -181,15 +178,13 @@ class TextGenerator:
                     new_beams.append((new_seq, new_score))
                     
             # Sort all new beams by their cumulative score (in descending order) and keep the top `beam_width` beams.
-            beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]
-            
+            beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]            
             # If every beam in the list ends with the end token, we can stop early.
             if all(seq[-1] == end_token_idx for seq, _ in beams):
                 break
 
         # Choose the best beam (the one with the highest score)
-        best_seq, best_score = beams[0]
-        
+        best_seq, best_score = beams[0]        
         # Create a full padded sequence from the best beam for conversion to text.
         seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
         for i, token in enumerate(best_seq):
