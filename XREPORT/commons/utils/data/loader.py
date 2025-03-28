@@ -41,7 +41,6 @@ class TrainingDataLoader:
         return train_dataset, validation_dataset
 
 
-
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
 class InferenceDataLoader:
