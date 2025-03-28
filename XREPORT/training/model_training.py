@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # load data from csv, add paths to images 
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata = dataserializer.load_preprocessed_data() 
-    processed_data = dataserializer.get_images_path_from_dataset(processed_data)
+    processed_data = dataserializer.get_training_images_path(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
     # 2. [SPLIT DATA]
