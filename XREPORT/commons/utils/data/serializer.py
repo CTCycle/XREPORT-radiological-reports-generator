@@ -74,7 +74,7 @@ class DataSerializer:
                     path_pair = {file.split('.')[0] : os.path.join(IMG_PATH, file)}        
                     images_path.update(path_pair)         
 
-        dataset['path'] = dataset['id'].map(images_path)
+        dataset['path'] = dataset['image'].map(images_path)
         dataset = dataset.dropna(subset=['path']).reset_index(drop=True)             
 
         return dataset
