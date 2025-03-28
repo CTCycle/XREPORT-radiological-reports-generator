@@ -1,11 +1,11 @@
-XREPORT/resources/database/images/*
 XREPORT/resources/database/dataset/*
+XREPORT/resources/database/dataset/images/*
 XREPORT/resources/database/metadata/*
 XREPORT/resources/checkpoints/*
 XREPORT/resources/validation/*
 XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
-XREPORT/resources/inference/radiography/*
+XREPORT/resources/database/inference/radiography/*
 
 setup/environment/*
 setup/miniconda/*
