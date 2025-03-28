@@ -1,7 +1,7 @@
 import torch
 from keras import layers, Model, optimizers
 
-from XREPORT.commons.utils.learning.scheduler import LRScheduler
+from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
 from XREPORT.commons.utils.learning.transformers import TransformerEncoder, TransformerDecoder, SoftMaxClassifier
 from XREPORT.commons.utils.learning.encoder import BeitXRayImageEncoder
 from XREPORT.commons.utils.learning.embeddings import PositionalEmbedding
@@ -69,7 +69,7 @@ class XREPORTModel:
 
         # wrap the model and compile it with AdamW optimizer
         model = Model(inputs=[self.img_input, self.seq_input], outputs=output)       
-        lr_schedule = LRScheduler(self.post_warm_lr, self.warmup_steps)
+        lr_schedule = WarmUpLRScheduler(self.post_warm_lr, self.warmup_steps)
         loss = MaskedSparseCategoricalCrossentropy()  
         metric = [MaskedAccuracy()]
         opt = optimizers.AdamW(learning_rate=lr_schedule)          
