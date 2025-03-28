@@ -195,7 +195,7 @@ class ModelSerializer:
     def load_checkpoint(self, checkpoint_name):                     
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
-                          'LRScheduler': LRScheduler}        
+                          'LRScheduler': WarmUpLRScheduler}        
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
