@@ -11,10 +11,10 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TrainingDataLoader:
 
-    def __init__(self, configuration, shuffle=True):
+    def __init__(self, configuration, shuffle=True):        
         self.processor = DataLoaderProcessor(configuration)
-        self.batch_size = self.configuration['training']["BATCH_SIZE"] 
         self.configuration = configuration
+        self.batch_size = self.configuration['training']["BATCH_SIZE"]         
         self.shuffle = shuffle   
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching

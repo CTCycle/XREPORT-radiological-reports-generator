@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.6,
+    "dataset": {"SAMPLE_SIZE" : 0.5,
                 "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENTATION" : false,
                 "MAX_REPORT_SIZE" : 160,                
@@ -12,7 +12,7 @@
                "NUM_DECODERS" : 3,                 
                "EMBEDDING_DIMS" : 256,
                "FREEZE_IMG_ENCODER" : true,             
-               "JIT_COMPILE" : true,
+               "JIT_COMPILE" : false,
                "JIT_BACKEND" : "inductor"},
 
     "device" : {"DEVICE" : "GPU",
@@ -27,7 +27,7 @@
                   "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,  
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
-                                    "WARMUP_STEPS" : 5}},   
+                                    "WARMUP_STEPS" : 2000}},   
                                     
     "inference" : {"TEMPERATURE" : 1.0,
                    "GEN_METHOD" : "greedy"},  
