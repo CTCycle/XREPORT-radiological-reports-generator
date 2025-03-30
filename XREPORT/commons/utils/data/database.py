@@ -21,16 +21,16 @@ class SourceDataTable:
     
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
-        query = '''
-        CREATE TABLE IF NOT EXISTS SOURCE_DATA (
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             image VARCHAR,
             text VARCHAR            
         );
         '''
-        cursor.execute(query)
 
-        return cursor
+        cursor.execute(query)
+   
     
 ###############################################################################
 class ProcessedDataTable:
@@ -47,16 +47,15 @@ class ProcessedDataTable:
     
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
-        query = '''
-        CREATE TABLE IF NOT EXISTS PROCESSED_DATA (
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             image VARCHAR,
             tokens VARCHAR            
         );
         '''
-        cursor.execute(query)
 
-        return cursor
+        cursor.execute(query)        
     
     
 ###############################################################################
@@ -75,17 +74,16 @@ class GeneratedReportsTable:
     
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
-        query = '''
-        CREATE TABLE IF NOT EXISTS GENERATED_REPORTS (
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             image VARCHAR,
             report VARCHAR 
             checkpoint VARCHAR            
         );
         '''
-        cursor.execute(query)
 
-        return cursor
+        cursor.execute(query)        
     
 
 ###############################################################################
@@ -112,8 +110,8 @@ class ImageStatisticsTable:
     
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
-        query = '''
-        CREATE TABLE IF NOT EXISTS IMAGE_STATISTICS (
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name VARCHAR,
             height INTEGER,
@@ -128,9 +126,9 @@ class ImageStatisticsTable:
             noise_ratio FLOAT
         );
         '''
-        cursor.execute(query)
 
-        return cursor
+        cursor.execute(query)
+       
     
 ###############################################################################
 class CheckpointSummaryTable:
@@ -167,8 +165,8 @@ class CheckpointSummaryTable:
     
     #--------------------------------------------------------------------------
     def create_table(self, cursor):
-        query = '''
-        CREATE TABLE IF NOT EXISTS CHECKPOINTS_SUMMARY (
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             checkpoint_name VARCHAR,
             sample_size FLOAT,
@@ -193,10 +191,9 @@ class CheckpointSummaryTable:
             lr_scheduler_constant_steps FLOAT,
             lr_scheduler_decay_steps FLOAT
             );
-            '''  
-        cursor.execute(query)
-
-        return cursor 
+            ''' 
+         
+        cursor.execute(query)       
     
 
 # [DATABASE]
@@ -217,14 +214,13 @@ class XREPORTDatabase:
 
     #--------------------------------------------------------------------------       
     def initialize_database(self):        
-        # Connect to the SQLite database and create the database if does not exist
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor = self.source_data.create_table(cursor)  
-        cursor = self.processed_data.create_table(cursor)
-        cursor = self.inference_data.create_table(cursor)
-        cursor = self.image_stats.create_table(cursor)  
-        cursor = self.checkpoints_summary.create_table(cursor)   
+        self.source_data.create_table(cursor)  
+        self.processed_data.create_table(cursor)
+        self.inference_data.create_table(cursor)
+        self.image_stats.create_table(cursor)  
+        self.checkpoints_summary.create_table(cursor)   
         conn.commit()
         conn.close()
 
