@@ -2,15 +2,15 @@ import os
 import sqlite3
 import pandas as pd
 
-from XREPORT.commons.constants import DATA_PATH, SOURCE_PATH
+from XREPORT.commons.constants import DATA_PATH, SOURCE_PATH, INFERENCE_PATH
 from XREPORT.commons.logger import logger
 
 
 ###############################################################################
-class SourceDataTable:
+class RadiographyDataTable:
 
     def __init__(self):
-        self.name = 'SOURCE_DATA'
+        self.name = 'RADIOGRAPHY_DATA'
         self.dtypes = {
             'image': 'VARCHAR',
             'text': 'VARCHAR'}
@@ -202,9 +202,9 @@ class XREPORTDatabase:
 
     def __init__(self, configuration):             
         self.db_path = os.path.join(DATA_PATH, 'XREPORT_database.db') 
-        self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
+        self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')   
         self.configuration = configuration 
-        self.source_data = SourceDataTable()
+        self.source_data = RadiographyDataTable()
         self.processed_data = ProcessedDataTable()
         self.inference_data = GeneratedReportsTable()
         self.image_stats = ImageStatisticsTable()
@@ -225,9 +225,10 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def update_database(self):               
-        dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')        
-        self.save_source_data(dataset)
+    def update_database(self): 
+        logger.debug(f'Updating database from {self.source_path}')              
+        source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
+        self.save_source_data(source_dataset)        
 
     #--------------------------------------------------------------------------
     def load_source_data(self):                  
@@ -263,7 +264,7 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def save_inference_statistics(self, data : pd.DataFrame):         
+    def save_inference_data(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(self.inference_data.name, conn, if_exists='replace',
                     dtype=self.inference_data.get_dtypes())
