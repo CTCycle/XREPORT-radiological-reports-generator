@@ -78,7 +78,7 @@ class ModelEvaluationSummary:
             model_parameters.append(chkp_config)
 
         dataframe = pd.DataFrame(model_parameters)
-        self.database.save_checkpoints_summary(dataframe)        
+        self.database.save_checkpoints_summary_table(dataframe)        
             
         return dataframe
     
