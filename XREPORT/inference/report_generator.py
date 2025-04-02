@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.inference.generator import TextGenerator
-from XREPORT.commons.constants import CONFIG, GENERATION_INPUT_PATH
+from XREPORT.commons.constants import CONFIG, INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------   
     # select images from the inference folder and retrieve current paths
     dataserializer = DataSerializer(CONFIG)  
-    img_paths = dataserializer.get_images_path_from_directory(GENERATION_INPUT_PATH)
+    img_paths = dataserializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
     logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
     logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline') 
 

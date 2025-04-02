@@ -10,7 +10,7 @@ from XREPORT.commons.logger import logger
 # Generate and preprocess input and output for the machine learning model and build
 # a tensor dataset with prefetching and batching
 ###############################################################################
-class DataLoaderProcessor():
+class TrainingDataLoaderProcessor():
 
     def __init__(self, configuration):         
         self.img_shape = (224, 224)

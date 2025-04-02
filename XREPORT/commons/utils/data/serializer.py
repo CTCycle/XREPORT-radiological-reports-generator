@@ -57,7 +57,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_dataset(self, sample_size=None):        
-        dataset = self.database.load_source_data()
+        dataset = self.database.load_source_data_table()
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 

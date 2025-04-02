@@ -231,7 +231,7 @@ class XREPORTDatabase:
         self.save_source_data(source_dataset)        
 
     #--------------------------------------------------------------------------
-    def load_source_data(self):                  
+    def load_source_data_table(self):                  
         conn = sqlite3.connect(self.db_path)        
         data = pd.read_sql_query(
             f"SELECT * FROM {self.source_data.name}", conn)
@@ -264,7 +264,7 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def save_inference_data(self, data : pd.DataFrame):         
+    def save_inference_data_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(self.inference_data.name, conn, if_exists='replace',
                     dtype=self.inference_data.get_dtypes())
@@ -281,7 +281,7 @@ class XREPORTDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data : pd.DataFrame): 
+    def save_checkpoints_summary_table(self, data : pd.DataFrame): 
         # connect to sqlite database and save the preprocessed data as table
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(

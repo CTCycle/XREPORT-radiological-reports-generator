@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from XREPORT.commons.utils.data.process.runtime import DataLoaderProcessor
+from XREPORT.commons.utils.data.process.runtime import TrainingDataLoaderProcessor
 from XREPORT.commons.logger import logger
         
 
@@ -12,7 +12,7 @@ from XREPORT.commons.logger import logger
 class TrainingDataLoader:
 
     def __init__(self, configuration, shuffle=True):        
-        self.processor = DataLoaderProcessor(configuration)
+        self.processor = TrainingDataLoaderProcessor(configuration)
         self.configuration = configuration
         self.batch_size = self.configuration['training']["BATCH_SIZE"]         
         self.shuffle = shuffle   
@@ -46,7 +46,7 @@ class TrainingDataLoader:
 class InferenceDataLoader:
 
     def __init__(self, configuration):
-        self.processor = DataLoaderProcessor(configuration) 
+        self.processor = TrainingDataLoaderProcessor(configuration) 
         self.configuration = configuration
         self.batch_size = configuration['validation']["BATCH_SIZE"]
         self.img_shape = (224, 224, 3)
