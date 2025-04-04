@@ -12,13 +12,14 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration):
-        self.configuration = configuration
+    def __init__(self, configuration, metadata=None):        
         keras.utils.set_random_seed(configuration["SEED"])        
         self.selected_device = CONFIG["device"]["DEVICE"]
         self.device_id = CONFIG["device"]["DEVICE_ID"]
-        self.mixed_precision = self.configuration["device"]["MIXED_PRECISION"]
+        self.mixed_precision = configuration["device"]["MIXED_PRECISION"]
         self.serializer = ModelSerializer() 
+        self.configuration = configuration
+        self.metadata = metadata
         
     # set device
     #--------------------------------------------------------------------------
@@ -50,7 +51,7 @@ class ModelTraining:
             from_epoch = 0
             history = None
         else:
-            _, history = self.serializer.load_session_configuration(checkpoint_path)                     
+            _, self.metadata, history = self.serializer.load_session_configuration(checkpoint_path)                     
             epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
             from_epoch = history['total_epochs']
         
@@ -67,9 +68,10 @@ class ModelTraining:
                    'val_history' : RTH_callback.val_history,
                    'total_epochs' : epochs}
         
+        # update configuration with the database metadata        
         self.serializer.save_pretrained_model(model, checkpoint_path)       
         self.serializer.save_session_configuration(
-            checkpoint_path, history, self.configuration)
+            checkpoint_path, history, self.configuration, self.metadata)
 
 
     
