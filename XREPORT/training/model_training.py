@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # initialize training device 
     # allows changing device prior to initializing the generators
     logger.info('Building XREPORT model and data loaders')     
-    trainer = ModelTraining(CONFIG) 
+    trainer = ModelTraining(CONFIG, metadata) 
     trainer.set_device()        
        
     # create the tf.datasets using the previously initialized generators 
