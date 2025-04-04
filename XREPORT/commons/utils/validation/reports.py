@@ -24,7 +24,7 @@ def log_training_report(train_data, validation_data, config : dict, metadata : d
     logger.info(f'Number of validation samples:  {len(validation_data)}')
     logger.info(f'Vocabulary size:               {vocabulary_size}')    
     for key, value in config.items():
-        if isinstance(value, dict):
+        if isinstance(value, dict) and 'validation' not in key:
             for sub_key, sub_value in value.items():
                 if sub_key == 'ADDITIONAL_EPOCHS':
                     sub_value = CONFIG['training']['ADDITIONAL_EPOCHS']                
@@ -33,7 +33,7 @@ def log_training_report(train_data, validation_data, config : dict, metadata : d
                         logger.info(f'{key}.{sub_key}.{inner_key}: {inner_value}')
                 else:
                     logger.info(f'{key}.{sub_key}: {sub_value}')
-        else:
+        elif 'validation' not in key:
             logger.info(f'{key}: {value}')
 
     logger.info('--------------------------------------------------------------\n')

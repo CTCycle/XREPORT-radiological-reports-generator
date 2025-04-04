@@ -50,8 +50,9 @@ class TokenWizard:
     def tokenize_text_corpus(self, data : pd.DataFrame):        
         # tokenize train and validation text using loaded tokenizer 
         text = data['text'].to_list()      
-        tokens = self.tokenizer(text, padding=True, truncation=True,
-                                max_length=self.max_report_size, return_tensors='pt')             
+        tokens = self.tokenizer(
+            text, padding=True, truncation=True, 
+            max_length=self.max_report_size, return_tensors='pt')             
         
         # extract only token ids from the tokenizer output
         tokens = tokens['input_ids'].numpy().tolist()
