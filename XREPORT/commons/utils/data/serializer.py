@@ -48,7 +48,8 @@ class DataSerializer:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         
-        self.metadata_path = os.path.join(METADATA_PATH, 'XREPORT_metadata.json')         
+        self.metadata_path = os.path.join(
+            METADATA_PATH, 'preprocessing_metadata.json')         
         self.database = XREPORTDatabase(configuration)
         
         self.seed = configuration['SEED']   
@@ -147,14 +148,19 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model has been saved in folder {path}')
 
     #--------------------------------------------------------------------------
-    def save_session_configuration(self, path, history : dict, configurations : dict):         
+    def save_session_configuration(self, path, history : dict, configurations : dict, metadata : dict):         
         os.makedirs(os.path.join(path, 'configurations'), exist_ok=True)         
         config_path = os.path.join(path, 'configurations', 'configurations.json')
+        metadata_path = os.path.join(path, 'configurations', 'metadata.json') 
         history_path = os.path.join(path, 'configurations', 'session_history.json')        
 
         # Save training and model configurations
         with open(config_path, 'w') as f:
-            json.dump(configurations, f)       
+            json.dump(configurations, f)  
+
+        # Save metadata
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f)       
 
         # Save session history
         with open(history_path, 'w') as f:
@@ -166,13 +172,17 @@ class ModelSerializer:
     def load_session_configuration(self, path): 
         config_path = os.path.join(path, 'configurations', 'configurations.json')        
         with open(config_path, 'r') as f:
-            configurations = json.load(f)        
+            configurations = json.load(f) 
+
+        config_path = os.path.join(path, 'configurations', 'metadata.json')        
+        with open(config_path, 'r') as f:
+            metadata = json.load(f)       
 
         history_path = os.path.join(path, 'configurations', 'session_history.json')
         with open(history_path, 'r') as f:
             history = json.load(f)
 
-        return configurations, history  
+        return configurations, metadata, history  
 
     #-------------------------------------------------------------------------- 
     def scan_checkpoints_folder(self):

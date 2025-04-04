@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.5,
+    "dataset": {"SAMPLE_SIZE" : 0.08,
                 "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENTATION" : false,
                 "MAX_REPORT_SIZE" : 160,                
@@ -20,14 +20,14 @@
                 "MIXED_PRECISION" : false,                           
                 "NUM_PROCESSORS": 6},
 
-    "training" : {"EPOCHS" : 10,
+    "training" : {"EPOCHS" : 4,
                   "ADDITIONAL_EPOCHS" : 10,                  
                   "BATCH_SIZE" : 15, 
                   "TEMPERATURE" : 1.0,                 
                   "USE_TENSORBOARD" : true,  
                   "SAVE_CHECKPOINTS": false,  
                   "LR_SCHEDULER" : {"POST_WARMUP_LR" : 0.0005,
-                                    "WARMUP_STEPS" : 2000}},   
+                                    "WARMUP_STEPS" : 3000}},   
                                     
     "inference" : {"TEMPERATURE" : 1.0,
                    "GEN_METHOD" : "greedy"},  
