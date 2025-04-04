@@ -7,7 +7,7 @@ from XREPORT.commons.logger import logger
 
 # [PRETRAINED IMAGE ENCODER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='Encoders', name='BeitXRayImageEncoder')
+@keras.saving.register_keras_serializable(package='Encoders', name='BeitXRayImageEncoder')
 class BeitXRayImageEncoder(keras.layers.Layer):
     def __init__(self, freeze_layers=False, embedding_dims=256, **kwargs):
         super(BeitXRayImageEncoder, self).__init__(**kwargs)   
