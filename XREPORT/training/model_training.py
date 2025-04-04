@@ -23,9 +23,10 @@ if __name__ == '__main__':
 
     # 1. [LOAD PREPROCESSED DATA]
     #--------------------------------------------------------------------------     
-    # load data from csv, add paths to images 
+    # load data from csv
     dataserializer = DataSerializer(CONFIG)
     processed_data, metadata = dataserializer.load_preprocessed_data() 
+    # fetch images path from the preprocessed data
     processed_data = dataserializer.get_training_images_path(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
@@ -34,26 +35,25 @@ if __name__ == '__main__':
     # split data into train set and validation set
     logger.info('Preparing dataset of images and captions based on splitting size')  
     splitter = TrainValidationSplit(CONFIG, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()    
-
-    # create subfolder for preprocessing data
-    modelserializer = ModelSerializer()
-    checkpoint_path = modelserializer.create_checkpoint_folder()           
+    train_data, validation_data = splitter.split_train_and_validation()              
 
     # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
-    # initialize training device 
-    # allows changing device prior to initializing the generators
-    logger.info('Building XREPORT model and data loaders')     
-    trainer = ModelTraining(CONFIG, metadata) 
-    trainer.set_device()        
-       
-    # create the tf.datasets using the previously initialized generators 
+    logger.info('Building model data loaders with prefetching and parallel processing') 
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data)      
+        train_data, validation_data) 
+    
+    modelserializer = ModelSerializer()
+    checkpoint_path = modelserializer.create_checkpoint_folder() 
 
-    # 3. [TRAINING MODEL]  
+    # 4. [SET DEVICE]
+    #--------------------------------------------------------------------------
+    logger.info('Setting device for training operations based on user configurations')       
+    trainer = ModelTraining(CONFIG, metadata) 
+    trainer.set_device()              
+
+    # 5. [TRAINING MODEL]  
     #--------------------------------------------------------------------------  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
@@ -61,13 +61,15 @@ if __name__ == '__main__':
     log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
+    logger.info('Building XREPORT Transformer model based on user configurations')
     captioner = XREPORTModel(vocabulary_size, CONFIG)
     model = captioner.get_model(model_summary=True) 
 
-    # generate graphviz plot fo the model layout       
+    # generate graphviz plot for the model layout       
     modelserializer.save_model_plot(model, checkpoint_path)              
 
     # perform training and save model at the end
+    logger.info('Starting XREPORT Transformer model training') 
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path)
         
     

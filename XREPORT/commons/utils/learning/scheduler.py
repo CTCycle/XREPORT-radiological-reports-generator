@@ -6,7 +6,7 @@ from XREPORT.commons.logger import logger
            
 # [LEARNING RATE SCHEDULER]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='WarmUpLRScheduler')
+@keras.saving.register_keras_serializable(package='WarmUpLRScheduler')
 class WarmUpLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, post_warmup_lr, warmup_steps, **kwargs):
         super(WarmUpLRScheduler, self).__init__(**kwargs)

@@ -8,7 +8,7 @@ from XREPORT.commons.logger import logger
 
 # [POSITIONAL EMBEDDING]
 ###############################################################################
-@keras.utils.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
+@keras.saving.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
 class PositionalEmbedding(keras.layers.Layer):
     def __init__(self, vocabulary_size, embedding_dims, sequence_length, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)

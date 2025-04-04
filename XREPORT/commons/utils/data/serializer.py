@@ -98,7 +98,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               
-        self.database.save_preprocessed_data(processed_data)      
+        self.database.save_preprocessed_data_table(processed_data)      
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -110,7 +110,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_preprocessed_data(self): 
         # load preprocessed data from database table 
-        processed_data = self.database.load_preprocessed_data()
+        processed_data = self.database.load_preprocessed_data_table()
         # process text strings to obtain a list of separated token indices     
         processed_data['tokens'] = processed_data['tokens'].apply(
             lambda x : [int(f) for f in x.split()]) 

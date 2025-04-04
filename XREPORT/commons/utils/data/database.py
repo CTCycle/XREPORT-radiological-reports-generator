@@ -228,7 +228,7 @@ class XREPORTDatabase:
     def update_database(self): 
         logger.debug(f'Updating database from {self.source_path}')              
         source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
-        self.save_source_data(source_dataset)        
+        self.save_source_data_table(source_dataset)        
 
     #--------------------------------------------------------------------------
     def load_source_data_table(self):                  
@@ -240,7 +240,7 @@ class XREPORTDatabase:
         return data
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self): 
+    def load_preprocessed_data_table(self): 
         conn = sqlite3.connect(self.db_path)        
         data = pd.read_sql_query(
             f"SELECT * FROM {self.processed_data.name}", conn)
@@ -249,33 +249,33 @@ class XREPORTDatabase:
         return data          
 
     #--------------------------------------------------------------------------
-    def save_source_data(self, data : pd.DataFrame):        
+    def save_source_data_table(self, data : pd.DataFrame):        
         conn = sqlite3.connect(self.db_path)         
-        data.to_sql(self.source_data.name, conn, if_exists='replace',
+        data.to_sql(self.source_data.name, conn, if_exists='replace', index=False,
                     dtype=self.source_data.get_dtypes())
         conn.commit()
         conn.close() 
         
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, data : pd.DataFrame):             
+    def save_preprocessed_data_table(self, data : pd.DataFrame):             
         conn = sqlite3.connect(self.db_path)        
-        data.to_sql(self.processed_data.name, conn, if_exists='replace',
+        data.to_sql(self.processed_data.name, conn, if_exists='replace', index=False,
                     dtype=self.processed_data.get_dtypes())
         conn.close()
 
     #--------------------------------------------------------------------------
     def save_inference_data_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
-        data.to_sql(self.inference_data.name, conn, if_exists='replace',
+        data.to_sql(self.inference_data.name, conn, if_exists='replace', index=False,
                     dtype=self.inference_data.get_dtypes())
         conn.commit()
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_image_statistics(self, data : pd.DataFrame):      
+    def save_image_statistics_table(self, data : pd.DataFrame):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
-            self.image_stats.name, conn, if_exists='replace',
+            self.image_stats.name, conn, if_exists='replace', index=False,
             dtype=self.image_stats.get_dtypes())
         conn.commit()
         conn.close() 
@@ -285,7 +285,7 @@ class XREPORTDatabase:
         # connect to sqlite database and save the preprocessed data as table
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
-            self.checkpoints_summary.name, conn, if_exists='replace',
+            self.checkpoints_summary.name, conn, if_exists='replace', index=False,
             dtype=self.checkpoints_summary.get_dtypes())
         conn.commit()
         conn.close() 

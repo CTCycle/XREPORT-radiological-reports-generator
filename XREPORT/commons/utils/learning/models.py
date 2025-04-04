@@ -36,7 +36,8 @@ class XREPORTModel:
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
         self.seq_input = layers.Input(shape=(self.sequence_length,), name='seq_input')         
         
-        self.img_encoder = BeitXRayImageEncoder(self.freeze_img_encoder)
+        self.img_encoder = BeitXRayImageEncoder(
+            self.freeze_img_encoder, self.embedding_dims)
         
         self.encoders = [TransformerEncoder(
             self.embedding_dims, self.num_heads, self.seed) for _ in range(self.num_encoders)]
