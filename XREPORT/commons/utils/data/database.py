@@ -32,10 +32,10 @@ class RadiographyDataTable:
    
     
 ###############################################################################
-class ProcessedDataTable:
+class TrainDataTable:
 
     def __init__(self):
-        self.name = 'PROCESSED_DATA'
+        self.name = 'TRAIN_DATA'
         self.dtypes = {
             'image': 'VARCHAR',
             'tokens': 'VARCHAR'}
@@ -53,7 +53,32 @@ class ProcessedDataTable:
         );
         '''
 
-        cursor.execute(query)        
+        cursor.execute(query)  
+
+
+###############################################################################
+class ValidationDataTable:
+
+    def __init__(self):
+        self.name = 'VALIDATION_DATA'
+        self.dtypes = {
+            'image': 'VARCHAR',
+            'tokens': 'VARCHAR'}
+
+    #--------------------------------------------------------------------------
+    def get_dtypes(self):
+        return self.dtypes
+    
+    #--------------------------------------------------------------------------
+    def create_table(self, cursor):
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (
+            image VARCHAR,
+            tokens VARCHAR            
+        );
+        '''
+
+        cursor.execute(query)     
     
     
 ###############################################################################
@@ -200,7 +225,8 @@ class XREPORTDatabase:
         self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')   
         self.configuration = configuration 
         self.source_data = RadiographyDataTable()
-        self.processed_data = ProcessedDataTable()
+        self.train_data = TrainDataTable()
+        self.validation_data = ValidationDataTable()
         self.inference_data = GeneratedReportsTable()
         self.image_stats = ImageStatisticsTable()
         self.checkpoints_summary = CheckpointSummaryTable()    
@@ -212,7 +238,8 @@ class XREPORTDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         self.source_data.create_table(cursor)  
-        self.processed_data.create_table(cursor)
+        self.train_data.create_table(cursor)
+        self.validation_data.create_table(cursor)
         self.inference_data.create_table(cursor)
         self.image_stats.create_table(cursor)  
         self.checkpoints_summary.create_table(cursor)   
@@ -235,13 +262,15 @@ class XREPORTDatabase:
         return data
 
     #--------------------------------------------------------------------------
-    def load_processed_data_table(self): 
+    def load_train_and_validation_tables(self):       
         conn = sqlite3.connect(self.db_path)        
-        data = pd.read_sql_query(
-            f"SELECT * FROM {self.processed_data.name}", conn)
+        train_data = pd.read_sql_query(
+            f"SELECT * FROM {self.train_data.name}", conn)
+        validation_data = pd.read_sql_query(
+            f"SELECT * FROM {self.validation_data.name}", conn)
         conn.close()  
 
-        return data          
+        return train_data, validation_data         
 
     #--------------------------------------------------------------------------
     def save_source_data_table(self, data : pd.DataFrame):        
@@ -252,10 +281,15 @@ class XREPORTDatabase:
         conn.close() 
         
     #--------------------------------------------------------------------------
-    def save_preprocessed_data_table(self, data : pd.DataFrame):             
-        conn = sqlite3.connect(self.db_path)        
-        data.to_sql(self.processed_data.name, conn, if_exists='replace', index=False,
-                    dtype=self.processed_data.get_dtypes())
+    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+        conn = sqlite3.connect(self.db_path)         
+        train_data.to_sql(
+            self.train_data.name, conn, if_exists='replace', index=False,
+            dtype=self.train_data.get_dtypes())  
+        validation_data.to_sql(
+            self.validation_data.name, conn, if_exists='replace', index=False,
+            dtype=self.validation_data.get_dtypes())    
+        conn.commit()
         conn.close()
 
     #--------------------------------------------------------------------------
