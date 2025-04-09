@@ -1,6 +1,6 @@
 {   
     "SEED" : 54,   
-    "dataset": {"SAMPLE_SIZE" : 0.8,
+    "dataset": {"SAMPLE_SIZE" : 0.25,
                 "VALIDATION_SIZE" : 0.2,                  
                 "IMG_AUGMENTATION" : false,
                 "MAX_REPORT_SIZE" : 160,                
@@ -20,7 +20,7 @@
                 "MIXED_PRECISION" : false,                           
                 "NUM_PROCESSORS": 4},
 
-    "training" : {"EPOCHS" : 2,
+    "training" : {"EPOCHS" : 3,
                   "ADDITIONAL_EPOCHS" : 10,                  
                   "BATCH_SIZE" : 15, 
                   "TEMPERATURE" : 1.0,                 
