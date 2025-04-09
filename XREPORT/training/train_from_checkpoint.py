@@ -39,25 +39,21 @@ if __name__ == '__main__':
     # load saved tf.datasets from the proper folders in the checkpoint directory
     logger.info('Loading preprocessed data and building dataloaders')     
     dataserializer = DataSerializer(configuration) 
-    processed_data, metadata = dataserializer.load_processed_data()
-    processed_data = dataserializer.get_training_images_path(processed_data)    
-
-    # initialize the TensorDataSet class with the generator instances
-    # create the tf.datasets using the previously initialized generators
-    splitter = TrainValidationSplit(configuration, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()        
+    train_data, val_data, metadata = dataserializer.load_train_and_validation_data()
+    train_data = dataserializer.update_images_path(train_data)
+    val_data = dataserializer.update_images_path(val_data)       
     
     # create the tf.datasets using the previously initialized generators 
     builder = TrainingDataLoader(configuration)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data)    
+        train_data, val_data)    
     
     # 3. [TRAINING MODEL]  
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/     
     #--------------------------------------------------------------------------        
-    log_training_report(train_data, validation_data, configuration, metadata)                            
+    log_training_report(train_data, val_data, configuration, metadata)                            
 
     # resume training from pretrained model    
     trainer.train_model(model, train_dataset, validation_dataset, checkpoint_path,

@@ -38,7 +38,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 ### 4.1 Navigation menu
 
-**1) Data analysis:** analyze and validate the image dataset using different metrics. Images statistics such as mean pixel values, standard deviation and noise ratio are reported in a detailed summary within the validation database (*resources/validation/dataset/dataset_validation.csv*. The average pixel distribution of the dataset is reported in *resources/validation/figures*.  
+**1) Data analysis:** analyze and validate the image and text dataset using different metrics. At first, a summary of images statistics is generated and saved in the image statistics table of the database. This summary includes mean pixel values, pixel standard deviation, pixel values range and noise ratio and standard deviation. Then, the average pixel distribution is calculated and saved into *resources/database/validation*.  
 
 **2) Build ML dataset:** Prepare the reports dataset for machine learning by processing and tokenizing X-ray descriptions and retrieving the associated image paths. Only one instance of the processed dataset is allowed at a time, and all training will be conducted using this data along with the corresponding processing metadata.
 

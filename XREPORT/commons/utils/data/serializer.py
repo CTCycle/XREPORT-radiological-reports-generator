@@ -57,7 +57,7 @@ class DataSerializer:
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
-    def load_dataset(self, sample_size=None):        
+    def load_source_dataset(self, sample_size=None):        
         dataset = self.database.load_source_data_table()
         sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
@@ -67,7 +67,7 @@ class DataSerializer:
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def get_training_images_path(self, dataset : pd.DataFrame):                
+    def update_images_path(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -94,31 +94,36 @@ class DataSerializer:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path    
+            return images_path 
 
     #--------------------------------------------------------------------------
-    def save_preprocessed_data(self, processed_data : pd.DataFrame, vocabulary_size=None):               
-        self.database.save_preprocessed_data_table(processed_data)      
+    def load_train_and_validation_data(self): 
+        # load preprocessed data from database and convert joint strings to list 
+        train_data, val_data = self.database.load_train_and_validation_tables()
+
+        # process text strings to obtain a list of separated token indices     
+        train_data['tokens'] = train_data['tokens'].apply(
+            lambda x : [int(f) for f in x.split()]) 
+        val_data['tokens'] = val_data['tokens'].apply(
+            lambda x : [int(f) for f in x.split()]) 
+               
+        with open(self.metadata_path, 'r') as file:
+            metadata = json.load(file)        
+        
+        return train_data, val_data, metadata   
+
+    #--------------------------------------------------------------------------
+    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
+                                       vocabulary_size=None):          
+        self.database.save_train_and_validation_tables(train_data, validation_data)       
         metadata = {'seed' : self.configuration['SEED'], 
                     'dataset' : self.configuration['dataset'],
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'vocabulary_size' : vocabulary_size}
                 
         with open(self.metadata_path, 'w') as file:
-            json.dump(metadata, file, indent=4)         
+            json.dump(metadata, file, indent=4) 
 
-    #--------------------------------------------------------------------------
-    def load_processed_data(self): 
-        # load preprocessed data from database table 
-        processed_data = self.database.load_processed_data_table()
-        # process text strings to obtain a list of separated token indices     
-        processed_data['tokens'] = processed_data['tokens'].apply(
-            lambda x : [int(f) for f in x.split()]) 
-               
-        with open(self.metadata_path, 'r') as file:
-            metadata = json.load(file)        
-        
-        return processed_data, metadata        
     
     
 
