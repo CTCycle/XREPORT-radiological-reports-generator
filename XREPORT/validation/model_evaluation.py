@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # 3. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata = dataserializer.load_preprocessed_data()
+    processed_data, metadata = dataserializer.load_processed_data()
     processed_data = dataserializer.get_training_images_path(processed_data)
     vocabulary_size = metadata['vocabulary_size']
 
