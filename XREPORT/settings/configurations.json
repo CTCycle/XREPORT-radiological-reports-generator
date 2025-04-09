@@ -20,7 +20,7 @@
                 "MIXED_PRECISION" : false,                           
                 "NUM_PROCESSORS": 4},
 
-    "training" : {"EPOCHS" : 10,
+    "training" : {"EPOCHS" : 2,
                   "ADDITIONAL_EPOCHS" : 10,                  
                   "BATCH_SIZE" : 15, 
                   "TEMPERATURE" : 1.0,                 

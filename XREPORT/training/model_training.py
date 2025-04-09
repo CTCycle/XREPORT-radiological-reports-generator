@@ -25,7 +25,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------     
     # load data from csv
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata = dataserializer.load_preprocessed_data() 
+    processed_data, metadata = dataserializer.load_processed_data() 
     # fetch images path from the preprocessed data
     processed_data = dataserializer.get_training_images_path(processed_data)
     vocabulary_size = metadata['vocabulary_size']
