@@ -13,12 +13,13 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration, checkpoint_path : str):
+    def __init__(self, model : keras.Model, configuration, path=None):
         keras.utils.set_random_seed(configuration["SEED"])  
-        self.dataloader = InferenceDataLoader(configuration)
-        self.checkpoint_name = os.path.basename(checkpoint_path)        
-        self.configuration = configuration
         self.model = model 
+        self.configuration = configuration        
+        self.dataloader = InferenceDataLoader(configuration)
+        self.name = os.path.basename(path) if path is not None else None        
+        
         # define image and text parameters for inference
         self.img_shape = (224, 224)
         self.num_channels = 3           

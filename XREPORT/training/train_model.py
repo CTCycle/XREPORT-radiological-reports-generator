@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     # 4. [SET DEVICE]
     #--------------------------------------------------------------------------
-    logger.info('Setting device for training operations based on user configurations')       
+    logger.info('Setting device for training operations')       
     trainer = ModelTraining(CONFIG, metadata) 
     trainer.set_device()              
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     log_training_report(train_data, validation_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
-    logger.info('Building XREPORT Transformer model based on user configurations')
+    logger.info('Building XREPORT Transformer model')
     captioner = XREPORTModel(vocabulary_size, CONFIG)
     model = captioner.get_model(model_summary=True) 
 

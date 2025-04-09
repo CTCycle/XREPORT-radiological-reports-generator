@@ -13,6 +13,7 @@ from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.reports import evaluation_report
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.utils.validation.text import CalculateBLEUScore
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 from XREPORT.commons.logger import logger
 
@@ -29,21 +30,27 @@ if __name__ == '__main__':
     # 2. [LOAD MODEL]
     #--------------------------------------------------------------------------
     # selected and load the pretrained model, then print the summary 
-    modelserializer = ModelSerializer()         
-    model, configuration, history, checkpoint_path = modelserializer.select_and_load_checkpoint()
+    modelserializer = ModelSerializer() 
+    logger.info('Looking for pretrained checkpoints in resources/checkpoints')        
+    model, configuration, metadata, _, checkpoint_path = modelserializer.select_and_load_checkpoint()
     model.summary(expand_nested=True)
    
     # 3. [LOAD AND SPLIT DATA]
     #--------------------------------------------------------------------------
     dataserializer = DataSerializer(configuration)
-    processed_data, metadata = dataserializer.load_processed_data()
+    processed_data, metadata = dataserializer.load_processed_data()    
     processed_data = dataserializer.get_training_images_path(processed_data)
     vocabulary_size = metadata['vocabulary_size']
+    logger.info(f'Preprocessed data has been loaded ({processed_data.shape[0]} samples)')
+    logger.info(f'Vocabolary size for the selected tokenizer: {vocabulary_size} tokens')
 
     # initialize the TensorDataSet class with the generator instances
     # create the tf.datasets using the previously initialized generators
     splitter = TrainValidationSplit(configuration, processed_data)     
     train_data, validation_data = splitter.split_train_and_validation()
+    logger.info(f'Data has been segmented based on configuration:')
+    logger.info(f'{train_data.shape[0]} train samples - {validation_data.shape[0]} validation samples')
+    
        
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
     #--------------------------------------------------------------------------  
@@ -53,8 +60,16 @@ if __name__ == '__main__':
     train_dataset = loader.build_inference_dataloader(train_data)
     validation_dataset = loader.build_inference_dataloader(validation_data)
 
-    # evaluate model performance over the training and validation dataset    
+    # evaluate model performance over the training and validation dataset
+    logger.info('Calculating model evaluation loss and metrics')    
     evaluation_report(model, train_dataset, validation_dataset) 
+
+    # 4. [CALCULATE SCORES]
+    # One can select different either greedy_search or beam search to genarate
+    # reports with a pretrained decoder 
+    #--------------------------------------------------------------------------
+    scoring = CalculateBLEUScore()
+    scores = scoring.calculate_BLEU_score(train_data, validation_data)
 
     # 5. [TOKENIZERS]
     #--------------------------------------------------------------------------
