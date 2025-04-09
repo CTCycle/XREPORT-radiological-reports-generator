@@ -10,7 +10,7 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.data.serializer import DataSerializer
 from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.images import ImageAnalysis
-from XREPORT.commons.utils.validation.textual import TextAnalysis
+from XREPORT.commons.utils.validation.text import TextAnalysis
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
@@ -21,9 +21,8 @@ if __name__ == '__main__':
     # 1. [LOAD DATASET]
     #--------------------------------------------------------------------------  
     dataserializer = DataSerializer(CONFIG)
-    dataset = dataserializer.load_dataset()
-    processed_data, metadata = dataserializer.load_processed_data()
-    processed_data = dataserializer.get_training_images_path(processed_data)
+    dataset = dataserializer.load_source_dataset()   
+    dataset = dataserializer.update_images_path(dataset)
     logger.info(f'Number of reports and related images: {dataset.shape[0]}')
      
     # 2. [COMPUTE IMAGE STATISTICS]
@@ -39,10 +38,10 @@ if __name__ == '__main__':
     analyzer = ImageAnalysis(CONFIG)
     logger.info('Calculating image statistics and generating dataset report')
     logger.info('Focusing on mean pixel values, pixel standard deviation, image noise ratio')
-    image_statistics = analyzer.calculate_image_statistics(processed_data)
+    image_statistics = analyzer.calculate_image_statistics(dataset)
 
     logger.info('Generating the pixel intensity histogram')
-    analyzer.calculate_pixel_intensity_distribution(processed_data)   
+    analyzer.calculate_pixel_intensity_distribution(dataset)   
 
     # 2. [SPLIT DATA]
     #--------------------------------------------------------------------------

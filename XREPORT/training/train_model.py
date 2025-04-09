@@ -22,27 +22,20 @@ from XREPORT.commons.logger import logger
 if __name__ == '__main__':
 
     # 1. [LOAD PREPROCESSED DATA]
-    #--------------------------------------------------------------------------     
-    # load data from csv
+    #--------------------------------------------------------------------------   
     dataserializer = DataSerializer(CONFIG)
-    processed_data, metadata = dataserializer.load_processed_data() 
+    train_data, val_data, metadata = dataserializer.load_train_and_validation_data() 
     # fetch images path from the preprocessed data
-    processed_data = dataserializer.get_training_images_path(processed_data)
-    vocabulary_size = metadata['vocabulary_size']
+    train_data = dataserializer.update_images_path(train_data)
+    val_data = dataserializer.update_images_path(val_data)
+    vocabulary_size = metadata['vocabulary_size']    
 
-    # 2. [SPLIT DATA]
-    #--------------------------------------------------------------------------
-    # split data into train set and validation set
-    logger.info('Preparing dataset of images and captions based on splitting size')  
-    splitter = TrainValidationSplit(CONFIG, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()              
-
-    # 3. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
+    # 2. [DEFINE IMAGES GENERATOR AND BUILD TF.DATASET]
     #--------------------------------------------------------------------------
     logger.info('Building model data loaders with prefetching and parallel processing') 
     builder = TrainingDataLoader(CONFIG)   
     train_dataset, validation_dataset = builder.build_training_dataloader(
-        train_data, validation_data) 
+        train_data, val_data) 
     
     modelserializer = ModelSerializer()
     checkpoint_path = modelserializer.create_checkpoint_folder() 
@@ -58,7 +51,7 @@ if __name__ == '__main__':
     # Setting callbacks and training routine for the machine learning model 
     # use command prompt on the model folder and (upon activating environment), 
     # use the bash command: python -m tensorboard.main --logdir tensorboard/
-    log_training_report(train_data, validation_data, CONFIG, metadata)
+    log_training_report(train_data, val_data, CONFIG, metadata)
 
     # initialize and compile the captioning model    
     logger.info('Building XREPORT Transformer model')
