@@ -108,9 +108,9 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)         
 
     #--------------------------------------------------------------------------
-    def load_preprocessed_data(self): 
+    def load_processed_data(self): 
         # load preprocessed data from database table 
-        processed_data = self.database.load_preprocessed_data_table()
+        processed_data = self.database.load_processed_data_table()
         # process text strings to obtain a list of separated token indices     
         processed_data['tokens'] = processed_data['tokens'].apply(
             lambda x : [int(f) for f in x.split()]) 
