@@ -235,9 +235,9 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         model = self.load_checkpoint(checkpoint_path)       
-        configuration, history = self.load_session_configuration(checkpoint_path)           
+        configuration, metadata, history = self.load_session_configuration(checkpoint_path)           
             
-        return model, configuration, history, checkpoint_path
+        return model, configuration, metadata, history, checkpoint_path
 
              
     
