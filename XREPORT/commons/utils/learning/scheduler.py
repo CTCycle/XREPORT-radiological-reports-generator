@@ -16,8 +16,8 @@ class WarmUpLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
     # implement encoder through call method  
     #--------------------------------------------------------------------------
     def __call__(self, step):
-        global_step = keras.ops.cast(step, torch.float32)
-        warmup_steps = keras.ops.cast(self.warmup_steps, torch.float32)
+        global_step = keras.ops.cast(step, keras.config.floatx())
+        warmup_steps = keras.ops.cast(self.warmup_steps, keras.config.floatx())
         # Linear warmup: gradually increase lr from 0 to post_warmup_lr
         warmup_lr = self.post_warmup_lr * (global_step / warmup_steps)        
         # Inverse square root decay after warmup:

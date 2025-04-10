@@ -46,19 +46,19 @@ class MaskedAccuracy(keras.metrics.Metric):
     #--------------------------------------------------------------------------
     def update_state(self, y_true, y_pred, sample_weight=None):
         
-        y_true = keras.ops.cast(y_true, dtype=torch.float32)
-        y_pred_argmax = keras.ops.cast(keras.ops.argmax(y_pred, axis=2), dtype=torch.float32)
+        y_true = keras.ops.cast(y_true, dtype=keras.config.floatx())
+        y_pred_argmax = keras.ops.cast(keras.ops.argmax(y_pred, axis=2), dtype=keras.config.floatx())
         accuracy = keras.ops.equal(y_true, y_pred_argmax)        
         # Create a mask to ignore padding (assuming padding value is 0)
         mask = keras.ops.not_equal(y_true, 0)        
         # Apply the mask to the accuracy
         accuracy = keras.ops.logical_and(mask, accuracy)        
         # Cast the boolean values to float32
-        accuracy = keras.ops.cast(accuracy, dtype=torch.float32)
-        mask = keras.ops.cast(mask, dtype=torch.float32)
+        accuracy = keras.ops.cast(accuracy, dtype=keras.config.floatx())
+        mask = keras.ops.cast(mask, dtype=keras.config.floatx())
         
         if sample_weight is not None:
-            sample_weight = keras.ops.cast(sample_weight, dtype=torch.float32)
+            sample_weight = keras.ops.cast(sample_weight, dtype=keras.config.floatx())
             accuracy = keras.ops.multiply(accuracy, sample_weight)
             mask = keras.ops.multiply(mask, sample_weight)
         

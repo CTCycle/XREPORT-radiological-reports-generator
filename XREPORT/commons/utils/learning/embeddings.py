@@ -21,7 +21,7 @@ class PositionalEmbedding(keras.layers.Layer):
         self.position_embeddings = layers.Embedding(
             input_dim=self.sequence_length, output_dim=self.embedding_dims)
         self.embedding_scale = keras.ops.sqrt(
-            keras.ops.cast(self.embedding_dims, torch.float32))       
+            keras.ops.cast(self.embedding_dims, keras.config.floatx()))       
     
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
@@ -37,7 +37,7 @@ class PositionalEmbedding(keras.layers.Layer):
         if self.mask_zero:
             mask = keras.ops.not_equal(inputs, 0)
             mask = keras.ops.expand_dims(
-                keras.ops.cast(mask, torch.float32), axis=-1)
+                keras.ops.cast(mask, keras.config.floatx()), axis=-1)
             full_embedding *= mask
 
         return full_embedding
