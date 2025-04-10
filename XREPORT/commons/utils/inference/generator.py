@@ -99,7 +99,7 @@ class TextGenerator:
         image = keras.ops.expand_dims(image, axis=0)
         # initialize an array with same size of max expected report length
         # set the start token as the first element
-        seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
+        seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
         seq_input[0, 0] = start_token_idx  
         # initialize progress bar for better output formatting
         progress_bar = tqdm(total=self.max_report_size - 1)
@@ -155,7 +155,7 @@ class TextGenerator:
 
                 # Prepare a padded sequence input.
                 # We create an array of zeros with shape (1, max_report_size) and fill in the current sequence.
-                seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
+                seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
                 for j, token in enumerate(seq):
                     seq_input[0, j] = token
 
@@ -187,7 +187,7 @@ class TextGenerator:
         # Choose the best beam (the one with the highest score)
         best_seq, best_score = beams[0]        
         # Create a full padded sequence from the best beam for conversion to text.
-        seq_input = keras.ops.zeros((1, self.max_report_size), dtype=torch.int32)
+        seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
         for i, token in enumerate(best_seq):
             seq_input[0, i] = token
 
