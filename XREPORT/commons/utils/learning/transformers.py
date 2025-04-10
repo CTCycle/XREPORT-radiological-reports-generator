@@ -100,7 +100,7 @@ class SoftMaxClassifier(keras.layers.Layer):
         self.dense1 = layers.Dense(
             dense_units, kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(
-            output_size, kernel_initializer='he_uniform', dtype=torch.float32)        
+            output_size, kernel_initializer='he_uniform', dtype=keras.config.floatx())        
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -235,10 +235,10 @@ class TransformerDecoder(keras.layers.Layer):
 
         if mask is not None:
             padding_mask = keras.ops.cast(
-                keras.ops.expand_dims(mask, axis=2), dtype=torch.int32)
+                keras.ops.expand_dims(mask, axis=2), dtype='int32')
             combined_mask = keras.ops.minimum(
                 keras.ops.cast(keras.ops.expand_dims(mask, axis=1),
-                               dtype=torch.int32), causal_mask)
+                               dtype='int32'), causal_mask)
 
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -277,7 +277,7 @@ class TransformerDecoder(keras.layers.Layer):
         batch_size, sequence_length = keras.ops.shape(inputs)[0], keras.ops.shape(inputs)[1]
         i = keras.ops.expand_dims(keras.ops.arange(sequence_length), axis=1)
         j = keras.ops.arange(sequence_length)
-        mask = keras.ops.cast(i >= j, dtype=torch.int32)
+        mask = keras.ops.cast(i >= j, dtype='int32')
         mask = keras.ops.reshape(mask, (1, sequence_length, sequence_length))        
         batch_mask = keras.ops.tile(mask, (batch_size, 1, 1))
         
