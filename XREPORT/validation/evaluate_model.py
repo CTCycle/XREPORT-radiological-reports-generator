@@ -42,7 +42,7 @@ if __name__ == '__main__':
     val_data = dataserializer.update_images_path(val_data)  
     vocabulary_size = metadata['vocabulary_size']
     logger.info(f'Train and validation data have been loaded')
-    logger.info(f'Train samples: ({train_data.shape[0]} - Validation samples: {val_data.shape[0]}')
+    logger.info(f'Train samples: ({train_data.shape[0]} - Validation samples: {val_data.shape[0]})')
     logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
        
     # 4. [EVALUATE ON TRAIN AND VALIDATION]
@@ -55,13 +55,13 @@ if __name__ == '__main__':
 
     # evaluate model performance over the training and validation dataset
     logger.info('Calculating model evaluation loss and metrics')    
-    evaluation_report(model, train_dataset, validation_dataset) 
+    #evaluation_report(model, train_dataset, validation_dataset) 
 
     # 4. [CALCULATE SCORES]
     # One can select different either greedy_search or beam search to genarate
     # reports with a pretrained decoder 
     #--------------------------------------------------------------------------
-    scoring = CalculateBLEUScore()
+    scoring = CalculateBLEUScore(model, configuration)
     scores = scoring.calculate_BLEU_score(train_data, val_data)
 
     # 5. [TOKENIZERS]
