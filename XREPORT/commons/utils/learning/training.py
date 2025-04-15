@@ -63,7 +63,8 @@ class ModelTraining:
         training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
                              callbacks=callbacks_list, initial_epoch=from_epoch)
         
-        # save model parameters in json files
+        # use the real time history callback data to retrieve current loss and metric values
+        # this allows to correctly resume the training metrics plot if training from checkpoint
         history = {'history' : RTH_callback.history, 
                    'val_history' : RTH_callback.val_history,
                    'total_epochs' : epochs}
