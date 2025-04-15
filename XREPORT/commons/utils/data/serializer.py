@@ -150,7 +150,7 @@ class ModelSerializer:
     def save_pretrained_model(self, model : keras.Model, path):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
-        logger.info(f'Training session is over. Model has been saved in folder {path}')
+        logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
     def save_session_configuration(self, path, history : dict, configurations : dict, metadata : dict):         
