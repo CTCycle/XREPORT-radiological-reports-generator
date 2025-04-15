@@ -10,10 +10,9 @@ warnings.simplefilter(action='ignore', category=Warning)
 from XREPORT.commons.utils.data.loader import InferenceDataLoader
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
-from XREPORT.commons.utils.data.process.splitting import TrainValidationSplit
 from XREPORT.commons.utils.validation.reports import evaluation_report
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
-from XREPORT.commons.utils.validation.text import CalculateBLEUScore
+from XREPORT.commons.utils.validation.text import EvaluateTextConsistency
 from XREPORT.commons.constants import CONFIG, DATA_PATH
 from XREPORT.commons.logger import logger
 
@@ -60,9 +59,9 @@ if __name__ == '__main__':
     # 4. [CALCULATE SCORES]
     # One can select different either greedy_search or beam search to genarate
     # reports with a pretrained decoder 
-    #--------------------------------------------------------------------------
-    scoring = CalculateBLEUScore(model, configuration)
-    scores = scoring.calculate_BLEU_score(train_data, val_data)
+    #--------------------------------------------------------------------------    
+    scoring = EvaluateTextConsistency(model, configuration)
+    scores = scoring.calculate_BLEU_score(train_data, val_data)    
 
     # 5. [TOKENIZERS]
     #--------------------------------------------------------------------------
