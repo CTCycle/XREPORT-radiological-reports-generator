@@ -49,11 +49,11 @@ The processed data will be split into training and validation sets, then stored 
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
-- **train from scratch:** start training an instance of the XREPORT model from scratch on the processed data.
+**train from scratch:** start training an instance of the XREPORT model from scratch on the processed data.
 
-- **train from checkpoint:** resume training from a pretrained checkpoint for an additional amount of epochs, using pretrained model settings and data.  
+**train from checkpoint:** resume training from a pretrained checkpoint for an additional amount of epochs, using pretrained model settings and data.  
 
-- **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. The average mean squared error and mean average error are calculated for both the training and validation datasets. Random images are sampled from both datasets and used to generate reports that are then compared to their textual ground truth (real reports) using a series of metrics. 
+**model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. The average mean squared error and mean average error are calculated for both the training and validation datasets. Random images are sampled from both datasets and used to generate reports that are then compared to their textual ground truth (real reports) using a series of metrics. 
 
 **4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
 

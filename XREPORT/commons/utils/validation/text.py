@@ -34,15 +34,14 @@ class EvaluateTextConsistency:
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
-        sampled_train = train_data.sample(n=self.num_samples, random_state=42) 
-        sampled_images = sampled_train['path'].to_list()     
-        true_reports = dict(zip(sampled_train['path'], sampled_train['text']))
+    def calculate_BLEU_score(self, validation_data : pd.DataFrame):
+        samples = validation_data.sample(n=self.num_samples, random_state=42) 
+        sampled_images = samples['path'].to_list()     
+        true_reports = dict(zip(samples['path'], samples['text']))
         
         # Generate reports using greedy decoding
         generated_with_greedy = self.generator.generate_radiological_reports(
-            sampled_images, override_method='greedy')
-        
+            sampled_images, override_method='greedy')        
         
         references = []
         hypotheses = []
@@ -59,7 +58,7 @@ class EvaluateTextConsistency:
         
         # Calculate corpus BLEU score
         bleu_score = corpus_bleu(references, hypotheses)
-        logger.info(f'BLEU score for {self.num_samples} training samples: {bleu_score}')
+        logger.info(f'BLEU score for {self.num_samples} validation samples: {bleu_score}')
 
         return bleu_score
         
