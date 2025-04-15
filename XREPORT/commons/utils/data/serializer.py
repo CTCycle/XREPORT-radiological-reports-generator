@@ -124,6 +124,10 @@ class DataSerializer:
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
 
+    #--------------------------------------------------------------------------
+    def save_generated_reports(self, data : pd.DataFrame):
+        self.database.save_inference_data_table(data)  
+
     
     
 
