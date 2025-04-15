@@ -28,13 +28,16 @@ class CalculateBLEUScore:
     def __init__(self, model, configuration : dict):
         self.model = model
         self.configuration = configuration
-        self.num_samples = 1000
+        self.num_samples = 100
         self.generator = TextGenerator(model, configuration)
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
     def calculate_BLEU_score(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):
-        sampled_train = train_data.sample(n=self.num_samples, random_state=42)
-        sampled_images = sampled_train['']
-        #generated_reports = self.generator.generate_radiological_reports(img_paths)
+        sampled_train = train_data.sample(n=self.num_samples, random_state=42) 
+        sampled_images = sampled_train['image'].to_list()       
+        greedy_reports = self.generator.generate_radiological_reports(
+            sampled_images, override_method='greedy')
+        
+        return greedy_reports
         

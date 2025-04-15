@@ -197,11 +197,12 @@ class TextGenerator:
         return report   
 
     #--------------------------------------------------------------------------    
-    def generate_radiological_reports(self, images_path):
+    def generate_radiological_reports(self, images_path, override_method=None):
         reports = {}         
         tokenizer_config = self.get_tokenizer_parameters()
         for path in images_path:
-            report = self.generator_methods[self.selected_method](tokenizer_config, path)            
+            selected_method = self.selected_method if override_method is None else override_method
+            report = self.generator_methods[selected_method](tokenizer_config, path)            
             reports[path] = report                
 
         return reports
