@@ -40,7 +40,12 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 **1) Data analysis:** analyze and validate the image and text dataset using different metrics. At first, a summary of images statistics is generated and saved in the image statistics table of the database. This summary includes mean pixel values, pixel standard deviation, pixel values range and noise ratio and standard deviation. Then, the average pixel distribution is calculated and saved into *resources/database/validation*.  
 
-**2) Build ML dataset:** Prepare the reports dataset for machine learning by processing and tokenizing X-ray descriptions and retrieving the associated image paths. Only one instance of the processed dataset is allowed at a time, and all training will be conducted using this data along with the corresponding processing metadata.
+**2) Build ML dataset:** Prepare the reports dataset for machine learning by processing the source data through the following steps:
+- Clean the text of X-ray reports
+- Tokenize the X-ray report texts
+- Retrieve the file paths of corresponding images
+
+The processed data will be split into training and validation sets, then stored in the database along with associated processing metadata.
 
 **3) Model training and evaluation:** open the machine learning menu to explore various options for model training and validation. Once the menu is open, you will see different options:
 
@@ -50,7 +55,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 
 - **model evaluation:** evaluate the performance of pretrained model checkpoints using different metrics. The average mean squared error and mean average error are calculated for both the training and validation datasets. Random images are sampled from both datasets and used to generate reports that are then compared to their textual ground truth (real reports) using a series of metrics. 
 
-**4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. 
+**4) Generate radiological reports:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
 
 **5) Setup and Maintenance:** execute optional commands such as *Install project into environment* to reinstall the project within your environment, *update project* to pull the last updates from github, and *remove logs* to remove all logs saved in *resources/logs*. 
 
@@ -59,7 +64,7 @@ On Windows, run *start_on_windows.bat* to launch the main navigation menu and br
 ### 4.2 Resources
 This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database, which will automatically fetch input data from *database/dataset/XREPORT_dataset.csv*. To visualize and interact with the SQLite database, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/. The directory structure includes the following folders:
 
-- **checkpoints:**  pretrained model checkpoints are stored here, and can be used either for resuming training or performing inference with an already trained model.
+- **checkpoints:**  pretrained model checkpoints are stored here.
 
 - **database:** data will be stored centrally within the main database *XREPORT_database.db*. Images for training are placed in *database/images*, while associated reports must be provided in *database/dataset/XREPORT_dataset.csv*, formatted according to the specified template (column *image* containing the image filenames and column *text* providing the corresponding description for each image). All metadata will be promptly stored in *database/metadata* and validation outputs will be saved separately in *database/validation*. Eventually, data used for inference with a pretrained checkpoint are located in *database/inference*, where lower-dimension projections of these images are saved as .npy files.
 
@@ -115,7 +120,7 @@ For customization, you can modify the main configuration parameters using *setti
 | EPOCHS             | Number of epochs to train the model                      |
 | ADDITIONAL EPOCHS  | Number of epochs to train the model from checkpoint      |
 | BATCH_SIZE         | Number of samples per batch                              |
-| TEMPERATURE        | Affects smoothness of softmax diistribution              |
+| TEMPERATURE        | Affects smoothness of softmax distribution               |
 | USE_TENSORBOARD    | Whether to use TensorBoard for logging                   |
 | SAVE_CHECKPOINTS   | Save checkpoints during training (at each epoch)         |
 
@@ -126,13 +131,12 @@ For customization, you can modify the main configuration parameters using *setti
 | POST_WARMUP_LR     | Learning rate value after initial warmup                 |
 | WARMUP_STEPS       | Number of warmup epochs                                  |
 
-### Evaluation Configuration
+### Inference Configuration
 
 | Parameter          | Description                                              |
 |--------------------|----------------------------------------------------------|
-| BATCH_SIZE         | Number of samples per batch during evaluation            | 
-| SAMPLE_SIZE        | Number of samples from the dataset (evaluation only)     |
-| VALIDATION_SIZE    | Fraction of validation data (evaluation only)            |
+| TEMPERATURE        | Temperature during inference                             | 
+| GEN_METHOD         | Autoregressive method for token generation               |
 
 ### Evaluation Configuration
 

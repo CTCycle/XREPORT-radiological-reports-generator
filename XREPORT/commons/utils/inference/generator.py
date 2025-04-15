@@ -13,12 +13,13 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration, path=None):
+    def __init__(self, model : keras.Model, configuration, path=None, verbose=True):
         keras.utils.set_random_seed(configuration["SEED"])  
         self.model = model 
         self.configuration = configuration        
         self.dataloader = InferenceDataLoader(configuration)
-        self.name = os.path.basename(path) if path is not None else None        
+        self.name = os.path.basename(path) if path is not None else None 
+        self.verbose = verbose       
         
         # define image and text parameters for inference
         self.img_shape = (224, 224)
@@ -121,8 +122,9 @@ class TextGenerator:
             
         progress_bar.close()
         report = self.translate_tokens_to_text(
-            index_lookup, seq_input, tokenizer_config)                
-        logger.info(report)
+            index_lookup, seq_input, tokenizer_config)     
+
+        logger.info(report) if self.verbose else None
            
         return report 
 
@@ -192,7 +194,7 @@ class TextGenerator:
             seq_input[0, i] = token
 
         report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)
-        logger.info(report)
+        logger.info(report) if self.verbose else None
 
         return report   
 
