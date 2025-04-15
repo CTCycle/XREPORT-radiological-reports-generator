@@ -5,13 +5,10 @@ from XREPORT.commons.logger import logger
 
 
 ###############################################################################
-def evaluation_report(model : keras.Model, train_dataset, validation_dataset):    
-    training = model.evaluate(train_dataset, verbose=1)
-    validation = model.evaluate(validation_dataset, verbose=1)
+def evaluation_report(model : keras.Model, validation_dataset): 
+    validation = model.evaluate(validation_dataset, verbose=1)     
     logger.info(
-        f'Training loss {training[0]:.3f} - Training metric {training[1]:.3f}')    
-    logger.info(
-        f'Validation loss {validation[0]:.3f} - Validation metric {validation[1]:.3f}')  
+        f'Sparse Categorical Entropy Loss {validation[0]:.3f} - Sparse Categorical Accuracy {validation[1]:.3f}')  
     
 
 ###############################################################################
