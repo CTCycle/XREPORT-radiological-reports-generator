@@ -22,7 +22,7 @@ if __name__ == '__main__':
     #--------------------------------------------------------------------------  
     # selected and load the pretrained model, then print the summary 
     modelserializer = ModelSerializer()         
-    model, configuration, metadata, _, checkpoint_path = modelserializer.select_and_load_checkpoint()    
+    model, configuration, metadata, checkpoint_path = modelserializer.select_and_load_checkpoint()    
     model.summary(expand_nested=True)  
 
     # setting device for training    
