@@ -32,7 +32,7 @@ class TextGenerator:
         self.decoder_layer_names = [
             x for x in self.layer_names if 'transformer_decoder' in x] 
 
-        # Get tokenizer and related configurations
+        # Get tokenizer and related configuration
         self.tokenization = TokenWizard(self.configuration)
         self.tokenizer = self.tokenization.tokenizer
         # report generation methods 

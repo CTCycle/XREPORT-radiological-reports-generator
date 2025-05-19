@@ -17,7 +17,7 @@ class ImageAnalysis:
     def __init__(self, configuration):       
         self.database = XREPORTDatabase(configuration)        
         self.DPI = configuration['validation']['DPI']        
-        self.configurations = configuration        
+        self.configuration = configuration        
    
     #--------------------------------------------------------------------------
     def calculate_image_statistics(self, data : pd.DataFrame): 
