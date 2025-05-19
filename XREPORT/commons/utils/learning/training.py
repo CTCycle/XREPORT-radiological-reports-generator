@@ -1,7 +1,7 @@
 import torch
 import keras
 
-from XREPORT.commons.utils.learning.callbacks import callbacks_handler
+from XREPORT.commons.utils.learning.callbacks import initialize_callbacks_handler
 from XREPORT.commons.utils.data.serializer import ModelSerializer
 from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
@@ -51,12 +51,12 @@ class ModelTraining:
             from_epoch = 0
             history = None
         else:
-            _, self.metadata, history = self.serializer.load_session_configuration(checkpoint_path)                     
+            _, self.metadata, history = self.serializer.load_training_configurationn(checkpoint_path)                     
             epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
             from_epoch = history['total_epochs']
         
         # add all callbacks to the callback list
-        RTH_callback, callbacks_list = callbacks_handler(
+        RTH_callback, callbacks_list = initialize_callbacks_handler(
             self.configuration, checkpoint_path, history)            
         
         # run model fit using keras API method       
@@ -71,7 +71,7 @@ class ModelTraining:
         
         # update configuration with the database metadata        
         self.serializer.save_pretrained_model(model, checkpoint_path)       
-        self.serializer.save_session_configuration(
+        self.serializer.save_training_configurationn(
             checkpoint_path, history, self.configuration, self.metadata)
 
 

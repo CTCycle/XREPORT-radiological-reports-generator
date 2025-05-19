@@ -72,8 +72,8 @@ This folder organizes data and results across various stages of the project, suc
 
 - **templates:** reference template files can be found here
 
-## 5. Configurations
-For customization, you can modify the main configuration parameters using *settings/configurations.json*. 
+## 5. Configuration
+For customization, you can modify the main configuration parameters using *settings/configuration.json*. 
 
 #### General Configuration
 

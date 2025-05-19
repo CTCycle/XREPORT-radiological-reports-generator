@@ -16,7 +16,7 @@ class ModelEvaluationSummary:
         self.remove_invalid = remove_invalid
         self.serializer = ModelSerializer()        
         self.database = XREPORTDatabase(configuration)        
-        self.configurations = configuration
+        self.configuration = configuration
 
     #---------------------------------------------------------------------------
     def scan_checkpoint_folder(self):
@@ -38,7 +38,7 @@ class ModelEvaluationSummary:
         model_parameters = []            
         for model_path in model_paths:            
             model = self.serializer.load_checkpoint(model_path)
-            configuration, metadata, history = self.serializer.load_session_configuration(model_path)
+            configuration, metadata, history = self.serializer.load_training_configurationn(model_path)
             model_name = os.path.basename(model_path)            
 
             # Extract model name and training type                       

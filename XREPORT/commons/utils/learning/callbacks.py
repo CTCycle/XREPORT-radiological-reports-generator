@@ -67,7 +67,7 @@ class RealTimeHistory(keras.callbacks.Callback):
     
 # [CALLBACKS HANDLER]
 ###############################################################################
-def callbacks_handler(configuration, checkpoint_path, history):
+def initialize_callbacks_handler(configuration, checkpoint_path, history):
 
     RTH_callback = RealTimeHistory(checkpoint_path, configuration, past_logs=history)       
     callbacks_list = [RTH_callback]
