@@ -30,7 +30,7 @@ class WarmUpLRScheduler(keras.optimizers.schedules.LearningRateSchedule):
                               lambda: warmup_lr,
                               lambda: decayed_lr)
     
-    # custom configurations
+    # custom configuration
     #--------------------------------------------------------------------------
     def get_config(self):
         

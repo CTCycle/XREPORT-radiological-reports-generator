@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     # 5. [TOKENIZERS]
     #--------------------------------------------------------------------------
-    # get tokenizers and related configurations
+    # get tokenizers and related configuration
     tokenization = TokenWizard(configuration)    
     tokenizer = tokenization.tokenizer
 
