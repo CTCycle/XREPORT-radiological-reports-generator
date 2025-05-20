@@ -38,7 +38,7 @@ class ModelEvaluationSummary:
         model_parameters = []            
         for model_path in model_paths:            
             model = self.serializer.load_checkpoint(model_path)
-            configuration, metadata, history = self.serializer.load_training_configurationn(model_path)
+            configuration, metadata, history = self.serializer.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)            
 
             # Extract model name and training type                       
