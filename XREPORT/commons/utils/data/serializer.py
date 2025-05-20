@@ -157,7 +157,7 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configurationn(self, path, history : dict, configuration : dict, metadata : dict):         
+    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):         
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
@@ -178,7 +178,7 @@ class ModelSerializer:
         logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
-    def load_training_configurationn(self, path): 
+    def load_training_configuration(self, path): 
         config_path = os.path.join(path, 'configuration', 'configuration.json')        
         with open(config_path, 'r') as f:
             configuration = json.load(f) 
@@ -244,7 +244,7 @@ class ModelSerializer:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         model = self.load_checkpoint(checkpoint_path)       
-        configuration, metadata, history = self.load_training_configurationn(checkpoint_path)           
+        configuration, metadata, history = self.load_training_configuration(checkpoint_path)           
             
         return model, configuration, metadata, checkpoint_path
 

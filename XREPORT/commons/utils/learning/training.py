@@ -51,7 +51,7 @@ class ModelTraining:
             from_epoch = 0
             history = None
         else:
-            _, self.metadata, history = self.serializer.load_training_configurationn(checkpoint_path)                     
+            _, self.metadata, history = self.serializer.load_training_configuration(checkpoint_path)                     
             epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
             from_epoch = history['total_epochs']
         
@@ -71,7 +71,7 @@ class ModelTraining:
         
         # update configuration with the database metadata        
         self.serializer.save_pretrained_model(model, checkpoint_path)       
-        self.serializer.save_training_configurationn(
+        self.serializer.save_training_configuration(
             checkpoint_path, history, self.configuration, self.metadata)
 
 
