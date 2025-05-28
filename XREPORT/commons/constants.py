@@ -19,6 +19,10 @@ INFERENCE_PATH = join(DATA_PATH, 'inference')
 INFERENCE_INPUT_PATH = join(INFERENCE_PATH, 'radiography')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
+# [UI LAYOUT PATH]
+###############################################################################
+UI_PATH = join(PROJECT_DIR, 'commons', 'interface', 'layout', 'window_layout.ui')
+
 # [CONFIGURATIONS]
 ###############################################################################
 CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configuration.json')
