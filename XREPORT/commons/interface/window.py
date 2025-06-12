@@ -45,7 +45,8 @@ class MainWindow:
         self.configuration = self.config_manager.get_configuration()
     
         self.threadpool = QThreadPool.globalInstance()
-        self.worker = None                
+        self.worker = None
+        self.worker_running = False                
 
         # --- Create persistent handlers ---
         self.validation_handler = ValidationEvents(self.configuration)
@@ -289,6 +290,7 @@ class MainWindow:
         worker.signals.error.connect(on_error)        
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
+        self.worker_running = True
 
     #--------------------------------------------------------------------------
     def _send_message(self, message): 
