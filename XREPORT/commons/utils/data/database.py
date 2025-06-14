@@ -149,6 +149,30 @@ class ImageStatisticsTable:
         '''
 
         cursor.execute(query)
+
+###############################################################################
+class TextStatisticsTable:
+
+    def __init__(self):
+        self.name = 'TEXT_STATISTICS'
+        self.dtypes = {
+            'name': 'VARCHAR',
+            'words_count': 'INTEGER',}
+
+    #--------------------------------------------------------------------------
+    def get_dtypes(self):
+        return self.dtypes
+    
+    #--------------------------------------------------------------------------
+    def create_table(self, cursor):
+        query = f'''
+        CREATE TABLE IF NOT EXISTS {self.name} (            
+            name VARCHAR,
+            words_count INTEGER
+        );
+        '''
+
+        cursor.execute(query)
        
     
 ###############################################################################
@@ -229,6 +253,7 @@ class XREPORTDatabase:
         self.validation_data = ValidationDataTable()
         self.inference_data = GeneratedReportsTable()
         self.image_stats = ImageStatisticsTable()
+        self.text_stats = TextStatisticsTable()
         self.checkpoints_summary = CheckpointSummaryTable()    
         self.initialize_database()
         self.update_database()
@@ -310,8 +335,16 @@ class XREPORTDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data : pd.DataFrame): 
-        # connect to sqlite database and save the preprocessed data as table
+    def save_text_statistics_table(self, data : pd.DataFrame):      
+        conn = sqlite3.connect(self.db_path)         
+        data.to_sql(
+            self.text_stats.name, conn, if_exists='replace', index=False,
+            dtype=self.text_stats.get_dtypes())
+        conn.commit()
+        conn.close() 
+
+    #--------------------------------------------------------------------------
+    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.checkpoints_summary.name, conn, if_exists='replace', index=False,

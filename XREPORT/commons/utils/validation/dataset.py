@@ -18,15 +18,36 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextAnalysis:
 
-    def __init__(self):
+    def __init__(self, configuration : dict):
         self.DPI = 400
         self.file_type = 'jpg'
+        self.database = XREPORTDatabase(configuration)  
 
     #--------------------------------------------------------------------------
     def count_words_in_documents(self, data : pd.DataFrame):         
         words = [word for text in data['text'].to_list() for word in text.split()]           
 
         return words
+    
+    #--------------------------------------------------------------------------
+    def calculate_text_statistics(self, data : pd.DataFrame, progress_callback=None, worker=None):
+        images_descriptions = data['text'].to_list()
+        images_path = data['path'].to_list()         
+        results= []     
+        for i, desc in enumerate(tqdm(
+            images_descriptions, desc="Processing images", total=len(images_descriptions), ncols=100)):              
+            results.append({'name': os.path.basename(images_path[i]),
+                            'words_count': len(desc.split()),
+                          })
+
+            # check for thread status and progress bar update
+            check_thread_status(worker)
+            update_progress_callback(i, images_descriptions, progress_callback)    
+
+        stats_dataframe = pd.DataFrame(results) 
+        self.database.save_text_statistics_table(stats_dataframe)       
+        
+        return stats_dataframe
     
 
 # [VALIDATION OF DATA]
@@ -38,6 +59,7 @@ class EvaluateTextConsistency:
         self.configuration = configuration
         self.num_samples = 50
         self.generator = TextGenerator(model, configuration, verbose=False)
+        
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
