@@ -13,9 +13,15 @@ class Configuration:
             'img_augmentation': False,
             'shuffle_dataset': True,
             'shuffle_size': 1024,
+            'max_report_size': 160,
+            'tokenizer': 'distilbert',
 
             # Model 
-            'initial_neurons': 64,
+            'num_attention_heads': 3,
+            'num_encoders': 2,
+            'num_decoders': 2,
+            'embedding_dimensions' : 128,
+            'freeze_img_encoder': 64,
             'dropout_rate': 0.2,
             'jit_compile': False,
             'jit_backend': 'inductor',
@@ -42,9 +48,13 @@ class Configuration:
             'decay_steps': 1000,
             'final_lr': 0.0001,
 
+            # Inference
+            'inference_temperature' : 1.0,
+            'inference_mode' : 'greedy',
+
             # Validation
             'val_batch_size': 20,
-            'num_evaluation_images': 6            
+                        
         }
 
     #--------------------------------------------------------------------------  
