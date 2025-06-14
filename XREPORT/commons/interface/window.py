@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit)
 
 from XREPORT.commons.configuration import Configuration
-from XREPORT.commons.interface.events import GraphicsHandler, ValidationEvents, TrainingEvents, InferenceEvents
 from XREPORT.commons.interface.workers import Worker
+from XREPORT.commons.interface.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
+                                              ModelEvents)
+
 from XREPORT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
 
@@ -44,9 +46,9 @@ class MainWindow:
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
+        self.dataset_handler = DatasetEvents(self.configuration)
         self.validation_handler = ValidationEvents(self.configuration)
-        self.training_handler = TrainingEvents(self.configuration)
-        self.inference_handler = InferenceEvents(self.configuration)
+        self.model_handler = ModelEvents(self.configuration)        
 
         # setup UI elements
         self._set_states()
@@ -132,8 +134,7 @@ class MainWindow:
             # 1. dataset tab page            
             ('get_pixels_dist','toggled',self._update_metrics),
             ('get_img_metrics','clicked',self.run_dataset_evaluation_pipeline), 
-            ('build_training_dataset','clicked',self.train_from_scratch),   
-
+            ('build_training_dataset','clicked',self.build_ML_dataset),
             # 2. training tab page                                   
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
@@ -141,8 +142,7 @@ class MainWindow:
             ('get_evaluation_report','toggled',self._update_metrics), 
             ('get_BLEU_score','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
-            ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
-           
+            ('checkpoints_summary','clicked',self.get_checkpoints_summary),            
             # 4. inference tab page  
             ('generate_reports','clicked',self.generate_reports_with_checkpoint),            
             # 5. viewer tab page 
@@ -153,8 +153,7 @@ class MainWindow:
             ('load_source_images','clicked', self.load_images),
             ('previous_image', 'clicked', self.show_previous_figure),
             ('next_image', 'clicked', self.show_next_figure),
-            ('clear_images', 'clicked', self.clear_figures), 
-                       
+            ('clear_images', 'clicked', self.clear_figures),                        
         ]) 
 
         self.pixmap_source_map = {
@@ -295,11 +294,10 @@ class MainWindow:
             self.inference_images_view: ("inference_images", "inference_images"),
             self.train_images_view: ("train_images", "train_images")}
         
-        self.text_view = {'train_images': self.validation_handler.get_description_from_train_image,
-                          'inference_images': self.validation_handler.get_generated_report}
+        self.text_view = {'train_images': self.dataset_handler.get_description_from_train_image,
+                          'inference_images': self.dataset_handler.get_generated_report}
 
             
-
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
         button = self.main_win.findChild(QPushButton, button_name)
@@ -355,7 +353,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def load_checkpoints(self):       
-        checkpoints = self.training_handler.get_available_checkpoints()
+        checkpoints = self.model_handler.get_available_checkpoints()
         self.checkpoints_list.clear()
         if checkpoints:
             self.checkpoints_list.addItems(checkpoints)
@@ -460,9 +458,9 @@ class MainWindow:
         
         self.pixmaps[idx_key].clear()
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.configuration)
+        self.dataset_handler = DatasetEvents(self.configuration)
         
-        img_paths = self.validation_handler.load_images_path(self.img_paths[idx_key])
+        img_paths = self.dataset_handler.load_images_path(self.img_paths[idx_key])
         self.pixmaps[idx_key].extend(img_paths)
         self.current_fig[idx_key] = 0 
         self._update_graphics_view()    
@@ -491,8 +489,28 @@ class MainWindow:
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_dataset_evaluation_finished,
-            on_error=self.on_dataset_evaluation_error,
-            on_interrupted=self.on_task_interrupted)       
+            on_error=self.on_evaluation_error,
+            on_interrupted=self.on_task_interrupted)  
+
+    #--------------------------------------------------------------------------
+    @Slot()
+    def build_ML_dataset(self):          
+        if self.worker_running:            
+            return         
+        
+        self.configuration = self.config_manager.get_configuration() 
+        self.validation_handler = ValidationEvents(self.configuration)       
+        # send message to status bar
+        self._send_message("Calculating image dataset evaluation metrics...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = Worker(self.dataset_handler.build_ML_dataset)   
+
+        # start worker and inject signals
+        self._start_worker(
+            self.worker, on_finished=self.on_dataset_processing_finished,
+            on_error=self.on_data_error,
+            on_interrupted=self.on_task_interrupted)      
 
     #--------------------------------------------------------------------------
     # [TRAINING TAB]
@@ -503,17 +521,17 @@ class MainWindow:
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
-        self.training_handler = TrainingEvents(self.configuration)         
+        self.model_handler = ModelEvents(self.configuration)         
   
         # send message to status bar
         self._send_message("Training XREPORT Transformer model from scratch...")        
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.training_handler.run_training_pipeline)                            
+        self.worker = Worker(self.model_handler.run_training_pipeline)                            
        
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_train_error,
+            on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -523,19 +541,19 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.training_handler = TrainingEvents(self.configuration)   
+        self.model_handler = ModelEvents(self.configuration)   
 
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
-            self.training_handler.resume_training_pipeline,
+            self.model_handler.resume_training_pipeline,
             self.selected_checkpoint)   
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_train_error,
+            on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)
 
     #--------------------------------------------------------------------------
@@ -560,7 +578,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_evaluation_error,
+            on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)     
 
     #-------------------------------------------------------------------------- 
@@ -580,7 +598,7 @@ class MainWindow:
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_evaluation_error,
+            on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -592,27 +610,32 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.training_handler = InferenceEvents(self.configuration)  
+        self.model_handler = ModelEvents(self.configuration)  
         device = 'GPU' if self.use_GPU_inference.isChecked() else 'CPU'
         # send message to status bar
         self._send_message(f"Generating reports from X-ray scans with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
-            self.training_handler.run_inference_pipeline,
+            self.model_handler.run_inference_pipeline,
             self.selected_checkpoint,
             device)
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_inference_finished,
-            on_error=self.on_inference_error,
+            on_error=self.on_model_error,
             on_interrupted=self.on_task_interrupted)
 
 
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
-    ###########################################################################       
+    ###########################################################################
+    def on_dataset_processing_finished(self, plots):         
+        self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
+        self.worker_running = False
+
+    #--------------------------------------------------------------------------   
     def on_dataset_evaluation_finished(self, plots):   
         key = 'dataset_eval_images'      
         if plots:            
@@ -627,7 +650,7 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def on_train_finished(self, session):          
-        self.training_handler.handle_success(
+        self.model_handler.handle_success(
             self.main_win, 'Training session is over. Model has been saved')
         self.worker_running = False
 
@@ -647,36 +670,31 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def on_inference_finished(self, session):         
-        self.training_handler.handle_success(
+        self.model_handler.handle_success(
             self.main_win, 'Inference call has been terminated')
         self.worker_running = False
 
 
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
-    ###########################################################################    
+    ###########################################################################     
+    @Slot() 
+    def on_data_error(self, err_tb):
+        self.dataset_handler.handle_error(self.main_win, err_tb) 
+        self.worker_running = False
+
+    #--------------------------------------------------------------------------
+    @Slot()     
     @Slot(tuple)
-    def on_dataset_evaluation_error(self, err_tb):
-        self.training_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False   
+    def on_evaluation_error(self, err_tb):
+        self.validation_handler.handle_error(self.main_win, err_tb) 
+        self.worker_running = False  
 
     #--------------------------------------------------------------------------
     @Slot() 
-    def on_train_error(self, err_tb):
-        self.training_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False
-
-    #--------------------------------------------------------------------------
-    @Slot() 
-    def on_model_evaluation_error(self, err_tb):
-        self.training_handler.handle_error(self.main_win, err_tb) 
+    def on_model_error(self, err_tb):
+        self.model_handler.handle_error(self.main_win, err_tb) 
         self.worker_running = False 
-
-    #--------------------------------------------------------------------------
-    @Slot() 
-    def on_inference_error(self, err_tb):
-        self.inference_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False
 
     #--------------------------------------------------------------------------
     def on_task_interrupted(self):         

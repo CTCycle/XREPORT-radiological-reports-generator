@@ -79,7 +79,7 @@ class Worker(QRunnable):
 
 
 #------------------------------------------------------------------------------
-def check_thread_status(worker : Worker):
+def check_thread_status(worker):
     if worker is not None and worker.is_interrupted():
         logger.warning('Running thread interrupted by user')
         raise WorkerInterrupted()    

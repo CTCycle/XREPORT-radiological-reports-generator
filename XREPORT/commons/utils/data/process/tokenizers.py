@@ -1,38 +1,8 @@
 import os
-import pandas as pd
 from transformers import AutoTokenizer
 
-from XREPORT.commons.constants import CONFIG, TOKENIZERS_PATH
+from XREPORT.commons.constants import TOKENIZERS_PATH
 from XREPORT.commons.logger import logger
-
-
-# [TOKENIZERS]
-###############################################################################
-class PretrainedTokenizers:
-
-    def __init__(self): 
-
-        self.tokenizer_strings = {'distilbert': 'distilbert/distilbert-base-uncased',
-                                  'bert': 'bert-base-uncased',
-                                  'roberta': 'roberta-base',
-                                  'gpt2': 'gpt2',
-                                  'xlm': 'xlm-mlm-enfr-1024'}
-    
-    #--------------------------------------------------------------------------
-    def get_tokenizer(self, tokenizer_name):
-
-        if tokenizer_name not in self.tokenizer_strings:
-            tokenizer_string = tokenizer_string
-            logger.warning(f'{tokenizer_string} is not among preselected models.')
-        else:
-            tokenizer_string = self.tokenizer_strings[tokenizer_name]        
-        
-        tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
-        os.makedirs(tokenizer_path, exist_ok=True)
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_string, cache_dir=tokenizer_path)
-        vocabulary_size = len(tokenizer.vocab)            
-
-        return tokenizer, vocabulary_size 
 
     
 # [TOKENIZER]
@@ -40,14 +10,22 @@ class PretrainedTokenizers:
 class TokenWizard:
     
     def __init__(self, configuration):           
-        self.tokenizer_name = configuration["dataset"]["TOKENIZER"] 
-        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"] 
-        selector = PretrainedTokenizers()
-        self.tokenizer, self.vocabulary_size = selector.get_tokenizer(
-            self.tokenizer_name)         
+        self.string_id = configuration.get('tokenizer', 'distilbert') 
+        self.max_report_size = configuration.get('max_report_size', 200)        
+        self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.string_id)   
+
+    #--------------------------------------------------------------------------
+    def get_tokenizer(self, tokenizer_name):
+        tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
+        os.makedirs(tokenizer_path, exist_ok=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name, cache_dir=tokenizer_path)
+        vocabulary_size = len(tokenizer.vocab)            
+
+        return tokenizer, vocabulary_size       
     
     #--------------------------------------------------------------------------
-    def tokenize_text_corpus(self, data : pd.DataFrame):        
+    def tokenize_text_corpus(self, data):        
         # tokenize train and validation text using loaded tokenizer 
         text = data['text'].to_list()      
         tokens = self.tokenizer(

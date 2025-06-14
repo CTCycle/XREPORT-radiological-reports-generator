@@ -1,7 +1,0 @@
-{ 
-    "TOKENIZERS": ["distilbert", 
-                   "bert", 
-                   "roberta",
-                   "gpt2", 
-                   "xlm"]
-}
