@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit)
 
 from XREPORT.commons.configuration import Configuration
-from XREPORT.commons.interface.events import ValidationEvents, TrainingEvents, InferenceEvents
+from XREPORT.commons.interface.events import GraphicsHandler, ValidationEvents, TrainingEvents, InferenceEvents
 from XREPORT.commons.interface.workers import Worker
 from XREPORT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
@@ -57,6 +57,7 @@ class MainWindow:
         self.worker_running = False                
 
         # --- Create persistent handlers ---
+        self.graphic_handler = GraphicsHandler()
         self.validation_handler = ValidationEvents(self.configuration)
         self.training_handler = TrainingEvents(self.configuration)
         self.inference_handler = InferenceEvents(self.configuration)
@@ -141,8 +142,7 @@ class MainWindow:
             ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
             ('refresh_checkpoints','clicked',self.load_checkpoints),
             ('stop_thread','clicked',self.stop_running_worker),          
-            # 1. dataset tab page
-            ('get_image_stats','toggled',self._update_metrics),
+            # 1. dataset tab page            
             ('get_pixels_dist','toggled',self._update_metrics),
             ('get_img_metrics','clicked',self.run_dataset_evaluation_pipeline), 
             ('build_training_dataset','clicked',self.train_from_scratch),   
@@ -183,6 +183,10 @@ class MainWindow:
         # Initial population of dynamic UI elements
         self.load_checkpoints()
         self._set_graphics() 
+
+        self.data_metrics = [('pixels_distribution', self.get_pixels_dist)]
+        self.model_metrics = [('evaluation_report', self.get_evaluation_report),
+                              ('image_reconstruction', self.image_reconstruction)]
 
     # [SHOW WINDOW]
     ###########################################################################
@@ -239,8 +243,7 @@ class MainWindow:
             ('additional_epochs', 'valueChanged', 'additional_epochs'),                    
             ('batch_size', 'valueChanged', 'batch_size'),
             ('device_ID', 'valueChanged', 'device_id'),
-            # 3. model evaluation tab page
-            
+            # 3. model evaluation tab page            
                         
             # 4. inference tab page           
             ('validation_size', 'valueChanged', 'validation_size'),
@@ -251,8 +254,7 @@ class MainWindow:
             widget = self.widgets[attr]
             self.connect_update_setting(widget, signal_name, config_key)
 
-        self.data_metrics = [('image_stats', self.get_image_stats), 
-                             ('pixels_distribution', self.get_pixels_dist)]
+        self.data_metrics = [('pixels_distribution', self.get_pixels_dist)]
         self.model_metrics = [('evaluation_report', self.get_evaluation_report),
                               ('image_reconstruction', self.image_reconstruction)]
 
@@ -494,7 +496,7 @@ class MainWindow:
         self.training_handler = TrainingEvents(self.configuration)         
   
         # send message to status bar
-        self._send_message("Training FEXT Autoencoder model from scratch...")        
+        self._send_message("Training XREPORT Transformer model from scratch...")        
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(self.training_handler.run_training_pipeline)                            
        
@@ -605,7 +607,7 @@ class MainWindow:
         key = 'dataset_eval_images'      
         if plots:            
             self.pixmaps[key].extend(
-                [self.validation_handler.convert_fig_to_qpixmap(p) 
+                [self.graphic_handler.convert_fig_to_qpixmap(p) 
                  for p in plots])
             
         self.current_fig[key] = 0
@@ -624,7 +626,7 @@ class MainWindow:
         key = 'model_eval_images'         
         if plots is not None:            
             self.pixmaps[key].extend(
-                [self.validation_handler.convert_fig_to_qpixmap(p)
+                [self.graphic_handler.convert_fig_to_qpixmap(p)
                 for p in plots])
             
         self.current_fig[key] = 0

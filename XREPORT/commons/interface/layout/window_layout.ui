@@ -534,13 +534,31 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
       </item>
      </layout>
     </item>
+    <item row="2" column="0">
+     <layout class="QHBoxLayout" name="progressLayour">
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="stopThread">
+        <property name="text">
+         <string>Stop</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
     <item row="1" column="0">
      <widget class="QTabWidget" name="Tabs">
       <property name="accessibleName">
        <string/>
       </property>
       <property name="currentIndex">
-       <number>4</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -550,7 +568,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
         <string>Dataset</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_4">
-        <item row="0" column="0" rowspan="2">
+        <item row="0" column="0">
          <widget class="QGroupBox" name="datasetEvalGroup">
           <property name="title">
            <string>Dataset evaluation</string>
@@ -599,17 +617,19 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
-            <widget class="QCheckBox" name="getStatsAnalysis">
-             <property name="text">
-              <string>statistical analysis</string>
+            <widget class="QGroupBox" name="groupBox_5">
+             <property name="title">
+              <string>Selected metrics</string>
              </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="getPixDist">
-             <property name="text">
-              <string>pixel intensity distribution</string>
-             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_13">
+              <item>
+               <widget class="QCheckBox" name="getPixDist">
+                <property name="text">
+                 <string>pixel intensity distribution</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
            <item>
@@ -1420,8 +1440,8 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <attribute name="title">
         <string>Model evaluation</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_34">
-        <item>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
          <layout class="QVBoxLayout" name="verticalLayout_20">
           <item>
            <widget class="QGroupBox" name="groupBox_9">
@@ -1437,23 +1457,29 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_32"/>
+              <widget class="QGroupBox" name="groupBox_7">
+               <property name="title">
+                <string>Selected metrics</string>
+               </property>
+               <layout class="QVBoxLayout" name="verticalLayout_21">
+                <item>
+                 <widget class="QCheckBox" name="evalReport">
+                  <property name="text">
+                   <string>Loss and metrics</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="imgReconstruction">
+                  <property name="text">
+                   <string>Image reconstruction</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="evalReport">
-            <property name="text">
-             <string>Loss and metrics</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="imgReconstruction">
-            <property name="text">
-             <string>Image reconstruction</string>
-            </property>
            </widget>
           </item>
           <item>
@@ -1740,24 +1766,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        </layout>
       </widget>
      </widget>
-    </item>
-    <item row="2" column="0">
-     <layout class="QHBoxLayout" name="progressLayour">
-      <item>
-       <widget class="QProgressBar" name="progressBar">
-        <property name="value">
-         <number>0</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="stopThread">
-        <property name="text">
-         <string>Stop</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
     </item>
    </layout>
   </widget>

@@ -1,5 +1,6 @@
-import torch
-import keras
+from torch import cuda, device
+from keras.utils import set_random_seed
+from keras.mixed_precision import set_global_policy
 
 from XREPORT.commons.utils.learning.callbacks import initialize_callbacks_handler
 from XREPORT.commons.utils.data.serializer import ModelSerializer
@@ -13,7 +14,7 @@ from XREPORT.commons.logger import logger
 class ModelTraining:    
        
     def __init__(self, configuration, metadata=None):        
-        keras.utils.set_random_seed(configuration["SEED"])        
+        set_random_seed(configuration["SEED"])        
         self.selected_device = CONFIG["device"]["DEVICE"]
         self.device_id = CONFIG["device"]["DEVICE_ID"]
         self.mixed_precision = CONFIG["device"]["MIXED_PRECISION"]
@@ -25,54 +26,59 @@ class ModelTraining:
     #--------------------------------------------------------------------------
     def set_device(self):
         if self.selected_device == 'GPU':
-            if not torch.cuda.is_available():
+            if not cuda.is_available():
                 logger.info('No GPU found. Falling back to CPU')
-                self.device = torch.device('cpu')
+                self.device = device('cpu')
             else:
-                self.device = torch.device(f'cuda:{self.device_id}')
-                torch.cuda.set_device(self.device)  
+                self.device = device(f'cuda:{self.device_id}')
+                cuda.set_device(self.device)  
                 logger.info('GPU is set as active device')            
                 if self.mixed_precision:
-                    keras.mixed_precision.set_global_policy("mixed_float16")
+                    set_global_policy("mixed_float16")
                     logger.info('Mixed precision policy is active during training')                   
         else:
-            self.device = torch.device('cpu')
+            self.device = device('cpu')
             logger.info('CPU is set as active device')  
 
     #--------------------------------------------------------------------------
-    def train_model(self, model : keras.Model, train_data, validation_data, 
-                    checkpoint_path, from_checkpoint=False):       
-
-        # perform different initialization duties based on state of session:
-        # training from scratch vs resumed training
-        # calculate number of epochs taking into account possible training resumption
-        if not from_checkpoint:            
-            epochs = self.configuration["training"]["EPOCHS"] 
-            from_epoch = 0
-            history = None
-        else:
-            _, self.metadata, history = self.serializer.load_training_configuration(checkpoint_path)                     
-            epochs = history['total_epochs'] + CONFIG["training"]["ADDITIONAL_EPOCHS"] 
-            from_epoch = history['total_epochs']
-        
+    def train_model(self, model, train_data, validation_data, 
+                    checkpoint_path, progress_callback=None, worker=None): 
+                
+        epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
-        RTH_callback, callbacks_list = initialize_callbacks_handler(
-            self.configuration, checkpoint_path, history)            
+        callbacks_list = initialize_callbacks_handler(
+            self.configuration, checkpoint_path, 
+            progress_callback=progress_callback, worker=worker)       
         
-        # run model fit using keras API method       
-        training = model.fit(train_data, epochs=epochs, validation_data=validation_data, 
-                             callbacks=callbacks_list, initial_epoch=from_epoch)
-        
-        # use the real time history callback data to retrieve current loss and metric values
-        # this allows to correctly resume the training metrics plot if training from checkpoint
-        history = {'history' : RTH_callback.history, 
-                   'val_history' : RTH_callback.val_history,
-                   'total_epochs' : epochs}
-        
-        # update configuration with the database metadata        
+        # run model fit using keras API method.             
+        session = model.fit(
+            train_data, epochs=epochs, validation_data=validation_data, 
+            callbacks=callbacks_list)
+                   
         self.serializer.save_pretrained_model(model, checkpoint_path)       
         self.serializer.save_training_configuration(
-            checkpoint_path, history, self.configuration, self.metadata)
+            checkpoint_path, session, self.configuration)
+        
+    #--------------------------------------------------------------------------
+    def resume_training(self, model, train_data, validation_data, 
+                        checkpoint_path, session=None, progress_callback=None,
+                        worker=None):  
+        
+        from_epoch = 0 if not session else session['epochs']     
+        total_epochs = from_epoch + self.configuration.get('additional_epochs', 10)           
+        # add all callbacks to the callback list
+        callbacks_list = initialize_callbacks_handler(
+            self.configuration, checkpoint_path, session, progress_callback, worker)       
+        
+        # run model fit using keras API method.             
+        session = model.fit(
+            train_data, epochs=total_epochs, validation_data=validation_data, 
+            callbacks=callbacks_list, initial_epoch=from_epoch)
+                   
+        self.serializer.save_pretrained_model(model, checkpoint_path)       
+        self.serializer.save_training_configuration(
+            checkpoint_path, session, self.configuration)
+
 
 
     
