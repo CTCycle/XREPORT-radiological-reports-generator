@@ -1,4 +1,4 @@
-import torch
+from torch import compile as torch_compile
 from keras import layers, Model, optimizers
 
 from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
@@ -6,7 +6,7 @@ from XREPORT.commons.utils.learning.transformers import TransformerEncoder, Tran
 from XREPORT.commons.utils.learning.encoder import BeitXRayImageEncoder
 from XREPORT.commons.utils.learning.embeddings import PositionalEmbedding
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.commons.constants import TOKENIZERS_PATH, CONFIG
+from XREPORT.commons.constants import TOKENIZERS_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -14,23 +14,24 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class XREPORTModel: 
 
-    def __init__(self, vocabulary_size, configuration): 
-        self.vocabulary_size = vocabulary_size
-        self.seed = configuration["SEED"]
-        self.sequence_length = configuration["dataset"]["MAX_REPORT_SIZE"] - 1 
-        self.img_shape = (224, 224, 3) 
+    def __init__(self, vocabulary_size, configuration):         
+        self.seed = configuration.get('train_seed', 42)
+        self.sequence_length = configuration.get('max_report_size', 200) 
+        self.img_shape = (224,224,3) 
         
-        self.embedding_dims = configuration["model"]["EMBEDDING_DIMS"] 
-        self.num_heads = configuration["model"]["ATTENTION_HEADS"]  
-        self.num_encoders = configuration["model"]["NUM_ENCODERS"]   
-        self.num_decoders = configuration["model"]["NUM_DECODERS"]
-        self.freeze_img_encoder = configuration["model"]["FREEZE_IMG_ENCODER"]
-        self.jit_compile = configuration["model"]["JIT_COMPILE"]
-        self.jit_backend = configuration["model"]["JIT_BACKEND"]             
-        self.post_warm_lr = configuration["training"]["LR_SCHEDULER"]["POST_WARMUP_LR"]
-        self.warmup_steps = configuration["training"]["LR_SCHEDULER"]["WARMUP_STEPS"]
-        self.temperature = configuration["training"]["TEMPERATURE"]
+        self.embedding_dims = configuration.get('embedding_dims', 256)
+        self.num_heads = configuration.get('attention_heads', 3) 
+        self.num_encoders = configuration.get('num_encoders', 3) 
+        self.num_decoders = configuration.get('num_decoders', 3) 
+        self.freeze_img_encoder = configuration.get('freeze_img_encoder', 3)
+        self.jit_compile = configuration.get('jit_compile', False)
+        self.jit_backend = configuration.get('jit_backend', 'inductor')
+        self.has_LR_scheduler = configuration.get('use_scheduler', False)  
+        self.post_warm_lr = configuration.get('post_warmup_LR', 0.0001)
+        self.warmup_steps = configuration.get('warmup_steps',10000)
+        self.temperature = configuration.get('training_temperature', 1.0)
         self.configuration = configuration
+        self.vocabulary_size = vocabulary_size
         
         # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
@@ -46,7 +47,26 @@ class XREPORTModel:
         self.embeddings = PositionalEmbedding(
             self.vocabulary_size, self.embedding_dims, self.sequence_length) 
         self.classifier = SoftMaxClassifier(
-            1024, self.vocabulary_size, self.temperature)                 
+            1024, self.vocabulary_size, self.temperature) 
+
+    #--------------------------------------------------------------------------
+    def compile_model(self, model, model_summary=True):
+        lr_schedule = self.post_warm_lr
+        if self.has_LR_scheduler:            
+            post_warmup_LR = self.configuration.get('post_warmup_LR', 40000)   
+            warmup_steps = self.configuration.get('warmup_steps', 1000)                        
+            lr_schedule = WarmUpLRScheduler(post_warmup_LR, warmup_steps)                  
+        
+        loss = MaskedSparseCategoricalCrossentropy()  
+        metric = [MaskedAccuracy()]
+        opt = optimizers.AdamW(learning_rate=lr_schedule)          
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)                 
+  
+        model.summary(expand_nested=True) if model_summary else None
+        if self.jit_compile:
+            model = torch_compile(model, backend=self.jit_backend, mode='default')
+
+        return model                
 
     # build model given the architecture
     #--------------------------------------------------------------------------
@@ -69,18 +89,8 @@ class XREPORTModel:
         output = self.classifier(decoder_output)    
 
         # wrap the model and compile it with AdamW optimizer
-        model = Model(inputs=[self.img_input, self.seq_input], outputs=output)       
-        lr_schedule = WarmUpLRScheduler(self.post_warm_lr, self.warmup_steps)
-        loss = MaskedSparseCategoricalCrossentropy()  
-        metric = [MaskedAccuracy()]
-        opt = optimizers.AdamW(learning_rate=lr_schedule)          
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False) 
-
-        if model_summary:
-            model.summary(expand_nested=True)
-    
-        if self.jit_compile:
-            model = torch.compile(model, backend=self.jit_backend, mode='default')
+        model = Model(inputs=[self.img_input, self.seq_input], outputs=output)    
+        model = self.compile_model(model, model_summary=model_summary)   
 
         return model
        

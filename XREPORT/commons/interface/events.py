@@ -4,15 +4,18 @@ from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
+from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis, EvaluateTextConsistency
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.utils.data.process.dataset import TextSanitizer, TrainValidationSplit
+from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
 from XREPORT.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
-from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
 from XREPORT.commons.utils.inference.generator import TextGenerator
 
-from XREPORT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
+
+from XREPORT.commons.constants import INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -55,17 +58,15 @@ class GraphicsHandler:
             qimg = QImage(img.data, w, h, 4 * w, QImage.Format_RGBA8888)
 
         return QPixmap.fromImage(qimg)
-
+    
 
 ###############################################################################
-class ValidationEvents:
+class DatasetEvents:
 
     def __init__(self, configuration):           
-        self.serializer = DataSerializer(configuration)            
-        self.img_analyzer = ImageAnalysis(configuration) 
-        self.text_analyzer = TextAnalysis(configuration)
-        self.text_placeholder = "No description available for this image."    
-        self.configuration = configuration  
+        self.serializer = DataSerializer(configuration) 
+        self.text_placeholder = "No description available for this image."                
+        self.configuration = configuration 
 
     #--------------------------------------------------------------------------
     def load_images_path(self, path, sample_size=1.0):        
@@ -93,36 +94,78 @@ class ValidationEvents:
         description = description[0] if len(description) > 0 else self.text_placeholder  
         
         return description   
+    
+    #--------------------------------------------------------------------------
+    def build_ML_dataset(self, **kwargs):   
+        sample_size = self.configuration.get("sample_size", 1.0)            
+        dataset = self.serializer.load_source_dataset(sample_size=sample_size)
+        
+        # sanitize text corpus by removing undesired symbols and punctuation     
+        sanitizer = TextSanitizer(self.configuration)
+        processed_data = sanitizer.sanitize_text(dataset)
+        logger.info(f'Dataset includes {processed_data.shape[0]} samples')
+
+        # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
+        # into subunits and these are eventually mapped to integer indexes        
+        tokenization = TokenWizard(self.configuration) 
+        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_name} tokenizer')    
+        processed_data = tokenization.tokenize_text_corpus(processed_data)   
+        vocabulary_size = tokenization.vocabulary_size 
+        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+        
+        # split data into train set and validation set
+        logger.info('Preparing dataset of images and captions based on splitting size')  
+        splitter = TrainValidationSplit(self.configuration, processed_data)     
+        train_data, validation_data = splitter.split_train_and_validation()        
+               
+        self.serializer.save_train_and_validation_data(
+            train_data, validation_data, vocabulary_size) 
+        logger.info('Preprocessed data saved into XREPORT database')              
+
+
+
+###############################################################################
+class ValidationEvents:
+
+    def __init__(self, configuration): 
+        self.configuration = configuration  
             
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
+        serializer = DataSerializer(self.configuration) 
         sample_size = self.configuration.get("sample_size", 1.0)
-        dataset = self.serializer.load_source_dataset(sample_size)   
-        dataset = self.serializer.update_images_path(dataset)
+        dataset = serializer.load_source_dataset(sample_size)   
+        dataset = serializer.update_images_path(dataset)
         logger.info(f'Selected sample size for dataset evaluation: {sample_size}')
         logger.info(f'Number of reports and related images: {dataset.shape[0]}')               
        
         # 1. calculate images statistics and generate report
+        img_analyzer = ImageAnalysis(self.configuration) 
         logger.info('Current metric: image dataset statistics')
-        image_statistics = self.img_analyzer.calculate_image_statistics(
-            dataset, progress_callback, worker) 
+        image_statistics = img_analyzer.calculate_image_statistics(
+            dataset, progress_callback=progress_callback, worker=worker)  
+
         # 2. calculate text statistics and generate report
         logger.info('Current metric: text dataset statistics')
-        text_statistics = self.text_analyzer.calculate_text_statistics(
-            dataset, progress_callback, worker) 
+        text_analyzer = TextAnalysis(self.configuration)
+        text_statistics = text_analyzer.calculate_text_statistics(
+            dataset, progress_callback=progress_callback, worker=worker)  
+
                              
-        images = []    
+        images = []            
         if 'pixels_distribution' in metrics:
             logger.info('Current metric: pixel intensity distribution')
-            images.append(self.img_analyzer.calculate_pixel_intensity_distribution(
-                dataset, progress_callback, worker))
+            images.append(img_analyzer.calculate_pixel_intensity_distribution(
+                dataset, progress_callback=progress_callback, worker=worker)) 
 
         return images 
 
     #--------------------------------------------------------------------------
-    def get_checkpoints_summary(self, progress_callback=None, worker=None): 
+    def get_checkpoints_summary(self, progress_callback=None, worker=None):
         summarizer = ModelEvaluationSummary(self.configuration)    
-        checkpoints_summary = summarizer.get_checkpoints_summary(progress_callback, worker) 
+        checkpoints_summary = summarizer.get_checkpoints_summary(
+            progress_callback=progress_callback, worker=worker)  
+ 
         logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     
     #--------------------------------------------------------------------------
@@ -139,8 +182,9 @@ class ValidationEvents:
         trainer = ModelTraining(train_config)    
         trainer.set_device(device_override=device)        
         
-        _, val_data, metadata = self.serializer.load_train_and_validation_data()    
-        val_data = self.serializer.update_images_path(val_data)  
+        serializer = DataSerializer(self.configuration) 
+        _, val_data, metadata = serializer.load_train_and_validation_data()    
+        val_data = serializer.update_images_path(val_data)  
         vocabulary_size = metadata['vocabulary_size']
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
         logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
@@ -152,13 +196,18 @@ class ValidationEvents:
         if 'evaluation_report' in metrics:
             # evaluate model performance over the training and validation dataset 
             summarizer = ModelEvaluationSummary(self.configuration)       
-            summarizer.get_evaluation_report(model, validation_dataset, worker=worker) 
+            summarizer.get_evaluation_report(
+                model, validation_dataset, 
+                progress_callback=progress_callback, worker=worker)  
+
 
         if 'BLEU_score' in metrics:            
             # One can select different either greedy search or beam search to genarate
             # reports with a pretrained decoder        
             scoring = EvaluateTextConsistency(model, self.configuration)
-            scores = scoring.calculate_BLEU_score(val_data)              
+            scores = scoring.calculate_BLEU_score(
+                val_data, progress_callback=progress_callback, worker=worker)  
+          
 
         return images     
 
@@ -178,23 +227,48 @@ class ValidationEvents:
    
 
 ###############################################################################
-class TrainingEvents:
+class ModelEvents:
 
-    def __init__(self, configuration):        
-        self.serializer = DataSerializer(configuration)        
-        self.modser = ModelSerializer()         
+    def __init__(self, configuration):   
         self.configuration = configuration 
-
+    
     #--------------------------------------------------------------------------
     def get_available_checkpoints(self):
-        return self.modser.scan_checkpoints_folder()
+        modser = ModelSerializer()
+        return modser.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
-    def run_training_pipeline(self, progress_callback=None, worker=None):  
-        train_data, validation_data, metadata = self.serializer.load_train_and_validation_data() 
+    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
+                               progress_callback=None, worker=None):
+        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
+        modser = ModelSerializer()         
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+            selected_checkpoint)    
+        model.summary(expand_nested=True)  
+
+        # setting device for training         
+        trainer = ModelTraining(train_config)    
+        trainer.set_device(device_override=device)
+
+        # select images from the inference folder and retrieve current paths    
+        serializer = DataSerializer(self.configuration)      
+        img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
+        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
+        logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
+
+        # generate radiological reports from the list of inference image paths 
+        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
+        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
+        generated_reports = generator.generate_radiological_reports(img_paths)
+        serializer.save_generated_reports(generated_reports)
+            
+    #--------------------------------------------------------------------------
+    def run_training_pipeline(self, progress_callback=None, worker=None):
+        serializer = DataSerializer(self.configuration)    
+        train_data, validation_data, metadata = serializer.load_train_and_validation_data() 
         # fetch images path from the preprocessed data
-        train_data = self.serializer.update_images_path(train_data)
-        validation_data = self.serializer.update_images_path(validation_data)
+        train_data = serializer.update_images_path(train_data)
+        validation_data = serializer.update_images_path(validation_data)
         vocabulary_size = metadata['vocabulary_size'] 
         
         # create the tf.datasets using the previously initialized generators 
@@ -210,7 +284,8 @@ class TrainingEvents:
 
         # build the autoencoder model 
         logger.info('Building FeXT AutoEncoder model based on user configuration') 
-        checkpoint_path = self.modser.create_checkpoint_folder()
+        modser = ModelSerializer() 
+        checkpoint_path = modser.create_checkpoint_folder()
 
         # initialize and compile the captioning model    
         logger.info('Building XREPORT Transformer model')
@@ -218,18 +293,19 @@ class TrainingEvents:
         model = captioner.get_model(model_summary=True) 
 
         # generate training log report and graphviz plot for the model layout               
-        self.modser.save_model_plot(model, checkpoint_path)
+        modser.save_model_plot(model, checkpoint_path)
         
         logger.info('Starting XREPORT Transformer model training') 
         trainer.train_model(
             model, train_dataset, validation_dataset, checkpoint_path, 
-            progress_callback=progress_callback, worker=worker)
+            progress_callback=progress_callback, worker=worker)  
+
         
     #--------------------------------------------------------------------------
-    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, 
-                                 worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
-        model, train_config, session, checkpoint_path = self.modser.load_checkpoint(
+    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
+        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
+        modser = ModelSerializer()         
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
         
@@ -238,9 +314,10 @@ class TrainingEvents:
         trainer = ModelTraining(self.configuration)           
         trainer.set_device()
         
-        train_data, validation_data, metadata = self.serializer.load_train_and_validation_data()
-        train_data = self.serializer.update_images_path(train_data)
-        validation_data = self.serializer.update_images_path(validation_data)       
+        serializer = DataSerializer(self.configuration)
+        train_data, validation_data, metadata = serializer.load_train_and_validation_data()
+        train_data = serializer.update_images_path(train_data)
+        validation_data = serializer.update_images_path(validation_data)       
         
         # create the tf.datasets using the previously initialized generators 
         builder = TrainingDataLoader(self.configuration)   
@@ -257,7 +334,33 @@ class TrainingEvents:
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         trainer.resume_training(
             model, train_dataset, validation_dataset, checkpoint_path, session,
-            progress_callback=progress_callback, worker=worker)        
+            progress_callback=progress_callback, worker=worker)  
+
+    #--------------------------------------------------------------------------
+    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
+                               progress_callback=None, worker=None):
+        modser = ModelSerializer() 
+        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+            selected_checkpoint)    
+        model.summary(expand_nested=True)  
+
+        # setting device for training         
+        trainer = ModelTraining(train_config)    
+        trainer.set_device(device_override=device)
+
+        # select images from the inference folder and retrieve current paths
+        serializer = DataSerializer(self.configuration)        
+        img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
+        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
+        logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
+
+        # generate radiological reports from the list of inference image paths 
+        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
+        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
+        generated_reports = generator.generate_radiological_reports(img_paths)
+        serializer.save_generated_reports(generated_reports)
+                 
         
     # define the logic to handle successfull data retrieval outside the main UI loop
     #--------------------------------------------------------------------------
@@ -270,56 +373,4 @@ class TrainingEvents:
     def handle_error(self, window, err_tb):
         exc, tb = err_tb
         QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
-
-###############################################################################
-class InferenceEvents:
-
-    def __init__(self, configuration):        
-        self.serializer = DataSerializer(configuration)        
-        self.modser = ModelSerializer()         
-        self.configuration = configuration 
-
-    #--------------------------------------------------------------------------
-    def get_available_checkpoints(self):
-        return self.modser.scan_checkpoints_folder()
-            
-    #--------------------------------------------------------------------------
-    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
-                               progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
-        model, train_config, session, checkpoint_path = self.modser.load_checkpoint(
-            selected_checkpoint)    
-        model.summary(expand_nested=True)  
-
-        # setting device for training         
-        trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)
-
-        # select images from the inference folder and retrieve current paths        
-        img_paths = self.serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
-        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
-        logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
-
-        # generate radiological reports from the list of inference image paths 
-        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
-        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
-        generated_reports = generator.generate_radiological_reports(img_paths)
-        self.serializer.save_generated_reports(generated_reports)
-           
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
-   
-
-
 

@@ -33,7 +33,7 @@ class ModelEvaluationSummary:
         return model_paths  
 
     #---------------------------------------------------------------------------
-    def get_checkpoints_summary(self):            
+    def get_checkpoints_summary(self, **kwargs):            
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
         for model_path in model_paths:            
@@ -76,8 +76,8 @@ class ModelEvaluationSummary:
         return dataframe
     
     #--------------------------------------------------------------------------
-    def get_evaluation_report(self, model, validation_dataset, progress_callback=None, worker=None):
-        callbacks_list = [InterruptTraining(worker)]
+    def get_evaluation_report(self, model, validation_dataset, **kwargs):
+        callbacks_list = [InterruptTraining(kwargs.get('worker', None))]
         validation = model.evaluate(validation_dataset, verbose=1, callbacks=callbacks_list)    
         logger.info(
             f'RMSE loss {validation[0]:.3f} - Cosine similarity {validation[1]:.3f}')     

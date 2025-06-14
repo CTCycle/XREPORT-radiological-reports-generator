@@ -1,14 +1,15 @@
-import keras
+from keras import layers, ops
+from keras.saving import register_keras_serializable
 from transformers import AutoImageProcessor, AutoModel
 
-from XREPORT.commons.constants import CONFIG, ENCODERS_PATH
+from XREPORT.commons.constants import ENCODERS_PATH
 from XREPORT.commons.logger import logger
 
 
 # [PRETRAINED IMAGE ENCODER]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='Encoders', name='BeitXRayImageEncoder')
-class BeitXRayImageEncoder(keras.layers.Layer):
+@register_keras_serializable(package='Encoders', name='BeitXRayImageEncoder')
+class BeitXRayImageEncoder(layers.Layer):
     def __init__(self, freeze_layers=False, embedding_dims=256, **kwargs):
         super(BeitXRayImageEncoder, self).__init__(**kwargs)   
         self.encoder_name = 'microsoft/beit-base-patch16-224'        
@@ -23,12 +24,12 @@ class BeitXRayImageEncoder(keras.layers.Layer):
 
         self.processor = AutoImageProcessor.from_pretrained(
             self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True)
-        self.dense = keras.layers.Dense(self.embedding_dims)   
+        self.dense = layers.Dense(self.embedding_dims)   
 
     # call method
     #--------------------------------------------------------------------------
     def call(self, inputs, **kwargs): 
-        inputs = keras.ops.transpose(inputs, axes=(0, 3, 1, 2))             
+        inputs = ops.transpose(inputs, axes=(0, 3, 1, 2))             
         outputs = self.model(inputs, **kwargs)
         output = outputs.last_hidden_state
         output = self.dense(output)

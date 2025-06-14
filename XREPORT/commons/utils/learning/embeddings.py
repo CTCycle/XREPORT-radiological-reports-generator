@@ -1,15 +1,12 @@
-import torch
-import keras
-from keras import layers 
-
-from XREPORT.commons.constants import CONFIG
-from XREPORT.commons.logger import logger
-      
+from keras.utils import register_keras_serializable
+from keras import layers, ops
+from keras.config import floatx
+     
 
 # [POSITIONAL EMBEDDING]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
-class PositionalEmbedding(keras.layers.Layer):
+@register_keras_serializable(package='CustomLayers', name='PositionalEmbedding')
+class PositionalEmbedding(layers.Layer):
     def __init__(self, vocabulary_size, embedding_dims, sequence_length, mask_zero=True, **kwargs):
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
@@ -20,24 +17,23 @@ class PositionalEmbedding(keras.layers.Layer):
             input_dim=vocabulary_size, output_dim=self.embedding_dims, mask_zero=mask_zero)
         self.position_embeddings = layers.Embedding(
             input_dim=self.sequence_length, output_dim=self.embedding_dims)
-        self.embedding_scale = keras.ops.sqrt(
-            keras.ops.cast(self.embedding_dims, keras.config.floatx()))       
+        self.embedding_scale = ops.sqrt(ops.cast(self.embedding_dims, floatx()))       
     
     # implement positional embedding through call method  
     #--------------------------------------------------------------------------    
     def call(self, inputs):
-        length = keras.ops.shape(inputs)[-1] 
-        positions = keras.ops.arange(start=0, stop=length, step=1)
-        positions = keras.ops.cast(positions, dtype=inputs.dtype)        
+        length = ops.shape(inputs)[-1] 
+        positions = ops.arange(start=0, stop=length, step=1)
+        positions = ops.cast(positions, dtype=inputs.dtype)        
         embedded_tokens = self.token_embeddings(inputs)
         embedded_tokens *= self.embedding_scale        
         embedded_positions = self.position_embeddings(positions)        
         full_embedding = embedded_tokens + embedded_positions
         
         if self.mask_zero:
-            mask = keras.ops.not_equal(inputs, 0)
-            mask = keras.ops.expand_dims(
-                keras.ops.cast(mask, keras.config.floatx()), axis=-1)
+            mask = ops.not_equal(inputs, 0)
+            mask = ops.expand_dims(
+                ops.cast(mask, floatx()), axis=-1)
             full_embedding *= mask
 
         return full_embedding
@@ -45,7 +41,7 @@ class PositionalEmbedding(keras.layers.Layer):
     # compute the mask for padded sequences  
     #--------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):        
-        mask = keras.ops.not_equal(inputs, 0)        
+        mask = ops.not_equal(inputs, 0)        
         
         return mask
     

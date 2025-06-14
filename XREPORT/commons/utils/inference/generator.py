@@ -202,17 +202,16 @@ class TextGenerator:
         return report   
 
     #--------------------------------------------------------------------------    
-    def generate_radiological_reports(self, images_path, override_method=None, progress_callback=None, worker=None):
+    def generate_radiological_reports(self, images_path, **kwargs):
         reports = {}         
         tokenizer_config = self.get_tokenizer_parameters()
-        for i, path in enumerate(images_path):
-            selected_method = self.selected_method if override_method is None else override_method
-            report = self.generator_methods[selected_method](tokenizer_config, path)            
+        for i, path in enumerate(images_path):            
+            report = self.generator_methods[self.selected_method](tokenizer_config, path)            
             reports[path] = report
 
             # check for thread status and progress bar update
-            check_thread_status(worker)
-            update_progress_callback(i, images_path, progress_callback)    
+            check_thread_status(kwargs.get('worker', None))
+            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
                 
 
         return reports

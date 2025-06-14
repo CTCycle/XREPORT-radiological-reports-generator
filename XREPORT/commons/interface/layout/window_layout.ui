@@ -558,7 +558,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <string/>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -678,6 +678,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                <property name="maximum">
                 <number>9999</number>
                </property>
+               <property name="value">
+                <number>200</number>
+               </property>
               </widget>
              </item>
             </layout>
@@ -695,17 +698,17 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               <widget class="QComboBox" name="tokenizerList">
                <item>
                 <property name="text">
-                 <string>distilbert</string>
+                 <string>distilbert/distilbert-base-uncased</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>bert</string>
+                 <string>bert-base-uncased</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>roberta</string>
+                 <string>roberta-base</string>
                 </property>
                </item>
               </widget>

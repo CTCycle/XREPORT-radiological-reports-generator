@@ -107,13 +107,13 @@ class RealTimeHistory(keras.callbacks.Callback):
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(configuration, checkpoint_path, session=None, 
-                                 progress_callback=None, worker=None):
+                                 **kwargs):
     
     from_epoch = 0
     total_epochs = configuration.get('epochs', 10)
     callbacks_list = [
         ProgressBarCallback(progress_callback, total_epochs, from_epoch),
-        InterruptTraining(worker)]  
+        InterruptTraining(kwargs.get('worker', None))]  
     
     additional_epochs = configuration.get('additional_epochs', 10)
     if session:

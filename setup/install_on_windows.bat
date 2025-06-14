@@ -58,7 +58,8 @@ echo Install python libraries and packages
 call pip install torch==2.6.0+cu124 torchaudio==2.6.0+cu124 torchvision==0.21.0+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
 call pip install tensorflow==2.19.0 nltk==3.9.1
 call pip install keras==3.10.0 transformers==4.45.2 scikit-learn==1.6.1 opencv-python==4.11.0.86
-call pip install matplotlib==3.10.1 numpy==2.1.3 pandas==2.2.3 tqdm==4.67.1 
+call pip install PySide6==6.9.0 matplotlib==3.10.1 numpy==2.1.3 pandas==2.2.3 
+call pip install python-dotenv==1.1.0
 
 :: [INSTALL TRITON] 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

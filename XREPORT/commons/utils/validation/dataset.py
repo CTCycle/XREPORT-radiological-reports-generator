@@ -30,7 +30,7 @@ class TextAnalysis:
         return words
     
     #--------------------------------------------------------------------------
-    def calculate_text_statistics(self, data : pd.DataFrame, progress_callback=None, worker=None):
+    def calculate_text_statistics(self, data : pd.DataFrame, **kwargs):
         images_descriptions = data['text'].to_list()
         images_path = data['path'].to_list()         
         results= []     
@@ -40,8 +40,9 @@ class TextAnalysis:
                             'words_count': len(desc.split())})
 
             # check for thread status and progress bar update
-            check_thread_status(worker)
-            update_progress_callback(i, images_descriptions, progress_callback)    
+            check_thread_status(kwargs.get('worker', None))
+            update_progress_callback(
+                i, images_descriptions, kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
         self.database.save_text_statistics_table(stats_dataframe)       
@@ -62,7 +63,7 @@ class EvaluateTextConsistency:
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data : pd.DataFrame):
+    def calculate_BLEU_score(self, validation_data : pd.DataFrame, **kwargs):
         samples = validation_data.sample(n=self.num_samples, random_state=42) 
         sampled_images = samples['path'].to_list()     
         true_reports = dict(zip(samples['path'], samples['text']))
@@ -75,7 +76,7 @@ class EvaluateTextConsistency:
         hypotheses = []
         
         # For each image, tokenize the corresponding ground-truth and generated reports.
-        for image in sampled_images:
+        for i, image in enumerate(sampled_images):
             # Ensure that the image key exists in both the true reports and generated dictionary.
             if image in generated_with_greedy and image in true_reports:
                 # Tokenize using simple split (or use nltk.word_tokenize for better tokenization)
@@ -83,6 +84,12 @@ class EvaluateTextConsistency:
                 cand_tokens = generated_with_greedy[image].lower().split()  # or use: nltk.word_tokenize(generated_with_greedy[image].lower())
                 references.append([ref_tokens])  # each reference is a list of tokens; nested in a list to support multiple refs
                 hypotheses.append(cand_tokens)
+
+            # check for thread status and progress bar update
+            check_thread_status(kwargs.get('worker', None))
+            update_progress_callback(
+                i, sampled_images, kwargs.get('progress_callback', None))  
+
         
         # Calculate corpus BLEU score
         bleu_score = corpus_bleu(references, hypotheses)
@@ -104,7 +111,7 @@ class EvaluateTextConsistency:
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data : pd.DataFrame):
+    def calculate_BLEU_score(self, validation_data : pd.DataFrame, **kwargs):
         samples = validation_data.sample(n=self.num_samples, random_state=42) 
         sampled_images = samples['path'].to_list()     
         true_reports = dict(zip(samples['path'], samples['text']))
@@ -150,7 +157,7 @@ class ImageAnalysis:
         fig.savefig(out_path, bbox_inches='tight', dpi=self.DPI)      
    
     #--------------------------------------------------------------------------
-    def calculate_image_statistics(self, data : pd.DataFrame, progress_callback=None, worker=None):
+    def calculate_image_statistics(self, data : pd.DataFrame, **kwargs):
         images_path = data['path'].to_list()         
         results= []     
         for i, path in enumerate(tqdm(
@@ -190,8 +197,8 @@ class ImageAnalysis:
                             'noise_ratio': noise_ratio})
 
             # check for thread status and progress bar update
-            check_thread_status(worker)
-            update_progress_callback(i, images_path, progress_callback)    
+            check_thread_status(kwargs.get('worker', None))
+            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
         self.database.save_image_statistics_table(stats_dataframe)       
@@ -199,7 +206,7 @@ class ImageAnalysis:
         return stats_dataframe
     
     #--------------------------------------------------------------------------
-    def calculate_pixel_intensity_distribution(self, data : pd.DataFrame, progress_callback=None, worker=None):
+    def calculate_pixel_intensity_distribution(self, data : pd.DataFrame, **kwargs):
         images_path = data['path'].to_list()               
         image_histograms = np.zeros(256, dtype=np.int64)        
         for i, path in enumerate(
@@ -215,8 +222,8 @@ class ImageAnalysis:
             image_histograms += hist.astype(np.int64)
             
             # check for thread status and progress bar update
-            check_thread_status(worker)
-            update_progress_callback(i, images_path, progress_callback)    
+            check_thread_status(kwargs.get('worker', None))
+            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
 
         # Plot the combined histogram
         fig, ax = plt.subplots(figsize=(16, 14), dpi=self.DPI)
