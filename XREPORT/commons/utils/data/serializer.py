@@ -1,10 +1,11 @@
 import os
 import sys
-import cv2
 import json
+from datetime import datetime
+
+import cv2
 import numpy as np
 import pandas as pd
-from datetime import datetime
 import keras
 
 from XREPORT.commons.utils.data.database import XREPORTDatabase
@@ -12,28 +13,6 @@ from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrosse
 from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
 from XREPORT.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
-
-
-###############################################################################
-def checkpoint_selection_menu(models_list):
-
-    index_list = [idx + 1 for idx, item in enumerate(models_list)]     
-    print('Currently available pretrained models:')             
-    for i, directory in enumerate(models_list):
-        print(f'{i + 1} - {directory}')                         
-    while True:
-        try:
-            selection_index = int(input('\nSelect the pretrained model: '))
-            print()
-        except ValueError:
-            logger.error('Invalid choice for the pretrained model, asking again')
-            continue
-        if selection_index in index_list:
-            break
-        else:
-            logger.warning('Model does not exist, please select a valid index')
-
-    return selection_index
 
 
 # [DATA SERIALIZATION]
@@ -52,22 +31,21 @@ class DataSerializer:
             METADATA_PATH, 'preprocessing_metadata.json')         
         self.database = XREPORTDatabase(configuration)
         
-        self.seed = configuration['SEED']   
-        self.parameters = configuration["dataset"]        
+        self.seed = configuration.get('general_seed', 42)         
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
     def load_source_dataset(self, sample_size=None):        
         dataset = self.database.load_source_data_table()
-        sample_size = self.parameters["SAMPLE_SIZE"] if sample_size is None else sample_size        
+        sample_size = self.configuration.get('sample_size', 1.0)        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
-        return dataset
+        return dataset       
 
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def update_images_path(self, dataset : pd.DataFrame):                
+    def update_images_path(self, dataset):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -82,19 +60,21 @@ class DataSerializer:
     
     # get all valid images within a specified directory and return a list of paths
     #--------------------------------------------------------------------------
-    def get_images_path_from_directory(self, path):           
+    def get_images_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
             logger.error(f'No images found in {path}, please add them and try again.')
             sys.exit()
         else:            
-            logger.debug(f'Valid extensions are: {self.valid_extensions}') 
+            logger.debug(f'Valid extensions are: {self.valid_extensions}')
             images_path = []
-            for root, _, files in os.walk(path):                 
-                for file in files:
+            for root, _, files in os.walk(path):
+                if sample_size < 1.0:
+                    files = files[:int(sample_size * len(files))]           
+                for file in files:                
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path 
+            return images_path          
 
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self): 
@@ -211,42 +191,16 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name):                     
-        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
-                          'MaskedAccuracy': MaskedAccuracy, 
-                          'LRScheduler': WarmUpLRScheduler}        
-
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name)
-        model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
-        model = keras.models.load_model(model_path, custom_objects=custom_objects) 
-        
-        return model
-            
-    #-------------------------------------------------------------------------- 
-    def select_and_load_checkpoint(self):        
-        model_folders = self.scan_checkpoints_folder()
-        # quit the script if no pretrained models are found 
-        if len(model_folders) == 0:
-            logger.error('No pretrained model checkpoints in resources')
-            sys.exit()
-
-        # select model if multiple checkpoints are available
-        if len(model_folders) > 1:
-            selection_index = checkpoint_selection_menu(model_folders)                    
-            checkpoint_path = os.path.join(
-                CHECKPOINT_PATH, model_folders[selection_index-1])
-
-        # load directly the pretrained model if only one is available 
-        elif len(model_folders) == 1:
-            checkpoint_path = os.path.join(CHECKPOINT_PATH, model_folders[0])
-            logger.info(f'Since only checkpoint {os.path.basename(checkpoint_path)} is available, it will be loaded directly')
-                          
+    def load_checkpoint(self, checkpoint_name):    
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
-        model = self.load_checkpoint(checkpoint_path)       
-        configuration, metadata, history = self.load_training_configuration(checkpoint_path)           
+        custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
+                          'MaskedAccuracy': MaskedAccuracy, 
+                          'LRScheduler': WarmUpLRScheduler}     
+                     
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name) 
+        model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
+        model = keras.models.load_model(model_path, custom_objects=custom_objects)       
+        configuration, session = self.load_training_configuration(checkpoint_path)        
             
-        return model, configuration, metadata, checkpoint_path
-
-             
-    
+        return model, configuration, session, checkpoint_path
