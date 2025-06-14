@@ -1,15 +1,14 @@
-import torch
-import keras
-from keras import layers, activations    
+from keras import layers, activations, ops  
+from keras.config import floatx
+from keras.saving import register_keras_serializable 
 
-from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
 
 # [ADD NORM LAYER]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='CustomLayers', name='AddNorm')
-class AddNorm(keras.layers.Layer):
+@register_keras_serializable(package='CustomLayers', name='AddNorm')
+class AddNorm(layers.Layer):
     def __init__(self, epsilon=10e-5, **kwargs):
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
@@ -46,8 +45,8 @@ class AddNorm(keras.layers.Layer):
     
 # [FEED FORWARD]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='CustomLayers', name='FeedForward')
-class FeedForward(keras.layers.Layer):
+@register_keras_serializable(package='CustomLayers', name='FeedForward')
+class FeedForward(layers.Layer):
     def __init__(self, dense_units, dropout, seed, **kwargs):
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
@@ -90,8 +89,8 @@ class FeedForward(keras.layers.Layer):
          
 # [CLASSIFIER]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
-class SoftMaxClassifier(keras.layers.Layer):
+@register_keras_serializable(package='CustomLayers', name='SoftMaxClassifier')
+class SoftMaxClassifier(layers.Layer):
     def __init__(self, dense_units, output_size, temperature=1.0, **kwargs):
         super(SoftMaxClassifier, self).__init__(**kwargs)
         self.dense_units = dense_units
@@ -100,7 +99,7 @@ class SoftMaxClassifier(keras.layers.Layer):
         self.dense1 = layers.Dense(
             dense_units, kernel_initializer='he_uniform')
         self.dense2 = layers.Dense(
-            output_size, kernel_initializer='he_uniform', dtype=keras.config.floatx())        
+            output_size, kernel_initializer='he_uniform', dtype=floatx())        
 
     # build method for the custom layer 
     #--------------------------------------------------------------------------
@@ -136,8 +135,8 @@ class SoftMaxClassifier(keras.layers.Layer):
 
 # [TRANSFORMER ENCODER]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='Encoders', name='TransformerEncoder')
-class TransformerEncoder(keras.layers.Layer):
+@register_keras_serializable(package='Encoders', name='TransformerEncoder')
+class TransformerEncoder(layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
@@ -200,8 +199,8 @@ class TransformerEncoder(keras.layers.Layer):
 
 # [TRANSFORMER DECODER]
 ###############################################################################
-@keras.saving.register_keras_serializable(package='Decoders', name='TransformerDecoder')
-class TransformerDecoder(keras.layers.Layer):
+@register_keras_serializable(package='Decoders', name='TransformerDecoder')
+class TransformerDecoder(layers.Layer):
     def __init__(self, embedding_dims, num_heads, seed, **kwargs):
         super(TransformerDecoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
@@ -234,10 +233,10 @@ class TransformerDecoder(keras.layers.Layer):
         combined_mask = causal_mask
 
         if mask is not None:
-            padding_mask = keras.ops.cast(
-                keras.ops.expand_dims(mask, axis=2), dtype='int32')
-            combined_mask = keras.ops.minimum(
-                keras.ops.cast(keras.ops.expand_dims(mask, axis=1),
+            padding_mask = ops.cast(
+                ops.expand_dims(mask, axis=2), dtype='int32')
+            combined_mask = ops.minimum(
+                ops.cast(ops.expand_dims(mask, axis=1),
                                dtype='int32'), causal_mask)
 
         # self attention with causal masking, using the embedded captions as input
@@ -274,12 +273,12 @@ class TransformerDecoder(keras.layers.Layer):
     # generate causal attention mask   
     #--------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs):
-        batch_size, sequence_length = keras.ops.shape(inputs)[0], keras.ops.shape(inputs)[1]
-        i = keras.ops.expand_dims(keras.ops.arange(sequence_length), axis=1)
-        j = keras.ops.arange(sequence_length)
-        mask = keras.ops.cast(i >= j, dtype='int32')
-        mask = keras.ops.reshape(mask, (1, sequence_length, sequence_length))        
-        batch_mask = keras.ops.tile(mask, (batch_size, 1, 1))
+        batch_size, sequence_length = ops.shape(inputs)[0], ops.shape(inputs)[1]
+        i = ops.expand_dims(ops.arange(sequence_length), axis=1)
+        j = ops.arange(sequence_length)
+        mask = ops.cast(i >= j, dtype='int32')
+        mask = ops.reshape(mask, (1, sequence_length, sequence_length))        
+        batch_mask = ops.tile(mask, (batch_size, 1, 1))
         
         return batch_mask
     
