@@ -10,7 +10,7 @@ DATA_PATH = join(RSC_PATH, 'database')
 SOURCE_PATH = join(DATA_PATH, 'dataset')
 IMG_PATH = join(SOURCE_PATH, 'images')
 METADATA_PATH = join(DATA_PATH, 'metadata')
-VALIDATION_PATH = join(DATA_PATH, 'validation')
+EVALUATION_PATH = join(DATA_PATH, 'validation')
 MODELS_PATH = join(RSC_PATH, 'models')
 TOKENIZERS_PATH = join(MODELS_PATH, 'tokenizers')
 ENCODERS_PATH = join(MODELS_PATH, 'XRAYEncoder')
@@ -25,7 +25,7 @@ UI_PATH = join(PROJECT_DIR, 'commons', 'interface', 'layout', 'window_layout.ui'
 
 # [CONFIGURATIONS]
 ###############################################################################
-CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configuration.json')
+CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configurations.json')
 with open(CONFIG_PATH, 'r') as file:
     CONFIG = json.load(file)
 
