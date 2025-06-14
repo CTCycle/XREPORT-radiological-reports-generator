@@ -1,4 +1,3 @@
-import json
 from os.path import join, abspath 
 
 # [PATHS]
@@ -23,9 +22,4 @@ LOGS_PATH = join(RSC_PATH, 'logs')
 ###############################################################################
 UI_PATH = join(PROJECT_DIR, 'commons', 'interface', 'layout', 'window_layout.ui')
 
-# [CONFIGURATIONS]
-###############################################################################
-CONFIG_PATH = join(PROJECT_DIR, 'settings', 'configurations.json')
-with open(CONFIG_PATH, 'r') as file:
-    CONFIG = json.load(file)
 

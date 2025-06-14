@@ -11,7 +11,7 @@ import keras
 from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
-from XREPORT.commons.constants import CONFIG, DATA_PATH, METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
+from XREPORT.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
 

@@ -4,7 +4,6 @@ from keras.mixed_precision import set_global_policy
 
 from XREPORT.commons.utils.learning.callbacks import initialize_callbacks_handler
 from XREPORT.commons.utils.data.serializer import ModelSerializer
-from XREPORT.commons.constants import CONFIG
 from XREPORT.commons.logger import logger
 
 
@@ -14,12 +13,12 @@ from XREPORT.commons.logger import logger
 class ModelTraining:    
        
     def __init__(self, configuration, metadata=None):        
-        set_random_seed(configuration["SEED"])        
-        self.selected_device = CONFIG["device"]["DEVICE"]
-        self.device_id = CONFIG["device"]["DEVICE_ID"]
-        self.mixed_precision = CONFIG["device"]["MIXED_PRECISION"]
-        self.serializer = ModelSerializer() 
-        self.configuration = configuration
+        self.serializer = ModelSerializer()        
+        set_random_seed(configuration.get('training_seed', 42))          
+        self.selected_device = configuration.get('device', 'CPU')
+        self.device_id = configuration.get('device_ID', 0)
+        self.mixed_precision = configuration.get('use_mixed_precision', False)        
+        self.configuration = configuration        
         self.metadata = metadata
         
     # set device
@@ -42,13 +41,14 @@ class ModelTraining:
 
     #--------------------------------------------------------------------------
     def train_model(self, model, train_data, validation_data, 
-                    checkpoint_path, progress_callback=None, worker=None): 
+                    checkpoint_path, **kwargs): 
                 
         epochs = self.configuration.get('epochs', 10)      
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
             self.configuration, checkpoint_path, 
-            progress_callback=progress_callback, worker=worker)       
+            progress_callback=kwargs.get('progress_callback', None), 
+            worker=kwargs.get('worker', None))       
         
         # run model fit using keras API method.             
         session = model.fit(
@@ -61,14 +61,14 @@ class ModelTraining:
         
     #--------------------------------------------------------------------------
     def resume_training(self, model, train_data, validation_data, 
-                        checkpoint_path, session=None, progress_callback=None,
-                        worker=None):  
+                        checkpoint_path, session=None, **kwargs):
         
         from_epoch = 0 if not session else session['epochs']     
         total_epochs = from_epoch + self.configuration.get('additional_epochs', 10)           
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
-            self.configuration, checkpoint_path, session, progress_callback, worker)       
+            self.configuration, checkpoint_path, session, 
+            kwargs.get('progress_callback', None), kwargs.get('worker', None))       
         
         # run model fit using keras API method.             
         session = model.fit(
