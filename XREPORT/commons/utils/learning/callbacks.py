@@ -1,96 +1,143 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
 import os
 import keras
 import webbrowser
 import subprocess
 import time
 
-from XREPORT.commons.constants import CONFIG
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+from XREPORT.commons.interface.workers import WorkerInterrupted
 from XREPORT.commons.logger import logger
+
+    
+# [CALLBACK FOR UI PROGRESS BAR]
+###############################################################################
+class ProgressBarCallback(keras.callbacks.Callback):
+    def __init__(self, progress_callback, total_epochs, from_epoch=0):
+        super().__init__()
+        self.progress_callback = progress_callback
+        self.total_epochs = total_epochs
+        self.from_epoch = from_epoch
+
+    #--------------------------------------------------------------------------
+    def on_epoch_end(self, epoch, logs=None):
+        processed_epochs = epoch - self.from_epoch + 1        
+        additional_epochs = max(1, self.total_epochs - self.from_epoch) 
+        percent = int(100 * processed_epochs / additional_epochs)
+        if self.progress_callback is not None:
+            self.progress_callback(percent)
+
+
+# [CALLBACK FOR TRAIN INTERRUPTION]
+###############################################################################
+class InterruptTraining(keras.callbacks.Callback):
+    def __init__(self, worker=None):
+        super().__init__()
+        self.worker = worker
+
+    #--------------------------------------------------------------------------
+    def on_batch_end(self, batch, logs=None):
+        if self.worker is not None and self.worker.is_interrupted():
+            logger.warning("Stopping training aas requested by the user")
+            self.model.stop_training = True
+            raise WorkerInterrupted()
 
     
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
 class RealTimeHistory(keras.callbacks.Callback):    
         
-    def __init__(self, plot_path, configuration, past_logs=None, **kwargs):
+    def __init__(self, plot_path, past_logs=None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
-        self.plot_path = plot_path 
-        self.past_logs = past_logs        
-                
-        # Initialize dictionaries to store history 
-        self.history = {}
-        self.val_history = {}
-        if past_logs is not None:
-            self.history = past_logs['history']
-            self.val_history = past_logs['val_history']      
-        
-        # Ensure plot directory exists
+        self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
-    
+        # Separate dicts for training vs. validation metrics
+        self.total_epochs = 0 if past_logs is None else past_logs.get('epochs', 0)
+        self.history = {'history' : {},
+                        'epochs' : self.total_epochs}        
+
+        # If past_logs provided, split into history and val_history
+        if past_logs and 'history' in past_logs:
+            for metric, values in past_logs['history'].items():
+                self.history['history'][metric] = list(values)
+            self.history['epochs'] = past_logs.get('epochs', len(values))                
+                    
     #--------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs={}):
-        # Log metrics and losses
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
         for key, value in logs.items():
-            if key.startswith('val_'):
-                if key not in self.val_history:
-                    self.val_history[key] = []
-                self.val_history[key].append(value)
-            else:
-                if key not in self.history:
-                    self.history[key] = []
-                self.history[key].append(value)
-        
+            if key not in self.history['history']:
+                self.history['history'][key] = []
+            self.history['history'][key].append(value)
+        self.history['epochs'] = epoch + 1
         self.plot_training_history()
 
     #--------------------------------------------------------------------------
     def plot_training_history(self):
         fig_path = os.path.join(self.plot_path, 'training_history.jpeg')
-        plt.figure(figsize=(14, 12))       
-        for i, (metric, values) in enumerate(self.history.items()):
-            plt.subplot(len(self.history), 1, i + 1)
-            plt.plot(range(len(values)), values, label=f'train')
-            if f'val_{metric}' in self.val_history:
-                plt.plot(range(len(self.val_history[f'val_{metric}'])), 
-                         self.val_history[f'val_{metric}'], label=f'validation')
-                plt.legend(loc='best', fontsize=8)
-            plt.title(metric)
+        plt.figure(figsize=(16, 14)) 
+        metrics = self.history['history']
+        # Find unique base metric names 
+        base_metrics = sorted(set(
+            m[4:] if m.startswith('val_') else m
+            for m in metrics.keys()))
+
+        plt.figure(figsize=(16, 5 * len(base_metrics)))
+        for i, base in enumerate(base_metrics):
+            plt.subplot(len(base_metrics), 1, i + 1)
+            # Plot training metric
+            if base in metrics:
+                plt.plot(metrics[base], label='train')
+            # Plot validation metric if exists
+            val_key = f'val_{base}'
+            if val_key in metrics:
+                plt.plot(metrics[val_key], label='val')
+            plt.title(base)
             plt.ylabel('')
             plt.xlabel('Epoch')
-        
+            plt.legend(loc='best', fontsize=10)
+
         plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)        
-        plt.close()  
+        plt.savefig(fig_path, bbox_inches='tight', format='jpeg', dpi=300)
+        plt.close()
+
     
 # [CALLBACKS HANDLER]
 ###############################################################################
-def initialize_callbacks_handler(configuration, checkpoint_path, history):
+def initialize_callbacks_handler(configuration, checkpoint_path, session=None, 
+                                 progress_callback=None, worker=None):
+    
+    from_epoch = 0
+    total_epochs = configuration.get('epochs', 10)
+    callbacks_list = [
+        ProgressBarCallback(progress_callback, total_epochs, from_epoch),
+        InterruptTraining(worker)]  
+    
+    additional_epochs = configuration.get('additional_epochs', 10)
+    if session:
+        from_epoch = session['epochs']
+        total_epochs = additional_epochs + from_epoch
+    
+    if configuration.get('plot_training_metrics', False):
+        callbacks_list.append(RealTimeHistory(checkpoint_path, past_logs=session))
 
-    RTH_callback = RealTimeHistory(checkpoint_path, configuration, past_logs=history)       
-    callbacks_list = [RTH_callback]
-
-    # initialize tensorboard if requested    
-    if configuration["training"]["USE_TENSORBOARD"]:
+    if configuration.get('use_tensorboard', False):
         logger.debug('Using tensorboard during training')
         log_path = os.path.join(checkpoint_path, 'tensorboard')
-        callbacks_list.append(keras.callbacks.TensorBoard(log_dir=log_path, histogram_freq=1))  
-        start_tensorboard_subprocess(log_path) 
+        callbacks_list.append(keras.callbacks.TensorBoard(
+            log_dir=log_path, histogram_freq=1, write_images=True))          
+        start_tensorboard_subprocess(log_path)   
 
-    # Add a checkpoint saving callback
-    if configuration["training"]["SAVE_CHECKPOINTS"]:
+    if configuration.get('save_checkpoints', False):
         logger.debug('Adding checkpoint saving callback')
-        checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint.keras')
-        callbacks_list.append(keras.callbacks.ModelCheckpoint(filepath=checkpoint_filepath,
-                                                              save_weights_only=False,  
-                                                              monitor='val_loss',       
-                                                              save_best_only=True,      
-                                                              mode='auto',              
-                                                              verbose=1))
-
-    return RTH_callback, callbacks_list
+        checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint_E{epoch:02d}.keras')
+        callbacks_list.append(keras.callbacks.ModelCheckpoint(
+            filepath=checkpoint_filepath, save_weights_only=False,  
+            monitor='val_loss', save_best_only=True, mode='auto', verbose=0))
+        
+    return callbacks_list
 
 
 ###############################################################################
@@ -99,5 +146,4 @@ def start_tensorboard_subprocess(log_dir):
     subprocess.Popen(
         tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)      
     time.sleep(5)            
-    webbrowser.open("http://localhost:6006")    
-        
+    webbrowser.open("http://localhost:6006")      

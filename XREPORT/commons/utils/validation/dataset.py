@@ -10,7 +10,7 @@ from nltk.translate.bleu_score import corpus_bleu
 from XREPORT.commons.utils.inference.generator import TextGenerator
 from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
-from XREPORT.commons.constants import CONFIG, DATA_PATH, EVALUATION_PATH
+from XREPORT.commons.constants import EVALUATION_PATH
 from XREPORT.commons.logger import logger
 
 
@@ -37,8 +37,7 @@ class TextAnalysis:
         for i, desc in enumerate(tqdm(
             images_descriptions, desc="Processing images", total=len(images_descriptions), ncols=100)):              
             results.append({'name': os.path.basename(images_path[i]),
-                            'words_count': len(desc.split()),
-                          })
+                            'words_count': len(desc.split())})
 
             # check for thread status and progress bar update
             check_thread_status(worker)

@@ -1,11 +1,14 @@
 import os
-import torch
-import keras
 import numpy as np
-from tqdm import tqdm   
+from tqdm import tqdm 
+
+from keras import Model
+from keras.ops import expand_dims, argmax, zeros
+from keras.utils import set_random_seed
 
 from XREPORT.commons.utils.data.loader import InferenceDataLoader
 from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
+from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.logger import logger
 
 
@@ -13,18 +16,18 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : keras.Model, configuration, path=None, verbose=True):
-        keras.utils.set_random_seed(configuration["SEED"])  
+    def __init__(self, model : Model, configuration, mode='greedy_search', path=None, verbose=True):
+        set_random_seed(configuration["SEED"])  
         self.model = model 
         self.configuration = configuration        
         self.dataloader = InferenceDataLoader(configuration)
-        self.name = os.path.basename(path) if path is not None else None 
+        self.name = os.path.basename(path) if path is not None else None        
         self.verbose = verbose       
         
         # define image and text parameters for inference
         self.img_shape = (224, 224)
         self.num_channels = 3           
-        self.max_report_size = configuration["dataset"]["MAX_REPORT_SIZE"]  
+        self.max_report_size = configuration.get('max_report_size', 200)  
         # get encoder and decoder layers names from loaded model
         self.layer_names = [layer.name for layer in model.layers]     
         self.encoder_layer_names = [
@@ -36,7 +39,7 @@ class TextGenerator:
         self.tokenization = TokenWizard(self.configuration)
         self.tokenizer = self.tokenization.tokenizer
         # report generation methods 
-        self.selected_method = configuration["inference"]["GEN_METHOD"]
+        self.selected_method = mode
         self.generator_methods = {'greedy' : self.greed_search_generator,
                                   'beam' : self.beam_search_generator}
 
@@ -84,7 +87,7 @@ class TextGenerator:
         return processed_text
     
     #--------------------------------------------------------------------------    
-    def greed_search_generator(self, tokenizer_config, image_path):        
+    def greed_search_generator(self, tokenizer_config, image_path):      
         # extract vocabulary from the tokenizers
         vocabulary = self.tokenizer.get_vocab()
         start_token = tokenizer_config["start_token"]
@@ -97,10 +100,10 @@ class TextGenerator:
                
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
         image = self.dataloader.load_image_as_array(image_path)
-        image = keras.ops.expand_dims(image, axis=0)
+        image = expand_dims(image, axis=0)
         # initialize an array with same size of max expected report length
         # set the start token as the first element
-        seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
+        seq_input = zeros((1, self.max_report_size), dtype='int32')
         seq_input[0, 0] = start_token_idx  
         # initialize progress bar for better output formatting
         progress_bar = tqdm(total=self.max_report_size - 1)
@@ -108,13 +111,13 @@ class TextGenerator:
             # predict the next token based on the truncated sequence (last token removed)         
             predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)  
             # apply argmax (greedy search) to identify the most probable token              
-            next_token_idx = keras.ops.argmax(predictions[0, i-1, :], axis=-1).item()
+            next_token_idx = argmax(predictions[0, i-1, :], axis=-1).item()
             next_token = index_lookup[next_token_idx]                
             # Stop sequence generation if end token is generated
             if next_token == end_token:               
-                progress_bar.n = progress_bar.total  # Set current progress to total
-                progress_bar.last_print_n = progress_bar.total  # Update visual display
-                progress_bar.update(0)  # Force update
+                progress_bar.n = progress_bar.total  
+                progress_bar.last_print_n = progress_bar.total 
+                progress_bar.update(0)  
                 break
             
             seq_input[0, i] = next_token_idx
@@ -140,7 +143,7 @@ class TextGenerator:
 
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
         image = self.dataloader.load_image_as_array(image_path)
-        image = keras.ops.expand_dims(image, axis=0)
+        image = expand_dims(image, axis=0)
 
         # Initialize the beam with a single sequence containing only the start token and a score of 0.0 (log-prob)
         beams = [([start_token_idx], 0.0)]
@@ -157,7 +160,7 @@ class TextGenerator:
 
                 # Prepare a padded sequence input.
                 # We create an array of zeros with shape (1, max_report_size) and fill in the current sequence.
-                seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
+                seq_input = zeros((1, self.max_report_size), dtype='int32')
                 for j, token in enumerate(seq):
                     seq_input[0, j] = token
 
@@ -189,7 +192,7 @@ class TextGenerator:
         # Choose the best beam (the one with the highest score)
         best_seq, best_score = beams[0]        
         # Create a full padded sequence from the best beam for conversion to text.
-        seq_input = keras.ops.zeros((1, self.max_report_size), dtype='int32')
+        seq_input = zeros((1, self.max_report_size), dtype='int32')
         for i, token in enumerate(best_seq):
             seq_input[0, i] = token
 
@@ -199,12 +202,17 @@ class TextGenerator:
         return report   
 
     #--------------------------------------------------------------------------    
-    def generate_radiological_reports(self, images_path, override_method=None):
+    def generate_radiological_reports(self, images_path, override_method=None, progress_callback=None, worker=None):
         reports = {}         
         tokenizer_config = self.get_tokenizer_parameters()
-        for path in images_path:
+        for i, path in enumerate(images_path):
             selected_method = self.selected_method if override_method is None else override_method
             report = self.generator_methods[selected_method](tokenizer_config, path)            
-            reports[path] = report                
+            reports[path] = report
+
+            # check for thread status and progress bar update
+            check_thread_status(worker)
+            update_progress_callback(i, images_path, progress_callback)    
+                
 
         return reports

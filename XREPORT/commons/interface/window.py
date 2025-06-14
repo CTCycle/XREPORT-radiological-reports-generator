@@ -28,21 +28,7 @@ class MainWindow:
         ui_file = QFile(ui_file_path)
         ui_file.open(QIODevice.ReadOnly)
         self.main_win = loader.load(ui_file)
-        ui_file.close()              
-        
-        # Image data                
-        self.pixmaps = {
-        'train_images': [],         
-        'inference_images': [],      
-        'dataset_eval_images': [],  
-        'model_eval_images': []}
-        
-        self.img_paths = {'train_images' : IMG_PATH,
-                          'inference_images' : INFERENCE_INPUT_PATH}
-
-        # Canvas state        
-        self.current_fig = {'train_images' : 0, 'inference_images' : 0,
-                            'dataset_eval_images' : 0, 'model_eval_images' : 0}   
+        ui_file.close() 
 
         # Checkpoint & metrics state
         self.selected_checkpoint = None
@@ -98,8 +84,8 @@ class MainWindow:
             (QSpinBox,'batchSize','batch_size'),            
             (QSpinBox,'saveCPFrequency','save_cp_frequency'),
             (QCheckBox,'useScheduler','LR_scheduler'), 
-            (QDoubleSpinBox,'initialLearningRate','initial_LR'),
-            (QDoubleSpinBox,'targetLearningRate','target_LR'),            
+            (QDoubleSpinBox,'postWarmLR','post_warmup_LR'),
+            (QDoubleSpinBox,'warmUpSteps','warmup_steps'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'), 
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
@@ -109,7 +95,8 @@ class MainWindow:
             (QSpinBox,'attentionHeads','num_attention_heads'),
             (QSpinBox,'numEncoders','num_encoders'),                   
             (QSpinBox,'numDecoders','num_decoders'),
-            (QSpinBox,'embeddingDims','embedding_dimensions'), 
+            (QSpinBox,'embeddingDims','embedding_dimensions'),
+            (QDoubleSpinBox,'trainTemp','train_temperature'),         
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),
             (QComboBox,'checkpointsList','checkpoints_list'),            
             (QPushButton,'startTraining','start_training'),
@@ -119,13 +106,13 @@ class MainWindow:
             (QCheckBox,'runEvaluationGPU','use_GPU_evaluation'), 
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'imgReconstruction','image_reconstruction'),      
+            (QCheckBox,'getBLEUScore','get_BLEU_score'),      
             (QSpinBox,'numImages','num_evaluation_images'),           
             # 4. inference tab page  
             (QDoubleSpinBox,'inferenceTemp','inference_temperature'),
             (QComboBox,'inferenceMode','inference_mode'),  
             (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
-            (QPushButton,'encodeImages','encode_images'),          
+            (QPushButton,'generateReports','generate_reports'),          
             # 5. Viewer tab
             (QPushButton,'loadImages','load_source_images'),
             (QPushButton,'previousImg','previous_image'),
@@ -150,14 +137,14 @@ class MainWindow:
             # 2. training tab page                                   
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
-            # 3. model evaluation tab page
-            ('image_reconstruction','toggled',self._update_metrics),
+            # 3. model evaluation tab page            
             ('get_evaluation_report','toggled',self._update_metrics), 
+            ('get_BLEU_score','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
             ('checkpoints_summary','clicked',self.get_checkpoints_summary),                  
            
             # 4. inference tab page  
-            ('encode_images','clicked',self.encode_images_with_checkpoint),            
+            ('generate_reports','clicked',self.generate_reports_with_checkpoint),            
             # 5. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),
@@ -182,11 +169,7 @@ class MainWindow:
         
         # Initial population of dynamic UI elements
         self.load_checkpoints()
-        self._set_graphics() 
-
-        self.data_metrics = [('pixels_distribution', self.get_pixels_dist)]
-        self.model_metrics = [('evaluation_report', self.get_evaluation_report),
-                              ('image_reconstruction', self.image_reconstruction)]
+        self._set_graphics()         
 
     # [SHOW WINDOW]
     ###########################################################################
@@ -225,11 +208,12 @@ class MainWindow:
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
             ('num_workers', 'valueChanged', 'num_workers'),
             ('use_mixed_precision', 'toggled', 'mixed_precision'),
-            ('freeze_img_encoder', 'toggled', 'freeze_img_encoder'),
+            ('freeze_img_encoder', 'toggled', 'freeze_img_encoder'),            
             ('num_attention_heads', 'valueChanged', 'num_attention_heads'),
             ('num_encoders', 'valueChanged', 'num_encoders'),
             ('num_decoders', 'valueChanged', 'num_decoders'),
             ('embedding_dimensions', 'valueChanged', 'embedding_dimensions'),
+            ('train_temperature', 'valueChanged', 'embedding_dimensions'),
             ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
             ('jit_backend', 'currentTextChanged', 'jit_backend'),
             ('use_tensorboard', 'toggled', 'run_tensorboard'),
@@ -256,7 +240,7 @@ class MainWindow:
 
         self.data_metrics = [('pixels_distribution', self.get_pixels_dist)]
         self.model_metrics = [('evaluation_report', self.get_evaluation_report),
-                              ('image_reconstruction', self.image_reconstruction)]
+                              ('BLEU_score', self.get_BLEU_score)]
 
     #--------------------------------------------------------------------------
     def _update_device(self):
@@ -289,7 +273,32 @@ class MainWindow:
         view.setRenderHint(QPainter.TextAntialiasing, True)
         self.graphics = {'view': view,
                          'scene': scene,
-                         'pixmap_item': pixmap_item}   
+                         'pixmap_item': pixmap_item}        
+        
+        # Image data                
+        self.pixmaps = {
+        'train_images': [],         
+        'inference_images': [],      
+        'dataset_eval_images': [],  
+        'model_eval_images': []}
+        
+        self.img_paths = {'train_images' : IMG_PATH,
+                          'inference_images' : INFERENCE_INPUT_PATH}
+
+        # Canvas state        
+        self.current_fig = {'train_images' : 0, 'inference_images' : 0,
+                            'dataset_eval_images' : 0, 'model_eval_images' : 0}   
+        
+        self.pixmap_source_map = {
+            self.data_plots_view: ("dataset_eval_images", "train_images"),
+            self.model_plots_view: ("model_eval_images", "model_eval_images"),
+            self.inference_images_view: ("inference_images", "inference_images"),
+            self.train_images_view: ("train_images", "train_images")}
+        
+        self.text_view = {'train_images': self.validation_handler.get_description_from_train_image,
+                          'inference_images': self.validation_handler.get_generated_report}
+
+            
 
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -365,7 +374,7 @@ class MainWindow:
     @Slot()
     def _update_metrics(self):        
         self.selected_metrics['dataset'] = [
-        name for name, box in self.data_metrics if box.isChecked()]
+            name for name, box in self.data_metrics if box.isChecked()]
         self.selected_metrics['model'] = [
             name for name, box in self.model_metrics if box.isChecked()]
 
@@ -397,15 +406,16 @@ class MainWindow:
         self._update_image_descriptions(idx_key)
 
     #--------------------------------------------------------------------------
-    def _update_image_descriptions(self, idx_key):               
-        if idx_key == 'train_images':
-            image_path = self.pixmaps[idx_key][self.current_fig[idx_key]]
+    def _update_image_descriptions(self, idx_key): 
+        image_path = self.pixmaps[idx_key][self.current_fig[idx_key]]
+        if isinstance(image_path, str):
             image_name = os.path.basename(image_path)
-            desc = self.validation_handler.get_description_from_image(image_name)  
-            self.image_description.setPlainText(desc)
-        else:
-            placeholder = "No description available for this image."
-            self.image_description.setPlainText(placeholder) 
+            description = self.text_view[idx_key](image_name)        
+            self.image_description.setPlainText(description)
+            return 
+        
+        placeholder = "No description available for this image."
+        self.image_description.setPlainText(placeholder) 
 
     #--------------------------------------------------------------------------
     @Slot(str)
@@ -577,7 +587,7 @@ class MainWindow:
     # [INFERENCE TAB]
     #--------------------------------------------------------------------------   
     @Slot()    
-    def encode_images_with_checkpoint(self):  
+    def generate_reports_with_checkpoint(self):  
         if self.worker_running:            
             return 
         
@@ -585,7 +595,7 @@ class MainWindow:
         self.training_handler = InferenceEvents(self.configuration)  
         device = 'GPU' if self.use_GPU_inference.isChecked() else 'CPU'
         # send message to status bar
-        self._send_message(f"Encoding images with {self.selected_checkpoint}") 
+        self._send_message(f"Generating reports from X-ray scans with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
@@ -636,9 +646,9 @@ class MainWindow:
         self.worker_running = False
 
     #--------------------------------------------------------------------------
-    def on_inference_finished(self, session):          
+    def on_inference_finished(self, session):         
         self.training_handler.handle_success(
-            self.main_win, 'Training session is over. Model has been saved')
+            self.main_win, 'Inference call has been terminated')
         self.worker_running = False
 
 

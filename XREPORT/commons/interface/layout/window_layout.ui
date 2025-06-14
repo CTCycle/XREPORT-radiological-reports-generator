@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>FEXT AutoEncoder v1.0</string>
+   <string>XREPORT Transformer v1.2</string>
   </property>
   <property name="styleSheet">
    <string notr="true">/*
@@ -558,7 +558,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        <string/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="dataTab">
        <property name="toolTipDuration">
@@ -585,6 +585,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QSpinBox" name="seed">
+               <property name="maximum">
+                <number>999999</number>
+               </property>
                <property name="value">
                 <number>42</number>
                </property>
@@ -671,7 +674,11 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               </widget>
              </item>
              <item>
-              <widget class="QSpinBox" name="maxReportSize"/>
+              <widget class="QSpinBox" name="maxReportSize">
+               <property name="maximum">
+                <number>9999</number>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>
@@ -689,6 +696,16 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                <item>
                 <property name="text">
                  <string>distilbert</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>bert</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>roberta</string>
                 </property>
                </item>
               </widget>
@@ -810,12 +827,12 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  <item>
                   <widget class="QLabel" name="label_11">
                    <property name="text">
-                    <string>Initial learning rate</string>
+                    <string>Post warmup rate</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QDoubleSpinBox" name="initialLearningRate">
+                  <widget class="QDoubleSpinBox" name="postWarmLR">
                    <property name="decimals">
                     <number>5</number>
                    </property>
@@ -834,12 +851,12 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  <item>
                   <widget class="QLabel" name="label_14">
                    <property name="text">
-                    <string>Target learning rate</string>
+                    <string>Warmup steps</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QDoubleSpinBox" name="targetLearningRate">
+                  <widget class="QDoubleSpinBox" name="warmUPSteps">
                    <property name="decimals">
                     <number>5</number>
                    </property>
@@ -848,48 +865,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                    </property>
                    <property name="value">
                     <double>0.001000000000000</double>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_15">
-                 <item>
-                  <widget class="QLabel" name="label_12">
-                   <property name="text">
-                    <string>Constant steps</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QSpinBox" name="constantSteps">
-                   <property name="maximum">
-                    <number>1000000</number>
-                   </property>
-                   <property name="singleStep">
-                    <number>10</number>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_14">
-                 <item>
-                  <widget class="QLabel" name="label_13">
-                   <property name="text">
-                    <string>Decay steps</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QSpinBox" name="decaySteps">
-                   <property name="maximum">
-                    <number>1000000</number>
-                   </property>
-                   <property name="singleStep">
-                    <number>10</number>
                    </property>
                   </widget>
                  </item>
@@ -1417,6 +1392,24 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               </layout>
              </item>
              <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <item>
+                <widget class="QLabel" name="label">
+                 <property name="text">
+                  <string>Temperature</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QDoubleSpinBox" name="trainTemp">
+                 <property name="value">
+                  <double>1.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
               <spacer name="verticalSpacer_4">
                <property name="orientation">
                 <enum>Qt::Orientation::Vertical</enum>
@@ -1470,9 +1463,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  </widget>
                 </item>
                 <item>
-                 <widget class="QCheckBox" name="imgReconstruction">
+                 <widget class="QCheckBox" name="getBLEUScore">
                   <property name="text">
-                   <string>Image reconstruction</string>
+                   <string>BLEU score</string>
                   </property>
                  </widget>
                 </item>
@@ -1613,9 +1606,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="encodeImages">
+            <widget class="QPushButton" name="generateReports">
              <property name="text">
-              <string>Encode images</string>
+              <string>Generate reports</string>
              </property>
             </widget>
            </item>

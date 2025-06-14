@@ -1,14 +1,17 @@
+import os
 import cv2
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
-from XREPORT.commons.utils.data.loader import TrainingDataLoader
+from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis, EvaluateTextConsistency
+from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
-from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.utils.inference.generator import TextGenerator
+
 from XREPORT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
 
@@ -54,9 +57,6 @@ class GraphicsHandler:
         return QPixmap.fromImage(qimg)
 
 
-
-
-
 ###############################################################################
 class ValidationEvents:
 
@@ -75,14 +75,24 @@ class ValidationEvents:
         return images_paths 
     
     #--------------------------------------------------------------------------
-    def get_description_from_image(self, image_name):               
+    def get_description_from_train_image(self, image_name):               
         dataset = self.serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
         mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
         description = dataset.loc[mask, 'text'].values
         description = description[0] if len(description) > 0 else self.text_placeholder  
         
-        return description    
+        return description 
+
+    #--------------------------------------------------------------------------
+    def get_generated_report(self, image_name):               
+        dataset = self.serializer.load_source_dataset(sample_size=1.0)
+        image_no_ext = image_name.split('.')[0]  
+        mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
+        description = dataset.loc[mask, 'text'].values
+        description = description[0] if len(description) > 0 else self.text_placeholder  
+        
+        return description   
             
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
@@ -120,45 +130,37 @@ class ValidationEvents:
                                       progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')   
         modser = ModelSerializer()       
-        # model, train_config, session, checkpoint_path = modser.load_checkpoint(
-        #     selected_checkpoint)    
-        # model.summary(expand_nested=True)  
+        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+            selected_checkpoint)    
+        model.summary(expand_nested=True)  
 
-        # # set device for training operations based on user configuration
-        # logger.info('Setting device for training operations based on user configuration')                
-        # trainer = ModelTraining(train_config)    
-        # trainer.set_device(device_override=device)  
+        # set device for training operations based on user configuration
+        logger.info('Setting device for training operations based on user configuration')                
+        trainer = ModelTraining(train_config)    
+        trainer.set_device(device_override=device)        
+        
+        _, val_data, metadata = self.serializer.load_train_and_validation_data()    
+        val_data = self.serializer.update_images_path(val_data)  
+        vocabulary_size = metadata['vocabulary_size']
+        logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
+        logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
 
-        # # isolate the encoder from the autoencoder model   
-        # encoder = ImageEncoding(model, train_config, checkpoint_path)
-        # encoder_model = encoder.encoder_model 
+        loader = InferenceDataLoader(self.configuration)      
+        validation_dataset = loader.build_inference_dataloader(val_data)
 
-        # logger.info('Preparing dataset of images based on splitting sizes')  
-        # sample_size = train_config.get("train_sample_size", 1.0)
-        # images_paths = self.serializer.get_images_path_from_directory(IMG_PATH, sample_size)
-        # splitter = TrainValidationSplit(train_config) 
-        # _, validation_images = splitter.split_train_and_validation(images_paths)     
+        images = []
+        if 'evaluation_report' in metrics:
+            # evaluate model performance over the training and validation dataset 
+            summarizer = ModelEvaluationSummary(self.configuration)       
+            summarizer.get_evaluation_report(model, validation_dataset, worker=worker) 
 
-        # # create the tf.datasets using the previously initialized generators 
-        # logger.info('Building model data loaders with prefetching and parallel processing') 
-        # # use tf.data.Dataset to build the model dataloader with a larger batch size
-        # # the dataset is built on top of the training and validation data
-        # loader = InferenceDataLoader(train_config)    
-        # validation_dataset = loader.build_inference_dataloader(
-        #     validation_images, batch_size=1)              
+        if 'BLEU_score' in metrics:            
+            # One can select different either greedy search or beam search to genarate
+            # reports with a pretrained decoder        
+            scoring = EvaluateTextConsistency(model, self.configuration)
+            scores = scoring.calculate_BLEU_score(val_data)              
 
-        # images = []
-        # if 'evaluation_report' in metrics:
-        #     # evaluate model performance over the training and validation dataset 
-        #     summarizer = ModelEvaluationSummary(self.configuration)       
-        #     summarizer.evaluation_report(model, validation_dataset, worker=worker) 
-
-        # if 'image_reconstruction' in metrics:
-        #     validator = ImageReconstruction(train_config, model, checkpoint_path)      
-        #     images.append(validator.visualize_reconstructed_images(
-        #         validation_images, progress_callback, worker=worker))       
-
-        # return images     
+        return images     
 
     
     # define the logic to handle successfull data retrieval outside the main UI loop
@@ -295,14 +297,15 @@ class InferenceEvents:
         trainer.set_device(device_override=device)
 
         # select images from the inference folder and retrieve current paths        
-        images_paths = self.serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
-        logger.info(f'{len(images_paths)} images have been found as inference input')       
-        # extract features from images using the encoder output, the image encoder
-        # takes the list of images path from inference as input    
-        encoder = ImageEncoding(model, train_config, checkpoint_path)  
-        logger.info(f'Start encoding images using model {selected_checkpoint}')  
-        encoder.encode_images_features(images_paths, progress_callback, worker=worker) 
-        logger.info('Encoded images have been saved as .npy')
+        img_paths = self.serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
+        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
+        logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
+
+        # generate radiological reports from the list of inference image paths 
+        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
+        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
+        generated_reports = generator.generate_radiological_reports(img_paths)
+        self.serializer.save_generated_reports(generated_reports)
            
     # define the logic to handle successfull data retrieval outside the main UI loop
     #--------------------------------------------------------------------------

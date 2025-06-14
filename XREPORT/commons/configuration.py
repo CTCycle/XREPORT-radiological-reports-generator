@@ -22,6 +22,7 @@ class Configuration:
             'num_decoders': 2,
             'embedding_dimensions' : 128,
             'freeze_img_encoder': 64,
+            'train_temperature': 1.0,
             'dropout_rate': 0.2,
             'jit_compile': False,
             'jit_backend': 'inductor',
@@ -43,14 +44,12 @@ class Configuration:
 
             # Learning rate scheduler
             'use_scheduler' : False,
-            'initial_lr': 0.001,
-            'constant_steps': 40000,
-            'decay_steps': 1000,
-            'final_lr': 0.0001,
+            'post_warmup_LR': 0.001,
+            'warmup_steps': 40000,           
 
             # Inference
             'inference_temperature' : 1.0,
-            'inference_mode' : 'greedy',
+            'inference_mode' : 'greedy_search',
 
             # Validation
             'val_batch_size': 20,
