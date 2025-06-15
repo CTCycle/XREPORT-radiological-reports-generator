@@ -2,12 +2,9 @@
 class Configuration:
     
     def __init__(self):
-        self.configuration = {            
-            'general_seed': 42,
-            'split_seed': 76,
-            'train_seed': 42,         
-
+        self.configuration = {
             # Dataset
+            'general_seed': 42,
             'sample_size': 1.0,
             'validation_size': 0.2,
             'img_augmentation': False,
@@ -34,6 +31,8 @@ class Configuration:
             'num_workers': 0,
 
             # Training
+            'split_seed': 76,
+            'train_seed': 42, 
             'train_sample_size': 1.0,
             'epochs': 100,
             'additional_epochs': 10,
