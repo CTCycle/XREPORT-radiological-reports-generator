@@ -63,21 +63,22 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, configuration):           
-        self.serializer = DataSerializer(configuration) 
+    def __init__(self, configuration):        
         self.text_placeholder = "No description available for this image."                
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
-    def load_images_path(self, path, sample_size=1.0):        
-        images_paths = self.serializer.get_images_path_from_directory(
+    def load_images_path(self, path, sample_size=1.0):
+        serializer = DataSerializer(self.configuration)         
+        images_paths = serializer.get_images_path_from_directory(
             path, sample_size) 
         
         return images_paths 
     
     #--------------------------------------------------------------------------
-    def get_description_from_train_image(self, image_name):               
-        dataset = self.serializer.load_source_dataset(sample_size=1.0)
+    def get_description_from_train_image(self, image_name):    
+        serializer = DataSerializer(self.configuration)             
+        dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
         mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
         description = dataset.loc[mask, 'text'].values
@@ -86,8 +87,9 @@ class DatasetEvents:
         return description 
 
     #--------------------------------------------------------------------------
-    def get_generated_report(self, image_name):               
-        dataset = self.serializer.load_source_dataset(sample_size=1.0)
+    def get_generated_report(self, image_name):
+        serializer = DataSerializer(self.configuration)                 
+        dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
         mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
         description = dataset.loc[mask, 'text'].values
@@ -96,9 +98,10 @@ class DatasetEvents:
         return description   
     
     #--------------------------------------------------------------------------
-    def build_ML_dataset(self, **kwargs):   
+    def build_ML_dataset(self, progress_callback=None, worker=None):
+        serializer = DataSerializer(self.configuration)      
         sample_size = self.configuration.get("sample_size", 1.0)            
-        dataset = self.serializer.load_source_dataset(sample_size=sample_size)
+        dataset = serializer.load_source_dataset(sample_size=sample_size)
         
         # sanitize text corpus by removing undesired symbols and punctuation     
         sanitizer = TextSanitizer(self.configuration)
