@@ -535,7 +535,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
      </layout>
     </item>
     <item row="2" column="0">
-     <layout class="QHBoxLayout" name="progressLayour">
+     <layout class="QHBoxLayout" name="progressLayour" stretch="7,1">
       <item>
        <widget class="QProgressBar" name="progressBar">
         <property name="value">
@@ -585,6 +585,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QSpinBox" name="seed">
+               <property name="minimum">
+                <number>1</number>
+               </property>
                <property name="maximum">
                 <number>999999</number>
                </property>
@@ -606,6 +609,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QDoubleSpinBox" name="sampleSize">
+               <property name="minimum">
+                <double>0.010000000000000</double>
+               </property>
                <property name="maximum">
                 <double>1.000000000000000</double>
                </property>
@@ -628,7 +634,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               <item>
                <widget class="QCheckBox" name="getPixDist">
                 <property name="text">
-                 <string>pixel intensity distribution</string>
+                 <string>Pixel Intensity Distribution</string>
                 </property>
                </widget>
               </item>
@@ -675,6 +681,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
              <item>
               <widget class="QSpinBox" name="maxReportSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
                <property name="maximum">
                 <number>9999</number>
                </property>
@@ -927,6 +936,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  </item>
                  <item>
                   <widget class="QDoubleSpinBox" name="trainSampleSize">
+                   <property name="minimum">
+                    <double>0.010000000000000</double>
+                   </property>
                    <property name="maximum">
                     <double>1.000000000000000</double>
                    </property>
@@ -975,6 +987,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                  </item>
                  <item>
                   <widget class="QSpinBox" name="shuffleSize">
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
                    <property name="maximum">
                     <number>99999</number>
                    </property>
@@ -1318,6 +1333,9 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               <widget class="QCheckBox" name="freezeImgEncoder">
                <property name="text">
                 <string>Freeze image encoder weights</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
                </property>
               </widget>
              </item>
