@@ -24,13 +24,13 @@ class TextAnalysis:
         self.database = XREPORTDatabase(configuration)  
 
     #--------------------------------------------------------------------------
-    def count_words_in_documents(self, data : pd.DataFrame):         
+    def count_words_in_documents(self, data):         
         words = [word for text in data['text'].to_list() for word in text.split()]           
 
         return words
     
     #--------------------------------------------------------------------------
-    def calculate_text_statistics(self, data : pd.DataFrame, **kwargs):
+    def calculate_text_statistics(self, data, **kwargs):
         images_descriptions = data['text'].to_list()
         images_path = data['path'].to_list()         
         results= []     
@@ -63,7 +63,7 @@ class EvaluateTextConsistency:
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data : pd.DataFrame, **kwargs):
+    def calculate_BLEU_score(self, validation_data, **kwargs):
         samples = validation_data.sample(n=self.num_samples, random_state=42) 
         sampled_images = samples['path'].to_list()     
         true_reports = dict(zip(samples['path'], samples['text']))
@@ -111,7 +111,7 @@ class EvaluateTextConsistency:
         self.tokenizer_config = self.generator.get_tokenizer_parameters()
 
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data : pd.DataFrame, **kwargs):
+    def calculate_BLEU_score(self, validation_data, **kwargs):
         samples = validation_data.sample(n=self.num_samples, random_state=42) 
         sampled_images = samples['path'].to_list()     
         true_reports = dict(zip(samples['path'], samples['text']))
@@ -157,7 +157,7 @@ class ImageAnalysis:
         fig.savefig(out_path, bbox_inches='tight', dpi=self.DPI)      
    
     #--------------------------------------------------------------------------
-    def calculate_image_statistics(self, data : pd.DataFrame, **kwargs):
+    def calculate_image_statistics(self, data, **kwargs):
         images_path = data['path'].to_list()         
         results= []     
         for i, path in enumerate(tqdm(
@@ -206,7 +206,7 @@ class ImageAnalysis:
         return stats_dataframe
     
     #--------------------------------------------------------------------------
-    def calculate_pixel_intensity_distribution(self, data : pd.DataFrame, **kwargs):
+    def calculate_pixel_intensity_distribution(self, data, **kwargs):
         images_path = data['path'].to_list()               
         image_histograms = np.zeros(256, dtype=np.int64)        
         for i, path in enumerate(

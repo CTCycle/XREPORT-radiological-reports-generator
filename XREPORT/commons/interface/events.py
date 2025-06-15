@@ -98,7 +98,7 @@ class DatasetEvents:
         return description   
     
     #--------------------------------------------------------------------------
-    def build_ML_dataset(self, progress_callback=None, worker=None):
+    def run_dataset_builder(self, progress_callback=None, worker=None):
         serializer = DataSerializer(self.database, self.configuration)      
         sample_size = self.configuration.get("sample_size", 1.0)            
         dataset = serializer.load_source_dataset(sample_size=sample_size)
@@ -239,8 +239,8 @@ class ModelEvents:
     
     #--------------------------------------------------------------------------
     def get_available_checkpoints(self):
-        modser = ModelSerializer()
-        return modser.scan_checkpoints_folder()
+        serializer = ModelSerializer()
+        return serializer.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, device='CPU', 

@@ -126,7 +126,7 @@ class TrainingDataLoader:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def compose_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):           
+    def compose_tensor_dataset(self, data, batch_size, buffer_size=tf.data.AUTOTUNE):           
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
         batch_size = self.batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
@@ -139,7 +139,7 @@ class TrainingDataLoader:
         return dataset
         
     #--------------------------------------------------------------------------
-    def build_training_dataloader(self, train_data : pd.DataFrame, validation_data : pd.DataFrame, 
+    def build_training_dataloader(self, train_data, validation_data, 
                                   batch_size=None):        
         train_dataset = self.compose_tensor_dataset(train_data, batch_size)
         validation_dataset = self.compose_tensor_dataset(validation_data, batch_size)      
@@ -172,7 +172,7 @@ class InferenceDataLoader:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def compose_tensor_dataset(self, data : pd.DataFrame, batch_size, buffer_size=tf.data.AUTOTUNE):         
+    def compose_tensor_dataset(self, data, batch_size, buffer_size=tf.data.AUTOTUNE):         
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
         batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
