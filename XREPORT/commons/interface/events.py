@@ -13,7 +13,7 @@ from XREPORT.commons.utils.data.loader import TrainingDataLoader, InferenceDataL
 from XREPORT.commons.utils.learning.training import ModelTraining
 from XREPORT.commons.utils.learning.models import XREPORTModel
 from XREPORT.commons.utils.inference.generator import TextGenerator
-
+from XREPORT.commons.interface.workers import check_thread_status
 
 from XREPORT.commons.constants import INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
@@ -192,6 +192,9 @@ class ValidationEvents:
         loader = InferenceDataLoader(self.configuration)      
         validation_dataset = loader.build_inference_dataloader(val_data)
 
+        # check worker status to allow interruption
+        check_thread_status(worker)
+
         images = []
         if 'evaluation_report' in metrics:
             # evaluate model performance over the training and validation dataset 
@@ -199,7 +202,6 @@ class ValidationEvents:
             summarizer.get_evaluation_report(
                 model, validation_dataset, 
                 progress_callback=progress_callback, worker=worker)  
-
 
         if 'BLEU_score' in metrics:            
             # One can select different either greedy search or beam search to genarate
@@ -256,10 +258,14 @@ class ModelEvents:
         logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
 
+        # check worker status to allow interruption
+        check_thread_status(worker)
+
         # generate radiological reports from the list of inference image paths 
         inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
         generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
-        generated_reports = generator.generate_radiological_reports(img_paths)
+        generated_reports = generator.generate_radiological_reports(
+            img_paths, progress_callback=progress_callback, worker=worker)
         serializer.save_generated_reports(generated_reports)
             
     #--------------------------------------------------------------------------
@@ -286,6 +292,9 @@ class ModelEvents:
         logger.info('Building FeXT AutoEncoder model based on user configuration') 
         modser = ModelSerializer() 
         checkpoint_path = modser.create_checkpoint_folder()
+
+        # check worker status to allow interruption
+        check_thread_status(worker)
 
         # initialize and compile the captioning model    
         logger.info('Building XREPORT Transformer model')
