@@ -157,7 +157,7 @@ class MainWindow:
         ]) 
 
         self.pixmap_source_map = {
-            self.data_plots_view: ("dataset_eval_images", "train_images"),
+            self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
             self.model_plots_view: ("model_eval_images", "model_eval_images"),
             self.inference_images_view: ("inference_images", "inference_images"),
             self.train_images_view: ("train_images", "train_images")} 
@@ -289,10 +289,10 @@ class MainWindow:
                             'dataset_eval_images' : 0, 'model_eval_images' : 0}   
         
         self.pixmap_source_map = {
-            self.data_plots_view: ("dataset_eval_images", "train_images"),
+            self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
             self.model_plots_view: ("model_eval_images", "model_eval_images"),
             self.inference_images_view: ("inference_images", "inference_images"),
-            self.train_images_view: ("train_images", "train_images")}
+            self.train_images_view: ("train_images", "train_images")} 
         
         self.text_view = {'train_images': self.dataset_handler.get_description_from_train_image,
                           'inference_images': self.dataset_handler.get_generated_report}
@@ -400,7 +400,7 @@ class MainWindow:
         scaled = qpixmap.scaled(view_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         pixmap_item.setPixmap(scaled)
         scene.setSceneRect(scaled.rect())
-        # update the image description when necessary
+        # update the image description when necessary        
         self._update_image_descriptions(idx_key)
 
     #--------------------------------------------------------------------------
