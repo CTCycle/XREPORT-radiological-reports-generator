@@ -568,7 +568,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
         <string>Dataset</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_4">
-        <item row="0" column="0">
+        <item row="0" column="1">
          <widget class="QGroupBox" name="datasetEvalGroup">
           <property name="title">
            <string>Dataset evaluation</string>
@@ -664,7 +664,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
           </layout>
          </widget>
         </item>
-        <item row="0" column="1">
+        <item row="0" column="0">
          <widget class="QGroupBox" name="datasetProcessGroup">
           <property name="title">
            <string>Dataset processing</string>
