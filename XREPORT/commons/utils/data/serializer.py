@@ -93,7 +93,7 @@ class DataSerializer:
         return train_data, val_data, metadata   
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
+    def save_train_and_validation_data(self, train_data, validation_data,
                                        vocabulary_size=None):          
         self.database.save_train_and_validation_tables(train_data, validation_data)       
         metadata = {'seed' : self.configuration['SEED'], 
@@ -105,7 +105,7 @@ class DataSerializer:
             json.dump(metadata, file, indent=4) 
 
     #--------------------------------------------------------------------------
-    def save_generated_reports(self, data : pd.DataFrame):
+    def save_generated_reports(self, data):
         self.database.save_inference_data_table(data) 
     
 

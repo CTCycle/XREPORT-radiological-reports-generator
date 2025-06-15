@@ -296,7 +296,7 @@ class XREPORTDatabase:
         return train_data, validation_data         
 
     #--------------------------------------------------------------------------
-    def save_source_data_table(self, data : pd.DataFrame):        
+    def save_source_data_table(self, data):        
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(self.source_data.name, conn, if_exists='replace', index=False,
                     dtype=self.source_data.get_dtypes())
@@ -304,7 +304,7 @@ class XREPORTDatabase:
         conn.close() 
         
     #--------------------------------------------------------------------------
-    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_train_and_validation_tables(self, train_data, validation_data):         
         conn = sqlite3.connect(self.db_path)         
         train_data.to_sql(
             self.train_data.name, conn, if_exists='replace', index=False,
@@ -316,7 +316,7 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def save_inference_data_table(self, data : pd.DataFrame):         
+    def save_inference_data_table(self, data):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(self.inference_data.name, conn, if_exists='replace', index=False,
                     dtype=self.inference_data.get_dtypes())
@@ -324,7 +324,7 @@ class XREPORTDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_image_statistics_table(self, data : pd.DataFrame):      
+    def save_image_statistics_table(self, data):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.image_stats.name, conn, if_exists='replace', index=False,
@@ -333,7 +333,7 @@ class XREPORTDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_text_statistics_table(self, data : pd.DataFrame):      
+    def save_text_statistics_table(self, data):      
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.text_stats.name, conn, if_exists='replace', index=False,
@@ -342,7 +342,7 @@ class XREPORTDatabase:
         conn.close() 
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
+    def save_checkpoints_summary_table(self, data):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(
             self.checkpoints_summary.name, conn, if_exists='replace', index=False,

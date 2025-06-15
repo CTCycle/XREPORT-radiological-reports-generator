@@ -503,12 +503,12 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.dataset_handler.build_ML_dataset)   
+        self.worker = Worker(self.dataset_handler.run_dataset_builder)   
 
         # start worker and inject signals
         self._start_worker(
