@@ -3,11 +3,11 @@ import numpy as np
 from tqdm import tqdm 
 
 from keras import Model
-from keras.ops import expand_dims, argmax, zeros
+from keras import ops
 from keras.utils import set_random_seed
 
 from XREPORT.commons.utils.data.loader import InferenceDataLoader
-from XREPORT.commons.utils.data.process.tokenizers import TokenWizard
+from XREPORT.commons.utils.data.process import TokenWizard
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.logger import logger
 
@@ -100,10 +100,10 @@ class TextGenerator:
                
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
         image = self.dataloader.load_image_as_array(image_path)
-        image = expand_dims(image, axis=0)
+        image = ops.expand_dims(image, axis=0)
         # initialize an array with same size of max expected report length
         # set the start token as the first element
-        seq_input = zeros((1, self.max_report_size), dtype='int32')
+        seq_input = ops.zeros((1, self.max_report_size), dtype='int32')
         seq_input[0, 0] = start_token_idx  
         # initialize progress bar for better output formatting
         progress_bar = tqdm(total=self.max_report_size - 1)
@@ -111,7 +111,7 @@ class TextGenerator:
             # predict the next token based on the truncated sequence (last token removed)         
             predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)  
             # apply argmax (greedy search) to identify the most probable token              
-            next_token_idx = argmax(predictions[0, i-1, :], axis=-1).item()
+            next_token_idx = ops.argmax(predictions[0, i-1, :], axis=-1).item()
             next_token = index_lookup[next_token_idx]                
             # Stop sequence generation if end token is generated
             if next_token == end_token:               
@@ -143,7 +143,7 @@ class TextGenerator:
 
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
         image = self.dataloader.load_image_as_array(image_path)
-        image = expand_dims(image, axis=0)
+        image = ops.expand_dims(image, axis=0)
 
         # Initialize the beam with a single sequence containing only the start token and a score of 0.0 (log-prob)
         beams = [([start_token_idx], 0.0)]
@@ -160,7 +160,7 @@ class TextGenerator:
 
                 # Prepare a padded sequence input.
                 # We create an array of zeros with shape (1, max_report_size) and fill in the current sequence.
-                seq_input = zeros((1, self.max_report_size), dtype='int32')
+                seq_input = ops.zeros((1, self.max_report_size), dtype='int32')
                 for j, token in enumerate(seq):
                     seq_input[0, j] = token
 
@@ -187,12 +187,12 @@ class TextGenerator:
             beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]            
             # If every beam in the list ends with the end token, we can stop early.
             if all(seq[-1] == end_token_idx for seq, _ in beams):
-                break
+                break            
 
         # Choose the best beam (the one with the highest score)
         best_seq, best_score = beams[0]        
         # Create a full padded sequence from the best beam for conversion to text.
-        seq_input = zeros((1, self.max_report_size), dtype='int32')
+        seq_input = ops.zeros((1, self.max_report_size), dtype='int32')
         for i, token in enumerate(best_seq):
             seq_input[0, i] = token
 
@@ -211,7 +211,6 @@ class TextGenerator:
 
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
-            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
-                
+            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))                
 
         return reports

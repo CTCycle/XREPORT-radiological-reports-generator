@@ -254,9 +254,7 @@ class XREPORTDatabase:
         self.inference_data = GeneratedReportsTable()
         self.image_stats = ImageStatisticsTable()
         self.text_stats = TextStatisticsTable()
-        self.checkpoints_summary = CheckpointSummaryTable()    
-        self.initialize_database()
-        self.update_database()
+        self.checkpoints_summary = CheckpointSummaryTable()        
 
     #--------------------------------------------------------------------------       
     def initialize_database(self):        
