@@ -59,7 +59,7 @@ class MainWindow:
             (QProgressBar,'progressBar','progress_bar'),         
             # 1. dataset tab page
             (QCheckBox,'getStatsAnalysis','get_image_stats'),
-            (QCheckBox,'getPixDist','get_pixels_dist'),
+            (QCheckBox,'getPixDist','pixel_distribution_metric'),
             (QPushButton,'getImgMetrics','get_img_metrics'),
             (QSpinBox,'seed','general_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'),
@@ -132,9 +132,9 @@ class MainWindow:
             ('refresh_checkpoints','clicked',self.load_checkpoints),
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page            
-            ('get_pixels_dist','toggled',self._update_metrics),
+            ('pixel_distribution_metric','toggled',self._update_metrics),
             ('get_img_metrics','clicked',self.run_dataset_evaluation_pipeline), 
-            ('build_training_dataset','clicked',self.build_ML_dataset),
+            ('build_ML_dataset','clicked',self.build_ML_dataset),
             # 2. training tab page                                   
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
@@ -237,7 +237,7 @@ class MainWindow:
             widget = self.widgets[attr]
             self.connect_update_setting(widget, signal_name, config_key)
 
-        self.data_metrics = [('pixels_distribution', self.get_pixels_dist)]
+        self.data_metrics = [('pixels_distribution', self.pixel_distribution_metric)]
         self.model_metrics = [('evaluation_report', self.get_evaluation_report),
                               ('BLEU_score', self.get_BLEU_score)]
 
