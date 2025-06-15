@@ -6,9 +6,9 @@ from datetime import datetime
 import cv2
 import numpy as np
 import pandas as pd
-import keras
+from keras.utils import plot_model
+from keras.models import load_model
 
-from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
 from XREPORT.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
@@ -19,7 +19,7 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):             
+    def __init__(self, database, configuration):             
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
@@ -28,10 +28,10 @@ class DataSerializer:
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         
         self.metadata_path = os.path.join(
-            METADATA_PATH, 'preprocessing_metadata.json')         
-        self.database = XREPORTDatabase(configuration)
+            METADATA_PATH, 'preprocessing_metadata.json')          
         
-        self.seed = configuration.get('general_seed', 42)         
+        self.seed = configuration.get('general_seed', 42) 
+        self.database = database         
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
@@ -106,9 +106,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, data : pd.DataFrame):
-        self.database.save_inference_data_table(data)  
-
-    
+        self.database.save_inference_data_table(data) 
     
 
 # [MODEL SERIALIZATION]
@@ -131,7 +129,7 @@ class ModelSerializer:
         return checkpoint_path        
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model : keras.Model, path):
+    def save_pretrained_model(self, model, path):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
@@ -186,7 +184,7 @@ class ModelSerializer:
     def save_model_plot(self, model, path):       
         logger.debug('Generating model architecture graph')
         plot_path = os.path.join(path, 'model_layout.png')       
-        keras.utils.plot_model(model, to_file=plot_path, show_shapes=True, 
+        plot_model(model, to_file=plot_path, show_shapes=True, 
                     show_layer_names=True, show_layer_activations=True, 
                     expand_nested=True, rankdir='TB', dpi=400)
         
@@ -200,7 +198,7 @@ class ModelSerializer:
                      
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name) 
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
-        model = keras.models.load_model(model_path, custom_objects=custom_objects)       
+        model = load_model(model_path, custom_objects=custom_objects)       
         configuration, session = self.load_training_configuration(checkpoint_path)        
             
         return model, configuration, session, checkpoint_path
