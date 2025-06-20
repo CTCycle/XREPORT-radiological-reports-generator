@@ -112,7 +112,7 @@ def initialize_callbacks_handler(configuration, checkpoint_path, session=None,
     from_epoch = 0
     total_epochs = configuration.get('epochs', 10)
     callbacks_list = [
-        ProgressBarCallback(progress_callback, total_epochs, from_epoch),
+        ProgressBarCallback(kwargs.get('progress_callback', None), total_epochs, from_epoch),
         InterruptTraining(kwargs.get('worker', None))]  
     
     additional_epochs = configuration.get('additional_epochs', 10)

@@ -174,7 +174,7 @@ class InferenceDataLoader:
     #--------------------------------------------------------------------------
     def compose_tensor_dataset(self, data, batch_size, buffer_size=tf.data.AUTOTUNE):         
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
-        batch_size = self.configuration["training"]["BATCH_SIZE"] if batch_size is None else batch_size
+        batch_size = self.configuration.get('batch_size', 32) if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
         dataset = dataset.map(
             self.processor.load_data, num_parallel_calls=buffer_size)        

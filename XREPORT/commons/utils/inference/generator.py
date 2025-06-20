@@ -211,6 +211,7 @@ class TextGenerator:
 
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
-            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))                
+            update_progress_callback(
+                i, len(images_path), kwargs.get('progress_callback', None))                
 
         return reports
