@@ -7,18 +7,18 @@ XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
 XREPORT/resources/database/inference/radiography/*
 
-setup/environment/*
-setup/miniconda/*
-setup/variables/.env
+!XREPORT/commons/assets/*
+XREPORT/app/python/*
+XREPORT/app/git/*
 
 __pycache__
 *.jpeg
 *.jpg
 *.png
-*.egg-info
-*.log
 *.db
+*.log
+*.npy
+*.egg-info
 !.gitkeep
-
 
 
