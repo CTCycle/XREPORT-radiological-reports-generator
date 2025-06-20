@@ -3,8 +3,8 @@ import shutil
 import pandas as pd
 
 from XREPORT.commons.utils.learning.callbacks import InterruptTraining
-from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.data.serializer import ModelSerializer
+from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.constants import CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
@@ -13,10 +13,9 @@ from XREPORT.commons.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, configuration, remove_invalid=False):
-        self.remove_invalid = remove_invalid
-        self.serializer = ModelSerializer()        
-        self.database = XREPORTDatabase(configuration)        
+    def __init__(self, database, configuration, remove_invalid=False):
+        self.remove_invalid = remove_invalid            
+        self.database = database      
         self.configuration = configuration
 
     #---------------------------------------------------------------------------
@@ -33,12 +32,13 @@ class ModelEvaluationSummary:
         return model_paths  
 
     #---------------------------------------------------------------------------
-    def get_checkpoints_summary(self, **kwargs):            
+    def get_checkpoints_summary(self, **kwargs):    
+        serializer = ModelSerializer()            
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
-        for model_path in model_paths:            
-            model = self.serializer.load_checkpoint(model_path)
-            configuration, history = self.serializer.load_training_configuration(model_path)
+        for i, model_path in enumerate(model_paths):                
+            model = serializer.load_checkpoint(model_path)
+            configuration, history = serializer.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)                   
             precision = 16 if configuration.get("use_mixed_precision", 'NA') else 32 
             chkp_config = {'Sample size': configuration.get("train_sample_size", 'NA'),
@@ -70,6 +70,12 @@ class ModelEvaluationSummary:
 
             model_parameters.append(chkp_config)
 
+            # check for thread status and progress bar update   
+            check_thread_status(kwargs.get('worker', None))         
+            update_progress_callback(
+                i, len(model_paths), kwargs.get('progress_callback', None)) 
+
+
         dataframe = pd.DataFrame(model_parameters)
         self.database.save_checkpoints_summary_table(dataframe)        
             
@@ -78,8 +84,8 @@ class ModelEvaluationSummary:
     #--------------------------------------------------------------------------
     def get_evaluation_report(self, model, validation_dataset, **kwargs):
         callbacks_list = [InterruptTraining(kwargs.get('worker', None))]
-        validation = model.evaluate(validation_dataset, verbose=1, callbacks=callbacks_list)    
+        validation = model.evaluate(validation_dataset, verbose=1, callbacks=callbacks_list)      
         logger.info(
-            f'RMSE loss {validation[0]:.3f} - Cosine similarity {validation[1]:.3f}')     
+        f'Sparse Categorical Entropy Loss {validation[0]:.3f} - Sparse Categorical Accuracy {validation[1]:.3f}') 
     
     
