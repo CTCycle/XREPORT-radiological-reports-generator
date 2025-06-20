@@ -85,8 +85,7 @@ def check_thread_status(worker):
         raise WorkerInterrupted()    
 
 #------------------------------------------------------------------------------
-def update_progress_callback(progress, items, progress_callback=None):   
-    if progress_callback is not None:
-        total = len(items)
+def update_progress_callback(progress, total, progress_callback=None):   
+    if progress_callback is not None:        
         percent = int((progress + 1) * 100 / total)
-        progress_callback(percent)   
+        progress_callback(percent)  
