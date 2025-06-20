@@ -20,7 +20,7 @@ class XREPORTModel:
         self.img_shape = (224,224,3) 
         
         self.embedding_dims = configuration.get('embedding_dims', 256)
-        self.num_heads = configuration.get('attention_heads', 3) 
+        self.num_heads = configuration.get('num_attention_heads', 3) 
         self.num_encoders = configuration.get('num_encoders', 3) 
         self.num_decoders = configuration.get('num_decoders', 3) 
         self.freeze_img_encoder = configuration.get('freeze_img_encoder', 3)

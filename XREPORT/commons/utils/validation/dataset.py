@@ -198,7 +198,8 @@ class ImageAnalysis:
 
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
-            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
+            update_progress_callback(
+                i, len(images_path), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
         self.database.save_image_statistics_table(stats_dataframe)       
@@ -223,7 +224,8 @@ class ImageAnalysis:
             
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
-            update_progress_callback(i, images_path, kwargs.get('progress_callback', None))  
+            update_progress_callback(
+                i, len(images_path), kwargs.get('progress_callback', None))  
 
         # Plot the combined histogram
         fig, ax = plt.subplots(figsize=(16, 14), dpi=self.DPI)

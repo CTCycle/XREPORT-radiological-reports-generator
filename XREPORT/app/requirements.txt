@@ -1,0 +1,27 @@
+# PyTorch (CUDA 12.4)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.7.1+cu128
+#torchaudio==2.7.0+cu128
+#torchvision==0.22.0+cu128
+
+# TensorFlow & NLP
+tensorflow==2.19.0
+nltk==3.9.1
+
+# Deep Learning & Computer Vision
+keras==3.10.0
+scikit-learn==1.6.1
+opencv-python==4.11.0.86
+
+# GUI, Plotting & Data
+PySide6==6.9.0
+matplotlib==3.10.1
+numpy==2.1.3
+pandas==2.2.3
+
+# Graphviz interfaces (pip)
+pydot==1.4.2
+pydotplus==2.0.2
+
+# Environment
+python-dotenv==1.1.0
