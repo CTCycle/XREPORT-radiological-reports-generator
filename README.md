@@ -56,7 +56,7 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 
 **Model inference:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
 
-**Setup and Maintenance:** you can run *setup/setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
+**Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
 - **Run installation:** run the application installer for Windows
 - **Enable root path imports:** refresh root path imports if the main folder has been moved or renamed

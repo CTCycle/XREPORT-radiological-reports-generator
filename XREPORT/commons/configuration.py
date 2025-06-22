@@ -9,7 +9,7 @@ class Configuration:
             'validation_size': 0.2,
             'img_augmentation': False,
             'shuffle_dataset': True,
-            'shuffle_size': 1024,
+            'shuffle_size': 256,
             'max_report_size': 160,
             'tokenizer': 'distilbert',
 
