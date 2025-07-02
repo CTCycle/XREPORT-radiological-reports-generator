@@ -5,10 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from nltk.translate.bleu_score import corpus_bleu
 
-from XREPORT.commons.utils.learning.inference.generator import TextGenerator
-from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.constants import EVALUATION_PATH
 from XREPORT.commons.logger import logger
@@ -18,10 +15,11 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextAnalysis:
 
-    def __init__(self, configuration : dict):
+    def __init__(self, database, configuration : dict):
         self.DPI = 400
         self.file_type = 'jpg'
-        self.database = XREPORTDatabase(configuration)  
+        self.database = database
+        self.configuration = configuration  
 
     #--------------------------------------------------------------------------
     def count_words_in_documents(self, data):         
@@ -35,14 +33,14 @@ class TextAnalysis:
         images_path = data['path'].to_list()         
         results= []     
         for i, desc in enumerate(tqdm(
-            images_descriptions, desc="Processing images", total=len(images_descriptions), ncols=100)):              
+            images_descriptions, desc="Processing report", total=len(images_descriptions), ncols=100)):              
             results.append({'name': os.path.basename(images_path[i]),
                             'words_count': len(desc.split())})
 
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i, images_descriptions, kwargs.get('progress_callback', None))  
+                i, len(images_descriptions), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
         self.database.save_text_statistics_table(stats_dataframe)       
@@ -50,94 +48,7 @@ class TextAnalysis:
         return stats_dataframe
     
 
-# [VALIDATION OF DATA]
-###############################################################################
-class EvaluateTextConsistency:
 
-    def __init__(self, model, configuration : dict):
-        self.model = model
-        self.configuration = configuration
-        self.num_samples = 50
-        self.generator = TextGenerator(model, configuration, verbose=False)
-        
-        self.tokenizer_config = self.generator.get_tokenizer_parameters()
-
-    #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data, **kwargs):
-        samples = validation_data.sample(n=self.num_samples, random_state=42) 
-        sampled_images = samples['path'].to_list()     
-        true_reports = dict(zip(samples['path'], samples['text']))
-        
-        # Generate reports using greedy decoding
-        generated_with_greedy = self.generator.generate_radiological_reports(
-            sampled_images, override_method='greedy')        
-        
-        references = []
-        hypotheses = []
-        
-        # For each image, tokenize the corresponding ground-truth and generated reports.
-        for i, image in enumerate(sampled_images):
-            # Ensure that the image key exists in both the true reports and generated dictionary.
-            if image in generated_with_greedy and image in true_reports:
-                # Tokenize using simple split (or use nltk.word_tokenize for better tokenization)
-                ref_tokens = true_reports[image].lower().split()  # or use: nltk.word_tokenize(true_reports[image].lower())
-                cand_tokens = generated_with_greedy[image].lower().split()  # or use: nltk.word_tokenize(generated_with_greedy[image].lower())
-                references.append([ref_tokens])  # each reference is a list of tokens; nested in a list to support multiple refs
-                hypotheses.append(cand_tokens)
-
-            # check for thread status and progress bar update
-            check_thread_status(kwargs.get('worker', None))
-            update_progress_callback(
-                i, sampled_images, kwargs.get('progress_callback', None))  
-
-        
-        # Calculate corpus BLEU score
-        bleu_score = corpus_bleu(references, hypotheses)
-        logger.info(f'BLEU score for {self.num_samples} validation samples: {bleu_score}')
-
-        return bleu_score
-        
-    
-
-# [VALIDATION OF DATA]
-###############################################################################
-class EvaluateTextConsistency:
-
-    def __init__(self, model, configuration : dict):
-        self.model = model
-        self.configuration = configuration
-        self.num_samples = 50
-        self.generator = TextGenerator(model, configuration, verbose=False)
-        self.tokenizer_config = self.generator.get_tokenizer_parameters()
-
-    #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data, **kwargs):
-        samples = validation_data.sample(n=self.num_samples, random_state=42) 
-        sampled_images = samples['path'].to_list()     
-        true_reports = dict(zip(samples['path'], samples['text']))
-        
-        # Generate reports using greedy decoding
-        generated_with_greedy = self.generator.generate_radiological_reports(
-            sampled_images, override_method='greedy')        
-        
-        references = []
-        hypotheses = []
-        
-        # For each image, tokenize the corresponding ground-truth and generated reports.
-        for image in sampled_images:
-            # Ensure that the image key exists in both the true reports and generated dictionary.
-            if image in generated_with_greedy and image in true_reports:
-                # Tokenize using simple split (or use nltk.word_tokenize for better tokenization)
-                ref_tokens = true_reports[image].lower().split()  # or use: nltk.word_tokenize(true_reports[image].lower())
-                cand_tokens = generated_with_greedy[image].lower().split()  # or use: nltk.word_tokenize(generated_with_greedy[image].lower())
-                references.append([ref_tokens])  # each reference is a list of tokens; nested in a list to support multiple refs
-                hypotheses.append(cand_tokens)
-        
-        # Calculate corpus BLEU score
-        bleu_score = corpus_bleu(references, hypotheses)
-        logger.info(f'BLEU score for {self.num_samples} validation samples: {bleu_score}')
-
-        return bleu_score
         
 
 
