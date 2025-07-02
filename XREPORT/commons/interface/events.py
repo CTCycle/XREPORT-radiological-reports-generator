@@ -5,10 +5,10 @@ from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis, EvaluateTextConsistency
-from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
+from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
+from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextConsistency
 from XREPORT.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenWizard
-from XREPORT.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
+from XREPORT.commons.utils.data.loader import XRAYDataLoader
 from XREPORT.commons.utils.learning.training.fitting import ModelTraining
 from XREPORT.commons.utils.learning.models.transformers import XREPORTModel
 from XREPORT.commons.utils.learning.inference.generator import TextGenerator
@@ -76,7 +76,7 @@ class DatasetEvents:
         return images_paths 
     
     #--------------------------------------------------------------------------
-    def get_description_from_train_image(self, image_name):    
+    def get_description_from_train_image(self, image_name : str):    
         serializer = DataSerializer(self.database, self.configuration)             
         dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
@@ -87,7 +87,7 @@ class DatasetEvents:
         return description 
 
     #--------------------------------------------------------------------------
-    def get_generated_report(self, image_name):
+    def get_generated_report(self, image_name : str):
         serializer = DataSerializer(self.database, self.configuration)                 
         dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
@@ -141,20 +141,23 @@ class ValidationEvents:
         dataset = serializer.load_source_dataset(sample_size)   
         dataset = serializer.update_images_path(dataset)
         logger.info(f'Selected sample size for dataset evaluation: {sample_size}')
-        logger.info(f'Number of reports and related images: {dataset.shape[0]}')               
-       
-        # 1. calculate images statistics and generate report
-        img_analyzer = ImageAnalysis(self.database, self.configuration) 
-        logger.info('Current metric: image dataset statistics')
-        image_statistics = img_analyzer.calculate_image_statistics(
-            dataset, progress_callback=progress_callback, worker=worker)  
+        logger.info(f'Number of reports and related images: {dataset.shape[0]}')
 
-        # 2. calculate text statistics and generate report
-        logger.info('Current metric: text dataset statistics')
-        text_analyzer = TextAnalysis(self.configuration)
-        text_statistics = text_analyzer.calculate_text_statistics(
-            dataset, progress_callback=progress_callback, worker=worker)  
-                             
+        img_analyzer = ImageAnalysis(self.database, self.configuration)
+        text_analyzer = TextAnalysis(self.database, self.configuration)                
+       
+        # 1. calculate images statistics 
+        if 'image_statistics' in metrics:            
+            logger.info('Current metric: image dataset statistics')
+            image_statistics = img_analyzer.calculate_image_statistics(
+                dataset, progress_callback=progress_callback, worker=worker)  
+
+        # 2. calculate text statistics 
+        if 'text_statistics' in metrics:
+            logger.info('Current metric: text dataset statistics')            
+            text_statistics = text_analyzer.calculate_text_statistics(
+                dataset, progress_callback=progress_callback, worker=worker)  
+                                
         images = []            
         if 'pixels_distribution' in metrics:
             logger.info('Current metric: pixel intensity distribution')
@@ -192,7 +195,7 @@ class ValidationEvents:
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
         logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
 
-        loader = InferenceDataLoader(self.configuration)      
+        loader = XRAYDataLoader(self.configuration)      
         validation_dataset = loader.build_inference_dataloader(val_data)
 
         # check worker status to allow interruption
@@ -283,7 +286,7 @@ class ModelEvents:
         
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
-        builder = TrainingDataLoader(self.configuration)   
+        builder = XRAYDataLoader(self.configuration)   
         train_dataset, validation_dataset = builder.build_training_dataloader(
             train_data, validation_data) 
         
