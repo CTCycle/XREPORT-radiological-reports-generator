@@ -9,9 +9,9 @@ from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary
 from XREPORT.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenWizard
 from XREPORT.commons.utils.data.loader import TrainingDataLoader, InferenceDataLoader
-from XREPORT.commons.utils.learning.training import ModelTraining
-from XREPORT.commons.utils.learning.models import XREPORTModel
-from XREPORT.commons.utils.inference.generator import TextGenerator
+from XREPORT.commons.utils.learning.training.fitting import ModelTraining
+from XREPORT.commons.utils.learning.models.transformers import XREPORTModel
+from XREPORT.commons.utils.learning.inference.generator import TextGenerator
 from XREPORT.commons.interface.workers import check_thread_status
 
 from XREPORT.commons.constants import INFERENCE_INPUT_PATH

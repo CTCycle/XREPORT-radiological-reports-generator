@@ -13,31 +13,10 @@ from XREPORT.commons.logger import logger
 class ModelTraining:    
        
     def __init__(self, configuration, metadata=None):              
-        set_random_seed(configuration.get('training_seed', 42))          
-        self.selected_device = configuration.get('device', 'CPU')
-        self.device_id = configuration.get('device_ID', 0)
-        self.mixed_precision = configuration.get('use_mixed_precision', False)        
+        set_random_seed(configuration.get('training_seed', 42))         
         self.configuration = configuration        
         self.metadata = metadata
         
-    # set device
-    #--------------------------------------------------------------------------
-    def set_device(self):
-        if self.selected_device == 'GPU':
-            if not cuda.is_available():
-                logger.info('No GPU found. Falling back to CPU')
-                self.device = device('cpu')
-            else:
-                self.device = device(f'cuda:{self.device_id}')
-                cuda.set_device(self.device)  
-                logger.info('GPU is set as active device')            
-                if self.mixed_precision:
-                    set_global_policy("mixed_float16")
-                    logger.info('Mixed precision policy is active during training')                   
-        else:
-            self.device = device('cpu')
-            logger.info('CPU is set as active device')  
-
     #--------------------------------------------------------------------------
     def train_model(self, model, train_data, validation_data, 
                     checkpoint_path, **kwargs): 
