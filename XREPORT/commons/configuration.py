@@ -9,8 +9,8 @@ class Configuration:
             'validation_size': 0.2,
             'img_augmentation': False,
             'shuffle_dataset': True,
-            'shuffle_size': 256,
-            'max_report_size': 160,
+            'shuffle_size': 512,
+            'max_report_size': 200,
             'tokenizer': 'distilbert',
 
             # Model 
@@ -47,8 +47,8 @@ class Configuration:
             'warmup_steps': 40000,           
 
             # Inference
-            'inference_temperature' : 1.0,
-            'inference_mode' : 'greedy_search',
+            'inference_temperature': 1.0,
+            'inference_mode': 'greedy_search',
 
             # Validation
             'val_batch_size': 20,
