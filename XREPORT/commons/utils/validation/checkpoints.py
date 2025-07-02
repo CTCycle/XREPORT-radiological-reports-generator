@@ -1,7 +1,7 @@
 import os
 import shutil
-import pandas as pd
 
+import pandas as pd
 from nltk.translate.bleu_score import corpus_bleu
 
 from XREPORT.commons.utils.learning.inference.generator import TextGenerator
