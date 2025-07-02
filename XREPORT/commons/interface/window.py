@@ -81,9 +81,10 @@ class MainWindow:
             (QPushButton,'buildMLDataset','build_training_dataset'),                         
                           
             # 2. training tab page
-            # dataset settings group     
+            # dataset settings group    
             (QCheckBox,'imgAugment','img_augmentation'),
-            (QCheckBox,'setShuffle','use_shuffle'),                        
+            (QCheckBox,'setShuffle','use_shuffle'),
+            (QDoubleSpinBox,'trainSampleSize','train_sample_size'),
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'shuffleSize','shuffle_size'),
                         
@@ -102,7 +103,7 @@ class MainWindow:
             # RL scheduler settings group
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'postWarmLR','post_warmup_LR'),
-            (QDoubleSpinBox,'warmUpSteps','warmup_steps'),            
+            (QSpinBox,'warmupSteps','warmup_steps'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'), 
             # model settings group
@@ -214,15 +215,37 @@ class MainWindow:
         connections = [
             ('use_device_GPU', 'toggled', 'use_device_GPU'),
             # 1. dataset tab page
+            # dataset evaluation group
             ('general_seed', 'valueChanged', 'general_seed'),
             ('sample_size', 'valueChanged', 'sample_size'),
+            #  dataset processing group   
             ('max_report_size', 'valueChanged', 'max_report_size'),
             ('tokenizer', 'currentTextChanged', 'tokenizer'),
-            # 2. training tab page               
+            # 2. training tab page
+            # dataset settings group            
             ('img_augmentation', 'toggled', 'img_augmentation'),
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
+            ('shuffle_size', 'valueChanged', 'shuffle_size'),
+            ('train_sample_size', 'valueChanged', 'train_sample_size'),            
+            # device settings group
+            ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
-            ('use_mixed_precision', 'toggled', 'mixed_precision'),            
+            # training settings group
+            ('use_tensorboard', 'toggled', 'run_tensorboard'),
+            ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
+            ('save_checkpoints', 'toggled', 'save_checkpoints'),
+            ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'),
+            ('epochs', 'valueChanged', 'epochs'),
+            ('batch_size', 'valueChanged', 'batch_size'),
+            ('train_seed', 'valueChanged', 'train_seed'),
+            ('split_seed', 'valueChanged', 'split_seed'),            
+            # RL scheduler settings group            
+            ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
+            ('post_warmup_LR', 'valueChanged', 'post_warmup_LR'),
+            ('warmup_steps', 'valueChanged', 'warmup_steps'),          
+
+            # model settings group
+            ('use_mixed_precision', 'toggled', 'mixed_precision'),
             ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
             ('jit_backend', 'currentTextChanged', 'jit_backend'),
             ('freeze_img_encoder', 'toggled', 'freeze_img_encoder'),            
@@ -230,26 +253,16 @@ class MainWindow:
             ('num_encoders', 'valueChanged', 'num_encoders'),
             ('num_decoders', 'valueChanged', 'num_decoders'),
             ('embedding_dimensions', 'valueChanged', 'embedding_dimensions'),
-            ('train_temperature', 'valueChanged', 'embedding_dimensions'),
-
-            ('use_tensorboard', 'toggled', 'run_tensorboard'),
-            ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
-            ('save_checkpoints', 'toggled', 'save_checkpoints'),            
-            ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'),
-            ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
-            ('split_seed', 'valueChanged', 'split_seed'),
-            ('train_seed', 'valueChanged', 'train_seed'),
-            ('shuffle_size', 'valueChanged', 'shuffle_size'),
-            ('epochs', 'valueChanged', 'epochs'),
-            ('additional_epochs', 'valueChanged', 'additional_epochs'),                    
-            ('batch_size', 'valueChanged', 'batch_size'),
-            ('device_ID', 'valueChanged', 'device_id'),
+            ('train_temperature', 'valueChanged', 'train_temperature'),            
+            # session settings group
+            ('additional_epochs', 'valueChanged', 'additional_epochs'),
             # 3. model evaluation tab page            
                         
             # 4. inference tab page           
             ('validation_size', 'valueChanged', 'validation_size'),
             ('inference_temperature', 'valueChanged', 'inference_temperature'),
-            ('inference_mode', 'currentTextChanged', 'inference_mode')]        
+            ('inference_mode', 'currentTextChanged', 'inference_mode')]   
+
 
         for attr, signal_name, config_key in connections:
             widget = self.widgets[attr]

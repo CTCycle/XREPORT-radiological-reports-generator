@@ -138,17 +138,20 @@ class ImageAnalysis:
             update_progress_callback(
                 i, len(images_path), kwargs.get('progress_callback', None))  
 
-        # Plot the combined histogram
-        fig, ax = plt.subplots(figsize=(16, 14), dpi=self.DPI)
+        # Plot the combined pixel intensity histogram
+        fig, ax = plt.subplots(figsize=(16,14), dpi=self.DPI)
         plt.bar(np.arange(256),image_histograms, alpha=0.7)
-        ax.set_title('Combined Pixel Intensity Histogram', fontsize=20)
-        ax.set_xlabel('Pixel Intensity', fontsize=12)
-        ax.set_ylabel('Frequency', fontsize=12)
+        ax.set_title('Combined Pixel Intensity Histogram', fontsize=24)
+        ax.set_xlabel('Pixel Intensity', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Frequency', fontsize=16, fontweight='bold')        
+        ax.tick_params(axis='both', which='major', labelsize=14, labelcolor='black')
+        for label in ax.get_xticklabels() + ax.get_yticklabels():
+            label.set_fontweight('bold')
         plt.tight_layout()        
-        self.save_image(fig, "pixels_intensity_histogram.jpeg") if self.save_images else None
+        self.save_image(fig, "pixels_intensity_histogram.jpeg") 
         plt.close()          
 
-        return fig    
+        return fig     
 
     #--------------------------------------------------------------------------
     def calculate_PSNR(self, img_path_1, img_path_2):        
