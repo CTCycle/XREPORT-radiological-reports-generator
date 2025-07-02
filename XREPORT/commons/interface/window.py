@@ -65,43 +65,45 @@ class MainWindow:
             (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
             (QComboBox,'checkpointsList','checkpoints_list'),
             (QProgressBar,'progressBar','progress_bar'),      
-            (QPushButton,'stopThread','stop_thread'),        
-            # 1. dataset tab page
-            (QCheckBox,'getStatsAnalysis','get_image_stats'),
+            (QPushButton,'stopThread','stop_thread'),
+            (QCheckBox,'deviceGPU','use_device_GPU'),        
+            # 1. dataset tab page 
+            # dataset evaluation group             
             (QCheckBox,'getPixDist','pixel_distribution_metric'),
-            (QPushButton,'getImgMetrics','get_img_metrics'),
+            (QPushButton,'evaluateDataset','evaluate_dataset'),
             (QSpinBox,'seed','general_seed'),
+            #  dataset processing group 
             (QDoubleSpinBox,'sampleSize','sample_size'),
             (QSpinBox,'maxReportSize','max_report_size'), 
             (QComboBox,'tokenizerList','tokenizer'),
-            (QPushButton,'buildMLDataset','build_training_dataset'),           
-                      
-            # 2. training tab page    
+            (QPushButton,'buildMLDataset','build_training_dataset'),                         
+                          
+            # 2. training tab page
+            # dataset settings group     
             (QCheckBox,'imgAugment','img_augmentation'),
             (QCheckBox,'setShuffle','use_shuffle'),                        
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'shuffleSize','shuffle_size'),
                         
-            (QRadioButton,'setCPU','use_CPU'),
-            (QRadioButton,'setGPU','use_GPU'),
+            # device settings group            
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
-
+            # training settings group
             (QCheckBox,'runTensorboard','use_tensorboard'),
             (QCheckBox,'realTimeHistory','real_time_history_callback'),
             (QCheckBox,'saveCheckpoints','save_checkpoints'),
-            (QSpinBox,'trainSeed','train_seed'),
-            (QSpinBox,'splitSeed','split_seed'),
+            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),            
             (QSpinBox,'numEpochs','epochs'),
-            (QSpinBox,'batchSize','batch_size'),            
-            (QSpinBox,'saveCPFrequency','checkpoints_frequency'),
-
+            (QSpinBox,'batchSize','batch_size'),
+            (QSpinBox,'trainSeed','train_seed'),
+            (QSpinBox,'splitSeed','split_seed'),   
+            # RL scheduler settings group
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'postWarmLR','post_warmup_LR'),
             (QDoubleSpinBox,'warmUpSteps','warmup_steps'),            
             (QSpinBox,'constantSteps','constant_steps'),
             (QSpinBox,'decaySteps','decay_steps'), 
-
+            # model settings group
             (QCheckBox,'mixedPrecision','use_mixed_precision'),
             (QCheckBox,'compileJIT','use_JIT_compiler'),   
             (QComboBox,'backendJIT','jit_backend'), 
@@ -110,22 +112,21 @@ class MainWindow:
             (QSpinBox,'numEncoders','num_encoders'),                   
             (QSpinBox,'numDecoders','num_decoders'),
             (QSpinBox,'embeddingDims','embedding_dimensions'),
-
+            # session settings group  
             (QDoubleSpinBox,'trainTemp','train_temperature'),         
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                     
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
             # 3. model evaluation tab page
             (QPushButton,'evaluateModel','model_evaluation'),
-            (QCheckBox,'runEvaluationGPU','use_GPU_evaluation'), 
+            
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
             (QCheckBox,'getBLEUScore','get_BLEU_score'),      
             (QSpinBox,'numImages','num_evaluation_images'),           
             # 4. inference tab page  
             (QDoubleSpinBox,'inferenceTemp','inference_temperature'),
-            (QComboBox,'inferenceMode','inference_mode'),  
-            (QCheckBox,'runInferenceGPU','use_GPU_inference'),      
+            (QComboBox,'inferenceMode','inference_mode'),                
             (QPushButton,'generateReports','generate_reports'),          
             # 5. Viewer tab
             (QPushButton,'loadImages','load_source_images'),
@@ -139,12 +140,14 @@ class MainWindow:
             (QPlainTextEdit, 'description', 'image_description'),           
             ])
         
-        self._connect_signals([               
-
-            # 1. dataset tab page            
+        self._connect_signals([ 
+            ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
+            ('refresh_checkpoints','clicked',self.load_checkpoints),
+            ('stop_thread','clicked',self.stop_running_worker),          
+            # 1. dataset tab page                      
             ('pixel_distribution_metric','toggled',self._update_metrics),
-            ('get_img_metrics','clicked',self.run_dataset_evaluation_pipeline), 
-            ('build_ML_dataset','clicked',self.run_dataset_builder),
+            ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),
+            ('build_training_dataset','clicked',self.run_dataset_builder),
             # 2. training tab page                                   
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
@@ -173,12 +176,10 @@ class MainWindow:
             self.train_images_view: ("train_images", "train_images")} 
         
         self._auto_connect_settings() 
-        self.use_GPU.toggled.connect(self._update_device)
-        self.use_CPU.toggled.connect(self._update_device)
-        
+               
         # Initial population of dynamic UI elements
         self.load_checkpoints()
-        self._set_graphics()         
+        self._set_graphics()        
 
     # [SHOW WINDOW]
     ###########################################################################
@@ -207,6 +208,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     def _auto_connect_settings(self):
         connections = [
+            ('use_device_GPU', 'toggled', 'use_device_GPU'),
             # 1. dataset tab page
             ('general_seed', 'valueChanged', 'general_seed'),
             ('sample_size', 'valueChanged', 'sample_size'),
@@ -251,12 +253,7 @@ class MainWindow:
 
         self.data_metrics = [('pixels_distribution', self.pixel_distribution_metric)]
         self.model_metrics = [('evaluation_report', self.get_evaluation_report),
-                              ('BLEU_score', self.get_BLEU_score)]
-
-    #--------------------------------------------------------------------------
-    def _update_device(self):
-        device = 'GPU' if self.use_GPU.isChecked() else 'CPU'
-        self.config_manager.update_value('device', device)  
+                              ('BLEU_score', self.get_BLEU_score)]    
 
     #--------------------------------------------------------------------------
     def _set_states(self):         
@@ -575,15 +572,14 @@ class MainWindow:
             return 
 
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)    
-        device = 'GPU' if self.use_GPU_evaluation.isChecked() else 'CPU'   
+        self.validation_handler = ValidationEvents(self.database, self.configuration)       
         # send message to status bar
         self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
             self.validation_handler.run_model_evaluation_pipeline,
-            self.selected_metrics['model'], self.selected_checkpoint, device)                
+            self.selected_metrics['model'], self.selected_checkpoint)                
         
         # start worker and inject signals
         self._start_worker(
@@ -620,16 +616,15 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)  
-        device = 'GPU' if self.use_GPU_inference.isChecked() else 'CPU'
+        self.model_handler = ModelEvents(self.database, self.configuration) 
+       
         # send message to status bar
         self._send_message(f"Generating reports from X-ray scans with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = Worker(
             self.model_handler.run_inference_pipeline,
-            self.selected_checkpoint,
-            device)
+            self.selected_checkpoint)
 
         # start worker and inject signals
         self._start_worker(

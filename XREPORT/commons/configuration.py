@@ -25,7 +25,7 @@ class Configuration:
             'jit_backend': 'inductor',
 
             # Device
-            'device': 'CPU',
+            'use_device_GPU': False,
             'device_id': 0,
             'use_mixed_precision': False,
             'num_workers': 0,

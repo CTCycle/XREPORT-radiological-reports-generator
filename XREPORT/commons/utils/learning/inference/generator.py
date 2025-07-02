@@ -6,7 +6,7 @@ from keras import Model
 from keras import ops
 from keras.utils import set_random_seed
 
-from XREPORT.commons.utils.data.loader import InferenceDataLoader
+from XREPORT.commons.utils.data.loader import XRAYDataLoader
 from XREPORT.commons.utils.data.process import TokenWizard
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.logger import logger
@@ -20,7 +20,7 @@ class TextGenerator:
         set_random_seed(configuration["SEED"])  
         self.model = model 
         self.configuration = configuration        
-        self.dataloader = InferenceDataLoader(configuration)
+        self.dataloader = XRAYDataLoader(configuration)
         self.name = os.path.basename(path) if path is not None else None        
         self.verbose = verbose       
         
