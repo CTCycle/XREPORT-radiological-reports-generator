@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from nltk.translate.bleu_score import corpus_bleu
 
-from XREPORT.commons.utils.inference.generator import TextGenerator
+from XREPORT.commons.utils.learning.inference.generator import TextGenerator
 from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.constants import EVALUATION_PATH
@@ -145,8 +145,8 @@ class EvaluateTextConsistency:
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, configuration):       
-        self.database = XREPORTDatabase(configuration)        
+    def __init__(self, database, configuration):       
+        self.database = database      
         self.save_images = configuration.get('save_images', True)          
         self.configuration = configuration      
         self.DPI = 400  

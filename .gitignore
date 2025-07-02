@@ -10,6 +10,7 @@ XREPORT/resources/database/inference/radiography/*
 !XREPORT/commons/assets/*
 XREPORT/app/python/*
 XREPORT/app/git/*
+XREPORT/app/.env
 
 __pycache__
 *.jpeg

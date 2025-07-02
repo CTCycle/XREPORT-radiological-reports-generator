@@ -10,7 +10,7 @@ from keras.utils import plot_model
 from keras.models import load_model
 
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.commons.utils.learning.scheduler import WarmUpLRScheduler
+from XREPORT.commons.utils.learning.training.scheduler import WarmUpLRScheduler
 from XREPORT.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.commons.logger import logger
 
