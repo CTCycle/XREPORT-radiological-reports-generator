@@ -1,6 +1,4 @@
-from torch import cuda, device
 from keras.utils import set_random_seed
-from keras.mixed_precision import set_global_policy
 
 from XREPORT.commons.utils.learning.callbacks import initialize_callbacks_handler
 from XREPORT.commons.utils.data.serializer import ModelSerializer

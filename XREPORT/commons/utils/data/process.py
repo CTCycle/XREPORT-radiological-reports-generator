@@ -49,15 +49,18 @@ class TextSanitizer:
 
 # [TOKENIZER]
 ###############################################################################
-class TokenWizard:
+class TokenizerHandler:
     
     def __init__(self, configuration):           
-        self.string_id = configuration.get('tokenizer', 'distilbert') 
+        self.tokenizer_id = configuration.get('tokenizer', None) 
         self.max_report_size = configuration.get('max_report_size', 200)        
-        self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.string_id)   
+        self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.tokenizer_id)   
 
     #--------------------------------------------------------------------------
     def get_tokenizer(self, tokenizer_name):
+        if tokenizer_name is None:
+            return
+        
         tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
         os.makedirs(tokenizer_path, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(

@@ -1,9 +1,14 @@
+import gc
 import traceback
 import inspect
+
+from torch.cuda import empty_cache, ipc_collect
+from keras import backend
 from PySide6.QtCore import QObject, Signal, QRunnable, Slot
 
 from XREPORT.commons.constants import ROOT_DIR, DATA_PATH
 from XREPORT.commons.logger import logger
+
 
 ###############################################################################
 class WorkerInterrupted(Exception):
@@ -76,12 +81,16 @@ class Worker(QRunnable):
         except Exception as e:
             tb = traceback.format_exc()
             self.signals.error.emit((e, tb))
+        finally:        
+            empty_cache()  
+            ipc_collect()
+            backend.clear_session()
+            gc.collect()
 
 
 #------------------------------------------------------------------------------
-def check_thread_status(worker):
-    if worker is not None and worker.is_interrupted():
-        logger.warning('Running thread interrupted by user')
+def check_thread_status(worker : Worker):
+    if worker is not None and worker.is_interrupted():        
         raise WorkerInterrupted()    
 
 #------------------------------------------------------------------------------
