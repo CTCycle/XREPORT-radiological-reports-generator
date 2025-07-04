@@ -7,7 +7,7 @@ from keras import ops
 from keras.utils import set_random_seed
 
 from XREPORT.commons.utils.data.loader import XRAYDataLoader
-from XREPORT.commons.utils.data.process import TokenWizard
+from XREPORT.commons.utils.data.process import TokenizerHandler
 from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.commons.logger import logger
 
@@ -36,7 +36,7 @@ class TextGenerator:
             x for x in self.layer_names if 'transformer_decoder' in x] 
 
         # Get tokenizer and related configuration
-        self.tokenization = TokenWizard(self.configuration)
+        self.tokenization = TokenizerHandler(self.configuration)
         self.tokenizer = self.tokenization.tokenizer
         # report generation methods 
         self.selected_method = mode

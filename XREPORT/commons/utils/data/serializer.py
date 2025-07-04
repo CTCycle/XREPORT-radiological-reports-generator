@@ -27,9 +27,7 @@ class DataSerializer:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         
-        self.metadata_path = os.path.join(
-            METADATA_PATH, 'preprocessing_metadata.json')          
-        
+        self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
         self.seed = configuration.get('general_seed', 42) 
         self.database = database         
         self.configuration = configuration
@@ -95,14 +93,16 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data, validation_data,
                                        vocabulary_size=None):          
-        self.database.save_train_and_validation_tables(train_data, validation_data)       
-        metadata = {'seed' : self.configuration['SEED'], 
-                    'dataset' : self.configuration['dataset'],
+               
+        metadata = {'seed' : self.seed, 
+                    'dataset' : self.configuration.get('dataset', {}),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'vocabulary_size' : vocabulary_size}
                 
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
+
+        self.database.save_train_and_validation_tables(train_data, validation_data)
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, data):

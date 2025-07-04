@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from keras.ops import concatenate
 
+from XREPORT.commons.utils.data.process import TokenizerHandler
 from XREPORT.commons.logger import logger
 
 
@@ -21,7 +23,9 @@ class DataLoaderProcessor:
         self.batch_size = configuration.get('batch_size', 32)
         self.eval_batch_size = configuration.get('eval_batch_size', 32)
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels==3 else cv2.COLOR_BGR2GRAY
-  
+         
+        handler = TokenizerHandler(configuration)               
+        self.PAD_TOKEN = handler.tokenizer.pad_token_id
         self.configuration = configuration        
 
     # load and preprocess a single image
@@ -40,21 +44,24 @@ class DataLoaderProcessor:
         
         return image  
 
+    # works directly with tensors
     #--------------------------------------------------------------------------
     def load_data_for_training(self, path, text):        
         rgb_image = self.load_image(path)
         rgb_image = self.image_augmentation(rgb_image) if self.augmentation else rgb_image
         rgb_image = self.image_normalization(rgb_image)        
-        input_text, output_text = text[:-1], text[1:]          
-
+        pad_token = tf.cast(self.PAD_TOKEN, text.dtype)
+        pad_token_tf = tf.expand_dims(pad_token, 0)        
+        input_text = tf.concat([text[:-1], pad_token_tf], axis=0)
+        output_text = tf.concat([pad_token_tf, text[1:]], axis=0)
+        
         return (rgb_image, input_text), output_text                  
  
     #--------------------------------------------------------------------------
     def load_data_for_inference(self, path, text):
         rgb_image = self.load_image(path)        
         rgb_image = self.image_normalization(rgb_image)        
-        input_text, output_text = text[:-1], text[1:]          
-
+        
         return rgb_image    
 
     # define method perform data augmentation    
@@ -102,7 +109,7 @@ class XRAYDataLoader:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_training_dataloader(self, data, batch_size, buffer_size=tf.data.AUTOTUNE):           
+    def build_training_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
         batch_size = self.batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
@@ -116,7 +123,7 @@ class XRAYDataLoader:
         
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_inference_dataloader(self, data, batch_size, buffer_size=tf.data.AUTOTUNE):           
+    def build_inference_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
         batch_size = self.eval_batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 

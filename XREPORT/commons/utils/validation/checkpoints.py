@@ -44,7 +44,7 @@ class ModelEvaluationSummary:
             configuration, history = serializer.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)                   
             precision = 16 if configuration.get("use_mixed_precision", 'NA') else 32 
-            chkp_config = {'Sample size': configuration.get("train_sample_size", 'NA'),
+            chkp_config = {'Sample size': configuration.get("sample_size", 'NA'),
                            'Validation size': configuration.get("validation_size", 'NA'),
                            'Seed': configuration.get("train_seed", 'NA'),                           
                            'Precision (bits)': precision,                      

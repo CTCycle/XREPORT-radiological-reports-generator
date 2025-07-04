@@ -39,8 +39,7 @@ class InterruptTraining(keras.callbacks.Callback):
 
     #--------------------------------------------------------------------------
     def on_batch_end(self, batch, logs=None):
-        if self.worker is not None and self.worker.is_interrupted():
-            logger.warning("Stopping training aas requested by the user")
+        if self.worker is not None and self.worker.is_interrupted():            
             self.model.stop_training = True
             raise WorkerInterrupted()
 

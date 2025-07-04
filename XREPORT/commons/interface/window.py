@@ -43,8 +43,7 @@ class MainWindow:
     
         # set thread pool for the workers
         self.threadpool = QThreadPool.globalInstance()
-        self.worker = None
-        self.worker_running = False       
+        self.worker = None       
 
         # initialize database
         self.database = XREPORTDatabase(self.configuration)
@@ -72,10 +71,11 @@ class MainWindow:
             (QCheckBox,'imgStats','image_statistics_metric'),
             (QCheckBox,'textStats','text_statistics_metric'),
             (QCheckBox,'pixDist','pixel_distribution_metric'),
-            (QPushButton,'evaluateDataset','evaluate_dataset'),
+            (QPushButton,'evaluateDataset','evaluate_dataset'),            
+            # dataset processing group 
             (QSpinBox,'seed','general_seed'),
-            #  dataset processing group 
             (QDoubleSpinBox,'sampleSize','sample_size'),
+            (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'maxReportSize','max_report_size'), 
             (QComboBox,'tokenizerList','tokenizer'),
             (QPushButton,'buildMLDataset','build_training_dataset'),                         
@@ -83,9 +83,7 @@ class MainWindow:
             # 2. training tab page
             # dataset settings group    
             (QCheckBox,'imgAugment','img_augmentation'),
-            (QCheckBox,'setShuffle','use_shuffle'),
-            (QDoubleSpinBox,'trainSampleSize','train_sample_size'),
-            (QDoubleSpinBox,'validationSize','validation_size'),
+            (QCheckBox,'setShuffle','use_shuffle'), 
             (QSpinBox,'shuffleSize','shuffle_size'),
                         
             # device settings group            
@@ -225,8 +223,7 @@ class MainWindow:
             # dataset settings group            
             ('img_augmentation', 'toggled', 'img_augmentation'),
             ('use_shuffle', 'toggled', 'shuffle_dataset'),
-            ('shuffle_size', 'valueChanged', 'shuffle_size'),
-            ('train_sample_size', 'valueChanged', 'train_sample_size'),            
+            ('shuffle_size', 'valueChanged', 'shuffle_size'),                       
             # device settings group
             ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
@@ -288,40 +285,33 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     def _set_graphics(self):
-        self.graphics = {}        
         view = self.main_win.findChild(QGraphicsView, 'canvas')
         scene = QGraphicsScene()
         pixmap_item = QGraphicsPixmapItem()
         pixmap_item.setTransformationMode(Qt.SmoothTransformation)
         scene.addItem(pixmap_item)
         view.setScene(scene)
-        view.setRenderHint(QPainter.Antialiasing, True)
-        view.setRenderHint(QPainter.SmoothPixmapTransform, True)
-        view.setRenderHint(QPainter.TextAntialiasing, True)
-        self.graphics = {'view': view,
-                         'scene': scene,
-                         'pixmap_item': pixmap_item}            
-                    
-        self.pixmaps = {
-            'train_images': [],         
-            'inference_images': [],      
-            'dataset_eval_images': [],  
-            'model_eval_images': []}
-        
-        self.img_paths = {'train_images' : IMG_PATH,
-                          'inference_images' : INFERENCE_INPUT_PATH}
-              
-        self.current_fig = {'train_images' : 0, 'inference_images' : 0,
-                            'dataset_eval_images' : 0, 'model_eval_images' : 0}   
-        
+        for hint in (QPainter.Antialiasing, QPainter.SmoothPixmapTransform, 
+                     QPainter.TextAntialiasing):
+            view.setRenderHint(hint, True)
+
+        self.graphics = {'view': view, 'scene': scene, 'pixmap_item': pixmap_item}
+        self.pixmaps = {k: [] for k in (
+            'train_images', 'inference_images', 
+            'dataset_eval_images', 'model_eval_images')}
+
+        self.img_paths = {'train_images': IMG_PATH, 'inference_images': INFERENCE_INPUT_PATH}
+        self.current_fig = {k: 0 for k in self.pixmaps}
+
         self.pixmap_source_map = {
             self.data_plots_view: ("dataset_eval_images", "dataset_eval_images"),
             self.model_plots_view: ("model_eval_images", "model_eval_images"),
             self.inference_images_view: ("inference_images", "inference_images"),
             self.train_images_view: ("train_images", "train_images")} 
         
-        self.text_view = {'train_images': self.dataset_handler.get_description_from_train_image,
-                          'inference_images': self.dataset_handler.get_generated_report}
+        self.text_view = {
+            'train_images': self.dataset_handler.get_description_from_train_image,
+            'inference_images': self.dataset_handler.get_generated_report}
 
             
     #--------------------------------------------------------------------------
@@ -344,7 +334,6 @@ class MainWindow:
         worker.signals.error.connect(on_error)        
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
-        self.worker_running = True
 
     #--------------------------------------------------------------------------
     def _send_message(self, message): 
@@ -499,7 +488,7 @@ class MainWindow:
         if not self.data_metrics:
             return 
         
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -521,7 +510,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def run_dataset_builder(self):          
-        if self.worker_running:            
+        if self.worker:            
             return         
         
         self.configuration = self.config_manager.get_configuration() 
@@ -543,7 +532,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def train_from_scratch(self):
-        if self.worker_running:            
+        if self.worker:            
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
@@ -563,7 +552,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def resume_training_from_checkpoint(self): 
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -587,7 +576,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def run_model_evaluation_pipeline(self):  
-        if self.worker_running:            
+        if self.worker:            
             return 
 
         self.configuration = self.config_manager.get_configuration() 
@@ -609,7 +598,7 @@ class MainWindow:
     #-------------------------------------------------------------------------- 
     @Slot()
     def get_checkpoints_summary(self):       
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -631,7 +620,7 @@ class MainWindow:
     #--------------------------------------------------------------------------   
     @Slot()    
     def generate_reports_with_checkpoint(self):  
-        if self.worker_running:            
+        if self.worker:            
             return 
         
         self.configuration = self.config_manager.get_configuration() 
@@ -657,7 +646,7 @@ class MainWindow:
     ###########################################################################
     def on_dataset_processing_finished(self, plots):         
         self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
-        self.worker_running = False
+        self.worker = None
 
     #--------------------------------------------------------------------------   
     def on_dataset_evaluation_finished(self, plots):   
@@ -670,13 +659,13 @@ class MainWindow:
         self.current_fig[key] = 0
         self._update_graphics_view()
         self.validation_handler.handle_success(self.main_win, 'Figures have been generated')
-        self.worker_running = False
+        self.worker = None
 
     #--------------------------------------------------------------------------
     def on_train_finished(self, session):          
         self.model_handler.handle_success(
             self.main_win, 'Training session is over. Model has been saved')
-        self.worker_running = False
+        self.worker = None
 
     #--------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
@@ -690,13 +679,13 @@ class MainWindow:
         self._update_graphics_view()
         self.validation_handler.handle_success(
             self.main_win, f'Model {self.selected_checkpoint} has been evaluated')
-        self.worker_running = False
+        self.worker = None
 
     #--------------------------------------------------------------------------
     def on_inference_finished(self, session):         
         self.model_handler.handle_success(
             self.main_win, 'Inference call has been terminated')
-        self.worker_running = False
+        self.worker = None
 
 
     ###########################################################################   
@@ -705,27 +694,27 @@ class MainWindow:
     @Slot() 
     def on_data_error(self, err_tb):
         self.dataset_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False
+        self.worker = None
 
     #--------------------------------------------------------------------------
     @Slot()     
     @Slot(tuple)
     def on_evaluation_error(self, err_tb):
         self.validation_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False  
+        self.worker = None  
 
     #--------------------------------------------------------------------------
     @Slot() 
     def on_model_error(self, err_tb):
         self.model_handler.handle_error(self.main_win, err_tb) 
-        self.worker_running = False 
+        self.worker = None 
 
     #--------------------------------------------------------------------------
     def on_task_interrupted(self):         
         self.progress_bar.setValue(0)
         self._send_message('Current task has been interrupted by user') 
         logger.warning('Current task has been interrupted by user')
-        self.worker_running = False        
+        self.worker = None        
         
           
          

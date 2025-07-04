@@ -11,7 +11,7 @@ class Configuration:
             'shuffle_dataset': True,
             'shuffle_size': 512,
             'max_report_size': 200,
-            'tokenizer': 'distilbert',
+            'tokenizer': 'distilbert/distilbert-base-uncased',
 
             # Model 
             'num_attention_heads': 3,
@@ -32,8 +32,7 @@ class Configuration:
 
             # Training
             'split_seed': 76,
-            'train_seed': 42, 
-            'train_sample_size': 1.0,
+            'train_seed': 42,            
             'epochs': 100,
             'additional_epochs': 10,
             'batch_size': 32,

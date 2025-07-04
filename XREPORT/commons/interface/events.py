@@ -7,8 +7,9 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
 from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextConsistency
-from XREPORT.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenWizard
+from XREPORT.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenizerHandler
 from XREPORT.commons.utils.data.loader import XRAYDataLoader
+from XREPORT.commons.utils.learning.device import DeviceConfig
 from XREPORT.commons.utils.learning.training.fitting import ModelTraining
 from XREPORT.commons.utils.learning.models.transformers import XREPORTModel
 from XREPORT.commons.utils.learning.inference.generator import TextGenerator
@@ -110,8 +111,8 @@ class DatasetEvents:
 
         # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
         # into subunits and these are eventually mapped to integer indexes        
-        tokenization = TokenWizard(self.configuration) 
-        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_name} tokenizer')    
+        tokenization = TokenizerHandler(self.configuration) 
+        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
         processed_data = tokenization.tokenize_text_corpus(processed_data)   
         vocabulary_size = tokenization.vocabulary_size 
         logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
@@ -121,9 +122,23 @@ class DatasetEvents:
         splitter = TrainValidationSplit(self.configuration, processed_data)     
         train_data, validation_data = splitter.split_train_and_validation()        
                
-        self.serializer.save_train_and_validation_data(
+        serializer.save_train_and_validation_data(
             train_data, validation_data, vocabulary_size) 
-        logger.info('Preprocessed data saved into XREPORT database')              
+        logger.info('Preprocessed data saved into XREPORT database') 
+
+    # define the logic to handle successfull data retrieval outside the main UI loop
+    #--------------------------------------------------------------------------
+    def handle_success(self, window, message):
+        # send message to status bar
+        window.statusBar().showMessage(message)
+    
+    # define the logic to handle error during data retrieval outside the main UI loop
+    #--------------------------------------------------------------------------
+    def handle_error(self, window, err_tb):
+        exc, tb = err_tb
+        logger.error(exc, '\n', tb)
+        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
+             
 
 
 
@@ -185,8 +200,8 @@ class ValidationEvents:
 
         # set device for training operations based on user configuration
         logger.info('Setting device for training operations based on user configuration')                
-        trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)        
+        device = DeviceConfig(self.configuration)   
+        device.set_device()       
         
         serializer = DataSerializer(self.database, self.configuration) 
         _, val_data, metadata = serializer.load_train_and_validation_data()    
@@ -247,35 +262,6 @@ class ModelEvents:
         return serializer.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
-    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
-                               progress_callback=None, worker=None):
-        logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
-        modser = ModelSerializer()         
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
-            selected_checkpoint)    
-        model.summary(expand_nested=True)  
-
-        # setting device for training         
-        trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)
-
-        # select images from the inference folder and retrieve current paths    
-        serializer = DataSerializer(self.database, self.configuration)      
-        img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
-        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
-        logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
-
-        # check worker status to allow interruption
-        check_thread_status(worker)
-
-        # generate radiological reports from the list of inference image paths 
-        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
-        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
-        generated_reports = generator.generate_radiological_reports(
-            img_paths, progress_callback=progress_callback, worker=worker)
-        serializer.save_generated_reports(generated_reports)
-            
-    #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
         serializer = DataSerializer(self.database, self.configuration)    
         train_data, validation_data, metadata = serializer.load_train_and_validation_data() 
@@ -287,16 +273,15 @@ class ModelEvents:
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(self.configuration)   
-        train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, validation_data) 
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data) 
         
         # set device for training operations based on user configuration        
         logger.info('Setting device for training operations based on user configuration') 
-        trainer = ModelTraining(self.configuration)           
-        trainer.set_device()
+        device = DeviceConfig(self.configuration)   
+        device.set_device() 
 
-        # build the autoencoder model 
-        logger.info('Building FeXT AutoEncoder model based on user configuration') 
+        # build the autoencoder model        
         modser = ModelSerializer() 
         checkpoint_path = modser.create_checkpoint_folder()
 
@@ -310,8 +295,9 @@ class ModelEvents:
 
         # generate training log report and graphviz plot for the model layout               
         modser.save_model_plot(model, checkpoint_path)
-        
+                
         logger.info('Starting XREPORT Transformer model training') 
+        trainer = ModelTraining(self.configuration)
         trainer.train_model(
             model, train_dataset, validation_dataset, checkpoint_path, 
             progress_callback=progress_callback, worker=worker)
@@ -332,28 +318,23 @@ class ModelEvents:
         serializer = DataSerializer(self.database, self.configuration)
         train_data, validation_data, metadata = serializer.load_train_and_validation_data()
         train_data = serializer.update_images_path(train_data)
-        validation_data = serializer.update_images_path(validation_data)       
-        
-        # create the tf.datasets using the previously initialized generators 
-        builder = TrainingDataLoader(self.configuration)   
-        train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, validation_data)     
+        validation_data = serializer.update_images_path(validation_data)  
 
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
-        builder = TrainingDataLoader(train_config)           
-        train_dataset, validation_dataset = builder.build_training_dataloader(
-            train_data, validation_data)        
+        builder = XRAYDataLoader(train_config)           
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data)     
                             
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
+        trainer = ModelTraining(self.configuration)
         trainer.resume_training(
             model, train_dataset, validation_dataset, checkpoint_path, session,
             progress_callback=progress_callback, worker=worker)  
 
     #--------------------------------------------------------------------------
-    def run_inference_pipeline(self, selected_checkpoint, device='CPU', 
-                               progress_callback=None, worker=None):
+    def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         modser = ModelSerializer() 
         logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
         model, train_config, session, checkpoint_path = modser.load_checkpoint(
@@ -361,8 +342,8 @@ class ModelEvents:
         model.summary(expand_nested=True)  
 
         # setting device for training         
-        trainer = ModelTraining(train_config)    
-        trainer.set_device(device_override=device)
+        device = DeviceConfig(self.configuration)   
+        device.set_device()
 
         # select images from the inference folder and retrieve current paths
         serializer = DataSerializer(self.database, self.configuration)        
