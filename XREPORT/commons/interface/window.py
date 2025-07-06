@@ -9,11 +9,11 @@ from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt
 from PySide6.QtGui import QPainter, QPixmap
 from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpinBox, 
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
-                               QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit)
+                               QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit, QMessageBox)
 
 from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.configuration import Configuration
-from XREPORT.commons.interface.workers import Worker
+from XREPORT.commons.interface.workers import ThreadWorker
 from XREPORT.commons.interface.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
                                               ModelEvents)
 
@@ -325,7 +325,7 @@ class MainWindow:
         combo.currentTextChanged.connect(slot)
 
     #--------------------------------------------------------------------------
-    def _start_worker(self, worker : Worker, on_finished, on_error, on_interrupted,
+    def _start_worker(self, worker : ThreadWorker, on_finished, on_error, on_interrupted,
                       update_progress=True):
         if update_progress:       
             self.progress_bar.setValue(0)
@@ -334,7 +334,7 @@ class MainWindow:
         worker.signals.error.connect(on_error)        
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
-
+   
     #--------------------------------------------------------------------------
     def _send_message(self, message): 
         self.main_win.statusBar().showMessage(message)    
@@ -497,14 +497,14 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.validation_handler.run_dataset_evaluation_pipeline,
             self.selected_metrics['dataset'])   
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_dataset_evaluation_finished,
-            on_error=self.on_evaluation_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -519,12 +519,12 @@ class MainWindow:
         self._send_message("Calculating image dataset evaluation metrics...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.dataset_handler.run_dataset_builder)   
+        self.worker = ThreadWorker(self.dataset_handler.run_dataset_builder)   
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_dataset_processing_finished,
-            on_error=self.on_data_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)      
 
     #--------------------------------------------------------------------------
@@ -541,12 +541,12 @@ class MainWindow:
         # send message to status bar
         self._send_message("Training XREPORT Transformer using a new model instance...")        
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.model_handler.run_training_pipeline)                            
+        self.worker = ThreadWorker(self.model_handler.run_training_pipeline)                            
        
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -561,14 +561,14 @@ class MainWindow:
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.model_handler.resume_training_pipeline,
             self.selected_checkpoint)   
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_train_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
 
     #--------------------------------------------------------------------------
@@ -585,14 +585,14 @@ class MainWindow:
         self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.validation_handler.run_model_evaluation_pipeline,
             self.selected_metrics['model'], self.selected_checkpoint)                
         
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)     
 
     #-------------------------------------------------------------------------- 
@@ -607,12 +607,12 @@ class MainWindow:
         self._send_message("Generating checkpoints summary...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(self.validation_handler.get_checkpoints_summary) 
+        self.worker = ThreadWorker(self.validation_handler.get_checkpoints_summary) 
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_model_evaluation_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
@@ -630,14 +630,14 @@ class MainWindow:
         self._send_message(f"Generating reports from X-ray scans with {self.selected_checkpoint}") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = Worker(
+        self.worker = ThreadWorker(
             self.model_handler.run_inference_pipeline,
             self.selected_checkpoint)
 
         # start worker and inject signals
         self._start_worker(
             self.worker, on_finished=self.on_inference_finished,
-            on_error=self.on_model_error,
+            on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
 
 
@@ -645,8 +645,8 @@ class MainWindow:
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################
     def on_dataset_processing_finished(self, plots):         
-        self.dataset_handler.handle_success(self.main_win, 'Dataset has been built successfully')
-        self.worker = None
+        self._send_message('Dataset has been built successfully')
+        self.worker = self.worker.cleanup()
 
     #--------------------------------------------------------------------------   
     def on_dataset_evaluation_finished(self, plots):   
@@ -658,14 +658,13 @@ class MainWindow:
             
         self.current_fig[key] = 0
         self._update_graphics_view()
-        self.validation_handler.handle_success(self.main_win, 'Figures have been generated')
-        self.worker = None
+        self._send_message('Figures have been generated')
+        self.worker = self.worker.cleanup()
 
     #--------------------------------------------------------------------------
     def on_train_finished(self, session):          
-        self.model_handler.handle_success(
-            self.main_win, 'Training session is over. Model has been saved')
-        self.worker = None
+        self._send_message('Training session is over. Model has been saved')
+        self.worker = self.worker.cleanup()
 
     #--------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):  
@@ -677,44 +676,35 @@ class MainWindow:
             
         self.current_fig[key] = 0
         self._update_graphics_view()
-        self.validation_handler.handle_success(
-            self.main_win, f'Model {self.selected_checkpoint} has been evaluated')
-        self.worker = None
+        self._send_message(f'Model {self.selected_checkpoint} has been evaluated')
+        self.worker = self.worker.cleanup()
 
     #--------------------------------------------------------------------------
     def on_inference_finished(self, session):         
-        self.model_handler.handle_success(
-            self.main_win, 'Inference call has been terminated')
-        self.worker = None
+        self._send_message('Inference call has been terminated')
+        self.worker = self.worker.cleanup()
 
 
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
     ###########################################################################     
     @Slot() 
-    def on_data_error(self, err_tb):
-        self.dataset_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None
+    def on_error(self, err_tb):
+        exc, tb = err_tb
+        logger.error(exc, '\n', tb)
+        QMessageBox.critical(self.main_win, 'Something went wrong!', f"{exc}\n\n{tb}")
+        self.progress_bar.setValue(0)
+        self.worker = self.worker.cleanup()
 
-    #--------------------------------------------------------------------------
-    @Slot()     
-    @Slot(tuple)
-    def on_evaluation_error(self, err_tb):
-        self.validation_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None  
-
-    #--------------------------------------------------------------------------
-    @Slot() 
-    def on_model_error(self, err_tb):
-        self.model_handler.handle_error(self.main_win, err_tb) 
-        self.worker = None 
-
-    #--------------------------------------------------------------------------
+    ###########################################################################   
+    # [INTERRUPTION HANDLERS]
+    ###########################################################################
     def on_task_interrupted(self):         
         self.progress_bar.setValue(0)
         self._send_message('Current task has been interrupted by user') 
         logger.warning('Current task has been interrupted by user')
-        self.worker = None        
+        self.worker = self.worker.cleanup()
+      
         
           
          
