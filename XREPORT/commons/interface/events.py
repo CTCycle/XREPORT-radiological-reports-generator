@@ -269,10 +269,12 @@ class ModelEvents:
         modser.save_model_plot(model, checkpoint_path)
                 
         logger.info('Starting XREPORT Transformer model training') 
+        
         trainer = ModelTraining(self.configuration)
         trainer.train_model(
             model, train_dataset, validation_dataset, checkpoint_path, 
             progress_callback=progress_callback, worker=worker)
+        
                 
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
@@ -284,8 +286,8 @@ class ModelEvents:
         
         # set device for training operations based on user configuration
         logger.info('Setting device for training operations based on user configuration')         
-        trainer = ModelTraining(self.configuration)           
-        trainer.set_device()
+        device = DeviceConfig(self.configuration)   
+        device.set_device() 
         
         serializer = DataSerializer(self.database, self.configuration)
         train_data, validation_data, metadata = serializer.load_train_and_validation_data()
