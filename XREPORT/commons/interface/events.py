@@ -126,21 +126,6 @@ class DatasetEvents:
             train_data, validation_data, vocabulary_size) 
         logger.info('Preprocessed data saved into XREPORT database') 
 
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(exc, '\n', tb)
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-             
-
-
 
 ###############################################################################
 class ValidationEvents:
@@ -231,22 +216,9 @@ class ValidationEvents:
             scores = scoring.calculate_BLEU_score(
                 val_data, progress_callback=progress_callback, worker=worker)  
           
-
         return images  
     
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
     
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(exc, '\n', tb)
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
    
 
 ###############################################################################
@@ -358,16 +330,4 @@ class ModelEvents:
             img_paths, progress_callback=progress_callback, worker=worker)
         serializer.save_generated_reports(generated_reports)                 
         
-    # define the logic to handle successfull data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_success(self, window, message):
-        # send message to status bar
-        window.statusBar().showMessage(message)
-    
-    # define the logic to handle error during data retrieval outside the main UI loop
-    #--------------------------------------------------------------------------
-    def handle_error(self, window, err_tb):
-        exc, tb = err_tb
-        logger.error(exc, '\n', tb)
-        QMessageBox.critical(window, 'Something went wrong!', f"{exc}\n\n{tb}")  
-
+   
