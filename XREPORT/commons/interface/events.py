@@ -1,6 +1,5 @@
 import os
 import cv2
-from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
@@ -179,7 +178,7 @@ class ValidationEvents:
                                       progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')   
         modser = ModelSerializer()       
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, train_metadata, _, _ = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
@@ -188,31 +187,32 @@ class ValidationEvents:
         device = DeviceConfig(self.configuration)   
         device.set_device()       
         
-        serializer = DataSerializer(self.database, self.configuration) 
-        _, val_data, metadata = serializer.load_train_and_validation_data()    
+        # load validation data and current preprocessing metadata. This must
+        # be compatible with the currently loaded checkpoint configurations
+        serializer = DataSerializer(self.database, train_config) 
+        _, val_data, current_metadata = serializer.load_train_and_validation_data()    
         val_data = serializer.update_images_path(val_data)  
-        vocabulary_size = metadata['vocabulary_size']
+        vocabulary_size = train_metadata.get('vocabulary_size', 1000)
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
         logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
 
-        loader = XRAYDataLoader(self.configuration)      
-        validation_dataset = loader.build_inference_dataloader(val_data)
+        eval_batch_size = self.configuration.get('eval_batch_size', 32)
+        num_samples = self.configuration.get('num_evaluation_samples', 10)
+        loader = XRAYDataLoader(train_config)     
 
         # check worker status to allow interruption
         check_thread_status(worker)
 
         images = []
-        if 'evaluation_report' in metrics:
-            # evaluate model performance over the training and validation dataset 
-            summarizer = ModelEvaluationSummary(self.configuration)       
-            summarizer.get_evaluation_report(
-                model, validation_dataset, 
-                progress_callback=progress_callback, worker=worker)  
+        if 'evaluation_report' in metrics:            
+            # evaluate model performance over the validation dataset 
+            summarizer = ModelEvaluationSummary(self.database)
+            evaluation_dataset = loader.build_training_dataloader(val_data, eval_batch_size)       
+            summarizer.get_evaluation_report(model, evaluation_dataset, worker=worker)                
 
-        if 'BLEU_score' in metrics:            
-            # One can select different either greedy search or beam search to genarate
-            # reports with a pretrained decoder        
-            scoring = EvaluateTextConsistency(model, self.configuration)
+        if 'BLEU_score' in metrics:
+            scoring = EvaluateTextConsistency(
+                model, train_config, train_metadata, num_samples)            
             scores = scoring.calculate_BLEU_score(
                 val_data, progress_callback=progress_callback, worker=worker)  
           
@@ -272,14 +272,13 @@ class ModelEvents:
         trainer = ModelTraining(self.configuration)
         trainer.train_model(
             model, train_dataset, validation_dataset, metadata, checkpoint_path, 
-            progress_callback=progress_callback, worker=worker)
-        
+            progress_callback=progress_callback, worker=worker)        
                 
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')
         modser = ModelSerializer()         
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, metadata, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
         
@@ -288,7 +287,7 @@ class ModelEvents:
         device = DeviceConfig(self.configuration)   
         device.set_device() 
         
-        serializer = DataSerializer(self.database, self.configuration)
+        serializer = DataSerializer(self.database, train_config)
         train_data, validation_data, metadata = serializer.load_train_and_validation_data()
         train_data = serializer.update_images_path(train_data)
         validation_data = serializer.update_images_path(validation_data)  
@@ -301,7 +300,7 @@ class ModelEvents:
                             
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
-        trainer = ModelTraining(self.configuration)
+        trainer = ModelTraining(train_config, metadata)
         trainer.resume_training(
             model, train_dataset, validation_dataset, metadata, checkpoint_path, session,
             progress_callback=progress_callback, worker=worker)  
@@ -310,7 +309,7 @@ class ModelEvents:
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
         modser = ModelSerializer() 
         logger.info(f'Loading {selected_checkpoint} checkpoint from pretrained models')         
-        model, train_config, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, train_metadata, _, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
@@ -325,10 +324,13 @@ class ModelEvents:
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
 
         # generate radiological reports from the list of inference image paths 
-        inference_mode = self.configuration.get("inference_mode", 'greedy_search')  
-        generator = TextGenerator(model, train_config, inference_mode, checkpoint_path) 
+        inference_mode = self.configuration.get("inference_mode", 'greedy_search') 
+        max_report_size = train_metadata.get('max_report_size', 200) 
+        generator = TextGenerator(model, train_config, max_report_size) 
         generated_reports = generator.generate_radiological_reports(
-            img_paths, progress_callback=progress_callback, worker=worker)
+            img_paths, inference_mode, 
+            progress_callback=progress_callback, worker=worker)
+        
         serializer.save_generated_reports(generated_reports)                 
         
    

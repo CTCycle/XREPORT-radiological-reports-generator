@@ -109,8 +109,9 @@ class DataSerializer:
         self.database.save_train_and_validation_tables(train_data, validation_data)
 
     #--------------------------------------------------------------------------
-    def save_generated_reports(self, data):
-        self.database.save_inference_data_table(data) 
+    def save_generated_reports(self, reports : dict):
+        reports_dataframe = pd.DataFrame(reports)
+        self.database.save_predictions_table(reports_dataframe) 
     
 
 # [MODEL SERIALIZATION]
@@ -139,11 +140,13 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):         
+    def save_training_configuration(self, path, session : dict, configuration : dict, metadata : dict):         
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
-        history_path = os.path.join(path, 'configuration', 'session_history.json')        
+        history_path = os.path.join(path, 'configuration', 'session_history.json')
+        history = {'history' : session.history,
+                   'epochs': session.epoch[-1] + 1}        
 
         # Save training and model configuration
         with open(config_path, 'w') as f:
@@ -203,6 +206,6 @@ class ModelSerializer:
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name) 
         model_path = os.path.join(checkpoint_path, 'saved_model.keras') 
         model = load_model(model_path, custom_objects=custom_objects)       
-        configuration, session = self.load_training_configuration(checkpoint_path)        
+        configuration, metadata, session = self.load_training_configuration(checkpoint_path)        
             
-        return model, configuration, session, checkpoint_path
+        return model, configuration, metadata, session, checkpoint_path
