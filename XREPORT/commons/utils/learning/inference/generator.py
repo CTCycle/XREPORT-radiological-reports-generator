@@ -2,8 +2,7 @@ import os
 import numpy as np
 from tqdm import tqdm 
 
-from keras import Model
-from keras import ops
+from keras import Model, ops
 from keras.utils import set_random_seed
 
 from XREPORT.commons.utils.data.loader import XRAYDataLoader
@@ -16,46 +15,51 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class TextGenerator:
 
-    def __init__(self, model : Model, configuration, mode='greedy_search', path=None, verbose=True):
-        set_random_seed(configuration["SEED"])  
-        self.model = model 
-        self.configuration = configuration        
-        self.dataloader = XRAYDataLoader(configuration)
-        self.name = os.path.basename(path) if path is not None else None        
-        self.verbose = verbose       
+    def __init__(self, model : Model, configuration, max_report_size=200, seed=42):
+        set_random_seed(seed)       
+        self.model = model   
+        self.configuration = configuration    
+        self.max_report_size = max_report_size              
         
         # define image and text parameters for inference
         self.img_shape = (224, 224)
-        self.num_channels = 3           
-        self.max_report_size = configuration.get('max_report_size', 200)  
+        self.num_channels = 3                  
+        
+        # report generation methods        
+        self.generator_methods = {'greedy_search' : self.generate_with_greed_search,
+                                  'beam_search' : self.generate_with_beam_search}
+        
         # get encoder and decoder layers names from loaded model
-        self.layer_names = [layer.name for layer in model.layers]     
-        self.encoder_layer_names = [
-            x for x in self.layer_names if 'transformer_encoder' in x] 
-        self.decoder_layer_names = [
-            x for x in self.layer_names if 'transformer_decoder' in x] 
-
-        # Get tokenizer and related configuration
-        self.tokenization = TokenizerHandler(self.configuration)
-        self.tokenizer = self.tokenization.tokenizer
-        # report generation methods 
-        self.selected_method = mode
-        self.generator_methods = {'greedy' : self.greed_search_generator,
-                                  'beam' : self.beam_search_generator}
+        # layer_names = [layer.name for layer in self.model.layers]     
+        # encoder_layer_names = [
+        #     x for x in layer_names if 'transformer_encoder' in x] 
+        # decoder_layer_names = [
+        #     x for x in layer_names if 'transformer_decoder' in x]        
+        
+    #-------------------------------------------------------------------------- 
+    def get_images(self, data):
+        loader = XRAYDataLoader(self.configuration)
+        images = [loader.processor.load_image(path, as_array=True) for path in data]
+        norm_images = [loader.processor.image_normalization(img) for img in images]
+                
+        return norm_images
 
         
     #--------------------------------------------------------------------------
-    def get_tokenizer_parameters(self): 
-        tokenizer_parameters = {"vocabulary_size": self.tokenization.vocabulary_size,
-                                "start_token": self.tokenizer.cls_token,
-                                "end_token": self.tokenizer.sep_token,
-                                "pad_token": self.tokenizer.pad_token_id,
-                                "start_token_idx": self.tokenizer.convert_tokens_to_ids(
-                                    self.tokenizer.cls_token),
-                                "end_token_idx": self.tokenizer.convert_tokens_to_ids(
-                                    self.tokenizer.sep_token)}
+    def load_tokenizer_and_configuration(self): 
+        # Get tokenizer and related configuration
+        tokenization = TokenizerHandler(self.configuration)
+        tokenizer = tokenization.tokenizer
+        tokenizer_parameters = {"vocabulary_size": tokenization.vocabulary_size,
+                                "start_token": tokenizer.cls_token,
+                                "end_token": tokenizer.sep_token,
+                                "pad_token": tokenizer.pad_token_id,
+                                "start_token_idx": tokenizer.convert_tokens_to_ids(
+                                    tokenizer.cls_token),
+                                "end_token_idx": tokenizer.convert_tokens_to_ids(
+                                    tokenizer.sep_token)}
         
-        return tokenizer_parameters
+        return tokenizer, tokenizer_parameters
     
     #--------------------------------------------------------------------------    
     def merge_tokens(self, tokens : list[str]):
@@ -87,9 +91,8 @@ class TextGenerator:
         return processed_text
     
     #--------------------------------------------------------------------------    
-    def greed_search_generator(self, tokenizer_config, image_path):      
-        # extract vocabulary from the tokenizers
-        vocabulary = self.tokenizer.get_vocab()
+    def generate_with_greed_search(self, tokenizer_config, vocabulary, image_path : str):            
+        # extract vocabulary from the tokenizers        
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
         pad_token = tokenizer_config["pad_token"]
@@ -99,17 +102,21 @@ class TextGenerator:
         index_lookup = {v: k for k, v in vocabulary.items()}  
                
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
-        image = self.dataloader.load_image_as_array(image_path)
+        # load image as array, apply normalization and expand batch dimension
+        # to make input compliant to model specifics
+        dataloader = XRAYDataLoader(self.configuration)  
+        image = dataloader.processor.load_image(image_path, as_array=True)
+        image = dataloader.processor.image_normalization(image)
         image = ops.expand_dims(image, axis=0)
         # initialize an array with same size of max expected report length
         # set the start token as the first element
         seq_input = ops.zeros((1, self.max_report_size), dtype='int32')
         seq_input[0, 0] = start_token_idx  
         # initialize progress bar for better output formatting
-        progress_bar = tqdm(total=self.max_report_size - 1)
+        progress_bar = tqdm(total=self.max_report_size)
         for i in range(1, self.max_report_size): 
             # predict the next token based on the truncated sequence (last token removed)         
-            predictions = self.model.predict([image, seq_input[:, :-1]], verbose=0)  
+            predictions = self.model.predict([image, seq_input], verbose=0)  
             # apply argmax (greedy search) to identify the most probable token              
             next_token_idx = ops.argmax(predictions[0, i-1, :], axis=-1).item()
             next_token = index_lookup[next_token_idx]                
@@ -127,14 +134,12 @@ class TextGenerator:
         report = self.translate_tokens_to_text(
             index_lookup, seq_input, tokenizer_config)     
 
-        logger.info(report) if self.verbose else None
+        logger.info(report) 
            
         return report 
 
     #--------------------------------------------------------------------------
-    def beam_search_generator(self, tokenizer_config, image_path, beam_width=3):
-        # Extract tokenizer and token parameters
-        vocabulary = self.tokenizer.get_vocab()
+    def generate_with_beam_search(self, tokenizer_config, vocabulary, image_path, beam_width=3):     
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
         start_token_idx = tokenizer_config["start_token_idx"]
@@ -142,7 +147,9 @@ class TextGenerator:
         index_lookup = {v: k for k, v in vocabulary.items()}
 
         logger.info(f'Generating report for image {os.path.basename(image_path)}')
-        image = self.dataloader.load_image_as_array(image_path)
+        dataloader = XRAYDataLoader(self.configuration)  
+        image = dataloader.processor.load_image(image_path, as_array=True)
+        image = dataloader.processor.image_normalization(image)
         image = ops.expand_dims(image, axis=0)
 
         # Initialize the beam with a single sequence containing only the start token and a score of 0.0 (log-prob)
@@ -197,16 +204,17 @@ class TextGenerator:
             seq_input[0, i] = token
 
         report = self.translate_tokens_to_text(index_lookup, seq_input, tokenizer_config)
-        logger.info(report) if self.verbose else None
+        logger.info(report) 
 
         return report   
 
     #--------------------------------------------------------------------------    
-    def generate_radiological_reports(self, images_path, **kwargs):
+    def generate_radiological_reports(self, images_path, method=None, **kwargs):
         reports = {}         
-        tokenizer_config = self.get_tokenizer_parameters()
+        tokenizer, tokenizer_config = self.load_tokenizer_and_configuration()
+        vocabulary = tokenizer.get_vocab()       
         for i, path in enumerate(images_path):            
-            report = self.generator_methods[self.selected_method](tokenizer_config, path)            
+            report = self.generator_methods[method](tokenizer_config, vocabulary, path)            
             reports[path] = report
 
             # check for thread status and progress bar update

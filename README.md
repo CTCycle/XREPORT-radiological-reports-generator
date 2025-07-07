@@ -50,11 +50,22 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Mapping of images path with their corresponding labels**
 - **Train and validation dataset splitting**
 
+![data_tab](XREPORT/commons/assets/data_tab.png)
+
+**Model training:** train the XREPORT transformer from scratch or resume training for previously trained models.
+
+![train_tab](XREPORT/commons/assets/train_tab.png)
+
 **Model evaluation:** the XREPORT transformer model is evaluated using different metrics, such as:
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
+![model_eval_tab](XREPORT/commons/assets/model_eval_tab.png)
+
 **Model inference:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
+
+![inference_tab](XREPORT/commons/assets/inference_tab.png)
+
 
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 

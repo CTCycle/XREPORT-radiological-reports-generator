@@ -58,7 +58,7 @@ class DataLoaderProcessor:
         return (rgb_image, input_text), output_text                  
  
     #--------------------------------------------------------------------------
-    def load_data_for_inference(self, path, text):
+    def load_data_for_inference(self, path):
         rgb_image = self.load_image(path)        
         rgb_image = self.image_normalization(rgb_image)        
         
@@ -67,10 +67,10 @@ class DataLoaderProcessor:
     # define method perform data augmentation    
     #--------------------------------------------------------------------------
     def image_normalization(self, image):
-        normalize_image = image/255.0        
-        normalize_image = (normalize_image - self.image_mean) / self.image_std
+        normalized_image = image/255.0        
+        normalized_image = (normalized_image - self.image_mean) / self.image_std
                 
-        return normalize_image 
+        return normalized_image 
 
     # define method perform data augmentation    
     #--------------------------------------------------------------------------

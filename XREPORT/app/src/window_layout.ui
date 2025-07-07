@@ -1421,6 +1421,66 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_12">
         <item>
+         <widget class="QGroupBox" name="groupBox_9">
+          <property name="title">
+           <string>Configuration</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_19">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_32">
+             <item>
+              <widget class="QLabel" name="label_15">
+               <property name="text">
+                <string>Evaluation samples</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="evalSamples">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1000</number>
+               </property>
+               <property name="singleStep">
+                <number>0</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_34">
+             <item>
+              <widget class="QLabel" name="label_19">
+               <property name="text">
+                <string>Evaluation batch size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="evalBatchSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1024</number>
+               </property>
+               <property name="value">
+                <number>32</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
          <widget class="QGroupBox" name="groupBox_7">
           <property name="title">
            <string>Selected metrics</string>
@@ -1440,14 +1500,14 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QPushButton" name="evaluateModel">
-             <property name="text">
-              <string>Evaluate model</string>
-             </property>
-            </widget>
-           </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="evaluateModel">
+          <property name="text">
+           <string>Evaluate model</string>
+          </property>
          </widget>
         </item>
         <item>

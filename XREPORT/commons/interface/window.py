@@ -119,12 +119,13 @@ class MainWindow:
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
             # 3. model evaluation tab page
-            (QPushButton,'evaluateModel','model_evaluation'),
-            
+            (QSpinBox,'evalBatchSize','eval_batch_size'),     
+            (QSpinBox,'evalSamples','num_evaluation_samples'), 
+            (QPushButton,'evaluateModel','model_evaluation'),            
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
             (QCheckBox,'getBLEUScore','get_BLEU_score'),      
-            (QSpinBox,'numImages','num_evaluation_images'),           
+                      
             # 4. inference tab page  
             (QDoubleSpinBox,'inferenceTemp','inference_temperature'),
             (QComboBox,'inferenceMode','inference_mode'),                
@@ -253,7 +254,10 @@ class MainWindow:
             ('train_temperature', 'valueChanged', 'train_temperature'),            
             # session settings group
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
-            # 3. model evaluation tab page            
+            # 3. model evaluation tab page
+            # # 3. model evaluation tab page            
+            ('eval_batch_size', 'valueChanged', 'eval_batch_size'),
+            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),            
                         
             # 4. inference tab page           
             ('validation_size', 'valueChanged', 'validation_size'),
@@ -602,7 +606,7 @@ class MainWindow:
         self.configuration = self.config_manager.get_configuration() 
         self.validation_handler = ValidationEvents(self.database, self.configuration)       
         # send message to status bar
-        self._send_message(f"Evaluating {self.select_checkpoint} performances... ")
+        self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
 
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ProcessWorker(
@@ -711,7 +715,7 @@ class MainWindow:
     @Slot() 
     def on_error(self, err_tb):
         exc, tb = err_tb
-        logger.error(exc, '\n', tb)
+        logger.error(f"{exc}\n{tb}")
         QMessageBox.critical(self.main_win, 'Something went wrong!', f"{exc}\n\n{tb}")
         self.progress_bar.setValue(0)      
         self.worker = self.worker.cleanup()  
