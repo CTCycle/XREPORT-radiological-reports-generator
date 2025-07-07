@@ -316,7 +316,7 @@ class XREPORTDatabase:
         conn.close()
 
     #--------------------------------------------------------------------------
-    def save_inference_data_table(self, data):         
+    def save_predictions_table(self, data):         
         conn = sqlite3.connect(self.db_path)         
         data.to_sql(self.inference_data.name, conn, if_exists='replace', index=False,
                     dtype=self.inference_data.get_dtypes())
