@@ -305,8 +305,6 @@ class TransformerDecoder(layers.Layer):
      
 
 
-
-
 # [XREP CAPTIONING MODEL]
 ###############################################################################
 class XREPORTModel: 

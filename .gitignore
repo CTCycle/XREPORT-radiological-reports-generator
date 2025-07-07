@@ -7,15 +7,11 @@ XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
 XREPORT/resources/database/inference/radiography/*
 
-!XREPORT/commons/assets/*
 XREPORT/app/python/*
 XREPORT/app/git/*
 XREPORT/app/.env
 
 __pycache__
-*.jpeg
-*.jpg
-*.png
 *.db
 *.log
 *.npy
