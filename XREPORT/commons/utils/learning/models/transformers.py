@@ -311,9 +311,10 @@ class TransformerDecoder(layers.Layer):
 ###############################################################################
 class XREPORTModel: 
 
-    def __init__(self, vocabulary_size, configuration):         
+    def __init__(self, metadata, configuration):         
         self.seed = configuration.get('train_seed', 42)
-        self.sequence_length = configuration.get('max_report_size', 200) 
+        self.sequence_length = metadata.get('max_report_size', 200) 
+        self.vocabulary_size = metadata.get('vocabulary_size', 200)
         self.img_shape = (224,224,3) 
         
         self.embedding_dims = configuration.get('embedding_dims', 256)
@@ -328,7 +329,7 @@ class XREPORTModel:
         self.warmup_steps = configuration.get('warmup_steps',10000)
         self.temperature = configuration.get('training_temperature', 1.0)
         self.configuration = configuration
-        self.vocabulary_size = vocabulary_size
+        self.metadata = metadata
         
         # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name='image_input')
