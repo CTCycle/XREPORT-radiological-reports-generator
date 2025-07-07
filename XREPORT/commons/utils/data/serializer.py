@@ -29,6 +29,8 @@ class DataSerializer:
         
         self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
         self.seed = configuration.get('general_seed', 42) 
+        self.max_report_size = configuration.get('max_report_size', 200) 
+        self.tokenizer_ID = configuration.get('tokenizer', None)
         self.database = database         
         self.configuration = configuration
 
@@ -97,7 +99,9 @@ class DataSerializer:
         metadata = {'seed' : self.seed, 
                     'dataset' : self.configuration.get('dataset', {}),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
-                    'vocabulary_size' : vocabulary_size}
+                    'vocabulary_size' : vocabulary_size,
+                    'max_report_size' : self.max_report_size,
+                    'tokenizer' : self.tokenizer_ID}
                 
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
