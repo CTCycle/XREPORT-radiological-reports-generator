@@ -239,8 +239,7 @@ class ModelEvents:
         train_data, validation_data, metadata = serializer.load_train_and_validation_data() 
         # fetch images path from the preprocessed data
         train_data = serializer.update_images_path(train_data)
-        validation_data = serializer.update_images_path(validation_data)
-        vocabulary_size = metadata['vocabulary_size'] 
+        validation_data = serializer.update_images_path(validation_data)        
         
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
@@ -262,7 +261,7 @@ class ModelEvents:
 
         # initialize and compile the captioning model    
         logger.info('Building XREPORT Transformer model')
-        captioner = XREPORTModel(vocabulary_size, self.configuration)
+        captioner = XREPORTModel(metadata, self.configuration)
         model = captioner.get_model(model_summary=True) 
 
         # generate training log report and graphviz plot for the model layout               
@@ -272,7 +271,7 @@ class ModelEvents:
         
         trainer = ModelTraining(self.configuration)
         trainer.train_model(
-            model, train_dataset, validation_dataset, checkpoint_path, 
+            model, train_dataset, validation_dataset, metadata, checkpoint_path, 
             progress_callback=progress_callback, worker=worker)
         
                 
@@ -304,7 +303,7 @@ class ModelEvents:
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         trainer = ModelTraining(self.configuration)
         trainer.resume_training(
-            model, train_dataset, validation_dataset, checkpoint_path, session,
+            model, train_dataset, validation_dataset, metadata, checkpoint_path, session,
             progress_callback=progress_callback, worker=worker)  
 
     #--------------------------------------------------------------------------

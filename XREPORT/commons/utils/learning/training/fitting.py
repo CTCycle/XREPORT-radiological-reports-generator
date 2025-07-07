@@ -16,7 +16,7 @@ class ModelTraining:
         self.metadata = metadata
         
     #--------------------------------------------------------------------------
-    def train_model(self, model, train_data, validation_data, 
+    def train_model(self, model, train_data, validation_data, metadata,
                     checkpoint_path, **kwargs): 
                 
         epochs = self.configuration.get('epochs', 10)      
@@ -34,10 +34,10 @@ class ModelTraining:
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
         serializer.save_training_configuration(
-            checkpoint_path, session, self.configuration)
+            checkpoint_path, session, self.configuration, metadata)
         
     #--------------------------------------------------------------------------
-    def resume_training(self, model, train_data, validation_data, 
+    def resume_training(self, model, train_data, validation_data, metadata,
                         checkpoint_path, session=None, **kwargs):
         
         from_epoch = 0 if not session else session['epochs']     
@@ -55,7 +55,7 @@ class ModelTraining:
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
         serializer.save_training_configuration(
-            checkpoint_path, session, self.configuration)
+            checkpoint_path, session, self.configuration, metadata)
 
 
 

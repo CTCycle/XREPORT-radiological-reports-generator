@@ -18,7 +18,7 @@ class Configuration:
             'num_encoders': 2,
             'num_decoders': 2,
             'embedding_dimensions' : 128,
-            'freeze_img_encoder': 64,
+            'freeze_img_encoder': True,
             'train_temperature': 1.0,
             'dropout_rate': 0.2,
             'jit_compile': False,
