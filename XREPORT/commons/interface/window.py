@@ -76,6 +76,7 @@ class MainWindow:
             (QSpinBox,'seed','general_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'),
             (QDoubleSpinBox,'validationSize','validation_size'),
+            (QSpinBox,'splitSeed','split_seed'), 
             (QSpinBox,'maxReportSize','max_report_size'), 
             (QComboBox,'tokenizerList','tokenizer'),
             (QPushButton,'buildMLDataset','build_training_dataset'),                         
@@ -85,7 +86,6 @@ class MainWindow:
             (QCheckBox,'imgAugment','img_augmentation'),
             (QCheckBox,'setShuffle','use_shuffle'), 
             (QSpinBox,'shuffleSize','shuffle_size'),
-                        
             # device settings group            
             (QSpinBox,'deviceID','device_ID'),
             (QSpinBox,'numWorkers','num_workers'),
@@ -96,8 +96,7 @@ class MainWindow:
             (QSpinBox,'saveCPFrequency','checkpoints_frequency'),            
             (QSpinBox,'numEpochs','epochs'),
             (QSpinBox,'batchSize','batch_size'),
-            (QSpinBox,'trainSeed','train_seed'),
-            (QSpinBox,'splitSeed','split_seed'),   
+            (QSpinBox,'trainSeed','train_seed'),              
             # RL scheduler settings group
             (QCheckBox,'useScheduler','LR_scheduler'), 
             (QDoubleSpinBox,'postWarmLR','post_warmup_LR'),
@@ -124,8 +123,7 @@ class MainWindow:
             (QPushButton,'evaluateModel','model_evaluation'),            
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'getBLEUScore','get_BLEU_score'),      
-                      
+            (QCheckBox,'getBLEUScore','get_BLEU_score'), 
             # 4. inference tab page  
             (QDoubleSpinBox,'inferenceTemp','inference_temperature'),
             (QComboBox,'inferenceMode','inference_mode'),                
@@ -220,6 +218,7 @@ class MainWindow:
             #  dataset processing group   
             ('max_report_size', 'valueChanged', 'max_report_size'),
             ('tokenizer', 'currentTextChanged', 'tokenizer'),
+            ('split_seed', 'valueChanged', 'split_seed'), 
             # 2. training tab page
             # dataset settings group            
             ('img_augmentation', 'toggled', 'img_augmentation'),
@@ -229,19 +228,17 @@ class MainWindow:
             ('device_ID', 'valueChanged', 'device_id'),
             ('num_workers', 'valueChanged', 'num_workers'),
             # training settings group
-            ('use_tensorboard', 'toggled', 'run_tensorboard'),
+            ('use_tensorboard', 'toggled', 'use_tensorboard'),
             ('real_time_history_callback', 'toggled', 'real_time_history_callback'),
             ('save_checkpoints', 'toggled', 'save_checkpoints'),
             ('checkpoints_frequency', 'valueChanged', 'checkpoints_frequency'),
             ('epochs', 'valueChanged', 'epochs'),
             ('batch_size', 'valueChanged', 'batch_size'),
-            ('train_seed', 'valueChanged', 'train_seed'),
-            ('split_seed', 'valueChanged', 'split_seed'),            
+            ('train_seed', 'valueChanged', 'train_seed'),                       
             # RL scheduler settings group            
             ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
             ('post_warmup_LR', 'valueChanged', 'post_warmup_LR'),
-            ('warmup_steps', 'valueChanged', 'warmup_steps'),          
-
+            ('warmup_steps', 'valueChanged', 'warmup_steps'),
             # model settings group
             ('use_mixed_precision', 'toggled', 'mixed_precision'),
             ('use_JIT_compiler', 'toggled', 'use_jit_compiler'),
@@ -257,13 +254,10 @@ class MainWindow:
             # 3. model evaluation tab page
             # # 3. model evaluation tab page            
             ('eval_batch_size', 'valueChanged', 'eval_batch_size'),
-            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),            
-                        
-            # 4. inference tab page           
-            ('validation_size', 'valueChanged', 'validation_size'),
+            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'), 
+            # 4. inference tab page            
             ('inference_temperature', 'valueChanged', 'inference_temperature'),
             ('inference_mode', 'currentTextChanged', 'inference_mode')]   
-
 
         for attr, signal_name, config_key in connections:
             widget = self.widgets[attr]
@@ -316,7 +310,6 @@ class MainWindow:
         self.text_view = {
             'train_images': self.dataset_handler.get_description_from_train_image,
             'inference_images': self.dataset_handler.get_generated_report}
-
             
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -663,7 +656,6 @@ class MainWindow:
             self.worker, on_finished=self.on_inference_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)
-
 
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
