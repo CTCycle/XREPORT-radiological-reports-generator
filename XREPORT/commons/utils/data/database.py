@@ -276,7 +276,7 @@ class XREPORTDatabase:
         self.save_source_data_table(source_dataset)        
 
     #--------------------------------------------------------------------------
-    def load_source_data_table(self):                  
+    def load_dataset_tables(self):                  
         conn = sqlite3.connect(self.db_path)        
         data = pd.read_sql_query(
             f"SELECT * FROM {self.source_data.name}", conn)

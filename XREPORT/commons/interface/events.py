@@ -13,7 +13,7 @@ from XREPORT.commons.utils.learning.device import DeviceConfig
 from XREPORT.commons.utils.learning.training.fitting import ModelTraining
 from XREPORT.commons.utils.learning.models.transformers import XREPORTModel
 from XREPORT.commons.utils.learning.inference.generator import TextGenerator
-from XREPORT.commons.interface.workers import check_thread_status
+from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
 
 from XREPORT.commons.constants import INFERENCE_INPUT_PATH
 from XREPORT.commons.logger import logger
@@ -108,11 +108,19 @@ class DatasetEvents:
         serializer = DataSerializer(self.database, self.configuration)      
         sample_size = self.configuration.get("sample_size", 1.0)            
         dataset = serializer.load_source_dataset(sample_size=sample_size)
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(0, 3, progress_callback)
         
         # sanitize text corpus by removing undesired symbols and punctuation     
         sanitizer = TextSanitizer(self.configuration)
         processed_data = sanitizer.sanitize_text(dataset)
         logger.info(f'Dataset includes {processed_data.shape[0]} samples')
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(1, 3, progress_callback)
 
         # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
         # into subunits and these are eventually mapped to integer indexes        
@@ -121,15 +129,23 @@ class DatasetEvents:
         processed_data = tokenization.tokenize_text_corpus(processed_data)   
         vocabulary_size = tokenization.vocabulary_size 
         logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(2, 3, progress_callback)
         
         # split data into train set and validation set
         logger.info('Preparing dataset of images and captions based on splitting size')  
         splitter = TrainValidationSplit(self.configuration, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation()        
-               
+        train_data, validation_data = splitter.split_train_and_validation()
+                     
         serializer.save_train_and_validation_data(
             train_data, validation_data, vocabulary_size) 
         logger.info('Preprocessed data saved into XREPORT database') 
+
+        # check thread for interruption 
+        check_thread_status(worker)
+        update_progress_callback(3, 3, progress_callback) 
 
 
 ###############################################################################
@@ -212,11 +228,13 @@ class ValidationEvents:
         images = []
         if 'evaluation_report' in metrics:            
             # evaluate model performance over the validation dataset 
+            logger.info('Current metric: model loss and metrics evaluation')
             summarizer = ModelEvaluationSummary(self.database)
             evaluation_dataset = loader.build_training_dataloader(val_data, eval_batch_size)       
             summarizer.get_evaluation_report(model, evaluation_dataset, worker=worker)                
 
         if 'BLEU_score' in metrics:
+            logger.info('Current metric: BLEU score')
             scoring = EvaluateTextConsistency(
                 model, train_config, train_metadata, num_samples)            
             scores = scoring.calculate_BLEU_score(

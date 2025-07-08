@@ -514,7 +514,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
     <item row="2" column="0">
-     <layout class="QHBoxLayout" name="progressLayout" stretch="0,7,1">
+     <layout class="QHBoxLayout" name="progressLayout" stretch="0,7,2">
       <item>
        <widget class="QCheckBox" name="deviceGPU">
         <property name="text">
@@ -657,6 +657,27 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
             </layout>
            </item>
            <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_4">
+             <item>
+              <widget class="QLabel" name="label_4">
+               <property name="text">
+                <string>Split seed</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="splitSeed">
+               <property name="maximum">
+                <number>1000000000</number>
+               </property>
+               <property name="value">
+                <number>42</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
             <layout class="QHBoxLayout" name="horizontalLayout_20">
              <item>
               <widget class="QLabel" name="maxRLabel">
@@ -710,14 +731,14 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
             </layout>
            </item>
-           <item>
-            <widget class="QPushButton" name="buildMLDataset">
-             <property name="text">
-              <string>Build training dataset</string>
-             </property>
-            </widget>
-           </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="buildMLDataset">
+          <property name="text">
+           <string>Build training dataset</string>
+          </property>
          </widget>
         </item>
         <item>
@@ -747,14 +768,14 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QPushButton" name="evaluateDataset">
-             <property name="text">
-              <string>Dataset evaluation</string>
-             </property>
-            </widget>
-           </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="evaluateDataset">
+          <property name="text">
+           <string>Dataset evaluation</string>
+          </property>
          </widget>
         </item>
         <item>
@@ -1073,27 +1094,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                </item>
                <item>
                 <widget class="QSpinBox" name="trainSeed">
-                 <property name="maximum">
-                  <number>1000000000</number>
-                 </property>
-                 <property name="value">
-                  <number>42</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_4">
-               <item>
-                <widget class="QLabel" name="label_4">
-                 <property name="text">
-                  <string>Split seed</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="splitSeed">
                  <property name="maximum">
                   <number>1000000000</number>
                  </property>
@@ -1595,14 +1595,14 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              </item>
             </layout>
            </item>
-           <item>
-            <widget class="QPushButton" name="generateReports">
-             <property name="text">
-              <string>Generate reports</string>
-             </property>
-            </widget>
-           </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="generateReports">
+          <property name="text">
+           <string>Generate reports</string>
+          </property>
          </widget>
         </item>
         <item>

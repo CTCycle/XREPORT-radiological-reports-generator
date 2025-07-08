@@ -20,7 +20,7 @@ LOG_CONFIG =  {
             'datefmt': '%d-%m-%Y %H:%M:%S'
         },        
         'minimal': {
-            'format': '%(message)s',
+            'format': '[%(levelname)s] %(message)s',
         },
     },    
     
