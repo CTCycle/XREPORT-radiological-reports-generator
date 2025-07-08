@@ -66,6 +66,14 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 
 ![inference_tab](XREPORT/commons/assets/inference_tab.png)
 
+**Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
+- **Training images**: visualize training images located in *resources/database/dataset*  
+- **Inference images**: visualize inference images located in *resources/database/inference*  
+- **Dataset evaluation plots**: visualize plots generated from dataset evaluation pipeline  
+- **Model evalution plots**: visualize plots generated from model evaluation pipeline  
+
+![viewer_tab](XREPORT/commons/assets/viewer_tab.png)
+
 
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
