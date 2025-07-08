@@ -109,7 +109,7 @@ class DataSerializer:
         self.database.save_train_and_validation_tables(train_data, validation_data)
 
     #--------------------------------------------------------------------------
-    def save_generated_reports(self, reports : dict):
+    def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
         self.database.save_predictions_table(reports_dataframe) 
     

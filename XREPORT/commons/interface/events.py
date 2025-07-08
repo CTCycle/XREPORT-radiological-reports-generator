@@ -1,5 +1,6 @@
 import os
 import cv2
+
 from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
@@ -42,20 +43,25 @@ class GraphicsHandler:
     #--------------------------------------------------------------------------    
     def load_image_as_pixmap(self, path):    
         img = cv2.imread(path, self.image_encoding)
-        # Handle grayscale, RGB, or RGBA
+        if img is None:
+            return 
+
+        # Convert to RGB or RGBA as needed
         if len(img.shape) == 2:  # Grayscale
             img = cv2.cvtColor(img, self.gray_scale_encoding)
+            qimg_format = QImage.Format_RGB888
+            channels = 3
         elif img.shape[2] == 4:  # BGRA
             img = cv2.cvtColor(img, self.BGRA_encoding)
+            qimg_format = QImage.Format_RGBA8888
+            channels = 4
         else:  # BGR
             img = cv2.cvtColor(img, self.BGR_encoding)
+            qimg_format = QImage.Format_RGB888
+            channels = 3
 
         h, w = img.shape[:2]
-        if img.shape[2] == 3:
-            qimg = QImage(img.data, w, h, 3 * w, QImage.Format_RGB888)
-        else:  
-            qimg = QImage(img.data, w, h, 4 * w, QImage.Format_RGBA8888)
-
+        qimg = QImage(img.data, w, h, channels * w, qimg_format)
         return QPixmap.fromImage(qimg)
     
 
@@ -331,6 +337,14 @@ class ModelEvents:
             img_paths, inference_mode, 
             progress_callback=progress_callback, worker=worker)
         
-        serializer.save_generated_reports(generated_reports)                 
+        # package inference outputs to fit the database table
+        reports = [{'image' : os.path.basename(k), 
+                    'report': v,
+                    'checkpoint': selected_checkpoint} 
+                    for k, v in generated_reports.items()]
+        
+        
+        serializer.save_generated_reports(reports) 
+        logger.info('Generated reports have been saved in the database')                
         
    
