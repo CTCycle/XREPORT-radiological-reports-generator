@@ -9,6 +9,7 @@ import pandas as pd
 from keras.utils import plot_model
 from keras.models import load_model
 
+from XREPORT.commons.utils.data.database import XREPORTDatabase
 from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.commons.utils.learning.training.scheduler import WarmUpLRScheduler
 from XREPORT.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
@@ -19,7 +20,7 @@ from XREPORT.commons.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, database, configuration):             
+    def __init__(self, database : XREPORTDatabase, configuration):             
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
@@ -36,7 +37,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_source_dataset(self, sample_size=None):        
-        dataset = self.database.load_source_data_table()
+        dataset = self.database.load_dataset_tables()
         sample_size = self.configuration.get('sample_size', 1.0)        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -45,7 +46,7 @@ class DataSerializer:
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def update_images_path(self, dataset):                
+    def update_images_path(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -93,7 +94,7 @@ class DataSerializer:
         return train_data, val_data, metadata   
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data, validation_data,
+    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
                                        vocabulary_size=None):          
                
         metadata = {'seed' : self.seed, 
@@ -134,7 +135,7 @@ class ModelSerializer:
         return checkpoint_path        
 
     #--------------------------------------------------------------------------
-    def save_pretrained_model(self, model, path):
+    def save_pretrained_model(self, model, path : str):
         model_files_path = os.path.join(path, 'saved_model.keras')
         model.save(model_files_path)
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
@@ -163,7 +164,7 @@ class ModelSerializer:
         logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
-    def load_training_configuration(self, path): 
+    def load_training_configuration(self, path : str): 
         config_path = os.path.join(path, 'configuration', 'configuration.json')        
         with open(config_path, 'r') as f:
             configuration = json.load(f) 
@@ -188,7 +189,7 @@ class ModelSerializer:
         return model_folders      
 
     #--------------------------------------------------------------------------
-    def save_model_plot(self, model, path):       
+    def save_model_plot(self, model, path : str):       
         logger.debug('Generating model architecture graph')
         plot_path = os.path.join(path, 'model_layout.png')       
         plot_model(model, to_file=plot_path, show_shapes=True, 
@@ -196,7 +197,7 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name):    
+    def load_checkpoint(self, checkpoint_name : str):    
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
