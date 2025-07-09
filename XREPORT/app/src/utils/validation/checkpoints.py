@@ -4,12 +4,12 @@ import shutil
 import pandas as pd
 from nltk.translate.bleu_score import corpus_bleu
 
-from XREPORT.app.src.commons.utils.learning.inference.generator import TextGenerator
-from XREPORT.app.src.commons.utils.learning.callbacks import LearningInterruptCallback
-from XREPORT.app.src.commons.utils.data.serializer import ModelSerializer
-from XREPORT.app.src.commons.interface.workers import check_thread_status, update_progress_callback
-from XREPORT.app.src.commons.constants import CHECKPOINT_PATH
-from XREPORT.app.src.commons.logger import logger
+from XREPORT.app.src.utils.learning.inference.generator import TextGenerator
+from XREPORT.app.src.utils.learning.callbacks import LearningInterruptCallback
+from XREPORT.app.src.utils.data.serializer import ModelSerializer
+from XREPORT.app.src.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.src.constants import CHECKPOINT_PATH
+from XREPORT.app.src.logger import logger
 
 
 # [LOAD MODEL]
