@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-from XREPORT.app.src.commons.constants import PROJECT_DIR
-from XREPORT.app.src.commons.logger import logger
+from XREPORT.app.src.constants import PROJECT_DIR
+from XREPORT.app.src.logger import logger
 
 # [IMPORT CUSTOM MODULES]
 ###############################################################################
