@@ -9,11 +9,11 @@ import pandas as pd
 from keras.utils import plot_model
 from keras.models import load_model
 
-from XREPORT.commons.utils.data.database import XREPORTDatabase
-from XREPORT.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.commons.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.utils.data.database import XREPORTDatabase
+from XREPORT.app.src.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
+from XREPORT.app.src.commons.utils.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.app.src.commons.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
+from XREPORT.app.src.commons.logger import logger
 
 
 # [DATA SERIALIZATION]

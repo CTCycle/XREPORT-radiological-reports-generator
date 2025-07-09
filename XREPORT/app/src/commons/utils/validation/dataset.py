@@ -6,9 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
-from XREPORT.commons.constants import EVALUATION_PATH
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.src.commons.constants import EVALUATION_PATH
+from XREPORT.app.src.commons.logger import logger
 
 
 # [VALIDATION OF DATA]

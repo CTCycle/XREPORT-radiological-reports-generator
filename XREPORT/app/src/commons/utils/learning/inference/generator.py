@@ -5,10 +5,10 @@ from tqdm import tqdm
 from keras import Model, ops
 from keras.utils import set_random_seed
 
-from XREPORT.commons.utils.data.loader import XRAYDataLoader
-from XREPORT.commons.utils.data.process import TokenizerHandler
-from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.utils.data.loader import XRAYDataLoader
+from XREPORT.app.src.commons.utils.data.process import TokenizerHandler
+from XREPORT.app.src.commons.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.src.commons.logger import logger
 
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]

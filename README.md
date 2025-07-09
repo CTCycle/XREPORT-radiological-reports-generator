@@ -6,12 +6,12 @@ XRAY Report Generator is a machine learning-based tool designed to assist radiol
 ## 2. XREPORT model
 The XREPORT model leverages a robust transformer encoder-decoder architecture to generate detailed radiology reports from X-ray images. It begins by extracting rich image features using a state-of-the-art, pretrained image encoder (*beit-base-patch16-224*) that is integrated into the captioner model. This vision transformer model utilizes the BEiT architecture, which is designed to pre-train image transformers in a manner analogous to BERT in natural language processing, enabling efficient feature extraction from images for various vision tasks.
 
-![BeiT architecture encoder](XREPORT/commons/assets/beit_architecture.jpg)
+![BeiT architecture encoder](XREPORT/app/assets/beit_architecture.jpg)
 Architecture of BeiT models
 
 Subsequently, the stacked transformer encoders, each equipped with multi-head self-attention and feedforward networks, further process these refined image vectors. These encoders produce high-level feature representations that capture the essential characteristics of the scans. The transformer decoder then employs a cross-attention mechanism to align the image features with specific words during report generation. To maintain coherence and context throughout the generated report, the model utilizes causal masking in its auto-regressive decoding process, ensuring that each token is generated with full consideration of the preceding context.
 
-![transformer architecture encoder](XREPORT/commons/assets/transformers.png)
+![transformer architecture encoder](XREPORT/app/assets/transformers.png)
 General transformer model architecture
 
 **Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user’s choice. 
@@ -50,21 +50,21 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Mapping of images path with their corresponding labels**
 - **Train and validation dataset splitting**
 
-![data_tab](XREPORT/commons/assets/data_tab.png)
+![data_tab](XREPORT/app/assets/data_tab.png)
 
 **Model training:** train the XREPORT transformer from scratch or resume training for previously trained models.
 
-![train_tab](XREPORT/commons/assets/train_tab.png)
+![train_tab](XREPORT/app/assets/train_tab.png)
 
 **Model evaluation:** the XREPORT transformer model is evaluated using different metrics, such as:
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
-![model_eval_tab](XREPORT/commons/assets/model_eval_tab.png)
+![model_eval_tab](XREPORT/app/assets/model_eval_tab.png)
 
 **Model inference:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
 
-![inference_tab](XREPORT/commons/assets/inference_tab.png)
+![inference_tab](XREPORT/app/assets/inference_tab.png)
 
 **Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
 - **Training images**: visualize training images located in *resources/database/dataset*  
@@ -72,7 +72,7 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Dataset evaluation plots**: visualize plots generated from dataset evaluation pipeline  
 - **Model evalution plots**: visualize plots generated from model evaluation pipeline  
 
-![viewer_tab](XREPORT/commons/assets/viewer_tab.png)
+![viewer_tab](XREPORT/app/assets/viewer_tab.png)
 
 
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
