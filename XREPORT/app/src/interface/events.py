@@ -218,7 +218,7 @@ class ValidationEvents:
         logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
         logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
 
-        eval_batch_size = self.configuration.get('eval_batch_size', 32)
+        inference_batch_size = self.configuration.get('inference_batch_size', 32)
         num_samples = self.configuration.get('num_evaluation_samples', 10)
         loader = XRAYDataLoader(train_config)     
 
@@ -230,7 +230,7 @@ class ValidationEvents:
             # evaluate model performance over the validation dataset 
             logger.info('Current metric: model loss and metrics evaluation')
             summarizer = ModelEvaluationSummary(self.database)
-            evaluation_dataset = loader.build_training_dataloader(val_data, eval_batch_size)       
+            evaluation_dataset = loader.build_training_dataloader(val_data, inference_batch_size)       
             summarizer.get_evaluation_report(model, evaluation_dataset, worker=worker)                
 
         if 'BLEU_score' in metrics:
