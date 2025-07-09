@@ -4,19 +4,19 @@ import cv2
 from PySide6.QtGui import QImage, QPixmap
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from XREPORT.commons.utils.data.serializer import DataSerializer, ModelSerializer
-from XREPORT.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
-from XREPORT.commons.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextConsistency
-from XREPORT.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenizerHandler
-from XREPORT.commons.utils.data.loader import XRAYDataLoader
-from XREPORT.commons.utils.learning.device import DeviceConfig
-from XREPORT.commons.utils.learning.training.fitting import ModelTraining
-from XREPORT.commons.utils.learning.models.transformers import XREPORTModel
-from XREPORT.commons.utils.learning.inference.generator import TextGenerator
-from XREPORT.commons.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.src.commons.utils.data.serializer import DataSerializer, ModelSerializer
+from XREPORT.app.src.commons.utils.validation.dataset import ImageAnalysis, TextAnalysis
+from XREPORT.app.src.commons.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextConsistency
+from XREPORT.app.src.commons.utils.data.process import TextSanitizer, TrainValidationSplit, TokenizerHandler
+from XREPORT.app.src.commons.utils.data.loader import XRAYDataLoader
+from XREPORT.app.src.commons.utils.learning.device import DeviceConfig
+from XREPORT.app.src.commons.utils.learning.training.fitting import ModelTraining
+from XREPORT.app.src.commons.utils.learning.models.transformers import XREPORTModel
+from XREPORT.app.src.commons.utils.learning.inference.generator import TextGenerator
+from XREPORT.app.src.commons.interface.workers import check_thread_status, update_progress_callback
 
-from XREPORT.commons.constants import INFERENCE_INPUT_PATH
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.constants import INFERENCE_INPUT_PATH
+from XREPORT.app.src.commons.logger import logger
 
 
 ###############################################################################
