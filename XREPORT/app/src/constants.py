@@ -2,8 +2,8 @@ from os.path import join, abspath
 
 # [PATHS]
 ###############################################################################
-ROOT_DIR = abspath(join(__file__, "../../.."))
-PROJECT_DIR = abspath(join(__file__, "../.."))
+ROOT_DIR = abspath(join(__file__, "../../../.."))
+PROJECT_DIR = join(ROOT_DIR, 'XREPORT')
 RSC_PATH = join(PROJECT_DIR, 'resources')
 DATA_PATH = join(RSC_PATH, 'database')
 SOURCE_PATH = join(DATA_PATH, 'dataset')

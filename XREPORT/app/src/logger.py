@@ -3,7 +3,7 @@ import logging
 import logging.config
 from datetime import datetime
 
-from XREPORT.app.src.commons.constants import LOGS_PATH
+from XREPORT.app.src.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 current_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

@@ -3,12 +3,12 @@ from keras import layers, Model, optimizers, activations, ops
 from keras.config import floatx
 from keras.saving import register_keras_serializable 
 
-from XREPORT.app.src.commons.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.app.src.commons.utils.learning.models.encoder import BeitXRayImageEncoder
-from XREPORT.app.src.commons.utils.learning.models.embeddings import PositionalEmbedding
-from XREPORT.app.src.commons.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.app.src.commons.constants import TOKENIZERS_PATH
-from XREPORT.app.src.commons.logger import logger
+from XREPORT.app.src.utils.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.app.src.utils.learning.models.encoder import BeitXRayImageEncoder
+from XREPORT.app.src.utils.learning.models.embeddings import PositionalEmbedding
+from XREPORT.app.src.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
+from XREPORT.app.src.constants import TOKENIZERS_PATH
+from XREPORT.app.src.logger import logger
 
 
 # [ADD NORM LAYER]
