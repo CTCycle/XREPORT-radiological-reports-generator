@@ -50,7 +50,7 @@ class Configuration:
             'inference_mode': 'greedy_search',
 
             # Validation
-            'eval_batch_size': 20,
+            'inference_batch_size': 20,
             'num_evaluation_samples': 10
                         
         }

@@ -60,9 +60,7 @@ class MainWindow:
         self._set_states()
         self.widgets = {}
         self._setup_configuration([ 
-            # out of tab widgets
-            (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
-            (QComboBox,'checkpointsList','checkpoints_list'),
+            # out of tab widgets            
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
             (QCheckBox,'deviceGPU','use_device_GPU'),        
@@ -117,14 +115,15 @@ class MainWindow:
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                     
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
-            # 3. model evaluation tab page
-            (QSpinBox,'evalBatchSize','eval_batch_size'),     
+            # 3. model inference and evaluation tab 
+            (QPushButton,'refreshCheckpoints','refresh_checkpoints'),
+            (QComboBox,'checkpointsList','checkpoints_list'),
+            (QSpinBox,'inferenceBatchSize','inference_batch_size'),     
             (QSpinBox,'evalSamples','num_evaluation_samples'), 
             (QPushButton,'evaluateModel','model_evaluation'),            
             (QPushButton,'checkpointSummary','checkpoints_summary'),
             (QCheckBox,'evalReport','get_evaluation_report'), 
-            (QCheckBox,'getBLEUScore','get_BLEU_score'), 
-            # 4. inference tab page  
+            (QCheckBox,'getBLEUScore','get_BLEU_score'),            
             (QDoubleSpinBox,'inferenceTemp','inference_temperature'),
             (QComboBox,'inferenceMode','inference_mode'),                
             (QPushButton,'generateReports','generate_reports'),          
@@ -141,8 +140,6 @@ class MainWindow:
             ])
         
         self._connect_signals([ 
-            ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
-            ('refresh_checkpoints','clicked',self.load_checkpoints),
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page                      
             ('image_statistics_metric','toggled',self._update_metrics),
@@ -153,14 +150,15 @@ class MainWindow:
             # 2. training tab page                                   
             ('start_training','clicked',self.train_from_scratch),
             ('resume_training','clicked',self.resume_training_from_checkpoint),
-            # 3. model evaluation tab page            
+            # 3. model inference and evaluation tab page
+            ('checkpoints_list','currentTextChanged',self.select_checkpoint), 
+            ('refresh_checkpoints','clicked',self.load_checkpoints),        
             ('get_evaluation_report','toggled',self._update_metrics), 
             ('get_BLEU_score','toggled',self._update_metrics),
             ('model_evaluation','clicked', self.run_model_evaluation_pipeline),
-            ('checkpoints_summary','clicked',self.get_checkpoints_summary),            
-            # 4. inference tab page  
+            ('checkpoints_summary','clicked',self.get_checkpoints_summary),              
             ('generate_reports','clicked',self.generate_reports_with_checkpoint),            
-            # 5. viewer tab page 
+            # 4. viewer tab page 
             ('data_plots_view', 'toggled', self._update_graphics_view),
             ('model_plots_view', 'toggled', self._update_graphics_view),
             ('inference_images_view', 'toggled', self._update_graphics_view), 
@@ -251,11 +249,9 @@ class MainWindow:
             ('train_temperature', 'valueChanged', 'train_temperature'),            
             # session settings group
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
-            # 3. model evaluation tab page
-            # # 3. model evaluation tab page            
-            ('eval_batch_size', 'valueChanged', 'eval_batch_size'),
-            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'), 
-            # 4. inference tab page            
+            # 3. model inference and evaluation tab page            
+            ('inference_batch_size', 'valueChanged', 'inference_batch_size'),
+            ('num_evaluation_samples', 'valueChanged', 'num_evaluation_samples'),                   
             ('inference_temperature', 'valueChanged', 'inference_temperature'),
             ('inference_mode', 'currentTextChanged', 'inference_mode')]   
 
