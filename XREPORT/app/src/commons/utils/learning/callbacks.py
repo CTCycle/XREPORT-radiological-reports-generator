@@ -8,8 +8,8 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from XREPORT.commons.interface.workers import WorkerInterrupted
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.interface.workers import WorkerInterrupted
+from XREPORT.app.src.commons.logger import logger
 
     
 # [CALLBACK FOR UI PROGRESS BAR]

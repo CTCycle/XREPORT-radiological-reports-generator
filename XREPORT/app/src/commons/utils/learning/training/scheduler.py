@@ -4,7 +4,7 @@ from keras.optimizers.schedules import LearningRateSchedule
 from keras.saving import register_keras_serializable
 
 
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.logger import logger
            
 # [LEARNING RATE SCHEDULER]
 ###############################################################################

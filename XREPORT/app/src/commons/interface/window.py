@@ -1,4 +1,4 @@
-from XREPORT.commons.variables import EnvironmentVariables
+from XREPORT.app.src.commons.variables import EnvironmentVariables
 EV = EnvironmentVariables()
 
 import os
@@ -11,14 +11,14 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
                                QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit, QMessageBox)
 
-from XREPORT.commons.utils.data.database import XREPORTDatabase
-from XREPORT.commons.configuration import Configuration
-from XREPORT.commons.interface.workers import ThreadWorker, ProcessWorker
-from XREPORT.commons.interface.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
+from XREPORT.app.src.commons.utils.data.database import XREPORTDatabase
+from XREPORT.app.src.commons.configuration import Configuration
+from XREPORT.app.src.commons.interface.workers import ThreadWorker, ProcessWorker
+from XREPORT.app.src.commons.interface.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
                                               ModelEvents)
 
-from XREPORT.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.constants import IMG_PATH, INFERENCE_INPUT_PATH
+from XREPORT.app.src.commons.logger import logger
 
 
 

@@ -3,8 +3,8 @@ import os
 from sklearn.utils import shuffle
 from transformers import AutoTokenizer
 
-from XREPORT.commons.constants import TOKENIZERS_PATH
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.constants import TOKENIZERS_PATH
+from XREPORT.app.src.commons.logger import logger
 
 # [DATA SPLITTING]
 ###############################################################################
