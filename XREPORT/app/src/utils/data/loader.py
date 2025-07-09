@@ -4,8 +4,8 @@ import pandas as pd
 import tensorflow as tf
 from keras.ops import concatenate
 
-from XREPORT.app.src.commons.utils.data.process import TokenizerHandler
-from XREPORT.app.src.commons.logger import logger
+from XREPORT.app.src.utils.data.process import TokenizerHandler
+from XREPORT.app.src.logger import logger
 
 
 

@@ -2,8 +2,8 @@ import os
 import sqlite3
 import pandas as pd
 
-from XREPORT.app.src.commons.constants import DATA_PATH, SOURCE_PATH
-from XREPORT.app.src.commons.logger import logger
+from XREPORT.app.src.constants import DATA_PATH, SOURCE_PATH
+from XREPORT.app.src.logger import logger
 
 
 ###############################################################################
