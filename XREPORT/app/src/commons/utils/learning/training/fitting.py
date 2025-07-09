@@ -1,9 +1,9 @@
 from keras import Model
 from keras.utils import set_random_seed
 
-from XREPORT.commons.utils.learning.callbacks import initialize_callbacks_handler
-from XREPORT.commons.utils.data.serializer import ModelSerializer
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.utils.learning.callbacks import initialize_callbacks_handler
+from XREPORT.app.src.commons.utils.data.serializer import ModelSerializer
+from XREPORT.app.src.commons.logger import logger
 
 
            

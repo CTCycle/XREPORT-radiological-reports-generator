@@ -3,7 +3,7 @@ from keras.metrics import Metric
 from keras import ops, backend
 from keras.config import floatx
 
-from XREPORT.commons.logger import logger
+from XREPORT.app.src.commons.logger import logger
 
 
 # [LOSS FUNCTION]
