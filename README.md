@@ -56,13 +56,10 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 
 ![train_tab](XREPORT/app/assets/train_tab.png)
 
-**Model evaluation:** the XREPORT transformer model is evaluated using different metrics, such as:
+**Inference:** this tab provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
+
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
-
-![model_eval_tab](XREPORT/app/assets/model_eval_tab.png)
-
-**Model inference:** use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search.
 
 ![inference_tab](XREPORT/app/assets/inference_tab.png)
 

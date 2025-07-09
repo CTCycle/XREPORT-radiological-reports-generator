@@ -21,7 +21,7 @@ class DataLoaderProcessor:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)    
         self.augmentation = configuration.get('use_img_augmentation', False)
         self.batch_size = configuration.get('batch_size', 32)
-        self.eval_batch_size = configuration.get('eval_batch_size', 32)
+        self.inference_batch_size = configuration.get('inference_batch_size', 32)
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels==3 else cv2.COLOR_BGR2GRAY
          
         handler = TokenizerHandler(configuration)               
@@ -101,7 +101,7 @@ class XRAYDataLoader:
     def __init__(self, configuration : dict, shuffle=True):        
         self.processor = DataLoaderProcessor(configuration)          
         self.batch_size = configuration.get('batch_size', 32)
-        self.eval_batch_size = configuration.get('eval_batch_size', 32)
+        self.inference_batch_size = configuration.get('inference_batch_size', 32)
         self.shuffle_samples = configuration.get('shuffle_size', 1024)
         self.buffer_size = tf.data.AUTOTUNE   
         self.configuration = configuration
@@ -125,7 +125,7 @@ class XRAYDataLoader:
     #--------------------------------------------------------------------------
     def build_inference_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
-        batch_size = self.eval_batch_size if batch_size is None else batch_size
+        batch_size = self.inference_batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
         dataset = dataset.map(
             self.processor.load_data_for_inference, num_parallel_calls=buffer_size)        
