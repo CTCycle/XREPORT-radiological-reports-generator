@@ -204,8 +204,8 @@ class ValidationEvents:
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
-        # set device for training operations based on user configuration
-        logger.info('Setting device for training operations based on user configuration')                
+        # set device for training operations
+        logger.info('Setting device for training operations')                
         device = DeviceConfig(self.configuration)   
         device.set_device()       
         
@@ -271,8 +271,8 @@ class ModelEvents:
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data) 
         
-        # set device for training operations based on user configuration        
-        logger.info('Setting device for training operations based on user configuration') 
+        # set device for training operations        
+        logger.info('Setting device for training operations') 
         device = DeviceConfig(self.configuration)   
         device.set_device() 
 
@@ -306,8 +306,8 @@ class ModelEvents:
             selected_checkpoint)    
         model.summary(expand_nested=True)  
         
-        # set device for training operations based on user configuration
-        logger.info('Setting device for training operations based on user configuration')         
+        # set device for training operations
+        logger.info('Setting device for training operations')         
         device = DeviceConfig(self.configuration)   
         device.set_device() 
         
