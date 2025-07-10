@@ -321,10 +321,7 @@ class XREPORTModel:
         self.num_decoders = configuration.get('num_decoders', 3) 
         self.freeze_img_encoder = configuration.get('freeze_img_encoder', 3)
         self.jit_compile = configuration.get('jit_compile', False)
-        self.jit_backend = configuration.get('jit_backend', 'inductor')
-        self.has_LR_scheduler = configuration.get('use_scheduler', False)  
-        self.post_warm_lr = configuration.get('post_warmup_LR', 0.0001)
-        self.warmup_steps = configuration.get('warmup_steps',10000)
+        self.jit_backend = configuration.get('jit_backend', 'inductor')        
         self.temperature = configuration.get('training_temperature', 1.0)
         self.configuration = configuration
         self.metadata = metadata
@@ -346,16 +343,16 @@ class XREPORTModel:
             1024, self.vocabulary_size, self.temperature) 
 
     #--------------------------------------------------------------------------
-    def compile_model(self, model, model_summary=True):
-        lr_schedule = self.post_warm_lr
-        if self.has_LR_scheduler:            
-            post_warmup_LR = self.configuration.get('post_warmup_LR', 40000)   
+    def compile_model(self, model : Model, model_summary=True):
+        post_warmup_LR = self.configuration.get('post_warmup_LR', 40000) 
+        LR_schedule = post_warmup_LR 
+        if self.configuration.get('use_scheduler', False):  
             warmup_steps = self.configuration.get('warmup_steps', 1000)                        
-            lr_schedule = WarmUpLRScheduler(post_warmup_LR, warmup_steps)                  
+            LR_schedule = WarmUpLRScheduler(post_warmup_LR, warmup_steps)                  
         
         loss = MaskedSparseCategoricalCrossentropy()  
         metric = [MaskedAccuracy()]
-        opt = optimizers.AdamW(learning_rate=lr_schedule)          
+        opt = optimizers.AdamW(learning_rate=LR_schedule)          
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)                 
   
         model.summary(expand_nested=True) if model_summary else None
