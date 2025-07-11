@@ -7,9 +7,9 @@ XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
 XREPORT/resources/database/inference/*
 
-XREPORT/app/python/*
-XREPORT/app/git/*
-XREPORT/app/.env
+XREPORT/setup/python/*
+XREPORT/setup/git/*
+XREPORT/setup/.env
 
 __pycache__
 *.db
