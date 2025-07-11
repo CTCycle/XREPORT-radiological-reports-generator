@@ -1,5 +1,4 @@
 import os
-import sqlite3
 import pandas as pd
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
@@ -114,21 +113,18 @@ class CheckpointSummary(Base):
 ###############################################################################
 class XREPORTDatabase:
 
-    def __init__(self, configuration):             
+    def __init__(self):             
         self.db_path = os.path.join(DATA_PATH, 'XREPORT_database.db')
-        self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
+        
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 10000
-        self.configuration = configuration    
-
+    
     #--------------------------------------------------------------------------       
     def initialize_database(self):
         Base.metadata.create_all(self.engine)
-
-    #--------------------------------------------------------------------------
-    def update_database(self): 
-        logger.debug(f'Updating database from {self.source_path}')              
+        source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
+        logger.debug(f'Updating database from {source_path}')              
         source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
         self.save_source_data_table(source_dataset) 
 

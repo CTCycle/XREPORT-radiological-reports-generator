@@ -15,10 +15,10 @@ from XREPORT.app.src.logger import logger
 ###############################################################################
 class TextAnalysis:
 
-    def __init__(self, database, configuration : dict):
+    def __init__(self, configuration : dict):
         self.DPI = 400
         self.file_type = 'jpg'
-        self.database = database
+        
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
@@ -56,8 +56,8 @@ class TextAnalysis:
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, database, configuration):       
-        self.database = database      
+    def __init__(self, configuration):       
+              
         self.save_images = configuration.get('save_images', True)          
         self.configuration = configuration      
         self.DPI = 400  
