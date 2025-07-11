@@ -46,15 +46,15 @@ class MainWindow:
         self.worker = None       
 
         # initialize database
-        self.database = XREPORTDatabase(self.configuration)
+        self.database = XREPORTDatabase()
         self.database.initialize_database()  
-        self.database.update_database()            
+                    
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)
-        self.validation_handler = ValidationEvents(self.database, self.configuration)
-        self.model_handler = ModelEvents(self.database, self.configuration)        
+        self.dataset_handler = DatasetEvents(self.configuration)
+        self.validation_handler = ValidationEvents(self.configuration)
+        self.model_handler = ModelEvents(self.configuration)        
 
         # setup UI elements
         self._set_states()
@@ -486,7 +486,7 @@ class MainWindow:
         
         self.pixmaps[idx_key].clear()
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)
+        self.dataset_handler = DatasetEvents(self.configuration)
         
         img_paths = self.dataset_handler.load_images_path(self.img_paths[idx_key])
         self.pixmaps[idx_key].extend(img_paths)
@@ -505,7 +505,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)       
+        self.validation_handler = ValidationEvents(self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
@@ -527,7 +527,7 @@ class MainWindow:
             return         
         
         self.configuration = self.config_manager.get_configuration() 
-        self.dataset_handler = DatasetEvents(self.database, self.configuration)       
+        self.dataset_handler = DatasetEvents(self.configuration)       
         # send message to status bar
         self._send_message("Calculating image dataset evaluation metrics...") 
         
@@ -549,7 +549,7 @@ class MainWindow:
             return 
                   
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)         
+        self.model_handler = ModelEvents(self.configuration)         
   
         # send message to status bar
         self._send_message("Training XREPORT Transformer using a new model instance...")        
@@ -569,7 +569,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration)   
+        self.model_handler = ModelEvents(self.configuration)   
 
         # send message to status bar
         self._send_message(f"Resume training from checkpoint {self.selected_checkpoint}")         
@@ -593,7 +593,7 @@ class MainWindow:
             return 
 
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)       
+        self.validation_handler = ValidationEvents(self.configuration)       
         # send message to status bar
         self._send_message(f"Evaluating {self.selected_checkpoint} performances... ")
 
@@ -615,7 +615,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.validation_handler = ValidationEvents(self.database, self.configuration)           
+        self.validation_handler = ValidationEvents(self.configuration)           
         # send message to status bar
         self._send_message("Generating checkpoints summary...") 
         
@@ -637,7 +637,7 @@ class MainWindow:
             return 
         
         self.configuration = self.config_manager.get_configuration() 
-        self.model_handler = ModelEvents(self.database, self.configuration) 
+        self.model_handler = ModelEvents(self.configuration) 
        
         # send message to status bar
         self._send_message(f"Generating reports from X-ray scans with {self.selected_checkpoint}") 

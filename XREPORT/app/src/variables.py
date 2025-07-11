@@ -9,7 +9,7 @@ from XREPORT.app.src.logger import logger
 class EnvironmentVariables:
 
     def __init__(self):        
-        self.env_path = os.path.join(PROJECT_DIR, 'app', '.env')        
+        self.env_path = os.path.join(PROJECT_DIR, 'setup', '.env')        
         if os.path.exists(self.env_path):
             load_dotenv(dotenv_path=self.env_path, override=True)            
         else:

@@ -20,7 +20,7 @@ from XREPORT.app.src.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, database : XREPORTDatabase, configuration):             
+    def __init__(self, configuration):             
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
@@ -32,7 +32,8 @@ class DataSerializer:
         self.seed = configuration.get('general_seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
-        self.database = database         
+
+        self.database = XREPORTDatabase()                 
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
