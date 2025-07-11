@@ -5,14 +5,14 @@ REM ============================================================================
 REM == Configuration: define project and Python paths
 REM ============================================================================
 set "project_folder=%~dp0"
-set "python_dir=%project_folder%app\python"
+set "python_dir=%project_folder%setup\python"
 set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "app_script=%project_folder%app\src\main.py"
-set "requirements_path=%project_folder%app\requirements.txt"
-set "git_dir=%project_folder%app\git"
+set "requirements_path=%project_folder%setup\requirements.txt"
+set "git_dir=%project_folder%setup\git"
 set "git_exe=%git_dir%\cmd\git.exe"
-set "triton_path=%project_folder%app\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
+set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
 REM == 0. Skip full setup if environment already present
