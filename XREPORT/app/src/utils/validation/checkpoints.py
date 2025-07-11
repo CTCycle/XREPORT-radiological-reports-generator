@@ -16,9 +16,9 @@ from XREPORT.app.src.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, database, remove_invalid=False):
+    def __init__(self, remove_invalid=False):
         self.remove_invalid = remove_invalid            
-        self.database = database              
+                      
 
     #---------------------------------------------------------------------------
     def scan_checkpoint_folder(self):
