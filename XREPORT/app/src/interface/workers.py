@@ -125,7 +125,7 @@ class ProcessWorker(QObject):
         self._progress_queue = Queue()
         self._interrupted = Event()
         self._proc = None
-        self._timer = None  # Will be set from window.py when polling
+        self._timer = None  
 
     #--------------------------------------------------------------------------
     def stop(self):

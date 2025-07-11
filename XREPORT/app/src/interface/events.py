@@ -68,14 +68,14 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, database, configuration):        
+    def __init__(self, configuration):        
         self.text_placeholder = "No description available for this image."   
-        self.database = database             
+                     
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
     def load_images_path(self, path, sample_size=1.0):
-        serializer = DataSerializer(self.database, self.configuration)         
+        serializer = DataSerializer(self.configuration)         
         images_paths = serializer.get_images_path_from_directory(
             path, sample_size) 
         
@@ -83,7 +83,7 @@ class DatasetEvents:
     
     #--------------------------------------------------------------------------
     def get_description_from_train_image(self, image_name : str):    
-        serializer = DataSerializer(self.database, self.configuration)             
+        serializer = DataSerializer(self.configuration)             
         dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
         mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
@@ -94,7 +94,7 @@ class DatasetEvents:
 
     #--------------------------------------------------------------------------
     def get_generated_report(self, image_name : str):
-        serializer = DataSerializer(self.database, self.configuration)                 
+        serializer = DataSerializer(self.configuration)                 
         dataset = serializer.load_source_dataset(sample_size=1.0)
         image_no_ext = image_name.split('.')[0]  
         mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
@@ -105,7 +105,7 @@ class DatasetEvents:
     
     #--------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.database, self.configuration)      
+        serializer = DataSerializer(self.configuration)      
         sample_size = self.configuration.get("sample_size", 1.0)            
         dataset = serializer.load_source_dataset(sample_size=sample_size)
 
@@ -151,21 +151,21 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, database, configuration):
-        self.database = database 
+    def __init__(self, configuration):
+         
         self.configuration = configuration  
             
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.database, self.configuration) 
+        serializer = DataSerializer(self.configuration) 
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size)   
         dataset = serializer.update_images_path(dataset)
         logger.info(f'Selected sample size for dataset evaluation: {sample_size}')
         logger.info(f'Number of reports and related images: {dataset.shape[0]}')
 
-        img_analyzer = ImageAnalysis(self.database, self.configuration)
-        text_analyzer = TextAnalysis(self.database, self.configuration)                
+        img_analyzer = ImageAnalysis(self.configuration)
+        text_analyzer = TextAnalysis(self.configuration)                
        
         # 1. calculate images statistics 
         if 'image_statistics' in metrics:            
@@ -211,7 +211,7 @@ class ValidationEvents:
         
         # load validation data and current preprocessing metadata. This must
         # be compatible with the currently loaded checkpoint configurations
-        serializer = DataSerializer(self.database, train_config) 
+        serializer = DataSerializer(train_config) 
         _, val_data, current_metadata = serializer.load_train_and_validation_data()    
         val_data = serializer.update_images_path(val_data)  
         vocabulary_size = train_metadata.get('vocabulary_size', 1000)
@@ -248,8 +248,8 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, database, configuration): 
-        self.database = database  
+    def __init__(self, configuration): 
+          
         self.configuration = configuration 
     
     #--------------------------------------------------------------------------
@@ -259,7 +259,7 @@ class ModelEvents:
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.database, self.configuration)    
+        serializer = DataSerializer(self.configuration)    
         train_data, validation_data, metadata = serializer.load_train_and_validation_data() 
         # fetch images path from the preprocessed data
         train_data = serializer.update_images_path(train_data)
@@ -311,7 +311,7 @@ class ModelEvents:
         device = DeviceConfig(self.configuration)   
         device.set_device() 
         
-        serializer = DataSerializer(self.database, train_config)
+        serializer = DataSerializer(train_config)
         train_data, validation_data, metadata = serializer.load_train_and_validation_data()
         train_data = serializer.update_images_path(train_data)
         validation_data = serializer.update_images_path(validation_data)  
@@ -342,7 +342,7 @@ class ModelEvents:
         device.set_device()
 
         # select images from the inference folder and retrieve current paths
-        serializer = DataSerializer(self.database, self.configuration)        
+        serializer = DataSerializer(self.configuration)        
         img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
         logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
