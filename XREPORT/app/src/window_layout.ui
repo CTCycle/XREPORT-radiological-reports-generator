@@ -518,7 +518,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
       <item>
        <widget class="QCheckBox" name="deviceGPU">
         <property name="text">
-         <string>Use GPU as available device</string>
+         <string>Set GPU as device</string>
         </property>
        </widget>
       </item>
@@ -737,7 +737,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                <item>
                 <widget class="QLabel" name="tokenizerLabel">
                  <property name="text">
-                  <string>Select tokenizer</string>
+                  <string>Text tokenizer</string>
                  </property>
                 </widget>
                </item>
@@ -979,7 +979,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
                 <number>10</number>
                </property>
                <property name="value">
-                <number>512</number>
+                <number>256</number>
                </property>
               </widget>
              </item>
@@ -1073,13 +1073,6 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
               </widget>
              </item>
              <item>
-              <widget class="QCheckBox" name="saveCheckpoints">
-               <property name="text">
-                <string>Save checkpoints</string>
-               </property>
-              </widget>
-             </item>
-             <item>
               <layout class="QHBoxLayout" name="horizontalLayout_22">
                <item>
                 <widget class="QLabel" name="label_18">
@@ -1151,7 +1144,7 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_12">
                <item>
-                <widget class="QLabel" name="label_9">
+                <widget class="QCheckBox" name="saveCheckpoints">
                  <property name="text">
                   <string>Save checkpoint every N epochs</string>
                  </property>
