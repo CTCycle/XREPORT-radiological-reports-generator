@@ -146,9 +146,7 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
-        history_path = os.path.join(path, 'configuration', 'session_history.json')
-        history = {'history' : session.history,
-                   'epochs': session.epoch[-1] + 1}        
+        history_path = os.path.join(path, 'configuration', 'session_history.json')               
 
         # Save training and model configuration
         with open(config_path, 'w') as f:
