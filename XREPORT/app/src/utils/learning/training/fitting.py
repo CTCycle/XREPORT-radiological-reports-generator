@@ -30,11 +30,14 @@ class ModelTraining:
         session = model.fit(
             train_data, epochs=total_epochs, validation_data=validation_data, 
             callbacks=callbacks_list)
+        
+        history = {'history' : session.history,
+                   'epochs': session.epoch[-1] + 1} 
 
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
         serializer.save_training_configuration(
-            checkpoint_path, session, self.configuration, metadata)
+            checkpoint_path, history, self.configuration, metadata)
         
     #--------------------------------------------------------------------------
     def resume_training(self, model : Model, train_data, validation_data, metadata,
