@@ -72,10 +72,11 @@ class TokenizerHandler:
     #--------------------------------------------------------------------------
     def tokenize_text_corpus(self, data):        
         # tokenize train and validation text using loaded tokenizer 
+        true_report_size = self.max_report_size + 1
         text = data['text'].to_list()      
         tokens = self.tokenizer(
             text, padding=True, truncation=True, 
-            max_length=self.max_report_size, return_tensors='pt')             
+            max_length=true_report_size, return_tensors='pt')             
         
         # extract only token ids from the tokenizer output
         tokens = tokens['input_ids'].numpy().tolist()

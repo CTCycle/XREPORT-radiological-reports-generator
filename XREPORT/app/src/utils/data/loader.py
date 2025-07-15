@@ -50,10 +50,9 @@ class DataLoaderProcessor:
         rgb_image = self.load_image(path)
         rgb_image = self.image_augmentation(rgb_image) if self.augmentation else rgb_image
         rgb_image = self.image_normalization(rgb_image)        
-        pad_token = tf.cast(self.PAD_TOKEN, text.dtype)
-        pad_token_tf = tf.expand_dims(pad_token, 0)        
-        input_text = tf.concat([text[:-1], pad_token_tf], axis=0)
-        output_text = tf.concat([pad_token_tf, text[1:]], axis=0)
+        
+        input_text = text[:-1]
+        output_text = text[1:]
         
         return (rgb_image, input_text), output_text                  
  
