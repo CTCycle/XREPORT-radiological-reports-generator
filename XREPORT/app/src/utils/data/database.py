@@ -125,7 +125,7 @@ class XREPORTDatabase:
         Base.metadata.create_all(self.engine)
         source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
         logger.debug(f'Updating database from {source_path}')              
-        source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
+        source_dataset = pd.read_csv(source_path, sep=';', encoding='utf-8')                 
         self.save_source_data_table(source_dataset) 
 
     #--------------------------------------------------------------------------
