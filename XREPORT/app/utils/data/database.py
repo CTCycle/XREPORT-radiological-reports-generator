@@ -115,7 +115,6 @@ class XREPORTDatabase:
 
     def __init__(self):             
         self.db_path = os.path.join(DATA_PATH, 'XREPORT_database.db')
-        
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 10000
