@@ -111,7 +111,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(0, 3, progress_callback)
+        update_progress_callback(1, 4, progress_callback)
         
         # sanitize text corpus by removing undesired symbols and punctuation     
         sanitizer = TextSanitizer(self.configuration)
@@ -120,7 +120,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(1, 3, progress_callback)
+        update_progress_callback(2, 4, progress_callback)
 
         # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
         # into subunits and these are eventually mapped to integer indexes        
@@ -132,7 +132,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(2, 3, progress_callback)
+        update_progress_callback(3, 4, progress_callback)
         
         # split data into train set and validation set
         logger.info('Preparing dataset of images and captions based on splitting size')  
@@ -145,7 +145,7 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(3, 3, progress_callback) 
+        update_progress_callback(4, 4, progress_callback) 
 
 
 ###############################################################################
