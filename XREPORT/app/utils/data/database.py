@@ -165,7 +165,7 @@ class XREPORTDatabase:
             session.close()       
 
     #--------------------------------------------------------------------------
-    def load_dataset_tables(self):
+    def load_source_dataset(self):
         with self.engine.connect() as conn:
             data = pd.read_sql_table('RADIOGRAPHY_DATA', conn)
         return data
@@ -185,7 +185,7 @@ class XREPORTDatabase:
         data.to_sql("RADIOGRAPHY_DATA", self.engine, if_exists='append', index=False) 
         
     #--------------------------------------------------------------------------
-    def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
         with self.engine.begin() as conn:
             train_data.to_sql("TRAIN_DATA", conn, if_exists='replace', index=False)
             validation_data.to_sql("VALIDATION_DATA", conn, if_exists='replace', index=False)
@@ -196,19 +196,19 @@ class XREPORTDatabase:
             data.to_sql("GENERATED_REPORTS", conn, if_exists='replace', index=False)
 
     #--------------------------------------------------------------------------
-    def save_image_statistics_table(self, data : pd.DataFrame):      
+    def save_image_statistics(self, data : pd.DataFrame):      
         with self.engine.begin() as conn:
-            data.to_sql(
-                "IMAGE_STATISTICS", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM IMAGE_STATISTICS"))        
+        data.to_sql('IMAGE_STATISTICS', self.engine, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
-    def save_text_statistics_table(self, data : pd.DataFrame):      
+    def save_text_statistics(self, data : pd.DataFrame):      
         with self.engine.begin() as conn:
-            data.to_sql(
-                "TEXT_STATISTICS", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM TEXT_STATISTICS"))        
+        data.to_sql('TEXT_STATISTICS', self.engine, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
-    def save_checkpoints_summary_table(self, data : pd.DataFrame):         
+    def save_checkpoints_summary(self, data : pd.DataFrame):         
         self.upsert_dataframe(data, CheckpointSummary)
     
 

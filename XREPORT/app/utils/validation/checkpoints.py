@@ -78,7 +78,7 @@ class ModelEvaluationSummary:
                 i+1, len(model_paths), kwargs.get('progress_callback', None)) 
 
         dataframe = pd.DataFrame(model_parameters)
-        self.database.save_checkpoints_summary_table(dataframe)        
+        self.database.save_checkpoints_summary(dataframe)        
             
         return dataframe
     
