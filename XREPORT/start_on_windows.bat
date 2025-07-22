@@ -5,6 +5,7 @@ REM ============================================================================
 REM == Configuration: define project and Python paths
 REM ============================================================================
 set "project_folder=%~dp0"
+set "root_folder=%project_folder%..\"
 set "python_dir=%project_folder%setup\python"
 set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
@@ -71,7 +72,7 @@ echo [INFO] Installing setuptools
 "%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
 
 echo [INFO] Installing triton
-"%pip_exe_path%" install "%triton_path%" || goto :error
+"%pip_exe%" install "%triton_path%" || goto :error
 
 pushd "%root_folder%"
 "%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
@@ -108,7 +109,9 @@ if not exist "%app_script%" (
     goto :error
 )
 
+pushd "%root_folder%"
 "%python_exe%" "%app_script%" || goto :error
+popd
 echo [SUCCESS] Application launched successfully.
 
 endlocal

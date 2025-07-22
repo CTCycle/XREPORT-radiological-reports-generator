@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+from XREPORT.app.utils.data.serializer import DataSerializer
 from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.app.constants import EVALUATION_PATH
 from XREPORT.app.logger import logger
@@ -16,9 +17,8 @@ from XREPORT.app.logger import logger
 class TextAnalysis:
 
     def __init__(self, configuration : dict):
-        self.DPI = 400
-        self.file_type = 'jpg'
-        
+        self.DPI = configuration.get('image_resolution', 400)
+        self.file_type = 'jpg'        
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
@@ -40,7 +40,7 @@ class TextAnalysis:
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i, len(images_descriptions), kwargs.get('progress_callback', None))  
+                i+1, len(images_descriptions), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
         self.database.save_text_statistics_table(stats_dataframe)       
@@ -56,11 +56,10 @@ class TextAnalysis:
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, configuration):       
-              
-        self.save_images = configuration.get('save_images', True)          
-        self.configuration = configuration      
-        self.DPI = 400  
+    def __init__(self, configuration): 
+        self.serializer = DataSerializer(configuration)
+        self.DPI = configuration.get('image_resolution', 400)
+        self.configuration = configuration
 
     #--------------------------------------------------------------------------
     def save_image(self, fig, name):        
@@ -110,10 +109,10 @@ class ImageAnalysis:
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i, len(images_path), kwargs.get('progress_callback', None))  
+                i+1, len(images_path), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
-        self.database.save_image_statistics_table(stats_dataframe)       
+        self.serializer.save_image_statistics(stats_dataframe)       
         
         return stats_dataframe
     
@@ -136,7 +135,7 @@ class ImageAnalysis:
             # check for thread status and progress bar update
             check_thread_status(kwargs.get('worker', None))
             update_progress_callback(
-                i, len(images_path), kwargs.get('progress_callback', None))  
+                i+1, len(images_path), kwargs.get('progress_callback', None))  
 
         # Plot the combined pixel intensity histogram
         fig, ax = plt.subplots(figsize=(16,14), dpi=self.DPI)
