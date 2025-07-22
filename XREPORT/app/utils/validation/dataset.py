@@ -17,18 +17,18 @@ from XREPORT.app.logger import logger
 class TextAnalysis:
 
     def __init__(self, configuration : dict):
+        self.serializer = DataSerializer(configuration)
         self.DPI = configuration.get('image_resolution', 400)
-        self.file_type = 'jpg'        
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
-    def count_words_in_documents(self, data):         
+    def count_words_in_documents(self, data : pd.DataFrame):         
         words = [word for text in data['text'].to_list() for word in text.split()]           
 
         return words
     
     #--------------------------------------------------------------------------
-    def calculate_text_statistics(self, data, **kwargs):
+    def calculate_text_statistics(self, data : pd.DataFrame, **kwargs):
         images_descriptions = data['text'].to_list()
         images_path = data['path'].to_list()         
         results= []     
@@ -43,7 +43,8 @@ class TextAnalysis:
                 i+1, len(images_descriptions), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
-        self.database.save_text_statistics_table(stats_dataframe)       
+        self.serializer.save_text_statistics(stats_dataframe)
+        logger.info(f'Text statistics saved: {len(stats_dataframe)} records')       
         
         return stats_dataframe
     
@@ -112,7 +113,8 @@ class ImageAnalysis:
                 i+1, len(images_path), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
-        self.serializer.save_image_statistics(stats_dataframe)       
+        self.serializer.save_image_statistics(stats_dataframe)   
+        logger.info(f'Image statistics saved: {len(stats_dataframe)} records')      
         
         return stats_dataframe
     

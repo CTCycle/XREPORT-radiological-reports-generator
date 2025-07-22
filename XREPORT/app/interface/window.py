@@ -302,10 +302,6 @@ class MainWindow:
             self.model_plots_view: ("model_eval_images", "model_eval_images"),
             self.inference_images_view: ("inference_images", "inference_images"),
             self.train_images_view: ("train_images", "train_images")} 
-        
-        self.text_view = {
-            'train_images': self.dataset_handler.get_description_from_train_image,
-            'inference_images': self.dataset_handler.get_generated_report}
             
     #--------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):        
@@ -418,7 +414,7 @@ class MainWindow:
         image_path = self.pixmaps[idx_key][self.current_fig[idx_key]]
         if isinstance(image_path, str):
             image_name = os.path.basename(image_path)
-            description = self.text_view[idx_key](image_name)        
+            description = self.dataset_handler.get_description_from_image(image_name)        
             self.image_description.setPlainText(description)
             return 
         
@@ -495,8 +491,7 @@ class MainWindow:
         self._start_thread_worker(
             self.worker, on_finished=self.on_dataset_uploading_finished,
             on_error=self.on_error,
-            on_interrupted=self.on_task_interrupted)       
-        
+            on_interrupted=self.on_task_interrupted)  
 
     #--------------------------------------------------------------------------
     @Slot()
