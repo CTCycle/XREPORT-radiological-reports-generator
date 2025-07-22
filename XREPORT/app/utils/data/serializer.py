@@ -62,7 +62,6 @@ class DataSerializer:
 
         return clean_dataset
     
-    
     #--------------------------------------------------------------------------
     def get_images_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
@@ -78,19 +77,24 @@ class DataSerializer:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path          
+            return images_path 
+        
+    #--------------------------------------------------------------------------
+    def process_tokens(self, col):        
+        if isinstance(col, list):
+            return [int(f) for f in col]        
+        if isinstance(col, str):
+            return [int(f) for f in col.split()]
+        return []
 
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self): 
         # load preprocessed data from database and convert joint strings to list 
-        train_data, val_data = self.database.load_train_and_validation_tables()
-
+        train_data, val_data = self.database.load_train_and_validation()        
         # process text strings to obtain a list of separated token indices     
-        train_data['tokens'] = train_data['tokens'].apply(
-            lambda x : [int(f) for f in x.split()]) 
-        val_data['tokens'] = val_data['tokens'].apply(
-            lambda x : [int(f) for f in x.split()]) 
-               
+        train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
+        val_data['tokens'] = val_data['tokens'].apply(self.process_tokens)
+        # load metadata from file
         with open(self.metadata_path, 'r') as file:
             metadata = json.load(file)        
         
@@ -103,6 +107,8 @@ class DataSerializer:
         metadata = {'seed' : self.seed, 
                     'dataset' : self.configuration.get('dataset', {}),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
+                    'sample_size' : self.configuration.get('sample_size', 1.0),
+                    'validation_size' : self.configuration.get('validation_size', 0.2),
                     'vocabulary_size' : vocabulary_size,
                     'max_report_size' : self.max_report_size,
                     'tokenizer' : self.tokenizer_ID}

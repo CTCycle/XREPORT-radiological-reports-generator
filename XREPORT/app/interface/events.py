@@ -123,14 +123,16 @@ class DatasetEvents:
         check_thread_status(worker)
         update_progress_callback(3, 4, progress_callback)
         
+        # drop raw text columns and keep only tokenized text 
+        processed_data = processed_data.drop(columns=['text']) 
         # split data into train set and validation set
-        logger.info('Preparing dataset of images and captions based on splitting size')  
+        logger.info('Preparing dataset of images and captions based on splitting size')
         splitter = TrainValidationSplit(self.configuration, processed_data)     
         train_data, validation_data = splitter.split_train_and_validation()
                      
         self.serializer.save_train_and_validation_data(
             train_data, validation_data, vocabulary_size) 
-        logger.info('Preprocessed data saved into XREPORT database') 
+        logger.info('Preprocessed data saved into database') 
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -247,7 +249,8 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
         serializer = DataSerializer(self.configuration)    
-        train_data, validation_data, metadata = serializer.load_train_and_validation_data() 
+        train_data, validation_data, metadata = serializer.load_train_and_validation_data()
+
         # fetch images path from the preprocessed data
         train_data = serializer.update_images_path(train_data)
         validation_data = serializer.update_images_path(validation_data)        
