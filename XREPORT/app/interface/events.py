@@ -68,46 +68,31 @@ class GraphicsHandler:
 ###############################################################################
 class DatasetEvents:
 
-    def __init__(self, configuration):        
-        self.text_placeholder = "No description available for this image."   
-                     
+    def __init__(self, configuration : dict):
+        self.serializer = DataSerializer(configuration)
+        self.full_dataset = self.serializer.load_source_dataset(sample_size=1.0)        
+        self.text_placeholder = "No description available for this image." 
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
     def load_images_path(self, path, sample_size=1.0):
-        serializer = DataSerializer(self.configuration)         
-        images_paths = serializer.get_images_path_from_directory(
-            path, sample_size) 
+        img_paths = self.serializer.get_images_path_from_directory(path, sample_size) 
         
-        return images_paths 
+        return img_paths 
     
     #--------------------------------------------------------------------------
-    def get_description_from_train_image(self, image_name : str):    
-        serializer = DataSerializer(self.configuration)             
-        dataset = serializer.load_source_dataset(sample_size=1.0)
+    def get_description_from_image(self, image_name : str):
         image_no_ext = image_name.split('.')[0]  
-        mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
-        description = dataset.loc[mask, 'text'].values
+        mask = self.full_dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
+        description = self.full_dataset.loc[mask, 'text'].values
         description = description[0] if len(description) > 0 else self.text_placeholder  
         
         return description 
-
-    #--------------------------------------------------------------------------
-    def get_generated_report(self, image_name : str):
-        serializer = DataSerializer(self.configuration)                 
-        dataset = serializer.load_source_dataset(sample_size=1.0)
-        image_no_ext = image_name.split('.')[0]  
-        mask = dataset['image'].astype(str).str.contains(image_no_ext, case=False, na=False)
-        description = dataset.loc[mask, 'text'].values
-        description = description[0] if len(description) > 0 else self.text_placeholder  
-        
-        return description   
     
     #--------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.configuration)      
         sample_size = self.configuration.get("sample_size", 1.0)            
-        dataset = serializer.load_source_dataset(sample_size=sample_size)
+        dataset = self.serializer.load_source_dataset(sample_size=sample_size)
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -151,8 +136,7 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, configuration):
-         
+    def __init__(self, configuration : dict):         
         self.configuration = configuration  
             
     #--------------------------------------------------------------------------
@@ -160,9 +144,8 @@ class ValidationEvents:
         serializer = DataSerializer(self.configuration) 
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size)   
-        dataset = serializer.update_images_path(dataset)
-        logger.info(f'Selected sample size for dataset evaluation: {sample_size}')
-        logger.info(f'Number of reports and related images: {dataset.shape[0]}')
+        dataset = serializer.update_images_path(dataset)        
+        logger.info(f'Selected reports and related images: {len(dataset)}')
 
         img_analyzer = ImageAnalysis(self.configuration)
         text_analyzer = TextAnalysis(self.configuration)                

@@ -20,7 +20,7 @@ from XREPORT.app.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration):             
+    def __init__(self, configuration : dict):             
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
@@ -38,7 +38,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def load_source_dataset(self, sample_size=None):        
-        dataset = self.database.load_dataset_tables()
+        dataset = self.database.load_source_dataset()
         sample_size = self.configuration.get('sample_size', 1.0)        
         dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -56,11 +56,13 @@ class DataSerializer:
                     images_path.update(path_pair)         
 
         dataset['path'] = dataset['image'].map(images_path)
-        dataset = dataset.dropna(subset=['path']).reset_index(drop=True)             
+        clean_dataset = dataset.dropna(subset=['path']).reset_index(drop=True) 
+        logger.info(f'Updated dataset with images paths: {len(clean_dataset)} records found')  
+        logger.info(f'{len(dataset) - len(clean_dataset)} records were dropped due to missing images')          
 
-        return dataset
+        return clean_dataset
     
-    # get all valid images within a specified directory and return a list of paths
+    
     #--------------------------------------------------------------------------
     def get_images_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
@@ -96,8 +98,7 @@ class DataSerializer:
 
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                                       vocabulary_size=None):          
-               
+                                       vocabulary_size=None): 
         metadata = {'seed' : self.seed, 
                     'dataset' : self.configuration.get('dataset', {}),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -108,19 +109,21 @@ class DataSerializer:
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
 
-        self.database.save_train_and_validation_tables(train_data, validation_data)
+        self.database.save_train_and_validation(train_data, validation_data)
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
-        self.database.save_predictions(reports_dataframe) 
+        self.database.save_predictions(reports_dataframe)
 
-    # get all valid images within a specified directory and return a list of paths
+    #--------------------------------------------------------------------------
+    def save_text_statistics(self, data : pd.DataFrame):            
+        self.database.save_text_statistics(data)  
+    
     #--------------------------------------------------------------------------
     def save_image_statistics(self, data : pd.DataFrame):            
         self.database.save_image_statistics(data)       
 
-    # get all valid images within a specified directory and return a list of paths
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            
         self.database.save_checkpoints_summary(data)
