@@ -171,13 +171,13 @@ class XREPORTDatabase:
         return data
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation_tables(self):       
+    def load_train_and_validation(self):       
         with self.engine.connect() as conn:
             train_data = pd.read_sql_table("TRAIN_DATA", conn)
             validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
 
-        return train_data, validation_data      
-
+        return train_data, validation_data  
+    
     #--------------------------------------------------------------------------
     def save_source_data(self, data : pd.DataFrame):
         with self.engine.begin() as conn:
