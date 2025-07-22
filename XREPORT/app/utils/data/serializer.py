@@ -37,10 +37,10 @@ class DataSerializer:
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
-    def load_source_dataset(self, sample_size=None):        
+    def load_source_dataset(self, sample_size=1.0):        
         dataset = self.database.load_source_dataset()
-        sample_size = self.configuration.get('sample_size', 1.0)        
-        dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
+        if sample_size < 1.0:
+            dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
         return dataset       
 
@@ -99,6 +99,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
                                        vocabulary_size=None): 
+        self.database.save_train_and_validation(train_data, validation_data)
         metadata = {'seed' : self.seed, 
                     'dataset' : self.configuration.get('dataset', {}),
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -109,7 +110,7 @@ class DataSerializer:
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
 
-        self.database.save_train_and_validation(train_data, validation_data)
+        
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        

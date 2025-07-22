@@ -6,6 +6,7 @@ XREPORT/resources/validation/*
 XREPORT/resources/models/tokenizers/*
 XREPORT/resources/models/XRAYEncoder/*
 XREPORT/resources/database/inference/*
+XREPORT/resources/database/validation/*
 
 XREPORT/setup/python/*
 XREPORT/setup/git/*
