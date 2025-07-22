@@ -47,8 +47,7 @@ class MainWindow:
 
         # initialize database
         self.database = XREPORTDatabase()
-        self.database.initialize_database()  
-                    
+        self.database.initialize_database() 
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
@@ -71,14 +70,14 @@ class MainWindow:
             (QCheckBox,'pixDist','pixel_distribution_metric'),
             (QPushButton,'evaluateDataset','evaluate_dataset'),            
             # dataset processing group 
+            (QPushButton,'loadData','load_dataset'),
             (QSpinBox,'seed','general_seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'),
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'splitSeed','split_seed'), 
             (QSpinBox,'maxReportSize','max_report_size'), 
             (QComboBox,'tokenizerList','tokenizer'),
-            (QPushButton,'buildMLDataset','build_training_dataset'),                         
-                          
+            (QPushButton,'buildMLDataset','build_training_dataset'),
             # 2. training tab page
             # dataset settings group    
             (QCheckBox,'imgAugment','img_augmentation'),
@@ -141,7 +140,8 @@ class MainWindow:
         
         self._connect_signals([ 
             ('stop_thread','clicked',self.stop_running_worker),          
-            # 1. dataset tab page                      
+            # 1. dataset tab page       
+            ('load_dataset','clicked',self.update_database_from_source),               
             ('image_statistics_metric','toggled',self._update_metrics),
             ('text_statistics_metric','toggled',self._update_metrics),
             ('pixel_distribution_metric','toggled',self._update_metrics),
@@ -234,7 +234,7 @@ class MainWindow:
             ('batch_size', 'valueChanged', 'batch_size'),
             ('train_seed', 'valueChanged', 'train_seed'),                       
             # RL scheduler settings group            
-            ('LR_scheduler', 'toggled', 'use_lr_scheduler'),
+            ('LR_scheduler', 'toggled', 'use_LR_scheduler'),
             ('post_warmup_LR', 'valueChanged', 'post_warmup_LR'),
             ('warmup_steps', 'valueChanged', 'warmup_steps'),
             # model settings group
@@ -380,24 +380,6 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     @Slot()
-    def load_checkpoints(self):       
-        checkpoints = self.model_handler.get_available_checkpoints()
-        self.checkpoints_list.clear()
-        if checkpoints:
-            self.checkpoints_list.addItems(checkpoints)
-            self.selected_checkpoint = checkpoints[0]
-            self.checkpoints_list.setCurrentText(checkpoints[0])
-        else:
-            self.selected_checkpoint = None
-            logger.warning("No checkpoints available")
-
-    #--------------------------------------------------------------------------
-    @Slot(str)
-    def select_checkpoint(self, name: str):
-        self.selected_checkpoint = name if name else None 
-
-    #--------------------------------------------------------------------------
-    @Slot()
     def _update_metrics(self):        
         self.selected_metrics['dataset'] = [
             name for name, box in self.data_metrics if box.isChecked()]
@@ -495,10 +477,31 @@ class MainWindow:
 
     #--------------------------------------------------------------------------
     # [DATASET TAB]
-    #--------------------------------------------------------------------------      
+    #--------------------------------------------------------------------------
+    @Slot()
+    def update_database_from_source(self):
+        if self.worker:            
+            message = "A task is currently running, wait for it to finish and then try again"
+            QMessageBox.warning(self.main_win, "Application is still busy", message)
+            return         
+                
+        # send message to status bar
+        self._send_message("Updating database with source data...") 
+        
+        # functions that are passed to the worker will be executed in a separate thread
+        self.worker = ThreadWorker(self.database.update_database_from_source)   
+
+        # start worker and inject signals
+        self._start_thread_worker(
+            self.worker, on_finished=self.on_dataset_uploading_finished,
+            on_error=self.on_error,
+            on_interrupted=self.on_task_interrupted)       
+        
+
+    #--------------------------------------------------------------------------
     @Slot()
     def run_dataset_evaluation_pipeline(self):  
-        if not self.data_metrics:
+        if not self.selected_metrics['dataset']:
             return 
         
         if self.worker:            
@@ -593,8 +596,26 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted)
 
     #--------------------------------------------------------------------------
-    # [MODEL EVALUATION TAB]
-    #-------------------------------------------------------------------------- 
+    # [MODEL EVALUATION AND INFERENCE TAB]
+    #--------------------------------------------------------------------------
+    @Slot()
+    def load_checkpoints(self):       
+        checkpoints = self.model_handler.get_available_checkpoints()
+        self.checkpoints_list.clear()
+        if checkpoints:
+            self.checkpoints_list.addItems(checkpoints)
+            self.selected_checkpoint = checkpoints[0]
+            self.checkpoints_list.setCurrentText(checkpoints[0])
+        else:
+            self.selected_checkpoint = None
+            logger.warning("No checkpoints available")
+
+    #--------------------------------------------------------------------------
+    @Slot(str)
+    def select_checkpoint(self, name: str):
+        self.selected_checkpoint = name if name else None 
+
+    #--------------------------------------------------------------------------
     @Slot()
     def run_model_evaluation_pipeline(self):  
         if self.worker:            
@@ -640,9 +661,7 @@ class MainWindow:
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
-    #--------------------------------------------------------------------------
-    # [INFERENCE TAB]
-    #--------------------------------------------------------------------------   
+    #--------------------------------------------------------------------------  
     @Slot()    
     def generate_reports_with_checkpoint(self):  
         if self.worker:            
@@ -670,8 +689,15 @@ class MainWindow:
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################
+    def on_dataset_uploading_finished(self, source_data):   
+        message = f'Database updated with current source data ({len(source_data)}) records'
+        self._send_message(message)
+        QMessageBox.information(self.main_win, "Database successfully updated", message)     
+        self.worker = self.worker.cleanup()
+
+    #-------------------------------------------------------------------------- 
     def on_dataset_processing_finished(self, plots):         
-        self._send_message('Dataset has been built successfully') 
+        self._send_message('Training dataset has been built successfully') 
         self.worker = self.worker.cleanup()       
 
     #--------------------------------------------------------------------------   

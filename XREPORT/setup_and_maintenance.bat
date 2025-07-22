@@ -5,6 +5,7 @@ REM ============================================================================
 REM == Configuration: define project and Python paths
 REM ============================================================================
 set "project_folder=%~dp0"
+set "root_folder=%project_folder%..\"
 set "python_dir=%project_folder%setup\python"
 set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"

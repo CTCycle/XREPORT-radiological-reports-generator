@@ -62,6 +62,13 @@
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_8">
           <item>
+           <widget class="QPushButton" name="loadData">
+            <property name="text">
+             <string>Load dataset</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
              <widget class="QLabel" name="SSLabel">
@@ -113,7 +120,7 @@
            </layout>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBox_5">
+           <widget class="QGroupBox" name="datasetEvalGroup">
             <property name="title">
              <string>Dataset evaluation</string>
             </property>
@@ -165,15 +172,15 @@
          </layout>
         </item>
         <item>
-         <widget class="QGroupBox" name="datasetEvalGroup">
+         <widget class="QGroupBox" name="datasetProcessGroup">
           <property name="title">
            <string>Dataset processing</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout">
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <layout class="QHBoxLayout" name="valSizeHL">
              <item>
-              <widget class="QLabel" name="label_2">
+              <widget class="QLabel" name="VSLabel">
                <property name="text">
                 <string>Validation size</string>
                </property>
@@ -195,9 +202,9 @@
             </layout>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <layout class="QHBoxLayout" name="SplitSeedHL">
              <item>
-              <widget class="QLabel" name="label_4">
+              <widget class="QLabel" name="SpSLabel">
                <property name="text">
                 <string>Split seed</string>
                </property>

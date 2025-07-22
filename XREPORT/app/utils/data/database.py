@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import sqlalchemy
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
@@ -86,24 +87,26 @@ class CheckpointSummary(Base):
     sample_size = Column(Float)
     validation_size = Column(Float)
     seed = Column(Integer)
-    precision_bits = Column(Integer)
+    precision = Column(Integer)
     epochs = Column(Integer)
-    additional_epochs = Column(Integer)
     batch_size = Column(Integer)
     split_seed = Column(Integer)
     image_augmentation = Column(String)
     image_height = Column(Integer)
     image_width = Column(Integer)
     image_channels = Column(Integer)
-    jit_compile = Column(String)
-    jit_backend = Column(String)
-    device = Column(String)
-    device_id = Column(String)
-    number_of_processors = Column(Integer)
-    use_tensorboard = Column(String)
-    lr_scheduler_initial_lr = Column(Float)
-    lr_scheduler_constant_steps = Column(Float)
-    lr_scheduler_decay_steps = Column(Float)
+    jit_compile = Column(String) 
+    has_tensorboard_logs = Column(String)
+    initial_LR = Column(Float)
+    constant_steps_LR = Column(Float)
+    decay_steps_LR = Column(Float)
+    target_LR = Column(Float)
+    initial_neurons = Column(Float)
+    dropout_rate = Column(Float)
+    train_loss = Column(Float)
+    val_loss = Column(Float)
+    train_cosine_similarity = Column(Float)
+    val_cosine_similarity = Column(Float)
     __table_args__ = (
         UniqueConstraint('checkpoint_name'),
     )
@@ -115,17 +118,21 @@ class XREPORTDatabase:
 
     def __init__(self):             
         self.db_path = os.path.join(DATA_PATH, 'XREPORT_database.db')
+        self.source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
         self.engine = create_engine(f'sqlite:///{self.db_path}', echo=False, future=True)
         self.Session = sessionmaker(bind=self.engine, future=True)
-        self.insert_batch_size = 10000
+        self.insert_batch_size = 2000
     
     #--------------------------------------------------------------------------       
     def initialize_database(self):
-        Base.metadata.create_all(self.engine)
-        source_path = os.path.join(SOURCE_PATH, 'XREPORT_dataset.csv')
-        logger.debug(f'Updating database from {source_path}')              
-        source_dataset = pd.read_csv(source_path, sep=';', encoding='utf-8')                 
-        self.save_source_data_table(source_dataset) 
+        Base.metadata.create_all(self.engine)  
+
+    #--------------------------------------------------------------------------       
+    def update_database_from_source(self): 
+        source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
+        self.save_source_data(source_dataset)
+
+        return source_dataset         
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):
@@ -152,6 +159,7 @@ class XREPORTDatabase:
                     set_=update_cols
                 )
                 session.execute(stmt)
+                session.commit()
             session.commit()
         finally:
             session.close()       
@@ -171,9 +179,10 @@ class XREPORTDatabase:
         return train_data, validation_data      
 
     #--------------------------------------------------------------------------
-    def save_source_data_table(self, data : pd.DataFrame):        
+    def save_source_data(self, data : pd.DataFrame):
         with self.engine.begin() as conn:
-            data.to_sql("RADIOGRAPHY_DATA", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM RADIOGRAPHY_DATA"))        
+        data.to_sql("RADIOGRAPHY_DATA", self.engine, if_exists='append', index=False) 
         
     #--------------------------------------------------------------------------
     def save_train_and_validation_tables(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         

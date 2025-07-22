@@ -113,7 +113,17 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
-        self.database.save_predictions_table(reports_dataframe) 
+        self.database.save_predictions(reports_dataframe) 
+
+    # get all valid images within a specified directory and return a list of paths
+    #--------------------------------------------------------------------------
+    def save_image_statistics(self, data : pd.DataFrame):            
+        self.database.save_image_statistics(data)       
+
+    # get all valid images within a specified directory and return a list of paths
+    #--------------------------------------------------------------------------
+    def save_checkpoints_summary(self, data : pd.DataFrame):            
+        self.database.save_checkpoints_summary(data)
     
 
 # [MODEL SERIALIZATION]
