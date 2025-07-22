@@ -63,6 +63,9 @@
          <layout class="QVBoxLayout" name="verticalLayout_8">
           <item>
            <widget class="QPushButton" name="loadData">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load source data from resources/database/dataset/XREPORT_dataset.csv and update the database with fetched data&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
             <property name="text">
              <string>Load dataset</string>
             </property>

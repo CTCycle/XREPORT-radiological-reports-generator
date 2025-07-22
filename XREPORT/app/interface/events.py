@@ -2,6 +2,7 @@ import os
 import cv2
 
 from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtWidgets import QMessageBox
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
@@ -93,6 +94,9 @@ class DatasetEvents:
     def run_dataset_builder(self, progress_callback=None, worker=None):
         sample_size = self.configuration.get("sample_size", 1.0)            
         dataset = self.serializer.load_source_dataset(sample_size=sample_size)
+        if dataset is None or dataset.empty:
+            logger.error("No data found in the database")
+            return          
 
         # check thread for interruption 
         check_thread_status(worker)
@@ -124,7 +128,7 @@ class DatasetEvents:
         splitter = TrainValidationSplit(self.configuration, processed_data)     
         train_data, validation_data = splitter.split_train_and_validation()
                      
-        serializer.save_train_and_validation_data(
+        self.serializer.save_train_and_validation_data(
             train_data, validation_data, vocabulary_size) 
         logger.info('Preprocessed data saved into XREPORT database') 
 

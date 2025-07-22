@@ -185,10 +185,12 @@ class XREPORTDatabase:
         data.to_sql("RADIOGRAPHY_DATA", self.engine, if_exists='append', index=False) 
         
     #--------------------------------------------------------------------------
-    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame):         
+    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame): 
         with self.engine.begin() as conn:
-            train_data.to_sql("TRAIN_DATA", conn, if_exists='replace', index=False)
-            validation_data.to_sql("VALIDATION_DATA", conn, if_exists='replace', index=False)
+            conn.execute(sqlalchemy.text(f"DELETE FROM TRAIN_DATA"))    
+            conn.execute(sqlalchemy.text(f"DELETE FROM VALIDATION_DATA"))      
+        train_data.to_sql("TRAIN_DATA", self.engine, if_exists='append', index=False)
+        validation_data.to_sql("VALIDATION_DATA", self.engine, if_exists='append', index=False)       
 
     #--------------------------------------------------------------------------
     def save_predictions_table(self, data : pd.DataFrame):         
