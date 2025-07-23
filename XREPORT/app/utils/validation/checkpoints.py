@@ -138,6 +138,6 @@ class EvaluateTextQuality:
         
         # Calculate corpus BLEU score
         bleu_score = corpus_bleu(references, hypotheses)
-        logger.info(f'BLEU score for {self.num_samples} validation samples: {bleu_score}')
+        logger.info(f'BLEU score for {self.num_samples} validation samples: {bleu_score:.4f}')
 
         return bleu_score
