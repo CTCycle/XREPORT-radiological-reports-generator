@@ -5,14 +5,15 @@ REM ============================================================================
 REM == Configuration: define project and Python paths
 REM ============================================================================
 set "project_folder=%~dp0"
-set "python_dir=%project_folder%app\python"
+set "root_folder=%project_folder%..\"
+set "python_dir=%project_folder%setup\python"
 set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
-set "app_script=%project_folder%app\src\main.py"
-set "requirements_path=%project_folder%app\requirements.txt"
-set "git_dir=%project_folder%app\git"
+set "app_script=%project_folder%app\app.py"
+set "requirements_path=%project_folder%setup\requirements.txt"
+set "git_dir=%project_folder%setup\git"
 set "git_exe=%git_dir%\cmd\git.exe"
-set "triton_path=%project_folder%app\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
+set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
 REM == 0. Skip full setup if environment already present
@@ -65,13 +66,14 @@ if not exist "%requirements_path%" (
 echo [INFO] Upgrading pip package
 "%pip_exe%" install --upgrade pip >nul 2>&1
 
-"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
-
 echo [INFO] Installing setuptools
 "%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
 
+echo [INFO] Installing app dependencies
+"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
+
 echo [INFO] Installing triton
-"%pip_exe_path%" install "%triton_path%" || goto :error
+"%pip_exe%" install "%triton_path%" || goto :error
 
 pushd "%root_folder%"
 "%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
@@ -108,7 +110,9 @@ if not exist "%app_script%" (
     goto :error
 )
 
+pushd "%root_folder%"
 "%python_exe%" "%app_script%" || goto :error
+popd
 echo [SUCCESS] Application launched successfully.
 
 endlocal
