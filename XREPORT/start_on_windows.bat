@@ -66,10 +66,11 @@ if not exist "%requirements_path%" (
 echo [INFO] Upgrading pip package
 "%pip_exe%" install --upgrade pip >nul 2>&1
 
-"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
-
 echo [INFO] Installing setuptools
 "%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
+
+echo [INFO] Installing app dependencies
+"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
 
 echo [INFO] Installing triton
 "%pip_exe%" install "%triton_path%" || goto :error
