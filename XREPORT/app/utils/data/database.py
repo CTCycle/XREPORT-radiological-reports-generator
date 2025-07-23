@@ -82,7 +82,7 @@ class TextStatistics(Base):
     
 ###############################################################################
 class CheckpointSummary(Base):
-    __tablename__ = 'CHECKPOINTS_SUMMARY'
+    __tablename__ = 'CHECKPOINTS_SUMMARY'    
     checkpoint_name = Column(String, primary_key=True)
     sample_size = Column(Float)
     validation_size = Column(Float)
@@ -95,18 +95,22 @@ class CheckpointSummary(Base):
     image_height = Column(Integer)
     image_width = Column(Integer)
     image_channels = Column(Integer)
-    jit_compile = Column(String) 
-    has_tensorboard_logs = Column(String)
-    initial_LR = Column(Float)
-    constant_steps_LR = Column(Float)
-    decay_steps_LR = Column(Float)
-    target_LR = Column(Float)
-    initial_neurons = Column(Float)
-    dropout_rate = Column(Float)
+    jit_compile = Column(String)  
+    has_tensorboard_logs = Column(String)  
+    post_warmup_LR = Column(Float)
+    warmup_steps = Column(Float)
+    temperature = Column(Float)
+    tokenizer = Column(String)
+    max_report_size = Column(Integer)
+    attention_heads = Column(Integer)
+    n_encoders = Column(Integer)
+    n_decoders = Column(Integer)
+    embedding_dimensions = Column(Integer)
+    frozen_img_encoder = Column(String)  
     train_loss = Column(Float)
     val_loss = Column(Float)
-    train_cosine_similarity = Column(Float)
-    val_cosine_similarity = Column(Float)
+    train_accuracy = Column(Float)
+    val_accuracy = Column(Float)
     __table_args__ = (
         UniqueConstraint('checkpoint_name'),
     )
