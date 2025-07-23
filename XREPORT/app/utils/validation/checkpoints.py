@@ -96,7 +96,7 @@ class ModelEvaluationSummary:
     
 # [VALIDATION OF DATA]
 ###############################################################################
-class EvaluateTextConsistency:
+class EvaluateTextQuality:
 
     def __init__(self, model, configuration, metadata, num_samples):  
         self.model = model      

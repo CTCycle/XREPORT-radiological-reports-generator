@@ -15,7 +15,6 @@ class DeviceConfig:
     def set_device(self):  
         use_gpu = self.configuration.get('use_device_GPU', False)
         device_name = 'cuda' if use_gpu else 'cpu'
-        device_id = self.configuration.get('device_ID', 0)
         mixed_precision = self.configuration.get('use_mixed_precision', False)      
 
         if device_name == 'cuda' and torch.cuda.is_available():

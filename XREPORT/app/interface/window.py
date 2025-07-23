@@ -110,8 +110,7 @@ class MainWindow:
             (QSpinBox,'numDecoders','num_decoders'),
             (QSpinBox,'embeddingDims','embedding_dimensions'),
             # session settings group  
-            (QDoubleSpinBox,'trainTemp','train_temperature'),  
-            (QCheckBox,'rebuildDataset','rebuild_dataset'),       
+            (QDoubleSpinBox,'trainTemp','train_temperature'),
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                     
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
@@ -249,7 +248,6 @@ class MainWindow:
             ('embedding_dimensions', 'valueChanged', 'embedding_dimensions'),
             ('train_temperature', 'valueChanged', 'train_temperature'),            
             # session settings group
-            ('rebuild_dataset', 'toggled', 'rebuild_dataset'),
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
             # 3. model inference and evaluation tab page            
             ('inference_batch_size', 'valueChanged', 'inference_batch_size'),
@@ -736,12 +734,12 @@ class MainWindow:
 
     ###########################################################################   
     # [NEGATIVE OUTCOME HANDLERS]
-    ###########################################################################     
-    @Slot() 
+    ########################################################################### 
     def on_error(self, err_tb):
         exc, tb = err_tb
         logger.error(f"{exc}\n{tb}")
-        QMessageBox.critical(self.main_win, 'Something went wrong!', f"{exc}\n\n{tb}")
+        message = "An error occurred during the operation. Check the logs for details."
+        QMessageBox.critical(self.main_win, 'Something went wrong!', message)
         self.progress_bar.setValue(0)      
         self.worker = self.worker.cleanup()  
 
