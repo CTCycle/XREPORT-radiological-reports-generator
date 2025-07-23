@@ -52,16 +52,12 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 
 ![data_tab](XREPORT/app/assets/figures/data_tab.png)
 
-**Model training:** train the XREPORT transformer from scratch or resume training for previously trained models.
-
-![train_tab](XREPORT/app/assets/figures/train_tab.png)
-
-**Inference:** this tab provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
+**Model:** through this tab one can train the XREPORT transformer from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
 
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
-![inference_tab](XREPORT/app/assets/figures/inference_tab.png)
+![model_tab](XREPORT/app/assets/figures/model_tab.png)
 
 **Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
 - **Training images**: visualize training images located in *resources/database/dataset*  
