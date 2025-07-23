@@ -6,7 +6,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.validation.dataset import ImageAnalysis, TextAnalysis
-from XREPORT.app.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextConsistency
+from XREPORT.app.utils.validation.checkpoints import ModelEvaluationSummary, EvaluateTextQuality
 from XREPORT.app.utils.data.process import TextSanitizer, TrainValidationSplit, TokenizerHandler
 from XREPORT.app.utils.data.loader import XRAYDataLoader
 from XREPORT.app.utils.learning.device import DeviceConfig
@@ -17,6 +17,35 @@ from XREPORT.app.interface.workers import check_thread_status, update_progress_c
 
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
+
+
+
+#--------------------------------------------------------------------------
+def rebuild_dataset_from_metadata(metadata : dict):
+    serializer = DataSerializer(metadata)
+    sample_size = metadata.get("sample_size", 1.0)            
+    dataset = serializer.load_source_dataset(sample_size=sample_size)
+    if dataset is None or dataset.empty:
+        logger.error("No data found in the database during dataset rebuilding")
+        return   
+    
+    # sanitize text corpus by removing undesired symbols and punctuation     
+    sanitizer = TextSanitizer(metadata)
+    processed_data = sanitizer.sanitize_text(dataset)
+
+    # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
+    # into subunits and these are eventually mapped to integer indexes        
+    tokenization = TokenizerHandler(metadata) 
+    logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
+    processed_data = tokenization.tokenize_text_corpus(processed_data)   
+    vocabulary_size = tokenization.vocabulary_size 
+    logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+    
+    # split data into train set and validation set           
+    splitter = TrainValidationSplit(metadata, processed_data)     
+    train_data, validation_data = splitter.split_train_and_validation()
+
+    return train_data, validation_data
 
 
 ###############################################################################
@@ -188,27 +217,35 @@ class ValidationEvents:
                                       progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()       
-        model, train_config, train_metadata, _, _ = modser.load_checkpoint(
+        model, train_config, train_metadata, _, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
         # set device for training operations
         logger.info('Setting device for training operations')                
         device = DeviceConfig(self.configuration)   
-        device.set_device()       
-        
+        device.set_device()   
         # load validation data and current preprocessing metadata. This must
         # be compatible with the currently loaded checkpoint configurations
         serializer = DataSerializer(train_config) 
-        _, val_data, current_metadata = serializer.load_train_and_validation_data()    
-        val_data = serializer.update_images_path(val_data)  
-        vocabulary_size = train_metadata.get('vocabulary_size', 1000)
-        logger.info(f'Validation data has been loaded: {val_data.shape[0]} samples')    
-        logger.info(f'Vocabolary size: {vocabulary_size} tokens')    
+        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
+        validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
+        # just load the data if metadata is compatible
+        if validated_metadata:
+            logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
+            _, validation_data, train_metadata = serializer.load_train_and_validation_data()
+        else:     
+            logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
+            _, validation_data = rebuild_dataset_from_metadata(train_metadata)
+        # update image paths in the validation data using currently available images
+        validation_data = serializer.update_images_path(validation_data)
 
-        inference_batch_size = self.configuration.get('inference_batch_size', 32)
+        vocabulary_size = train_metadata.get('vocabulary_size', 1000)
+        logger.info(f'Validation data has been loaded: {len(validation_data)} samples')    
+        logger.info(f'Vocabolary size: {vocabulary_size} tokens')          
         num_samples = self.configuration.get('num_evaluation_samples', 10)
-        loader = XRAYDataLoader(train_config)     
+        loader = XRAYDataLoader(train_config)
+        validation_dataset = loader.build_training_dataloader(validation_data)     
 
         # check worker status to allow interruption
         check_thread_status(worker)
@@ -217,22 +254,19 @@ class ValidationEvents:
         if 'evaluation_report' in metrics:            
             # evaluate model performance over the validation dataset 
             logger.info('Current metric: model loss and metrics evaluation')
-            summarizer = ModelEvaluationSummary(self.database)
-            evaluation_dataset = loader.build_training_dataloader(val_data, inference_batch_size)       
-            summarizer.get_evaluation_report(model, evaluation_dataset, worker=worker)                
+            summarizer = ModelEvaluationSummary(self.configuration) 
+            summarizer.get_evaluation_report(model, validation_dataset, worker=worker)   
 
         if 'BLEU_score' in metrics:
             logger.info('Current metric: BLEU score')
-            scoring = EvaluateTextConsistency(
+            scoring = EvaluateTextQuality(
                 model, train_config, train_metadata, num_samples)            
             scores = scoring.calculate_BLEU_score(
-                val_data, progress_callback=progress_callback, worker=worker)  
+                validation_data, progress_callback=progress_callback, worker=worker)  
           
         return images  
     
     
-   
-
 ###############################################################################
 class ModelEvents:
 
@@ -243,35 +277,6 @@ class ModelEvents:
     def get_available_checkpoints(self):
         serializer = ModelSerializer()
         return serializer.scan_checkpoints_folder()
-    
-    #--------------------------------------------------------------------------
-    def rebuild_dataset_from_metadata(self, metadata : dict):
-        serializer = DataSerializer(metadata)
-        sample_size = metadata.get("sample_size", 1.0)            
-        dataset = serializer.load_source_dataset(sample_size=sample_size)
-        if dataset is None or dataset.empty:
-            logger.error("No data found in the database during dataset rebuilding")
-            return   
-       
-        # sanitize text corpus by removing undesired symbols and punctuation     
-        sanitizer = TextSanitizer(metadata)
-        processed_data = sanitizer.sanitize_text(dataset)
-
-        # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
-        # into subunits and these are eventually mapped to integer indexes        
-        tokenization = TokenizerHandler(metadata) 
-        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
-        processed_data = tokenization.tokenize_text_corpus(processed_data)   
-        vocabulary_size = tokenization.vocabulary_size 
-        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
-
-        # drop raw text columns and keep only tokenized text 
-        processed_data = processed_data.drop(columns=['text']) 
-        # split data into train set and validation set           
-        splitter = TrainValidationSplit(metadata, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation()
-
-        return train_data, validation_data
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
@@ -327,20 +332,18 @@ class ModelEvents:
         if validated_metadata:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
             train_data, validation_data, train_metadata = serializer.load_train_and_validation_data()
-        
-        if self.configuration.get('rebuild_dataset', False) and not validated_metadata:
+        else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            train_data, validation_data = self.rebuild_dataset_from_metadata(train_metadata)                        
+            train_data, validation_data = rebuild_dataset_from_metadata(train_metadata)
 
+        # update image paths in the train and validation data using currently available images
         train_data = serializer.update_images_path(train_data)
-        validation_data = serializer.update_images_path(validation_data)  
-
+        validation_data = serializer.update_images_path(validation_data) 
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(train_config)           
         train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data)     
-                            
+        validation_dataset = builder.build_training_dataloader(validation_data)
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         trainer = ModelTraining(train_config, train_metadata)
@@ -359,13 +362,11 @@ class ModelEvents:
         # setting device for training         
         device = DeviceConfig(self.configuration)   
         device.set_device()
-
         # select images from the inference folder and retrieve current paths
         serializer = DataSerializer(self.configuration)        
         img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
-        logger.info(f'\nStart generating reports using model {os.path.basename(checkpoint_path)}')
+        logger.info(f'Start generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
-
         # generate radiological reports from the list of inference image paths 
         inference_mode = self.configuration.get("inference_mode", 'greedy_search') 
         max_report_size = train_metadata.get('max_report_size', 200) 
@@ -379,7 +380,6 @@ class ModelEvents:
                     'report': v,
                     'checkpoint': selected_checkpoint} 
                     for k, v in generated_reports.items()]
-        
         
         serializer.save_generated_reports(reports) 
         logger.info('Generated reports have been saved in the database')                

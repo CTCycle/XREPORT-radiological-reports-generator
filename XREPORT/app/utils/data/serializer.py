@@ -138,7 +138,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
-        self.database.save_predictions(reports_dataframe)
+        self.database.save_generated_reports(reports_dataframe)
 
     #--------------------------------------------------------------------------
     def save_text_statistics(self, data : pd.DataFrame):            

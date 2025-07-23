@@ -20,7 +20,6 @@ class Configuration:
             'embedding_dimensions' : 128,
             'freeze_img_encoder': True,
             'train_temperature': 1.0,
-            'dropout_rate': 0.2,
             'jit_compile': False,
             'jit_backend': 'inductor',
 
@@ -35,7 +34,6 @@ class Configuration:
             'train_seed': 42,            
             'epochs': 100,
             'additional_epochs': 10,
-            'rebuild_dataset': True,
             'batch_size': 32,
             'use_tensorboard': False,
             'plot_training_metrics' : True,
