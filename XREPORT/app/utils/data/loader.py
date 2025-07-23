@@ -106,14 +106,14 @@ class XRAYDataLoader:
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     #--------------------------------------------------------------------------
-    def build_training_dataloader(self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE):           
+    def build_training_dataloader(self, data : pd.DataFrame, batch_size=None):           
         images, tokens = data['path'].to_list(), data['tokens'].to_list()        
         batch_size = self.batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))                 
         dataset = dataset.map(
-            self.processor.load_data_for_training, num_parallel_calls=buffer_size)        
+            self.processor.load_data_for_training, num_parallel_calls=self.buffer_size)        
         dataset = dataset.batch(batch_size)
-        dataset = dataset.prefetch(buffer_size=buffer_size)
+        dataset = dataset.prefetch(buffer_size=self.buffer_size)
         dataset = dataset.shuffle(buffer_size=self.shuffle_samples) if self.shuffle else dataset 
 
         return dataset
