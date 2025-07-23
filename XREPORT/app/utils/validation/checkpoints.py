@@ -1,12 +1,12 @@
 import os
-import shutil
 
+import numpy as np
 import pandas as pd
 from nltk.translate.bleu_score import corpus_bleu
 
+from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
 from XREPORT.app.utils.learning.callbacks import LearningInterruptCallback
-from XREPORT.app.utils.data.serializer import ModelSerializer
 from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
 from XREPORT.app.constants import CHECKPOINT_PATH
 from XREPORT.app.logger import logger
@@ -16,9 +16,8 @@ from XREPORT.app.logger import logger
 ################################################################################
 class ModelEvaluationSummary:
 
-    def __init__(self, remove_invalid=False):
-        self.remove_invalid = remove_invalid            
-                      
+    def __init__(self, configuration : dict):        
+        self.configuration = configuration
 
     #---------------------------------------------------------------------------
     def scan_checkpoint_folder(self):
@@ -27,48 +26,52 @@ class ModelEvaluationSummary:
             if entry.is_dir():                
                 pretrained_model_path = os.path.join(entry.path, 'saved_model.keras')                
                 if os.path.isfile(pretrained_model_path):
-                    model_paths.append(entry.path)
-                elif not os.path.isfile(pretrained_model_path) and self.remove_invalid:                    
-                    shutil.rmtree(entry.path)
+                    model_paths.append(entry.path)                
 
         return model_paths  
 
     #---------------------------------------------------------------------------
     def get_checkpoints_summary(self, **kwargs):    
-        serializer = ModelSerializer()            
+        modser = ModelSerializer() 
+        serializer = DataSerializer(self.configuration)           
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
         for i, model_path in enumerate(model_paths):                
-            model = serializer.load_checkpoint(model_path)
-            configuration, metadata, history = serializer.load_training_configuration(model_path)
+            model = modser.load_checkpoint(model_path)
+            configuration, metadata, history = modser.load_training_configuration(model_path)
             model_name = os.path.basename(model_path)                   
-            precision = 16 if configuration.get("use_mixed_precision", 'NA') else 32 
-            chkp_config = {'Sample size': configuration.get("sample_size", 'NA'),
-                           'Validation size': configuration.get("validation_size", 'NA'),
-                           'Seed': configuration.get("train_seed", 'NA'),                           
-                           'Precision (bits)': precision,                      
-                           'Epochs': configuration.get("epochs", 'NA'),
-                           'Additional Epochs': configuration.get("additional_epochs", 'NA'),
-                           'Batch size': configuration.get("batch_size", 'NA'),           
-                           'Split seed': configuration.get("split_seed", 'NA'),
-                           'Image augmentation': configuration.get("img_augmentation", 'NA'),
-                           'Image height': 224,
-                           'Image width': 224,
-                           'Image channels': 3,                          
-                           'JIT Compile': configuration.get("jit_compile", 'NA'),                           
-                           'Device': configuration.get("device", 'NA'),                                                      
-                           'Number workers': configuration.get("num_workers", 'NA'),
-                           'LR Scheduler': configuration.get("use_scheduler", 'NA'),                            
-                           'LR Scheduler - Post Warmup LR': configuration.get("post_warmup_LR", 'NA'),
-                           'LR Scheduler - Warmup Steps': configuration.get("warmup_steps", 'NA'),
-                           'Temperature': configuration.get("train_temperature", 'NA'),                            
-                           'Tokenizer': configuration.get("tokenizer", 'NA'),                            
-                           'Max report size': metadata.get("max_report_size", 'NA'),
-                           'Number of heads': configuration.get("attention_heads", 'NA'),
-                           'Number of encoders': configuration.get("num_encoders", 'NA'),
-                           'Number of decoders': configuration.get("num_decoders", 'NA'),
-                           'Embedding dimensions': configuration.get("embedding_dims", 'NA'),
-                           'Frozen image encoder': configuration.get("freeze_img_encoder", 'NA')}
+            precision = 16 if configuration.get("use_mixed_precision", np.nan) else 32 
+            has_scheduler = configuration.get('use_scheduler', False)
+            scores = history.get('history', {})
+            chkp_config = {
+                    'checkpoint_name': model_name,
+                    'sample_size': configuration.get('sample_size', np.nan),
+                    'validation_size': configuration.get('validation_size', np.nan),
+                    'seed': configuration.get('train_seed', np.nan),
+                    'precision': precision,
+                    'epochs': history.get('epochs', np.nan),                    
+                    'batch_size': configuration.get('batch_size', np.nan),
+                    'split_seed': configuration.get('split_seed', np.nan),
+                    'image_augmentation': configuration.get('img_augmentation', np.nan),
+                    'image_height': 128,  
+                    'image_width': 128,
+                    'image_channels': 3,
+                    'jit_compile': configuration.get('jit_compile', np.nan),
+                    'has_tensorboard_logs': configuration.get('use_tensorboard', np.nan),
+                    'post_warmup_LR': configuration.get("post_warmup_LR", np.nan),
+                    'warmup_steps': configuration.get("warmup_steps", np.nan) if has_scheduler else np.nan,
+                    'temperature': configuration.get("train_temperature", np.nan),                            
+                    'tokenizer': configuration.get("tokenizer", np.nan),                            
+                    'max_report_size': metadata.get("max_report_size", np.nan),
+                    'attention_heads': configuration.get("attention_heads", np.nan),
+                    'n_encoders': configuration.get("num_encoders", np.nan),
+                    'n_decoders': configuration.get("num_decoders", np.nan),
+                    'embedding_dimensions': configuration.get("embedding_dimensions", np.nan),
+                    'frozen_img_encoder': configuration.get("freeze_img_encoder", np.nan),
+                    'train_loss': scores.get('loss', [np.nan])[-1], 
+                    'val_loss': scores.get('val_loss', [np.nan])[-1],
+                    'train_accuracy': scores.get('MaskedAccuracy', [np.nan])[-1], 
+                    'val_accuracy': scores.get('val_MaskedAccuracy', [np.nan])[-1]}
 
             model_parameters.append(chkp_config)
 
@@ -78,7 +81,7 @@ class ModelEvaluationSummary:
                 i+1, len(model_paths), kwargs.get('progress_callback', None)) 
 
         dataframe = pd.DataFrame(model_parameters)
-        self.database.save_checkpoints_summary(dataframe)        
+        serializer.save_checkpoints_summary(dataframe)        
             
         return dataframe
     
