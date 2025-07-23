@@ -27,12 +27,12 @@ class DataSerializer:
         self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
-        
+        # define metadata path and extract configuration parameters
         self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
         self.seed = configuration.get('general_seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
-
+        # create database instance
         self.database = XREPORTDatabase()                 
         self.configuration = configuration
 
@@ -77,46 +77,63 @@ class DataSerializer:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path 
+            return images_path
+        
+    #--------------------------------------------------------------------------
+    def validate_metadata(self, metadata : dict, target_metadata : dict):        
+        keys_to_compare = [k for k in metadata if k != "date"]
+        meta_current = {k: metadata.get(k) for k in keys_to_compare}
+        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}        
+        differences = {k: (meta_current[k], meta_target[k]) 
+                       for k in keys_to_compare if meta_current[k] != meta_target[k]} 
+        
+        return False if differences else True
         
     #--------------------------------------------------------------------------
     def process_tokens(self, col):        
         if isinstance(col, list):
-            return [int(f) for f in col]        
+            return ' '.join(map(str, col))
         if isinstance(col, str):
-            return [int(f) for f in col.split()]
+            return [int(f) for f in col.split() if f.strip()]
         return []
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation_data(self): 
-        # load preprocessed data from database and convert joint strings to list 
-        train_data, val_data = self.database.load_train_and_validation()        
-        # process text strings to obtain a list of separated token indices     
-        train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
-        val_data['tokens'] = val_data['tokens'].apply(self.process_tokens)
+    def load_train_and_validation_data(self, only_metadata=False):
         # load metadata from file
         with open(self.metadata_path, 'r') as file:
-            metadata = json.load(file)        
+            metadata = json.load(file)     
+
+        if not only_metadata: 
+            # load preprocessed data from database and convert joint strings to list 
+            train_data, val_data = self.database.load_train_and_validation()        
+            # process text strings to obtain a list of separated token indices     
+            train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
+            val_data['tokens'] = val_data['tokens'].apply(self.process_tokens)      
         
-        return train_data, val_data, metadata   
+            return train_data, val_data, metadata  
+
+        return metadata 
 
     #--------------------------------------------------------------------------
     def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
                                        vocabulary_size=None): 
+        # process list of tokens to get them in string format   
+        train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
+        validation_data['tokens'] = validation_data['tokens'].apply(self.process_tokens)
+        # save train and validation data to database             
         self.database.save_train_and_validation(train_data, validation_data)
-        metadata = {'seed' : self.seed, 
-                    'dataset' : self.configuration.get('dataset', {}),
+        # save preprocessing metadata
+        metadata = {'seed' : self.seed,                     
                     'date' : datetime.now().strftime("%Y-%m-%d"),
                     'sample_size' : self.configuration.get('sample_size', 1.0),
                     'validation_size' : self.configuration.get('validation_size', 0.2),
+                    'split_seed' : self.configuration.get('split_seed', 42),
                     'vocabulary_size' : vocabulary_size,
                     'max_report_size' : self.max_report_size,
                     'tokenizer' : self.tokenizer_ID}
                 
         with open(self.metadata_path, 'w') as file:
             json.dump(metadata, file, indent=4) 
-
-        
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
@@ -149,8 +166,7 @@ class ModelSerializer:
         today_datetime = datetime.now().strftime('%Y%m%dT%H%M%S')        
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
-        os.makedirs(checkpoint_path, exist_ok=True)        
-        os.makedirs(os.path.join(checkpoint_path, 'data'), exist_ok=True)
+        os.makedirs(checkpoint_path, exist_ok=True)   
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
         return checkpoint_path        

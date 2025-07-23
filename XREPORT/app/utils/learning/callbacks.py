@@ -138,7 +138,7 @@ def initialize_callbacks_handler(configuration, checkpoint_path, session=None,
         checkpoint_filepath = os.path.join(checkpoint_path, 'model_checkpoint_E{epoch:02d}.keras')
         callbacks_list.append(keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_filepath, save_weights_only=False,  
-            monitor='val_loss', save_best_only=True, mode='auto', verbose=0))
+            monitor='val_loss', save_best_only=False, mode='auto', verbose=0))
         
     return callbacks_list
 

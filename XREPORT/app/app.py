@@ -8,7 +8,6 @@ warnings.simplefilter(action='ignore', category=Warning)
 # [IMPORT CUSTOM MODULES]
 from XREPORT.app.interface.window import MainWindow
 from XREPORT.app.constants import UI_PATH, QSS_PATH
-from XREPORT.app.logger import logger
 
 
 # [RUN MAIN]

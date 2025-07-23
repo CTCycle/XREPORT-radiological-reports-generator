@@ -110,7 +110,8 @@ class MainWindow:
             (QSpinBox,'numDecoders','num_decoders'),
             (QSpinBox,'embeddingDims','embedding_dimensions'),
             # session settings group  
-            (QDoubleSpinBox,'trainTemp','train_temperature'),         
+            (QDoubleSpinBox,'trainTemp','train_temperature'),  
+            (QCheckBox,'rebuildDataset','rebuild_dataset'),       
             (QSpinBox,'numAdditionalEpochs','additional_epochs'),                     
             (QPushButton,'startTraining','start_training'),
             (QPushButton,'resumeTraining','resume_training'),            
@@ -248,6 +249,7 @@ class MainWindow:
             ('embedding_dimensions', 'valueChanged', 'embedding_dimensions'),
             ('train_temperature', 'valueChanged', 'train_temperature'),            
             # session settings group
+            ('rebuild_dataset', 'toggled', 'rebuild_dataset'),
             ('additional_epochs', 'valueChanged', 'additional_epochs'),
             # 3. model inference and evaluation tab page            
             ('inference_batch_size', 'valueChanged', 'inference_batch_size'),

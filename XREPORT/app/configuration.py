@@ -35,6 +35,7 @@ class Configuration:
             'train_seed': 42,            
             'epochs': 100,
             'additional_epochs': 10,
+            'rebuild_dataset': True,
             'batch_size': 32,
             'use_tensorboard': False,
             'plot_training_metrics' : True,

@@ -1,5 +1,6 @@
 import os
 
+import pandas as pd
 from sklearn.utils import shuffle
 from transformers import AutoTokenizer
 
@@ -70,19 +71,17 @@ class TokenizerHandler:
         return tokenizer, vocabulary_size       
     
     #--------------------------------------------------------------------------
-    def tokenize_text_corpus(self, data):        
+    def tokenize_text_corpus(self, data : pd.DataFrame):        
         # tokenize train and validation text using loaded tokenizer 
         true_report_size = self.max_report_size + 1
         text = data['text'].to_list()      
         tokens = self.tokenizer(
             text, padding=True, truncation=True, 
-            max_length=true_report_size, return_tensors='pt')             
-        
-        # extract only token ids from the tokenizer output
-        tokens = tokens['input_ids'].numpy().tolist()
+            max_length=true_report_size, return_tensors='pt') 
+      
         # add tokenizer sequences to the source dataframe, now containing the paths,
         # original text and tokenized text
-        data['tokens'] = [' '.join(map(str, ids)) for ids in tokens]         
+        data['tokens'] = tokens['input_ids'].numpy().tolist()         
         
         return data
   
