@@ -58,69 +58,78 @@
        <attribute name="title">
         <string>Data</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_15">
+       <layout class="QHBoxLayout" name="horizontalLayout_8">
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_8">
           <item>
-           <widget class="QPushButton" name="loadData">
-            <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load source data from resources/database/dataset/XREPORT_dataset.csv and update the database with fetched data&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           <widget class="QGroupBox" name="groupBox_2">
+            <property name="title">
+             <string>Source</string>
             </property>
-            <property name="text">
-             <string>Load dataset</string>
-            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_17">
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout">
+               <item>
+                <widget class="QLabel" name="SSLabel">
+                 <property name="text">
+                  <string>Sample size</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QDoubleSpinBox" name="sampleSize">
+                 <property name="minimum">
+                  <double>0.010000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>1.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.050000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>1.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_31">
+               <item>
+                <widget class="QLabel" name="seedLabel">
+                 <property name="text">
+                  <string>Seed</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="seed">
+                 <property name="minimum">
+                  <number>1</number>
+                 </property>
+                 <property name="maximum">
+                  <number>999999</number>
+                 </property>
+                 <property name="value">
+                  <number>42</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <widget class="QPushButton" name="loadData">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Load source data from resources/database/dataset/XREPORT_dataset.csv and update the database with fetched data&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>Load dataset</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QLabel" name="SSLabel">
-              <property name="text">
-               <string>Sample size</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QDoubleSpinBox" name="sampleSize">
-              <property name="minimum">
-               <double>0.010000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>1.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.050000000000000</double>
-              </property>
-              <property name="value">
-               <double>1.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_31">
-            <item>
-             <widget class="QLabel" name="seedLabel">
-              <property name="text">
-               <string>Seed</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="seed">
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>999999</number>
-              </property>
-              <property name="value">
-               <number>42</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
           </item>
           <item>
            <widget class="QGroupBox" name="datasetEvalGroup">
@@ -150,7 +159,7 @@
               </widget>
              </item>
              <item>
-              <spacer name="verticalSpacer_8">
+              <spacer name="verticalSpacer_3">
                <property name="orientation">
                 <enum>Qt::Orientation::Vertical</enum>
                </property>
