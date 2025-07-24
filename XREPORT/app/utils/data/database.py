@@ -174,6 +174,7 @@ class XREPORTDatabase:
     def load_source_dataset(self):
         with self.engine.connect() as conn:
             data = pd.read_sql_table('RADIOGRAPHY_DATA', conn)
+            
         return data
 
     #--------------------------------------------------------------------------
