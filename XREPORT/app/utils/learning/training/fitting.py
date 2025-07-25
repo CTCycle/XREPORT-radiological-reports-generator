@@ -51,14 +51,20 @@ class ModelTraining:
             worker=kwargs.get('worker', None))
         
         # run model fit using keras API method.             
-        session = model.fit(
+        new_session = model.fit(
             train_data, epochs=total_epochs, validation_data=validation_data, 
-            callbacks=callbacks_list, initial_epoch=from_epoch)
+            callbacks=callbacks_list, initial_epoch=from_epoch)     
+
+        # update history with new scores and final epoch value
+        session_keys = session['history'].keys() 
+        new_history = {k: session['history'][k] + new_session.history[k] for k in session_keys}
+        history = {'history' : new_history,
+                   'epochs': new_session.epoch[-1] + 1}  
 
         serializer = ModelSerializer()  
         serializer.save_pretrained_model(model, checkpoint_path)       
         serializer.save_training_configuration(
-            checkpoint_path, session, self.configuration, metadata)
+            checkpoint_path, history, self.configuration, metadata)
 
 
 
