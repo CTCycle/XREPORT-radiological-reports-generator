@@ -29,7 +29,7 @@ class DataSerializer:
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         # define metadata path and extract configuration parameters
         self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
-        self.seed = configuration.get('general_seed', 42) 
+        self.seed = configuration.get('seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
         # create database instance
