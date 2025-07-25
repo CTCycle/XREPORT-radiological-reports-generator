@@ -135,10 +135,10 @@ class XREPORTDatabase:
 
     #--------------------------------------------------------------------------       
     def update_database_from_source(self): 
-        source_dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
-        self.save_source_data(source_dataset)
+        dataset = pd.read_csv(self.source_path, sep=';', encoding='utf-8')                 
+        self.save_source_data(dataset)
 
-        return source_dataset         
+        return dataset         
 
     #--------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls):
