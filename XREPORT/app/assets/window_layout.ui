@@ -19,14 +19,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
     <item row="1" column="0">
-     <layout class="QHBoxLayout" name="progressLayout" stretch="0,7,2">
-      <item>
-       <widget class="QCheckBox" name="deviceGPU">
-        <property name="text">
-         <string>Set GPU as device</string>
-        </property>
-       </widget>
-      </item>
+     <layout class="QHBoxLayout" name="progressLayout" stretch="7,2">
       <item>
        <widget class="QProgressBar" name="progressBar">
         <property name="value">
@@ -317,78 +310,26 @@
        <attribute name="title">
         <string>Model</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_11">
-          <item>
-           <widget class="QGroupBox" name="groupBox_3">
-            <property name="title">
-             <string>Dataset</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_10">
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="groupBox_3">
+          <property name="title">
+           <string>Dataset</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_10">
+           <item>
+            <widget class="QCheckBox" name="imgAugment">
+             <property name="text">
+              <string>Use image augmentation</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_16">
              <item>
-              <widget class="QCheckBox" name="imgAugment">
+              <widget class="QCheckBox" name="setShuffle">
                <property name="text">
-                <string>Use image augmentation</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_16">
-               <item>
-                <widget class="QCheckBox" name="setShuffle">
-                 <property name="text">
-                  <string>Shuffle dataset with buffer size</string>
-                 </property>
-                 <property name="checked">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="shuffleSize">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>10000</number>
-                 </property>
-                 <property name="singleStep">
-                  <number>10</number>
-                 </property>
-                 <property name="value">
-                  <number>256</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <spacer name="verticalSpacer_2">
-               <property name="orientation">
-                <enum>Qt::Orientation::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="groupBox_4">
-            <property name="title">
-             <string>Training</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_5">
-             <item>
-              <widget class="QCheckBox" name="realTimeHistory">
-               <property name="text">
-                <string>Plot real time loss and metrics</string>
+                <string>Shuffle dataset with buffer size</string>
                </property>
                <property name="checked">
                 <bool>true</bool>
@@ -396,666 +337,726 @@
               </widget>
              </item>
              <item>
-              <widget class="QCheckBox" name="runTensorboard">
-               <property name="text">
-                <string>Run tensorboard</string>
+              <widget class="QSpinBox" name="shuffleSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>10000</number>
+               </property>
+               <property name="singleStep">
+                <number>10</number>
+               </property>
+               <property name="value">
+                <number>256</number>
                </property>
               </widget>
              </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_12">
-               <item>
-                <widget class="QCheckBox" name="saveCheckpoints">
-                 <property name="text">
-                  <string>Save checkpoint every N epochs</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="saveCPFrequency">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>999</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_22">
-               <item>
-                <widget class="QLabel" name="label_18">
-                 <property name="text">
-                  <string>Seed</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="trainSeed">
-                 <property name="maximum">
-                  <number>1000000000</number>
-                 </property>
-                 <property name="value">
-                  <number>42</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_9">
-               <item>
-                <widget class="QLabel" name="label_6">
-                 <property name="text">
-                  <string>Epochs</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="numEpochs">
-                 <property name="maximum">
-                  <number>1000000</number>
-                 </property>
-                 <property name="value">
-                  <number>100</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_11">
-               <item>
-                <widget class="QLabel" name="label_8">
-                 <property name="text">
-                  <string>Batch size</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="batchSize">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100000</number>
-                 </property>
-                 <property name="singleStep">
-                  <number>4</number>
-                 </property>
-                 <property name="value">
-                  <number>32</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_23">
-               <item>
-                <widget class="QLabel" name="label_5">
-                 <property name="text">
-                  <string>Device ID</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="deviceID"/>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_13">
-               <item>
-                <widget class="QLabel" name="label_10">
-                 <property name="text">
-                  <string>Number of workers</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="numWorkers"/>
-               </item>
-              </layout>
-             </item>
             </layout>
-           </widget>
-          </item>
-         </layout>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
         </item>
-        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_14">
-          <item>
-           <widget class="QGroupBox" name="modelGroup">
-            <property name="title">
-             <string>Model</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item row="0" column="1" rowspan="3">
+         <widget class="QGroupBox" name="modelGroup">
+          <property name="title">
+           <string>Model</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <widget class="QCheckBox" name="mixedPrecision">
+             <property name="text">
+              <string>Set mixed precision policy</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_25">
              <item>
-              <widget class="QCheckBox" name="mixedPrecision">
+              <widget class="QCheckBox" name="compileJIT">
                <property name="text">
-                <string>Set mixed precision policy</string>
+                <string>Use Just-In-Time (JIT) compiler</string>
                </property>
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_25">
-               <item>
-                <widget class="QCheckBox" name="compileJIT">
-                 <property name="text">
-                  <string>Use Just-In-Time (JIT) compiler</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="backendJIT">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select JIT compiler backend (default is inductor)</string>
-                 </property>
-                 <property name="currentText">
-                  <string>inductor</string>
-                 </property>
-                 <property name="currentIndex">
-                  <number>3</number>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string>eager</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>aot_eager</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>aot_cudagraphs</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>inductor</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>nvprims_nvfuser</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>xla</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="freezeImgEncoder">
-               <property name="text">
-                <string>Freeze image encoder weights</string>
+              <widget class="QComboBox" name="backendJIT">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select JIT compiler backend (default is inductor)</string>
                </property>
-               <property name="checked">
-                <bool>true</bool>
+               <property name="currentText">
+                <string>inductor</string>
+               </property>
+               <property name="currentIndex">
+                <number>3</number>
+               </property>
+               <item>
+                <property name="text">
+                 <string>eager</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>aot_eager</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>aot_cudagraphs</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>inductor</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>nvprims_nvfuser</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>xla</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="freezeImgEncoder">
+             <property name="text">
+              <string>Freeze image encoder weights</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_21">
+             <item>
+              <widget class="QLabel" name="AHLabel">
+               <property name="text">
+                <string>Attention heads</string>
                </property>
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_21">
-               <item>
-                <widget class="QLabel" name="AHLabel">
-                 <property name="text">
-                  <string>Attention heads</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="attentionHeads">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000</number>
-                 </property>
-                 <property name="value">
-                  <number>3</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+              <widget class="QSpinBox" name="attentionHeads">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1000</number>
+               </property>
+               <property name="value">
+                <number>3</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_27">
+             <item>
+              <widget class="QLabel" name="NELabel">
+               <property name="text">
+                <string>Number of encoders</string>
+               </property>
+              </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_27">
-               <item>
-                <widget class="QLabel" name="NELabel">
-                 <property name="text">
-                  <string>Number of encoders</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="numEncoders">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="value">
-                  <number>2</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+              <widget class="QSpinBox" name="numEncoders">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+               <property name="value">
+                <number>2</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_28">
+             <item>
+              <widget class="QLabel" name="NDLabel">
+               <property name="text">
+                <string>Number of decoders</string>
+               </property>
+              </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_28">
-               <item>
-                <widget class="QLabel" name="NDLabel">
-                 <property name="text">
-                  <string>Number of decoders</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="numDecoders">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100</number>
-                 </property>
-                 <property name="value">
-                  <number>2</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+              <widget class="QSpinBox" name="numDecoders">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+               <property name="value">
+                <number>2</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_29">
+             <item>
+              <widget class="QLabel" name="EMLabel">
+               <property name="text">
+                <string>Embedding dimensions</string>
+               </property>
+              </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_29">
+              <widget class="QSpinBox" name="embeddingDims">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100000</number>
+               </property>
+               <property name="singleStep">
+                <number>8</number>
+               </property>
+               <property name="value">
+                <number>200</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_3">
+             <item>
+              <widget class="QLabel" name="label">
+               <property name="text">
+                <string>Temperature</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="trainTemp">
+               <property name="decimals">
+                <number>3</number>
+               </property>
+               <property name="minimum">
+                <double>0.001000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.050000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="Line" name="line">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_6">
+             <item>
+              <widget class="QCheckBox" name="useScheduler">
+               <property name="text">
+                <string>Use learning rate scheduler</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_18">
                <item>
-                <widget class="QLabel" name="EMLabel">
+                <widget class="QLabel" name="label_11">
                  <property name="text">
-                  <string>Embedding dimensions</string>
+                  <string>Target learning rate</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QSpinBox" name="embeddingDims">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>100000</number>
+                <widget class="QDoubleSpinBox" name="postWarmLR">
+                 <property name="decimals">
+                  <number>5</number>
                  </property>
                  <property name="singleStep">
-                  <number>8</number>
+                  <double>0.000100000000000</double>
                  </property>
                  <property name="value">
-                  <number>200</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_3">
-               <item>
-                <widget class="QLabel" name="label">
-                 <property name="text">
-                  <string>Temperature</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QDoubleSpinBox" name="trainTemp">
-                 <property name="decimals">
-                  <number>3</number>
-                 </property>
-                 <property name="minimum">
                   <double>0.001000000000000</double>
                  </property>
-                 <property name="maximum">
-                  <double>100.000000000000000</double>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_17">
+               <item>
+                <widget class="QLabel" name="label_14">
+                 <property name="text">
+                  <string>Warmup steps</string>
                  </property>
-                 <property name="singleStep">
-                  <double>0.050000000000000</double>
+                </widget>
+               </item>
+               <item>
+                <widget class="QSpinBox" name="warmupSteps">
+                 <property name="maximum">
+                  <number>10000000</number>
                  </property>
                  <property name="value">
-                  <double>1.000000000000000</double>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="Line" name="line">
-               <property name="orientation">
-                <enum>Qt::Orientation::Horizontal</enum>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QVBoxLayout" name="verticalLayout_6">
-               <item>
-                <widget class="QCheckBox" name="useScheduler">
-                 <property name="text">
-                  <string>Use learning rate scheduler</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_18">
-                 <item>
-                  <widget class="QLabel" name="label_11">
-                   <property name="text">
-                    <string>Target learning rate</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QDoubleSpinBox" name="postWarmLR">
-                   <property name="decimals">
-                    <number>5</number>
-                   </property>
-                   <property name="singleStep">
-                    <double>0.000100000000000</double>
-                   </property>
-                   <property name="value">
-                    <double>0.001000000000000</double>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <layout class="QHBoxLayout" name="horizontalLayout_17">
-                 <item>
-                  <widget class="QLabel" name="label_14">
-                   <property name="text">
-                    <string>Warmup steps</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QSpinBox" name="warmupSteps">
-                   <property name="maximum">
-                    <number>10000000</number>
-                   </property>
-                   <property name="value">
-                    <number>1000</number>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-              </layout>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="sessionGroup">
-            <property name="title">
-             <string>Session</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_9">
-             <item>
-              <layout class="QHBoxLayout" name="addEpochsHL">
-               <item>
-                <widget class="QLabel" name="label_7">
-                 <property name="text">
-                  <string>Additional epochs</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="numAdditionalEpochs">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000000</number>
-                 </property>
-                 <property name="value">
-                  <number>10</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <spacer name="verticalSpacer_7">
-               <property name="orientation">
-                <enum>Qt::Orientation::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-             <item>
-              <widget class="QPushButton" name="startTraining">
-               <property name="text">
-                <string>Start model training</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="resumeTraining">
-               <property name="text">
-                <string>Resume training</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_16">
-          <item>
-           <widget class="QGroupBox" name="groupBox_8">
-            <property name="title">
-             <string>Select checkpoint</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_12">
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_5">
-               <item>
-                <widget class="QComboBox" name="checkpointsList"/>
-               </item>
-               <item>
-                <widget class="QPushButton" name="refreshCheckpoints">
-                 <property name="text">
-                  <string>Refresh</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_34">
-               <item>
-                <widget class="QLabel" name="label_19">
-                 <property name="text">
-                  <string>Batch size</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="inferenceBatchSize">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1024</number>
-                 </property>
-                 <property name="value">
-                  <number>32</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <spacer name="verticalSpacer_11">
-               <property name="orientation">
-                <enum>Qt::Orientation::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>40</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="groupBox_10">
-            <property name="title">
-             <string>Model inference</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_15">
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_26">
-               <item>
-                <widget class="QLabel" name="ITLabel">
-                 <property name="text">
-                  <string>Temperature</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QDoubleSpinBox" name="inferenceTemp">
-                 <property name="maximum">
-                  <double>100.000000000000000</double>
-                 </property>
-                 <property name="singleStep">
-                  <double>0.050000000000000</double>
-                 </property>
-                 <property name="value">
-                  <double>1.000000000000000</double>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_33">
-               <item>
-                <widget class="QLabel" name="IMLabel">
-                 <property name="text">
-                  <string>Inference mode</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="inferenceMode">
-                 <item>
-                  <property name="text">
-                   <string>greedy search</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>beam search</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QPushButton" name="generateReports">
-               <property name="text">
-                <string>Generate reports</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="groupBox_7">
-            <property name="title">
-             <string>Model evaluation</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_21">
-             <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_2">
-               <item>
-                <widget class="QLabel" name="label_15">
-                 <property name="text">
-                  <string>Evaluation samples</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="evalSamples">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
                   <number>1000</number>
                  </property>
-                 <property name="singleStep">
-                  <number>0</number>
-                 </property>
-                 <property name="value">
-                  <number>10</number>
-                 </property>
                 </widget>
                </item>
               </layout>
              </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QGroupBox" name="groupBox_8">
+          <property name="title">
+           <string>Select checkpoint</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_12">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_5">
              <item>
-              <widget class="QCheckBox" name="evalReport">
-               <property name="text">
-                <string>Loss and metrics</string>
-               </property>
-              </widget>
+              <widget class="QComboBox" name="checkpointsList"/>
              </item>
              <item>
-              <widget class="QCheckBox" name="getBLEUScore">
+              <widget class="QPushButton" name="refreshCheckpoints">
                <property name="text">
-                <string>BLEU score</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="checkpointSummary">
-               <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Create checkpoints summary that includes all configurations for each pretrained model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-               </property>
-               <property name="text">
-                <string>Checkpoints summary</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="evaluateModel">
-               <property name="text">
-                <string>Evaluate model</string>
+                <string>Refresh</string>
                </property>
               </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-         </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_34">
+             <item>
+              <widget class="QLabel" name="label_19">
+               <property name="text">
+                <string>Batch size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="inferenceBatchSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1024</number>
+               </property>
+               <property name="value">
+                <number>32</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_11">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0" rowspan="3">
+         <widget class="QGroupBox" name="groupBox_4">
+          <property name="title">
+           <string>Training</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_5">
+           <item>
+            <widget class="QCheckBox" name="realTimeHistory">
+             <property name="text">
+              <string>Plot real time loss and metrics</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="runTensorboard">
+             <property name="text">
+              <string>Run tensorboard</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_12">
+             <item>
+              <widget class="QCheckBox" name="saveCheckpoints">
+               <property name="text">
+                <string>Save checkpoint every N epochs</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="saveCPFrequency">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>999</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_22">
+             <item>
+              <widget class="QLabel" name="label_18">
+               <property name="text">
+                <string>Seed</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="trainSeed">
+               <property name="maximum">
+                <number>1000000000</number>
+               </property>
+               <property name="value">
+                <number>42</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_9">
+             <item>
+              <widget class="QLabel" name="label_6">
+               <property name="text">
+                <string>Epochs</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="numEpochs">
+               <property name="maximum">
+                <number>1000000</number>
+               </property>
+               <property name="value">
+                <number>100</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_11">
+             <item>
+              <widget class="QLabel" name="label_8">
+               <property name="text">
+                <string>Batch size</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="batchSize">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100000</number>
+               </property>
+               <property name="singleStep">
+                <number>4</number>
+               </property>
+               <property name="value">
+                <number>32</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_23">
+             <item>
+              <widget class="QLabel" name="label_5">
+               <property name="text">
+                <string>Device ID</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="deviceID"/>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_13">
+             <item>
+              <widget class="QLabel" name="label_10">
+               <property name="text">
+                <string>Number of workers</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="numWorkers"/>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QGroupBox" name="groupBox_10">
+          <property name="title">
+           <string>Model inference</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_15">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_26">
+             <item>
+              <widget class="QLabel" name="ITLabel">
+               <property name="text">
+                <string>Temperature</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="inferenceTemp">
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.050000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_33">
+             <item>
+              <widget class="QLabel" name="IMLabel">
+               <property name="text">
+                <string>Inference mode</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QComboBox" name="inferenceMode">
+               <item>
+                <property name="text">
+                 <string>greedy search</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>beam search</string>
+                </property>
+               </item>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QPushButton" name="generateReports">
+             <property name="text">
+              <string>Generate reports</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="2" column="2" rowspan="2">
+         <widget class="QGroupBox" name="groupBox_7">
+          <property name="title">
+           <string>Model evaluation</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_21">
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <item>
+              <widget class="QLabel" name="label_15">
+               <property name="text">
+                <string>Evaluation samples</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="evalSamples">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1000</number>
+               </property>
+               <property name="singleStep">
+                <number>0</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="evalReport">
+             <property name="text">
+              <string>Loss and metrics</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="getBLEUScore">
+             <property name="text">
+              <string>BLEU score</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="checkpointSummary">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Create checkpoints summary that includes all configurations for each pretrained model&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>Checkpoints summary</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="evaluateModel">
+             <property name="text">
+              <string>Evaluate model</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QGroupBox" name="sessionGroup">
+          <property name="title">
+           <string>Session</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_9">
+           <item>
+            <widget class="QCheckBox" name="deviceGPU">
+             <property name="text">
+              <string>Set GPU as available device</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="addEpochsHL">
+             <item>
+              <widget class="QLabel" name="label_7">
+               <property name="text">
+                <string>Additional epochs</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="numAdditionalEpochs">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1000000</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_7">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="startTraining">
+             <property name="text">
+              <string>Start model training</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="resumeTraining">
+             <property name="text">
+              <string>Resume training</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </widget>

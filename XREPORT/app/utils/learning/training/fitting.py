@@ -11,7 +11,7 @@ from XREPORT.app.logger import logger
 ###############################################################################
 class ModelTraining:    
        
-    def __init__(self, configuration, metadata=None):              
+    def __init__(self, configuration : dict, metadata=None):              
         set_random_seed(configuration.get('training_seed', 42))         
         self.configuration = configuration        
         self.metadata = metadata
