@@ -489,7 +489,7 @@ class MainWindow:
 
         # start worker and inject signals
         self._start_thread_worker(
-            self.worker, on_finished=self.on_dataset_uploading_finished,
+            self.worker, on_finished=self.on_database_uploading_finished,
             on_error=self.on_error,
             on_interrupted=self.on_task_interrupted)  
 
@@ -684,7 +684,7 @@ class MainWindow:
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################
-    def on_dataset_uploading_finished(self, source_data):   
+    def on_database_uploading_finished(self, source_data):   
         message = f'Database updated with current source data ({len(source_data)}) records'
         self._send_message(message)
         QMessageBox.information(self.main_win, "Database successfully updated", message)     
