@@ -395,6 +395,9 @@ class ModelEvents:
         # generate radiological reports from the list of inference image paths 
         inference_mode = self.configuration.get("inference_mode", 'greedy_search') 
         max_report_size = train_metadata.get('max_report_size', 200) 
+
+        # initialize the text generator that takes raw images
+        # the generator integrates logic for data processing based on checkpoint metadata
         generator = TextGenerator(model, train_config, max_report_size) 
         generated_reports = generator.generate_radiological_reports(
             img_paths, inference_mode, 

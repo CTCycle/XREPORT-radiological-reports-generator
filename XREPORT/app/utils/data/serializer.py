@@ -193,7 +193,7 @@ class ModelSerializer:
         with open(history_path, 'w') as f:
             json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')     
+        logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
     def load_training_configuration(self, path : str): 
