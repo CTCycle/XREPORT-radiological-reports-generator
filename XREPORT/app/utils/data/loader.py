@@ -13,7 +13,7 @@ from XREPORT.app.logger import logger
 ###############################################################################
 class DataLoaderProcessor:
 
-    def __init__(self, configuration):         
+    def __init__(self, configuration : dict):         
         self.img_shape = (224, 224)
         self.num_channels = 3
         # define mean and STD of pixel values for the BeiT Vision transformer  
