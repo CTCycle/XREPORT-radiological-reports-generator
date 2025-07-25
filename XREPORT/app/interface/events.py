@@ -358,10 +358,11 @@ class ModelEvents:
 
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
+        additional_epochs = self.configuration.get('additional_epochs', 100)
         trainer = ModelTraining(train_config, train_metadata)
         trainer.resume_training(
             model, train_dataset, validation_dataset, train_metadata, checkpoint_path, session,
-            progress_callback=progress_callback, worker=worker)  
+            additional_epochs, progress_callback=progress_callback, worker=worker)  
 
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
