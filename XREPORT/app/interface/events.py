@@ -19,35 +19,6 @@ from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
 
 
-
-#--------------------------------------------------------------------------
-def rebuild_dataset_from_metadata(metadata : dict):
-    serializer = DataSerializer(metadata)
-    sample_size = metadata.get("sample_size", 1.0)            
-    dataset = serializer.load_source_dataset(sample_size=sample_size)
-    if dataset is None or dataset.empty:
-        logger.error("No data found in the database during dataset rebuilding")
-        return   
-    
-    # sanitize text corpus by removing undesired symbols and punctuation     
-    sanitizer = TextSanitizer(metadata)
-    processed_data = sanitizer.sanitize_text(dataset)
-
-    # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
-    # into subunits and these are eventually mapped to integer indexes        
-    tokenization = TokenizerHandler(metadata) 
-    logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
-    processed_data = tokenization.tokenize_text_corpus(processed_data)   
-    vocabulary_size = tokenization.vocabulary_size 
-    logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
-    
-    # split data into train set and validation set           
-    splitter = TrainValidationSplit(metadata, processed_data)     
-    train_data, validation_data = splitter.split_train_and_validation()
-
-    return train_data, validation_data
-
-
 ###############################################################################
 class GraphicsHandler:
 
@@ -163,7 +134,35 @@ class DatasetEvents:
 
         # check thread for interruption 
         check_thread_status(worker)
-        update_progress_callback(4, 4, progress_callback) 
+        update_progress_callback(4, 4, progress_callback)
+
+    #--------------------------------------------------------------------------
+    @staticmethod
+    def rebuild_dataset_from_metadata(metadata : dict):
+        serializer = DataSerializer(metadata)
+        sample_size = metadata.get("sample_size", 1.0)            
+        dataset = serializer.load_source_dataset(sample_size=sample_size)
+        if dataset is None or dataset.empty:
+            logger.error("No data found in the database during dataset rebuilding")
+            return   
+        
+        # sanitize text corpus by removing undesired symbols and punctuation     
+        sanitizer = TextSanitizer(metadata)
+        processed_data = sanitizer.sanitize_text(dataset)
+
+        # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
+        # into subunits and these are eventually mapped to integer indexes        
+        tokenization = TokenizerHandler(metadata) 
+        logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
+        processed_data = tokenization.tokenize_text_corpus(processed_data)   
+        vocabulary_size = tokenization.vocabulary_size 
+        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
+        
+        # split data into train set and validation set           
+        splitter = TrainValidationSplit(metadata, processed_data)     
+        train_data, validation_data = splitter.split_train_and_validation()
+
+        return train_data, validation_data 
 
     
 
@@ -213,8 +212,7 @@ class ValidationEvents:
         logger.info(f'Checkpoints summary has been created for {checkpoints_summary.shape[0]} models')  
     
     #--------------------------------------------------------------------------
-    def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, device='CPU', 
-                                      progress_callback=None, worker=None):
+    def run_model_evaluation_pipeline(self, metrics, selected_checkpoint, progress_callback=None, worker=None):
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()       
         model, train_config, train_metadata, _, checkpoint_path = modser.load_checkpoint(
@@ -236,7 +234,7 @@ class ValidationEvents:
             _, validation_data, train_metadata = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            _, validation_data = rebuild_dataset_from_metadata(train_metadata)
+            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
         # update image paths in the validation data using currently available images
         validation_data = serializer.update_images_path(validation_data)
 
@@ -282,6 +280,10 @@ class ModelEvents:
     def run_training_pipeline(self, progress_callback=None, worker=None):
         serializer = DataSerializer(self.configuration)    
         train_data, validation_data, metadata = serializer.load_train_and_validation_data()
+        if train_data.empty or validation_data.empty:
+            logger.warning("No data found in the database for training")
+            return
+
         # fetch images path from the preprocessed data
         train_data = serializer.update_images_path(train_data)
         validation_data = serializer.update_images_path(validation_data)
@@ -289,16 +291,18 @@ class ModelEvents:
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(self.configuration)   
         train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data) 
+        validation_dataset = builder.build_training_dataloader(validation_data)
+
+        # check worker status to allow interruption
+        check_thread_status(worker)
+
         # set device for training operations        
         logger.info('Setting device for training operations') 
         device = DeviceConfig(self.configuration)   
         device.set_device() 
-        # build the autoencoder model        
+        # create checkpoint folder     
         modser = ModelSerializer() 
         checkpoint_path = modser.create_checkpoint_folder()
-        # check worker status to allow interruption
-        check_thread_status(worker)
         # initialize and compile the captioning model    
         logger.info('Building XREPORT Transformer model')
         captioner = XREPORTModel(metadata, self.configuration)
@@ -323,6 +327,10 @@ class ModelEvents:
         logger.info('Setting device for training operations')         
         device = DeviceConfig(self.configuration)   
         device.set_device() 
+
+        # check worker status to allow interruption
+        check_thread_status(worker)
+
         # load metadata and check whether this is compatible with the current checkpoint
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
@@ -334,7 +342,7 @@ class ModelEvents:
             train_data, validation_data, train_metadata = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            train_data, validation_data = rebuild_dataset_from_metadata(train_metadata)
+            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
 
         # update image paths in the train and validation data using currently available images
         train_data = serializer.update_images_path(train_data)
@@ -344,6 +352,10 @@ class ModelEvents:
         builder = XRAYDataLoader(train_config)           
         train_dataset = builder.build_training_dataloader(train_data)
         validation_dataset = builder.build_training_dataloader(validation_data)
+        
+        # check worker status to allow interruption
+        check_thread_status(worker)
+
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         trainer = ModelTraining(train_config, train_metadata)

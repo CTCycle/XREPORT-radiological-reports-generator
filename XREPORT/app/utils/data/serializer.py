@@ -182,16 +182,13 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
-        history_path = os.path.join(path, 'configuration', 'session_history.json')               
-
+        history_path = os.path.join(path, 'configuration', 'session_history.json')
         # Save training and model configuration
         with open(config_path, 'w') as f:
-            json.dump(configuration, f)  
-
+            json.dump(configuration, f)
         # Save metadata
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f)       
-
+            json.dump(metadata, f) 
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
@@ -232,7 +229,11 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name : str):    
+    def load_checkpoint(self, checkpoint_name : str): 
+        if checkpoint_name is None:
+            logger.warning("No checkpoint has been selected")
+            return
+           
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
