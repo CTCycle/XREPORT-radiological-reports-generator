@@ -4,7 +4,7 @@ class Configuration:
     def __init__(self):
         self.configuration = {
             # Dataset
-            'general_seed': 42,
+            'seed': 42,
             'sample_size': 1.0,
             'validation_size': 0.2,
             'img_augmentation': False,

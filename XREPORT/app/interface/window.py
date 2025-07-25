@@ -71,7 +71,7 @@ class MainWindow:
             (QPushButton,'evaluateDataset','evaluate_dataset'),            
             # dataset processing group 
             (QPushButton,'loadData','load_dataset'),
-            (QSpinBox,'seed','general_seed'),
+            (QSpinBox,'seed','seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'),
             (QDoubleSpinBox,'validationSize','validation_size'),
             (QSpinBox,'splitSeed','split_seed'), 
@@ -211,7 +211,7 @@ class MainWindow:
             ('use_device_GPU', 'toggled', 'use_device_GPU'),
             # 1. dataset tab page
             # dataset evaluation group
-            ('general_seed', 'valueChanged', 'general_seed'),
+            ('seed', 'valueChanged', 'seed'),
             ('sample_size', 'valueChanged', 'sample_size'),
             #  dataset processing group   
             ('max_report_size', 'valueChanged', 'max_report_size'),
