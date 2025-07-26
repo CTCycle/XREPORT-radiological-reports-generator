@@ -15,6 +15,7 @@ TOKENIZERS_PATH = join(MODELS_PATH, 'tokenizers')
 ENCODERS_PATH = join(MODELS_PATH, 'XRAYEncoder')
 CHECKPOINT_PATH = join(RSC_PATH, 'checkpoints')
 INFERENCE_INPUT_PATH = join(DATA_PATH, 'inference')
+CONFIG_PATH = join(RSC_PATH, 'configurations')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
 # [UI LAYOUT PATH]
