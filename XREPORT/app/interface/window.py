@@ -6,10 +6,11 @@ from functools import partial
 
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt, QTimer
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QPainter, QPixmap, QAction
 from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpinBox, 
                                QSpinBox, QComboBox, QProgressBar, QGraphicsScene, 
-                               QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit, QMessageBox)
+                               QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit, QMessageBox,
+                               QDialog, QVBoxLayout, QLineEdit, QLabel, QDialogButtonBox)
 
 from XREPORT.app.utils.data.database import XREPORTDatabase
 from XREPORT.app.configuration import Configuration
@@ -59,6 +60,9 @@ class MainWindow:
         self._set_states()
         self.widgets = {}
         self._setup_configuration([ 
+            # actions
+            (QAction, 'actionLoadConfig', 'load_configuration'),
+            (QAction, 'actionSaveConfig', 'save_configuration'),
             # out of tab widgets            
             (QProgressBar,'progressBar','progress_bar'),      
             (QPushButton,'stopThread','stop_thread'),
@@ -139,6 +143,9 @@ class MainWindow:
             ])
         
         self._connect_signals([ 
+            # actions
+            ('save_configuration', 'triggered', self.save_config_to_json),
+            # out of tab widgets    
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page       
             ('load_dataset','clicked',self.update_database_from_source),               
@@ -381,6 +388,18 @@ class MainWindow:
             name for name, box in self.data_metrics if box.isChecked()]
         self.selected_metrics['model'] = [
             name for name, box in self.model_metrics if box.isChecked()]
+        
+    #--------------------------------------------------------------------------
+    # [ACTIONS]
+    #--------------------------------------------------------------------------
+    @Slot()
+    def save_config_to_json(self):
+        dialog = NameInputDialog(self.main_win)
+        if dialog.exec() == QDialog.Accepted:
+            name = dialog.get_name()
+            name = 'default_config' if not name else name            
+            self.config_manager.save_configuration_to_json(name)
+            self._send_message(f"Configuration [{name}] has been saved")
 
     #--------------------------------------------------------------------------
     # [GRAPHICS]
@@ -750,7 +769,31 @@ class MainWindow:
         self.progress_bar.setValue(0)
         self._send_message('Current task has been interrupted by user') 
         logger.warning('Current task has been interrupted by user') 
-        self.worker = self.worker.cleanup()       
+        self.worker = self.worker.cleanup()  
+
+
+
+###############################################################################
+class NameInputDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Save Configuration As")
+        self.layout = QVBoxLayout(self)
+
+        self.label = QLabel("Enter a name for your configuration:", self)
+        self.layout.addWidget(self.label)
+
+        self.name_edit = QLineEdit(self)
+        self.layout.addWidget(self.name_edit)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.layout.addWidget(self.buttons)
+
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+
+    def get_name(self):
+        return self.name_edit.text().strip()     
       
         
           
