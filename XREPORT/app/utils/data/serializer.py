@@ -47,7 +47,7 @@ class DataSerializer:
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def update_images_path(self, dataset : pd.DataFrame):                
+    def update_img_path(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -63,7 +63,7 @@ class DataSerializer:
         return clean_dataset
     
     #--------------------------------------------------------------------------
-    def get_images_path_from_directory(self, path, sample_size=1.0):          
+    def get_img_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
             logger.error(f'No images found in {path}, please add them and try again.')
             sys.exit()

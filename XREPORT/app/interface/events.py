@@ -75,8 +75,8 @@ class DatasetEvents:
         self.configuration = configuration 
 
     #--------------------------------------------------------------------------
-    def load_images_path(self, path, sample_size=1.0):
-        img_paths = self.serializer.get_images_path_from_directory(path, sample_size) 
+    def load_img_path(self, path, sample_size=1.0):
+        img_paths = self.serializer.get_img_path_from_directory(path, sample_size) 
         
         return img_paths 
     
@@ -177,7 +177,7 @@ class ValidationEvents:
         serializer = DataSerializer(self.configuration) 
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size)   
-        dataset = serializer.update_images_path(dataset)        
+        dataset = serializer.update_img_path(dataset)        
         logger.info(f'Selected reports and related images: {len(dataset)}')
 
         img_analyzer = ImageAnalysis(self.configuration)
@@ -219,7 +219,7 @@ class ValidationEvents:
         
         logger.info(f'Loading {selected_checkpoint} checkpoint')   
         modser = ModelSerializer()       
-        model, train_config, train_metadata, _, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
@@ -231,18 +231,18 @@ class ValidationEvents:
         # be compatible with the currently loaded checkpoint configurations
         serializer = DataSerializer(train_config) 
         current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
+        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if validated_metadata:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            _, validation_data, train_metadata = serializer.load_train_and_validation_data()
+            _, validation_data, model_metadata = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
+            _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
         # update image paths in the validation data using currently available images
-        validation_data = serializer.update_images_path(validation_data)
+        validation_data = serializer.update_img_path(validation_data)
 
-        vocabulary_size = train_metadata.get('vocabulary_size', 1000)
+        vocabulary_size = model_metadata.get('vocabulary_size', 1000)
         logger.info(f'Validation data has been loaded: {len(validation_data)} samples')    
         logger.info(f'Vocabolary size: {vocabulary_size} tokens')          
         num_samples = self.configuration.get('num_evaluation_samples', 10)
@@ -262,7 +262,7 @@ class ValidationEvents:
         if 'BLEU_score' in metrics:
             logger.info('Current metric: BLEU score')
             scoring = EvaluateTextQuality(
-                model, train_config, train_metadata, num_samples)            
+                model, train_config, model_metadata, num_samples)            
             scores = scoring.calculate_BLEU_score(
                 validation_data, progress_callback=progress_callback, worker=worker)  
           
@@ -289,8 +289,8 @@ class ModelEvents:
             return
 
         # fetch images path from the preprocessed data
-        train_data = serializer.update_images_path(train_data)
-        validation_data = serializer.update_images_path(validation_data)
+        train_data = serializer.update_img_path(train_data)
+        validation_data = serializer.update_img_path(validation_data)
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(self.configuration)   
@@ -328,7 +328,7 @@ class ModelEvents:
         
         logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
-        model, train_config, train_metadata, session, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)
         # set device for training operations
@@ -343,18 +343,18 @@ class ModelEvents:
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
         current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, train_metadata)
+        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if validated_metadata:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, train_metadata = serializer.load_train_and_validation_data()
+            train_data, validation_data, model_metadata = serializer.load_train_and_validation_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
-            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(train_metadata)
+            train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
 
         # update image paths in the train and validation data using currently available images
-        train_data = serializer.update_images_path(train_data)
-        validation_data = serializer.update_images_path(validation_data) 
+        train_data = serializer.update_img_path(train_data)
+        validation_data = serializer.update_img_path(validation_data) 
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(train_config)           
@@ -366,10 +366,10 @@ class ModelEvents:
 
         # resume training from pretrained model    
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
-        additional_epochs = self.configuration.get('additional_epochs', 100)
-        trainer = ModelTraining(train_config, train_metadata)
+        additional_epochs = self.configuration.get('additional_epochs', 10)
+        trainer = ModelTraining(train_config, model_metadata)
         trainer.resume_training(
-            model, train_dataset, validation_dataset, train_metadata, checkpoint_path, session,
+            model, train_dataset, validation_dataset, model_metadata, checkpoint_path, session,
             additional_epochs, progress_callback=progress_callback, worker=worker)  
 
     #--------------------------------------------------------------------------
@@ -380,7 +380,7 @@ class ModelEvents:
         
         modser = ModelSerializer() 
         logger.info(f'Loading {selected_checkpoint} checkpoint')         
-        model, train_config, train_metadata, _, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
@@ -389,12 +389,12 @@ class ModelEvents:
         device.set_device()
         # select images from the inference folder and retrieve current paths
         serializer = DataSerializer(self.configuration)        
-        img_paths = serializer.get_images_path_from_directory(INFERENCE_INPUT_PATH)
+        img_paths = serializer.get_img_path_from_directory(INFERENCE_INPUT_PATH)
         logger.info(f'Start generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
         # generate radiological reports from the list of inference image paths 
         inference_mode = self.configuration.get("inference_mode", 'greedy_search') 
-        max_report_size = train_metadata.get('max_report_size', 200) 
+        max_report_size = model_metadata.get('max_report_size', 200) 
 
         # initialize the text generator that takes raw images
         # the generator integrates logic for data processing based on checkpoint metadata

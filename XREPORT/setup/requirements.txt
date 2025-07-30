@@ -5,7 +5,7 @@ torch==2.7.1+cu128
 #torchvision==0.22.0+cu128
 
 # TensorFlow & NLP
-tensorflow==2.19.0
+tensorflow-cpu==2.19.0
 nltk==3.9.1
 
 # Deep Learning & Computer Vision
