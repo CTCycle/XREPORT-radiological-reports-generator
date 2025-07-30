@@ -19,22 +19,13 @@ class TextGenerator:
         set_random_seed(seed)       
         self.model = model   
         self.configuration = configuration    
-        self.max_report_size = max_report_size              
-        
+        self.max_report_size = max_report_size 
         # define image and text parameters for inference
         self.img_shape = (224, 224)
-        self.num_channels = 3                  
-        
+        self.num_channels = 3 
         # report generation methods        
         self.generator_methods = {'greedy_search' : self.generate_with_greed_search,
                                   'beam_search' : self.generate_with_beam_search}
-        
-        # get encoder and decoder layers names from loaded model
-        # layer_names = [layer.name for layer in self.model.layers]     
-        # encoder_layer_names = [
-        #     x for x in layer_names if 'transformer_encoder' in x] 
-        # decoder_layer_names = [
-        #     x for x in layer_names if 'transformer_decoder' in x]        
         
     #-------------------------------------------------------------------------- 
     def get_images(self, data):
@@ -43,7 +34,6 @@ class TextGenerator:
         norm_images = [loader.processor.image_normalization(img) for img in images]
                 
         return norm_images
-
         
     #--------------------------------------------------------------------------
     def load_tokenizer_and_configuration(self): 

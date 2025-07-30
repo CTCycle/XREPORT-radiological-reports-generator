@@ -13,6 +13,7 @@ XREPORT/setup/git/*
 XREPORT/setup/.env
 
 __pycache__
+*.vscode
 *.db
 *.log
 *.npy
