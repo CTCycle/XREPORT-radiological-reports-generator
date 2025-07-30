@@ -29,7 +29,7 @@ class DataSerializer:
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         # define metadata path and extract configuration parameters
         self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
-        self.seed = configuration.get('general_seed', 42) 
+        self.seed = configuration.get('seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
         # create database instance
@@ -47,7 +47,7 @@ class DataSerializer:
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
-    def update_images_path(self, dataset : pd.DataFrame):                
+    def update_img_path(self, dataset : pd.DataFrame):                
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):                      
             for file in files:
@@ -63,7 +63,7 @@ class DataSerializer:
         return clean_dataset
     
     #--------------------------------------------------------------------------
-    def get_images_path_from_directory(self, path, sample_size=1.0):          
+    def get_img_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
             logger.error(f'No images found in {path}, please add them and try again.')
             sys.exit()
@@ -182,21 +182,18 @@ class ModelSerializer:
         os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
-        history_path = os.path.join(path, 'configuration', 'session_history.json')               
-
+        history_path = os.path.join(path, 'configuration', 'session_history.json')
         # Save training and model configuration
         with open(config_path, 'w') as f:
-            json.dump(configuration, f)  
-
+            json.dump(configuration, f)
         # Save metadata
         with open(metadata_path, 'w') as f:
-            json.dump(metadata, f)       
-
+            json.dump(metadata, f) 
         # Save session history
         with open(history_path, 'w') as f:
             json.dump(history, f)
 
-        logger.debug(f'Model configuration and session history saved for {os.path.basename(path)}')     
+        logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
     def load_training_configuration(self, path : str): 
@@ -232,7 +229,7 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name : str):    
+    def load_checkpoint(self, checkpoint_name : str): 
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
