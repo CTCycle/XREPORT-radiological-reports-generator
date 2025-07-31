@@ -44,7 +44,7 @@ class ModelEvaluationSummary:
             has_scheduler = configuration.get('use_scheduler', False)
             scores = history.get('history', {})
             chkp_config = {
-                    'checkpoint_name': model_name,
+                    'checkpoint': model_name,
                     'sample_size': metadata.get('sample_size', np.nan),
                     'validation_size': metadata.get('validation_size', np.nan),
                     'seed': configuration.get('train_seed', np.nan),

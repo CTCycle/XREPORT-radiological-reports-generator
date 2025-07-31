@@ -229,14 +229,14 @@ class ModelSerializer:
                     expand_nested=True, rankdir='TB', dpi=400)
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint_name : str): 
+    def load_checkpoint(self, checkpoint : str): 
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,
                           'MaskedAccuracy': MaskedAccuracy, 
                           'LRScheduler': WarmUpLRScheduler}     
                      
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint_name) 
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint) 
         model_path = os.path.join(checkpoint_path, 'saved_model.keras')         
         model = load_model(model_path, custom_objects=custom_objects)       
         configuration, metadata, session = self.load_training_configuration(checkpoint_path)        
