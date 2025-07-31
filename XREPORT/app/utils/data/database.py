@@ -85,7 +85,7 @@ class TextStatistics(Base):
 ###############################################################################
 class CheckpointSummary(Base):
     __tablename__ = 'CHECKPOINTS_SUMMARY'    
-    checkpoint_name = Column(String, primary_key=True)
+    checkpoint = Column(String, primary_key=True)
     sample_size = Column(Float)
     validation_size = Column(Float)
     seed = Column(Integer)
@@ -114,7 +114,7 @@ class CheckpointSummary(Base):
     train_accuracy = Column(Float)
     val_accuracy = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint_name'),
+        UniqueConstraint('checkpoint'),
     )
     
 
