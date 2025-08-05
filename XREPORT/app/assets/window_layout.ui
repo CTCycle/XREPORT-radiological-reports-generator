@@ -18,24 +18,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
-    <item row="1" column="0">
-     <layout class="QHBoxLayout" name="progressLayout" stretch="7,2">
-      <item>
-       <widget class="QProgressBar" name="progressBar">
-        <property name="value">
-         <number>0</number>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="stopThread">
-        <property name="text">
-         <string>Stop</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
     <item row="0" column="0">
      <widget class="QTabWidget" name="Tabs">
       <property name="accessibleName">
@@ -320,7 +302,7 @@
            <property name="geometry">
             <rect>
              <x>0</x>
-             <y>-139</y>
+             <y>0</y>
              <width>1100</width>
              <height>834</height>
             </rect>
@@ -1089,7 +1071,7 @@
        <attribute name="title">
         <string>Viewer</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <item>
@@ -1173,27 +1155,40 @@
          </layout>
         </item>
         <item>
-         <widget class="QGroupBox" name="canvasGroup">
-          <property name="title">
-           <string>Images</string>
-          </property>
-          <layout class="QVBoxLayout" name="verticalLayout_7" stretch="5,1">
-           <item>
-            <widget class="QGraphicsView" name="canvas"/>
-           </item>
-           <item>
-            <widget class="QPlainTextEdit" name="description">
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
+         <layout class="QVBoxLayout" name="verticalLayout_7" stretch="4,1">
+          <item>
+           <widget class="QGraphicsView" name="canvas"/>
+          </item>
+          <item>
+           <widget class="QPlainTextEdit" name="description">
+            <property name="readOnly">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
      </widget>
+    </item>
+    <item row="1" column="0">
+     <layout class="QHBoxLayout" name="progressLayout" stretch="7,2">
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="stopThread">
+        <property name="text">
+         <string>Stop</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
