@@ -40,6 +40,7 @@ class Configuration:
             'use_tensorboard': False,
             'plot_training_metrics' : True,
             'save_checkpoints': False,
+            'checkpoints_frequency': 1,
             # Learning rate scheduler
             'use_scheduler' : False,
             'post_warmup_LR': 0.001,
