@@ -57,13 +57,11 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
-![model_tab](XREPORT/app/assets/figures/model_tab.png)
+![model_tab](XREPORT/app/assets/figures/model_tab.gif)
 
 **Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
 - **Training images**: visualize training images located in *resources/database/dataset*  
 - **Inference images**: visualize inference images located in *resources/database/inference*  
-- **Dataset evaluation plots**: visualize plots generated from dataset evaluation pipeline  
-- **Model evalution plots**: visualize plots generated from model evaluation pipeline  
 
 ![viewer_tab](XREPORT/app/assets/figures/viewer_tab.png)
 
