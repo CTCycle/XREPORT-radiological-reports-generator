@@ -8,7 +8,7 @@ from XREPORT.app.logger import logger
 ###############################################################################
 class DeviceConfig:
     
-    def __init__(self, configuration):
+    def __init__(self, configuration : dict):
         self.configuration = configuration
             
     #--------------------------------------------------------------------------

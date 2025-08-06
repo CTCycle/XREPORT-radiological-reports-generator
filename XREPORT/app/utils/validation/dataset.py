@@ -57,7 +57,7 @@ class TextAnalysis:
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.serializer = DataSerializer(configuration)
         self.DPI = configuration.get('image_resolution', 400)
         self.configuration = configuration

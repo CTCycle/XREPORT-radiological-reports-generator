@@ -18,6 +18,10 @@ INFERENCE_INPUT_PATH = join(DATA_PATH, 'inference')
 CONFIG_PATH = join(RSC_PATH, 'configurations')
 LOGS_PATH = join(RSC_PATH, 'logs')
 
+# files
+###############################################################################
+PROCESS_METADATA_FILE = join(METADATA_PATH, 'preprocessing_metadata.json')
+
 # [UI LAYOUT PATH]
 ###############################################################################
 UI_PATH = join(PROJECT_DIR, 'app', 'assets', 'window_layout.ui')
