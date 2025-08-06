@@ -272,7 +272,7 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.configuration = configuration 
     
     #--------------------------------------------------------------------------
@@ -304,6 +304,7 @@ class ModelEvents:
         logger.info('Setting device for training operations') 
         device = DeviceConfig(self.configuration)   
         device.set_device() 
+
         # create checkpoint folder     
         modser = ModelSerializer() 
         checkpoint_path = modser.create_checkpoint_folder()
@@ -313,6 +314,7 @@ class ModelEvents:
         model = captioner.get_model(model_summary=True) 
         # generate training log report and graphviz plot for the model layout               
         modser.save_model_plot(model, checkpoint_path)
+
         # start model training
         logger.info('Starting XREPORT Transformer model training')
         trainer = ModelTraining(self.configuration)
