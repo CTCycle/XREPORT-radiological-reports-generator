@@ -12,7 +12,7 @@ from keras.models import load_model
 from XREPORT.app.utils.data.database import XREPORTDatabase
 from XREPORT.app.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.app.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
+from XREPORT.app.constants import PROCESS_METADATA_FILE, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.app.logger import logger
 
 
@@ -28,7 +28,6 @@ class DataSerializer:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         # define metadata path and extract configuration parameters
-        self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
         self.seed = configuration.get('seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
@@ -100,7 +99,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self, only_metadata=False):
         # load metadata from file
-        with open(self.metadata_path, 'r') as file:
+        with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)     
 
         if not only_metadata: 
