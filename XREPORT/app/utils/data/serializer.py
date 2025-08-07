@@ -215,9 +215,14 @@ class ModelSerializer:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)
-        
-        return model_folders      
+                # Check if the folder contains at least one .keras file
+                has_keras = any(
+                    f.name.endswith('.keras') and f.is_file()
+                    for f in os.scandir(entry.path))
+                if has_keras:
+                    model_folders.append(entry.name)
+                    
+        return model_folders 
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path : str):       
