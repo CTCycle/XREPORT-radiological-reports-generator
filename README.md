@@ -87,10 +87,11 @@ This folder organizes data and results across various stages of the project, suc
 
 **Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
 
-| Variable              | Description                                              |
-|-----------------------|----------------------------------------------------------|
-| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch           |
-| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                             |
+| Variable              | Description                                      |
+|-----------------------|--------------------------------------------------|
+| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch   |
+| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                     |
+| MPLBACKEND            | Matplotlib backend, keep default as Agg          |
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
