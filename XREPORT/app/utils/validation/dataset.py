@@ -18,7 +18,6 @@ class TextAnalysis:
 
     def __init__(self, configuration : dict):
         self.serializer = DataSerializer(configuration)
-        self.DPI = configuration.get('image_resolution', 400)
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
@@ -49,17 +48,12 @@ class TextAnalysis:
         return stats_dataframe
     
 
-
-        
-
-
 # [VALIDATION OF DATA]
 ###############################################################################
 class ImageAnalysis:
 
     def __init__(self, configuration : dict): 
         self.serializer = DataSerializer(configuration)
-        self.DPI = configuration.get('image_resolution', 400)
         self.configuration = configuration
 
     #--------------------------------------------------------------------------

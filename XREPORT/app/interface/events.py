@@ -1,8 +1,8 @@
 import os
-import cv2
 
-from PySide6.QtGui import QImage, QPixmap
+import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from PySide6.QtGui import QImage, QPixmap
 
 from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.validation.dataset import ImageAnalysis, TextAnalysis
