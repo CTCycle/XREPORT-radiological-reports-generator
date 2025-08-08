@@ -11,8 +11,6 @@ set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
-set "git_dir=%project_folder%setup\git"
-set "git_exe=%git_dir%\cmd\git.exe"
 set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
@@ -26,7 +24,7 @@ if exist "%python_exe%" if exist "%pip_exe%" if exist "%git_exe%" (
 REM ============================================================================
 REM == 1. Full environment setup
 REM ============================================================================
-echo [STEP 1/4] Setting up Python environment...
+echo [STEP 1/3] Setting up Python environment...
 
 REM --- Dynamic variables for Python distribution
 set "python_version=3.12.10"
@@ -57,7 +55,7 @@ powershell -Command "(New-Object System.Net.WebClient).DownloadFile('%get_pip_ur
 del "%get_pip_path%"
 
 REM Install dependencies
-echo [STEP 2/4] Installing dependencies...
+echo [STEP 2/3] Installing dependencies...
 if not exist "%requirements_path%" (
     echo [FATAL] requirements.txt not found.
     goto :error
@@ -66,11 +64,10 @@ if not exist "%requirements_path%" (
 echo [INFO] Upgrading pip package
 "%pip_exe%" install --upgrade pip >nul 2>&1
 
+"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
+
 echo [INFO] Installing setuptools
 "%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
-
-echo [INFO] Installing app dependencies
-"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
 
 echo [INFO] Installing triton
 "%pip_exe%" install "%triton_path%" || goto :error
@@ -84,27 +81,10 @@ popd
 echo [SUCCESS] Environment setup complete.
 
 REM ============================================================================
-REM == 3. Install git
-REM ============================================================================
-REM Install git
-echo [STEP 3/4] Installing portable Git
-    
-REM Bootstrap Git
-set "git_zip_url=https://github.com/git-for-windows/git/releases/download/v2.45.1.windows.1/PortableGit-2.45.1-64-bit.7z.exe"
-set "git_zip_path=%git_dir%\git_portable.7z.exe"
-mkdir "%git_dir%" 2>nul
-powershell -Command "(New-Object System.Net.WebClient).DownloadFile('%git_zip_url%', '%git_zip_path%')" || goto :error
-"%git_zip_path%" -o"%git_dir%" -y
-del "%git_zip_path%"
-
-echo [SUCCESS] Git has been installed locally.
-
-
-REM ============================================================================
 REM == 2. Run the application
 REM ============================================================================
 :run_app
-echo [STEP 4/4] Running application...
+echo [STEP 3/3] Running application...
 if not exist "%app_script%" (
     echo [FATAL] Application script not found: "%app_script%"
     goto :error

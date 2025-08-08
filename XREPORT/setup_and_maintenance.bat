@@ -11,9 +11,6 @@ set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
-set "git_dir=%project_folder%setup\git"
-set "git_exe=%git_dir%\cmd\git.exe"
-set "root_folder=%project_folder%..\"
 set "log_path=%project_folder%resources\logs"
 
 
@@ -46,9 +43,9 @@ popd
 goto :setup_menu
 
 :update
-pushd "%root_folder%"
-"%git_exe%" pull || popd 
-popd
+echo Updating project... 
+"%python_exe%" "%project_folder%setup\scripts\update_project.py"
+pause
 goto :setup_menu
 
 :logs
