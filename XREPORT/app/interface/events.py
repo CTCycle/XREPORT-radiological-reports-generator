@@ -323,11 +323,7 @@ class ModelEvents:
             progress_callback=progress_callback, worker=worker) 
                 
     #--------------------------------------------------------------------------
-    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        if selected_checkpoint is None:
-            logger.warning('No checkpoint selected for resuming training')
-            return
-        
+    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):        
         logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
         model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
@@ -376,10 +372,6 @@ class ModelEvents:
 
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        if selected_checkpoint is None:
-            logger.warning('No checkpoint selected for inference')
-            return
-        
         modser = ModelSerializer() 
         logger.info(f'Loading {selected_checkpoint} checkpoint')         
         model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
