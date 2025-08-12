@@ -606,6 +606,10 @@ class MainWindow:
             message = "A task is currently running, wait for it to finish and then try again"
             QMessageBox.warning(self.main_win, "Application is still busy", message)
             return 
+
+        if self.selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
+            return 
         
         self.configuration = self.config_manager.get_configuration() 
         self.model_handler = ModelEvents(self.configuration)   
@@ -649,6 +653,10 @@ class MainWindow:
         if self.worker:            
             message = "A task is currently running, wait for it to finish and then try again"
             QMessageBox.warning(self.main_win, "Application is still busy", message)
+            return 
+        
+        if self.selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
             return 
 
         self.configuration = self.config_manager.get_configuration() 
@@ -695,6 +703,9 @@ class MainWindow:
         if self.worker:            
             message = "A task is currently running, wait for it to finish and then try again"
             QMessageBox.warning(self.main_win, "Application is still busy", message)
+            return 
+        if self.selected_checkpoint is None:
+            logger.warning('No checkpoint selected for resuming training')
             return 
         
         self.configuration = self.config_manager.get_configuration() 
