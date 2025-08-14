@@ -27,12 +27,12 @@ echo 2. Update project
 echo 3. Remove logs
 echo 4. Exit
 echo.
-set /p sub_choice="Select an option (1-5): "
+set /p sub_choice="Select an option (1-4): "
 
-if "%sub_choice%"=="2" goto :eggs
-if "%sub_choice%"=="3" goto :update
-if "%sub_choice%"=="4" goto :logs
-if "%sub_choice%"=="5" goto :exit
+if "%sub_choice%"=="1" goto :eggs
+if "%sub_choice%"=="2" goto :update
+if "%sub_choice%"=="3" goto :logs
+if "%sub_choice%"=="4" goto :exit
 echo Invalid option, try again.
 goto :setup_menu
 
@@ -49,7 +49,7 @@ pause
 goto :setup_menu
 
 :logs
-pushd "%app_path%\resources\logs"
+pushd %log_path%
 if not exist *.log (
     echo No log files found.
     popd

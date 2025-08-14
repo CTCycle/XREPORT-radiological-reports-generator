@@ -88,29 +88,50 @@ class ThreadWorker(QRunnable):
 
 ###############################################################################‗
 def process_target(fn, args, kwargs, result_queue, progress_queue, interrupted_event):
-    import inspect
+    """
+    Executes a target function in a worker context, optionally injecting
+    progress callbacks and interruption handling, and returns results via queues.
+
+    Parameters:
+        fn (callable): Target function to execute.
+        args (tuple): Positional arguments for fn.
+        kwargs (dict): Keyword arguments for fn.
+        result_queue (multiprocessing.Queue): Queue for returning results or errors.
+        progress_queue (multiprocessing.Queue): Queue for sending progress updates.
+        interrupted_event (multiprocessing.Event): Event signaling worker interruption.
+
+    """    
     try:
-        # Add progress_callback and worker if supported
+        # Inspect the function signature to determine if it supports extra arguments
         sig = inspect.signature(fn)
         params = sig.parameters.values()
-        # Progress
+        # --- Inject progress reporting if supported ---
+        # If the function accepts a "progress_callback" parameter or **kwargs,
+        # pass a callback that puts messages into the progress_queue.
         if any(p.name == "progress_callback" or p.kind == inspect.Parameter.VAR_KEYWORD for p in params):
             kwargs = dict(kwargs)  # Make a copy
             kwargs["progress_callback"] = progress_queue.put
-        # Interruption
+        # --- Inject interruption checking if supported ---
+        # If the function accepts a "worker" parameter or **kwargs,
+        # pass a dummy worker object that exposes is_interrupted().
         if any(p.name == "worker" or p.kind == inspect.Parameter.VAR_KEYWORD for p in params):
-            class DummyWorker:
+            class PlaceholderWorker:
                 def is_interrupted(self2):
+                    # Check if the interruption event has been set
                     return interrupted_event.is_set()
-            kwargs["worker"] = DummyWorker()
+            kwargs["worker"] = PlaceholderWorker()
+        # execute the function
         result = fn(*args, **kwargs)
+        # Send the result back with a "finished" status.
         result_queue.put(("finished", result))
     except WorkerInterrupted:
+        # If the worker was explicitly interrupted, return with "interrupted" status
         result_queue.put(("interrupted", None))
-    except Exception as e:
-        import traceback
+    except Exception as e:        
+        # For any other exception, capture and send the traceback for debugging
         tb = traceback.format_exc()
         result_queue.put(("error", (e, tb)))
+
 
 ###############################################################################
 class ProcessWorker(QObject):
@@ -160,10 +181,10 @@ class ProcessWorker(QObject):
 
             # Interruption
             if any(p.name == "worker" or p.kind == inspect.Parameter.VAR_KEYWORD for p in params):
-                class DummyWorker:
+                class PlaceholderWorker:
                     def is_interrupted(self2):  # "self2" to avoid confusion
                         return self._interrupted.is_set()
-                kwargs["worker"] = DummyWorker()
+                kwargs["worker"] = PlaceholderWorker()
 
             result = fn(*args, **kwargs)
             self._result_queue.put(("finished", result))

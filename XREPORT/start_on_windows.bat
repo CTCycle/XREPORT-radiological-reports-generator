@@ -9,14 +9,15 @@ set "root_folder=%project_folder%..\"
 set "python_dir=%project_folder%setup\python"
 set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
+set "env_marker=%python_dir%\.is_installed"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
 set "triton_path=%project_folder%setup\triton\triton-3.2.0-cp312-cp312-win_amd64.whl"
 
 REM ============================================================================
-REM == 0. Skip full setup if environment already present
+REM == 0. Fast path: skip full setup if environment already present
 REM ============================================================================
-if exist "%python_exe%" if exist "%pip_exe%" if exist "%git_exe%" (
+if exist "%env_marker%" if exist "%python_exe%" if exist "%pip_exe%" (
     echo [INFO] Environment already installed. Skipping setup.
     goto :run_app
 )
@@ -36,9 +37,6 @@ set "python_zip_path=%python_dir%\%python_zip_filename%"
 set "python_pth_file=%python_dir%\python%python_major_version%%python_minor_version%._pth"
 set "get_pip_url=https://bootstrap.pypa.io/get-pip.py"
 set "get_pip_path=%python_dir%\get-pip.py"
-set "root_folder=%project_folder%..\"
-set "get_pip_url=https://bootstrap.pypa.io/get-pip.py"
-set "get_pip_path=%python_dir%\get-pip.py"
 
 REM Create Python directory
 mkdir "%python_dir%" 2>nul
@@ -54,29 +52,40 @@ powershell -Command "(New-Object System.Net.WebClient).DownloadFile('%get_pip_ur
 "%python_exe%" "%get_pip_path%" || goto :error
 del "%get_pip_path%"
 
-REM Install dependencies
+REM ============================================================================
+REM == 1b. Install dependencies
+REM ============================================================================
 echo [STEP 2/3] Installing dependencies...
 if not exist "%requirements_path%" (
-    echo [FATAL] requirements.txt not found.
+    echo [FATAL] requirements.txt not found: "%requirements_path%"
     goto :error
 )
 
 echo [INFO] Upgrading pip package
-"%pip_exe%" install --upgrade pip >nul 2>&1
+"%pip_exe%" install --upgrade pip >nul 2>&1 || goto :error
 
+echo [INFO] Installing requirements
 "%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
 
-echo [INFO] Installing setuptools
+echo [INFO] Installing setuptools and wheel
 "%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
 
-echo [INFO] Installing triton
-"%pip_exe%" install "%triton_path%" || goto :error
+if exist "%triton_path%" (
+    echo [INFO] Installing triton wheel
+    "%pip_exe%" install "%triton_path%" || goto :error
+) else (
+    echo [WARN] Triton wheel not found at "%triton_path%". Skipping.
+)
 
 pushd "%root_folder%"
+echo [INFO] Installing project in editable mode
 "%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
 popd
 
 "%pip_exe%" cache purge || goto :error
+
+REM Mark environment as installed for future fast start
+> "%env_marker%" echo setup_completed
 
 echo [SUCCESS] Environment setup complete.
 
@@ -91,7 +100,7 @@ if not exist "%app_script%" (
 )
 
 pushd "%root_folder%"
-"%python_exe%" "%app_script%" || goto :error
+"%python_exe%" "%app_script%" || (popd & goto :error)
 popd
 echo [SUCCESS] Application launched successfully.
 
