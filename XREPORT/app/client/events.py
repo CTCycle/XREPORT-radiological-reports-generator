@@ -13,7 +13,7 @@ from XREPORT.app.utils.learning.device import DeviceConfig
 from XREPORT.app.utils.learning.training.fitting import ModelTraining
 from XREPORT.app.utils.learning.models.transformers import XREPORTModel
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
-from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
