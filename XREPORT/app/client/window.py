@@ -13,9 +13,9 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
 
 from XREPORT.app.utils.data.database import XREPORTDatabase
 from XREPORT.app.configuration import Configuration
-from XREPORT.app.interface.dialogs import LoadConfigDialog, SaveConfigDialog
-from XREPORT.app.interface.workers import ThreadWorker, ProcessWorker
-from XREPORT.app.interface.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
+from XREPORT.app.client.dialogs import LoadConfigDialog, SaveConfigDialog
+from XREPORT.app.client.workers import ThreadWorker, ProcessWorker
+from XREPORT.app.client.events import (GraphicsHandler, DatasetEvents, ValidationEvents, 
                                           ModelEvents)
 
 from XREPORT.app.constants import IMG_PATH, INFERENCE_INPUT_PATH
