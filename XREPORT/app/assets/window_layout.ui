@@ -303,7 +303,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>1100</width>
+             <width>979</width>
              <height>834</height>
             </rect>
            </property>
@@ -1214,8 +1214,16 @@
     <addaction name="actionSaveConfig"/>
     <addaction name="actionLoadConfig"/>
    </widget>
+   <widget class="QMenu" name="menuDatabase">
+    <property name="title">
+     <string>Database</string>
+    </property>
+    <addaction name="actionDeleteData"/>
+    <addaction name="actionExportData"/>
+   </widget>
    <addaction name="menuApplication"/>
    <addaction name="menuConfiguration"/>
+   <addaction name="menuDatabase"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionReloadApp">
@@ -1231,6 +1239,16 @@
   <action name="actionLoadConfig">
    <property name="text">
     <string>Load configuration</string>
+   </property>
+  </action>
+  <action name="actionDeleteData">
+   <property name="text">
+    <string>Delete data</string>
+   </property>
+  </action>
+  <action name="actionExportData">
+   <property name="text">
+    <string>Export data</string>
    </property>
   </action>
  </widget>
