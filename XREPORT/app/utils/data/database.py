@@ -218,6 +218,56 @@ class XREPORTDatabase:
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):         
         self.upsert_dataframe(data, CheckpointSummary)
+
+    #--------------------------------------------------------------------------
+    def export_all_tables_as_csv(self, chunksize: int | None = None):        
+        export_path = os.path.join(DATA_PATH, 'export')
+        os.makedirs(export_path, exist_ok=True)
+        with self.engine.connect() as conn:
+            for table in Base.metadata.sorted_tables:
+                table_name = table.name
+                csv_path = os.path.join(export_path, f"{table_name}.csv")
+
+                # Build a safe SELECT for arbitrary table names (quote with "")
+                query = sqlalchemy.text(f'SELECT * FROM "{table_name}"')
+
+                if chunksize:
+                    first = True
+                    for chunk in pd.read_sql(query, conn, chunksize=chunksize):
+                        chunk.to_csv(
+                            csv_path,
+                            index=False,
+                            header=first,
+                            mode="w" if first else "a",
+                            encoding='utf-8', 
+                            sep=',')
+                        first = False
+                    # If table is empty, still write header row
+                    if first:
+                        pd.DataFrame(
+                            columns=[c.name for c in table.columns]).to_csv(
+                                csv_path, index=False, encoding='utf-8', sep=',')
+                else:
+                    df = pd.read_sql(query, conn)
+                    if df.empty:
+                        pd.DataFrame(
+                            columns=[c.name for c in table.columns]).to_csv(
+                                csv_path, index=False, encoding='utf-8', sep=',')
+                    else:
+                        df.to_csv(csv_path, index=False, encoding='utf-8', sep=',')
+
+        logger.info(f'All tables exported to CSV at {os.path.abspath(export_path)}')
+
+    #--------------------------------------------------------------------------
+    def delete_all_data(self):    
+        with self.engine.begin() as conn:
+            for table in reversed(Base.metadata.sorted_tables): 
+                conn.execute(table.delete())
+    
+    
+
+    
+
     
 
  
