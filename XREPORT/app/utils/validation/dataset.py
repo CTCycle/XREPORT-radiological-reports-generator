@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from XREPORT.app.utils.data.serializer import DataSerializer
-from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.constants import EVALUATION_PATH
 from XREPORT.app.logger import logger
 
