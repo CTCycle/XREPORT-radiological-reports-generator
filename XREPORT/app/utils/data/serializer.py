@@ -12,7 +12,7 @@ from keras.models import load_model
 from XREPORT.app.utils.data.database import XREPORTDatabase
 from XREPORT.app.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.app.constants import METADATA_PATH, IMG_PATH, CHECKPOINT_PATH
+from XREPORT.app.constants import PROCESS_METADATA_FILE, IMG_PATH, CHECKPOINT_PATH
 from XREPORT.app.logger import logger
 
 
@@ -28,7 +28,6 @@ class DataSerializer:
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
         # define metadata path and extract configuration parameters
-        self.metadata_path = os.path.join(METADATA_PATH, 'preprocessing_metadata.json')        
         self.seed = configuration.get('seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
         self.tokenizer_ID = configuration.get('tokenizer', None)
@@ -100,7 +99,7 @@ class DataSerializer:
     #--------------------------------------------------------------------------
     def load_train_and_validation_data(self, only_metadata=False):
         # load metadata from file
-        with open(self.metadata_path, 'r') as file:
+        with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)     
 
         if not only_metadata: 
@@ -167,6 +166,7 @@ class ModelSerializer:
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f'{self.model_name}_{today_datetime}')         
         os.makedirs(checkpoint_path, exist_ok=True)   
+        os.makedirs(os.path.join(checkpoint_path, 'configuration'), exist_ok=True)
         logger.debug(f'Created checkpoint folder at {checkpoint_path}')
         
         return checkpoint_path        
@@ -178,8 +178,7 @@ class ModelSerializer:
         logger.info(f'Training session is over. Model {os.path.basename(path)} has been saved')
 
     #--------------------------------------------------------------------------
-    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):         
-        os.makedirs(os.path.join(path, 'configuration'), exist_ok=True)         
+    def save_training_configuration(self, path, history : dict, configuration : dict, metadata : dict):   
         config_path = os.path.join(path, 'configuration', 'configuration.json')
         metadata_path = os.path.join(path, 'configuration', 'metadata.json') 
         history_path = os.path.join(path, 'configuration', 'session_history.json')
@@ -216,9 +215,14 @@ class ModelSerializer:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
-                model_folders.append(entry.name)
-        
-        return model_folders      
+                # Check if the folder contains at least one .keras file
+                has_keras = any(
+                    f.name.endswith('.keras') and f.is_file()
+                    for f in os.scandir(entry.path))
+                if has_keras:
+                    model_folders.append(entry.name)
+                    
+        return model_folders 
 
     #--------------------------------------------------------------------------
     def save_model_plot(self, model, path : str):       

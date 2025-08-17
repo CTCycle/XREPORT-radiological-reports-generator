@@ -11,9 +11,6 @@ set "python_exe=%python_dir%\python.exe"
 set "pip_exe=%python_dir%\Scripts\pip.exe"
 set "app_script=%project_folder%app\app.py"
 set "requirements_path=%project_folder%setup\requirements.txt"
-set "git_dir=%project_folder%setup\git"
-set "git_exe=%git_dir%\cmd\git.exe"
-set "root_folder=%project_folder%..\"
 set "log_path=%project_folder%resources\logs"
 
 
@@ -30,12 +27,12 @@ echo 2. Update project
 echo 3. Remove logs
 echo 4. Exit
 echo.
-set /p sub_choice="Select an option (1-5): "
+set /p sub_choice="Select an option (1-4): "
 
-if "%sub_choice%"=="2" goto :eggs
-if "%sub_choice%"=="3" goto :update
-if "%sub_choice%"=="4" goto :logs
-if "%sub_choice%"=="5" goto :exit
+if "%sub_choice%"=="1" goto :eggs
+if "%sub_choice%"=="2" goto :update
+if "%sub_choice%"=="3" goto :logs
+if "%sub_choice%"=="4" goto :exit
 echo Invalid option, try again.
 goto :setup_menu
 
@@ -46,13 +43,13 @@ popd
 goto :setup_menu
 
 :update
-pushd "%root_folder%"
-"%git_exe%" pull || popd 
-popd
+echo Updating project... 
+"%python_exe%" "%project_folder%setup\scripts\update_project.py"
+pause
 goto :setup_menu
 
 :logs
-pushd "%app_path%\resources\logs"
+pushd %log_path%
 if not exist *.log (
     echo No log files found.
     popd

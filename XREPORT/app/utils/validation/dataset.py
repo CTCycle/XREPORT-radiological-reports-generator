@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from XREPORT.app.utils.data.serializer import DataSerializer
-from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.constants import EVALUATION_PATH
 from XREPORT.app.logger import logger
 
@@ -18,7 +18,6 @@ class TextAnalysis:
 
     def __init__(self, configuration : dict):
         self.serializer = DataSerializer(configuration)
-        self.DPI = configuration.get('image_resolution', 400)
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
@@ -49,17 +48,12 @@ class TextAnalysis:
         return stats_dataframe
     
 
-
-        
-
-
 # [VALIDATION OF DATA]
 ###############################################################################
 class ImageAnalysis:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.serializer = DataSerializer(configuration)
-        self.DPI = configuration.get('image_resolution', 400)
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
