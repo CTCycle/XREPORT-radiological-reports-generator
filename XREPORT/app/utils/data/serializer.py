@@ -89,7 +89,7 @@ class DataSerializer:
         return False if differences else True
         
     #--------------------------------------------------------------------------
-    def process_tokens(self, col):        
+    def serialize_series(self, col):        
         if isinstance(col, list):
             return ' '.join(map(str, col))
         if isinstance(col, str):
@@ -97,30 +97,28 @@ class DataSerializer:
         return []
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation_data(self, only_metadata=False):
+    def load_training_data(self, only_metadata=False):
         # load metadata from file
         with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)     
 
         if not only_metadata: 
             # load preprocessed data from database and convert joint strings to list 
-            train_data, val_data = self.database.load_train_and_validation()        
-            # process text strings to obtain a list of separated token indices     
-            train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
-            val_data['tokens'] = val_data['tokens'].apply(self.process_tokens)      
+            training_data = self.database.load_training_data() 
+            # process text strings to obtain a list of separated token indices 
+            training_data['tokens'] = training_data['tokens'].apply(self.serialize_series)    
+            train_data = training_data[training_data['split'] == 'train']
+            val_data = training_data[training_data['split'] == 'validation']  
         
             return train_data, val_data, metadata  
 
         return metadata 
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                                       vocabulary_size=None): 
+    def save_training_data(self, training_data : pd.DataFrame, vocabulary_size=None): 
         # process list of tokens to get them in string format   
-        train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
-        validation_data['tokens'] = validation_data['tokens'].apply(self.process_tokens)
-        # save train and validation data to database             
-        self.database.save_train_and_validation(train_data, validation_data)
+        training_data['tokens'] = training_data['tokens'].apply(self.serialize_series) 
+        self.database.save_training_data(training_data)
         # save preprocessing metadata
         metadata = {'seed' : self.seed,                     
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -131,7 +129,7 @@ class DataSerializer:
                     'max_report_size' : self.max_report_size,
                     'tokenizer' : self.tokenizer_ID}
                 
-        with open(self.metadata_path, 'w') as file:
+        with open(PROCESS_METADATA_FILE, 'w') as file:
             json.dump(metadata, file, indent=4) 
 
     #--------------------------------------------------------------------------
