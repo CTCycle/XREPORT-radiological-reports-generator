@@ -1,8 +1,8 @@
 import os
-import cv2
 
-from PySide6.QtGui import QImage, QPixmap
+import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from PySide6.QtGui import QImage, QPixmap
 
 from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.validation.dataset import ImageAnalysis, TextAnalysis
@@ -13,7 +13,7 @@ from XREPORT.app.utils.learning.device import DeviceConfig
 from XREPORT.app.utils.learning.training.fitting import ModelTraining
 from XREPORT.app.utils.learning.models.transformers import XREPORTModel
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
-from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
@@ -272,7 +272,7 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration): 
+    def __init__(self, configuration : dict): 
         self.configuration = configuration 
     
     #--------------------------------------------------------------------------
@@ -304,6 +304,7 @@ class ModelEvents:
         logger.info('Setting device for training operations') 
         device = DeviceConfig(self.configuration)   
         device.set_device() 
+
         # create checkpoint folder     
         modser = ModelSerializer() 
         checkpoint_path = modser.create_checkpoint_folder()
@@ -313,6 +314,7 @@ class ModelEvents:
         model = captioner.get_model(model_summary=True) 
         # generate training log report and graphviz plot for the model layout               
         modser.save_model_plot(model, checkpoint_path)
+
         # start model training
         logger.info('Starting XREPORT Transformer model training')
         trainer = ModelTraining(self.configuration)
@@ -321,11 +323,7 @@ class ModelEvents:
             progress_callback=progress_callback, worker=worker) 
                 
     #--------------------------------------------------------------------------
-    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        if selected_checkpoint is None:
-            logger.warning('No checkpoint selected for resuming training')
-            return
-        
+    def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):        
         logger.info(f'Loading {selected_checkpoint} checkpoint')
         modser = ModelSerializer()         
         model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
@@ -374,10 +372,6 @@ class ModelEvents:
 
     #--------------------------------------------------------------------------
     def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        if selected_checkpoint is None:
-            logger.warning('No checkpoint selected for inference')
-            return
-        
         modser = ModelSerializer() 
         logger.info(f'Loading {selected_checkpoint} checkpoint')         
         model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(

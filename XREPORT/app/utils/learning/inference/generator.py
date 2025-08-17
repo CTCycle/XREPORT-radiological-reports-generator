@@ -7,7 +7,7 @@ from keras.utils import set_random_seed
 
 from XREPORT.app.utils.data.loader import XRAYDataLoader
 from XREPORT.app.utils.data.process import TokenizerHandler
-from XREPORT.app.interface.workers import check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.logger import logger
 
 

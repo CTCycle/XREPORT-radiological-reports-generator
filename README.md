@@ -19,7 +19,7 @@ General transformer model architecture
 The tokenizer model is automatically downloaded and cached in *resources/models/tokenizers* on the first run, with the weights being reused for future training sessions. For word embedding, the XREPORT model uses positional embeddings, allowing it to encode the relative positions of tokens within sequences. Additionally, the model supports masking for variable-length sequences, ensuring adaptability to text inputs of different lengths. This flexibility allows seamless processing of diverse textual data while maintaining accurate and meaningful representations.
 
 ## 3. Installation
-The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, and a portable version of Git, minimizing user interaction and ensuring all components are ready for local use.  
+The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
 
 **Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
 
@@ -34,9 +34,9 @@ The installation process for Windows is fully automated. Simply run the script *
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. For Windows users, a precompiled Triton wheel is bundled with the installation, ensuring seamless integration and performance improvements.
 
 ## 4. How to use
-On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception for your Anaconda or Miniconda environments in your antivirus settings.
+On Windows, run *start_on_windows.bat* to launch the application. Please note that some antivirus software, such as Avast, may flag or quarantine python.exe when called by the .bat file. If you encounter unusual behavior, consider adding an exception in your antivirus settings.
 
-The main interface streamlines navigation across the application's core services, including dataset evaluation, model training and evaluation, and inference. Users can easily visualize generated plots and browse both training and inference images. Models training supports customizable configurations and also allows resuming previous sessions using pretrained models.
+The main interface streamlines navigation across the application's core services, including dataset evaluation, model training and evaluation, and inference. Models training supports customizable configurations and also allows resuming previous sessions using pretrained models. In the viewer tab, users can browse both training and inference images. 
 
 **Dataset validation and processing:** analyze and validate the image and text dataset using different metrics. 
 
@@ -87,10 +87,11 @@ This folder organizes data and results across various stages of the project, suc
 
 **Environmental variables** are stored in the *app* folder (within the project folder). For security reasons, this file is typically not uploaded to GitHub. Instead, you must create this file manually by copying the template from *resources/templates/.env* and placing it in the *app* directory.
 
-| Variable              | Description                                              |
-|-----------------------|----------------------------------------------------------|
-| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch           |
-| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                             |
+| Variable              | Description                                      |
+|-----------------------|--------------------------------------------------|
+| KERAS_BACKEND         | Sets the backend for Keras, default is PyTorch   |
+| TF_CPP_MIN_LOG_LEVEL  | TensorFlow logging verbosity                     |
+| MPLBACKEND            | Matplotlib backend, keep default as Agg          |
 
 ## 5. License
 This project is licensed under the terms of the MIT license. See the LICENSE file for details.
