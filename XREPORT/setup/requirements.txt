@@ -1,4 +1,4 @@
-# PyTorch (CUDA 12.4)
+# PyTorch (CUDA 12.8)
 --extra-index-url https://download.pytorch.org/whl/cu128
 torch==2.7.1+cu128
 
@@ -23,7 +23,7 @@ SQLAlchemy==2.0.41
 
 # Graphviz interfaces (pip)
 pydot==1.4.2
-pydotplus==2.0.2
+graphviz==0.20.3
 
 # Environment
 python-dotenv==1.1.0

@@ -3,12 +3,9 @@ import keras
 import webbrowser
 import subprocess
 import time
-
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from XREPORT.app.interface.workers import WorkerInterrupted
+from XREPORT.app.client.workers import WorkerInterrupted
 from XREPORT.app.logger import logger
 
     
