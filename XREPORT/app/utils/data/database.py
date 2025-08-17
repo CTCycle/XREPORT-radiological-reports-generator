@@ -16,31 +16,17 @@ class RadiographyData(Base):
     image = Column(String, primary_key=True)
     text = Column(String)
     __table_args__ = (
-        UniqueConstraint('image'),
-    )
-   
+        UniqueConstraint('image'))   
     
 ###############################################################################
-class TrainData(Base):
-    __tablename__ = 'TRAIN_DATA'
+class TrainingData(Base):
+    __tablename__ = 'TRAINING_DATASET'
     image = Column(String, primary_key=True)
     text = Column(String)
     tokens = Column(String)
+    split = Column(String)
     __table_args__ = (
-        UniqueConstraint('image'),
-    )
-
-
-###############################################################################
-class ValidationData(Base):
-    __tablename__ = 'VALIDATION_DATA'
-    image = Column(String, primary_key=True)
-    text = Column(String)
-    tokens = Column(String)
-    __table_args__ = (
-        UniqueConstraint('image'),
-    )    
-    
+        UniqueConstraint('image'))   
     
 ###############################################################################
 class GeneratedReport(Base):
@@ -49,9 +35,7 @@ class GeneratedReport(Base):
     report = Column(String)
     checkpoint = Column(String, primary_key=True)
     __table_args__ = (
-        UniqueConstraint('image', 'checkpoint'),
-    )
-
+        UniqueConstraint('image', 'checkpoint'))
 
 ###############################################################################
 class ImageStatistics(Base):
@@ -68,9 +52,7 @@ class ImageStatistics(Base):
     noise_std = Column(Float)
     noise_ratio = Column(Float)
     __table_args__ = (
-        UniqueConstraint('name'),
-    )
-
+        UniqueConstraint('name'))
 
 ###############################################################################
 class TextStatistics(Base):
@@ -78,9 +60,7 @@ class TextStatistics(Base):
     name = Column(String, primary_key=True)
     words_count = Column(Integer)
     __table_args__ = (
-        UniqueConstraint('name'),
-    )
-       
+        UniqueConstraint('name'))       
     
 ###############################################################################
 class CheckpointSummary(Base):
@@ -114,8 +94,7 @@ class CheckpointSummary(Base):
     train_accuracy = Column(Float)
     val_accuracy = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint'),
-    )
+        UniqueConstraint('checkpoint'))
     
 
 # [DATABASE]
@@ -161,9 +140,7 @@ class XREPORTDatabase:
                 # Columns to update on conflict
                 update_cols = {c: getattr(stmt.excluded, c) for c in batch[0] if c not in unique_cols}
                 stmt = stmt.on_conflict_do_update(
-                    index_elements=unique_cols,
-                    set_=update_cols
-                )
+                    index_elements=unique_cols, set_=update_cols)
                 session.execute(stmt)
                 session.commit()
             session.commit()
@@ -178,12 +155,11 @@ class XREPORTDatabase:
         return data
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation(self):       
+    def load_training_data(self):       
         with self.engine.connect() as conn:
-            train_data = pd.read_sql_table("TRAIN_DATA", conn)
-            validation_data = pd.read_sql_table("VALIDATION_DATA", conn)
-
-        return train_data, validation_data  
+            training_data = pd.read_sql_table("TRAINING_DATA", conn)
+            
+        return training_data 
     
     #--------------------------------------------------------------------------
     def save_source_data(self, data : pd.DataFrame):
@@ -192,12 +168,10 @@ class XREPORTDatabase:
         data.to_sql("RADIOGRAPHY_DATA", self.engine, if_exists='append', index=False) 
         
     #--------------------------------------------------------------------------
-    def save_train_and_validation(self, train_data : pd.DataFrame, validation_data : pd.DataFrame): 
+    def save_training_data(self, data : pd.DataFrame): 
         with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM TRAIN_DATA"))    
-            conn.execute(sqlalchemy.text(f"DELETE FROM VALIDATION_DATA"))      
-        train_data.to_sql("TRAIN_DATA", self.engine, if_exists='append', index=False)
-        validation_data.to_sql("VALIDATION_DATA", self.engine, if_exists='append', index=False)       
+            conn.execute(sqlalchemy.text(f"DELETE FROM TRAINING_DATA"))              
+        data.to_sql("TRAINING_DATA", self.engine, if_exists='append', index=False) 
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, data : pd.DataFrame):         
@@ -234,13 +208,8 @@ class XREPORTDatabase:
                 if chunksize:
                     first = True
                     for chunk in pd.read_sql(query, conn, chunksize=chunksize):
-                        chunk.to_csv(
-                            csv_path,
-                            index=False,
-                            header=first,
-                            mode="w" if first else "a",
-                            encoding='utf-8', 
-                            sep=',')
+                        chunk.to_csv(csv_path, index=False, header=first,
+                            mode="w" if first else "a", encoding='utf-8', sep=',')
                         first = False
                     # If table is empty, still write header row
                     if first:
