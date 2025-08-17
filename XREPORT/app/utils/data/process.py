@@ -37,7 +37,7 @@ class TrainValidationSplit:
 ###############################################################################
 class TextSanitizer:
     
-    def __init__(self, configuration):        
+    def __init__(self, configuration : dict):        
         self.max_report_size = configuration.get('max_report_size', 200)
         self.configuration = configuration    
 
@@ -52,7 +52,7 @@ class TextSanitizer:
 ###############################################################################
 class TokenizerHandler:
     
-    def __init__(self, configuration):           
+    def __init__(self, configuration : dict):           
         self.tokenizer_id = configuration.get('tokenizer', None) 
         self.max_report_size = configuration.get('max_report_size', 200)        
         self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.tokenizer_id)   
