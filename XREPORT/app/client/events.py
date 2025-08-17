@@ -76,8 +76,7 @@ class DatasetEvents:
 
     #--------------------------------------------------------------------------
     def load_img_path(self, path, sample_size=1.0):
-        img_paths = self.serializer.get_img_path_from_directory(path, sample_size) 
-        
+        img_paths = self.serializer.get_img_path_from_directory(path, sample_size)
         return img_paths 
     
     #--------------------------------------------------------------------------
@@ -127,9 +126,11 @@ class DatasetEvents:
         # split data into train set and validation set
         logger.info('Preparing dataset of images and captions based on splitting size')
         splitter = TrainValidationSplit(self.configuration, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation()
+        training_data = splitter.split_train_and_validation()
+        train_samples = training_data[training_data['split'] == 'train'] 
+        validation_samples = training_data[training_data['split'] == 'validation'] 
         # save preprocessed data into database
-        self.serializer.save_train_and_validation_data(train_data, validation_data, vocabulary_size) 
+        self.serializer.save_training_data(training_data, vocabulary_size) 
         logger.info('Preprocessed data saved into database') 
 
         # check thread for interruption 
@@ -149,21 +150,20 @@ class DatasetEvents:
         # sanitize text corpus by removing undesired symbols and punctuation     
         sanitizer = TextSanitizer(metadata)
         processed_data = sanitizer.sanitize_text(dataset)
-
         # preprocess text corpus using selected pretrained tokenizer. Text is tokenized
         # into subunits and these are eventually mapped to integer indexes        
         tokenization = TokenizerHandler(metadata) 
         logger.info(f'Tokenizing text corpus using pretrained {tokenization.tokenizer_id} tokenizer')    
         processed_data = tokenization.tokenize_text_corpus(processed_data)   
         vocabulary_size = tokenization.vocabulary_size 
-        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')
-        
+        logger.info(f'Vocabulary size (unique tokens): {vocabulary_size}')        
         # split data into train set and validation set           
         splitter = TrainValidationSplit(metadata, processed_data)     
-        train_data, validation_data = splitter.split_train_and_validation()
+        training_data = splitter.split_train_and_validation()
+        train_samples = training_data[training_data['split'] == 'train'] 
+        validation_samples = training_data[training_data['split'] == 'validation']  
 
-        return train_data, validation_data 
-
+        return train_samples, validation_samples
     
 
 ###############################################################################
@@ -230,12 +230,12 @@ class ValidationEvents:
         # load validation data and current preprocessing metadata. This must
         # be compatible with the currently loaded checkpoint configurations
         serializer = DataSerializer(train_config) 
-        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
+        current_metadata = serializer.load_training_data(only_metadata=True)
+        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
-        if validated_metadata:
+        if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            _, validation_data, model_metadata = serializer.load_train_and_validation_data()
+            _, validation_data, model_metadata = serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
@@ -283,7 +283,7 @@ class ModelEvents:
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
         serializer = DataSerializer(self.configuration)    
-        train_data, validation_data, metadata = serializer.load_train_and_validation_data()
+        train_data, validation_data, metadata = serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
             return
@@ -340,12 +340,12 @@ class ModelEvents:
         # load metadata and check whether this is compatible with the current checkpoint
         # rebuild dataset if metadata is not compatible and the user has requested this feature
         serializer = DataSerializer(train_config)
-        current_metadata = serializer.load_train_and_validation_data(only_metadata=True)
-        validated_metadata = serializer.validate_metadata(current_metadata, model_metadata)
+        current_metadata = serializer.load_training_data(only_metadata=True)
+        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
-        if validated_metadata:
+        if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, model_metadata = serializer.load_train_and_validation_data()
+            train_data, validation_data, model_metadata = serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
