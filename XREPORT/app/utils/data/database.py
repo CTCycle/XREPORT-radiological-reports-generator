@@ -16,7 +16,8 @@ class RadiographyData(Base):
     image = Column(String, primary_key=True)
     text = Column(String)
     __table_args__ = (
-        UniqueConstraint('image'))   
+        UniqueConstraint('image'),
+        )   
     
 ###############################################################################
 class TrainingData(Base):
@@ -26,7 +27,8 @@ class TrainingData(Base):
     tokens = Column(String)
     split = Column(String)
     __table_args__ = (
-        UniqueConstraint('image'))   
+        UniqueConstraint('image'),
+        )   
     
 ###############################################################################
 class GeneratedReport(Base):
@@ -35,7 +37,8 @@ class GeneratedReport(Base):
     report = Column(String)
     checkpoint = Column(String, primary_key=True)
     __table_args__ = (
-        UniqueConstraint('image', 'checkpoint'))
+        UniqueConstraint('image', 'checkpoint'),
+        )
 
 ###############################################################################
 class ImageStatistics(Base):
@@ -52,7 +55,8 @@ class ImageStatistics(Base):
     noise_std = Column(Float)
     noise_ratio = Column(Float)
     __table_args__ = (
-        UniqueConstraint('name'))
+        UniqueConstraint('name'),
+        )
 
 ###############################################################################
 class TextStatistics(Base):
@@ -60,7 +64,8 @@ class TextStatistics(Base):
     name = Column(String, primary_key=True)
     words_count = Column(Integer)
     __table_args__ = (
-        UniqueConstraint('name'))       
+        UniqueConstraint('name'),
+        )       
     
 ###############################################################################
 class CheckpointSummary(Base):
@@ -94,7 +99,8 @@ class CheckpointSummary(Base):
     train_accuracy = Column(Float)
     val_accuracy = Column(Float)
     __table_args__ = (
-        UniqueConstraint('checkpoint'))
+        UniqueConstraint('checkpoint'),
+        )
     
 
 # [DATABASE]
