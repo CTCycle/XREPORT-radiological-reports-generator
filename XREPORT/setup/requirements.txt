@@ -10,6 +10,7 @@ nltk==3.9.1
 keras==3.10.0
 scikit-learn==1.6.1
 opencv-python==4.11.0.86
+triton-windows==3.4.0.post20
 
 # GUI, Plotting & Data
 PySide6==6.9.1
