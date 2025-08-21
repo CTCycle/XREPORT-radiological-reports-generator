@@ -98,18 +98,19 @@ class ModelEvaluationSummary:
 ###############################################################################
 class EvaluateTextQuality:
 
-    def __init__(self, model, configuration, metadata, num_samples):  
+    def __init__(self, model, configuration : dict, metadata : dict, num_samples : int | None = None):  
         self.model = model      
         self.configuration = configuration
         self.metadata = metadata
         self.num_samples = num_samples        
        
     #--------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data, **kwargs):
+    def calculate_BLEU_score(self, validation_data : pd.DataFrame, **kwargs):
         max_report_size = self.metadata.get('max_report_size', 200)
         generator = TextGenerator(self.model, self.configuration, max_report_size)
         #tokenizer_config = generator.load_tokenizer_and_configuration()
-        samples = validation_data.sample(n=self.num_samples, random_state=42) 
+        if self.num_samples is None:            
+            samples = validation_data.sample(n=self.num_samples, random_state=42) 
         sampled_images = samples['path'].to_list()     
         true_reports = dict(zip(samples['path'], samples['text']))
         
