@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QPushButton, QRadioButton, QCheckBox, QDoubleSpin
                                QGraphicsPixmapItem, QGraphicsView, QPlainTextEdit, QMessageBox, 
                                QDialog, QApplication)
 
-from XREPORT.app.utils.data.database import XREPORTDatabase
+from XREPORT.app.utils.data.database import database
 from XREPORT.app.configuration import Configuration
 from XREPORT.app.client.dialogs import LoadConfigDialog, SaveConfigDialog
 from XREPORT.app.client.workers import ThreadWorker, ProcessWorker
@@ -62,9 +62,8 @@ class MainWindow:
         self.threadpool = QThreadPool.globalInstance()
         self.worker = None       
 
-        # initialize database
-        self.database = XREPORTDatabase()
-        self.database.initialize_database() 
+        # initialize database        
+        database.initialize_database() 
 
         # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
@@ -438,7 +437,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def export_all_data(self):
-        self.database.export_all_tables_as_csv()
+        database.export_all_tables_as_csv()
         message = 'All data from database has been exported'
         logger.info(message)
         self._send_message(message)
@@ -446,7 +445,7 @@ class MainWindow:
     #--------------------------------------------------------------------------
     @Slot()
     def delete_all_data(self):      
-        self.database.delete_all_data()        
+        database.delete_all_data()        
         message = 'All data from database has been deleted'
         logger.info(message)
         self._send_message(message)
@@ -554,7 +553,7 @@ class MainWindow:
         self._send_message("Updating database with source data...") 
         
         # functions that are passed to the worker will be executed in a separate thread
-        self.worker = ThreadWorker(self.database.update_database_from_source)   
+        self.worker = ThreadWorker(database.update_database_from_source)   
 
         # start worker and inject signals
         self._start_thread_worker(
