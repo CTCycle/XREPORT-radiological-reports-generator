@@ -5,6 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.dialects.sqlite import insert
 
+from XREPORT.app.utils.singleton import singleton
 from XREPORT.app.constants import DATA_PATH, SOURCE_PATH
 from XREPORT.app.logger import logger
 
@@ -105,6 +106,7 @@ class CheckpointSummary(Base):
 
 # [DATABASE]
 ###############################################################################
+@singleton
 class XREPORTDatabase:
 
     def __init__(self):             
@@ -241,7 +243,8 @@ class XREPORTDatabase:
     
     
 
-    
+#------------------------------------------------------------------------------
+database = XREPORTDatabase()  
 
     
 
