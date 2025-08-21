@@ -74,7 +74,7 @@ echo [INFO] Installing project in editable mode
 "%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
 popd
 
-"%pip_exe%" cache purge || goto :error
+"%pip_exe%" cache purge || echo [WARN] pip cache purge failed, continuing...
 
 REM Mark environment as installed for future fast start
 > "%env_marker%" echo setup_completed
