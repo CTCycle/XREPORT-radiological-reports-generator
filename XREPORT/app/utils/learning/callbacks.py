@@ -19,7 +19,7 @@ class ProgressBarCallback(keras.callbacks.Callback):
         self.from_epoch = from_epoch
 
     #--------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs : dict | None = None):
         processed_epochs = epoch - self.from_epoch + 1        
         additional_epochs = max(1, self.total_epochs - self.from_epoch) 
         percent = int(100 * processed_epochs / additional_epochs)
@@ -35,13 +35,13 @@ class LearningInterruptCallback(keras.callbacks.Callback):
         self.worker = worker
 
     #--------------------------------------------------------------------------
-    def on_batch_end(self, batch, logs=None):
+    def on_batch_end(self, batch, logs : dict | None = None):
         if self.worker is not None and self.worker.is_interrupted():            
             self.model.stop_training = True
             raise WorkerInterrupted()
         
     #--------------------------------------------------------------------------
-    def on_validation_batch_end(self, batch, logs=None):
+    def on_validation_batch_end(self, batch, logs : dict | None = None):
         if self.worker is not None and self.worker.is_interrupted():
             raise WorkerInterrupted()
 
@@ -50,7 +50,7 @@ class LearningInterruptCallback(keras.callbacks.Callback):
 ###############################################################################
 class RealTimeHistory(keras.callbacks.Callback):    
         
-    def __init__(self, plot_path, past_logs=None, **kwargs):
+    def __init__(self, plot_path, past_logs : dict | None = None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
@@ -66,7 +66,7 @@ class RealTimeHistory(keras.callbacks.Callback):
             self.history['epochs'] = past_logs.get('epochs', len(values))                
                     
     #--------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs : dict | None = None):
         logs = logs or {}
         for key, value in logs.items():
             if key not in self.history['history']:
