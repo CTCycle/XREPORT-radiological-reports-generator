@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 from datetime import datetime
 
@@ -9,7 +8,7 @@ import pandas as pd
 from keras.utils import plot_model
 from keras.models import load_model
 
-from XREPORT.app.utils.data.database import XREPORTDatabase
+from XREPORT.app.utils.data.database import database
 from XREPORT.app.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
 from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 from XREPORT.app.constants import PROCESS_METADATA_FILE, IMG_PATH, CHECKPOINT_PATH
@@ -30,14 +29,12 @@ class DataSerializer:
         # define metadata path and extract configuration parameters
         self.seed = configuration.get('seed', 42) 
         self.max_report_size = configuration.get('max_report_size', 200) 
-        self.tokenizer_ID = configuration.get('tokenizer', None)
-        # create database instance
-        self.database = XREPORTDatabase()                 
+        self.tokenizer_ID = configuration.get('tokenizer', None)                   
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
     def load_source_dataset(self, sample_size=1.0):        
-        dataset = self.database.load_source_dataset()
+        dataset = database.load_source_dataset()
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
 
@@ -65,7 +62,7 @@ class DataSerializer:
     def get_img_path_from_directory(self, path, sample_size=1.0):          
         if not os.listdir(path):
             logger.error(f'No images found in {path}, please add them and try again.')
-            sys.exit()
+            return []
         else:            
             logger.debug(f'Valid extensions are: {self.valid_extensions}')
             images_path = []
@@ -89,7 +86,7 @@ class DataSerializer:
         return False if differences else True
         
     #--------------------------------------------------------------------------
-    def process_tokens(self, col):        
+    def serialize_series(self, col):        
         if isinstance(col, list):
             return ' '.join(map(str, col))
         if isinstance(col, str):
@@ -97,30 +94,28 @@ class DataSerializer:
         return []
 
     #--------------------------------------------------------------------------
-    def load_train_and_validation_data(self, only_metadata=False):
+    def load_training_data(self, only_metadata=False):
         # load metadata from file
         with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)     
 
         if not only_metadata: 
             # load preprocessed data from database and convert joint strings to list 
-            train_data, val_data = self.database.load_train_and_validation()        
-            # process text strings to obtain a list of separated token indices     
-            train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
-            val_data['tokens'] = val_data['tokens'].apply(self.process_tokens)      
+            training_data = database.load_training_data() 
+            # process text strings to obtain a list of separated token indices 
+            training_data['tokens'] = training_data['tokens'].apply(self.serialize_series)    
+            train_data = training_data[training_data['split'] == 'train']
+            val_data = training_data[training_data['split'] == 'validation']  
         
             return train_data, val_data, metadata  
 
         return metadata 
 
     #--------------------------------------------------------------------------
-    def save_train_and_validation_data(self, train_data : pd.DataFrame, validation_data : pd.DataFrame,
-                                       vocabulary_size=None): 
+    def save_training_data(self, training_data : pd.DataFrame, vocabulary_size=None): 
         # process list of tokens to get them in string format   
-        train_data['tokens'] = train_data['tokens'].apply(self.process_tokens)             
-        validation_data['tokens'] = validation_data['tokens'].apply(self.process_tokens)
-        # save train and validation data to database             
-        self.database.save_train_and_validation(train_data, validation_data)
+        training_data['tokens'] = training_data['tokens'].apply(self.serialize_series) 
+        database.save_training_data(training_data)
         # save preprocessing metadata
         metadata = {'seed' : self.seed,                     
                     'date' : datetime.now().strftime("%Y-%m-%d"),
@@ -131,25 +126,25 @@ class DataSerializer:
                     'max_report_size' : self.max_report_size,
                     'tokenizer' : self.tokenizer_ID}
                 
-        with open(self.metadata_path, 'w') as file:
+        with open(PROCESS_METADATA_FILE, 'w') as file:
             json.dump(metadata, file, indent=4) 
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
-        self.database.save_generated_reports(reports_dataframe)
+        database.save_generated_reports(reports_dataframe)
 
     #--------------------------------------------------------------------------
     def save_text_statistics(self, data : pd.DataFrame):            
-        self.database.save_text_statistics(data)  
+        database.save_text_statistics(data)  
     
     #--------------------------------------------------------------------------
     def save_image_statistics(self, data : pd.DataFrame):            
-        self.database.save_image_statistics(data)       
+        database.save_image_statistics(data)       
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            
-        self.database.save_checkpoints_summary(data)
+        database.save_checkpoints_summary(data)
     
 
 # [MODEL SERIALIZATION]
@@ -225,12 +220,16 @@ class ModelSerializer:
         return model_folders 
 
     #--------------------------------------------------------------------------
-    def save_model_plot(self, model, path : str):       
-        logger.debug('Generating model architecture graph')
-        plot_path = os.path.join(path, 'model_layout.png')       
-        plot_model(model, to_file=plot_path, show_shapes=True, 
-                    show_layer_names=True, show_layer_activations=True, 
-                    expand_nested=True, rankdir='TB', dpi=400)
+    def save_model_plot(self, model, path):  
+        try: 
+            plot_path = os.path.join(path, "model_layout.png")       
+            plot_model(model, to_file=plot_path, show_shapes=True,
+                show_layer_names=True, show_layer_activations=True,
+                expand_nested=True, rankdir="TB", dpi=400)
+            logger.debug(f"Model architecture plot generated as {plot_path}") 
+        except (OSError, FileNotFoundError, ImportError) as e:
+            logger.warning(
+                "Could not generate model architecture plot (graphviz/pydot not correctly installed)")
         
     #--------------------------------------------------------------------------
     def load_checkpoint(self, checkpoint : str): 
