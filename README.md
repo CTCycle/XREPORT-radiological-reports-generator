@@ -1,6 +1,6 @@
 # XREPORT: Radiological Reports Generation
 
-## 1. Project Overview
+## 1. Introduction
 XRAY Report Generator is a machine learning-based tool designed to assist radiologists in generating descriptive reports from X-ray images. This project aims to reduce the time and effort required by radiologists to write detailed reports based on the XRAY scan description, thereby increasing efficiency and turnover. The generative model is trained using combinations of XRAY images and their labels (descriptions), in the same fashion as image captioning models learn a sequence of word tokens associated to specific parts of the image. While originally developed around the MIMIC-CXR Database (https://www.kaggle.com/datasets/wasifnafee/mimic-cxr), this project can be applied to any dataset with X-ray scans labeled with their respective radiological reports (or any kind of description). The XREPORT Deep Learning (DL) model developed for this scope makes use of a transformer encoder-decoder architecture, which relies on both self attention and cross attention to improve text significance within the clinical image context. The images features are extracted using a custom convolutional encoder with pooling layers to reduce dimensionality. Once a pretrained model is obtained leveraging a large number of X-RAY scans and their descriptions, the model can be used in inference mode to generate radiological reports from the raw pictures. 
 
 ## 2. XREPORT model
@@ -21,14 +21,7 @@ The tokenizer model is automatically downloaded and cached in *resources/models/
 ## 3. Installation
 The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
 
-**Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can either:
-
-- Open the main menu, select *Setup and maintentance* and choose *Install project in editable mode*
-- Manually run the following commands in the terminal, ensuring the project folder is set as the current working directory (CWD):
-
-    `conda activate XREPORT`
-
-    `pip install -e . --use-pep517` 
+**Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can open *setup_and_maintenance.bat* and select *Enable root path imports*.
 
 ### 3.1 Just-In-Time (JIT) Compiler
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. 
