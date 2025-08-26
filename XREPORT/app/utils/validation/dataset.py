@@ -17,7 +17,7 @@ from XREPORT.app.logger import logger
 class TextAnalysis:
 
     def __init__(self, configuration : dict):
-        self.serializer = DataSerializer(configuration)
+        self.serializer = DataSerializer()
         self.configuration = configuration  
 
     #--------------------------------------------------------------------------
@@ -53,7 +53,7 @@ class TextAnalysis:
 class ImageAnalysis:
 
     def __init__(self, configuration : dict): 
-        self.serializer = DataSerializer(configuration)
+        self.serializer = DataSerializer()
         self.configuration = configuration
 
     #--------------------------------------------------------------------------
