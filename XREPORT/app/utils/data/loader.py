@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from keras.ops import concatenate
 
 from XREPORT.app.utils.data.process import TokenizerHandler
 from XREPORT.app.logger import logger
@@ -57,7 +56,7 @@ class DataLoaderProcessor:
         return (rgb_image, input_text), output_text                  
  
     #--------------------------------------------------------------------------
-    def load_data_for_inference(self, path):
+    def load_data_for_inference(self, path : str):
         rgb_image = self.load_image(path)        
         rgb_image = self.image_normalization(rgb_image)        
         
