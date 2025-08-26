@@ -379,18 +379,24 @@ class MainWindow:
             if attr not in cfg:
                 continue
             v = cfg[attr]
-            # CheckBox
+
             if hasattr(widget, "setChecked") and isinstance(v, bool):
                 widget.setChecked(v)
-            # Numeric widgets (SpinBox/DoubleSpinBox)
             elif hasattr(widget, "setValue") and isinstance(v, (int, float)):
                 widget.setValue(v)
-            # PlainTextEdit/TextEdit
             elif hasattr(widget, "setPlainText") and isinstance(v, str):
                 widget.setPlainText(v)
-            # LineEdit (or any widget with setText)
             elif hasattr(widget, "setText") and isinstance(v, str):
-                widget.setText(v) 
+                widget.setText(v)
+            elif isinstance(widget, QComboBox):
+                if isinstance(v, str):
+                    idx = widget.findText(v)
+                    if idx != -1:
+                        widget.setCurrentIndex(idx)
+                    elif widget.isEditable():
+                        widget.setEditText(v)
+                elif isinstance(v, int) and 0 <= v < widget.count():
+                    widget.setCurrentIndex(v)
    
     # [SLOT]
     ###########################################################################
