@@ -174,7 +174,7 @@ class ValidationEvents:
             
     #--------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.configuration) 
+        serializer = DataSerializer() 
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size)   
         dataset = serializer.update_img_path(dataset)        
@@ -282,7 +282,7 @@ class ModelEvents:
             
     #--------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
-        serializer = DataSerializer(self.configuration)    
+        serializer = DataSerializer()    
         train_data, validation_data, metadata = serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
@@ -382,7 +382,7 @@ class ModelEvents:
         device = DeviceConfig(self.configuration)   
         device.set_device()
         # select images from the inference folder and retrieve current paths
-        serializer = DataSerializer(self.configuration)        
+        serializer = DataSerializer()        
         img_paths = serializer.get_img_path_from_directory(INFERENCE_INPUT_PATH)
         logger.info(f'Start generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')

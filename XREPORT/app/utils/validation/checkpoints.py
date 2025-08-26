@@ -33,7 +33,7 @@ class ModelEvaluationSummary:
     #---------------------------------------------------------------------------
     def get_checkpoints_summary(self, **kwargs):    
         modser = ModelSerializer() 
-        serializer = DataSerializer(self.configuration)           
+        serializer = DataSerializer()           
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []            
         for i, model_path in enumerate(model_paths):                

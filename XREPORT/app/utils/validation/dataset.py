@@ -59,7 +59,7 @@ class ImageAnalysis:
     #--------------------------------------------------------------------------
     def save_image(self, fig, name):        
         out_path = os.path.join(EVALUATION_PATH, name)
-        fig.savefig(out_path, bbox_inches='tight', dpi=self.DPI)      
+        fig.savefig(out_path, bbox_inches='tight', dpi=self.img_resolution)      
    
     #--------------------------------------------------------------------------
     def calculate_image_statistics(self, data, **kwargs):
@@ -107,7 +107,7 @@ class ImageAnalysis:
                 i+1, len(images_path), kwargs.get('progress_callback', None))  
 
         stats_dataframe = pd.DataFrame(results) 
-        self.serializer.save_image_statistics(stats_dataframe)   
+        self.serializer.save_images_statistics(stats_dataframe)   
         logger.info(f'Image statistics saved: {len(stats_dataframe)} records')      
         
         return stats_dataframe
@@ -134,7 +134,7 @@ class ImageAnalysis:
                 i+1, len(images_path), kwargs.get('progress_callback', None))  
 
         # Plot the combined pixel intensity histogram
-        fig, ax = plt.subplots(figsize=(16,14), dpi=self.DPI)
+        fig, ax = plt.subplots(figsize=(16,14), dpi=self.img_resolution)
         plt.bar(np.arange(256),image_histograms, alpha=0.7)
         ax.set_title('Combined Pixel Intensity Histogram', fontsize=24)
         ax.set_xlabel('Pixel Intensity', fontsize=16, fontweight='bold')
