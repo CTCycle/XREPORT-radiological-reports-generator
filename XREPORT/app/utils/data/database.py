@@ -186,7 +186,7 @@ class XREPORTDatabase:
         self.upsert_dataframe(data, GeneratedReport)
 
     #--------------------------------------------------------------------------
-    def save_image_statistics(self, data : pd.DataFrame):      
+    def save_images_statistics(self, data : pd.DataFrame):      
         with self.engine.begin() as conn:
             conn.execute(sqlalchemy.text(f"DELETE FROM IMAGE_STATISTICS"))        
         data.to_sql('IMAGE_STATISTICS', self.engine, if_exists='append', index=False)

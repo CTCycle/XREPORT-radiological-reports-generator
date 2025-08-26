@@ -139,8 +139,8 @@ class DataSerializer:
         database.save_text_statistics(data)  
     
     #--------------------------------------------------------------------------
-    def save_image_statistics(self, data : pd.DataFrame):            
-        database.save_image_statistics(data)       
+    def save_images_statistics(self, data : pd.DataFrame):            
+        database.save_images_statistics(data)       
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            

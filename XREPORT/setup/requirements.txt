@@ -1,6 +1,6 @@
 # PyTorch (CUDA 12.8)
 --extra-index-url https://download.pytorch.org/whl/cu128
-torch==2.7.1+cu128
+torch==2.8.0+cu128
 
 # TensorFlow & NLP
 tensorflow-cpu==2.20.0
@@ -8,7 +8,7 @@ nltk==3.9.1
 
 # Deep Learning & Computer Vision
 keras==3.11.3
-scikit-learn==1.6.1
+scikit-learn==1.7.1
 opencv-python==4.11.0.86
 triton-windows==3.4.0.post20
 
