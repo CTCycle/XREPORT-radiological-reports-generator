@@ -118,7 +118,14 @@ class XREPORTDatabase:
     
     #--------------------------------------------------------------------------       
     def initialize_database(self):
-        Base.metadata.create_all(self.engine)  
+        Base.metadata.create_all(self.engine) 
+
+    #-------------------------------------------------------------------------- 
+    def get_table_class(self, table_name: str):    
+        for cls in Base.__subclasses__():
+            if hasattr(cls, '__tablename__') and cls.__tablename__ == table_name:
+                return cls
+        raise ValueError(f"No table class found for name {table_name}")    
 
     #--------------------------------------------------------------------------       
     def update_database_from_source(self): 
@@ -128,7 +135,7 @@ class XREPORTDatabase:
         return dataset         
 
     #--------------------------------------------------------------------------
-    def upsert_dataframe(self, df: pd.DataFrame, table_cls):
+    def _upsert_dataframe(self, df: pd.DataFrame, table_cls):
         table = table_cls.__table__
         session = self.Session()
         try:
@@ -153,53 +160,25 @@ class XREPORTDatabase:
                 session.commit()
             session.commit()
         finally:
-            session.close()       
+            session.close() 
 
     #--------------------------------------------------------------------------
-    def load_source_dataset(self):
+    def load_from_database(self, table_name: str) -> pd.DataFrame:        
         with self.engine.connect() as conn:
-            data = pd.read_sql_table('RADIOGRAPHY_DATA', conn)
-            
+            data = pd.read_sql_table(table_name, conn)
+
         return data
 
     #--------------------------------------------------------------------------
-    def load_training_data(self):       
-        with self.engine.connect() as conn:
-            training_data = pd.read_sql_table("TRAINING_DATA", conn)
-            
-        return training_data 
-    
-    #--------------------------------------------------------------------------
-    def save_source_data(self, data : pd.DataFrame):
-        with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM RADIOGRAPHY_DATA"))        
-        data.to_sql("RADIOGRAPHY_DATA", self.engine, if_exists='append', index=False) 
-        
-    #--------------------------------------------------------------------------
-    def save_training_data(self, data : pd.DataFrame): 
-        with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM TRAINING_DATA"))              
-        data.to_sql("TRAINING_DATA", self.engine, if_exists='append', index=False) 
+    def save_into_database(self, df: pd.DataFrame, table_name: str):        
+        with self.engine.begin() as conn:            
+            conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
+            df.to_sql(table_name, conn, if_exists='append', index=False)
 
     #--------------------------------------------------------------------------
-    def save_generated_reports(self, data : pd.DataFrame):         
-        self.upsert_dataframe(data, GeneratedReport)
-
-    #--------------------------------------------------------------------------
-    def save_images_statistics(self, data : pd.DataFrame):      
-        with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM IMAGE_STATISTICS"))        
-        data.to_sql('IMAGE_STATISTICS', self.engine, if_exists='append', index=False)
-
-    #--------------------------------------------------------------------------
-    def save_text_statistics(self, data : pd.DataFrame):      
-        with self.engine.begin() as conn:
-            conn.execute(sqlalchemy.text(f"DELETE FROM TEXT_STATISTICS"))        
-        data.to_sql('TEXT_STATISTICS', self.engine, if_exists='append', index=False)
-
-    #--------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data : pd.DataFrame):         
-        self.upsert_dataframe(data, CheckpointSummary)
+    def upsert_into_database(self, df: pd.DataFrame, table_name: str):
+        table_cls = self.get_table_class(table_name)
+        self._upsert_dataframe(df, table_cls)      
 
     #--------------------------------------------------------------------------
     def export_all_tables_as_csv(self, chunksize: int | None = None):        
