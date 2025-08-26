@@ -89,7 +89,7 @@ class MainWindow:
             (QSpinBox,'seed','seed'),
             (QDoubleSpinBox,'sampleSize','sample_size'),
             # dataset evaluation group                       
-            (QCheckBox,'imgStats','image_statistics_metric'),
+            (QCheckBox,'imgStats','img_statistics_metric'),
             (QCheckBox,'textStats','text_statistics_metric'),
             (QCheckBox,'pixDist','pixel_distribution_metric'),
             (QPushButton,'evaluateDataset','evaluate_dataset'),            
@@ -166,7 +166,7 @@ class MainWindow:
             ('stop_thread','clicked',self.stop_running_worker),          
             # 1. dataset tab page       
             ('load_dataset','clicked',self.update_database_from_source),               
-            ('image_statistics_metric','toggled',self._update_metrics),
+            ('img_statistics_metric','toggled',self._update_metrics),
             ('text_statistics_metric','toggled',self._update_metrics),
             ('pixel_distribution_metric','toggled',self._update_metrics),
             ('evaluate_dataset','clicked',self.run_dataset_evaluation_pipeline),
@@ -275,7 +275,7 @@ class MainWindow:
             widget = self.widgets[attr]
             self.connect_update_setting(widget, signal_name, config_key)
 
-        self.data_metrics = [('image_statistics', self.image_statistics_metric),
+        self.data_metrics = [('image_statistics', self.img_statistics_metric),
                              ('text_statistics', self.text_statistics_metric),
                              ('pixels_distribution', self.pixel_distribution_metric)]
         self.model_metrics = [('evaluation_report', self.get_evaluation_report),
