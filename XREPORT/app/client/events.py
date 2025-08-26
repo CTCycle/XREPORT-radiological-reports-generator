@@ -69,7 +69,7 @@ class GraphicsHandler:
 class DatasetEvents:
 
     def __init__(self, configuration : dict):
-        self.serializer = DataSerializer(configuration)
+        self.serializer = DataSerializer()
         self.full_dataset = self.serializer.load_source_dataset(sample_size=1.0)        
         self.text_placeholder = "No description available for this image." 
         self.configuration = configuration 
@@ -193,6 +193,8 @@ class ValidationEvents:
         images = [] 
         for metric in metrics:
             if metric in metric_map:
+                # check worker status to allow interruption
+                check_thread_status(worker)
                 metric_name = metric.replace('_', ' ').title()
                 logger.info(f'Current metric: {metric_name}')  
                 result = metric_map[metric](
