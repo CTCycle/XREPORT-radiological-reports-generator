@@ -1,12 +1,14 @@
 import os
 import json
 from datetime import datetime
+from typing import Tuple, List, Union, Dict, Any
 
 import cv2
 import numpy as np
 import pandas as pd
 from keras.utils import plot_model
 from keras.models import load_model
+from keras import Model
 
 from XREPORT.app.utils.data.database import database
 from XREPORT.app.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
@@ -19,27 +21,32 @@ from XREPORT.app.logger import logger
 ###############################################################################
 class DataSerializer:
 
-    def __init__(self, configuration : dict):             
+    def __init__(self):             
         self.img_shape = (224, 224)
         self.num_channels = 3               
         self.color_encoding = cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
         self.image_mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.image_std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}                     
-        # define metadata path and extract configuration parameters
-        self.seed = configuration.get('seed', 42) 
-        self.max_report_size = configuration.get('max_report_size', 200) 
-        self.tokenizer_ID = configuration.get('tokenizer', None)                   
-        self.configuration = configuration
+        self.valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.gif'}
 
     #--------------------------------------------------------------------------
-    def load_source_dataset(self, sample_size=1.0):        
-        dataset = database.load_source_dataset()
-        if sample_size < 1.0:
-            dataset = dataset.sample(frac=sample_size, random_state=self.seed)     
+    def serialize_series(self, col):        
+        if isinstance(col, list):
+            return ' '.join(map(str, col))
+        if isinstance(col, str):
+            return [int(f) for f in col.split() if f.strip()]
+        return [] 
 
-        return dataset       
-
+    #--------------------------------------------------------------------------
+    def validate_metadata(self, metadata : dict, target_metadata : dict):        
+        keys_to_compare = [k for k in metadata if k != "date"]
+        meta_current = {k: metadata.get(k) for k in keys_to_compare}
+        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}        
+        differences = {k: (meta_current[k], meta_target[k]) 
+                       for k in keys_to_compare if meta_current[k] != meta_target[k]} 
+        
+        return False if differences else True       
+    
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     #--------------------------------------------------------------------------
@@ -73,35 +80,26 @@ class DataSerializer:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         images_path.append(os.path.join(root, file))                
 
-            return images_path
-        
-    #--------------------------------------------------------------------------
-    def validate_metadata(self, metadata : dict, target_metadata : dict):        
-        keys_to_compare = [k for k in metadata if k != "date"]
-        meta_current = {k: metadata.get(k) for k in keys_to_compare}
-        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}        
-        differences = {k: (meta_current[k], meta_target[k]) 
-                       for k in keys_to_compare if meta_current[k] != meta_target[k]} 
-        
-        return False if differences else True
-        
-    #--------------------------------------------------------------------------
-    def serialize_series(self, col):        
-        if isinstance(col, list):
-            return ' '.join(map(str, col))
-        if isinstance(col, str):
-            return [int(f) for f in col.split() if f.strip()]
-        return []
+            return images_path     
 
     #--------------------------------------------------------------------------
-    def load_training_data(self, only_metadata=False):
+    def load_source_dataset(self, sample_size=1.0, seed=42):        
+        dataset = database.load_from_database('RADIOGRAPHY_DATA')
+        if sample_size < 1.0:
+            dataset = dataset.sample(frac=sample_size, random_state=seed)     
+
+        return dataset     
+
+    #--------------------------------------------------------------------------
+    def load_training_data(self, only_metadata=False
+        ) -> Union[Tuple[pd.DataFrame, pd.DataFrame, Dict[str, Any]], Dict[str, Any]]:
         # load metadata from file
         with open(PROCESS_METADATA_FILE, 'r') as file:
             metadata = json.load(file)     
 
         if not only_metadata: 
             # load preprocessed data from database and convert joint strings to list 
-            training_data = database.load_training_data() 
+            training_data = database.load_from_database('TRAINING_DATASET')
             # process text strings to obtain a list of separated token indices 
             training_data['tokens'] = training_data['tokens'].apply(self.serialize_series)    
             train_data = training_data[training_data['split'] == 'train']
@@ -112,39 +110,39 @@ class DataSerializer:
         return metadata 
 
     #--------------------------------------------------------------------------
-    def save_training_data(self, training_data : pd.DataFrame, vocabulary_size=None): 
+    def save_training_data(self, configuration : Dict, training_data : pd.DataFrame, vocabulary_size=None): 
         # process list of tokens to get them in string format   
         training_data['tokens'] = training_data['tokens'].apply(self.serialize_series) 
         database.save_training_data(training_data)
         # save preprocessing metadata
-        metadata = {'seed' : self.seed,                     
+        metadata = {'seed' : configuration.get('seed', 42),                     
                     'date' : datetime.now().strftime("%Y-%m-%d"),
-                    'sample_size' : self.configuration.get('sample_size', 1.0),
-                    'validation_size' : self.configuration.get('validation_size', 0.2),
-                    'split_seed' : self.configuration.get('split_seed', 42),
+                    'sample_size' : configuration.get('sample_size', 1.0),
+                    'validation_size' : configuration.get('validation_size', 0.2),
+                    'split_seed' : configuration.get('split_seed', 42),
                     'vocabulary_size' : vocabulary_size,
-                    'max_report_size' : self.max_report_size,
-                    'tokenizer' : self.tokenizer_ID}
+                    'max_report_size' : configuration.get('max_report_size', 200),
+                    'tokenizer' : configuration.get('tokenizer', None)}
                 
         with open(PROCESS_METADATA_FILE, 'w') as file:
-            json.dump(metadata, file, indent=4) 
+            json.dump(metadata, file, indent=4)   
 
     #--------------------------------------------------------------------------
     def save_generated_reports(self, reports : list[dict]):        
         reports_dataframe = pd.DataFrame(reports)
-        database.save_generated_reports(reports_dataframe)
+        database.upsert_into_database(reports_dataframe, 'GENERATED_REPORTS')
 
     #--------------------------------------------------------------------------
     def save_text_statistics(self, data : pd.DataFrame):            
-        database.save_text_statistics(data)  
+        database.upsert_into_database(data, 'TEXT_STATISTICS')  
     
     #--------------------------------------------------------------------------
     def save_images_statistics(self, data : pd.DataFrame):            
-        database.save_images_statistics(data)       
+        database.upsert_into_database(data, 'IMAGE_STATISTICS')     
 
     #--------------------------------------------------------------------------
     def save_checkpoints_summary(self, data : pd.DataFrame):            
-        database.save_checkpoints_summary(data)
+        database.upsert_into_database(data, 'CHECKPOINTS_SUMMARY')   
     
 
 # [MODEL SERIALIZATION]
@@ -190,7 +188,7 @@ class ModelSerializer:
         logger.debug(f'Model configuration, session history and metadata saved for {os.path.basename(path)}')     
 
     #--------------------------------------------------------------------------
-    def load_training_configuration(self, path : str): 
+    def load_training_configuration(self, path : str) -> Tuple[Dict, Dict, Dict]: 
         config_path = os.path.join(path, 'configuration', 'configuration.json')        
         with open(config_path, 'r') as f:
             configuration = json.load(f) 
@@ -206,7 +204,7 @@ class ModelSerializer:
         return configuration, metadata, history  
 
     #-------------------------------------------------------------------------- 
-    def scan_checkpoints_folder(self):
+    def scan_checkpoints_folder(self) -> List[str]:
         model_folders = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -232,7 +230,7 @@ class ModelSerializer:
                 "Could not generate model architecture plot (graphviz/pydot not correctly installed)")
         
     #--------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint : str): 
+    def load_checkpoint(self, checkpoint : str) -> Tuple[Model, Dict, Dict, Dict, str]:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {'MaskedSparseCategoricalCrossentropy': MaskedSparseCategoricalCrossentropy,

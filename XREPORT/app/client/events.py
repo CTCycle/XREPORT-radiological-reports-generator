@@ -169,39 +169,37 @@ class DatasetEvents:
 ###############################################################################
 class ValidationEvents:
 
-    def __init__(self, configuration : dict):         
+    def __init__(self, configuration : dict):  
+        self.serializer = DataSerializer() 
+        self.modser = ModelSerializer()      
         self.configuration = configuration  
             
     #--------------------------------------------------------------------------
-    def run_dataset_evaluation_pipeline(self, metrics, progress_callback=None, worker=None):
-        serializer = DataSerializer() 
+    def run_dataset_evaluation_pipeline(self, metrics : list[str], progress_callback=None, worker=None):     
         sample_size = self.configuration.get("sample_size", 1.0)
-        dataset = serializer.load_source_dataset(sample_size)   
-        dataset = serializer.update_img_path(dataset)        
+        dataset = self.serializer.load_source_dataset(sample_size)   
+        dataset = self.serializer.update_img_path(dataset)        
         logger.info(f'Selected reports and related images: {len(dataset)}')
 
         img_analyzer = ImageAnalysis(self.configuration)
-        text_analyzer = TextAnalysis(self.configuration)                
-       
-        # 1. calculate images statistics 
-        if 'image_statistics' in metrics:            
-            logger.info('Current metric: image dataset statistics')
-            image_statistics = img_analyzer.calculate_image_statistics(
-                dataset, progress_callback=progress_callback, worker=worker)  
+        text_analyzer = TextAnalysis(self.configuration)
 
-        # 2. calculate text statistics 
-        if 'text_statistics' in metrics:
-            logger.info('Current metric: text dataset statistics')            
-            text_statistics = text_analyzer.calculate_text_statistics(
-                dataset, progress_callback=progress_callback, worker=worker)  
-                                
-        images = []            
-        if 'pixels_distribution' in metrics:
-            logger.info('Current metric: pixel intensity distribution')
-            images.append(img_analyzer.calculate_pixel_intensity_distribution(
-                dataset, progress_callback=progress_callback, worker=worker)) 
+        # Mapping metric name to method and arguments
+        metric_map = {
+            'image_statistics': img_analyzer.calculate_image_statistics,
+            'text_statistics': text_analyzer.calculate_text_statistics,
+            'pixels_distribution': img_analyzer.calculate_pixel_intensity_distribution}
+        
+        images = [] 
+        for metric in metrics:
+            if metric in metric_map:
+                metric_name = metric.replace('_', ' ').title()
+                logger.info(f'Current metric: {metric_name}')  
+                result = metric_map[metric](
+                    dataset, progress_callback=progress_callback, worker=worker)
+                images.append(result)   
 
-        return images 
+        return images   
 
     #--------------------------------------------------------------------------
     def get_checkpoints_summary(self, progress_callback=None, worker=None):
@@ -217,9 +215,8 @@ class ValidationEvents:
             logger.warning('No checkpoint selected for resuming training')
             return
         
-        logger.info(f'Loading {selected_checkpoint} checkpoint')   
-        modser = ModelSerializer()       
-        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint')      
+        model, train_config, model_metadata, _, _ = self.modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
@@ -228,19 +225,18 @@ class ValidationEvents:
         device = DeviceConfig(self.configuration)   
         device.set_device()   
         # load validation data and current preprocessing metadata. This must
-        # be compatible with the currently loaded checkpoint configurations
-        serializer = DataSerializer(train_config) 
-        current_metadata = serializer.load_training_data(only_metadata=True)
-        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
+        # be compatible with the currently loaded checkpoint configurations    
+        current_metadata = self.serializer.load_training_data(only_metadata=True)
+        is_validated = self.serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            _, validation_data, model_metadata = serializer.load_training_data()
+            _, validation_data, model_metadata = self.serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             _, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
         # update image paths in the validation data using currently available images
-        validation_data = serializer.update_img_path(validation_data)
+        validation_data = self.serializer.update_img_path(validation_data)
 
         vocabulary_size = model_metadata.get('vocabulary_size', 1000)
         logger.info(f'Validation data has been loaded: {len(validation_data)} samples')    
@@ -272,25 +268,25 @@ class ValidationEvents:
 ###############################################################################
 class ModelEvents:
 
-    def __init__(self, configuration : dict): 
+    def __init__(self, configuration : dict):
+        self.serializer = DataSerializer() 
+        self.modser = ModelSerializer()    
         self.configuration = configuration 
     
     #--------------------------------------------------------------------------
-    def get_available_checkpoints(self):
-        serializer = ModelSerializer()
-        return serializer.scan_checkpoints_folder()
+    def get_available_checkpoints(self):        
+        return self.modser.scan_checkpoints_folder()
             
     #--------------------------------------------------------------------------
-    def run_training_pipeline(self, progress_callback=None, worker=None):
-        serializer = DataSerializer()    
-        train_data, validation_data, metadata = serializer.load_training_data()
+    def run_training_pipeline(self, progress_callback=None, worker=None):           
+        train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
             return
 
         # fetch images path from the preprocessed data
-        train_data = serializer.update_img_path(train_data)
-        validation_data = serializer.update_img_path(validation_data)
+        train_data = self.serializer.update_img_path(train_data)
+        validation_data = self.serializer.update_img_path(validation_data)
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(self.configuration)   
@@ -306,27 +302,29 @@ class ModelEvents:
         device.set_device() 
 
         # create checkpoint folder     
-        modser = ModelSerializer() 
-        checkpoint_path = modser.create_checkpoint_folder()
+        checkpoint_path = self.modser.create_checkpoint_folder()
         # initialize and compile the captioning model    
         logger.info('Building XREPORT Transformer model')
         captioner = XREPORTModel(metadata, self.configuration)
         model = captioner.get_model(model_summary=True) 
         # generate training log report and graphviz plot for the model layout               
-        modser.save_model_plot(model, checkpoint_path)
+        self.modser.save_model_plot(model, checkpoint_path)
 
         # start model training
         logger.info('Starting XREPORT Transformer model training')
         trainer = ModelTraining(self.configuration)
-        trainer.train_model(
+        model, history = trainer.train_model(
             model, train_dataset, validation_dataset, metadata, checkpoint_path, 
             progress_callback=progress_callback, worker=worker) 
+        
+        self.modser.save_pretrained_model(model, checkpoint_path)       
+        self.modser.save_training_configuration(
+            checkpoint_path, history, self.configuration, metadata)
                 
     #--------------------------------------------------------------------------
     def resume_training_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):        
-        logger.info(f'Loading {selected_checkpoint} checkpoint')
-        modser = ModelSerializer()         
-        model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
+        logger.info(f'Loading {selected_checkpoint} checkpoint') 
+        model, train_config, model_metadata, session, checkpoint_path = self.modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)
         # set device for training operations
@@ -338,21 +336,20 @@ class ModelEvents:
         check_thread_status(worker)
 
         # load metadata and check whether this is compatible with the current checkpoint
-        # rebuild dataset if metadata is not compatible and the user has requested this feature
-        serializer = DataSerializer(train_config)
-        current_metadata = serializer.load_training_data(only_metadata=True)
-        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
+        # rebuild dataset if metadata is not compatible and the user has requested this feature      
+        current_metadata = self.serializer.load_training_data(only_metadata=True)
+        is_validated = self.serializer.validate_metadata(current_metadata, model_metadata)
         # just load the data if metadata is compatible
         if is_validated:
             logger.info('Loading processed dataset as it is compatible with the selected checkpoint')
-            train_data, validation_data, model_metadata = serializer.load_training_data()
+            train_data, validation_data, model_metadata = self.serializer.load_training_data()
         else:     
             logger.info(f'Rebuilding dataset from {selected_checkpoint} metadata')
             train_data, validation_data = DatasetEvents.rebuild_dataset_from_metadata(model_metadata)
 
         # update image paths in the train and validation data using currently available images
-        train_data = serializer.update_img_path(train_data)
-        validation_data = serializer.update_img_path(validation_data) 
+        train_data = self.serializer.update_img_path(train_data)
+        validation_data = self.serializer.update_img_path(validation_data) 
         # create the tf.datasets using the previously initialized generators 
         logger.info('Building model data loaders with prefetching and parallel processing') 
         builder = XRAYDataLoader(train_config)           
@@ -366,24 +363,26 @@ class ModelEvents:
         logger.info(f'Resuming training from checkpoint {selected_checkpoint}') 
         additional_epochs = self.configuration.get('additional_epochs', 10)
         trainer = ModelTraining(train_config, model_metadata)
-        trainer.resume_training(
-            model, train_dataset, validation_dataset, model_metadata, checkpoint_path, session,
+        model, history = trainer.resume_training(
+            model, train_dataset, validation_dataset, checkpoint_path, session,
             additional_epochs, progress_callback=progress_callback, worker=worker)  
+        
+        self.modser.save_pretrained_model(model, checkpoint_path)       
+        self.modser.save_training_configuration(
+            checkpoint_path, history, self.configuration, model_metadata)
 
     #--------------------------------------------------------------------------
-    def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):
-        modser = ModelSerializer() 
+    def run_inference_pipeline(self, selected_checkpoint, progress_callback=None, worker=None):       
         logger.info(f'Loading {selected_checkpoint} checkpoint')         
-        model, train_config, model_metadata, _, checkpoint_path = modser.load_checkpoint(
+        model, train_config, model_metadata, _, checkpoint_path = self.modser.load_checkpoint(
             selected_checkpoint)    
         model.summary(expand_nested=True)  
 
         # setting device for training         
         device = DeviceConfig(self.configuration)   
         device.set_device()
-        # select images from the inference folder and retrieve current paths
-        serializer = DataSerializer()        
-        img_paths = serializer.get_img_path_from_directory(INFERENCE_INPUT_PATH)
+        # select images from the inference folder and retrieve current paths            
+        img_paths = self.serializer.get_img_path_from_directory(INFERENCE_INPUT_PATH)
         logger.info(f'Start generating reports using model {os.path.basename(checkpoint_path)}')
         logger.info(f'{len(img_paths)} images have been found and are ready for inference pipeline')
         # generate radiological reports from the list of inference image paths 
@@ -403,7 +402,7 @@ class ModelEvents:
                     'checkpoint': selected_checkpoint} 
                     for k, v in generated_reports.items()]
         
-        serializer.save_generated_reports(reports) 
+        self.serializer.save_generated_reports(reports) 
         logger.info('Generated reports have been saved in the database')                
         
    
