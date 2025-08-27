@@ -2,7 +2,6 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from XREPORT.app.utils.learning.callbacks import initialize_callbacks_handler
-from XREPORT.app.logger import logger
 
 
            
