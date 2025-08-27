@@ -4,8 +4,6 @@ from multiprocessing import Process, Queue, Event
 
 from PySide6.QtCore import QObject, Signal, QRunnable, Slot
 
-from XREPORT.app.constants import ROOT_DIR, DATA_PATH
-from XREPORT.app.logger import logger
 
 
 ###############################################################################

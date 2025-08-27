@@ -7,8 +7,6 @@ from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 from XREPORT.app.utils.learning.models.encoder import BeitXRayImageEncoder
 from XREPORT.app.utils.learning.models.embeddings import PositionalEmbedding
 from XREPORT.app.utils.learning.metrics import MaskedSparseCategoricalCrossentropy, MaskedAccuracy
-from XREPORT.app.constants import TOKENIZERS_PATH
-from XREPORT.app.logger import logger
 
 
 # [ADD NORM LAYER]
