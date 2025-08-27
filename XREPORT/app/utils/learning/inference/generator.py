@@ -1,14 +1,14 @@
 import os
-import numpy as np
-from tqdm import tqdm
 
+import numpy as np
 from keras import Model, ops
 from keras.utils import set_random_seed
+from tqdm import tqdm
 
-from XREPORT.app.utils.data.loader import XRAYDataLoader
-from XREPORT.app.utils.data.process import TokenizerHandler
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.logger import logger
+from XREPORT.app.utils.data.loader import XRAYDataLoader
+from XREPORT.app.utils.data.process import TokenizerHandler
 
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
@@ -28,7 +28,7 @@ class TextGenerator:
             "beam_search": self.generate_with_beam_search,
         }
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_images(self, data):
         loader = XRAYDataLoader(self.configuration)
         images = [loader.processor.load_image(path, as_array=True) for path in data]
@@ -36,7 +36,7 @@ class TextGenerator:
 
         return norm_images
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_tokenizer_and_configuration(self):
         # Get tokenizer and related configuration
         tokenization = TokenizerHandler(self.configuration)
@@ -52,7 +52,7 @@ class TextGenerator:
 
         return tokenizer, tokenizer_parameters
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def merge_tokens(self, tokens: list[str]):
         processed_tokens = []
         for token in tokens:
@@ -65,7 +65,7 @@ class TextGenerator:
 
         return joint_text
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def translate_tokens_to_text(self, index_lookup, sequence, tokenizer_config):
         # convert indexes to token using tokenizer vocabulary
         # define special tokens and remove them from generated tokens list
@@ -86,7 +86,7 @@ class TextGenerator:
 
         return processed_text
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def generate_with_greed_search(self, tokenizer_config, vocabulary, image_path: str):
         # extract vocabulary from the tokenizers
         start_token = tokenizer_config["start_token"]
@@ -135,7 +135,7 @@ class TextGenerator:
 
         return report
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def generate_with_beam_search(
         self, tokenizer_config, vocabulary, image_path, beam_width=3
     ):
@@ -209,7 +209,7 @@ class TextGenerator:
 
         return report
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def generate_radiological_reports(self, images_path, method=None, **kwargs):
         reports = {}
         tokenizer, tokenizer_config = self.load_tokenizer_and_configuration()

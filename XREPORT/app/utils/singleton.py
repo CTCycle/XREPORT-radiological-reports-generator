@@ -20,7 +20,7 @@ def singleton(cls: type[T]) -> type[T]:
     original_init = cls.__init__
 
     @wraps(original_init)
-    def __init__(self, *args: Any, **kwargs: Any) -> None:  
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if getattr(self, "_singleton_initialized", False):
             return
         original_init(self, *args, **kwargs)
