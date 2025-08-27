@@ -4,26 +4,25 @@ import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PySide6.QtGui import QImage, QPixmap
 
-from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
-from XREPORT.app.utils.validation.dataset import ImageAnalysis, TextAnalysis
-from XREPORT.app.utils.validation.checkpoints import (
-    ModelEvaluationSummary,
-    EvaluateTextQuality,
-)
-from XREPORT.app.utils.data.process import (
-    TextSanitizer,
-    TrainValidationSplit,
-    TokenizerHandler,
-)
-from XREPORT.app.utils.data.loader import XRAYDataLoader
-from XREPORT.app.utils.learning.device import DeviceConfig
-from XREPORT.app.utils.learning.training.fitting import ModelTraining
-from XREPORT.app.utils.learning.models.transformers import XREPORTModel
-from XREPORT.app.utils.learning.inference.generator import TextGenerator
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
-
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
+from XREPORT.app.utils.data.loader import XRAYDataLoader
+from XREPORT.app.utils.data.process import (
+    TextSanitizer,
+    TokenizerHandler,
+    TrainValidationSplit,
+)
+from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
+from XREPORT.app.utils.learning.device import DeviceConfig
+from XREPORT.app.utils.learning.inference.generator import TextGenerator
+from XREPORT.app.utils.learning.models.transformers import XREPORTModel
+from XREPORT.app.utils.learning.training.fitting import ModelTraining
+from XREPORT.app.utils.validation.checkpoints import (
+    EvaluateTextQuality,
+    ModelEvaluationSummary,
+)
+from XREPORT.app.utils.validation.dataset import ImageAnalysis, TextAnalysis
 
 
 ###############################################################################
@@ -34,7 +33,7 @@ class GraphicsHandler:
         self.BGRA_encoding = cv2.COLOR_BGRA2RGBA
         self.BGR_encoding = cv2.COLOR_BGR2RGB
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def convert_fig_to_qpixmap(self, fig):
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
@@ -46,7 +45,7 @@ class GraphicsHandler:
 
         return QPixmap.fromImage(qimg)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_image_as_pixmap(self, path):
         img = cv2.imread(path, self.image_encoding)
         if img is None:
@@ -79,12 +78,12 @@ class DatasetEvents:
         self.text_placeholder = "No description available for this image."
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_img_path(self, path, sample_size=1.0):
         img_paths = self.serializer.get_img_path_from_directory(path, sample_size)
         return img_paths
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_description_from_image(self, image_name: str):
         image_no_ext = image_name.split(".")[0]
         mask = (
@@ -97,7 +96,7 @@ class DatasetEvents:
 
         return description
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def run_dataset_builder(self, progress_callback=None, worker=None):
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = self.serializer.load_source_dataset(sample_size=sample_size)
@@ -148,7 +147,7 @@ class DatasetEvents:
         check_thread_status(worker)
         update_progress_callback(4, 4, progress_callback)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @staticmethod
     def rebuild_dataset_from_metadata(metadata: dict):
         serializer = DataSerializer(metadata)
@@ -186,7 +185,7 @@ class ValidationEvents:
         self.modser = ModelSerializer()
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(
         self, metrics: list[str], progress_callback=None, worker=None
     ):
@@ -219,7 +218,7 @@ class ValidationEvents:
 
         return images
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_checkpoints_summary(self, progress_callback=None, worker=None):
         summarizer = ModelEvaluationSummary(self.configuration)
         checkpoints_summary = summarizer.get_checkpoints_summary(
@@ -230,7 +229,7 @@ class ValidationEvents:
             f"Checkpoints summary has been created for {checkpoints_summary.shape[0]} models"
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def run_model_evaluation_pipeline(
         self,
         metrics: list[str],
@@ -302,7 +301,7 @@ class ValidationEvents:
                 )
                 images.append(result)
 
-        return images     
+        return images
 
 
 ###############################################################################
@@ -312,11 +311,11 @@ class ModelEvents:
         self.modser = ModelSerializer()
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_available_checkpoints(self) -> list[str]:
         return self.modser.scan_checkpoints_folder()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def run_training_pipeline(self, progress_callback=None, worker=None):
         train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
@@ -369,7 +368,7 @@ class ModelEvents:
             checkpoint_path, history, self.configuration, metadata
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def resume_training_pipeline(
         self, selected_checkpoint, progress_callback=None, worker=None
     ):
@@ -440,7 +439,7 @@ class ModelEvents:
             checkpoint_path, history, self.configuration, model_metadata
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def run_inference_pipeline(
         self, selected_checkpoint, progress_callback=None, worker=None
     ):

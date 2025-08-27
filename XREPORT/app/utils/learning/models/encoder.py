@@ -28,7 +28,7 @@ class BeitXRayImageEncoder(layers.Layer):
         self.dense = layers.Dense(self.embedding_dims)
 
     # call method
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def call(self, inputs, **kwargs):
         inputs = ops.transpose(inputs, axes=(0, 3, 1, 2))
         outputs = self.model(inputs, **kwargs)
@@ -38,7 +38,7 @@ class BeitXRayImageEncoder(layers.Layer):
         return output
 
     # serialize layer for saving
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_config(self):
         config = super(BeitXRayImageEncoder, self).get_config()
         config.update(
@@ -48,7 +48,7 @@ class BeitXRayImageEncoder(layers.Layer):
         return config
 
     # deserialization method
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)

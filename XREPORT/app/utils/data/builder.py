@@ -16,7 +16,7 @@ class BuildRadiographyDataset:
         self.train_size = int(total_samples * self.train_size)
         self.val_size = int(total_samples * self.validation_size)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def split_train_and_validation(self):
         self.dataframe = shuffle(self.dataframe, random_state=self.seed).reset_index(
             drop=True
