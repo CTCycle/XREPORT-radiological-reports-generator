@@ -1,6 +1,6 @@
-import os
 import logging
 import logging.config
+import os
 from datetime import datetime
 
 from XREPORT.app.constants import LOGS_PATH

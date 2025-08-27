@@ -1,8 +1,9 @@
-import requests
-import zipfile
 import io
 import os
 import shutil
+import zipfile
+
+import requests
 
 GITHUB_ZIP_URL = "https://github.com/CTCycle/XREPORT-radiological-reports-generator/archive/refs/heads/main.zip"
 ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

@@ -1,15 +1,15 @@
 import os
 
 import cv2
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
-from XREPORT.app.utils.data.serializer import DataSerializer
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.constants import EVALUATION_PATH
 from XREPORT.app.logger import logger
+from XREPORT.app.utils.data.serializer import DataSerializer
 
 
 # [VALIDATION OF DATA]
@@ -19,13 +19,13 @@ class TextAnalysis:
         self.serializer = DataSerializer()
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def count_words_in_documents(self, data: pd.DataFrame):
         words = [word for text in data["text"].to_list() for word in text.split()]
 
         return words
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def calculate_text_statistics(self, data: pd.DataFrame, **kwargs):
         images_descriptions = data["text"].to_list()
         images_path = data["path"].to_list()
@@ -65,12 +65,12 @@ class ImageAnalysis:
         self.serializer = DataSerializer()
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def save_image(self, fig, name):
         out_path = os.path.join(EVALUATION_PATH, name)
         fig.savefig(out_path, bbox_inches="tight", dpi=self.img_resolution)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def calculate_image_statistics(self, data, **kwargs):
         images_path = data["path"].to_list()
         results = []
@@ -129,7 +129,7 @@ class ImageAnalysis:
 
         return stats_dataframe
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def calculate_pixel_intensity_distribution(self, data, **kwargs):
         images_path = data["path"].to_list()
         image_histograms = np.zeros(256, dtype=np.int64)
@@ -171,7 +171,7 @@ class ImageAnalysis:
 
         return fig
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def calculate_PSNR(self, img_path_1, img_path_2):
         img1 = cv2.imread(img_path_1)
         img2 = cv2.imread(img_path_2)
