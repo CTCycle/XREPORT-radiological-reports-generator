@@ -4,40 +4,40 @@ EV = EnvironmentVariables()
 
 import os
 from functools import partial
-from qt_material import apply_stylesheet
+
+from PySide6.QtCore import QFile, QIODevice, Qt, QThreadPool, QTimer, Slot
+from PySide6.QtGui import QAction, QPainter, QPixmap
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile, QIODevice, Slot, QThreadPool, Qt, QTimer
-from PySide6.QtGui import QPainter, QPixmap, QAction
 from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QGraphicsPixmapItem,
+    QGraphicsScene,
+    QGraphicsView,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QRadioButton,
-    QCheckBox,
-    QDoubleSpinBox,
     QSpinBox,
-    QComboBox,
-    QProgressBar,
-    QGraphicsScene,
-    QGraphicsPixmapItem,
-    QGraphicsView,
-    QPlainTextEdit,
-    QMessageBox,
-    QDialog,
-    QApplication,
 )
+from qt_material import apply_stylesheet
 
-from XREPORT.app.utils.data.database import database
-from XREPORT.app.configuration import Configuration
 from XREPORT.app.client.dialogs import LoadConfigDialog, SaveConfigDialog
-from XREPORT.app.client.workers import ThreadWorker, ProcessWorker
 from XREPORT.app.client.events import (
-    GraphicsHandler,
     DatasetEvents,
-    ValidationEvents,
+    GraphicsHandler,
     ModelEvents,
+    ValidationEvents,
 )
-
+from XREPORT.app.client.workers import ProcessWorker, ThreadWorker
+from XREPORT.app.configuration import Configuration
 from XREPORT.app.constants import IMG_PATH, INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
+from XREPORT.app.utils.data.database import database
 
 
 ###############################################################################
@@ -86,7 +86,7 @@ class MainWindow:
         # initialize database
         database.initialize_database()
 
-        #--- Create persistent handlers ---
+        # --- Create persistent handlers ---
         self.graphic_handler = GraphicsHandler()
         self.dataset_handler = DatasetEvents(self.configuration)
         self.validation_handler = ValidationEvents(self.configuration)
@@ -241,12 +241,12 @@ class MainWindow:
         signal = getattr(widget, signal_name)
         signal.connect(partial(self._update_single_setting, config_key, getter))
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _update_single_setting(self, config_key, getter, *args):
         value = getter()
         self.config_manager.update_value(config_key, value)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _auto_connect_settings(self):
         connections = [
             ("use_device_GPU", "toggled", "use_device_GPU"),
@@ -311,19 +311,19 @@ class MainWindow:
             ("BLEU_score", self.get_BLEU_score),
         ]
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _set_states(self):
         self.progress_bar = self.main_win.findChild(QProgressBar, "progressBar")
         self.progress_bar.setValue(0)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_current_pixmaps_key(self):
         for radio, idx_key in self.pixmap_sources.items():
             if radio.isChecked():
                 return self.pixmaps[idx_key], idx_key
         return [], None
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _set_graphics(self):
         view = self.main_win.findChild(QGraphicsView, "canvas")
         scene = QGraphicsScene()
@@ -351,17 +351,17 @@ class MainWindow:
             self.train_img_view: "train_images",
         }
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _connect_button(self, button_name: str, slot):
         button = self.main_win.findChild(QPushButton, button_name)
         button.clicked.connect(slot)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _connect_combo_box(self, combo_name: str, slot):
         combo = self.main_win.findChild(QComboBox, combo_name)
         combo.currentTextChanged.connect(slot)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _start_thread_worker(
         self,
         worker: ThreadWorker,
@@ -378,7 +378,7 @@ class MainWindow:
         worker.signals.interrupted.connect(on_interrupted)
         self.threadpool.start(worker)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _start_process_worker(
         self,
         worker: ProcessWorker,
@@ -404,7 +404,7 @@ class MainWindow:
 
         worker.start()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _send_message(self, message):
         self.main_win.statusBar().showMessage(message)
 
@@ -416,13 +416,13 @@ class MainWindow:
             setattr(self, attr, w)
             self.widgets[attr] = w
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _connect_signals(self, connections):
         for attr, signal, slot in connections:
             widget = self.widgets[attr]
             getattr(widget, signal).connect(slot)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _set_widgets_from_configuration(self):
         cfg = self.config_manager.get_configuration()
         for attr, widget in self.widgets.items():
@@ -453,7 +453,7 @@ class MainWindow:
     # It's good practice to define methods that act as slots within the class
     # that manages the UI elements. These slots can then call methods on the
     # handler objects. Using @Slot decorator is optional but good practice
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     Slot()
 
     def stop_running_worker(self):
@@ -461,7 +461,7 @@ class MainWindow:
             self.worker.stop()
         self._send_message("Interrupt requested. Waiting for threads to stop...")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def _update_metrics(self):
         self.selected_metrics["dataset"] = [
@@ -471,9 +471,9 @@ class MainWindow:
             name for name, box in self.model_metrics if box.isChecked()
         ]
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [ACTIONS]
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def save_configuration(self):
         dialog = SaveConfigDialog(self.main_win)
@@ -483,7 +483,7 @@ class MainWindow:
             self.config_manager.save_configuration_to_json(name)
             self._send_message(f"Configuration [{name}] has been saved")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def load_configuration(self):
         dialog = LoadConfigDialog(self.main_win)
@@ -493,7 +493,7 @@ class MainWindow:
             self._set_widgets_from_configuration()
             self._send_message(f"Loaded configuration [{name}]")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def export_all_data(self):
         database.export_all_tables_as_csv()
@@ -501,7 +501,7 @@ class MainWindow:
         logger.info(message)
         self._send_message(message)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def delete_all_data(self):
         database.delete_all_data()
@@ -509,9 +509,9 @@ class MainWindow:
         logger.info(message)
         self._send_message(message)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [GRAPHICS]
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot(str)
     def _update_graphics_view(self):
         pixmaps, idx_key = self.get_current_pixmaps_key()
@@ -535,7 +535,7 @@ class MainWindow:
         # update the image description when necessary
         self._update_image_descriptions(idx_key)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def _update_image_descriptions(self, idx_key):
         image_path = self.pixmaps[idx_key][self.current_fig[idx_key]]
         if isinstance(image_path, str):
@@ -547,7 +547,7 @@ class MainWindow:
         placeholder = "No description available for this image."
         self.image_description.setPlainText(placeholder)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot(str)
     def show_previous_figure(self):
         pixmaps, idx_key = self.get_current_pixmaps_key()
@@ -557,7 +557,7 @@ class MainWindow:
             self.current_fig[idx_key] -= 1
             self._update_graphics_view()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot(str)
     def show_next_figure(self):
         pixmaps, idx_key = self.get_current_pixmaps_key()
@@ -567,7 +567,7 @@ class MainWindow:
             self.current_fig[idx_key] += 1
             self._update_graphics_view()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot(str)
     def clear_figures(self):
         pixmaps, idx_key = self.get_current_pixmaps_key()
@@ -581,7 +581,7 @@ class MainWindow:
         self.graphics["view"].viewport().update()
         self.image_description.setPlainText("")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def load_images(self):
         pixmaps, idx_key = self.get_current_pixmaps_key()
@@ -597,9 +597,9 @@ class MainWindow:
         self.current_fig[idx_key] = 0
         self._update_graphics_view()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [DATASET TAB]
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def update_database_from_source(self):
         if self.worker:
@@ -623,7 +623,7 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def run_dataset_evaluation_pipeline(self):
         if not self.selected_metrics["dataset"]:
@@ -655,7 +655,7 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def run_dataset_builder(self):
         if self.worker:
@@ -681,9 +681,9 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [TRAINING TAB]
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def train_from_scratch(self):
         if self.worker:
@@ -709,7 +709,7 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def resume_training_from_checkpoint(self):
         if self.worker:
@@ -743,9 +743,9 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [MODEL EVALUATION AND INFERENCE TAB]
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def load_checkpoints(self):
         checkpoints = self.model_handler.get_available_checkpoints()
@@ -758,12 +758,12 @@ class MainWindow:
             self.selected_checkpoint = None
             logger.warning("No checkpoints available")
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot(str)
     def select_checkpoint(self, name: str):
         self.selected_checkpoint = name if name else None
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def run_model_evaluation_pipeline(self):
         if self.worker:
@@ -797,7 +797,7 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def get_checkpoints_summary(self):
         if self.worker:
@@ -823,7 +823,7 @@ class MainWindow:
             on_interrupted=self.on_task_interrupted,
         )
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     @Slot()
     def generate_reports_with_checkpoint(self):
         if self.worker:
@@ -868,12 +868,12 @@ class MainWindow:
         QMessageBox.information(self.main_win, "Database successfully updated", message)
         self.worker = self.worker.cleanup()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_dataset_processing_finished(self, plots):
         self._send_message("Training dataset has been built successfully")
         self.worker = self.worker.cleanup()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_dataset_evaluation_finished(self, plots):
         key = "dataset_eval_images"
         if plots:
@@ -886,12 +886,12 @@ class MainWindow:
         self._send_message("Figures have been generated")
         self.worker = self.worker.cleanup()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_train_finished(self, session):
         self._send_message("Training session is over. Model has been saved")
         self.worker = self.worker.cleanup()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_model_evaluation_finished(self, plots):
         key = "model_eval_images"
         if plots is not None:
@@ -904,7 +904,7 @@ class MainWindow:
         self._send_message(f"Model {self.selected_checkpoint} has been evaluated")
         self.worker = self.worker.cleanup()
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def on_inference_finished(self, session):
         self._send_message("Inference call has been terminated")
         self.worker = self.worker.cleanup()
