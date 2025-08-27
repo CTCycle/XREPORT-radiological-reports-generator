@@ -21,7 +21,7 @@ The tokenizer model is automatically downloaded and cached in *resources/models/
 ## 3. Installation
 The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
 
-**Important:** After installation, if the project folder is moved or its path is changed, the application will no longer function correctly. To fix this, you can open *setup_and_maintenance.bat* and select *Enable root path imports*.
+
 
 ### 3.1 Just-In-Time (JIT) Compiler
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. 
@@ -62,7 +62,7 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
 - **Run installation:** run the application installer for Windows
-- **Enable root path imports:** refresh root path imports if the main folder has been moved or renamed
+
 - **Update project:** check for updates from Github
 - **Remove logs:** remove all logs file from *resources/logs*
 
