@@ -4,7 +4,6 @@ import pandas as pd
 import tensorflow as tf
 
 from XREPORT.app.utils.data.process import TokenizerHandler
-from XREPORT.app.logger import logger
 
 
 
