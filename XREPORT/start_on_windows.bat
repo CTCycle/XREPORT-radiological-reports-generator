@@ -2,109 +2,164 @@
 setlocal enabledelayedexpansion
 
 REM ============================================================================
-REM == Configuration: define project and Python paths
+REM == Config
 REM ============================================================================
 set "project_folder=%~dp0"
-set "root_folder=%project_folder%..\"
-set "python_dir=%project_folder%setup\python"
+set "root_folder=%project_folder%..\" 
+set "setup_dir=%project_folder%setup"
+set "python_dir=%setup_dir%\python"
 set "python_exe=%python_dir%\python.exe"
-set "pip_exe=%python_dir%\Scripts\pip.exe"
+set "python_pth_file=%python_dir%\python312._pth"
 set "env_marker=%python_dir%\.is_installed"
-set "app_script=%project_folder%app\app.py"
-set "requirements_path=%project_folder%setup\requirements.txt"
 
-REM ============================================================================
-REM == 0. Fast path: skip full setup if environment already present
-REM ============================================================================
-if exist "%env_marker%" if exist "%python_exe%" if exist "%pip_exe%" (
-    echo [INFO] Environment already installed. Skipping setup.
-    goto :run_app
-)
+set "uv_dir=%setup_dir%\uv"
+set "uv_exe=%uv_dir%\uv.exe"
+set "uv_zip_path=%uv_dir%\uv.zip"
+set "UV_CACHE_DIR=%setup_dir%\uv_cache"
 
-REM ============================================================================
-REM == 1. Full environment setup
-REM ============================================================================
-echo [STEP 1/3] Setting up Python environment...
-
-REM --- Dynamic variables for Python distribution
-set "python_version=3.12.10"
-set "python_major_version=3"
-set "python_minor_version=12"
-set "python_zip_filename=python-%python_version%-embed-amd64.zip"
-set "python_zip_url=https://www.python.org/ftp/python/%python_version%/%python_zip_filename%"
+set "py_version=3.12.10"
+set "python_zip_filename=python-%py_version%-embed-amd64.zip"
+set "python_zip_url=https://www.python.org/ftp/python/%py_version%/%python_zip_filename%"
 set "python_zip_path=%python_dir%\%python_zip_filename%"
-set "python_pth_file=%python_dir%\python%python_major_version%%python_minor_version%._pth"
-set "get_pip_url=https://bootstrap.pypa.io/get-pip.py"
-set "get_pip_path=%python_dir%\get-pip.py"
 
-REM Create Python directory
-mkdir "%python_dir%" 2>nul
+REM uv release URLs
+set "UV_CHANNEL=latest"
+set "UV_ZIP_AMD=https://github.com/astral-sh/uv/releases/%UV_CHANNEL%/download/uv-x86_64-pc-windows-msvc.zip"
+set "UV_ZIP_ARM=https://github.com/astral-sh/uv/releases/%UV_CHANNEL%/download/uv-aarch64-pc-windows-msvc.zip"
 
-REM Download and extract embeddable Python
-powershell -Command "(New-Object System.Net.WebClient).DownloadFile('%python_zip_url%', '%python_zip_path%')" || goto :error
-powershell -Command "Expand-Archive -Path '%python_zip_path%' -DestinationPath '%python_dir%' -Force" || goto :error
-del "%python_zip_path%"
+REM pyproject + app
+set "pyproject=%root_folder%pyproject.toml"
+set "app_script=%project_folder%app\app.py"
 
-REM Bootstrap pip
-powershell -Command "(Get-Content '%python_pth_file%') -replace '#import site','import site' | Set-Content '%python_pth_file%'" || goto :error
-powershell -Command "(New-Object System.Net.WebClient).DownloadFile('%get_pip_url%', '%get_pip_path%')" || goto :error
-"%python_exe%" "%get_pip_path%" || goto :error
-del "%get_pip_path%"
+REM Temp PS script locations (no spaces)
+set "TMPDL=%TEMP%\app_dl.ps1"
+set "TMPEXP=%TEMP%\app_expand.ps1"
+set "TMPTXT=%TEMP%\app_txt.ps1"
+set "TMPFIND=%TEMP%\app_find_uv.ps1"
+set "TMPVER=%TEMP%\app_pyver.ps1"
+
+REM Prefer copy instead of hardlinks to avoid warnings/perf surprises on Windows
+set "UV_LINK_MODE=copy"
+
+title App bootstrap (Python + uv)
+echo.
 
 REM ============================================================================
-REM == 1b. Install dependencies
+REM == Prepare helper PowerShell scripts (argument-driven; no nested quoting)
 REM ============================================================================
-echo [STEP 2/3] Installing dependencies...
-if not exist "%requirements_path%" (
-    echo [FATAL] requirements.txt not found: "%requirements_path%"
-    goto :error
+> "%TMPDL%"  echo $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1]
+> "%TMPEXP%" echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force
+> "%TMPTXT%" echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0]
+> "%TMPFIND%" echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName
+> "%TMPVER%" echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())"
+
+REM ============================================================================
+REM == Fast path
+REM ============================================================================
+if exist "%env_marker%" if exist "%python_exe%" if exist "%uv_exe%" goto run_app
+
+REM ============================================================================
+REM == Step 1: Ensure Python (embeddable)
+REM ============================================================================
+echo [STEP 1/4] Setting up Python (embeddable) locally
+if not exist "%python_dir%" md "%python_dir%" >nul 2>&1
+
+if not exist "%python_exe%" (
+  echo [DL] %python_zip_url%
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPDL%" "%python_zip_url%" "%python_zip_path%" || goto error
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPEXP%" "%python_zip_path%" "%python_dir%" || goto error
+  del /q "%python_zip_path%" >nul 2>&1
 )
 
-echo [INFO] Upgrading pip package
-"%pip_exe%" install --upgrade pip >nul 2>&1 || goto :error
+if exist "%python_pth_file%" (
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPTXT%" "%python_pth_file%" || goto error
+)
 
-echo [INFO] Installing requirements
-"%pip_exe%" install --no-warn-script-location -r "%requirements_path%" || goto :error
+for /f "delims=" %%V in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPVER%" "%python_exe%"') do set "found_py=%%V"
+echo [OK] Python ready: !found_py!
 
-echo [INFO] Installing setuptools and wheel
-"%pip_exe%" install --no-warn-script-location setuptools wheel || goto :error
+REM ============================================================================
+REM == Step 2: Ensure uv (portable)
+REM ============================================================================
+echo [STEP 2/4] Installing uv (portable)
+if not exist "%uv_dir%" md "%uv_dir%" >nul 2>&1
 
-pushd "%root_folder%"
-echo [INFO] Installing project in editable mode
-"%pip_exe%" install -e . --use-pep517 || (popd & goto :error)
-popd
+REM Safe default to AMD64; override only if ARM64
+set "uv_zip_url=%UV_ZIP_AMD%"
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "uv_zip_url=%UV_ZIP_ARM%"
 
-"%pip_exe%" cache purge || echo [WARN] pip cache purge failed, continuing...
+if not exist "%uv_exe%" (
+  echo [DL] %uv_zip_url%
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPDL%" "%uv_zip_url%" "%uv_zip_path%" || goto error
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPEXP%" "%uv_zip_path%" "%uv_dir%" || goto error
+  del /q "%uv_zip_path%" >nul 2>&1
 
-REM Mark environment as installed for future fast start
+  for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFIND%" "%uv_dir%"') do set "found_uv=%%F"
+  if not defined found_uv echo [FATAL] uv.exe not found after extraction.& goto error
+  if /i not "%found_uv%"=="%uv_exe%" copy /y "%found_uv%" "%uv_exe%" >nul
+)
+
+"%uv_exe%" --version >nul 2>&1 && for /f "delims=" %%V in ('"%uv_exe%" --version') do echo %%V
+
+REM ============================================================================
+REM == Step 3: Install deps via uv
+REM ============================================================================
+echo [STEP 3/4] Installing dependencies with uv from pyproject.toml
+if not exist "%pyproject%" echo [FATAL] Missing pyproject: "%pyproject%"& goto error
+
+pushd "%root_folder%" >nul
+"%uv_exe%" sync --python "%python_exe%"
+set "sync_ec=%ERRORLEVEL%"
+if not "%sync_ec%"=="0" (
+  echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
+  "%uv_exe%" sync
+  set "sync_ec=%ERRORLEVEL%"
+)
+popd >nul
+if not "%sync_ec%"=="0" echo [FATAL] uv sync failed with code %sync_ec%.& goto error
+
 > "%env_marker%" echo setup_completed
-
 echo [SUCCESS] Environment setup complete.
 
 REM ============================================================================
-REM == 2. Run the application
+REM == Step 4: Prune uv cache
+REM ============================================================================
+echo [STEP 4/4] Pruning uv cache
+if exist "%UV_CACHE_DIR%" rd /s /q "%UV_CACHE_DIR%" || echo [WARN] Could not delete cache dir quickly.
+
+REM ============================================================================
+REM == Run app (through uv)
 REM ============================================================================
 :run_app
-echo [STEP 3/3] Running application...
-if not exist "%app_script%" (
-    echo [FATAL] Application script not found: "%app_script%"
-    goto :error
+echo [RUN] Launching application
+if not exist "%app_script%" echo [FATAL] Application script not found: "%app_script%"& goto error
+
+pushd "%root_folder%" >nul
+"%uv_exe%" run --python "%python_exe%" python "%app_script%"
+set "run_ec=%ERRORLEVEL%"
+popd >nul
+
+if "%run_ec%"=="0" (
+  echo [SUCCESS] Application launched successfully.
+  goto cleanup
+) else (
+  echo [FATAL] Application exited with code %run_ec%.
+  goto error
 )
 
-pushd "%root_folder%"
-"%python_exe%" "%app_script%" || (popd & goto :error)
-popd
-echo [SUCCESS] Application launched successfully.
-
-endlocal
-exit /b 0
+REM ============================================================================
+REM == Cleanup temp helpers
+REM ============================================================================
+:cleanup
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+endlocal & exit /b 0
 
 REM ============================================================================
-REM == Error handling
+REM == Error
 REM ============================================================================
 :error
 echo.
 echo !!! An error occurred during execution. !!!
 pause
-endlocal
-exit /b 1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
+endlocal & exit /b 1
