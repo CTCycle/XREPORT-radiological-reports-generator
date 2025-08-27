@@ -3,7 +3,6 @@ from keras.saving import register_keras_serializable
 from transformers import AutoImageProcessor, AutoModel
 
 from XREPORT.app.constants import ENCODERS_PATH
-from XREPORT.app.logger import logger
 
 
 # [PRETRAINED IMAGE ENCODER]
