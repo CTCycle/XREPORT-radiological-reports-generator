@@ -22,7 +22,7 @@ class TrainValidationSplit:
         self.train_size = int(total_samples * self.train_size)
         self.val_size = int(total_samples * self.validation_size)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def split_train_and_validation(self):
         self.dataframe = shuffle(self.dataframe, random_state=self.seed).reset_index(
             drop=True
@@ -43,7 +43,7 @@ class TextSanitizer:
         self.max_report_size = configuration.get("max_report_size", 200)
         self.configuration = configuration
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def sanitize_text(self, dataset: pd.DataFrame):
         dataset["text"] = dataset["text"].str.replace("[^a-zA-Z0-9\s]", "", regex=True)
 
@@ -58,7 +58,7 @@ class TokenizerHandler:
         self.max_report_size = configuration.get("max_report_size", 200)
         self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.tokenizer_id)
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_tokenizer(self, tokenizer_name: str | None = None):
         if tokenizer_name is None:
             return
@@ -72,7 +72,7 @@ class TokenizerHandler:
 
         return tokenizer, vocabulary_size
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def tokenize_text_corpus(self, data: pd.DataFrame):
         # tokenize train and validation text using loaded tokenizer
         true_report_size = self.max_report_size + 1
