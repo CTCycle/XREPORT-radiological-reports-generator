@@ -51,15 +51,15 @@ class ThreadWorker(QRunnable):
         if accepts_worker:
             self.kwargs["worker"] = self
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def stop(self):
         self._is_interrupted = True
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def is_interrupted(self):
         return self._is_interrupted
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @Slot()
     def run(self):
         try:
@@ -82,7 +82,7 @@ class ThreadWorker(QRunnable):
             tb = traceback.format_exc()
             self.signals.error.emit((e, tb))
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def cleanup(self):
         pass
 
@@ -106,7 +106,7 @@ def process_target(fn, args, kwargs, result_queue, progress_queue, interrupted_e
         # Inspect the function signature to determine if it supports extra arguments
         sig = inspect.signature(fn)
         params = sig.parameters.values()
-        # --- Inject progress reporting if supported ---
+        #--- Inject progress reporting if supported ---
         # If the function accepts a "progress_callback" parameter or **kwargs,
         # pass a callback that puts messages into the progress_queue.
         if any(
@@ -115,7 +115,7 @@ def process_target(fn, args, kwargs, result_queue, progress_queue, interrupted_e
         ):
             kwargs = dict(kwargs)  # Make a copy
             kwargs["progress_callback"] = progress_queue.put
-        # --- Inject interruption checking if supported ---
+        #--- Inject interruption checking if supported ---
         # If the function accepts a "worker" parameter or **kwargs,
         # pass a dummy worker object that exposes is_interrupted().
         if any(
@@ -157,15 +157,15 @@ class ProcessWorker(QObject):
         self._proc = None
         self._timer = None
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def stop(self):
         self._interrupted.set()
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def is_interrupted(self):
         return self._interrupted.is_set()
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def start(self):
         self._proc = Process(
             target=process_target,
@@ -180,7 +180,7 @@ class ProcessWorker(QObject):
         )
         self._proc.start()
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _run_in_process(self):
         try:
             # Prepare kwargs for the child process
@@ -218,7 +218,7 @@ class ProcessWorker(QObject):
             tb = traceback.format_exc()
             self._result_queue.put(("error", (e, tb)))
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def poll(self):
         # Called periodically from main thread (window.py QTimer)
         # Progress first
@@ -244,7 +244,7 @@ class ProcessWorker(QObject):
             if self._proc is not None:
                 self._proc.join()
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def cleanup(self):
         if self._timer is not None:
             self._timer.stop()
@@ -254,13 +254,13 @@ class ProcessWorker(QObject):
 
 
 # [HELPERS FUNCTIONS]
-# ------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 def check_thread_status(worker: ThreadWorker):
     if worker is not None and worker.is_interrupted():
         raise WorkerInterrupted()
 
 
-# ------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 def update_progress_callback(progress, total, progress_callback=None):
     if progress_callback is not None:
         percent = int(progress * 100 / total)

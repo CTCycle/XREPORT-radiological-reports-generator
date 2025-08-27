@@ -26,7 +26,7 @@ class PositionalEmbedding(layers.Layer):
         self.embedding_scale = ops.sqrt(ops.cast(self.embedding_dims, floatx()))
 
     # implement positional embedding through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, inputs):
         length = ops.shape(inputs)[-1]
         positions = ops.arange(start=0, stop=length, step=1)
@@ -44,14 +44,14 @@ class PositionalEmbedding(layers.Layer):
         return full_embedding
 
     # compute the mask for padded sequences
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def compute_mask(self, inputs, mask=None):
         mask = ops.not_equal(inputs, 0)
 
         return mask
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(PositionalEmbedding, self).get_config()
         config.update(
@@ -65,7 +65,7 @@ class PositionalEmbedding(layers.Layer):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
