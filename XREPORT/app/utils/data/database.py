@@ -111,25 +111,25 @@ class XREPORTDatabase:
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = 2000
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def initialize_database(self):
         Base.metadata.create_all(self.engine)
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_table_class(self, table_name: str):
         for cls in Base.__subclasses__():
             if hasattr(cls, "__tablename__") and cls.__tablename__ == table_name:
                 return cls
         raise ValueError(f"No table class found for name {table_name}")
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def update_database_from_source(self):
         dataset = pd.read_csv(self.source_path, sep=";", encoding="utf-8")
         self.save_source_data(dataset)
 
         return dataset
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _upsert_dataframe(self, df: pd.DataFrame, table_cls):
         table = table_cls.__table__
         session = self.Session()
@@ -162,25 +162,25 @@ class XREPORTDatabase:
         finally:
             session.close()
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def load_from_database(self, table_name: str) -> pd.DataFrame:
         with self.engine.connect() as conn:
             data = pd.read_sql_table(table_name, conn)
 
         return data
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str):
         with self.engine.begin() as conn:
             conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
             df.to_sql(table_name, conn, if_exists="append", index=False)
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str):
         table_cls = self.get_table_class(table_name)
         self._upsert_dataframe(df, table_cls)
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def export_all_tables_as_csv(self, chunksize: int | None = None):
         export_path = os.path.join(DATA_PATH, "export")
         os.makedirs(export_path, exist_ok=True)
@@ -220,12 +220,12 @@ class XREPORTDatabase:
 
         logger.info(f"All tables exported to CSV at {os.path.abspath(export_path)}")
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def delete_all_data(self):
         with self.engine.begin() as conn:
             for table in reversed(Base.metadata.sorted_tables):
                 conn.execute(table.delete())
 
 
-# ------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 database = XREPORTDatabase()

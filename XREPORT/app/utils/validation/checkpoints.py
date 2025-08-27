@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
 
 from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
@@ -15,13 +16,14 @@ from XREPORT.app.logger import logger
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict, model : Model | None = None):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
+        self.model = model
         self.configuration = configuration
 
-    # ---------------------------------------------------------------------------
-    def scan_checkpoint_folder(self):
+    #--------------------------------------------------------------------------
+    def scan_checkpoint_folder(self) -> List[str]:
         model_paths = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -31,8 +33,8 @@ class ModelEvaluationSummary:
 
         return model_paths
 
-    # ---------------------------------------------------------------------------
-    def get_checkpoints_summary(self, **kwargs):
+    #--------------------------------------------------------------------------
+    def get_checkpoints_summary(self, **kwargs) -> pd.DataFrame:
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []
         for i, model_path in enumerate(model_paths):
@@ -92,7 +94,7 @@ class ModelEvaluationSummary:
 
         return dataframe
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_evaluation_report(self, model, validation_dataset, **kwargs):
         callbacks_list = [LearningInterruptCallback(kwargs.get("worker", None))]
         validation = model.evaluate(
@@ -114,7 +116,7 @@ class EvaluateTextQuality:
         self.metadata = metadata
         self.num_samples = num_samples
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def calculate_BLEU_score(self, validation_data: pd.DataFrame, **kwargs):
         max_report_size = self.metadata.get("max_report_size", 200)
         generator = TextGenerator(self.model, self.configuration, max_report_size)

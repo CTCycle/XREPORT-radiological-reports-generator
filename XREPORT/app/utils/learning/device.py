@@ -10,7 +10,7 @@ class DeviceConfig:
     def __init__(self, configuration: dict):
         self.configuration = configuration
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def set_device(self):
         use_gpu = self.configuration.get("use_device_GPU", False)
         device_name = "cuda" if use_gpu else "cpu"
