@@ -27,7 +27,7 @@ class DataLoaderProcessor:
         self.configuration = configuration
 
     # load and preprocess a single image
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_image(self, path, as_array=False):
         if as_array:
             image = cv2.imread(path)
@@ -43,7 +43,7 @@ class DataLoaderProcessor:
         return image
 
     # works directly with tensors
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_data_for_training(self, path, text):
         rgb_image = self.load_image(path)
         rgb_image = (
@@ -56,7 +56,7 @@ class DataLoaderProcessor:
 
         return (rgb_image, input_text), output_text
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_data_for_inference(self, path: str):
         rgb_image = self.load_image(path)
         rgb_image = self.image_normalization(rgb_image)
@@ -64,7 +64,7 @@ class DataLoaderProcessor:
         return rgb_image
 
     # define method perform data augmentation
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def image_normalization(self, image):
         normalized_image = image / 255.0
         normalized_image = (normalized_image - self.image_mean) / self.image_std
@@ -72,7 +72,7 @@ class DataLoaderProcessor:
         return normalized_image
 
     # define method perform data augmentation
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def image_augmentation(self, image):
         # perform random image augmentations such as flip, brightness, contrast
         augmentations = {
@@ -108,7 +108,7 @@ class XRAYDataLoader:
         self.shuffle = shuffle
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def build_training_dataloader(self, data: pd.DataFrame, batch_size=None):
         images, tokens = data["path"].to_list(), data["tokens"].to_list()
         batch_size = self.batch_size if batch_size is None else batch_size
@@ -127,7 +127,7 @@ class XRAYDataLoader:
         return dataset
 
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def build_inference_dataloader(
         self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE
     ):
