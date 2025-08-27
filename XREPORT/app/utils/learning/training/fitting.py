@@ -12,7 +12,7 @@ class ModelTraining:
         self.configuration = configuration
         self.metadata = metadata
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def train_model(
         self, model: Model, train_data, validation_data, checkpoint_path, **kwargs
     ):
@@ -38,7 +38,7 @@ class ModelTraining:
 
         return model, history
 
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def resume_training(
         self,
         model: Model,
