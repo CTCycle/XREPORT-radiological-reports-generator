@@ -1,11 +1,6 @@
-import os
 
-import pandas as pd
 from sklearn.utils import shuffle
-from transformers import AutoTokenizer
 
-from XREPORT.app.constants import TOKENIZERS_PATH
-from XREPORT.app.logger import logger
 
 # [DATA SPLITTING]
 ###############################################################################

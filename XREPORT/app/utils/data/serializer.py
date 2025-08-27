@@ -225,7 +225,7 @@ class ModelSerializer:
                 show_layer_names=True, show_layer_activations=True,
                 expand_nested=True, rankdir="TB", dpi=400)
             logger.debug(f"Model architecture plot generated as {plot_path}") 
-        except (OSError, FileNotFoundError, ImportError) as e:
+        except (OSError, FileNotFoundError, ImportError):
             logger.warning(
                 "Could not generate model architecture plot (graphviz/pydot not correctly installed)")
         
