@@ -23,12 +23,12 @@ class AddNorm(layers.Layer):
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)
 
     # build method for the custom layer
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, inputs):
         x1, x2 = inputs
         x_add = self.add([x1, x2])
@@ -37,14 +37,14 @@ class AddNorm(layers.Layer):
         return x_norm
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -68,12 +68,12 @@ class FeedForward(layers.Layer):
         self.seed = seed
 
     # build method for the custom layer
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):
         super(FeedForward, self).build(input_shape)
 
     # implement transformer encoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, x, training=None):
         x = self.dense1(x)
         x = self.dense2(x)
@@ -81,7 +81,7 @@ class FeedForward(layers.Layer):
         return output
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(FeedForward, self).get_config()
         config.update(
@@ -94,7 +94,7 @@ class FeedForward(layers.Layer):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -115,12 +115,12 @@ class SoftMaxClassifier(layers.Layer):
         )
 
     # build method for the custom layer
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):
         super(SoftMaxClassifier, self).build(input_shape)
 
     # implement transformer encoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, x, training=None):
         layer = self.dense1(x)
         layer = activations.relu(layer)
@@ -131,7 +131,7 @@ class SoftMaxClassifier(layers.Layer):
         return output
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(SoftMaxClassifier, self).get_config()
         config.update(
@@ -144,7 +144,7 @@ class SoftMaxClassifier(layers.Layer):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -171,12 +171,12 @@ class TransformerEncoder(layers.Layer):
         self.attention_scores = {}
 
     # build method for the custom layer
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):
         super(TransformerEncoder, self).build(input_shape)
 
     # implement transformer encoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, inputs, mask=None, training=None):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
@@ -200,12 +200,12 @@ class TransformerEncoder(layers.Layer):
 
         return output
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_attention_scores(self):
         return self.attention_scores
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerEncoder, self).get_config()
         config.update(
@@ -218,7 +218,7 @@ class TransformerEncoder(layers.Layer):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -255,12 +255,12 @@ class TransformerDecoder(layers.Layer):
         self.attention_scores = {}
 
     # build method for the custom layer
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def build(self, input_shape):
         super(TransformerDecoder, self).build(input_shape)
 
     # implement transformer decoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def call(self, inputs, encoder_outputs, mask=None, training=None):
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
@@ -308,12 +308,12 @@ class TransformerDecoder(layers.Layer):
 
         return logits
 
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_attention_scores(self):
         return self.attention_scores
 
     # generate causal attention mask
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs):
         batch_size, sequence_length = ops.shape(inputs)[0], ops.shape(inputs)[1]
         i = ops.expand_dims(ops.arange(sequence_length), axis=1)
@@ -325,7 +325,7 @@ class TransformerDecoder(layers.Layer):
         return batch_mask
 
     # serialize layer for saving
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = super(TransformerDecoder, self).get_config()
         config.update(
@@ -338,7 +338,7 @@ class TransformerDecoder(layers.Layer):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -387,8 +387,8 @@ class XREPORTModel:
             1024, self.vocabulary_size, self.temperature
         )
 
-    # --------------------------------------------------------------------------
-    def compile_model(self, model: Model, model_summary=True):
+    #-------------------------------------------------------------------------
+    def compile_model(self, model: Model, model_summary : bool = True):
         post_warmup_LR = self.configuration.get("post_warmup_LR", 40000)
         LR_schedule = post_warmup_LR
         if self.configuration.get("use_scheduler", False):
@@ -407,7 +407,7 @@ class XREPORTModel:
         return model
 
     # build model given the architecture
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_model(self, model_summary=True):
         # encode images and extract their features using the convolutional
         # image encoder or a selected pretrained model
