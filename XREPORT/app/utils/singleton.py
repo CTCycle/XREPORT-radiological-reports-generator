@@ -6,6 +6,7 @@ from typing import Any, TypeVar
 
 T = TypeVar("T")
 
+
 ###############################################################################
 def singleton(cls: type[T]) -> type[T]:
     """
