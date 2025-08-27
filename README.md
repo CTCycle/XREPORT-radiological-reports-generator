@@ -21,8 +21,6 @@ The tokenizer model is automatically downloaded and cached in *resources/models/
 ## 3. Installation
 The installation process for Windows is fully automated. Simply run the script *start_on_windows.bat* to begin. During its initial execution, the script installs portable Python, necessary dependencies, minimizing user interaction and ensuring all components are ready for local use.  
 
-
-
 ### 3.1 Just-In-Time (JIT) Compiler
 This project leverages Just-In-Time model compilation through `torch.compile`, enhancing model performance by tracing the computation graph and applying advanced optimizations like kernel fusion and graph lowering. This approach significantly reduces computation time during both training and inference. The default backend, TorchInductor, is designed to maximize performance on both CPUs and GPUs. Additionally, the installation includes Triton, which generates highly optimized GPU kernels for even faster computation on NVIDIA hardware. 
 
@@ -61,11 +59,8 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 
 **Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
-- **Run installation:** run the application installer for Windows
-
 - **Update project:** check for updates from Github
 - **Remove logs:** remove all logs file from *resources/logs*
-
 
 ### 4.2 Resources
 This folder organizes data and results across various stages of the project, such as data validation, model training, and evaluation. By default, all data is stored within an SQLite database, which will automatically fetch input data from *database/dataset/XREPORT_dataset.csv*. To visualize and interact with the SQLite database, we recommend downloading and installing the DB Browser for SQLite, available at: https://sqlitebrowser.org/dl/. The directory structure includes the following folders:
