@@ -14,7 +14,7 @@ class WarmUpLRScheduler(LearningRateSchedule):
         self.warmup_steps = warmup_steps
 
     # implement encoder through call method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def __call__(self, step):
         global_step = cast(step, floatx())
         warmup_steps = cast(self.warmup_steps, floatx())
@@ -29,7 +29,7 @@ class WarmUpLRScheduler(LearningRateSchedule):
         return cond(global_step < warmup_steps, lambda: warmup_LR, lambda: decayed_LR)
 
     # custom configuration
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def get_config(self):
         config = {
             "post_warmup_LR": self.post_warmup_LR,
@@ -39,7 +39,7 @@ class WarmUpLRScheduler(LearningRateSchedule):
         return config
 
     # deserialization method
-    # --------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_config(cls, config):
         return cls(**config)
