@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import os
 from datetime import datetime
@@ -34,7 +35,7 @@ class DataSerializer:
         self.valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
     # -------------------------------------------------------------------------
-    def serialize_series(self, col):
+    def serialize_series(self, col: list[str] | str) -> str | list[int]:
         if isinstance(col, list):
             return " ".join(map(str, col))
         if isinstance(col, str):
@@ -42,7 +43,9 @@ class DataSerializer:
         return []
 
     # -------------------------------------------------------------------------
-    def validate_metadata(self, metadata: dict[str, Any] | Any, target_metadata: dict[str, Any] | Any) -> bool:
+    def validate_metadata(
+        self, metadata: dict[str, Any] | Any, target_metadata: dict[str, Any] | Any
+    ) -> bool:
         keys_to_compare = [k for k in metadata if k != "date"]
         meta_current = {k: metadata.get(k) for k in keys_to_compare}
         meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
@@ -57,7 +60,7 @@ class DataSerializer:
     # takes a reference dataset with images name and finds these images within the
     # image dataset directory, retriving their path accordingly
     # -------------------------------------------------------------------------
-    def update_img_path(self, dataset: pd.DataFrame):
+    def update_img_path(self, dataset: pd.DataFrame) -> pd.DataFrame:
         images_path = {}
         for root, _, files in os.walk(IMG_PATH):
             for file in files:
@@ -77,7 +80,9 @@ class DataSerializer:
         return clean_dataset
 
     # -------------------------------------------------------------------------
-    def get_img_path_from_directory(self, path, sample_size=1.0):
+    def get_img_path_from_directory(
+        self, path: str, sample_size: float = 1.0
+    ) -> list[str]:
         if not os.listdir(path):
             logger.error(f"No images found in {path}, please add them and try again.")
             return []
@@ -94,7 +99,9 @@ class DataSerializer:
             return images_path
 
     # -------------------------------------------------------------------------
-    def load_source_dataset(self, sample_size=1.0, seed=42):
+    def load_source_dataset(
+        self, sample_size: float = 1.0, seed: int = 42
+    ) -> pd.DataFrame:
         dataset = database.load_from_database("RADIOGRAPHY_DATA")
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=seed)
@@ -103,7 +110,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_training_data(
-        self, only_metadata=False
+        self, only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]] | dict[str, Any]:
         # load metadata from file
         with open(PROCESS_METADATA_FILE) as file:
@@ -125,11 +132,14 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_data(
-        self, configuration: dict[str, Any], training_data: pd.DataFrame, vocabulary_size=None
-    ):
+        self,
+        configuration: dict[str, Any],
+        training_data: pd.DataFrame,
+        vocabulary_size=None,
+    ) -> None:
         # process list of tokens to get them in string format
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
-        database.save_training_data(training_data)
+        database.save_into_database(training_data, "TRAINING_DATASET")
         # save preprocessing metadata
         metadata = {
             "seed": configuration.get("seed", 42),
@@ -146,20 +156,20 @@ class DataSerializer:
             json.dump(metadata, file, indent=4)
 
     # -------------------------------------------------------------------------
-    def save_generated_reports(self, reports: list[dict]):
+    def save_generated_reports(self, reports: list[dict]) -> None:
         reports_dataframe = pd.DataFrame(reports)
         database.upsert_into_database(reports_dataframe, "GENERATED_REPORTS")
 
     # -------------------------------------------------------------------------
-    def save_text_statistics(self, data: pd.DataFrame):
+    def save_text_statistics(self, data: pd.DataFrame) -> None:
         database.upsert_into_database(data, "TEXT_STATISTICS")
 
     # -------------------------------------------------------------------------
-    def save_images_statistics(self, data: pd.DataFrame):
+    def save_images_statistics(self, data: pd.DataFrame) -> None:
         database.upsert_into_database(data, "IMAGE_STATISTICS")
 
     # -------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data: pd.DataFrame):
+    def save_checkpoints_summary(self, data: pd.DataFrame) -> None:
         database.upsert_into_database(data, "CHECKPOINTS_SUMMARY")
 
 
@@ -171,7 +181,7 @@ class ModelSerializer:
 
     # function to create a folder where to save model checkpoints
     # -------------------------------------------------------------------------
-    def create_checkpoint_folder(self):
+    def create_checkpoint_folder(self) -> str:
         today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
         checkpoint_path = os.path.join(
             CHECKPOINT_PATH, f"{self.model_name}_{today_datetime}"
@@ -183,7 +193,7 @@ class ModelSerializer:
         return checkpoint_path
 
     # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model, path: str):
+    def save_pretrained_model(self, model: Model, path: str) -> None:
         model_files_path = os.path.join(path, "saved_model.keras")
         model.save(model_files_path)
         logger.info(
@@ -192,8 +202,12 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path, history: dict, configuration: dict[str, Any], metadata: Dict
-    ):
+        self,
+        path: str,
+        history: dict[str, Any],
+        configuration: dict[str, Any],
+        metadata: dict[str, Any],
+    ) -> None:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
         history_path = os.path.join(path, "configuration", "session_history.json")
@@ -243,7 +257,7 @@ class ModelSerializer:
         return model_folders
 
     # -------------------------------------------------------------------------
-    def save_model_plot(self, model : Model, path : str):
+    def save_model_plot(self, model: Model, path: str) -> None:
         try:
             plot_path = os.path.join(path, "model_layout.png")
             plot_model(
@@ -263,7 +277,9 @@ class ModelSerializer:
             )
 
     # -------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint: str) -> tuple[Model, dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    def load_checkpoint(
+        self, checkpoint: str
+    ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {

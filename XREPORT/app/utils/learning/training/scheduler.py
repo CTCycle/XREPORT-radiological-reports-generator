@@ -41,5 +41,5 @@ class WarmUpLRScheduler(LearningRateSchedule):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any):
         return cls(**config)

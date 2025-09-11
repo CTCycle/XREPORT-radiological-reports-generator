@@ -6,7 +6,12 @@ import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PySide6.QtGui import QImage, QPixmap
 
-from XREPORT.app.client.workers import ProcessWorker, ThreadWorker, check_thread_status, update_progress_callback
+from XREPORT.app.client.workers import (
+    ProcessWorker,
+    ThreadWorker,
+    check_thread_status,
+    update_progress_callback,
+)
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
 from XREPORT.app.utils.data.loader import XRAYDataLoader
@@ -48,7 +53,7 @@ class GraphicsHandler:
         return QPixmap.fromImage(qimg)
 
     # -------------------------------------------------------------------------
-    def load_image_as_pixmap(self, path : str) -> None | QPixmap:
+    def load_image_as_pixmap(self, path: str) -> None | QPixmap:
         img = cv2.imread(path, self.image_encoding)
         if img is None:
             return
@@ -81,7 +86,7 @@ class DatasetEvents:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def load_img_path(self, path : str, sample_size : float = 1.0) -> list[Any]:
+    def load_img_path(self, path: str, sample_size: float = 1.0) -> list[Any]:
         img_paths = self.serializer.get_img_path_from_directory(path, sample_size)
         return img_paths
 
@@ -99,7 +104,11 @@ class DatasetEvents:
         return description
 
     # -------------------------------------------------------------------------
-    def run_dataset_builder(self, progress_callback : Any | None = None, worker : ThreadWorker | ProcessWorker | None = None):
+    def run_dataset_builder(
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ):
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = self.serializer.load_source_dataset(sample_size=sample_size)
         if dataset is None or dataset.empty:
@@ -142,7 +151,9 @@ class DatasetEvents:
         train_samples = training_data[training_data["split"] == "train"]
         validation_samples = training_data[training_data["split"] == "validation"]
         # save preprocessed data into database
-        self.serializer.save_training_data(self.configuration, training_data, vocabulary_size)
+        self.serializer.save_training_data(
+            self.configuration, training_data, vocabulary_size
+        )
         logger.info("Preprocessed data saved into database")
 
         # check thread for interruption
@@ -151,7 +162,9 @@ class DatasetEvents:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def rebuild_dataset_from_metadata(metadata: dict[str, Any]) -> None | tuple[Any, Any]:
+    def rebuild_dataset_from_metadata(
+        metadata: dict[str, Any],
+    ) -> None | tuple[Any, Any]:
         serializer = DataSerializer()
         sample_size = metadata.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size=sample_size)
@@ -189,7 +202,10 @@ class ValidationEvents:
 
     # -------------------------------------------------------------------------
     def run_dataset_evaluation_pipeline(
-        self, metrics: list[str], progress_callback : Any | None = None, worker : ThreadWorker | ProcessWorker | None = None,
+        self,
+        metrics: list[str],
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> list[Any]:
         sample_size = self.configuration.get("sample_size", 1.0)
         dataset = self.serializer.load_source_dataset(sample_size)
@@ -221,7 +237,11 @@ class ValidationEvents:
         return images
 
     # -------------------------------------------------------------------------
-    def get_checkpoints_summary(self, progress_callback : Any | None = None, worker : ThreadWorker | ProcessWorker | None = None) -> None:
+    def get_checkpoints_summary(
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ) -> None:
         summarizer = ModelEvaluationSummary(self.configuration)
         checkpoints_summary = summarizer.get_checkpoints_summary(
             progress_callback=progress_callback, worker=worker
@@ -236,8 +256,8 @@ class ValidationEvents:
         self,
         metrics: list[str],
         selected_checkpoint: str | None,
-        progress_callback : Any | None = None,
-        worker : ThreadWorker | ProcessWorker | None = None,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ) -> list[Any] | None:
         if selected_checkpoint is None:
             logger.warning("No checkpoint selected for resuming training")
@@ -318,7 +338,11 @@ class ModelEvents:
         return self.modser.scan_checkpoints_folder()
 
     # -------------------------------------------------------------------------
-    def run_training_pipeline(self, progress_callback : Any | None = None, worker : ThreadWorker | ProcessWorker | None = None):
+    def run_training_pipeline(
+        self,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
+    ):
         train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
@@ -372,7 +396,10 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def resume_training_pipeline(
-        self, selected_checkpoint : str, progress_callback : Any | None = None, worker=None
+        self,
+        selected_checkpoint: str,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ):
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, session, checkpoint_path = (
@@ -443,7 +470,10 @@ class ModelEvents:
 
     # -------------------------------------------------------------------------
     def run_inference_pipeline(
-        self, selected_checkpoint : str, progress_callback : Any | None = None, worker=None
+        self,
+        selected_checkpoint: str,
+        progress_callback: Any | None = None,
+        worker: ThreadWorker | ProcessWorker | None = None,
     ):
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, _, checkpoint_path = (
@@ -481,7 +511,7 @@ class ModelEvents:
             {
                 "image": os.path.basename(k),
                 "report": v,
-                "checkpoint": selected_checkpoint : str,
+                "checkpoint": selected_checkpoint,
             }
             for k, v in generated_reports.items()
         ]

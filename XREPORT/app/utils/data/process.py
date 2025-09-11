@@ -1,7 +1,8 @@
+from __future__ import annotations
 import os
+from typing import Any
 
 import pandas as pd
-from sklearn.utils import shuffle
 from transformers import AutoTokenizer
 
 from XREPORT.app.constants import TOKENIZERS_PATH
@@ -10,7 +11,7 @@ from XREPORT.app.constants import TOKENIZERS_PATH
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
-    def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame):
+    def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame) -> None:
         # Set the sizes for the train and validation datasets
         self.validation_size = configuration.get("validation_size", 1.0)
         self.seed = configuration.get("split_seed", 42)
@@ -19,33 +20,32 @@ class TrainValidationSplit:
 
         # Compute the sizes of each split
         total_samples = len(dataframe)
-        self.train_size = int(total_samples * self.train_size)
-        self.val_size = int(total_samples * self.validation_size)
+        self.train_samples = int(total_samples * self.train_size)
+        self.val_samples = int(total_samples * self.validation_size)
 
     # -------------------------------------------------------------------------
-    def split_train_and_validation(self):
-        self.dataframe = shuffle(self.dataframe, random_state=self.seed).reset_index(
+    def split_train_and_validation(self) -> pd.DataFrame:
+        dataframe = self.dataframe.sample(frac=1.0, random_state=self.seed).reset_index(
             drop=True
         )
-        data = self.dataframe.copy()
-        data.loc[: self.train_size - 1, "split"] = "train"
-        data.loc[self.train_size : self.train_size + self.val_size - 1, "split"] = (
-            "validation"
-        )
+        dataframe.loc[: self.train_samples - 1, "split"] = "train"
+        dataframe.loc[
+            self.train_samples : self.train_samples + self.val_samples - 1, "split"
+        ] = "validation"
 
-        return data
+        return dataframe
 
 
 # [TOKENIZER]
 ###############################################################################
 class TextSanitizer:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.max_report_size = configuration.get("max_report_size", 200)
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def sanitize_text(self, dataset: pd.DataFrame):
-        dataset["text"] = dataset["text"].str.replace("[^a-zA-Z0-9\s]", "", regex=True)
+    def sanitize_text(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        dataset["text"] = dataset["text"].str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
 
         return dataset
 
@@ -53,13 +53,21 @@ class TextSanitizer:
 # [TOKENIZER]
 ###############################################################################
 class TokenizerHandler:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.tokenizer_id = configuration.get("tokenizer", None)
         self.max_report_size = configuration.get("max_report_size", 200)
-        self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.tokenizer_id)
+        result = self.get_tokenizer(self.tokenizer_id)
+        self.tokenizer, self.vocabulary_size = (
+            result if result is not None else (None, 0)
+        )
+        self.pad_token = (
+            self.tokenizer.pad_token_id if self.tokenizer is not None else None
+        )
 
     # -------------------------------------------------------------------------
-    def get_tokenizer(self, tokenizer_name: str | None = None):
+    def get_tokenizer(
+        self, tokenizer_name: str | None = None
+    ) -> None | tuple[Any, int]:
         if tokenizer_name is None:
             return
 
@@ -73,10 +81,13 @@ class TokenizerHandler:
         return tokenizer, vocabulary_size
 
     # -------------------------------------------------------------------------
-    def tokenize_text_corpus(self, data: pd.DataFrame):
+    def tokenize_text_corpus(self, data: pd.DataFrame) -> pd.DataFrame:
         # tokenize train and validation text using loaded tokenizer
         true_report_size = self.max_report_size + 1
         text = data["text"].to_list()
+        if self.tokenizer is None:
+            return data
+
         tokens = self.tokenizer(
             text,
             padding=True,

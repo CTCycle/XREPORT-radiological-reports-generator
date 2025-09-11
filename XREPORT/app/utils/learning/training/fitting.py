@@ -1,3 +1,4 @@
+from typing import Any
 from keras import Model
 from keras.utils import set_random_seed
 
@@ -7,7 +8,7 @@ from XREPORT.app.utils.learning.callbacks import initialize_callbacks_handler
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
 ###############################################################################
 class ModelTraining:
-    def __init__(self, configuration: dict[str, Any], metadata=None):
+    def __init__(self, configuration: dict[str, Any], metadata=None) -> None:
         set_random_seed(configuration.get("training_seed", 42))
         self.configuration = configuration
         self.metadata = metadata
@@ -21,7 +22,7 @@ class ModelTraining:
         callbacks_list = initialize_callbacks_handler(
             self.configuration,
             checkpoint_path,
-            total_epochs=total_epochs : int,
+            total_epochs=total_epochs,
             progress_callback=kwargs.get("progress_callback", None),
             worker=kwargs.get("worker", None),
         )
@@ -29,7 +30,7 @@ class ModelTraining:
         # run model fit using keras API method.
         session = model.fit(
             train_data,
-            epochs=total_epochs : int,
+            epochs=total_epochs,
             validation_data=validation_data,
             callbacks=callbacks_list,
         )
@@ -56,7 +57,7 @@ class ModelTraining:
             self.configuration,
             checkpoint_path,
             session,
-            total_epochs : int,
+            total_epochs,
             progress_callback=kwargs.get("progress_callback", None),
             worker=kwargs.get("worker", None),
         )
@@ -64,7 +65,7 @@ class ModelTraining:
         # run model fit using keras API method.
         new_session = model.fit(
             train_data,
-            epochs=total_epochs : int,
+            epochs=total_epochs,
             validation_data=validation_data,
             callbacks=callbacks_list,
             initial_epoch=from_epoch,
