@@ -1,7 +1,9 @@
+from __future__ import annotations
 import logging
 import logging.config
 import os
 from datetime import datetime
+from typing import Any
 
 from XREPORT.app.constants import LOGS_PATH
 
@@ -11,7 +13,7 @@ log_filename = os.path.join(LOGS_PATH, f"XREPORT_{current_timestamp}.log")
 
 # Define logger configuration
 ###############################################################################
-LOG_CONFIG : dict[str, Any] = {
+LOG_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {

@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Any
 from keras import layers, ops
 from keras.config import floatx
 from keras.utils import register_keras_serializable
@@ -8,8 +10,8 @@ from keras.utils import register_keras_serializable
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
     def __init__(
-        self, vocabulary_size, embedding_dims, sequence_length, mask_zero=True, **kwargs
-    ):
+        self, vocabulary_size : int, embedding_dims : int, sequence_length : int, mask_zero : bool=True, **kwargs
+    ) -> None:
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.sequence_length = sequence_length
@@ -27,7 +29,7 @@ class PositionalEmbedding(layers.Layer):
 
     # implement positional embedding through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs):
+    def call(self, inputs: Any) -> Any:
         length = ops.shape(inputs)[-1]
         positions = ops.arange(start=0, stop=length, step=1)
         positions = ops.cast(positions, dtype=inputs.dtype)
@@ -45,7 +47,7 @@ class PositionalEmbedding(layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, previous_mask = None):
+    def compute_mask(self, inputs: Any, previous_mask=None) -> Any:
         mask = ops.not_equal(inputs, 0)
 
         return mask
@@ -67,5 +69,5 @@ class PositionalEmbedding(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any) -> "PositionalEmbedding":
         return cls(**config)
