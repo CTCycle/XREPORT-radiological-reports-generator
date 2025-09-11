@@ -16,14 +16,14 @@ from XREPORT.app.utils.learning.inference.generator import TextGenerator
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-    def __init__(self, configuration: dict, model: Model | None = None):
+    def __init__(self, configuration: dict[str, Any], model: Model | None = None):
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.model = model
         self.configuration = configuration
 
     # --------------------------------------------------------------------------
-    def scan_checkpoint_folder(self) -> List[str]:
+    def scan_checkpoint_folder(self) -> list[str]:
         model_paths = []
         for entry in os.scandir(CHECKPOINT_PATH):
             if entry.is_dir():
@@ -38,7 +38,7 @@ class ModelEvaluationSummary:
         model_paths = self.scan_checkpoint_folder()
         model_parameters = []
         for i, model_path in enumerate(model_paths):
-            model = self.modser.load_checkpoint(model_path)
+            _ = self.modser.load_checkpoint(model_path)
             configuration, metadata, history = self.modser.load_training_configuration(
                 model_path
             )
@@ -109,7 +109,7 @@ class ModelEvaluationSummary:
 ###############################################################################
 class EvaluateTextQuality:
     def __init__(
-        self, model, configuration: dict, metadata: dict, num_samples: int | None = None
+        self, model, configuration: dict[str, Any], metadata: dict, num_samples: int | None = None
     ):
         self.model = model
         self.configuration = configuration

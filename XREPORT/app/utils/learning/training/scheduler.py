@@ -30,7 +30,7 @@ class WarmUpLRScheduler(LearningRateSchedule):
 
     # custom configuration
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = {
             "post_warmup_LR": self.post_warmup_LR,
             "warmup_steps": self.warmup_steps,
