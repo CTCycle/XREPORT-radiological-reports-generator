@@ -23,7 +23,7 @@ from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 # [DATA SERIALIZATION]
 ###############################################################################
 class DataSerializer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.img_shape = (224, 224)
         self.num_channels = 3
         self.color_encoding = (
@@ -42,7 +42,7 @@ class DataSerializer:
         return []
 
     # -------------------------------------------------------------------------
-    def validate_metadata(self, metadata: dict, target_metadata: dict):
+    def validate_metadata(self, metadata: dict[str, Any] | Any, target_metadata: dict[str, Any] | Any) -> bool:
         keys_to_compare = [k for k in metadata if k != "date"]
         meta_current = {k: metadata.get(k) for k in keys_to_compare}
         meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
@@ -125,7 +125,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_data(
-        self, configuration: dict, training_data: pd.DataFrame, vocabulary_size=None
+        self, configuration: dict[str, Any], training_data: pd.DataFrame, vocabulary_size=None
     ):
         # process list of tokens to get them in string format
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
@@ -166,7 +166,7 @@ class DataSerializer:
 # [MODEL SERIALIZATION]
 ###############################################################################
 class ModelSerializer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.model_name = "XREPORT"
 
     # function to create a folder where to save model checkpoints
@@ -192,7 +192,7 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
-        self, path, history: dict, configuration: dict, metadata: dict
+        self, path, history: dict, configuration: dict[str, Any], metadata: Dict
     ):
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
@@ -243,7 +243,7 @@ class ModelSerializer:
         return model_folders
 
     # -------------------------------------------------------------------------
-    def save_model_plot(self, model, path):
+    def save_model_plot(self, model : Model, path : str):
         try:
             plot_path = os.path.join(path, "model_layout.png")
             plot_model(
@@ -263,7 +263,7 @@ class ModelSerializer:
             )
 
     # -------------------------------------------------------------------------
-    def load_checkpoint(self, checkpoint: str) -> tuple[Model, dict, dict, dict, str]:
+    def load_checkpoint(self, checkpoint: str) -> tuple[Model, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         # effectively load the model using keras builtin method
         # load configuration data from .json file in checkpoint folder
         custom_objects = {

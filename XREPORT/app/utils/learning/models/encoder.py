@@ -39,7 +39,7 @@ class BeitXRayImageEncoder(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(BeitXRayImageEncoder, self).get_config()
         config.update(
             {"freeze_layers": self.freeze_layers, "embedding_dims": self.embedding_dims}
