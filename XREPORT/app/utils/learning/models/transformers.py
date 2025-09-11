@@ -1,3 +1,4 @@
+from __future__ import annotations
 from keras import Model, activations, layers, ops, optimizers
 from keras.config import floatx
 from keras.saving import register_keras_serializable
@@ -7,7 +8,7 @@ from XREPORT.app.utils.learning.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from XREPORT.app.utils.learning.models.embeddings import PositionalEmbedding
+from XREPORT.app.utils.learning.models.embeddings import Any, PositionalEmbedding
 from XREPORT.app.utils.learning.models.encoder import BeitXRayImageEncoder
 from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 
@@ -16,7 +17,7 @@ from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
-    def __init__(self, epsilon=10e-5, **kwargs):
+    def __init__(self, epsilon : float =10e-5, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
         self.add = layers.Add()
@@ -24,12 +25,12 @@ class AddNorm(layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape : Any) -> None:
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs):
+    def call(self, inputs: Any) -> Any:
         x1, x2 = inputs
         x_add = self.add([x1, x2])
         x_norm = self.layernorm(x_add)
@@ -46,7 +47,7 @@ class AddNorm(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any) -> "AddNorm":
         return cls(**config)
 
 
@@ -54,7 +55,7 @@ class AddNorm(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
-    def __init__(self, dense_units, dropout, seed, **kwargs):
+    def __init__(self, dense_units : int, dropout : float = 0.2, seed : int = 42, **kwargs) -> None:
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
@@ -69,12 +70,12 @@ class FeedForward(layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape: Any) -> None:
         super(FeedForward, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training : bool | None = None):
+    def call(self, x : Any, training: bool | None = None) -> Any:
         x = self.dense1(x)
         x = self.dense2(x)
         output = self.dropout(x, training=training)
@@ -96,7 +97,7 @@ class FeedForward(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any) -> "FeedForward":
         return cls(**config)
 
 
@@ -104,7 +105,7 @@ class FeedForward(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
-    def __init__(self, dense_units, output_size, temperature=1.0, **kwargs):
+    def __init__(self, dense_units : int, output_size : int, temperature : float =1.0, **kwargs) -> None:
         super(SoftMaxClassifier, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.output_size = output_size
@@ -116,12 +117,12 @@ class SoftMaxClassifier(layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape: Any) -> None:
         super(SoftMaxClassifier, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training : bool | None = None):
+    def call(self, x, training: bool | None = None) -> Any:
         layer = self.dense1(x)
         layer = activations.relu(layer)
         layer = self.dense2(layer)
@@ -146,7 +147,7 @@ class SoftMaxClassifier(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any) -> "SoftMaxClassifier":
         return cls(**config)
 
 
@@ -177,7 +178,7 @@ class TransformerEncoder(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, mask=None, training : bool | None = None):
+    def call(self, inputs: Any, mask=None, training: bool | None = None):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -220,7 +221,7 @@ class TransformerEncoder(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any):
         return cls(**config)
 
 
@@ -261,7 +262,7 @@ class TransformerDecoder(layers.Layer):
 
     # implement transformer decoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, encoder_outputs, mask=None, training : bool | None = None):
+    def call(self, inputs: Any, encoder_outputs, mask=None, training: bool | None = None):
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
 
@@ -340,7 +341,7 @@ class TransformerDecoder(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any):
         return cls(**config)
 
 
