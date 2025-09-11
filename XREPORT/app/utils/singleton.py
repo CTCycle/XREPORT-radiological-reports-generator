@@ -28,7 +28,7 @@ def singleton(cls: type[T]) -> type[T]:
 
     setattr(cls, "__init__", __init__)
 
-    def _new(cls_, *args: Any, **kwargs: Any):
+    def _new(cls_, *args: Any, **kwargs: Any) -> Any:
         if getattr(cls_, "_instance", None) is None:
             with lock:
                 if getattr(cls_, "_instance", None) is None:

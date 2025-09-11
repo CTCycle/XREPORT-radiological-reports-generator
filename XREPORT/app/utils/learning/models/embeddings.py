@@ -45,14 +45,14 @@ class PositionalEmbedding(layers.Layer):
 
     # compute the mask for padded sequences
     # -------------------------------------------------------------------------
-    def compute_mask(self, inputs, mask=None):
+    def compute_mask(self, inputs, previous_mask = None):
         mask = ops.not_equal(inputs, 0)
 
         return mask
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(PositionalEmbedding, self).get_config()
         config.update(
             {

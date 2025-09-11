@@ -15,7 +15,7 @@ from XREPORT.app.utils.data.serializer import DataSerializer
 # [VALIDATION OF DATA]
 ###############################################################################
 class TextAnalysis:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.serializer = DataSerializer()
         self.configuration = configuration
 
@@ -61,7 +61,7 @@ class TextAnalysis:
 # [VALIDATION OF DATA]
 ###############################################################################
 class ImageAnalysis:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.serializer = DataSerializer()
         self.configuration = configuration
 
