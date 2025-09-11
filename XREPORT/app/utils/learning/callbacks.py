@@ -13,7 +13,7 @@ from XREPORT.app.logger import logger
 # [CALLBACK FOR UI PROGRESS BAR]
 ###############################################################################
 class ProgressBarCallback(Callback):
-    def __init__(self, progress_callback, total_epochs : int, from_epoch : int = 0):
+    def __init__(self, progress_callback, total_epochs: int, from_epoch: int = 0):
         super().__init__()
         self.progress_callback = progress_callback
         self.total_epochs = total_epochs
@@ -31,7 +31,7 @@ class ProgressBarCallback(Callback):
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
 class LearningInterruptCallback(Callback):
-    def __init__(self, worker : ThreadWorker | ProcessWorker | None = None):
+    def __init__(self, worker: ThreadWorker | ProcessWorker | None = None):
         super().__init__()
         self.worker = worker
 
@@ -62,7 +62,9 @@ class RealTimeHistory(Callback):
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
                 self.history["history"][metric] = list(values)
-            self.history["epochs"] = past_logs.get("epochs", len(next(iter(past_logs["history"].values()))))
+            self.history["epochs"] = past_logs.get(
+                "epochs", len(next(iter(past_logs["history"].values())))
+            )
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs: dict | None = None):
@@ -117,7 +119,7 @@ def initialize_callbacks_handler(
 
     callbacks_list = [
         ProgressBarCallback(
-            kwargs.get("progress_callback", None), total_epochs : int, from_epoch
+            kwargs.get("progress_callback", None), total_epochs, from_epoch
         ),
         LearningInterruptCallback(kwargs.get("worker", None)),
     ]
@@ -155,7 +157,7 @@ def initialize_callbacks_handler(
 
 
 ###############################################################################
-def start_tensorboard_subprocess(log_dir : str):
+def start_tensorboard_subprocess(log_dir: str):
     tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
     subprocess.Popen(
         tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

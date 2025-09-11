@@ -89,7 +89,7 @@ class MainWindow:
         # set thread pool for the workers
         self.threadpool = QThreadPool.globalInstance()
         self.threadpool.setExpiryTimeout(2000)
-        self.worker : ThreadWorker | ProcessWorker | None = None
+        self.worker: ThreadWorker | ProcessWorker | None = None
 
         # initialize database
         database.initialize_database()
@@ -228,7 +228,7 @@ class MainWindow:
 
         # Initial population of dynamic UI elements
         self.load_checkpoints()
-        self._set_graphics()    
+        self._set_graphics()
 
     # -------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
@@ -238,7 +238,7 @@ class MainWindow:
             raise AttributeError(
                 f"{type(self).__name__!s} has no attribute {name!r}"
             ) from e
-        
+
     # [SHOW WINDOW]
     ###########################################################################
     def show(self) -> None:
@@ -426,19 +426,19 @@ class MainWindow:
         worker.start()
 
     # -------------------------------------------------------------------------
-    def _send_message(self, message : str) -> None:
+    def _send_message(self, message: str) -> None:
         self.main_win.statusBar().showMessage(message)
 
     # [SETUP]
     ###########################################################################
-    def _setup_configuration(self, widget_defs : Any) -> None:
+    def _setup_configuration(self, widget_defs: Any) -> None:
         for cls, name, attr in widget_defs:
             w = self.main_win.findChild(cls, name)
             setattr(self, attr, w)
             self.widgets[attr] = w
 
     # -------------------------------------------------------------------------
-    def _connect_signals(self, connections : Any) -> None:
+    def _connect_signals(self, connections: Any) -> None:
         for attr, signal, slot in connections:
             widget = self.widgets[attr]
             getattr(widget, signal).connect(slot)
@@ -533,7 +533,7 @@ class MainWindow:
     # -------------------------------------------------------------------------
     # [GRAPHICS]
     # -------------------------------------------------------------------------
-    @Slot()    
+    @Slot()
     def _update_graphics_view(self) -> None:
         pixmaps, idx_key = self.get_current_pixmaps_key()
         if not pixmaps or idx_key is None:
@@ -558,10 +558,9 @@ class MainWindow:
         pixmap_item.setPixmap(scaled)
         scene.setSceneRect(scaled.rect())
 
-
     # -------------------------------------------------------------------------
     @Slot()
-    def _update_image_descriptions(self, idx_key : str) -> None:
+    def _update_image_descriptions(self, idx_key: str) -> None:
         image_path = self.pixmaps[idx_key][self.current_fig[idx_key]]
         if isinstance(image_path, str):
             image_name = os.path.basename(image_path)
@@ -884,7 +883,7 @@ class MainWindow:
     ###########################################################################
     # [POSITIVE OUTCOME HANDLERS]
     ###########################################################################
-    def on_database_uploading_finished(self, source_data : pd.DataFrame) -> None:
+    def on_database_uploading_finished(self, source_data: pd.DataFrame) -> None:
         message = (
             f"Database updated with current source data ({len(source_data)}) records"
         )
@@ -893,12 +892,12 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_dataset_processing_finished(self, plots : list[Figure]) -> None:
+    def on_dataset_processing_finished(self, plots: list[Figure]) -> None:
         self._send_message("Training dataset has been built successfully")
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_dataset_evaluation_finished(self, plots : list[Figure]) -> None:
+    def on_dataset_evaluation_finished(self, plots: list[Figure]) -> None:
         key = "dataset_eval_images"
         if plots:
             self.pixmaps[key].extend(
@@ -911,12 +910,12 @@ class MainWindow:
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_train_finished(self, session : dict[str, Any]) -> None:
+    def on_train_finished(self, session: dict[str, Any]) -> None:
         self._send_message("Training session is over. Model has been saved")
         self.worker = self.worker.cleanup() if self.worker else None
 
     # -------------------------------------------------------------------------
-    def on_model_evaluation_finished(self, plots : list[Figure]) -> None:
+    def on_model_evaluation_finished(self, plots: list[Figure]) -> None:
         key = "model_eval_images"
         if plots is not None:
             self.pixmaps[key].extend(

@@ -1,8 +1,11 @@
+from __future__ import annotations
 import os
+from typing import Any
 
 import numpy as np
 from keras import Model, ops
 from keras.utils import set_random_seed
+import tensorflow as tf
 from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
@@ -14,7 +17,13 @@ from XREPORT.app.utils.data.process import TokenizerHandler
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
 ###############################################################################
 class TextGenerator:
-    def __init__(self, model: Model, configuration, max_report_size=200, seed=42):
+    def __init__(
+        self,
+        model: Model,
+        configuration: dict[str, Any],
+        max_report_size: int = 200,
+        seed: int = 42,
+    ) -> None:
         set_random_seed(seed)
         self.model = model
         self.configuration = configuration
@@ -29,7 +38,7 @@ class TextGenerator:
         }
 
     # -------------------------------------------------------------------------
-    def get_images(self, data):
+    def get_images(self, data: list[str]) -> list[np.ndarray | tf.Tensor]:
         loader = XRAYDataLoader(self.configuration)
         images = [loader.processor.load_image(path, as_array=True) for path in data]
         norm_images = [loader.processor.image_normalization(img) for img in images]
@@ -37,9 +46,12 @@ class TextGenerator:
         return norm_images
 
     # -------------------------------------------------------------------------
-    def load_tokenizer_and_configuration(self):
+    def load_tokenizer_and_configuration(self) -> None | tuple[Any, dict[str, Any]]:
         # Get tokenizer and related configuration
         tokenization = TokenizerHandler(self.configuration)
+        if tokenization.tokenizer is None:
+            return
+
         tokenizer = tokenization.tokenizer
         tokenizer_parameters = {
             "vocabulary_size": tokenization.vocabulary_size,
@@ -53,7 +65,7 @@ class TextGenerator:
         return tokenizer, tokenizer_parameters
 
     # -------------------------------------------------------------------------
-    def merge_tokens(self, tokens: list[str]):
+    def merge_tokens(self, tokens: list[str]) -> str:
         processed_tokens = []
         for token in tokens:
             if token.startswith("##"):
@@ -66,7 +78,12 @@ class TextGenerator:
         return joint_text
 
     # -------------------------------------------------------------------------
-    def translate_tokens_to_text(self, index_lookup, sequence, tokenizer_config):
+    def translate_tokens_to_text(
+        self,
+        index_lookup: Any,
+        sequence: Any | np.ndarray,
+        tokenizer_config: dict[Any, Any],
+    ) -> str:
         # convert indexes to token using tokenizer vocabulary
         # define special tokens and remove them from generated tokens list
         token_sequence = [
@@ -87,7 +104,12 @@ class TextGenerator:
         return processed_text
 
     # -------------------------------------------------------------------------
-    def generate_with_greed_search(self, tokenizer_config, vocabulary, image_path: str):
+    def generate_with_greed_search(
+        self,
+        tokenizer_config: dict[Any, Any],
+        vocabulary: dict[Any, Any],
+        image_path: str,
+    ) -> str:
         # extract vocabulary from the tokenizers
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
@@ -107,14 +129,14 @@ class TextGenerator:
         # initialize an array with same size of max expected report length
         # set the start token as the first element
         seq_input = ops.zeros((1, self.max_report_size), dtype="int32")
-        seq_input[0, 0] = start_token_idx
+        seq_input[0, 0] = start_token_idx  # type: ignore
         # initialize progress bar for better output formatting
         progress_bar = tqdm(total=self.max_report_size)
         for i in range(1, self.max_report_size):
             # predict the next token based on the truncated sequence (last token removed)
-            predictions = self.model.predict([image, seq_input], verbose=0)
+            predictions = self.model.predict([image, seq_input], verbose=0)  # type: ignore
             # apply argmax (greedy search) to identify the most probable token
-            next_token_idx = ops.argmax(predictions[0, i - 1, :], axis=-1).item()
+            next_token_idx = ops.argmax(predictions[0, i - 1, :], axis=-1).item()  # type: ignore
             next_token = index_lookup[next_token_idx]
             # Stop sequence generation if end token is generated
             if next_token == end_token:
@@ -123,7 +145,7 @@ class TextGenerator:
                 progress_bar.update(0)
                 break
 
-            seq_input[0, i] = next_token_idx
+            seq_input[0, i] = next_token_idx  # type: ignore
             progress_bar.update(1)
 
         progress_bar.close()
@@ -137,8 +159,12 @@ class TextGenerator:
 
     # -------------------------------------------------------------------------
     def generate_with_beam_search(
-        self, tokenizer_config, vocabulary, image_path, beam_width=3
-    ):
+        self,
+        tokenizer_config: dict[Any, Any],
+        vocabulary: dict[Any, Any],
+        image_path: str,
+        beam_width: int = 3,
+    ) -> str:
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
         start_token_idx = tokenizer_config["start_token_idx"]
@@ -168,12 +194,12 @@ class TextGenerator:
                 # We create an array of zeros with shape (1, max_report_size) and fill in the current sequence.
                 seq_input = ops.zeros((1, self.max_report_size), dtype="int32")
                 for j, token in enumerate(seq):
-                    seq_input[0, j] = token
+                    seq_input[0, j] = token  # type: ignore
 
                 # Use only the part of the sequence that has been generated so far.
                 # (Following your greedy method, the model expects a truncated sequence, excluding the final slot.)
                 current_input = seq_input[:, : len(seq)]
-                predictions = self.model.predict([image, current_input], verbose=0)
+                predictions = self.model.predict([image, current_input], verbose=0)  # type: ignore
                 # Get the prediction corresponding to the last token in the sequence.
                 # In your greedy search, predictions[0, i-1, :] was used; here len(seq)-1 corresponds to the same position.
                 next_token_logits = predictions[0, len(seq) - 1, :]
@@ -200,7 +226,7 @@ class TextGenerator:
         # Create a full padded sequence from the best beam for conversion to text.
         seq_input = ops.zeros((1, self.max_report_size), dtype="int32")
         for i, token in enumerate(best_seq):
-            seq_input[0, i] = token
+            seq_input[0, i] = token  # type: ignore
 
         report = self.translate_tokens_to_text(
             index_lookup, seq_input, tokenizer_config
@@ -210,9 +236,15 @@ class TextGenerator:
         return report
 
     # -------------------------------------------------------------------------
-    def generate_radiological_reports(self, images_path, method=None, **kwargs):
+    def generate_radiological_reports(
+        self, images_path: list[str], method: str = "greedy_search", **kwargs
+    ) -> dict[str, Any] | None:
         reports = {}
-        tokenizer, tokenizer_config = self.load_tokenizer_and_configuration()
+        tokenizers_info = self.load_tokenizer_and_configuration()
+        if tokenizers_info is None:
+            return
+
+        tokenizer, tokenizer_config = tokenizers_info
         vocabulary = tokenizer.get_vocab()
         for i, path in enumerate(images_path):
             report = self.generator_methods[method](tokenizer_config, vocabulary, path)
