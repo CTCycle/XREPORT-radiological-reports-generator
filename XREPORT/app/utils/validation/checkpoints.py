@@ -109,7 +109,11 @@ class ModelEvaluationSummary:
 ###############################################################################
 class EvaluateTextQuality:
     def __init__(
-        self, model, configuration: dict[str, Any], metadata: dict, num_samples: int | None = None
+        self,
+        model,
+        configuration: dict[str, Any],
+        metadata: dict,
+        num_samples: int | None = None,
     ):
         self.model = model
         self.configuration = configuration
