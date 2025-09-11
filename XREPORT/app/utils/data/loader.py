@@ -9,7 +9,7 @@ from XREPORT.app.utils.data.process import TokenizerHandler
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 ###############################################################################
 class DataLoaderProcessor:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.img_shape = (224, 224)
         self.num_channels = 3
         # define mean and STD of pixel values for the BeiT Vision transformer
@@ -98,7 +98,7 @@ class DataLoaderProcessor:
 # wrapper function to run the data pipeline from raw inputs to tensor dataset
 ###############################################################################
 class XRAYDataLoader:
-    def __init__(self, configuration: dict, shuffle=True):
+    def __init__(self, configuration: dict[str, Any], shuffle : bool = True):
         self.processor = DataLoaderProcessor(configuration)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
@@ -129,7 +129,7 @@ class XRAYDataLoader:
     # effectively build the tf.dataset and apply preprocessing, batching and prefetching
     # -------------------------------------------------------------------------
     def build_inference_dataloader(
-        self, data, batch_size=None, buffer_size=tf.data.AUTOTUNE
+        self, data, batch_size=None, buffer_size : int = tf.data.AUTOTUNE
     ):
         images, tokens = data["path"].to_list(), data["tokens"].to_list()
         batch_size = self.inference_batch_size if batch_size is None else batch_size

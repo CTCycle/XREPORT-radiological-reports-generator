@@ -7,11 +7,11 @@ from XREPORT.app.logger import logger
 # [DEVICE SETTINGS]
 ###############################################################################
 class DeviceConfig:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def set_device(self):
+    def set_device(self) -> None:
         use_gpu = self.configuration.get("use_device_GPU", False)
         device_name = "cuda" if use_gpu else "cpu"
         mixed_precision = self.configuration.get("use_mixed_precision", False)

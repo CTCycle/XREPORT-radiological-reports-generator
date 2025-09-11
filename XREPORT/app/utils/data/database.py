@@ -103,7 +103,7 @@ class CheckpointSummary(Base):
 ###############################################################################
 @singleton
 class XREPORTDatabase:
-    def __init__(self):
+    def __init__(self) -> None:
         self.db_path = os.path.join(DATA_PATH, "XREPORT_database.db")
         self.source_path = os.path.join(SOURCE_PATH, "XREPORT_dataset.csv")
         self.engine = create_engine(

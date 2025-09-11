@@ -22,7 +22,7 @@ class MaskedSparseCategoricalCrossentropy(Loss):
         return loss
 
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedSparseCategoricalCrossentropy, self).get_config()
         return {**base_config, "name": self.name}
 
@@ -71,7 +71,7 @@ class MaskedAccuracy(Metric):
         self.count.assign(0)
 
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedAccuracy, self).get_config()
         return {**base_config, "name": self.name}
 
