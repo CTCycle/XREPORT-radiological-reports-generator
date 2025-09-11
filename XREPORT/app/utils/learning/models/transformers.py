@@ -38,7 +38,7 @@ class AddNorm(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config
@@ -74,7 +74,7 @@ class FeedForward(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training=None):
+    def call(self, x, training : bool | None = None):
         x = self.dense1(x)
         x = self.dense2(x)
         output = self.dropout(x, training=training)
@@ -82,7 +82,7 @@ class FeedForward(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(FeedForward, self).get_config()
         config.update(
             {
@@ -121,7 +121,7 @@ class SoftMaxClassifier(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training=None):
+    def call(self, x, training : bool | None = None):
         layer = self.dense1(x)
         layer = activations.relu(layer)
         layer = self.dense2(layer)
@@ -132,7 +132,7 @@ class SoftMaxClassifier(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(SoftMaxClassifier, self).get_config()
         config.update(
             {
@@ -177,7 +177,7 @@ class TransformerEncoder(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, mask=None, training : bool | None = None):
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -206,7 +206,7 @@ class TransformerEncoder(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(TransformerEncoder, self).get_config()
         config.update(
             {
@@ -261,7 +261,7 @@ class TransformerDecoder(layers.Layer):
 
     # implement transformer decoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs, encoder_outputs, mask=None, training=None):
+    def call(self, inputs, encoder_outputs, mask=None, training : bool | None = None):
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
 
@@ -326,7 +326,7 @@ class TransformerDecoder(layers.Layer):
 
     # serialize layer for saving
     # -------------------------------------------------------------------------
-    def get_config(self):
+    def get_config(self) -> dict[str, Any]:
         config = super(TransformerDecoder, self).get_config()
         config.update(
             {

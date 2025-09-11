@@ -12,8 +12,8 @@ from XREPORT.app.logger import logger
 
 # [CALLBACK FOR UI PROGRESS BAR]
 ###############################################################################
-class ProgressBarCallback(keras.callbacks.Callback):
-    def __init__(self, progress_callback, total_epochs, from_epoch=0):
+class ProgressBarCallback(Callback):
+    def __init__(self, progress_callback, total_epochs : int, from_epoch : int = 0):
         super().__init__()
         self.progress_callback = progress_callback
         self.total_epochs = total_epochs
@@ -30,8 +30,8 @@ class ProgressBarCallback(keras.callbacks.Callback):
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
-class LearningInterruptCallback(keras.callbacks.Callback):
-    def __init__(self, worker=None):
+class LearningInterruptCallback(Callback):
+    def __init__(self, worker : ThreadWorker | ProcessWorker | None = None):
         super().__init__()
         self.worker = worker
 
@@ -49,7 +49,7 @@ class LearningInterruptCallback(keras.callbacks.Callback):
 
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
-class RealTimeHistory(keras.callbacks.Callback):
+class RealTimeHistory(Callback):
     def __init__(self, plot_path, past_logs: dict | None = None, **kwargs):
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path
@@ -62,7 +62,7 @@ class RealTimeHistory(keras.callbacks.Callback):
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
                 self.history["history"][metric] = list(values)
-            self.history["epochs"] = past_logs.get("epochs", len(values))
+            self.history["epochs"] = past_logs.get("epochs", len(next(iter(past_logs["history"].values()))))
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch, logs: dict | None = None):
@@ -107,7 +107,7 @@ class RealTimeHistory(keras.callbacks.Callback):
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(
-    configuration, checkpoint_path, session=None, total_epochs=100, **kwargs
+    configuration, checkpoint_path, session={}, total_epochs=100, **kwargs
 ):
     from_epoch = 0
     additional_epochs = configuration.get("additional_epochs", 10)
@@ -117,7 +117,7 @@ def initialize_callbacks_handler(
 
     callbacks_list = [
         ProgressBarCallback(
-            kwargs.get("progress_callback", None), total_epochs, from_epoch
+            kwargs.get("progress_callback", None), total_epochs : int, from_epoch
         ),
         LearningInterruptCallback(kwargs.get("worker", None)),
     ]
@@ -155,10 +155,10 @@ def initialize_callbacks_handler(
 
 
 ###############################################################################
-def start_tensorboard_subprocess(log_dir):
+def start_tensorboard_subprocess(log_dir : str):
     tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
     subprocess.Popen(
         tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
-    time.sleep(5)
+    time.sleep(4)
     webbrowser.open("http://localhost:6006")

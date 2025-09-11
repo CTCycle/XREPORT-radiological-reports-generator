@@ -10,7 +10,7 @@ from XREPORT.app.constants import TOKENIZERS_PATH
 # [DATA SPLITTING]
 ###############################################################################
 class TrainValidationSplit:
-    def __init__(self, configuration: dict, dataframe: pd.DataFrame):
+    def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame):
         # Set the sizes for the train and validation datasets
         self.validation_size = configuration.get("validation_size", 1.0)
         self.seed = configuration.get("split_seed", 42)
@@ -39,7 +39,7 @@ class TrainValidationSplit:
 # [TOKENIZER]
 ###############################################################################
 class TextSanitizer:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.max_report_size = configuration.get("max_report_size", 200)
         self.configuration = configuration
 
@@ -53,7 +53,7 @@ class TextSanitizer:
 # [TOKENIZER]
 ###############################################################################
 class TokenizerHandler:
-    def __init__(self, configuration: dict):
+    def __init__(self, configuration: dict[str, Any]):
         self.tokenizer_id = configuration.get("tokenizer", None)
         self.max_report_size = configuration.get("max_report_size", 200)
         self.tokenizer, self.vocabulary_size = self.get_tokenizer(self.tokenizer_id)
