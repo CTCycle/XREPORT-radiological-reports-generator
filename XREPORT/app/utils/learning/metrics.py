@@ -27,7 +27,7 @@ class MaskedSparseCategoricalCrossentropy(Loss):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any):
         return cls(**config)
 
 
@@ -76,5 +76,5 @@ class MaskedAccuracy(Metric):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls: Any, config: Any):
         return cls(**config)
