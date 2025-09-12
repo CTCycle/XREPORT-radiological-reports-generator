@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from typing import Any
+
 from keras import Model, activations, layers, ops, optimizers
 from keras.config import floatx
 from keras.saving import register_keras_serializable
@@ -8,7 +11,7 @@ from XREPORT.app.utils.learning.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from XREPORT.app.utils.learning.models.embeddings import Any, PositionalEmbedding
+from XREPORT.app.utils.learning.models.embeddings import PositionalEmbedding
 from XREPORT.app.utils.learning.models.encoder import BeitXRayImageEncoder
 from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 
@@ -17,7 +20,7 @@ from XREPORT.app.utils.learning.training.scheduler import WarmUpLRScheduler
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
-    def __init__(self, epsilon : float =10e-5, **kwargs) -> None:
+    def __init__(self, epsilon: float = 10e-5, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
         self.add = layers.Add()
@@ -25,7 +28,7 @@ class AddNorm(layers.Layer):
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape : Any) -> None:
+    def build(self, input_shape: Any) -> None:
         super(AddNorm, self).build(input_shape)
 
     # implement transformer encoder through call method
@@ -47,7 +50,7 @@ class AddNorm(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "AddNorm":
+    def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
 
@@ -55,7 +58,9 @@ class AddNorm(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
-    def __init__(self, dense_units : int, dropout : float = 0.2, seed : int = 42, **kwargs) -> None:
+    def __init__(
+        self, dense_units: int, dropout: float = 0.2, seed: int = 42, **kwargs
+    ) -> None:
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.dropout_rate = dropout
@@ -75,7 +80,7 @@ class FeedForward(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x : Any, training: bool | None = None) -> Any:
+    def call(self, x: Any, training: bool | None = None) -> Any:
         x = self.dense1(x)
         x = self.dense2(x)
         output = self.dropout(x, training=training)
@@ -97,7 +102,7 @@ class FeedForward(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "FeedForward":
+    def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
 
@@ -105,7 +110,9 @@ class FeedForward(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
-    def __init__(self, dense_units : int, output_size : int, temperature : float =1.0, **kwargs) -> None:
+    def __init__(
+        self, dense_units: int, output_size: int, temperature: float = 1.0, **kwargs
+    ) -> None:
         super(SoftMaxClassifier, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.output_size = output_size
@@ -122,7 +129,7 @@ class SoftMaxClassifier(layers.Layer):
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, x, training: bool | None = None) -> Any:
+    def call(self, x: Any, training: bool | None = None) -> Any:
         layer = self.dense1(x)
         layer = activations.relu(layer)
         layer = self.dense2(layer)
@@ -147,7 +154,9 @@ class SoftMaxClassifier(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "SoftMaxClassifier":
+    def from_config(
+        cls: type[SoftMaxClassifier], config: dict[str, Any]
+    ) -> SoftMaxClassifier:
         return cls(**config)
 
 
@@ -155,7 +164,9 @@ class SoftMaxClassifier(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(layers.Layer):
-    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
+    def __init__(
+        self, embedding_dims: int, num_heads: int, seed: int, **kwargs
+    ) -> None:
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads
@@ -168,17 +179,19 @@ class TransformerEncoder(layers.Layer):
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
-        self.supports_masking = True
-        self.attention_scores = {}
+        self.supports_masking: bool = True
+        self.attention_scores: dict[str, Any] = {}
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape: Any) -> None:
         super(TransformerEncoder, self).build(input_shape)
 
     # implement transformer encoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs: Any, mask=None, training: bool | None = None):
+    def call(
+        self, inputs: Any, mask: Any | None = None, training: bool | None = None
+    ) -> Any:
         # self attention with causal masking, using the embedded captions as input
         # for query, value and key. The output of this attention layer is then summed
         # to the inputs and normalized
@@ -202,7 +215,7 @@ class TransformerEncoder(layers.Layer):
         return output
 
     # -------------------------------------------------------------------------
-    def get_attention_scores(self):
+    def get_attention_scores(self) -> dict[str, Any]:
         return self.attention_scores
 
     # serialize layer for saving
@@ -221,7 +234,9 @@ class TransformerEncoder(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any):
+    def from_config(
+        cls: type[TransformerEncoder], config: dict[str, Any]
+    ) -> TransformerEncoder:
         return cls(**config)
 
 
@@ -229,7 +244,9 @@ class TransformerEncoder(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")
 class TransformerDecoder(layers.Layer):
-    def __init__(self, embedding_dims, num_heads, seed, **kwargs):
+    def __init__(
+        self, embedding_dims: int, num_heads: int, seed: int, **kwargs
+    ) -> None:
         super(TransformerDecoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads
@@ -252,20 +269,27 @@ class TransformerDecoder(layers.Layer):
         self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
-        self.supports_masking = True
-        self.attention_scores = {}
+        self.supports_masking: bool = True
+        self.attention_scores: dict[str, Any] = {}
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
-    def build(self, input_shape):
+    def build(self, input_shape: Any) -> None:
         super(TransformerDecoder, self).build(input_shape)
 
     # implement transformer decoder through call method
     # -------------------------------------------------------------------------
-    def call(self, inputs: Any, encoder_outputs, mask=None, training: bool | None = None):
+    def call(
+        self,
+        inputs: Any,
+        encoder_outputs: Any,
+        mask: Any | None = None,
+        training: bool | None = None,
+    ) -> Any:
         causal_mask = self.get_causal_attention_mask(inputs)
         combined_mask = causal_mask
 
+        padding_mask: Any | None = None
         if mask is not None:
             padding_mask = ops.cast(ops.expand_dims(mask, axis=2), dtype="int32")
             combined_mask = ops.minimum(
@@ -310,12 +334,12 @@ class TransformerDecoder(layers.Layer):
         return logits
 
     # -------------------------------------------------------------------------
-    def get_attention_scores(self):
+    def get_attention_scores(self) -> dict[str, Any]:
         return self.attention_scores
 
     # generate causal attention mask
     # -------------------------------------------------------------------------
-    def get_causal_attention_mask(self, inputs):
+    def get_causal_attention_mask(self, inputs: Any) -> Any:
         batch_size, sequence_length = ops.shape(inputs)[0], ops.shape(inputs)[1]
         i = ops.expand_dims(ops.arange(sequence_length), axis=1)
         j = ops.arange(sequence_length)
@@ -341,14 +365,16 @@ class TransformerDecoder(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any):
+    def from_config(
+        cls: type[TransformerDecoder], config: dict[str, Any]
+    ) -> TransformerDecoder:
         return cls(**config)
 
 
 # [XREP CAPTIONING MODEL]
 ###############################################################################
 class XREPORTModel:
-    def __init__(self, metadata, configuration):
+    def __init__(self, metadata: dict[str, Any], configuration: dict[str, Any]) -> None:
         self.seed = configuration.get("train_seed", 42)
         self.sequence_length = metadata.get("max_report_size", 200)
         self.vocabulary_size = metadata.get("vocabulary_size", 200)
@@ -389,7 +415,7 @@ class XREPORTModel:
         )
 
     # -------------------------------------------------------------------------
-    def compile_model(self, model: Model, model_summary: bool = True):
+    def compile_model(self, model: Model, model_summary: bool = True) -> Model:
         post_warmup_LR = self.configuration.get("post_warmup_LR", 40000)
         LR_schedule = post_warmup_LR
         if self.configuration.get("use_scheduler", False):
@@ -398,18 +424,18 @@ class XREPORTModel:
 
         loss = MaskedSparseCategoricalCrossentropy()
         metric = [MaskedAccuracy()]
-        opt = optimizers.AdamW(learning_rate=LR_schedule)
-        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)
+        opt = optimizers.AdamW(learning_rate=LR_schedule)  # type: ignore
+        model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
 
         model.summary(expand_nested=True) if model_summary else None
         if self.jit_compile:
-            model = torch_compile(model, backend=self.jit_backend, mode="default")
+            model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
 
         return model
 
     # build model given the architecture
     # -------------------------------------------------------------------------
-    def get_model(self, model_summary=True):
+    def get_model(self, model_summary: bool = True) -> Model:
         # encode images and extract their features using the convolutional
         # image encoder or a selected pretrained model
         image_features = self.img_encoder(self.img_input)
