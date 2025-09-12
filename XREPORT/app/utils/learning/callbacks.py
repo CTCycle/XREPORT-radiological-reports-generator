@@ -1,26 +1,39 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import time
 import webbrowser
+from typing import Any
 
 import keras
 import matplotlib.pyplot as plt
+from keras.callbacks import Callback
 
-from XREPORT.app.client.workers import WorkerInterrupted
+from XREPORT.app.client.workers import (
+    ProcessWorker,
+    ThreadWorker,
+    WorkerInterrupted,
+)
 from XREPORT.app.logger import logger
 
 
 # [CALLBACK FOR UI PROGRESS BAR]
 ###############################################################################
 class ProgressBarCallback(Callback):
-    def __init__(self, progress_callback, total_epochs: int, from_epoch: int = 0):
+    def __init__(
+        self,
+        progress_callback: Any | None,
+        total_epochs: int,
+        from_epoch: int = 0,
+    ) -> None:
         super().__init__()
         self.progress_callback = progress_callback
         self.total_epochs = total_epochs
         self.from_epoch = from_epoch
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs: dict | None = None):
+    def on_epoch_end(self, epoch: int, logs: dict[str, Any] | None = None) -> None:
         processed_epochs = epoch - self.from_epoch + 1
         additional_epochs = max(1, self.total_epochs - self.from_epoch)
         percent = int(100 * processed_epochs / additional_epochs)
@@ -31,18 +44,20 @@ class ProgressBarCallback(Callback):
 # [CALLBACK FOR TRAIN INTERRUPTION]
 ###############################################################################
 class LearningInterruptCallback(Callback):
-    def __init__(self, worker: ThreadWorker | ProcessWorker | None = None):
+    def __init__(self, worker: ThreadWorker | ProcessWorker | None = None) -> None:
         super().__init__()
         self.worker = worker
 
     # -------------------------------------------------------------------------
-    def on_batch_end(self, batch, logs: dict | None = None):
+    def on_batch_end(self, batch: int, logs: dict[str, Any] | None = None) -> None:
         if self.worker is not None and self.worker.is_interrupted():
             self.model.stop_training = True
             raise WorkerInterrupted()
 
     # -------------------------------------------------------------------------
-    def on_validation_batch_end(self, batch, logs: dict | None = None):
+    def on_validation_batch_end(
+        self, batch: int, logs: dict[str, Any] | None = None
+    ) -> None:
         if self.worker is not None and self.worker.is_interrupted():
             raise WorkerInterrupted()
 
@@ -50,13 +65,17 @@ class LearningInterruptCallback(Callback):
 # [CALLBACK FOR REAL TIME TRAINING MONITORING]
 ###############################################################################
 class RealTimeHistory(Callback):
-    def __init__(self, plot_path, past_logs: dict | None = None, **kwargs):
+    def __init__(
+        self, plot_path: str, past_logs: dict[str, Any] | None = None, **kwargs
+    ) -> None:
         super(RealTimeHistory, self).__init__(**kwargs)
         self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
         # Separate dicts for training vs. validation metrics
-        self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
-        self.history = {"history": {}, "epochs": self.total_epochs}
+        self.total_epochs: int = (
+            0 if past_logs is None else int(past_logs.get("epochs", 0))
+        )
+        self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
 
         # If past_logs provided, split into history and val_history
         if past_logs and "history" in past_logs:
@@ -67,7 +86,7 @@ class RealTimeHistory(Callback):
             )
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch, logs: dict | None = None):
+    def on_epoch_end(self, epoch: int, logs: dict[str, Any] | None = None) -> None:
         logs = logs or {}
         for key, value in logs.items():
             if key not in self.history["history"]:
@@ -77,7 +96,7 @@ class RealTimeHistory(Callback):
         self.plot_training_history()
 
     # -------------------------------------------------------------------------
-    def plot_training_history(self):
+    def plot_training_history(self) -> None:
         fig_path = os.path.join(self.plot_path, "training_history.jpeg")
         plt.figure(figsize=(16, 14))
         metrics = self.history["history"]
@@ -109,12 +128,16 @@ class RealTimeHistory(Callback):
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(
-    configuration, checkpoint_path, session={}, total_epochs=100, **kwargs
-):
+    configuration: dict[str, Any],
+    checkpoint_path: str,
+    session: dict[str, Any] | None = None,
+    total_epochs: int = 100,
+    **kwargs,
+) -> list[Callback]:
     from_epoch = 0
     additional_epochs = configuration.get("additional_epochs", 10)
     if session:
-        from_epoch = session["epochs"]
+        from_epoch = int(session["epochs"])  # type: ignore[index]
         total_epochs = additional_epochs + from_epoch
 
     callbacks_list = [

@@ -1,8 +1,10 @@
 from __future__ import annotations
-from typing import Any, Callable, cast
 
-from matplotlib.figure import Figure
+from typing import Any, cast
+
 import pandas as pd
+from matplotlib.figure import Figure
+
 from XREPORT.app.variables import EnvironmentVariables
 
 EV = EnvironmentVariables()

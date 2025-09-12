@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import os
 from datetime import datetime
@@ -111,7 +112,7 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def load_training_data(
         self, only_metadata: bool = False
-    ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]] | dict[str, Any]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
         # load metadata from file
         with open(PROCESS_METADATA_FILE) as file:
             metadata = json.load(file)

@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Any
+
 from keras import layers, ops
 from keras.saving import register_keras_serializable
 from transformers import AutoImageProcessor, AutoModel
@@ -11,7 +13,9 @@ from XREPORT.app.constants import ENCODERS_PATH
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):
-    def __init__(self, freeze_layers : bool=False, embedding_dims : int=256, **kwargs) -> None:
+    def __init__(
+        self, freeze_layers: bool = False, embedding_dims: int = 256, **kwargs
+    ) -> None:
         super(BeitXRayImageEncoder, self).__init__(**kwargs)
         self.encoder_name = "microsoft/beit-base-patch16-224"
         self.freeze_layers = freeze_layers
@@ -52,5 +56,7 @@ class BeitXRayImageEncoder(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "BeitXRayImageEncoder":
+    def from_config(
+        cls: type[BeitXRayImageEncoder], config: dict[str, Any]
+    ) -> BeitXRayImageEncoder:
         return cls(**config)

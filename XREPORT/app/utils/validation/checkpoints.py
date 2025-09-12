@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 import os
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
 
@@ -16,7 +20,9 @@ from XREPORT.app.utils.learning.inference.generator import TextGenerator
 # [LOAD MODEL]
 ################################################################################
 class ModelEvaluationSummary:
-    def __init__(self, configuration: dict[str, Any], model: Model | None = None):
+    def __init__(
+        self, configuration: dict[str, Any], model: Model | None = None
+    ) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.model = model
@@ -95,10 +101,14 @@ class ModelEvaluationSummary:
         return dataframe
 
     # -------------------------------------------------------------------------
-    def get_evaluation_report(self, model, validation_dataset, **kwargs):
+    def get_evaluation_report(
+        self, model: Model, validation_dataset: tf.data.Dataset | Any, **kwargs
+    ) -> None:
         callbacks_list = [LearningInterruptCallback(kwargs.get("worker", None))]
         validation = model.evaluate(
-            validation_dataset, verbose=1, callbacks=callbacks_list
+            validation_dataset,
+            verbose=1, # type: ignore
+            callbacks=callbacks_list,  
         )
         logger.info(
             f"Sparse Categorical Entropy Loss {validation[0]:.3f} - Sparse Categorical Accuracy {validation[1]:.3f}"
@@ -112,21 +122,22 @@ class EvaluateTextQuality:
         self,
         model,
         configuration: dict[str, Any],
-        metadata: dict,
-        num_samples: int | None = None,
-    ):
+        metadata: dict[str, Any],
+        num_samples: int = 10,
+    ) -> None:
         self.model = model
         self.configuration = configuration
         self.metadata = metadata
         self.num_samples = num_samples
 
     # -------------------------------------------------------------------------
-    def calculate_BLEU_score(self, validation_data: pd.DataFrame, **kwargs):
+    def calculate_BLEU_score(
+        self, validation_data: pd.DataFrame, **kwargs
+    ) -> list[int] | Any | list[Any] | Literal[0] | None:
         max_report_size = self.metadata.get("max_report_size", 200)
         generator = TextGenerator(self.model, self.configuration, max_report_size)
         # tokenizer_config = generator.load_tokenizer_and_configuration()
-        if self.num_samples is None:
-            samples = validation_data.sample(n=self.num_samples, random_state=42)
+        samples = validation_data.sample(n=self.num_samples, random_state=42)
         sampled_images = samples["path"].to_list()
         true_reports = dict(zip(samples["path"], samples["text"]))
 
@@ -134,6 +145,12 @@ class EvaluateTextQuality:
         generated_with_greedy = generator.generate_radiological_reports(
             sampled_images, method="greedy_search", worker=kwargs.get("worker", None)
         )
+
+        if generated_with_greedy is None:
+            logger.warning(
+                "Could not generate reports for BLEU scoring with the selected checkpoint"
+            )
+            return
 
         references = []
         hypotheses = []
