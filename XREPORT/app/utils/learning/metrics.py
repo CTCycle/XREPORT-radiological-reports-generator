@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from keras import backend, ops
 from keras.config import floatx
 from keras.losses import Loss, SparseCategoricalCrossentropy
@@ -7,12 +11,14 @@ from keras.metrics import Metric
 # [LOSS FUNCTION]
 ###############################################################################
 class MaskedSparseCategoricalCrossentropy(Loss):
-    def __init__(self, name="MaskedSparseCategoricalCrossentropy", **kwargs):
+    def __init__(
+        self, name: str = "MaskedSparseCategoricalCrossentropy", **kwargs
+    ) -> None:
         super(MaskedSparseCategoricalCrossentropy, self).__init__(name=name, **kwargs)
-        self.loss = SparseCategoricalCrossentropy(from_logits=False, reduction=None)
+        self.loss = SparseCategoricalCrossentropy(from_logits=False, reduction=None)  # type: ignore
 
     # -------------------------------------------------------------------------
-    def call(self, y_true, y_pred):
+    def call(self, y_true: Any, y_pred: Any) -> Any:
         loss = self.loss(y_true, y_pred)
         mask = ops.not_equal(y_true, 0)
         mask = ops.cast(mask, dtype=loss.dtype)
@@ -27,20 +33,24 @@ class MaskedSparseCategoricalCrossentropy(Loss):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls: Any, config: Any):
+    def from_config(
+        cls: type[MaskedSparseCategoricalCrossentropy], config: dict[str, Any]
+    ) -> MaskedSparseCategoricalCrossentropy:
         return cls(**config)
 
 
 # [METRICS]
 ###############################################################################
 class MaskedAccuracy(Metric):
-    def __init__(self, name="MaskedAccuracy", **kwargs):
+    def __init__(self, name: str = "MaskedAccuracy", **kwargs) -> None:
         super(MaskedAccuracy, self).__init__(name=name, **kwargs)
         self.total = self.add_weight(name="total", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
 
     # -------------------------------------------------------------------------
-    def update_state(self, y_true, y_pred, sample_weight=None):
+    def update_state(
+        self, y_true: Any, y_pred: Any, sample_weight: Any | None = None
+    ) -> None:
         y_true = ops.cast(y_true, dtype=floatx())
         y_pred_argmax = ops.cast(ops.argmax(y_pred, axis=2), dtype=floatx())
         accuracy = ops.equal(y_true, y_pred_argmax)
@@ -62,11 +72,11 @@ class MaskedAccuracy(Metric):
         self.count.assign_add(ops.sum(mask))
 
     # -------------------------------------------------------------------------
-    def result(self):
+    def result(self) -> Any:
         return self.total / (self.count + backend.epsilon())
 
     # -------------------------------------------------------------------------
-    def reset_states(self):
+    def reset_states(self) -> None:
         self.total.assign(0)
         self.count.assign(0)
 
@@ -76,5 +86,7 @@ class MaskedAccuracy(Metric):
         return {**base_config, "name": self.name}
 
     @classmethod
-    def from_config(cls: Any, config: Any):
+    def from_config(
+        cls: type[MaskedAccuracy], config: dict[str, Any]
+    ) -> MaskedAccuracy:
         return cls(**config)

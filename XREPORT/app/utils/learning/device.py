@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 import torch
 from keras.mixed_precision import set_global_policy
 
@@ -7,7 +11,7 @@ from XREPORT.app.logger import logger
 # [DEVICE SETTINGS]
 ###############################################################################
 class DeviceConfig:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------

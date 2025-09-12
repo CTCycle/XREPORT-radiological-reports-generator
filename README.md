@@ -41,23 +41,17 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Mapping of images path with their corresponding labels**
 - **Train and validation dataset splitting**
 
-![data_tab](XREPORT/app/assets/figures/data_tab.png)
-
 **Model:** through this tab one can train the XREPORT transformer from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
 
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
-![model_tab](XREPORT/app/assets/figures/model_tab.gif)
-
 **Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
 - **Training images**: visualize training images located in *resources/database/dataset*  
 - **Inference images**: visualize inference images located in *resources/database/inference*  
 
-![viewer_tab](XREPORT/app/assets/figures/viewer_tab.png)
-
-
-**Setup and Maintenance:** you can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
+## 4.1 Setup and Maintenance
+You can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:
 
 - **Update project:** check for updates from Github
 - **Remove logs:** remove all logs file from *resources/logs*

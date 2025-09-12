@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import Any
+
 from keras import layers, ops
 from keras.config import floatx
 from keras.utils import register_keras_serializable
@@ -10,7 +12,12 @@ from keras.utils import register_keras_serializable
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
     def __init__(
-        self, vocabulary_size : int, embedding_dims : int, sequence_length : int, mask_zero : bool=True, **kwargs
+        self,
+        vocabulary_size: int,
+        embedding_dims: int,
+        sequence_length: int,
+        mask_zero: bool = True,
+        **kwargs,
     ) -> None:
         super(PositionalEmbedding, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
@@ -69,5 +76,7 @@ class PositionalEmbedding(layers.Layer):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any) -> "PositionalEmbedding":
+    def from_config(
+        cls: type[PositionalEmbedding], config: dict[str, Any]
+    ) -> PositionalEmbedding:
         return cls(**config)
