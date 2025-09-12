@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import os
+from typing import Any
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.figure import Figure
 from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
@@ -15,18 +19,18 @@ from XREPORT.app.utils.data.serializer import DataSerializer
 # [VALIDATION OF DATA]
 ###############################################################################
 class TextAnalysis:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def count_words_in_documents(self, data: pd.DataFrame):
+    def count_words_in_documents(self, data: pd.DataFrame) -> list[str]:
         words = [word for text in data["text"].to_list() for word in text.split()]
 
         return words
 
     # -------------------------------------------------------------------------
-    def calculate_text_statistics(self, data: pd.DataFrame, **kwargs):
+    def calculate_text_statistics(self, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
         images_descriptions = data["text"].to_list()
         images_path = data["path"].to_list()
         results = []
@@ -61,17 +65,18 @@ class TextAnalysis:
 # [VALIDATION OF DATA]
 ###############################################################################
 class ImageAnalysis:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
+        self.img_resolution = 400
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def save_image(self, fig, name):
+    def save_image(self, fig: Figure, name: str) -> None:
         out_path = os.path.join(EVALUATION_PATH, name)
         fig.savefig(out_path, bbox_inches="tight", dpi=self.img_resolution)
 
     # -------------------------------------------------------------------------
-    def calculate_image_statistics(self, data, **kwargs):
+    def calculate_image_statistics(self, data: pd.DataFrame, **kwargs) -> pd.DataFrame:
         images_path = data["path"].to_list()
         results = []
         for i, path in enumerate(
@@ -130,7 +135,9 @@ class ImageAnalysis:
         return stats_dataframe
 
     # -------------------------------------------------------------------------
-    def calculate_pixel_intensity_distribution(self, data, **kwargs):
+    def calculate_pixel_intensity_distribution(
+        self, data: pd.DataFrame, **kwargs
+    ) -> Figure:
         images_path = data["path"].to_list()
         image_histograms = np.zeros(256, dtype=np.int64)
         for i, path in enumerate(
@@ -172,7 +179,7 @@ class ImageAnalysis:
         return fig
 
     # -------------------------------------------------------------------------
-    def calculate_PSNR(self, img_path_1, img_path_2):
+    def calculate_PSNR(self, img_path_1: str, img_path_2: str) -> float:
         img1 = cv2.imread(img_path_1)
         img2 = cv2.imread(img_path_2)
         img1 = img1.astype(np.float32)
