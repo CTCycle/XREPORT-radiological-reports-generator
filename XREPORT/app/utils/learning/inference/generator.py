@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 import os
 from typing import Any
 
 import numpy as np
+import tensorflow as tf
 from keras import Model, ops
 from keras.utils import set_random_seed
-import tensorflow as tf
 from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback

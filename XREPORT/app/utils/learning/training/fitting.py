@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import Any
+
 from keras import Model
 from keras.utils import set_random_seed
 
@@ -8,15 +11,22 @@ from XREPORT.app.utils.learning.callbacks import initialize_callbacks_handler
 # [TOOLS FOR TRAINING MACHINE LEARNING MODELS]
 ###############################################################################
 class ModelTraining:
-    def __init__(self, configuration: dict[str, Any], metadata=None) -> None:
+    def __init__(
+        self, configuration: dict[str, Any], metadata: Any | None = None
+    ) -> None:
         set_random_seed(configuration.get("training_seed", 42))
         self.configuration = configuration
         self.metadata = metadata
 
     # -------------------------------------------------------------------------
     def train_model(
-        self, model: Model, train_data, validation_data, checkpoint_path, **kwargs
-    ):
+        self,
+        model: Model,
+        train_data: Any,
+        validation_data: Any,
+        checkpoint_path: str,
+        **kwargs,
+    ) -> tuple[Model, dict[str, Any]]:
         total_epochs = self.configuration.get("epochs", 10)
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
@@ -43,13 +53,13 @@ class ModelTraining:
     def resume_training(
         self,
         model: Model,
-        train_data,
-        validation_data,
-        checkpoint_path,
-        session={},
-        additional_epochs=10,
+        train_data: Any,
+        validation_data: Any,
+        checkpoint_path: str,
+        session: dict[str, Any] = {},
+        additional_epochs: int = 10,
         **kwargs,
-    ):
+    ) -> tuple[Model, dict[str, Any]]:
         from_epoch = 0 if not session else session["epochs"]
         total_epochs = from_epoch + additional_epochs
         # add all callbacks to the callback list

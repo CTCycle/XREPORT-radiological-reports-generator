@@ -29,7 +29,7 @@ class WorkerSignals(QObject):
 
 ###############################################################################
 class ThreadWorker(Generic[R], QRunnable):
-    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs) -> None:
         super().__init__()
         self.fn = fn
         self.args = args
@@ -160,7 +160,7 @@ def process_target(
 class ProcessWorker(QObject):
     _timer: QTimer | None
 
-    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, fn: Callable[..., R], *args: Any, **kwargs) -> None:
         super().__init__()
         self.fn = fn
         self.args = args
