@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import os
 from typing import Any
 
 import cv2
+import pandas as pd
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PySide6.QtGui import QImage, QPixmap
 
@@ -164,13 +166,13 @@ class DatasetEvents:
     @staticmethod
     def rebuild_dataset_from_metadata(
         metadata: dict[str, Any],
-    ) -> None | tuple[Any, Any]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         serializer = DataSerializer()
         sample_size = metadata.get("sample_size", 1.0)
         dataset = serializer.load_source_dataset(sample_size=sample_size)
         if dataset is None or dataset.empty:
             logger.error("No data found in the database during dataset rebuilding")
-            return
+            return pd.DataFrame(), pd.DataFrame()
 
         # sanitize text corpus by removing undesired symbols and punctuation
         sanitizer = TextSanitizer(metadata)
@@ -300,7 +302,7 @@ class ValidationEvents:
         loader = XRAYDataLoader(train_config)
         validation_dataset = loader.build_training_dataloader(validation_data)
 
-        summarizer = ModelEvaluationSummary(model, self.configuration)
+        summarizer = ModelEvaluationSummary(self.configuration, model)
         scoring = EvaluateTextQuality(model, train_config, model_metadata, num_samples)
 
         # Mapping metric name to method and arguments
@@ -328,7 +330,7 @@ class ValidationEvents:
 
 ###############################################################################
 class ModelEvents:
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any]) -> None:
         self.serializer = DataSerializer()
         self.modser = ModelSerializer()
         self.configuration = configuration
@@ -342,7 +344,7 @@ class ModelEvents:
         self,
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
-    ):
+    ) -> None:
         train_data, validation_data, metadata = self.serializer.load_training_data()
         if train_data.empty or validation_data.empty:
             logger.warning("No data found in the database for training")
@@ -383,7 +385,6 @@ class ModelEvents:
             model,
             train_dataset,
             validation_dataset,
-            metadata,
             checkpoint_path,
             progress_callback=progress_callback,
             worker=worker,
@@ -474,7 +475,7 @@ class ModelEvents:
         selected_checkpoint: str,
         progress_callback: Any | None = None,
         worker: ThreadWorker | ProcessWorker | None = None,
-    ):
+    ) -> None:
         logger.info(f"Loading {selected_checkpoint} checkpoint")
         model, train_config, model_metadata, _, checkpoint_path = (
             self.modser.load_checkpoint(selected_checkpoint)
@@ -505,6 +506,12 @@ class ModelEvents:
             progress_callback=progress_callback,
             worker=worker,
         )
+
+        if generated_reports is None:
+            logger.warning(
+                "Reports were not correctly generated. Try again with another checkpoint"
+            )
+            return
 
         # package inference outputs to fit the database table
         reports = [
