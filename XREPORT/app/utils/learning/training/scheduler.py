@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from keras.config import floatx
 from keras.ops import cast, cond
 from keras.optimizers.schedules import LearningRateSchedule
@@ -8,14 +12,16 @@ from keras.saving import register_keras_serializable
 ###############################################################################
 @register_keras_serializable(package="WarmUpLRScheduler")
 class WarmUpLRScheduler(LearningRateSchedule):
-    def __init__(self, post_warmup_LR, warmup_steps, **kwargs):
+    def __init__(
+        self, post_warmup_LR: float, warmup_steps: int | float, **kwargs
+    ) -> None:
         super(WarmUpLRScheduler, self).__init__(**kwargs)
         self.post_warmup_LR = post_warmup_LR
         self.warmup_steps = warmup_steps
 
     # implement encoder through call method
     # -------------------------------------------------------------------------
-    def __call__(self, step):
+    def __call__(self, step: int | float) -> float | Any:
         global_step = cast(step, floatx())
         warmup_steps = cast(self.warmup_steps, floatx())
         # Linear warmup: gradually increase lr from 0 to post_warmup_LR
@@ -41,5 +47,7 @@ class WarmUpLRScheduler(LearningRateSchedule):
     # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
-    def from_config(cls: Any, config: Any):
+    def from_config(
+        cls: type[WarmUpLRScheduler], config: dict[str, Any]
+    ) -> WarmUpLRScheduler:
         return cls(**config)
