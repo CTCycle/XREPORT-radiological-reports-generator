@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import os
 import subprocess
 import time
 import webbrowser
+from io import BytesIO
 from typing import Any
 
 import keras
@@ -23,7 +25,7 @@ from XREPORT.app.logger import logger
 class ProgressBarCallback(Callback):
     def __init__(
         self,
-        progress_callback: Any | None,
+        progress_callback: Callable[[int], Any] | None,
         total_epochs: int,
         from_epoch: int = 0,
     ) -> None:
@@ -33,12 +35,13 @@ class ProgressBarCallback(Callback):
         self.from_epoch = from_epoch
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch: int, logs: dict[str, Any] | None = None) -> None:
+    def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
         processed_epochs = epoch - self.from_epoch + 1
         additional_epochs = max(1, self.total_epochs - self.from_epoch)
         percent = int(100 * processed_epochs / additional_epochs)
         if self.progress_callback is not None:
             self.progress_callback(percent)
+
 
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
@@ -47,17 +50,16 @@ class LearningInterruptCallback(Callback):
     def __init__(self, worker: ThreadWorker | ProcessWorker | None = None) -> None:
         super().__init__()
         self.worker = worker
+        self.model: keras.Model
 
     # -------------------------------------------------------------------------
-    def on_batch_end(self, batch: int, logs: dict[str, Any] | None = None) -> None:
+    def on_batch_end(self, batch, logs: dict | None = None) -> None:
         if self.worker is not None and self.worker.is_interrupted():
             self.model.stop_training = True
             raise WorkerInterrupted()
 
     # -------------------------------------------------------------------------
-    def on_validation_batch_end(
-        self, batch: int, logs: dict[str, Any] | None = None
-    ) -> None:
+    def on_validation_batch_end(self, batch, logs: dict | None = None) -> None:
         if self.worker is not None and self.worker.is_interrupted():
             raise WorkerInterrupted()
 
@@ -66,18 +68,19 @@ class LearningInterruptCallback(Callback):
 ###############################################################################
 class RealTimeHistory(Callback):
     def __init__(
-        self, plot_path: str, past_logs: dict[str, Any] | None = None, **kwargs
+        self,
+        plot_path: str,
+        past_logs: dict | None = None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None = None,
+        **kwargs,
     ) -> None:
-        super(RealTimeHistory, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.plot_path = plot_path
         os.makedirs(self.plot_path, exist_ok=True)
-        # Separate dicts for training vs. validation metrics
-        self.total_epochs: int = (
-            0 if past_logs is None else int(past_logs.get("epochs", 0))
-        )
-        self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
+        self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
+        self.history = {"history": {}, "epochs": self.total_epochs}
+        self.progress_callback = progress_callback
 
-        # If past_logs provided, split into history and val_history
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
                 self.history["history"][metric] = list(values)
@@ -86,7 +89,7 @@ class RealTimeHistory(Callback):
             )
 
     # -------------------------------------------------------------------------
-    def on_epoch_end(self, epoch: int, logs: dict[str, Any] | None = None) -> None:
+    def on_epoch_end(self, epoch, logs: dict | None = None) -> None:
         logs = logs or {}
         for key, value in logs.items():
             if key not in self.history["history"]:
@@ -97,47 +100,60 @@ class RealTimeHistory(Callback):
 
     # -------------------------------------------------------------------------
     def plot_training_history(self) -> None:
-        fig_path = os.path.join(self.plot_path, "training_history.jpeg")
-        plt.figure(figsize=(16, 14))
         metrics = self.history["history"]
-        # Find unique base metric names
-        base_metrics = sorted(
-            set(m[4:] if m.startswith("val_") else m for m in metrics.keys())
-        )
+        if not metrics:
+            return
 
-        plt.figure(figsize=(16, 5 * len(base_metrics)))
-        for i, base in enumerate(base_metrics):
-            plt.subplot(len(base_metrics), 1, i + 1)
-            # Plot training metric
+        base_metrics = sorted(
+            set(metric[4:] if metric.startswith("val_") else metric for metric in metrics)
+        )
+        if not base_metrics:
+            return
+
+        fig_path = os.path.join(self.plot_path, "training_history.jpeg")
+        rows = len(base_metrics)
+        fig, axes = plt.subplots(rows, 1, figsize=(16, 5 * rows))
+        if rows == 1:
+            axes = [axes]
+
+        for ax, base in zip(axes, base_metrics):
             if base in metrics:
-                plt.plot(metrics[base], label="train")
-            # Plot validation metric if exists
+                ax.plot(metrics[base], label="train")
             val_key = f"val_{base}"
             if val_key in metrics:
-                plt.plot(metrics[val_key], label="val")
-            plt.title(base)
-            plt.ylabel("")
-            plt.xlabel("Epoch")
-            plt.legend(loc="best", fontsize=10)
+                ax.plot(metrics[val_key], label="val")
+            ax.set_title(base)
+            ax.set_ylabel("")
+            ax.set_xlabel("Epoch")
+            ax.legend(loc="best", fontsize=10)
 
-        plt.tight_layout()
-        plt.savefig(fig_path, bbox_inches="tight", format="jpeg", dpi=300)
-        plt.close()
+        fig.tight_layout()
+        buffer = BytesIO()
+        fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=300)
+        data = buffer.getvalue()
+        with open(fig_path, "wb") as target:
+            target.write(data)
+        if self.progress_callback:
+            self.progress_callback(
+                {"kind": "render", "source": "train_metrics", "stream": "history", "data": data}
+            )
+        plt.close(fig)
 
-
+# [CALLBACKS HANDLER]
+###############################################################################
 # [CALLBACKS HANDLER]
 ###############################################################################
 def initialize_callbacks_handler(
     configuration: dict[str, Any],
     checkpoint_path: str,
-    session: dict[str, Any] | None = None,
+    session: dict = {},
     total_epochs: int = 100,
     **kwargs,
-) -> list[Callback]:
+) -> list[Any]:
     from_epoch = 0
     additional_epochs = configuration.get("additional_epochs", 10)
     if session:
-        from_epoch = int(session["epochs"])  # type: ignore[index]
+        from_epoch = session["epochs"]
         total_epochs = additional_epochs + from_epoch
 
     callbacks_list = [
@@ -148,7 +164,13 @@ def initialize_callbacks_handler(
     ]
 
     if configuration.get("plot_training_metrics", False):
-        callbacks_list.append(RealTimeHistory(checkpoint_path, past_logs=session))
+        callbacks_list.append(
+            RealTimeHistory(
+                checkpoint_path,
+                past_logs=session,
+                progress_callback=kwargs.get("progress_callback", None),
+            )
+        )
 
     if configuration.get("use_tensorboard", False):
         logger.debug("Using tensorboard during training")
@@ -180,7 +202,7 @@ def initialize_callbacks_handler(
 
 
 ###############################################################################
-def start_tensorboard_subprocess(log_dir: str):
+def start_tensorboard_subprocess(log_dir: str) -> None:
     tensorboard_command = ["tensorboard", "--logdir", log_dir, "--port", "6006"]
     subprocess.Popen(
         tensorboard_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
