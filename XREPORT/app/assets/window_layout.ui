@@ -303,7 +303,7 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>979</width>
+             <width>1100</width>
              <height>834</height>
             </rect>
            </property>
@@ -1097,6 +1097,23 @@
                </property>
                <property name="checked">
                 <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QRadioButton" name="viewTrainMetrics">
+               <property name="text">
+                <string>Training metrics</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
                </property>
               </widget>
              </item>
