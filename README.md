@@ -46,9 +46,10 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Average mean sparse categorical loss and accuracy** 
 - **Calculation of BLEU scores** 
 
-**Viewer:** this tab is dedicated to image and plots visualisation, the user may select one fo the following options
+**Viewer:** this tab is dedicated to image and plots visualization, the user may select one fo the following options
 - **Training images**: visualize training images located in *resources/database/dataset*  
-- **Inference images**: visualize inference images located in *resources/database/inference*  
+- **Inference images**: visualize inference images located in *resources/database/inference*
+- **Train metrics**: real-time training metrics plots  
 
 ## 4.1 Setup and Maintenance
 You can run *setup_and_maintenance.bat* to start the external tools for maintenance with the following options:

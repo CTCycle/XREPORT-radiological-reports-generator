@@ -184,13 +184,15 @@ class XREPORTDatabase:
         self._upsert_dataframe(data, table_cls)
 
     # -------------------------------------------------------------------------
-    def export_all_tables_as_csv(self, chunksize: int | None = None) -> None:
-        export_path = os.path.join(DATA_PATH, "export")
-        os.makedirs(export_path, exist_ok=True)
+    def export_all_tables_as_csv(
+        self, export_dir: str, chunksize: int | None = None
+    ) -> None:
+        os.makedirs(export_dir, exist_ok=True)
         with self.engine.connect() as conn:
             for table in Base.metadata.sorted_tables:
                 table_name = table.name
-                csv_path = os.path.join(export_path, f"{table_name}.csv")
+                csv_path = os.path.join(export_dir, f"{table_name}.csv")
+
                 # Build a safe SELECT for arbitrary table names (quote with "")
                 query = sqlalchemy.text(f'SELECT * FROM "{table_name}"')
                 if chunksize:
@@ -205,21 +207,21 @@ class XREPORTDatabase:
                             sep=",",
                         )
                         first = False
-                    # If table is empty, still write header row
+                    # If no chunks were returned, still write the header row
                     if first:
                         pd.DataFrame(columns=[c.name for c in table.columns]).to_csv(
                             csv_path, index=False, encoding="utf-8", sep=","
                         )
                 else:
-                    data = pd.read_sql(query, conn)
-                    if data.empty:
+                    df = pd.read_sql(query, conn)
+                    if df.empty:
                         pd.DataFrame(columns=[c.name for c in table.columns]).to_csv(
                             csv_path, index=False, encoding="utf-8", sep=","
                         )
                     else:
-                        data.to_csv(csv_path, index=False, encoding="utf-8", sep=",")
+                        df.to_csv(csv_path, index=False, encoding="utf-8", sep=",")
 
-        logger.info(f"All tables exported to CSV at {os.path.abspath(export_path)}")
+        logger.info(f"All tables exported to CSV at {os.path.abspath(export_dir)}")
 
     # -------------------------------------------------------------------------
     def delete_all_data(self) -> None:
