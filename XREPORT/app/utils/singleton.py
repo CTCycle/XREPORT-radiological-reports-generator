@@ -28,13 +28,13 @@ def singleton(cls: type[T]) -> type[T]:
 
     setattr(cls, "__init__", __init__)
 
-    def _new(cls_, *args: Any, **kwargs) -> Any:
-        if getattr(cls_, "_instance", None) is None:
+    def new(cls_, *args: Any, **kwargs) -> Any:
+        if getattr(cls_, "instance", None) is None:
             with lock:
-                if getattr(cls_, "_instance", None) is None:
+                if getattr(cls_, "instance", None) is None:
                     instance = object.__new__(cls_)
-                    setattr(cls_, "_instance", instance)
-        return getattr(cls_, "_instance")
+                    setattr(cls_, "instance", instance)
+        return getattr(cls_, "instance")
 
-    setattr(cls, "__new__", _new)
+    setattr(cls, "__new__", new)
     return cls
