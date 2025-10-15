@@ -14,7 +14,7 @@ from keras.utils import plot_model
 
 from XREPORT.app.constants import CHECKPOINT_PATH, IMG_PATH, PROCESS_METADATA_FILE
 from XREPORT.app.logger import logger
-from XREPORT.app.utils.data.database import database
+from XREPORT.app.utils.repository.database import database
 from XREPORT.app.utils.learning.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from XREPORT.app.utils.data.process import TokenizerHandler
+from XREPORT.app.utils.services.process import TokenizerHandler
 
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]

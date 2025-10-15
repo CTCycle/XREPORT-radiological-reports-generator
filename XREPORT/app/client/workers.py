@@ -34,7 +34,7 @@ class ThreadWorker(Generic[R], QRunnable):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
-        self.is_interrupted = False
+        self.interruption_state = False
 
         sig = inspect.signature(fn)
         params = sig.parameters.values()
@@ -59,11 +59,11 @@ class ThreadWorker(Generic[R], QRunnable):
 
     # -------------------------------------------------------------------------
     def stop(self) -> None:
-        self.is_interrupted = True
+        self.interruption_state = True
 
     # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
-        return self.is_interrupted
+        return self.interruption_state
 
     # -------------------------------------------------------------------------
     @Slot()
