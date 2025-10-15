@@ -47,7 +47,7 @@ from XREPORT.app.client.workers import ProcessWorker, ThreadWorker
 from XREPORT.app.configuration import Configuration
 from XREPORT.app.constants import IMG_PATH, INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
-from XREPORT.app.utils.data.database import database
+from XREPORT.app.utils.repository.database import database
 
 
 ###############################################################################
