@@ -16,13 +16,13 @@ from XREPORT.app.client.workers import (
 )
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
-from XREPORT.app.utils.data.loader import XRAYDataLoader
-from XREPORT.app.utils.data.process import (
+from XREPORT.app.utils.repository.loader import XRAYDataLoader
+from XREPORT.app.utils.services.process import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
-from XREPORT.app.utils.data.serializer import DataSerializer, ModelSerializer
+from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.learning.device import DeviceConfig
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
 from XREPORT.app.utils.learning.models.transformers import XREPORTModel
