@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.logger import logger
-from XREPORT.app.utils.data.loader import XRAYDataLoader
-from XREPORT.app.utils.data.process import TokenizerHandler
+from XREPORT.app.utils.services.loader import XRAYDataLoader
+from XREPORT.app.utils.services.process import TokenizerHandler
 
 
 # [TOOLKIT TO USE THE PRETRAINED MODEL]
