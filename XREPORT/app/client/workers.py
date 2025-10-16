@@ -35,7 +35,7 @@ class ThreadWorker(Generic[R], QRunnable):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
-        self._is_interrupted = False
+        self.interruption_state = False
 
         sig = inspect.signature(fn)
         params = sig.parameters.values()
@@ -60,11 +60,11 @@ class ThreadWorker(Generic[R], QRunnable):
 
     # -------------------------------------------------------------------------
     def stop(self) -> None:
-        self._is_interrupted = True
+        self.interruption_state = True
 
     # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
-        return self._is_interrupted
+        return self.interruption_state
 
     # -------------------------------------------------------------------------
     @Slot()
@@ -158,7 +158,7 @@ def process_target(
 
 ###############################################################################
 class ProcessWorker(QObject):
-    _timer: QTimer | None
+    timer: QTimer | None
 
     def __init__(self, fn: Callable[..., R], *args: Any, **kwargs) -> None:
         super().__init__()
@@ -166,37 +166,37 @@ class ProcessWorker(QObject):
         self.args = args
         self.kwargs = kwargs
         self.signals = WorkerSignals()
-        self._result_queue: Queue[Any] = Queue()
-        self._progress_queue: Queue[Any] = Queue()
-        self._interrupted = Event()
-        self._proc = None
-        self._timer = None
+        self.result_queue: Queue[Any] = Queue()
+        self.progress_queue: Queue[Any] = Queue()
+        self.interrupted = Event()
+        self.proc = None
+        self.timer = None
 
     # -------------------------------------------------------------------------
     def stop(self) -> None:
-        self._interrupted.set()
+        self.interrupted.set()
 
     # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
-        return self._interrupted.is_set()
+        return self.interrupted.is_set()
 
     # -------------------------------------------------------------------------
     def start(self) -> None:
-        self._proc = Process(
+        self.proc = Process(
             target=process_target,
             args=(
                 self.fn,
                 self.args,
                 self.kwargs,
-                self._result_queue,
-                self._progress_queue,
-                self._interrupted,
+                self.result_queue,
+                self.progress_queue,
+                self.interrupted,
             ),
         )
-        self._proc.start()
+        self.proc.start()
 
     # -------------------------------------------------------------------------
-    def _run_in_process(self) -> None:
+    def run_in_process(self) -> None:
         try:
             # Prepare kwargs for the child process
             fn = self.fn
@@ -211,7 +211,7 @@ class ProcessWorker(QObject):
                 p.name == "progress_callback" or p.kind == inspect.Parameter.VAR_KEYWORD
                 for p in params
             ):
-                kwargs["progress_callback"] = self._progress_queue.put
+                kwargs["progress_callback"] = self.progress_queue.put
 
             # Interruption
             if any(
@@ -221,32 +221,32 @@ class ProcessWorker(QObject):
 
                 class PlaceholderWorker:
                     def is_interrupted(self2) -> bool:  # type: ignore
-                        return self._interrupted.is_set()
+                        return self.interrupted.is_set()
 
                 kwargs["worker"] = PlaceholderWorker()
 
             result = fn(*args, **kwargs)
-            self._result_queue.put(("finished", result))
+            self.result_queue.put(("finished", result))
         except WorkerInterrupted:
-            self._result_queue.put(("interrupted", None))
+            self.result_queue.put(("interrupted", None))
         except Exception as e:
             tb = traceback.format_exc()
-            self._result_queue.put(("error", (e, tb)))
+            self.result_queue.put(("error", (e, tb)))
 
     # -------------------------------------------------------------------------
     def poll(self) -> None:
         # Called periodically from main thread (window.py QTimer)
         # Progress first
-        while not self._progress_queue.empty():
+        while not self.progress_queue.empty():
             try:
-                progress = self._progress_queue.get_nowait()
+                progress = self.progress_queue.get_nowait()
                 self.signals.progress.emit(progress)
             except Exception:
                 pass
 
         # Result/Termination
-        if not self._result_queue.empty():
-            msg_type, data = self._result_queue.get()
+        if not self.result_queue.empty():
+            msg_type, data = self.result_queue.get()
             if msg_type == "finished":
                 self.signals.finished.emit(data)
             elif msg_type == "error":
@@ -254,18 +254,18 @@ class ProcessWorker(QObject):
             elif msg_type == "interrupted":
                 self.signals.interrupted.emit()
             # Stop polling when result comes
-            if self._timer is not None:
-                self._timer.stop()
-            if self._proc is not None:
-                self._proc.join()
+            if self.timer is not None:
+                self.timer.stop()
+            if self.proc is not None:
+                self.proc.join()
 
     # -------------------------------------------------------------------------
     def cleanup(self) -> None:
-        if self._timer is not None:
-            self._timer.stop()
-        if self._proc is not None and self._proc.is_alive():
-            self._proc.terminate()
-            self._proc.join()
+        if self.timer is not None:
+            self.timer.stop()
+        if self.proc is not None and self.proc.is_alive():
+            self.proc.terminate()
+            self.proc.join()
 
 
 # [HELPERS FUNCTIONS]
