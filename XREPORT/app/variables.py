@@ -19,9 +19,5 @@ class EnvironmentVariables:
             logger.error(f".env file not found at: {self.env_path}")
 
     # -------------------------------------------------------------------------
-    def get_environment_variables(self) -> dict[str, str]:
-        return {
-            "KERAS_BACKEND": os.getenv("KERAS_BACKEND", "torch"),
-            "TF_CPP_MIN_LOG_LEVEL": os.getenv("TF_CPP_MIN_LOG_LEVEL", "1"),
-            "MPLBACKEND": os.getenv("MPLBACKEND", "Agg"),
-        }
+    def get(self, key: str, default: str | None = None) -> str | None:
+        return os.getenv(key, default)
