@@ -62,7 +62,7 @@ This folder organizes data and results across various stages of the project, suc
 
 - **checkpoints:**  pretrained model checkpoints are stored here.
 
-- **database:** data will be stored centrally within the main database *XREPORT_database.db*. Images for training are placed in *database/images*, while associated reports must be provided in *database/dataset/XREPORT_dataset.csv*, formatted according to the specified template (column *image* containing the image filenames and column *text* providing the corresponding description for each image). All metadata will be promptly stored in *database/metadata* and validation outputs will be saved separately in *database/validation*. Eventually, data used for inference with a pretrained checkpoint are located in *database/inference*, where lower-dimension projections of these images are saved as .npy files.
+- **database:** data will be stored centrally within the embedded SQLite database. Images for training are placed in *database/images*, while associated reports must be provided in *database/dataset/XREPORT_dataset.csv*, formatted according to the specified template (column *image* containing the image filenames and column *text* providing the corresponding description for each image). All metadata will be promptly stored in *database/metadata* and validation outputs will be saved separately in *database/validation*. Eventually, data used for inference with a pretrained checkpoint are located in *database/inference*, where lower-dimension projections of these images are saved as .npy files.
 
 - **logs:** log files are saved here
 
