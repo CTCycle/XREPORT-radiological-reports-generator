@@ -69,6 +69,16 @@ class TokenizerHandler:
     def get_tokenizer(
         self, tokenizer_name: str | None = None
     ) -> None | tuple[Any, int]:
+        """
+        Resolve a Hugging Face tokenizer locally, downloading it if necessary.
+
+        Keyword arguments:
+            tokenizer_name: Identifier of the tokenizer to load.
+
+        Return value:
+            Tuple with the tokenizer instance and its vocabulary size, or None
+            when the name is missing.
+        """
         if tokenizer_name is None:
             return
 
@@ -83,6 +93,15 @@ class TokenizerHandler:
 
     # -------------------------------------------------------------------------
     def tokenize_text_corpus(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Tokenize the full report corpus using the configured tokenizer.
+
+        Keyword arguments:
+            data: DataFrame containing the raw textual reports.
+
+        Return value:
+            Updated DataFrame with an extra column storing input id sequences.
+        """
         # tokenize train and validation text using loaded tokenizer
         true_report_size = self.max_report_size + 1
         text = data["text"].to_list()
