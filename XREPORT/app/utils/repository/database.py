@@ -107,7 +107,7 @@ class CheckpointSummary(Base):
 @singleton
 class XREPORTDatabase:
     def __init__(self) -> None:
-        self.db_path = os.path.join(DATA_PATH, "XREPORT_database.db")
+        self.db_path = os.path.join(DATA_PATH, "database.db")
         self.source_path = os.path.join(SOURCE_PATH, "XREPORT_dataset.csv")
         self.engine = create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
