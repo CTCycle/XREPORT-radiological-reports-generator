@@ -51,6 +51,17 @@ class DataLoaderProcessor:
     def load_data_for_training(
         self, path: str, text: str
     ) -> tuple[tuple[np.ndarray | tf.Tensor, str], str]:
+        """
+        Prepare a single (image, report) pair for the training pipeline.
+
+        Keyword arguments:
+            path: Filesystem location of the radiography.
+            text: Token sequence serialized as string aligned with the image.
+
+        Return value:
+            Tuple containing the processed image with the input text and the
+            right-shifted target tokens ready for teacher forcing.
+        """
         rgb_image = self.load_image(path)
         rgb_image = (
             self.image_augmentation(rgb_image) if self.augmentation else rgb_image
@@ -74,6 +85,15 @@ class DataLoaderProcessor:
     def image_normalization(
         self, image: np.ndarray | tf.Tensor
     ) -> np.ndarray | tf.Tensor:
+        """
+        Normalize pixel intensities using ImageNet statistics.
+
+        Keyword arguments:
+            image: Input tensor or array representing the radiography.
+
+        Return value:
+            Normalized image where values follow the expected model distribution.
+        """
         normalized_image = image / 255.0
         normalized_image = (normalized_image - self.image_mean) / self.image_std
 
@@ -84,6 +104,15 @@ class DataLoaderProcessor:
     def image_augmentation(
         self, image: np.ndarray | tf.Tensor
     ) -> np.ndarray | tf.Tensor:
+        """
+        Apply random augmentations to increase training diversity.
+
+        Keyword arguments:
+            image: Input tensor or array representing the radiography.
+
+        Return value:
+            Augmented image sampled from the defined stochastic transforms.
+        """
         # perform random image augmentations such as flip, brightness, contrast
         augmentations = {
             "flip_left_right": (lambda img: tf.image.random_flip_left_right(img), 0.5),
@@ -122,6 +151,17 @@ class XRAYDataLoader:
     def build_training_dataloader(
         self, data: pd.DataFrame, batch_size: int | None = None
     ) -> tf.data.Dataset:
+        """
+        Build a shuffled tf.data pipeline for supervised training.
+
+        Keyword arguments:
+            data: DataFrame containing image paths and tokenized reports.
+            batch_size: Optional override for the configured batch size.
+
+        Return value:
+            Prefetched dataset yielding normalized images and teacher-forced
+            token sequences.
+        """
         images, tokens = data["path"].to_list(), data["tokens"].to_list()
         batch_size = self.batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))
@@ -146,6 +186,17 @@ class XRAYDataLoader:
         batch_size: int | None = None,
         buffer_size: int = tf.data.AUTOTUNE,
     ) -> tf.data.Dataset:
+        """
+        Assemble a deterministic tf.data pipeline for inference workloads.
+
+        Keyword arguments:
+            data: DataFrame listing image paths and metadata tokens.
+            batch_size: Optional override for inference batch size.
+            buffer_size: Number of parallel calls used during preprocessing.
+
+        Return value:
+            Prefetched dataset yielding normalized radiographies for inference.
+        """
         images, tokens = data["path"].to_list(), data["tokens"].to_list()
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         dataset = tf.data.Dataset.from_tensor_slices((images, tokens))
