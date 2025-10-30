@@ -48,6 +48,17 @@ class TextGenerator:
 
     # -------------------------------------------------------------------------
     def load_tokenizer_and_configuration(self) -> None | tuple[Any, dict[str, Any]]:
+        """
+        Load the tokenizer associated with the current configuration.
+
+        Keyword arguments:
+            None.
+
+        Return value:
+            Tuple containing the tokenizer instance and a configuration map with
+            vocabulary parameters, or None when the tokenizer cannot be
+            instantiated.
+        """
         # Get tokenizer and related configuration
         tokenization = TokenizerHandler(self.configuration)
         if tokenization.tokenizer is None:
@@ -85,6 +96,20 @@ class TextGenerator:
         sequence: Any | np.ndarray,
         tokenizer_config: dict[Any, Any],
     ) -> str:
+        """
+        Convert a sequence of token ids into a human-readable report.
+
+        Keyword arguments:
+            index_lookup: Reverse vocabulary mapping token ids to their string
+                representation.
+            sequence: Batched tensor produced by the decoder containing token
+                ids.
+            tokenizer_config: Metadata describing start, end and padding
+                tokens.
+
+        Return value:
+            Normalized report string without tokenizer-specific special tokens.
+        """
         # convert indexes to token using tokenizer vocabulary
         # define special tokens and remove them from generated tokens list
         token_sequence = [
@@ -111,6 +136,17 @@ class TextGenerator:
         vocabulary: dict[Any, Any],
         image_path: str,
     ) -> str:
+        """
+        Decode a report with greedy search, selecting the best token each step.
+
+        Keyword arguments:
+            tokenizer_config: Metadata describing special tokens and indices.
+            vocabulary: Tokenizer vocabulary mapping tokens to indices.
+            image_path: Absolute path to the image used for inference.
+
+        Return value:
+            Generated report string produced by greedy decoding.
+        """
         # extract vocabulary from the tokenizers
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
@@ -166,6 +202,18 @@ class TextGenerator:
         image_path: str,
         beam_width: int = 3,
     ) -> str:
+        """
+        Decode a report with beam search to balance accuracy and diversity.
+
+        Keyword arguments:
+            tokenizer_config: Metadata describing special tokens and indices.
+            vocabulary: Tokenizer vocabulary mapping tokens to indices.
+            image_path: Absolute path to the image used for inference.
+            beam_width: Number of candidate sequences retained each step.
+
+        Return value:
+            Generated report string produced by beam-search decoding.
+        """
         start_token = tokenizer_config["start_token"]
         end_token = tokenizer_config["end_token"]
         start_token_idx = tokenizer_config["start_token_idx"]
@@ -240,6 +288,18 @@ class TextGenerator:
     def generate_radiological_reports(
         self, images_path: list[str], method: str = "greedy_search", **kwargs
     ) -> dict[str, Any] | None:
+        """
+        Generate radiology reports for a collection of input images.
+
+        Keyword arguments:
+            images_path: List of image paths queued for inference.
+            method: Registered decoding strategy (greedy_search or beam_search).
+            **kwargs: Optional hooks for thread management and progress updates.
+
+        Return value:
+            Mapping of image paths to generated reports, or None when the
+            tokenizer cannot be loaded.
+        """
         reports = {}
         tokenizers_info = self.load_tokenizer_and_configuration()
         if tokenizers_info is None:
