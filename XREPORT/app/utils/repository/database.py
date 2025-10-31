@@ -107,7 +107,7 @@ class CheckpointSummary(Base):
 @singleton
 class XREPORTDatabase:
     def __init__(self) -> None:
-        self.db_path = os.path.join(DATA_PATH, "XREPORT_database.db")
+        self.db_path = os.path.join(DATA_PATH, "database.db")
         self.source_path = os.path.join(SOURCE_PATH, "XREPORT_dataset.csv")
         self.engine = create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
@@ -121,6 +121,15 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:
+        """
+        Retrieve the SQLAlchemy model mapped to the requested table name.
+
+        Keyword arguments:
+            table_name: Name of the table whose declarative class is required.
+
+        Return value:
+            Declarative model class associated with the table.
+        """
         for cls in Base.__subclasses__():
             if hasattr(cls, "__tablename__") and cls.__tablename__ == table_name:
                 return cls
@@ -128,6 +137,16 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls) -> None:
+        """
+        Insert or update a DataFrame into the target table using batches.
+
+        Keyword arguments:
+            df: DataFrame with the records to persist.
+            table_cls: Declarative table model describing the destination.
+
+        Return value:
+            None.
+        """
         table = table_cls.__table__
         session = self.Session()
         try:
@@ -160,6 +179,15 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def update_database_from_sources(self) -> pd.DataFrame | None:
+        """
+        Refresh the canonical radiography dataset from the CSV source file.
+
+        Keyword arguments:
+            None.
+
+        Return value:
+            DataFrame containing the ingested dataset, or None on failure.
+        """
         dataset = pd.read_csv(self.source_path, sep=";", encoding="utf-8")
         self.save_into_database(dataset, "RADIOGRAPHY_DATA")
 
@@ -167,6 +195,15 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def load_from_database(self, table_name: str) -> pd.DataFrame:
+        """
+        Load the contents of a database table into a pandas DataFrame.
+
+        Keyword arguments:
+            table_name: Name of the table to export.
+
+        Return value:
+            DataFrame containing the table rows.
+        """
         with self.engine.connect() as conn:
             data = pd.read_sql_table(table_name, conn)
 
@@ -174,12 +211,32 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, data: pd.DataFrame, table_name: str) -> None:
+        """
+        Replace the contents of a table with the provided dataset.
+
+        Keyword arguments:
+            data: DataFrame containing the new table rows.
+            table_name: Name of the table to overwrite.
+
+        Return value:
+            None.
+        """
         with self.engine.begin() as conn:
             conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
             data.to_sql(table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, data: pd.DataFrame, table_name: str) -> None:
+        """
+        Upsert records into a table using the model-specific unique constraint.
+
+        Keyword arguments:
+            data: DataFrame containing the new or updated records.
+            table_name: Name of the destination table.
+
+        Return value:
+            None.
+        """
         table_cls = self.get_table_class(table_name)
         self.upsert_dataframe(data, table_cls)
 
@@ -187,6 +244,16 @@ class XREPORTDatabase:
     def export_all_tables_as_csv(
         self, export_dir: str, chunksize: int | None = None
     ) -> None:
+        """
+        Export every database table to a CSV file on disk.
+
+        Keyword arguments:
+            export_dir: Directory where the CSV exports should be created.
+            chunksize: Optional chunk size to stream large tables.
+
+        Return value:
+            None.
+        """
         os.makedirs(export_dir, exist_ok=True)
         with self.engine.connect() as conn:
             for table in Base.metadata.sorted_tables:
@@ -225,6 +292,15 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     def delete_all_data(self) -> None:
+        """
+        Remove every record from all managed tables.
+
+        Keyword arguments:
+            None.
+
+        Return value:
+            None.
+        """
         with self.engine.begin() as conn:
             for table in reversed(Base.metadata.sorted_tables):
                 conn.execute(table.delete())
