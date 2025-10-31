@@ -27,6 +27,20 @@ class ModelTraining:
         checkpoint_path: str,
         **kwargs,
     ) -> tuple[Model, dict[str, Any]]:
+        """
+        Train the supplied model from scratch using the configured callbacks.
+
+        Keyword arguments:
+            model: Keras model configured for caption generation.
+            train_data: Dataset or generator yielding training batches.
+            validation_data: Dataset providing validation batches.
+            checkpoint_path: Directory used to persist checkpoints and logs.
+            **kwargs: Optional hooks for progress callbacks and worker threads.
+
+        Return value:
+            Tuple containing the trained model and a dictionary summarizing the
+            training history.
+        """
         total_epochs = self.configuration.get("epochs", 10)
         # add all callbacks to the callback list
         callbacks_list = initialize_callbacks_handler(
@@ -60,6 +74,21 @@ class ModelTraining:
         additional_epochs: int = 10,
         **kwargs,
     ) -> tuple[Model, dict[str, Any]]:
+        """
+        Resume a partially trained model and extend training for more epochs.
+
+        Keyword arguments:
+            model: Keras model instance restored from previous checkpoints.
+            train_data: Dataset or generator yielding training batches.
+            validation_data: Dataset providing validation batches.
+            checkpoint_path: Directory used to persist checkpoints and logs.
+            session: Serialized history returned by a previous training run.
+            additional_epochs: Extra epochs to execute beyond the stored state.
+            **kwargs: Optional hooks for progress callbacks and worker threads.
+
+        Return value:
+            Tuple containing the updated model and the merged training history.
+        """
         from_epoch = 0 if not session else session["epochs"]
         total_epochs = from_epoch + additional_epochs
         # add all callbacks to the callback list

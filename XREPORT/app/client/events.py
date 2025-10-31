@@ -16,7 +16,7 @@ from XREPORT.app.client.workers import (
 )
 from XREPORT.app.constants import INFERENCE_INPUT_PATH
 from XREPORT.app.logger import logger
-from XREPORT.app.utils.repository.loader import XRAYDataLoader
+from XREPORT.app.utils.services.loader import XRAYDataLoader
 from XREPORT.app.utils.services.process import (
     TextSanitizer,
     TokenizerHandler,
