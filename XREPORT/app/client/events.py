@@ -375,9 +375,7 @@ class ModelEvents:
         logger.info("Building XREPORT Transformer model")
         captioner = XREPORTModel(metadata, self.configuration)
         model = captioner.get_model(model_summary=True)
-        # generate training log report and graphviz plot for the model layout
-        self.modser.save_model_plot(model, checkpoint_path)
-
+        
         # start model training
         logger.info("Starting XREPORT Transformer model training")
         trainer = ModelTraining(self.configuration)
