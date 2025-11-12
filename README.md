@@ -37,8 +37,8 @@ The tokenizer model is automatically downloaded and cached in *resources/models/
 The project targets Windows 10/11 and requires roughly 2 GB of free disk space for the embedded Python runtime, dependencies, checkpoints, and datasets. A CUDA-capable NVIDIA GPU is recommended but not mandatory. Ensure you have the latest GPU drivers installed when enabling TorchInductor + Triton acceleration.
 
 1. **Download the project**: clone the repository or extract the release archive into a writable location (avoid paths that require admin privileges).
-2. **Configure environment variables**: copy `XREPORT/resources/templates/.env` into `XREPORT/app/.env` and adjust values (e.g., backend selection).
-3. **Run `start_on_windows.bat`**: the bootstrapper installs a portable Python 3.12 build, downloads Astral’s `uv`, syncs dependencies from `pyproject.toml`, prunes caches, then launches the UI through `uv run`. The script is idempotent—rerun it any time to repair the environment or re-open the app.
+2. **Configure environment variables**: copy `XREPORT/resources/templates/.env` into `XREPORT/setup/.env` and adjust values (e.g., backend selection).
+3. **Run `start_on_windows.bat`**: the bootstrapper installs a portable Python 3.12 build, downloads Astral’s `uv`, syncs dependencies from `pyproject.toml`, prunes caches, then launches the UI through `uv run`. The script is idempotent, rerun it any time to repair the environment or launch the app.
 
 Running the script the first time can take several minutes depending on bandwidth. Subsequent runs reuse the cached Python runtime and only re-sync packages when `pyproject.toml` changes.
 
@@ -51,15 +51,15 @@ If you prefer managing Python yourself (for debugging or CI):
 1. Install Python 3.12.x and `uv` (https://github.com/astral-sh/uv).
 2. From the repository root run `uv sync` to create a virtual environment with the versions pinned in `pyproject.toml`.
 3. Copy `.env` as described earlier and ensure the `KERAS_BACKEND` is set to `torch`.
-4. Launch the UI with `uv run python XREPORT/app/app.py`.
-5. Developers can edit configurations under `XREPORT/resources/configurations` to define dataset paths, batch sizes, augmentation policies, and JIT preferences. The UI exposes these settings through dedicated dialogs so you can save/load presets without editing JSON manually.
+4. Launch the UI with `uv run python XREPORT/src/app/app.py`.
+
 
 ## 5. How to use
-Launch the application by double-clicking `start_on_windows.bat` (or via `uv run python XREPORT/app/app.py` after a manual install). On startup the UI loads the last-used configuration, scans the resources folder, and initializes worker pools so long-running jobs (training, inference, validation) do not block the interface.
+Launch the application by double-clicking `start_on_windows.bat` (or via `uv run python XREPORT/src/app/app.py`). On startup the UI loads the last-used configuration, scans the resources folder, and initializes worker pools so long-running jobs (training, inference, validation) do not block the interface.
 
 1. **Prepare data**: verify that `resources/database/images` (training) and `resources/database/inference` (inference) contain the expected files. Large datasets can be sub-sampled through the configuration dialog (`train_sample_size`).
 2. **Adjust configuration**: use the toolbar to load/save configuration templates or modify each parameter manually from the UI.
-3. **Run a pipeline**: pick an action under the Data, Model, or Viewer tabs. Progress bars, log panes, and popup notifications keep you informed. Background workers can be interrupted at any time without crashing the UI.
+3. **Run a pipeline**: pick an action under the Data, Model, or Viewer tabs. Progress bars, log panes, and popup notifications keep you informed. Background workers can be interrupted at any time.
 
 **Data tab:** analyze and validate the image and text dataset using different metrics.
 
@@ -89,25 +89,24 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Inference images**: visualize inference images located in *resources/database/inference* together with generated/free-text reports for qualitative review.
 - **Train metrics**: real-time training metrics plots, confusion matrices, tokenizer stats, and replay of metric curves from previous experiments stored in logs.
 
-## 5.1 Setup and Maintenance
+### 5.1 Setup and Maintenance
 `setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
 
 - **Update project**: performs a `git pull` (or fetches release artifacts) so the local checkout stays in sync.
 - **Remove logs**: clears `resources/logs` to save disk space or to reset diagnostics before a new run.
 - **Open tools**: quick shortcuts to DB Browser for SQLite or other external utilities defined in the script.
 
-### 4.2 Resources
 ### 5.2 Resources
 The `XREPORT/resources` tree keeps all mutable assets, making backups and migrations straightforward:
 
 - **checkpoints** — versioned folders containing saved models, training history, evaluation reports, reconstructed samples, and the JSON configuration that produced them. These folders are what you load when resuming training or running inference.
-- **configurations** — reusable JSON presets surfaced by the UI dialogs. Store both stock and custom configurations here to share setups with teammates.
+- **configurations** — reusable JSON presets saved through the UI dialogs.
 - **database** — includes sub-folders for `images` (training data), `inference` (raw inputs and exported `.npy` embeddings), `metadata` (SQLite records), and `validation` (plots + stats reports).
 - **logs** — rotating application logs for troubleshooting. Attach these when reporting issues.
 - **models:** shared cache for Hugging Face tokenizers and any ONNX exports generated during evaluation.
 - **templates** — contains `.env` and other templates that need to be copied into write-protected directories (`XREPORT/app`).
 
-Environmental variables reside in `XREPORT/app/.env` (never committed). Copy the template from `resources/templates/.env` and adjust as needed:
+Environmental variables reside in `XREPORT/setup/.env`. Copy the template from `resources/templates/.env` and adjust as needed:
 
 | Variable              | Description                                                               |
 |-----------------------|---------------------------------------------------------------------------|
