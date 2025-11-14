@@ -9,7 +9,7 @@ warnings.simplefilter(action="ignore", category=Warning)
 
 # [IMPORT CUSTOM MODULES]
 from XREPORT.app.client.window import MainWindow, apply_style
-from XREPORT.app.constants import UI_PATH
+from XREPORT.app.utils.constants import UI_PATH
 
 # [RUN MAIN]
 ###############################################################################
