@@ -6,10 +6,7 @@ from typing import Any, cast
 import pandas as pd
 from matplotlib.figure import Figure
 
-from XREPORT.app.variables import EnvironmentVariables
-
-EV = EnvironmentVariables()
-
+from XREPORT.app.utils.variables import env_variables
 import os
 from functools import partial
 
@@ -44,9 +41,9 @@ from XREPORT.app.client.events import (
     ValidationEvents,
 )
 from XREPORT.app.client.workers import ProcessWorker, ThreadWorker
-from XREPORT.app.configuration import Configuration
-from XREPORT.app.constants import IMG_PATH, INFERENCE_INPUT_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.configuration import Configuration
+from XREPORT.app.utils.constants import IMG_PATH, INFERENCE_INPUT_PATH
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.repository.database import database
 
 
