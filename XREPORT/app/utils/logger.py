@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from XREPORT.app.constants import LOGS_PATH
+from XREPORT.app.utils.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
