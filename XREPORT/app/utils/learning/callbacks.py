@@ -17,7 +17,7 @@ from XREPORT.app.client.workers import (
     ThreadWorker,
     WorkerInterrupted,
 )
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.logger import logger
 
 
 # [CALLBACK FOR UI PROGRESS BAR]
