@@ -9,8 +9,8 @@ from sqlalchemy import Column, Float, Integer, String, UniqueConstraint, create_
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from XREPORT.app.constants import DATA_PATH, SOURCE_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.constants import DATA_PATH, SOURCE_PATH
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.singleton import singleton
 
 Base = declarative_base()

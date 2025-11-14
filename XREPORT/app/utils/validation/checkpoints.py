@@ -10,8 +10,8 @@ from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
-from XREPORT.app.constants import CHECKPOINT_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.constants import CHECKPOINT_PATH
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.learning.callbacks import LearningInterruptCallback
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
