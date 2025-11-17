@@ -11,10 +11,10 @@ from nltk.translate.bleu_score import corpus_bleu
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
 from XREPORT.app.utils.constants import CHECKPOINT_PATH
-from XREPORT.app.utils.logger import logger
-from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.learning.callbacks import LearningInterruptCallback
 from XREPORT.app.utils.learning.inference.generator import TextGenerator
+from XREPORT.app.utils.logger import logger
+from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
 
 
 # [LOAD MODEL]
@@ -107,8 +107,8 @@ class ModelEvaluationSummary:
         callbacks_list = [LearningInterruptCallback(kwargs.get("worker", None))]
         validation = model.evaluate(
             validation_dataset,
-            verbose=1, # type: ignore
-            callbacks=callbacks_list,  
+            verbose=1,  # type: ignore
+            callbacks=callbacks_list,
         )
         logger.info(
             f"Sparse Categorical Entropy Loss {validation[0]:.3f} - Sparse Categorical Accuracy {validation[1]:.3f}"

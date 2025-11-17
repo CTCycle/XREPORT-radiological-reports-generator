@@ -10,8 +10,8 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import sessionmaker
 
 from XREPORT.app.utils.constants import DATA_PATH, SOURCE_PATH
-from XREPORT.app.utils.repository.schema import Base
 from XREPORT.app.utils.logger import logger
+from XREPORT.app.utils.repository.schema import Base
 from XREPORT.app.utils.singleton import singleton
 
 
