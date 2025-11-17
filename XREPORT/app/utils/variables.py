@@ -4,9 +4,9 @@ import os
 
 from dotenv import load_dotenv
 
+from XREPORT.app.utils import singleton
 from XREPORT.app.utils.constants import PROJECT_DIR
 from XREPORT.app.utils.logger import logger
-from XREPORT.app.utils import singleton
 
 
 # [LOAD ENVIRONMENT VARIABLES]
@@ -23,5 +23,6 @@ class EnvironmentVariables:
     # -------------------------------------------------------------------------
     def get(self, key: str, default: str | None = None) -> str | None:
         return os.getenv(key, default)
+
 
 env_variables = EnvironmentVariables()

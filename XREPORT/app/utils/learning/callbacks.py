@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import os
 import subprocess
 import time
 import webbrowser
+from collections.abc import Callable
 from io import BytesIO
 from typing import Any
 
@@ -41,7 +41,6 @@ class ProgressBarCallback(Callback):
         percent = int(100 * processed_epochs / additional_epochs)
         if self.progress_callback is not None:
             self.progress_callback(percent)
-
 
 
 # [CALLBACK FOR TRAIN INTERRUPTION]
@@ -105,7 +104,10 @@ class RealTimeHistory(Callback):
             return
 
         base_metrics = sorted(
-            set(metric[4:] if metric.startswith("val_") else metric for metric in metrics)
+            set(
+                metric[4:] if metric.startswith("val_") else metric
+                for metric in metrics
+            )
         )
         if not base_metrics:
             return
@@ -135,9 +137,15 @@ class RealTimeHistory(Callback):
             target.write(data)
         if self.progress_callback:
             self.progress_callback(
-                {"kind": "render", "source": "train_metrics", "stream": "history", "data": data}
+                {
+                    "kind": "render",
+                    "source": "train_metrics",
+                    "stream": "history",
+                    "data": data,
+                }
             )
         plt.close(fig)
+
 
 # [CALLBACKS HANDLER]
 ###############################################################################
