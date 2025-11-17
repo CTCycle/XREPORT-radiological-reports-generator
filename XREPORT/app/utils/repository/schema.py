@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from sqlalchemy import (
-    Column,    
+    Column,
     Float,
     Integer,
-    String,    
+    String,
     UniqueConstraint,
 )
-
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
