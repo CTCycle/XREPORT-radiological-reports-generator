@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from XREPORT.app.constants import CONFIG_PATH
+from XREPORT.app.utils.constants import CONFIG_PATH
 
 
 ###############################################################################
