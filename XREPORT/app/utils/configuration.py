@@ -4,7 +4,7 @@ import json
 import os
 from typing import Any
 
-from XREPORT.app.constants import CONFIG_PATH
+from XREPORT.app.utils.constants import CONFIG_PATH
 
 
 ###############################################################################

@@ -14,19 +14,19 @@ from XREPORT.app.client.workers import (
     check_thread_status,
     update_progress_callback,
 )
-from XREPORT.app.constants import INFERENCE_INPUT_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.constants import INFERENCE_INPUT_PATH
+from XREPORT.app.utils.learning.device import DeviceConfig
+from XREPORT.app.utils.learning.inference.generator import TextGenerator
+from XREPORT.app.utils.learning.models.transformers import XREPORTModel
+from XREPORT.app.utils.learning.training.fitting import ModelTraining
+from XREPORT.app.utils.logger import logger
+from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
 from XREPORT.app.utils.services.loader import XRAYDataLoader
 from XREPORT.app.utils.services.process import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
-from XREPORT.app.utils.repository.serializer import DataSerializer, ModelSerializer
-from XREPORT.app.utils.learning.device import DeviceConfig
-from XREPORT.app.utils.learning.inference.generator import TextGenerator
-from XREPORT.app.utils.learning.models.transformers import XREPORTModel
-from XREPORT.app.utils.learning.training.fitting import ModelTraining
 from XREPORT.app.utils.validation.checkpoints import (
     EvaluateTextQuality,
     ModelEvaluationSummary,
@@ -375,7 +375,7 @@ class ModelEvents:
         logger.info("Building XREPORT Transformer model")
         captioner = XREPORTModel(metadata, self.configuration)
         model = captioner.get_model(model_summary=True)
-        
+
         # start model training
         logger.info("Starting XREPORT Transformer model training")
         trainer = ModelTraining(self.configuration)

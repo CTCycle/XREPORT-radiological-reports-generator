@@ -10,7 +10,7 @@ from keras.utils import set_random_seed
 from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.services.loader import XRAYDataLoader
 from XREPORT.app.utils.services.process import TokenizerHandler
 

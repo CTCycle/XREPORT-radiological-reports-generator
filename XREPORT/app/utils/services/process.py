@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 from transformers import AutoTokenizer
 
-from XREPORT.app.constants import TOKENIZERS_PATH
+from XREPORT.app.utils.constants import TOKENIZERS_PATH
 
 
 # [DATA SPLITTING]
