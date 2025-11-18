@@ -11,8 +11,8 @@ from matplotlib.figure import Figure
 from tqdm import tqdm
 
 from XREPORT.app.client.workers import check_thread_status, update_progress_callback
-from XREPORT.app.constants import EVALUATION_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.constants import EVALUATION_PATH
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.repository.serializer import DataSerializer
 
 

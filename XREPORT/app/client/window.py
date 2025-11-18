@@ -1,18 +1,12 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any, cast
 
 import pandas as pd
 from matplotlib.figure import Figure
-
-from XREPORT.app.variables import EnvironmentVariables
-
-EV = EnvironmentVariables()
-
-import os
-from functools import partial
-
 from PySide6.QtCore import QFile, QIODevice, Qt, QThreadPool, QTimer, Slot
 from PySide6.QtGui import QAction, QPainter, QPixmap
 from PySide6.QtUiTools import QUiLoader
@@ -44,9 +38,9 @@ from XREPORT.app.client.events import (
     ValidationEvents,
 )
 from XREPORT.app.client.workers import ProcessWorker, ThreadWorker
-from XREPORT.app.configuration import Configuration
-from XREPORT.app.constants import IMG_PATH, INFERENCE_INPUT_PATH
-from XREPORT.app.logger import logger
+from XREPORT.app.utils.configuration import Configuration
+from XREPORT.app.utils.constants import IMG_PATH, INFERENCE_INPUT_PATH
+from XREPORT.app.utils.logger import logger
 from XREPORT.app.utils.repository.database import database
 
 
@@ -443,7 +437,7 @@ class MainWindow:
 
     # -------------------------------------------------------------------------
     def reset_train_metrics_stream(self) -> None:
-        for key in ("train_metrics"): 
+        for key in "train_metrics":
             if key not in self.pixmaps:
                 continue
             self.pixmaps[key].clear()
@@ -671,7 +665,7 @@ class MainWindow:
         if self.current_fig[idx_key] > 0:
             self.current_fig[idx_key] -= 1
             self.update_graphics_view()
-          
+
     # -------------------------------------------------------------------------
     @Slot()
     def show_next_figure(self) -> None:
@@ -692,7 +686,7 @@ class MainWindow:
         self.current_fig[idx_key] = 0
         if idx_key in self.pixmap_stream_index:
             self.pixmap_stream_index[idx_key] = {}
-        self.update_graphics_view()    
+        self.update_graphics_view()
         self.graphics["pixmap_item"].setPixmap(QPixmap())
         self.graphics["scene"].setSceneRect(0, 0, 0, 0)
         self.graphics["view"].viewport().update()
@@ -845,9 +839,7 @@ class MainWindow:
         self.reset_train_metrics_stream()
 
         # send message to status bar
-        self.send_message(
-            f"Resume training from checkpoint {self.selected_checkpoint}"
-        )
+        self.send_message(f"Resume training from checkpoint {self.selected_checkpoint}")
         # functions that are passed to the worker will be executed in a separate thread
         self.worker = ProcessWorker(
             self.model_handler.resume_training_pipeline, self.selected_checkpoint
