@@ -15,12 +15,12 @@ XRAY Report Generator is a machine learning-based tool designed to assist radiol
 ## 2. XREPORT model
 The XREPORT model leverages a robust transformer encoder-decoder architecture to generate detailed radiology reports from X-ray images. It begins by extracting rich image features using a state-of-the-art, pretrained image encoder (*beit-base-patch16-224*) that is integrated into the captioner model. This vision transformer model utilizes the BEiT architecture, which is designed to pre-train image transformers in a manner analogous to BERT in natural language processing, enabling efficient feature extraction from images for various vision tasks.
 
-![BeiT architecture encoder](XREPORT/app/assets/figures/beit_architecture.jpg)
+![BeiT architecture encoder](XREPORT/assets/beit_architecture.jpg)
 Architecture of BeiT models
 
 Subsequently, the stacked transformer encoders, each equipped with multi-head self-attention and feedforward networks, further process these refined image vectors. These encoders produce high-level feature representations that capture the essential characteristics of the scans. The transformer decoder then employs a cross-attention mechanism to align the image features with specific words during report generation. To maintain coherence and context throughout the generated report, the model utilizes causal masking in its auto-regressive decoding process, ensuring that each token is generated with full consideration of the preceding context.
 
-![transformer architecture encoder](XREPORT/app/assets/figures/transformers.png)
+![transformer architecture encoder](XREPORT/assets/transformers.png)
 General transformer model architecture
 
 **Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user's choice.
