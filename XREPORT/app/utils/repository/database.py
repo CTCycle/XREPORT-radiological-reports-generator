@@ -20,7 +20,7 @@ from XREPORT.app.utils.singleton import singleton
 @singleton
 class XREPORTDatabase:
     def __init__(self) -> None:
-        self.db_path = os.path.join(DATA_PATH, "database.db")
+        self.db_path = os.path.join(DATA_PATH, "sqlite.db")
         self.source_path = os.path.join(SOURCE_PATH, "XREPORT_dataset.csv")
         self.engine = create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
