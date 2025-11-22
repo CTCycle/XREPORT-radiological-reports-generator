@@ -77,6 +77,8 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Train and validation dataset splitting** with deterministic seeds, stratified sampling, and imbalance warnings.
 - **Export helpers** to persist the processed samples as parquet, CSV, or SQLite tables for reproducibility.
 
+![data tab](XREPORT/assets/data_tab.png)
+
 **Models tab:** through this tab one can train the XREPORT transformer from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search, temperature sampling, and nucleus sampling. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
 
 - **Average mean sparse categorical loss and accuracy** 
@@ -84,10 +86,13 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Per-token attention diagnostics** stored as NumPy arrays for offline inspection
 - **Checkpoint manager** to promote, archive, or delete runs, and to export ONNX weights for deployment
 
-**Viewer tab:** this tab is dedicated to image and plots visualization, the user may select one of the following options
-- **Training images**: visualize training images located in *resources/database/dataset*, with overlays for bounding boxes or annotations when available.
-- **Inference images**: visualize inference images located in *resources/database/inference* together with generated/free-text reports for qualitative review.
-- **Train metrics**: real-time training metrics plots, confusion matrices, tokenizer stats, and replay of metric curves from previous experiments stored in logs.
+![model tab](XREPORT/assets/model_tab.png)
+
+**Viewer tab:** visualization hub.
+- Browse training and inference images, as well as plots generated during dataset or model evaluation.
+- Useful for quick sanity checks without leaving the application.
+
+![viewer tab](XREPORT/assets/viewer_tab.png)
 
 ### 5.1 Setup and Maintenance
 `setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
