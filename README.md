@@ -15,12 +15,12 @@ XRAY Report Generator is a machine learning-based tool designed to assist radiol
 ## 2. XREPORT model
 The XREPORT model leverages a robust transformer encoder-decoder architecture to generate detailed radiology reports from X-ray images. It begins by extracting rich image features using a state-of-the-art, pretrained image encoder (*beit-base-patch16-224*) that is integrated into the captioner model. This vision transformer model utilizes the BEiT architecture, which is designed to pre-train image transformers in a manner analogous to BERT in natural language processing, enabling efficient feature extraction from images for various vision tasks.
 
-![BeiT architecture encoder](XREPORT/app/assets/figures/beit_architecture.jpg)
+![BeiT architecture encoder](XREPORT/assets/beit_architecture.jpg)
 Architecture of BeiT models
 
 Subsequently, the stacked transformer encoders, each equipped with multi-head self-attention and feedforward networks, further process these refined image vectors. These encoders produce high-level feature representations that capture the essential characteristics of the scans. The transformer decoder then employs a cross-attention mechanism to align the image features with specific words during report generation. To maintain coherence and context throughout the generated report, the model utilizes causal masking in its auto-regressive decoding process, ensuring that each token is generated with full consideration of the preceding context.
 
-![transformer architecture encoder](XREPORT/app/assets/figures/transformers.png)
+![transformer architecture encoder](XREPORT/assets/transformers.png)
 General transformer model architecture
 
 **Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user's choice.
@@ -77,6 +77,8 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Train and validation dataset splitting** with deterministic seeds, stratified sampling, and imbalance warnings.
 - **Export helpers** to persist the processed samples as parquet, CSV, or SQLite tables for reproducibility.
 
+![data tab](XREPORT/assets/data_tab.png)
+
 **Models tab:** through this tab one can train the XREPORT transformer from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search, temperature sampling, and nucleus sampling. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
 
 - **Average mean sparse categorical loss and accuracy** 
@@ -84,10 +86,13 @@ Also allows building the ML dataset that will be used for training the XREPORT m
 - **Per-token attention diagnostics** stored as NumPy arrays for offline inspection
 - **Checkpoint manager** to promote, archive, or delete runs, and to export ONNX weights for deployment
 
-**Viewer tab:** this tab is dedicated to image and plots visualization, the user may select one of the following options
-- **Training images**: visualize training images located in *resources/database/dataset*, with overlays for bounding boxes or annotations when available.
-- **Inference images**: visualize inference images located in *resources/database/inference* together with generated/free-text reports for qualitative review.
-- **Train metrics**: real-time training metrics plots, confusion matrices, tokenizer stats, and replay of metric curves from previous experiments stored in logs.
+![model tab](XREPORT/assets/model_tab.png)
+
+**Viewer tab:** visualization hub.
+- Browse training and inference images, as well as plots generated during dataset or model evaluation.
+- Useful for quick sanity checks without leaving the application.
+
+![viewer tab](XREPORT/assets/viewer_tab.png)
 
 ### 5.1 Setup and Maintenance
 `setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
