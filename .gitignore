@@ -19,7 +19,7 @@ __pycache__
 *.npy
 *.lock
 *.venv
-*.egg-info
+
 !.gitkeep
 
 AGENTS.md
