@@ -1,0 +1,28 @@
+{  
+  "fastapi": {
+    "title": "APP Backend",
+    "description": "FastAPI backend",
+    "version": "0.1.0"    
+  },
+    
+  "database": {
+    "embedded_database": false,
+    "engine": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database_name": "APP",
+    "username": "postgres",
+    "password": "admin",
+    "ssl": false,
+    "ssl_ca": null,
+    "connect_timeout": 30,
+    "insert_batch_size": 1000
+  },
+  "service_A": {
+    "parameter_1": "",
+    "parameter_2": 50,
+    "parameter_3": 10.0
+  }
+  
+ 
+}
