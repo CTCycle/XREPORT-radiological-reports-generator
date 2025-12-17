@@ -1,16 +1,16 @@
 {  
   "fastapi": {
-    "title": "APP Backend",
+    "title": "XREPORT Backend",
     "description": "FastAPI backend",
     "version": "0.1.0"    
   },
     
   "database": {
-    "embedded_database": false,
+    "embedded_database": true,
     "engine": "postgres",
     "host": "localhost",
     "port": 5432,
-    "database_name": "APP",
+    "database_name": "XREPORT",
     "username": "postgres",
     "password": "admin",
     "ssl": false,
