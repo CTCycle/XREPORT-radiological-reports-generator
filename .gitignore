@@ -1,37 +1,64 @@
-APP/resources/database/*
-APP/resources/runtimes/python/*
-APP/resources/runtimes/nodejs/*
-APP/resources/runtimes/uv/*
-APP/resources/runtimes/uv_cache/*
-APP/settings/.env
-APP/client/node_modules/
-APP/client/dist/
-APP/client/dist-ssr/
-APP/client/.env
-APP/client/*.local
-APP/client/logs/
-APP/resources/models/*
+# Project-specific generated/runtime artifacts
+XREPORT/resources/database/**
+XREPORT/resources/runtimes/**
+XREPORT/resources/runtimes/uv_cache/**
+XREPORT/resources/logs/**
+XREPORT/client/node_modules/
+XREPORT/client/dist/
+XREPORT/client/dist-ssr/
+XREPORT/client/package-lock.json
+XREPORT/client/logs/
 
-__pycache__
-*.vscode
-*.venv
-*.db
-*.log
-*.docx
-*.json
-*.xlsx
-*.pdf
-*.csv   
-*.txt
-*.npy
+# Environment files (keep templates)
+XREPORT/settings/.env
+XREPORT/client/.env
+XREPORT/client/*.local
+!.env.example
+!.env.sample
+!XREPORT/resources/templates/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+.coverage
+htmlcov/
+
+# Node / JS
+**/node_modules/
+**/dist/
+**/dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE / OS
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
 *.lock
-*.zip
+*.log
+*.db
+*.sqlite*
 *.exe
-*.egg-info
 *.gz
-!.gitkeep
+AGENTS.MD
 
-!APP/settings/server_configurations.json
+!.gitkeep
+!XREPORT/settings/server_configurations.json
 
 
 
