@@ -5,7 +5,7 @@ export default function MainLayout() {
     return (
         <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
             <Sidebar />
-            <div style={{ flex: 1, overflow: 'auto', backgroundColor: '#1e1e1e', color: '#fff' }}>
+            <div style={{ flex: 1, overflow: 'auto', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                 <Outlet />
             </div>
         </div>
