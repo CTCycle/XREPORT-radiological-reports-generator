@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCcw, Database as DatabaseIcon } from 'lucide-react';
 import './DatabaseBrowserPage.css';
-import { fetchTableData, fetchTableList, TableInfo } from '../services/databaseBrowser';
+import { fetchBrowseConfig, fetchTableData, fetchTableList, TableInfo } from '../services/databaseBrowser';
 
 interface BrowserState {
     tables: TableInfo[];
@@ -16,9 +16,10 @@ interface BrowserState {
     loading: boolean;
     error: string | null;
     tablesLoaded: boolean;
+    dataLoaded: boolean;  // Track if initial data has been loaded
 }
 
-const PAGE_SIZES = [50, 200, 500, 1000] as const;
+const DEFAULT_BATCH_SIZE = 200;
 
 export default function DatabaseBrowserPage() {
     const [state, setState] = useState<BrowserState>({
@@ -29,11 +30,12 @@ export default function DatabaseBrowserPage() {
         rowCount: 0,
         columnCount: 0,
         displayName: '',
-        limit: 200,
+        limit: DEFAULT_BATCH_SIZE,
         offset: 0,
         loading: false,
         error: null,
         tablesLoaded: false,
+        dataLoaded: false,
     });
 
     const pageIndex = useMemo(() => Math.floor(state.offset / state.limit), [state.offset, state.limit]);
@@ -64,6 +66,7 @@ export default function DatabaseBrowserPage() {
                     columnCount: 0,
                     displayName: '',
                     loading: false,
+                    dataLoaded: true,
                     error: error ?? 'Unable to load table.',
                 }));
                 return;
@@ -77,41 +80,51 @@ export default function DatabaseBrowserPage() {
                 columnCount: result.column_count,
                 displayName: result.display_name,
                 loading: false,
+                dataLoaded: true,
                 error: null,
             }));
         },
         [],
     );
 
+    // Load tables list and config on mount (but NOT data)
     useEffect(() => {
         if (state.tablesLoaded) return;
-        const loadTables = async () => {
+        const loadTablesAndConfig = async () => {
+            // First load config
+            const { config } = await fetchBrowseConfig();
+            const batchSize = config?.browse_batch_size ?? DEFAULT_BATCH_SIZE;
+
+            // Then load table list
             const { tables, error } = await fetchTableList();
             if (error) {
-                setState(prev => ({ ...prev, tablesLoaded: true, error }));
+                setState(prev => ({ ...prev, tablesLoaded: true, limit: batchSize, error }));
                 return;
             }
             const firstTable = tables.length > 0 ? tables[0].table_name : '';
-            setState(prev => ({ ...prev, tables, selectedTable: firstTable, tablesLoaded: true, error: null }));
-            if (firstTable) {
-                await loadTableData(firstTable, state.limit, 0);
-            }
+            // Set tables but do NOT auto-fetch data (Rule 1: don't fetch on page load)
+            setState(prev => ({
+                ...prev,
+                tables,
+                selectedTable: firstTable,
+                tablesLoaded: true,
+                limit: batchSize,
+                error: null
+            }));
         };
-        void loadTables();
-    }, [state.tablesLoaded, state.limit, loadTableData]);
+        void loadTablesAndConfig();
+    }, [state.tablesLoaded]);
 
     const onTableChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const tableName = event.target.value;
+        // Rule 2: selecting a table always fetches data
         void loadTableData(tableName, state.limit, 0);
     };
 
-    const onPageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        const nextLimit = Number(event.target.value);
-        void loadTableData(state.selectedTable, nextLimit, 0);
-    };
-
     const refresh = () => {
-        void loadTableData(state.selectedTable, state.limit, state.offset);
+        if (state.selectedTable) {
+            void loadTableData(state.selectedTable, state.limit, state.offset);
+        }
     };
 
     const goPrevious = () => {
@@ -126,87 +139,79 @@ export default function DatabaseBrowserPage() {
 
     return (
         <div className="dbb-page">
+            {/* Header */}
             <div className="dbb-header">
                 <div className="dbb-title">
-                    <div className="dbb-title-row">
-                        <DatabaseIcon size={18} />
-                        <h1>Database Browser</h1>
-                    </div>
-                    <p>Browse tables stored in the application database.</p>
+                    <DatabaseIcon size={22} className="dbb-title-icon" />
+                    <h1>Database Browser</h1>
                 </div>
+                <p className="dbb-subtitle">Browse tables stored in the application database.</p>
             </div>
 
-            <div className="dbb-controls">
-                <div className="dbb-control">
-                    <label className="dbb-label">Table</label>
-                    <div className="dbb-row">
-                        <select
-                            className="dbb-select"
-                            value={state.selectedTable}
-                            onChange={onTableChange}
-                            disabled={state.loading || state.tables.length === 0}
-                        >
-                            {state.tables.map(table => (
-                                <option key={table.table_name} value={table.table_name}>
-                                    {table.display_name}
-                                </option>
-                            ))}
-                        </select>
-                        <button className="dbb-icon-btn" onClick={refresh} disabled={state.loading || !state.selectedTable}>
-                            <RefreshCcw size={16} />
-                        </button>
+            {/* Controls Row */}
+            <div className="dbb-controls-row">
+                <div className="dbb-controls-left">
+                    <div className="dbb-control">
+                        <label className="dbb-label">Select Table</label>
+                        <div className="dbb-select-row">
+                            <select
+                                className="dbb-select"
+                                value={state.selectedTable}
+                                onChange={onTableChange}
+                                disabled={state.loading || state.tables.length === 0}
+                            >
+                                {state.tables.map(table => (
+                                    <option key={table.table_name} value={table.table_name}>
+                                        {table.display_name}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                className="dbb-refresh-btn"
+                                onClick={refresh}
+                                disabled={state.loading || !state.selectedTable}
+                                title="Refresh data"
+                            >
+                                <RefreshCcw size={16} className={state.loading ? 'spinning' : ''} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="dbb-control">
-                    <label className="dbb-label">Page Size</label>
-                    <select className="dbb-select" value={state.limit} onChange={onPageSizeChange} disabled={state.loading}>
-                        {PAGE_SIZES.map(size => (
-                            <option key={size} value={size}>
-                                {size}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="dbb-stats">
-                    <div className="dbb-stat">
-                        <span className="dbb-stat-label">Rows</span>
-                        <span className="dbb-stat-value">{state.rowCount}</span>
+                <div className="dbb-stats-row">
+                    <span className="dbb-stats-label">Statistics</span>
+                    <div className="dbb-stat-item">
+                        <span className="dbb-stat-name">Rows:</span>
+                        <span className="dbb-stat-value">{state.dataLoaded ? state.rowCount : '-'}</span>
                     </div>
-                    <div className="dbb-stat">
-                        <span className="dbb-stat-label">Columns</span>
-                        <span className="dbb-stat-value">{state.columnCount}</span>
+                    <div className="dbb-stat-item">
+                        <span className="dbb-stat-name">Columns:</span>
+                        <span className="dbb-stat-value">{state.dataLoaded ? state.columnCount : '-'}</span>
                     </div>
-                    <div className="dbb-stat">
-                        <span className="dbb-stat-label">Table</span>
-                        <span className="dbb-stat-value">{state.displayName || '-'}</span>
+                    <div className="dbb-stat-item">
+                        <span className="dbb-stat-name">Table:</span>
+                        <span className="dbb-stat-value">{state.dataLoaded ? (state.displayName || '-') : '-'}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="dbb-pagination">
-                <button className="dbb-btn" onClick={goPrevious} disabled={!canGoPrevious}>
-                    Previous
-                </button>
-                <div className="dbb-page-info">
-                    Page {state.rowCount === 0 ? 0 : pageIndex + 1} · Showing {pageStart}-{pageEnd} of {state.rowCount}
-                </div>
-                <button className="dbb-btn" onClick={goNext} disabled={!canGoNext}>
-                    Next
-                </button>
-            </div>
-
+            {/* Error Message */}
             {state.error && <div className="dbb-error">{state.error}</div>}
 
-            <div className="dbb-table-container">
+            {/* Data Table */}
+            <div className="dbb-table-wrapper">
                 {state.loading ? (
-                    <div className="dbb-loading">Loading…</div>
+                    <div className="dbb-loading">Loading...</div>
+                ) : !state.dataLoaded ? (
+                    <div className="dbb-empty">
+                        Select a table and click refresh, or choose a different table to view data.
+                    </div>
                 ) : state.rows.length > 0 ? (
                     <div className="dbb-table-scroll">
                         <table className="dbb-table">
                             <thead>
                                 <tr>
+                                    <th className="dbb-row-num-header">#</th>
                                     {state.columns.map(col => (
                                         <th key={col}>{col}</th>
                                     ))}
@@ -215,6 +220,7 @@ export default function DatabaseBrowserPage() {
                             <tbody>
                                 {state.rows.map((row, idx) => (
                                     <tr key={idx}>
+                                        <td className="dbb-row-num">{state.offset + idx + 1}</td>
                                         {state.columns.map(col => (
                                             <td key={col}>
                                                 {row[col] !== null && row[col] !== undefined ? String(row[col]) : ''}
@@ -233,7 +239,21 @@ export default function DatabaseBrowserPage() {
                     </div>
                 )}
             </div>
+
+            {/* Pagination */}
+            {state.dataLoaded && state.rows.length > 0 && (
+                <div className="dbb-pagination">
+                    <button className="dbb-page-btn" onClick={goPrevious} disabled={!canGoPrevious}>
+                        Previous
+                    </button>
+                    <span className="dbb-page-info">
+                        Page {state.rowCount === 0 ? 0 : pageIndex + 1} · Showing {pageStart}-{pageEnd} of {state.rowCount}
+                    </span>
+                    <button className="dbb-page-btn" onClick={goNext} disabled={!canGoNext}>
+                        Next
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
-
