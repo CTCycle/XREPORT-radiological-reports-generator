@@ -51,7 +51,7 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 
 # [DATABASE]
 ###############################################################################
-class APPDatabase:
+class XREPORTDatabase:
     def __init__(self) -> None:
         self.settings = server_settings.database
         self.backend = self._build_backend(self.settings.embedded_database)
@@ -88,4 +88,4 @@ class APPDatabase:
         return self.backend.count_rows(table_name)
 
 
-database = APPDatabase()
+database = XREPORTDatabase()

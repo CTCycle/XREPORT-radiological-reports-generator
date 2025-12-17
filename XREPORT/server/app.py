@@ -3,9 +3,9 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-from APP.server.utils.variables import env_variables
-from APP.server.routes.endpoint import router as general_router
-from APP.server.utils.configurations import server_settings
+from XREPORT.server.utils.variables import env_variables
+from XREPORT.server.routes.browser import router as browser_router
+from XREPORT.server.utils.configurations import server_settings
 
 ###############################################################################
 app = FastAPI(
@@ -14,7 +14,7 @@ app = FastAPI(
     description=server_settings.fastapi.description,
 )
 
-app.include_router(general_router)
+app.include_router(browser_router)
 
 @app.get("/")
 def redirect_to_docs() -> RedirectResponse:
