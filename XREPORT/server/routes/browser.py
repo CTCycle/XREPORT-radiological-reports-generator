@@ -8,7 +8,8 @@ from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from XREPORT.server.database.database import database
-from XREPORT.server.schemas.browser import TableDataResponse, TableInfo, TableListResponse
+from XREPORT.server.schemas.browser import BrowseConfigResponse, TableDataResponse, TableInfo, TableListResponse
+from XREPORT.server.utils.configurations import server_settings
 from XREPORT.server.utils.logger import logger
 
 
@@ -42,6 +43,18 @@ async def list_tables() -> TableListResponse:
         for table_name in table_names
     ]
     return TableListResponse(tables=tables)
+
+
+###############################################################################
+@router.get(
+    "/config",
+    response_model=BrowseConfigResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_browse_config() -> BrowseConfigResponse:
+    return BrowseConfigResponse(
+        browse_batch_size=server_settings.database.browse_batch_size,
+    )
 
 
 ###############################################################################

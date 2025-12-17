@@ -42,6 +42,7 @@ class DatabaseSettings:
     ssl_ca: str | None         
     connect_timeout: int
     insert_batch_size: int
+    browse_batch_size: int
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -85,6 +86,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
             ssl_ca=None,
             connect_timeout=10,
             insert_batch_size=coerce_int(payload.get("insert_batch_size"), 1000, minimum=1),
+            browse_batch_size=coerce_int(payload.get("browse_batch_size"), 200, minimum=1, maximum=1000),
         )
 
     # External DB mode
@@ -102,6 +104,7 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         ssl_ca=coerce_str_or_none(payload.get("ssl_ca")),
         connect_timeout=coerce_int(payload.get("connect_timeout"), 10, minimum=1),
         insert_batch_size=coerce_int(payload.get("insert_batch_size"), 1000, minimum=1),
+        browse_batch_size=coerce_int(payload.get("browse_batch_size"), 200, minimum=1, maximum=1000),
     )
 
 # -----------------------------------------------------------------------------

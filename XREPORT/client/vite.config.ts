@@ -1,18 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
+const apiHost = process.env.FASTAPI_HOST || '127.0.0.1'
+const apiPort = process.env.FASTAPI_PORT || '8000'
+const apiTarget = `http://${apiHost}:${apiPort}`
+
+
 export default defineConfig({
     plugins: [react()],
     server: {
+        host: '127.0.0.1',
+        port: 7861,
+        strictPort: false,
         proxy: {
-            '/base': {
-                target: 'http://127.0.0.1:8000',
+            '/api': {
+                target: apiTarget,
                 changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
             },
-            '/data': {
-                target: 'http://127.0.0.1:8000',
+        },
+    },
+    preview: {
+        host: '127.0.0.1',
+        port: 7861,
+        strictPort: false,
+        proxy: {
+            '/api': {
+                target: apiTarget,
                 changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
             },
         },
     },
