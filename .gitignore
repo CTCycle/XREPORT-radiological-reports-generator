@@ -1,28 +1,38 @@
-XREPORT/resources/database/dataset/*
-XREPORT/resources/database/dataset/images/*
-XREPORT/resources/database/metadata/*
-XREPORT/resources/checkpoints/*
-XREPORT/resources/validation/*
-XREPORT/resources/models/tokenizers/*
-XREPORT/resources/models/XRAYEncoder/*
-XREPORT/resources/database/inference/*
-XREPORT/resources/database/validation/*
-
-XREPORT/setup/python/*
-XREPORT/setup/uv/*
-XREPORT/setup/.env
+APP/resources/database/*
+APP/resources/runtimes/python/*
+APP/resources/runtimes/nodejs/*
+APP/resources/runtimes/uv/*
+APP/resources/runtimes/uv_cache/*
+APP/settings/.env
+APP/client/node_modules/
+APP/client/dist/
+APP/client/dist-ssr/
+APP/client/.env
+APP/client/*.local
+APP/client/logs/
+APP/resources/models/*
 
 __pycache__
 *.vscode
+*.venv
 *.db
 *.log
+*.docx
+*.json
+*.xlsx
+*.pdf
+*.csv   
+*.txt
 *.npy
 *.lock
-*.venv
-
+*.zip
+*.exe
+*.egg-info
+*.gz
 !.gitkeep
 
-AGENTS.md
+!APP/settings/server_configurations.json
+
 
 
 
