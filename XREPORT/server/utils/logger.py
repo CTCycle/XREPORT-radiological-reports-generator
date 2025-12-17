@@ -6,13 +6,13 @@ import os
 from datetime import datetime
 from typing import Any
 
-from APP.server.utils.constants import LOGS_PATH
+from XREPORT.server.utils.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 ###############################################################################
 os.makedirs(LOGS_PATH, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = os.path.join(LOGS_PATH, f"APP_{current_timestamp}.log")
+log_filename = os.path.join(LOGS_PATH, f"XREPORT_{current_timestamp}.log")
 
 # Define logger configuration
 ###############################################################################

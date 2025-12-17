@@ -37,7 +37,7 @@ set "npm_cmd=%nodejs_dir%\npm.cmd"
 set "env_marker_node=%nodejs_dir%\.is_installed"
 
 set "pyproject=%root_folder%pyproject.toml"
-set "UVICORN_MODULE=APP.server.app:app"
+set "UVICORN_MODULE=XREPORT.server.app:app"
 set "FRONTEND_DIR=%project_folder%client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 
@@ -51,7 +51,7 @@ set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
 
-title APP Launcher
+title XREPORT Launcher
 echo.
 
 set "NPM_CMD=%npm_cmd%"
