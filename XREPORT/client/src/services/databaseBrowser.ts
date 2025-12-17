@@ -16,6 +16,10 @@ export interface TableDataResponse {
     data: Record<string, unknown>[];
 }
 
+export interface BrowseConfig {
+    browse_batch_size: number;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -60,3 +64,17 @@ export async function fetchTableData(
     }
 }
 
+export async function fetchBrowseConfig(): Promise<{ config: BrowseConfig | null; error: string | null }> {
+    try {
+        const response = await fetch('/data/browser/config');
+        if (!response.ok) {
+            const body = await response.text();
+            return { config: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<BrowseConfig>(response);
+        return { config: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { config: null, error: message };
+    }
+}
