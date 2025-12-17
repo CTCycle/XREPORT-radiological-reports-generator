@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "APP"
+name = "XREPORT"
 version = "1.6"
 requires-python = ">=3.12,<3.13"
 
@@ -23,5 +23,4 @@ dependencies = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["APP"] 
-
+packages = ["XREPORT"] 

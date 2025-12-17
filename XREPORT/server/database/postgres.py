@@ -10,10 +10,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from APP.server.utils.configurations import DatabaseSettings
-from APP.server.database.schema import Base
-from APP.server.database.utils import normalize_postgres_engine
-from APP.server.utils.logger import logger
+from XREPORT.server.utils.configurations import DatabaseSettings
+from XREPORT.server.database.schema import Base
+from XREPORT.server.database.utils import normalize_postgres_engine
+from XREPORT.server.utils.logger import logger
 
 
 ###############################################################################

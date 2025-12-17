@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from APP.server.utils.constants import (
+from XREPORT.server.utils.constants import (
     GEONAMES_TABLE,
     GEONAMES_COLUMNS,
     GIBS_LAYERS_TABLE,
@@ -12,7 +12,7 @@ from APP.server.utils.constants import (
     SEARCH_SESSION_COLUMNS,
     SEARCH_SESSIONS_TABLE,
 )
-from APP.server.database.database import database
+from XREPORT.server.database.database import database
 
 
 ###############################################################################
