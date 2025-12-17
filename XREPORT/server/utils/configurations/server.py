@@ -1,24 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
-from APP.server.utils.configurations.base import (
+from XREPORT.server.utils.configurations.base import (
     ensure_mapping, 
     load_configuration_data    
 )
 
-from APP.server.utils.constants import (
-    GIBS_MAX_IMAGE_DIMENSION,
-    GIBS_MIN_IMAGE_DIMENSION,   
-    NASA_ATTRIBUTION,
-    SERVER_CONFIGURATION_FILE,
-    CLOUD_MODEL_CHOICES,
-    AGENT_MODEL_CHOICES
-)
+from XREPORT.server.utils.constants import SERVER_CONFIGURATION_FILE
 
-from APP.server.utils.types import (
-    coerce_bool,
+from XREPORT.server.utils.types import (
     coerce_float,
     coerce_int,
     coerce_str,
@@ -71,7 +63,7 @@ class ServerSettings:
 def build_fastapi_settings(data: dict[str, Any]) -> FastAPISettings:
     payload = ensure_mapping(data)
     return FastAPISettings(
-        title=coerce_str(payload.get("title"), "APP Geospatial Search Backend"),
+        title=coerce_str(payload.get("title"), "XREPORT Backend"),
         version=coerce_str(payload.get("version"), "0.1.0"),
         description=coerce_str(payload.get("description"), "FastAPI backend"),        
     )
@@ -115,10 +107,10 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
 # -----------------------------------------------------------------------------
 def build_service_settings(data: dict[str, Any]) -> ServiceSettings:
     payload = ensure_mapping(data)
-    return ServerSettings(
+    return ServiceSettings(
         param_A=coerce_str(payload.get("param_A"), ""),
         param_B=coerce_str(payload.get("param_B"), ""),
-        param_C=coerce_str(payload.get("param_C"), ""),       
+        param_C=coerce_float(payload.get("param_C"), 0.0),
     )
 
 
@@ -128,7 +120,7 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
     fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
-    service_payload = ensure_mapping(payload.get("service"))
+    service_payload = ensure_mapping(payload.get("service") or payload.get("service_A"))
   
     return ServerSettings(
         fastapi=build_fastapi_settings(fastapi_payload),

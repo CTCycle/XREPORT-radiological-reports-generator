@@ -6,10 +6,10 @@ from typing import Any, Protocol
 import pandas as pd
 from sqlalchemy.orm import declarative_base
 
-from APP.server.utils.configurations import DatabaseSettings, server_settings
-from APP.server.utils.logger import logger
-from APP.server.database.postgres import PostgresRepository
-from APP.server.database.sqlite import SQLiteRepository
+from XREPORT.server.utils.configurations import DatabaseSettings, server_settings
+from XREPORT.server.utils.logger import logger
+from XREPORT.server.database.postgres import PostgresRepository
+from XREPORT.server.database.sqlite import SQLiteRepository
 
 Base = declarative_base()
 

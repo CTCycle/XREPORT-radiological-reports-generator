@@ -5,12 +5,12 @@ import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from APP.server.utils.configurations import DatabaseSettings, server_settings
-from APP.server.database.postgres import PostgresRepository
-from APP.server.database.schema import Base
-from APP.server.database.sqlite import SQLiteRepository
-from APP.server.database.utils import normalize_postgres_engine
-from APP.server.utils.logger import logger
+from XREPORT.server.utils.configurations import DatabaseSettings, server_settings
+from XREPORT.server.database.postgres import PostgresRepository
+from XREPORT.server.database.schema import Base
+from XREPORT.server.database.sqlite import SQLiteRepository
+from XREPORT.server.database.utils import normalize_postgres_engine
+from XREPORT.server.utils.logger import logger
 
 
 ###############################################################################

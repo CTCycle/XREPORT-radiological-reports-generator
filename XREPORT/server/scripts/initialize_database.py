@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import time
 
-from APP.server.database.initializer import initialize_database
-from APP.server.utils.constants import SERVER_CONFIGURATION_FILE
-from APP.server.utils.logger import logger
+from XREPORT.server.database.initializer import initialize_database
+from XREPORT.server.utils.constants import SERVER_CONFIGURATION_FILE
+from XREPORT.server.utils.logger import logger
 
 
 # -----------------------------------------------------------------------------

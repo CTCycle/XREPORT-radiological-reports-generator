@@ -1,0 +1,222 @@
+.dbb-page {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--text-primary);
+}
+
+.dbb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.dbb-title h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.dbb-title p {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.dbb-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dbb-controls {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr 1.8fr;
+    gap: 16px;
+    align-items: end;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.dbb-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dbb-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.dbb-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.dbb-select {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.dbb-select:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.dbb-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.dbb-icon-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dbb-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dbb-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.dbb-stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.dbb-stat-value {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.dbb-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.dbb-btn {
+    height: 34px;
+    padding: 0 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.dbb-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dbb-page-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.dbb-error {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.08);
+    color: #b91c1c;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+.dbb-table-container {
+    flex: 1;
+    min-height: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.dbb-loading,
+.dbb-empty {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.dbb-table-scroll {
+    height: 100%;
+    overflow: auto;
+}
+
+.dbb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.dbb-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    padding: 10px 12px;
+    white-space: nowrap;
+    font-weight: 650;
+}
+
+.dbb-table tbody td {
+    border-bottom: 1px solid var(--border-color);
+    padding: 9px 12px;
+    white-space: nowrap;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dbb-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.06);
+}
+
+@media (max-width: 1100px) {
+    .dbb-controls {
+        grid-template-columns: 1fr;
+    }
+}
+
