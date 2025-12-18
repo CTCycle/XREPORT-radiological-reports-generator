@@ -30,7 +30,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function fetchTableList(): Promise<{ tables: TableInfo[]; error: string | null }> {
     try {
-        const response = await fetch('/data/browser/tables');
+        const response = await fetch('/api/data/browser/tables');
         if (!response.ok) {
             const body = await response.text();
             return { tables: [], error: `${response.status} ${response.statusText}: ${body}` };
@@ -51,7 +51,7 @@ export async function fetchTableData(
     if (!tableName) return { result: null, error: 'No table selected.' };
     try {
         const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-        const response = await fetch(`/data/browser/data/${encodeURIComponent(tableName)}?${params.toString()}`);
+        const response = await fetch(`/api/data/browser/data/${encodeURIComponent(tableName)}?${params.toString()}`);
         if (!response.ok) {
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
@@ -66,7 +66,7 @@ export async function fetchTableData(
 
 export async function fetchBrowseConfig(): Promise<{ config: BrowseConfig | null; error: string | null }> {
     try {
-        const response = await fetch('/data/browser/config');
+        const response = await fetch('/api/data/browser/config');
         if (!response.ok) {
             const body = await response.text();
             return { config: null, error: `${response.status} ${response.statusText}: ${body}` };

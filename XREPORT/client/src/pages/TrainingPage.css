@@ -144,6 +144,73 @@
     margin-top: 0.15rem;
 }
 
+/* Upload card with input */
+.upload-card-input {
+    cursor: default;
+}
+
+.upload-card-input:hover {
+    border-color: var(--border-color);
+    background: var(--input-bg);
+}
+
+.upload-path-input {
+    margin-top: 0.5rem;
+    width: 100%;
+    text-align: left;
+}
+
+/* Upload status indicators */
+.upload-status {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.upload-status.success {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
+}
+
+.upload-status.error {
+    color: #dc2626;
+    background: rgba(220, 38, 38, 0.1);
+}
+
+/* Load dataset section */
+.load-dataset-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+    min-width: 120px;
+}
+
+/* Spin animation for loading */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Disabled button state */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Form Styles */
 .config-grid {
     display: grid;
