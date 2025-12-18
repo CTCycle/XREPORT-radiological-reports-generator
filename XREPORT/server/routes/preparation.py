@@ -22,7 +22,7 @@ from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
 
 
-router = APIRouter(prefix="/training", tags=["training"])
+router = APIRouter(prefix="/preparation", tags=["preparation"])
 
 # Temporary storage for uploaded dataset
 temp_dataset_storage: dict[str, Any] = {}
@@ -401,7 +401,7 @@ async def browse_directory(
     
     if not os.path.isdir(path):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Path is not a directory: {path}",
         )
     

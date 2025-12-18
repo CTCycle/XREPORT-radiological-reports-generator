@@ -59,7 +59,7 @@ export async function validateImagePath(
     folderPath: string
 ): Promise<{ result: ImagePathResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/training/images/validate', {
+        const response = await fetch('/api/preparation/images/validate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ folder_path: folderPath }),
@@ -86,7 +86,7 @@ export async function uploadDataset(
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/training/dataset/upload', {
+        const response = await fetch('/api/preparation/dataset/upload', {
             method: 'POST',
             body: formData,
         });
@@ -109,7 +109,7 @@ export async function loadDataset(
     request: LoadDatasetRequest
 ): Promise<{ result: LoadDatasetResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/training/dataset/load', {
+        const response = await fetch('/api/preparation/dataset/load', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -138,14 +138,60 @@ export async function browseDirectory(
 ): Promise<{ result: BrowseResponse | null; error: string | null }> {
     try {
         const url = path
-            ? `/api/training/browse?path=${encodeURIComponent(path)}`
-            : '/api/training/browse';
+            ? `/api/preparation/browse?path=${encodeURIComponent(path)}`
+            : '/api/preparation/browse';
         const response = await fetch(url);
         if (!response.ok) {
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<BrowseResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+// ============================================================================
+// Dataset Processing API
+// ============================================================================
+
+export interface ProcessDatasetRequest {
+    sample_size: number;
+    seed: number;
+    validation_size: number;
+    split_seed: number;
+    tokenizer: string;
+    max_report_size: number;
+}
+
+export interface ProcessDatasetResponse {
+    success: boolean;
+    total_samples: number;
+    train_samples: number;
+    validation_samples: number;
+    vocabulary_size: number;
+    message: string;
+}
+
+/**
+ * Process the loaded dataset (sanitize, tokenize, split)
+ */
+export async function processDataset(
+    config: ProcessDatasetRequest
+): Promise<{ result: ProcessDatasetResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/preparation/dataset/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config),
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ProcessDatasetResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

@@ -7,6 +7,7 @@ import {
     uploadDataset,
     loadDataset,
     validateImagePath,
+    processDataset,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -23,11 +24,42 @@ export default function DatasetPage() {
         setLoadResult,
         setIsLoading,
         setUploadError,
-        setFolderBrowserOpen
+        setFolderBrowserOpen,
+        setIsProcessing,
+        setProcessingResult,
     } = useDatasetPageState();
 
     const handleConfigChange = (key: string, value: number | string | boolean) => {
         updateConfig(key as keyof typeof state.config, value);
+    };
+
+    const handleBuildDataset = async () => {
+        // Validation: Must have loaded dataset first
+        if (!state.loadResult?.success) {
+            setUploadError("Please load a dataset before processing.");
+            return;
+        }
+
+        setIsProcessing(true);
+        setUploadError(null);
+        setProcessingResult(null);
+
+        const { result, error } = await processDataset({
+            sample_size: state.config.sampleSize,
+            seed: state.config.seed,
+            validation_size: state.config.validationSize,
+            split_seed: state.config.splitSeed,
+            tokenizer: state.config.tokenizer,
+            max_report_size: state.config.maxReportSize,
+        });
+
+        setIsProcessing(false);
+
+        if (error) {
+            setUploadError(error);
+        } else if (result) {
+            setProcessingResult(result);
+        }
     };
 
     const handleFolderSelect = async (path: string, _imageCount: number) => {
@@ -251,9 +283,28 @@ export default function DatasetPage() {
                                 </select>
                             </div>
                             <div className="form-group span-3">
-                                <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.25rem' }}>
-                                    Build Dataset
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleBuildDataset}
+                                    disabled={state.isProcessing}
+                                    style={{ marginTop: '0.25rem', width: '100%', justifyContent: 'center' }}
+                                >
+                                    {state.isProcessing ? (
+                                        <><Loader size={16} className="spin" /> Processing Dataset...</>
+                                    ) : (
+                                        <><Sliders size={16} /> Build Dataset</>
+                                    )}
                                 </button>
+                                {state.processingResult?.success && (
+                                    <div className="upload-status success" style={{ marginTop: '0.5rem' }}>
+                                        <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val samples
+                                    </div>
+                                )}
+                                {state.processingResult === undefined && state.uploadError && state.uploadError.includes("Tokenization") && (
+                                    <div className="upload-status error" style={{ marginTop: '0.5rem' }}>
+                                        <AlertCircle size={14} /> {state.uploadError}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
