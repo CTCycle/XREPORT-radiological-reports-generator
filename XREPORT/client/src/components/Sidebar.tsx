@@ -2,10 +2,10 @@ import { NavLink } from 'react-router-dom';
 import { BrainCircuit, FileSearch, Database, FileStack } from 'lucide-react';
 
 const navItems = [
-    { path: '/database', icon: Database, label: 'Database' },
     { path: '/dataset', icon: FileStack, label: 'Dataset' },
     { path: '/training', icon: BrainCircuit, label: 'Training' },
     { path: '/inference', icon: FileSearch, label: 'Inference' },
+    { path: '/database', icon: Database, label: 'Database' },
 ];
 
 export default function Sidebar() {
