@@ -1,9 +1,10 @@
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { useRef, DragEvent, ChangeEvent } from 'react';
 import {
     ImagePlus, ChevronLeft, ChevronRight, Trash2, FileText,
     Sparkles, ArrowRight, Copy, Check, Loader2
 } from 'lucide-react';
 import './InferencePage.css';
+import { useInferencePageState } from '../AppStateContext';
 
 // Mock report for demonstration
 const MOCK_REPORT = `# Radiological Report
@@ -41,16 +42,17 @@ const MOCK_REPORT = `# Radiological Report
 `;
 
 export default function InferencePage() {
-    // Image state
-    const [images, setImages] = useState<File[]>([]);
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isDragging, setIsDragging] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const {
+        state,
+        setImages,
+        setCurrentIndex,
+        setGeneratedReport,
+        setIsGenerating,
+        setIsCopied,
+        clearImages
+    } = useInferencePageState();
 
-    // Report state
-    const [generatedReport, setGeneratedReport] = useState<string>('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isCopied, setIsCopied] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Handle file selection
     const handleFileSelect = (files: FileList | null) => {
@@ -70,17 +72,14 @@ export default function InferencePage() {
     // Drag and drop handlers
     const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
-        setIsDragging(true);
     };
 
     const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
-        setIsDragging(false);
     };
 
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
-        setIsDragging(false);
         handleFileSelect(e.dataTransfer.files);
     };
 
@@ -94,18 +93,16 @@ export default function InferencePage() {
 
     // Navigation
     const goToPrevious = () => {
-        setCurrentIndex(prev => Math.max(0, prev - 1));
+        setCurrentIndex(Math.max(0, state.currentIndex - 1));
     };
 
     const goToNext = () => {
-        setCurrentIndex(prev => Math.min(images.length - 1, prev + 1));
+        setCurrentIndex(Math.min(state.images.length - 1, state.currentIndex + 1));
     };
 
     // Clear images
-    const clearImages = () => {
-        setImages([]);
-        setCurrentIndex(0);
-        setGeneratedReport('');
+    const handleClearImages = () => {
+        clearImages();
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -113,7 +110,7 @@ export default function InferencePage() {
 
     // Generate report (mock)
     const handleGenerateReport = async () => {
-        if (images.length === 0) return;
+        if (state.images.length === 0) return;
 
         setIsGenerating(true);
 
@@ -126,10 +123,10 @@ export default function InferencePage() {
 
     // Copy report to clipboard
     const copyReport = async () => {
-        if (!generatedReport) return;
+        if (!state.generatedReport) return;
 
         try {
-            await navigator.clipboard.writeText(generatedReport);
+            await navigator.clipboard.writeText(state.generatedReport);
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
         } catch (err) {
@@ -138,8 +135,8 @@ export default function InferencePage() {
     };
 
     // Get current image URL
-    const currentImageUrl = images.length > 0
-        ? URL.createObjectURL(images[currentIndex])
+    const currentImageUrl = state.images.length > 0
+        ? URL.createObjectURL(state.images[state.currentIndex])
         : null;
 
     return (
@@ -157,9 +154,9 @@ export default function InferencePage() {
                         <h2>X-Ray Images</h2>
                     </div>
                     <div className="panel-content">
-                        {images.length === 0 ? (
+                        {state.images.length === 0 ? (
                             <div
-                                className={`image-dropzone ${isDragging ? 'dragging' : ''}`}
+                                className="image-dropzone"
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
@@ -189,28 +186,28 @@ export default function InferencePage() {
                                     {currentImageUrl && (
                                         <img
                                             src={currentImageUrl}
-                                            alt={`X-ray ${currentIndex + 1}`}
+                                            alt={`X-ray ${state.currentIndex + 1}`}
                                         />
                                     )}
 
-                                    {images.length > 1 && (
+                                    {state.images.length > 1 && (
                                         <>
                                             <button
                                                 className="nav-arrow prev"
                                                 onClick={goToPrevious}
-                                                disabled={currentIndex === 0}
+                                                disabled={state.currentIndex === 0}
                                             >
                                                 <ChevronLeft size={20} />
                                             </button>
                                             <button
                                                 className="nav-arrow next"
                                                 onClick={goToNext}
-                                                disabled={currentIndex === images.length - 1}
+                                                disabled={state.currentIndex === state.images.length - 1}
                                             >
                                                 <ChevronRight size={20} />
                                             </button>
                                             <div className="image-counter">
-                                                {currentIndex + 1} / {images.length}
+                                                {state.currentIndex + 1} / {state.images.length}
                                             </div>
                                         </>
                                     )}
@@ -226,7 +223,7 @@ export default function InferencePage() {
                                     </button>
                                     <button
                                         className="btn-icon"
-                                        onClick={clearImages}
+                                        onClick={handleClearImages}
                                         title="Clear all images"
                                     >
                                         <Trash2 />
@@ -256,17 +253,17 @@ export default function InferencePage() {
                         </div>
 
                         <button
-                            className={`btn-generate ${isGenerating ? 'generating' : ''}`}
+                            className={`btn-generate ${state.isGenerating ? 'generating' : ''}`}
                             onClick={handleGenerateReport}
-                            disabled={images.length === 0 || isGenerating}
+                            disabled={state.images.length === 0 || state.isGenerating}
                         >
-                            {isGenerating ? (
+                            {state.isGenerating ? (
                                 <Loader2 className="loading-spinner" />
                             ) : (
                                 <Sparkles />
                             )}
                             <span>
-                                {isGenerating ? 'Generating...' : 'Generate Report'}
+                                {state.isGenerating ? 'Generating...' : 'Generate Report'}
                             </span>
                         </button>
 
@@ -286,26 +283,26 @@ export default function InferencePage() {
                                 <FileText size={18} />
                                 <h2>Generated Report</h2>
                             </div>
-                            {generatedReport && (
+                            {state.generatedReport && (
                                 <div className="report-actions">
                                     <button
                                         className="btn-icon"
                                         onClick={copyReport}
                                         title="Copy to clipboard"
                                     >
-                                        {isCopied ? <Check /> : <Copy />}
+                                        {state.isCopied ? <Check /> : <Copy />}
                                     </button>
                                 </div>
                             )}
                         </div>
                     </div>
                     <div className="panel-content">
-                        {generatedReport ? (
+                        {state.generatedReport ? (
                             <div className="report-content">
                                 <div
                                     className="markdown-report"
                                     dangerouslySetInnerHTML={{
-                                        __html: formatMarkdown(generatedReport)
+                                        __html: formatMarkdown(state.generatedReport)
                                     }}
                                 />
                             </div>
@@ -313,7 +310,7 @@ export default function InferencePage() {
                             <div className="report-empty">
                                 <FileText />
                                 <p>
-                                    {images.length === 0
+                                    {state.images.length === 0
                                         ? 'Upload X-ray images to generate a report'
                                         : 'Click "Generate Report" to analyze the images'}
                                 </p>
