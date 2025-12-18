@@ -1,17 +1,18 @@
+import { useState, useEffect } from 'react';
 import {
     Play, Settings, Activity, Cpu, ChevronDown, RotateCcw
 } from 'lucide-react';
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
-
-// Mock checkpoints for demonstration
-const MOCK_CHECKPOINTS = [
-    { id: 'checkpoint_epoch_50', label: 'Epoch 50 - Loss: 0.234' },
-    { id: 'checkpoint_epoch_40', label: 'Epoch 40 - Loss: 0.287' },
-    { id: 'checkpoint_epoch_30', label: 'Epoch 30 - Loss: 0.342' },
-    { id: 'checkpoint_epoch_20', label: 'Epoch 20 - Loss: 0.456' },
-    { id: 'checkpoint_epoch_10', label: 'Epoch 10 - Loss: 0.612' },
-];
+import TrainingDashboard from '../components/TrainingDashboard';
+import {
+    startTraining,
+    resumeTraining,
+    stopTraining,
+    getCheckpoints,
+    CheckpointInfo,
+    StartTrainingConfig,
+} from '../services/trainingService';
 
 export default function TrainingPage() {
     const {
@@ -23,8 +24,87 @@ export default function TrainingPage() {
         setAdditionalEpochs
     } = useTrainingPageState();
 
+    const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch checkpoints on mount
+    useEffect(() => {
+        const fetchCheckpoints = async () => {
+            const { result, error: fetchError } = await getCheckpoints();
+            if (result) {
+                setCheckpoints(result.checkpoints);
+            } else if (fetchError) {
+                console.error('Failed to fetch checkpoints:', fetchError);
+            }
+        };
+        fetchCheckpoints();
+    }, []);
+
     const handleConfigChange = (key: string, value: number | string | boolean) => {
         updateConfig(key as keyof typeof state.config, value);
+    };
+
+    const handleStartTraining = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        const config: StartTrainingConfig = {
+            epochs: state.config.epochs,
+            batch_size: state.config.batchSize,
+            training_seed: state.config.trainSeed,
+            num_encoders: state.config.numEncoders,
+            num_decoders: state.config.numDecoders,
+            embedding_dims: state.config.embeddingDims,
+            attention_heads: state.config.attnHeads,
+            train_temp: state.config.trainTemp,
+            freeze_img_encoder: state.config.freezeImgEncoder,
+            use_img_augmentation: state.config.useImgAugment,
+            shuffle_with_buffer: state.config.shuffleWithBuffer,
+            shuffle_size: state.config.shuffleBufferSize,
+            save_checkpoints: state.config.saveCheckpoints,
+            use_tensorboard: state.config.runTensorboard,
+            use_mixed_precision: state.config.mixedPrecision,
+            use_device_GPU: true,
+            device_ID: 0,
+            plot_training_metrics: state.config.realTimePlot,
+            use_scheduler: state.config.useScheduler,
+            target_LR: state.config.targetLR,
+            warmup_steps: state.config.warmupSteps,
+        };
+
+        const { error: trainError } = await startTraining(config);
+        setIsLoading(false);
+
+        if (trainError) {
+            setError(trainError);
+            console.error('Training failed:', trainError);
+        }
+    };
+
+    const handleResumeTraining = async () => {
+        if (!state.selectedCheckpoint) return;
+
+        setIsLoading(true);
+        setError(null);
+
+        const { error: resumeError } = await resumeTraining(
+            state.selectedCheckpoint,
+            state.additionalEpochs
+        );
+        setIsLoading(false);
+
+        if (resumeError) {
+            setError(resumeError);
+            console.error('Resume training failed:', resumeError);
+        }
+    };
+
+    const handleStopTraining = async () => {
+        const { error: stopError } = await stopTraining();
+        if (stopError) {
+            console.error('Stop training failed:', stopError);
+        }
     };
 
     return (
@@ -321,10 +401,19 @@ export default function TrainingPage() {
 
                                 {/* Actions Bar inside accordion */}
                                 <div className="actions-bar" style={{ marginTop: '1rem' }}>
-                                    <button className="btn btn-primary">
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleStartTraining}
+                                        disabled={isLoading}
+                                    >
                                         <Play size={16} />
-                                        Start Training
+                                        {isLoading ? 'Starting...' : 'Start Training'}
                                     </button>
+                                    {error && (
+                                        <span style={{ color: '#ef4444', marginLeft: '1rem', fontSize: '0.85rem' }}>
+                                            {error}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -357,9 +446,9 @@ export default function TrainingPage() {
                                             onChange={(e) => setSelectedCheckpoint(e.target.value)}
                                         >
                                             <option value="">-- Select a checkpoint --</option>
-                                            {MOCK_CHECKPOINTS.map((cp) => (
-                                                <option key={cp.id} value={cp.id}>
-                                                    {cp.label}
+                                            {checkpoints.map((cp) => (
+                                                <option key={cp.name} value={cp.name}>
+                                                    {cp.name} - Epoch {cp.epochs} - Loss: {cp.loss.toFixed(4)}
                                                 </option>
                                             ))}
                                         </select>
@@ -376,16 +465,20 @@ export default function TrainingPage() {
                                     </div>
                                     <button
                                         className="btn btn-primary"
-                                        disabled={!state.selectedCheckpoint}
+                                        disabled={!state.selectedCheckpoint || isLoading}
+                                        onClick={handleResumeTraining}
                                     >
                                         <RotateCcw size={16} />
-                                        Resume Training
+                                        {isLoading ? 'Resuming...' : 'Resume Training'}
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Training Dashboard */}
+                <TrainingDashboard onStopTraining={handleStopTraining} />
             </div>
         </div>
     );
