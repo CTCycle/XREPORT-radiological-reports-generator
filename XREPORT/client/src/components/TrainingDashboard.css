@@ -1,0 +1,192 @@
+.training-dashboard {
+    background: linear-gradient(135deg, rgba(30, 30, 35, 0.95), rgba(25, 25, 30, 0.9));
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.dashboard-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #ffd700;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.dashboard-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.dashboard-status.training {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.dashboard-status.idle {
+    background: rgba(100, 100, 110, 0.15);
+    color: #9ca3af;
+    border: 1px solid rgba(100, 100, 110, 0.3);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.training {
+    background: #22c55e;
+    animation: pulse 1.5s infinite;
+}
+
+.status-indicator.idle {
+    background: #6b7280;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background: rgba(20, 20, 25, 0.6);
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.metric-label {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.metric-value {
+    color: #f3f4f6;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.metric-value.loss {
+    color: #f59e0b;
+}
+
+.metric-value.accuracy {
+    color: #22c55e;
+}
+
+.progress-section {
+    margin-bottom: 1rem;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.progress-label {
+    color: #9ca3af;
+    font-size: 0.85rem;
+}
+
+.progress-time {
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.progress-bar-container {
+    height: 8px;
+    background: rgba(100, 100, 110, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffd700, #fbbf24);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.dashboard-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.btn-stop {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    color: #ef4444;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-stop:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.btn-stop:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.idle-message {
+    color: #6b7280;
+    text-align: center;
+    padding: 2rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

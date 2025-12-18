@@ -152,3 +152,163 @@ export async function browseDirectory(
         return { result: null, error: message };
     }
 }
+
+// ============================================================================
+// Training Pipeline API
+// ============================================================================
+
+export interface StartTrainingConfig {
+    epochs: number;
+    batch_size: number;
+    training_seed: number;
+    num_encoders: number;
+    num_decoders: number;
+    embedding_dims: number;
+    attention_heads: number;
+    train_temp: number;
+    freeze_img_encoder: boolean;
+    use_img_augmentation: boolean;
+    shuffle_with_buffer: boolean;
+    shuffle_size: number;
+    save_checkpoints: boolean;
+    use_tensorboard: boolean;
+    use_mixed_precision: boolean;
+    use_device_GPU: boolean;
+    device_ID: number;
+    plot_training_metrics: boolean;
+    use_scheduler: boolean;
+    target_LR: number;
+    warmup_steps: number;
+}
+
+export interface CheckpointInfo {
+    name: string;
+    epochs: number;
+    loss: number;
+    val_loss: number;
+}
+
+export interface CheckpointsResponse {
+    checkpoints: CheckpointInfo[];
+}
+
+export interface TrainingStatusResponse {
+    is_training: boolean;
+    current_epoch: number;
+    total_epochs: number;
+    loss: number;
+    val_loss: number;
+    accuracy: number;
+    val_accuracy: number;
+    progress_percent: number;
+    elapsed_seconds: number;
+}
+
+/**
+ * Get list of available checkpoints
+ */
+export async function getCheckpoints(): Promise<{ result: CheckpointsResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/pipeline/checkpoints');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<CheckpointsResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get current training status
+ */
+export async function getTrainingStatus(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/pipeline/status');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<TrainingStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Start a new training session
+ */
+export async function startTraining(
+    config: StartTrainingConfig
+): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/pipeline/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config),
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<TrainingStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Resume training from a checkpoint
+ */
+export async function resumeTraining(
+    checkpoint: string,
+    additionalEpochs: number
+): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/pipeline/resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                checkpoint,
+                additional_epochs: additionalEpochs,
+            }),
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<TrainingStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Stop current training session
+ */
+export async function stopTraining(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/pipeline/stop', {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<TrainingStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+

@@ -58,6 +58,13 @@ set "NPM_CMD=%npm_cmd%"
 set "NODE_CMD=%node_exe%"
 
 REM ============================================================================
+REM == Ensure runtime directories exist
+REM ============================================================================
+if not exist "%runtimes_dir%" md "%runtimes_dir%" >nul 2>&1
+if not exist "%python_dir%" md "%python_dir%" >nul 2>&1
+if not exist "%nodejs_dir%" md "%nodejs_dir%" >nul 2>&1
+
+REM ============================================================================
 REM == Prepare helper PowerShell scripts
 REM ============================================================================
 echo $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1] > "%TMPDL%"
@@ -71,7 +78,6 @@ REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
 REM ============================================================================
 echo [STEP 1/5] Setting up Python (embeddable) locally
-if not exist "%python_dir%" md "%python_dir%" >nul 2>&1
 
 if not exist "%python_exe%" (
   echo [DL] %python_zip_url%
@@ -116,7 +122,6 @@ REM ============================================================================
 REM == Step 3: Ensure Node.js (portable)
 REM ============================================================================
 echo [STEP 3/5] Installing Node.js (portable)
-if not exist "%nodejs_dir%" md "%nodejs_dir%" >nul 2>&1
 
 if not exist "%node_exe%" (
   echo [DL] %nodejs_zip_url%
