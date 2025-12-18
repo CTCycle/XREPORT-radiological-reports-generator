@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders, BarChart2,
     Loader, CheckCircle, AlertCircle
@@ -8,57 +7,27 @@ import {
     uploadDataset,
     loadDataset,
     validateImagePath,
-    ImagePathResponse,
-    DatasetUploadResponse,
-    LoadDatasetResponse
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
-
-interface DatasetProcessingConfig {
-    seed: number;
-    sampleSize: number;
-    validationSize: number;
-    splitSeed: number;
-    maxReportSize: number;
-    tokenizer: string;
-
-    // Dataset Evaluation
-    imgStats: boolean;
-    textStats: boolean;
-    pixDist: boolean;
-}
+import { useDatasetPageState } from '../AppStateContext';
 
 export default function DatasetPage() {
-    const [config, setConfig] = useState<DatasetProcessingConfig>({
-        // Dataset Processing
-        seed: 42,
-        sampleSize: 1.0,
-        validationSize: 0.2,
-        splitSeed: 42,
-        maxReportSize: 200,
-        tokenizer: 'distilbert-base-uncased',
+    const {
+        state,
+        updateConfig,
+        setImageFolderPath,
+        setImageFolderName,
+        setImageValidation,
+        setDatasetFile,
+        setDatasetUpload,
+        setLoadResult,
+        setIsLoading,
+        setUploadError,
+        setFolderBrowserOpen
+    } = useDatasetPageState();
 
-        // Dataset Evaluation
-        imgStats: false,
-        textStats: false,
-        pixDist: false
-    });
-
-    // Upload state
-    const [imageFolderPath, setImageFolderPath] = useState('');
-    const [imageFolderName, setImageFolderName] = useState('');
-    const [imageValidation, setImageValidation] = useState<ImagePathResponse | null>(null);
-    const [datasetFile, setDatasetFile] = useState<File | null>(null);
-    const [datasetUpload, setDatasetUpload] = useState<DatasetUploadResponse | null>(null);
-    const [loadResult, setLoadResult] = useState<LoadDatasetResponse | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-
-    // Folder browser modal state
-    const [folderBrowserOpen, setFolderBrowserOpen] = useState(false);
-
-    const handleConfigChange = (key: string, value: any) => {
-        setConfig(prev => ({ ...prev, [key]: value }));
+    const handleConfigChange = (key: string, value: number | string | boolean) => {
+        updateConfig(key as keyof typeof state.config, value);
     };
 
     const handleFolderSelect = async (path: string, _imageCount: number) => {
@@ -102,11 +71,11 @@ export default function DatasetPage() {
     };
 
     const handleLoadDataset = async () => {
-        if (!imageValidation?.valid) {
+        if (!state.imageValidation?.valid) {
             setUploadError('Please select an image folder first');
             return;
         }
-        if (!datasetUpload?.success) {
+        if (!state.datasetUpload?.success) {
             setUploadError('Please upload a dataset file first');
             return;
         }
@@ -117,9 +86,9 @@ export default function DatasetPage() {
 
         // Send the full folder path - backend uses it directly
         const { result, error } = await loadDataset({
-            image_folder_path: imageFolderPath,
-            sample_size: config.sampleSize,
-            seed: config.seed,
+            image_folder_path: state.imageFolderPath,
+            sample_size: state.config.sampleSize,
+            seed: state.config.seed,
         });
 
         setIsLoading(false);
@@ -153,14 +122,14 @@ export default function DatasetPage() {
                                     <FolderUp className="upload-icon" />
                                     <div className="upload-text">Upload Image Folder</div>
                                     <div className="upload-subtext">
-                                        {imageFolderName ? imageFolderName : 'Select directory'}
+                                        {state.imageFolderName ? state.imageFolderName : 'Select directory'}
                                     </div>
-                                    {imageValidation && (
-                                        <div className={`upload-status ${imageValidation.valid ? 'success' : 'error'}`}>
-                                            {imageValidation.valid ? (
-                                                <><CheckCircle size={14} /> {imageValidation.image_count} images</>
+                                    {state.imageValidation && (
+                                        <div className={`upload-status ${state.imageValidation.valid ? 'success' : 'error'}`}>
+                                            {state.imageValidation.valid ? (
+                                                <><CheckCircle size={14} /> {state.imageValidation.image_count} images</>
                                             ) : (
-                                                <><AlertCircle size={14} /> {imageValidation.message}</>
+                                                <><AlertCircle size={14} /> {state.imageValidation.message}</>
                                             )}
                                         </div>
                                     )}
@@ -171,11 +140,11 @@ export default function DatasetPage() {
                                     <FileSpreadsheet className="upload-icon" />
                                     <div className="upload-text">Upload Data File</div>
                                     <div className="upload-subtext">
-                                        {datasetFile ? datasetFile.name : 'Select .csv or .xlsx'}
+                                        {state.datasetFile ? state.datasetFile.name : 'Select .csv or .xlsx'}
                                     </div>
-                                    {datasetUpload?.success && (
+                                    {state.datasetUpload?.success && (
                                         <div className="upload-status success">
-                                            <CheckCircle size={14} /> {datasetUpload.row_count} rows, {datasetUpload.column_count} cols
+                                            <CheckCircle size={14} /> {state.datasetUpload.row_count} rows, {state.datasetUpload.column_count} cols
                                         </div>
                                     )}
                                 </div>
@@ -185,24 +154,24 @@ export default function DatasetPage() {
                                 <button
                                     className="btn btn-secondary btn-sm"
                                     onClick={handleLoadDataset}
-                                    disabled={isLoading}
+                                    disabled={state.isLoading}
                                 >
-                                    {isLoading ? (
+                                    {state.isLoading ? (
                                         <><Loader size={14} className="spin" /> Loading...</>
                                     ) : (
                                         'Load Dataset'
                                     )}
                                 </button>
 
-                                {uploadError && (
+                                {state.uploadError && (
                                     <div className="upload-status error">
-                                        <AlertCircle size={14} /> {uploadError}
+                                        <AlertCircle size={14} /> {state.uploadError}
                                     </div>
                                 )}
 
-                                {loadResult?.success && (
+                                {state.loadResult?.success && (
                                     <div className="upload-status success">
-                                        <CheckCircle size={14} /> Loaded {loadResult.matched_records} records ({loadResult.total_images} images)
+                                        <CheckCircle size={14} /> Loaded {state.loadResult.matched_records} records ({state.loadResult.total_images} images)
                                     </div>
                                 )}
                             </div>
@@ -227,7 +196,7 @@ export default function DatasetPage() {
                                     min="0.01"
                                     max="1.0"
                                     className="form-input"
-                                    value={config.sampleSize}
+                                    value={state.config.sampleSize}
                                     onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
                                 />
                             </div>
@@ -236,7 +205,7 @@ export default function DatasetPage() {
                                 <input
                                     type="number"
                                     className="form-input"
-                                    value={config.seed}
+                                    value={state.config.seed}
                                     onChange={(e) => handleConfigChange('seed', parseInt(e.target.value))}
                                 />
                             </div>
@@ -247,7 +216,7 @@ export default function DatasetPage() {
                                     step="0.05"
                                     max="1.0"
                                     className="form-input"
-                                    value={config.validationSize}
+                                    value={state.config.validationSize}
                                     onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
                                 />
                             </div>
@@ -256,7 +225,7 @@ export default function DatasetPage() {
                                 <input
                                     type="number"
                                     className="form-input"
-                                    value={config.splitSeed}
+                                    value={state.config.splitSeed}
                                     onChange={(e) => handleConfigChange('splitSeed', parseInt(e.target.value))}
                                 />
                             </div>
@@ -265,7 +234,7 @@ export default function DatasetPage() {
                                 <input
                                     type="number"
                                     className="form-input"
-                                    value={config.maxReportSize}
+                                    value={state.config.maxReportSize}
                                     onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
                                 />
                             </div>
@@ -273,7 +242,7 @@ export default function DatasetPage() {
                                 <label className="form-label">Tokenizer</label>
                                 <select
                                     className="form-select"
-                                    value={config.tokenizer}
+                                    value={state.config.tokenizer}
                                     onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
                                 >
                                     <option value="distilbert-base-uncased">distilbert-base-uncased</option>
@@ -299,7 +268,7 @@ export default function DatasetPage() {
                             <label className="form-checkbox">
                                 <input
                                     type="checkbox"
-                                    checked={config.imgStats}
+                                    checked={state.config.imgStats}
                                     onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
                                 />
                                 <div className="checkbox-visual" />
@@ -308,7 +277,7 @@ export default function DatasetPage() {
                             <label className="form-checkbox">
                                 <input
                                     type="checkbox"
-                                    checked={config.textStats}
+                                    checked={state.config.textStats}
                                     onChange={(e) => handleConfigChange('textStats', e.target.checked)}
                                 />
                                 <div className="checkbox-visual" />
@@ -317,7 +286,7 @@ export default function DatasetPage() {
                             <label className="form-checkbox">
                                 <input
                                     type="checkbox"
-                                    checked={config.pixDist}
+                                    checked={state.config.pixDist}
                                     onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
                                 />
                                 <div className="checkbox-visual" />
@@ -333,10 +302,11 @@ export default function DatasetPage() {
 
             {/* Folder Browser Modal */}
             <FolderBrowser
-                isOpen={folderBrowserOpen}
+                isOpen={state.folderBrowserOpen}
                 onClose={() => setFolderBrowserOpen(false)}
                 onSelect={handleFolderSelect}
             />
         </div>
     );
 }
+

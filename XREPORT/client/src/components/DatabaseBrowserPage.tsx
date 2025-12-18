@@ -1,42 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { RefreshCcw, Database as DatabaseIcon } from 'lucide-react';
 import './DatabaseBrowserPage.css';
-import { fetchBrowseConfig, fetchTableData, fetchTableList, TableInfo } from '../services/databaseBrowser';
-
-interface BrowserState {
-    tables: TableInfo[];
-    selectedTable: string;
-    rows: Record<string, unknown>[];
-    columns: string[];
-    rowCount: number;
-    columnCount: number;
-    displayName: string;
-    limit: number;
-    offset: number;
-    loading: boolean;
-    error: string | null;
-    tablesLoaded: boolean;
-    dataLoaded: boolean;  // Track if initial data has been loaded
-}
+import { fetchBrowseConfig, fetchTableData, fetchTableList } from '../services/databaseBrowser';
+import { useDatabaseBrowserState } from '../AppStateContext';
 
 const DEFAULT_BATCH_SIZE = 200;
 
 export default function DatabaseBrowserPage() {
-    const [state, setState] = useState<BrowserState>({
-        tables: [],
-        selectedTable: '',
-        rows: [],
-        columns: [],
-        rowCount: 0,
-        columnCount: 0,
-        displayName: '',
-        limit: DEFAULT_BATCH_SIZE,
-        offset: 0,
-        loading: false,
-        error: null,
-        tablesLoaded: false,
-        dataLoaded: false,
-    });
+    const { state, setState } = useDatabaseBrowserState();
 
     const pageIndex = useMemo(() => Math.floor(state.offset / state.limit), [state.offset, state.limit]);
     const pageStart = useMemo(() => (state.rowCount === 0 ? 0 : state.offset + 1), [state.offset, state.rowCount]);
@@ -84,7 +55,7 @@ export default function DatabaseBrowserPage() {
                 error: null,
             }));
         },
-        [],
+        [setState],
     );
 
     // Load tables list and config on mount (but NOT data)
@@ -113,7 +84,7 @@ export default function DatabaseBrowserPage() {
             }));
         };
         void loadTablesAndConfig();
-    }, [state.tablesLoaded]);
+    }, [state.tablesLoaded, setState]);
 
     const onTableChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const tableName = event.target.value;

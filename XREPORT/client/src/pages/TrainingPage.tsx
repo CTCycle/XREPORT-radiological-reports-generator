@@ -1,44 +1,8 @@
-import { useState } from 'react';
 import {
     Play, Settings, Activity, Cpu, ChevronDown, RotateCcw
 } from 'lucide-react';
 import './TrainingPage.css';
-
-interface TrainingConfig {
-    // Model Architecture
-    numEncoders: number;
-    numDecoders: number;
-    embeddingDims: number;
-    attnHeads: number;
-    freezeImgEncoder: boolean;
-    trainTemp: number;
-
-    // Model Dataset Config
-    useImgAugment: boolean;
-    shuffleWithBuffer: boolean;
-    shuffleBufferSize: number;
-
-    // Training Parameters
-    epochs: number;
-    batchSize: number;
-    trainSeed: number;
-    saveCheckpoints: boolean;
-    checkpointFreq: number;
-    mixedPrecision: boolean;
-    runTensorboard: boolean;
-    useJIT: boolean;
-    jitBackend: string;
-
-    // Scheduler
-    useScheduler: boolean;
-    targetLR: number;
-    warmupSteps: number;
-    realTimePlot: boolean;
-
-    // Session
-    useGpu: boolean;
-    gpuId: number;
-}
+import { useTrainingPageState } from '../AppStateContext';
 
 // Mock checkpoints for demonstration
 const MOCK_CHECKPOINTS = [
@@ -50,52 +14,17 @@ const MOCK_CHECKPOINTS = [
 ];
 
 export default function TrainingPage() {
-    const [config, setConfig] = useState<TrainingConfig>({
-        // Model Architecture
-        numEncoders: 6,
-        numDecoders: 6,
-        embeddingDims: 768,
-        attnHeads: 8,
-        freezeImgEncoder: true,
-        trainTemp: 1.0,
+    const {
+        state,
+        updateConfig,
+        setNewSessionExpanded,
+        setResumeSessionExpanded,
+        setSelectedCheckpoint,
+        setAdditionalEpochs
+    } = useTrainingPageState();
 
-        // Model Dataset Config
-        useImgAugment: false,
-        shuffleWithBuffer: true,
-        shuffleBufferSize: 256,
-
-        // Training Parameters
-        epochs: 100,
-        batchSize: 32,
-        trainSeed: 42,
-        saveCheckpoints: true,
-        checkpointFreq: 1,
-        mixedPrecision: false,
-        runTensorboard: false,
-        useJIT: false,
-        jitBackend: 'inductor',
-
-        // Scheduler
-        useScheduler: false,
-        targetLR: 0.001,
-        warmupSteps: 1000,
-        realTimePlot: true,
-
-        // Session
-        useGpu: true,
-        gpuId: 0
-    });
-
-    // Accordion states
-    const [newSessionExpanded, setNewSessionExpanded] = useState(true);
-    const [resumeSessionExpanded, setResumeSessionExpanded] = useState(false);
-
-    // Resume training state
-    const [selectedCheckpoint, setSelectedCheckpoint] = useState('');
-    const [additionalEpochs, setAdditionalEpochs] = useState(50);
-
-    const handleConfigChange = (key: string, value: any) => {
-        setConfig(prev => ({ ...prev, [key]: value }));
+    const handleConfigChange = (key: string, value: number | string | boolean) => {
+        updateConfig(key as keyof typeof state.config, value);
     };
 
     return (
@@ -112,7 +41,7 @@ export default function TrainingPage() {
                     <div className="accordion">
                         <div
                             className="accordion-header"
-                            onClick={() => setNewSessionExpanded(!newSessionExpanded)}
+                            onClick={() => setNewSessionExpanded(!state.newSessionExpanded)}
                         >
                             <div className="accordion-header-left">
                                 <Play size={18} />
@@ -120,11 +49,11 @@ export default function TrainingPage() {
                             </div>
                             <ChevronDown
                                 size={20}
-                                className={`accordion-chevron ${newSessionExpanded ? 'expanded' : ''}`}
+                                className={`accordion-chevron ${state.newSessionExpanded ? 'expanded' : ''}`}
                             />
                         </div>
-                        {newSessionExpanded && <div className="accordion-divider" />}
-                        <div className={`accordion-content ${newSessionExpanded ? 'expanded' : ''}`}>
+                        {state.newSessionExpanded && <div className="accordion-divider" />}
+                        <div className={`accordion-content ${state.newSessionExpanded ? 'expanded' : ''}`}>
                             <div className="accordion-content-inner">
                                 <div className="row-training-controls">
                                     {/* Left Column: Model Architecture & Dataset Config */}
@@ -140,7 +69,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.numEncoders}
+                                                        value={state.config.numEncoders}
                                                         onChange={(e) => handleConfigChange('numEncoders', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -149,7 +78,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.numDecoders}
+                                                        value={state.config.numDecoders}
                                                         onChange={(e) => handleConfigChange('numDecoders', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -159,7 +88,7 @@ export default function TrainingPage() {
                                                         type="number"
                                                         step="8"
                                                         className="form-input"
-                                                        value={config.embeddingDims}
+                                                        value={state.config.embeddingDims}
                                                         onChange={(e) => handleConfigChange('embeddingDims', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -168,7 +97,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.attnHeads}
+                                                        value={state.config.attnHeads}
                                                         onChange={(e) => handleConfigChange('attnHeads', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -178,7 +107,7 @@ export default function TrainingPage() {
                                                         type="number"
                                                         step="0.05"
                                                         className="form-input"
-                                                        value={config.trainTemp}
+                                                        value={state.config.trainTemp}
                                                         onChange={(e) => handleConfigChange('trainTemp', parseFloat(e.target.value))}
                                                     />
                                                 </div>
@@ -186,7 +115,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.freezeImgEncoder}
+                                                            checked={state.config.freezeImgEncoder}
                                                             onChange={(e) => handleConfigChange('freezeImgEncoder', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -204,7 +133,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.useImgAugment}
+                                                            checked={state.config.useImgAugment}
                                                             onChange={(e) => handleConfigChange('useImgAugment', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -215,21 +144,21 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.shuffleWithBuffer}
+                                                            checked={state.config.shuffleWithBuffer}
                                                             onChange={(e) => handleConfigChange('shuffleWithBuffer', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
                                                         <span className="checkbox-label">Shuffle Buffer</span>
                                                     </label>
                                                 </div>
-                                                {config.shuffleWithBuffer && (
+                                                {state.config.shuffleWithBuffer && (
                                                     <div className="form-group">
                                                         <label className="form-label">Buffer Size</label>
                                                         <input
                                                             type="number"
                                                             step="10"
                                                             className="form-input"
-                                                            value={config.shuffleBufferSize}
+                                                            value={state.config.shuffleBufferSize}
                                                             onChange={(e) => handleConfigChange('shuffleBufferSize', parseInt(e.target.value))}
                                                         />
                                                     </div>
@@ -251,7 +180,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.epochs}
+                                                        value={state.config.epochs}
                                                         onChange={(e) => handleConfigChange('epochs', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -260,7 +189,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.batchSize}
+                                                        value={state.config.batchSize}
                                                         onChange={(e) => handleConfigChange('batchSize', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -269,7 +198,7 @@ export default function TrainingPage() {
                                                     <input
                                                         type="number"
                                                         className="form-input"
-                                                        value={config.trainSeed}
+                                                        value={state.config.trainSeed}
                                                         onChange={(e) => handleConfigChange('trainSeed', parseInt(e.target.value))}
                                                     />
                                                 </div>
@@ -278,7 +207,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.saveCheckpoints}
+                                                            checked={state.config.saveCheckpoints}
                                                             onChange={(e) => handleConfigChange('saveCheckpoints', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -290,7 +219,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.runTensorboard}
+                                                            checked={state.config.runTensorboard}
                                                             onChange={(e) => handleConfigChange('runTensorboard', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -302,7 +231,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.mixedPrecision}
+                                                            checked={state.config.mixedPrecision}
                                                             onChange={(e) => handleConfigChange('mixedPrecision', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -314,7 +243,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.useJIT}
+                                                            checked={state.config.useJIT}
                                                             onChange={(e) => handleConfigChange('useJIT', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -322,12 +251,12 @@ export default function TrainingPage() {
                                                     </label>
                                                 </div>
 
-                                                {config.useJIT && (
+                                                {state.config.useJIT && (
                                                     <div className="form-group span-2">
                                                         <label className="form-label">JIT Backend</label>
                                                         <select
                                                             className="form-select"
-                                                            value={config.jitBackend}
+                                                            value={state.config.jitBackend}
                                                             onChange={(e) => handleConfigChange('jitBackend', e.target.value)}
                                                         >
                                                             <option value="inductor">inductor</option>
@@ -342,7 +271,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.useScheduler}
+                                                            checked={state.config.useScheduler}
                                                             onChange={(e) => handleConfigChange('useScheduler', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -350,7 +279,7 @@ export default function TrainingPage() {
                                                     </label>
                                                 </div>
 
-                                                {config.useScheduler && (
+                                                {state.config.useScheduler && (
                                                     <>
                                                         <div className="form-group">
                                                             <label className="form-label">Target LR</label>
@@ -358,7 +287,7 @@ export default function TrainingPage() {
                                                                 type="number"
                                                                 step="0.0001"
                                                                 className="form-input"
-                                                                value={config.targetLR}
+                                                                value={state.config.targetLR}
                                                                 onChange={(e) => handleConfigChange('targetLR', parseFloat(e.target.value))}
                                                             />
                                                         </div>
@@ -367,7 +296,7 @@ export default function TrainingPage() {
                                                             <input
                                                                 type="number"
                                                                 className="form-input"
-                                                                value={config.warmupSteps}
+                                                                value={state.config.warmupSteps}
                                                                 onChange={(e) => handleConfigChange('warmupSteps', parseInt(e.target.value))}
                                                             />
                                                         </div>
@@ -378,7 +307,7 @@ export default function TrainingPage() {
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
-                                                            checked={config.realTimePlot}
+                                                            checked={state.config.realTimePlot}
                                                             onChange={(e) => handleConfigChange('realTimePlot', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
@@ -405,7 +334,7 @@ export default function TrainingPage() {
                     <div className="accordion">
                         <div
                             className="accordion-header"
-                            onClick={() => setResumeSessionExpanded(!resumeSessionExpanded)}
+                            onClick={() => setResumeSessionExpanded(!state.resumeSessionExpanded)}
                         >
                             <div className="accordion-header-left">
                                 <RotateCcw size={18} />
@@ -413,18 +342,18 @@ export default function TrainingPage() {
                             </div>
                             <ChevronDown
                                 size={20}
-                                className={`accordion-chevron ${resumeSessionExpanded ? 'expanded' : ''}`}
+                                className={`accordion-chevron ${state.resumeSessionExpanded ? 'expanded' : ''}`}
                             />
                         </div>
-                        {resumeSessionExpanded && <div className="accordion-divider" />}
-                        <div className={`accordion-content ${resumeSessionExpanded ? 'expanded' : ''}`}>
+                        {state.resumeSessionExpanded && <div className="accordion-divider" />}
+                        <div className={`accordion-content ${state.resumeSessionExpanded ? 'expanded' : ''}`}>
                             <div className="accordion-content-inner">
                                 <div className="resume-session-grid">
                                     <div className="form-group">
                                         <label className="form-label">Select Checkpoint</label>
                                         <select
                                             className="form-select"
-                                            value={selectedCheckpoint}
+                                            value={state.selectedCheckpoint}
                                             onChange={(e) => setSelectedCheckpoint(e.target.value)}
                                         >
                                             <option value="">-- Select a checkpoint --</option>
@@ -440,14 +369,14 @@ export default function TrainingPage() {
                                         <input
                                             type="number"
                                             className="form-input"
-                                            value={additionalEpochs}
+                                            value={state.additionalEpochs}
                                             onChange={(e) => setAdditionalEpochs(parseInt(e.target.value))}
                                             min={1}
                                         />
                                     </div>
                                     <button
                                         className="btn btn-primary"
-                                        disabled={!selectedCheckpoint}
+                                        disabled={!state.selectedCheckpoint}
                                     >
                                         <RotateCcw size={16} />
                                         Resume Training
