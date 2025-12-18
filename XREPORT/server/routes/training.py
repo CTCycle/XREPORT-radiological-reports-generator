@@ -14,6 +14,8 @@ from XREPORT.server.schemas.training import (
     ImagePathResponse,
     LoadDatasetRequest,
     LoadDatasetResponse,
+    ProcessDatasetRequest,
+    ProcessDatasetResponse,
 )
 from XREPORT.server.database.database import database
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
@@ -253,6 +255,90 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
         matched_records=len(matched),
         unmatched_records=unmatched,
         message=f"Successfully loaded dataset with {len(matched)} matched records",
+    )
+
+
+###############################################################################
+@router.post(
+    "/dataset/process",
+    response_model=ProcessDatasetResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetResponse:
+    """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
+    from XREPORT.server.utils.services.training.serializer import DataSerializer
+    from XREPORT.server.utils.services.training.processing import (
+        TextSanitizer,
+        TokenizerHandler,
+        TrainValidationSplit,
+    )
+    
+    serializer = DataSerializer()
+    configuration = request.model_dump()
+    
+    # Load source dataset from RADIOGRAPHY_DATA
+    dataset = serializer.load_source_dataset(
+        sample_size=request.sample_size,
+        seed=request.seed,
+    )
+    
+    if dataset.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
+        )
+    
+    logger.info(f"Processing dataset with {len(dataset)} samples")
+    
+    # Step 1: Sanitize text corpus
+    sanitizer = TextSanitizer(configuration)
+    processed_data = sanitizer.sanitize_text(dataset)
+    logger.info("Text sanitization completed")
+    
+    # Step 2: Tokenize text using Hugging Face tokenizer
+    try:
+        tokenization = TokenizerHandler(configuration)
+        logger.info(f"Tokenizing text using {tokenization.tokenizer_id} tokenizer")
+        processed_data = tokenization.tokenize_text_corpus(processed_data)
+        vocabulary_size = tokenization.vocabulary_size
+        logger.info(f"Vocabulary size: {vocabulary_size} tokens")
+    except Exception as e:
+        logger.exception("Failed to tokenize text")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Tokenization failed: {str(e)}",
+        ) from e
+    
+    # Step 3: Drop raw text column (keep only tokens)
+    processed_data = processed_data.drop(columns=["text"])
+    
+    # Step 4: Split into train and validation sets
+    splitter = TrainValidationSplit(configuration, processed_data)
+    training_data = splitter.split_train_and_validation()
+    
+    train_samples = len(training_data[training_data["split"] == "train"])
+    validation_samples = len(training_data[training_data["split"] == "validation"])
+    
+    logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
+    
+    # Step 5: Save processed data and metadata to database
+    try:
+        serializer.save_training_data(configuration, training_data, vocabulary_size)
+        logger.info("Preprocessed data saved to database")
+    except Exception as e:
+        logger.exception("Failed to save training data")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save training data: {str(e)}",
+        ) from e
+    
+    return ProcessDatasetResponse(
+        success=True,
+        total_samples=len(training_data),
+        train_samples=train_samples,
+        validation_samples=validation_samples,
+        vocabulary_size=vocabulary_size,
+        message=f"Successfully processed {len(training_data)} samples",
     )
 
 
