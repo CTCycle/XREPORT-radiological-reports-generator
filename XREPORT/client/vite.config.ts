@@ -14,6 +14,12 @@ export default defineConfig({
         port: 7861,
         strictPort: false,
         proxy: {
+            '/api/pipeline/ws': {
+                target: apiTarget.replace('http', 'ws'),
+                ws: true,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
             '/api': {
                 target: apiTarget,
                 changeOrigin: true,
@@ -26,6 +32,12 @@ export default defineConfig({
         port: 7861,
         strictPort: false,
         proxy: {
+            '/api/pipeline/ws': {
+                target: apiTarget.replace('http', 'ws'),
+                ws: true,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
             '/api': {
                 target: apiTarget,
                 changeOrigin: true,
