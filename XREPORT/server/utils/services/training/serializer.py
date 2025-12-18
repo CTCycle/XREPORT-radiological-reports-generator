@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 from datetime import datetime
 from typing import Any
@@ -15,7 +14,6 @@ from XREPORT.server.database.database import database
 
 CHECKPOINT_PATH = os.path.join(RESOURCES_PATH, "checkpoints")
 IMG_PATH = os.path.join(RESOURCES_PATH, "images")
-PROCESS_METADATA_FILE = os.path.join(RESOURCES_PATH, "processing_metadata.json")
 
 VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
@@ -103,27 +101,33 @@ class DataSerializer:
     def load_training_data(
         self, only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
-        if not os.path.exists(PROCESS_METADATA_FILE):
-            logger.warning("No metadata file found, returning empty data")
+        # Load metadata from database
+        metadata_df = database.load_from_database("PROCESSING_METADATA")
+        if metadata_df.empty:
+            logger.warning("No processing metadata found in database")
+            if only_metadata:
+                return {}
             return pd.DataFrame(), pd.DataFrame(), {}
 
-        with open(PROCESS_METADATA_FILE) as file:
-            metadata = json.load(file)
+        # Get the latest metadata record (last row)
+        latest_metadata = metadata_df.iloc[-1].to_dict()
+        # Remove the 'id' column from metadata dict
+        latest_metadata.pop("id", None)
 
-        if not only_metadata:
-            training_data = database.load_from_database("TRAINING_DATASET")
-            if training_data.empty:
-                return pd.DataFrame(), pd.DataFrame(), metadata
+        if only_metadata:
+            return latest_metadata
 
-            training_data["tokens"] = training_data["tokens"].apply(
-                self.serialize_series
-            )
-            train_data = training_data[training_data["split"] == "train"]
-            val_data = training_data[training_data["split"] == "validation"]
+        training_data = database.load_from_database("TRAINING_DATASET")
+        if training_data.empty:
+            return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
-            return train_data, val_data, metadata
+        training_data["tokens"] = training_data["tokens"].apply(
+            self.serialize_series
+        )
+        train_data = training_data[training_data["split"] == "train"]
+        val_data = training_data[training_data["split"] == "validation"]
 
-        return metadata
+        return train_data, val_data, latest_metadata
 
     # -------------------------------------------------------------------------
     def save_training_data(
@@ -135,9 +139,11 @@ class DataSerializer:
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
         database.save_into_database(training_data, "TRAINING_DATASET")
         
+        # Save metadata to database table
         metadata = {
-            "seed": configuration.get("seed", 42),
+            "dataset_name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
+            "seed": configuration.get("seed", 42),
             "sample_size": configuration.get("sample_size", 1.0),
             "validation_size": configuration.get("validation_size", 0.2),
             "split_seed": configuration.get("split_seed", 42),
@@ -145,10 +151,9 @@ class DataSerializer:
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
         }
-
-        os.makedirs(os.path.dirname(PROCESS_METADATA_FILE), exist_ok=True)
-        with open(PROCESS_METADATA_FILE, "w") as file:
-            json.dump(metadata, file, indent=4)
+        
+        metadata_df = pd.DataFrame([metadata])
+        database.upsert_into_database(metadata_df, "PROCESSING_METADATA")
 
     # -------------------------------------------------------------------------
     def save_generated_reports(self, reports: list[dict]) -> None:

@@ -1,4 +1,4 @@
-import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse } from './services/trainingService';
+import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse } from './services/trainingService';
 import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
@@ -27,6 +27,8 @@ export interface DatasetPageState {
     isLoading: boolean;
     uploadError: string | null;
     folderBrowserOpen: boolean;
+    isProcessing: boolean;
+    processingResult: ProcessDatasetResponse | null;
 }
 
 // ============================================================================

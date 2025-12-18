@@ -114,3 +114,24 @@ class TrainingStatusResponse(BaseModel):
     progress_percent: int = 0
     elapsed_seconds: int = 0
 
+
+###############################################################################
+class ProcessDatasetRequest(BaseModel):
+    sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
+    seed: int = Field(42, description="Random seed for sampling")
+    validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of data for validation")
+    split_seed: int = Field(42, description="Random seed for train/val split")
+    tokenizer: str = Field("bert-base-uncased", description="Hugging Face tokenizer ID")
+    max_report_size: int = Field(200, ge=50, le=1000, description="Maximum token length for reports")
+
+
+###############################################################################
+class ProcessDatasetResponse(BaseModel):
+    success: bool
+    total_samples: int
+    train_samples: int
+    validation_samples: int
+    vocabulary_size: int
+    message: str
+
+
