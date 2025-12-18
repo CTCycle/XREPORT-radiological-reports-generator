@@ -1,24 +1,10 @@
 import { useState } from 'react';
 import {
-    FolderUp, FileSpreadsheet, Play, Settings,
-    Database, Activity, Cpu, Sliders, BarChart2, ChevronDown, RotateCcw
+    Play, Settings, Activity, Cpu, ChevronDown, RotateCcw
 } from 'lucide-react';
 import './TrainingPage.css';
 
 interface TrainingConfig {
-    // Dataset Processing
-    seed: number;
-    sampleSize: number;
-    validationSize: number;
-    splitSeed: number;
-    maxReportSize: number;
-    tokenizer: string;
-
-    // Dataset Evaluation
-    imgStats: boolean;
-    textStats: boolean;
-    pixDist: boolean;
-
     // Model Architecture
     numEncoders: number;
     numDecoders: number;
@@ -65,19 +51,6 @@ const MOCK_CHECKPOINTS = [
 
 export default function TrainingPage() {
     const [config, setConfig] = useState<TrainingConfig>({
-        // Dataset Processing
-        seed: 42,
-        sampleSize: 1.0,
-        validationSize: 0.2,
-        splitSeed: 42,
-        maxReportSize: 200,
-        tokenizer: 'distilbert-base-uncased',
-
-        // Dataset Evaluation
-        imgStats: false,
-        textStats: false,
-        pixDist: false,
-
         // Model Architecture
         numEncoders: 6,
         numDecoders: 6,
@@ -125,187 +98,14 @@ export default function TrainingPage() {
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
-    const handleFolderUpload = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.webkitdirectory = true;
-        input.onchange = (e) => {
-            const files = (e.target as HTMLInputElement).files;
-            if (files && files.length > 0) {
-                console.log('Folder selected:', files);
-            }
-        };
-        input.click();
-    };
-
-    const handleFileUpload = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv, .xlsx';
-        input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-                console.log('File selected:', file);
-            }
-        };
-        input.click();
-    };
-
     return (
         <div className="training-container">
             <div className="header">
                 <h1>XREPORT Transformer</h1>
-                <p>Refer to X-ray automatic reports generation</p>
+                <p>Configure and monitor your training sessions</p>
             </div>
 
             <div className="layout-rows">
-                {/* Row 1: Data Upload Only */}
-                <div className="layout-row row-datasource">
-                    <div className="section">
-                        <div className="section-title">
-                            <Database size={18} />
-                            <span>Data Source</span>
-                        </div>
-                        <div className="upload-row-content">
-                            <div className="upload-grid">
-                                <div className="upload-card" onClick={handleFolderUpload}>
-                                    <FolderUp className="upload-icon" />
-                                    <div className="upload-text">Upload Image Folder</div>
-                                    <div className="upload-subtext">Select directory</div>
-                                </div>
-                                <div className="upload-card" onClick={handleFileUpload}>
-                                    <FileSpreadsheet className="upload-icon" />
-                                    <div className="upload-text">Upload Data File</div>
-                                    <div className="upload-subtext">Select .csv or .xlsx</div>
-                                </div>
-                            </div>
-                            <button className="btn btn-secondary btn-sm">
-                                Load Dataset
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Row 2: Dataset Processing & Evaluation */}
-                <div className="layout-row row-processing-analysis">
-                    {/* Processing */}
-                    <div className="section">
-                        <div className="section-title">
-                            <Sliders size={18} />
-                            <span>Dataset Processing</span>
-                        </div>
-                        <div className="config-grid">
-                            <div className="form-group">
-                                <label className="form-label">Sample Size (0-1)</label>
-                                <input
-                                    type="number"
-                                    step="0.05"
-                                    min="0.01"
-                                    max="1.0"
-                                    className="form-input"
-                                    value={config.sampleSize}
-                                    onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Seed</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={config.seed}
-                                    onChange={(e) => handleConfigChange('seed', parseInt(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Val Split (0-1)</label>
-                                <input
-                                    type="number"
-                                    step="0.05"
-                                    max="1.0"
-                                    className="form-input"
-                                    value={config.validationSize}
-                                    onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Split Seed</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={config.splitSeed}
-                                    onChange={(e) => handleConfigChange('splitSeed', parseInt(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Max Report Size</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={config.maxReportSize}
-                                    onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Tokenizer</label>
-                                <select
-                                    className="form-select"
-                                    value={config.tokenizer}
-                                    onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
-                                >
-                                    <option value="distilbert-base-uncased">distilbert-base-uncased</option>
-                                    <option value="bert-base-uncased">bert-base-uncased</option>
-                                    <option value="roberta-base">roberta-base</option>
-                                </select>
-                            </div>
-                            <div className="form-group span-3">
-                                <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.25rem' }}>
-                                    Build Dataset
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Evaluation */}
-                    <div className="section">
-                        <div className="section-title">
-                            <BarChart2 size={18} />
-                            <span>Dataset Evaluation</span>
-                        </div>
-                        <div className="config-grid" style={{ gridTemplateColumns: '1fr' }}>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.imgStats}
-                                    onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Image statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.textStats}
-                                    onChange={(e) => handleConfigChange('textStats', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Text statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.pixDist}
-                                    onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Pixel intensity dist.</span>
-                            </label>
-                            <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.25rem' }}>
-                                View Evaluation
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Row 3: Training Session Accordions */}
                 <div className="accordion-row">
                     {/* New Training Session Accordion */}
@@ -316,7 +116,7 @@ export default function TrainingPage() {
                         >
                             <div className="accordion-header-left">
                                 <Play size={18} />
-                                <span>New Training Session</span>
+                                <span className="">New Training Session</span>
                             </div>
                             <ChevronDown
                                 size={20}
