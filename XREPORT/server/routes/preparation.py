@@ -8,6 +8,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 
 from XREPORT.server.schemas.training import (
     BrowseResponse,
+    DatasetStatusResponse,
     DatasetUploadResponse,
     DirectoryItem,
     ImagePathRequest,
@@ -26,6 +27,22 @@ router = APIRouter(prefix="/preparation", tags=["preparation"])
 
 # Temporary storage for uploaded dataset
 temp_dataset_storage: dict[str, Any] = {}
+
+
+###############################################################################
+@router.get(
+    "/dataset/status",
+    response_model=DatasetStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_dataset_status() -> DatasetStatusResponse:
+    """Check if dataset is available in the database for processing."""
+    row_count = database.count_rows("RADIOGRAPHY_DATA")
+    return DatasetStatusResponse(
+        has_data=row_count > 0,
+        row_count=row_count,
+        message=f"Found {row_count} records in RADIOGRAPHY_DATA" if row_count > 0 else "No data found in RADIOGRAPHY_DATA table",
+    )
 
 
 # -----------------------------------------------------------------------------

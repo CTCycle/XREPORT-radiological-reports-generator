@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders, BarChart2,
     Loader, CheckCircle, AlertCircle
@@ -8,6 +9,7 @@ import {
     loadDataset,
     validateImagePath,
     processDataset,
+    getDatasetStatus,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -27,16 +29,31 @@ export default function DatasetPage() {
         setFolderBrowserOpen,
         setIsProcessing,
         setProcessingResult,
+        setDbStatus,
     } = useDatasetPageState();
+
+    // Fetch database status on component mount
+    useEffect(() => {
+        const fetchDbStatus = async () => {
+            const { result } = await getDatasetStatus();
+            if (result) {
+                setDbStatus(result);
+            }
+        };
+        fetchDbStatus();
+    }, [setDbStatus]);
+
+    // Determine if data is available for processing
+    const hasDataForProcessing = state.loadResult?.success || state.dbStatus?.has_data;
 
     const handleConfigChange = (key: string, value: number | string | boolean) => {
         updateConfig(key as keyof typeof state.config, value);
     };
 
     const handleBuildDataset = async () => {
-        // Validation: Must have loaded dataset first
-        if (!state.loadResult?.success) {
-            setUploadError("Please load a dataset before processing.");
+        // Validation: Must have data either from fresh load OR existing in database
+        if (!hasDataForProcessing) {
+            setUploadError("No data available. Please load a dataset or ensure data exists in the database.");
             return;
         }
 
@@ -283,18 +300,32 @@ export default function DatasetPage() {
                                 </select>
                             </div>
                             <div className="form-group span-3">
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleBuildDataset}
-                                    disabled={state.isProcessing}
-                                    style={{ marginTop: '0.25rem', width: '100%', justifyContent: 'center' }}
-                                >
-                                    {state.isProcessing ? (
-                                        <><Loader size={16} className="spin" /> Processing Dataset...</>
-                                    ) : (
-                                        <><Sliders size={16} /> Build Dataset</>
-                                    )}
-                                </button>
+                                <div className="build-dataset-row">
+                                    <span
+                                        className={`status-led ${hasDataForProcessing ? 'led-green' : 'led-red'}`}
+                                        title={hasDataForProcessing
+                                            ? `Data available: ${state.dbStatus?.row_count || state.loadResult?.matched_records || 0} records`
+                                            : 'No data available for processing'
+                                        }
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleBuildDataset}
+                                        disabled={state.isProcessing}
+                                        style={{ flex: 1, justifyContent: 'center' }}
+                                    >
+                                        {state.isProcessing ? (
+                                            <><Loader size={16} className="spin" /> Processing Dataset...</>
+                                        ) : (
+                                            <><Sliders size={16} /> Build Dataset</>
+                                        )}
+                                    </button>
+                                </div>
+                                {state.dbStatus?.has_data && !state.loadResult?.success && (
+                                    <div className="upload-status info" style={{ marginTop: '0.5rem' }}>
+                                        Using existing data: {state.dbStatus.row_count.toLocaleString()} records in database
+                                    </div>
+                                )}
                                 {state.processingResult?.success && (
                                     <div className="upload-status success" style={{ marginTop: '0.5rem' }}>
                                         <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val samples

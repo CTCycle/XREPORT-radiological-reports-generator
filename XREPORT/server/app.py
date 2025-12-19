@@ -22,7 +22,6 @@ app.include_router(browser_router)
 app.include_router(preparation_router)
 app.include_router(pipeline_router)
 
-
 @app.get("/")
 def redirect_to_docs() -> RedirectResponse:
     return RedirectResponse(url="/docs")
