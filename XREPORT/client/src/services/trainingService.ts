@@ -44,6 +44,12 @@ export interface BrowseResponse {
     drives: string[];
 }
 
+export interface DatasetStatusResponse {
+    has_data: boolean;
+    row_count: number;
+    message: string;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -51,6 +57,25 @@ async function readJson<T>(response: Response): Promise<T> {
     }
     return (await response.json()) as T;
 }
+
+/**
+ * Check if dataset is available in the database for processing
+ */
+export async function getDatasetStatus(): Promise<{ result: DatasetStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/preparation/dataset/status');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DatasetStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
 
 /**
  * Validate an image folder path on the server

@@ -135,3 +135,10 @@ class ProcessDatasetResponse(BaseModel):
     message: str
 
 
+###############################################################################
+class DatasetStatusResponse(BaseModel):
+    has_data: bool
+    row_count: int
+    message: str
+
+
