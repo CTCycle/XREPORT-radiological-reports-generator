@@ -56,11 +56,7 @@ def clone_settings_with_database(
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)
-    if repository.db_path and os.path.exists(repository.db_path):
-        logger.info("SQLite database already exists at %s, skipping table creation", repository.db_path)
-        return
-    Base.metadata.create_all(repository.engine)
+    repository = SQLiteRepository(settings)\
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 
