@@ -31,7 +31,6 @@ class DatasetUploadResponse(BaseModel):
 class LoadDatasetRequest(BaseModel):
     image_folder_path: str = Field(..., description="Folder path containing X-ray images")
     sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
-    seed: int = Field(42, description="Random seed for sampling")
 
 
 ###############################################################################
@@ -119,9 +118,7 @@ class TrainingStatusResponse(BaseModel):
 ###############################################################################
 class ProcessDatasetRequest(BaseModel):
     sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
-    seed: int = Field(42, description="Random seed for sampling")
     validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of data for validation")
-    split_seed: int = Field(42, description="Random seed for train/val split")
     tokenizer: str = Field("bert-base-uncased", description="Hugging Face tokenizer ID")
     max_report_size: int = Field(200, ge=50, le=1000, description="Maximum token length for reports")
 

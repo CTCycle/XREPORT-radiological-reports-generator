@@ -38,8 +38,7 @@ class TrainingData(Base):
 class ProcessingMetadata(Base):
     """Metadata for dataset preprocessing operations."""
     __tablename__ = "PROCESSING_METADATA"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_name = Column(String)  # Placeholder for future dataset identification
+    dataset_name = Column(String, primary_key=True)
     date = Column(String)
     seed = Column(Integer)
     sample_size = Column(Float)
@@ -48,6 +47,7 @@ class ProcessingMetadata(Base):
     vocabulary_size = Column(Integer)
     max_report_size = Column(Integer)
     tokenizer = Column(String)
+    __table_args__ = (UniqueConstraint("dataset_name"),)
 
 
 ###############################################################################
