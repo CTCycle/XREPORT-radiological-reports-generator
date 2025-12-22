@@ -136,7 +136,7 @@ export default function TrainingPage() {
                         <div className={`accordion-content ${state.newSessionExpanded ? 'expanded' : ''}`}>
                             <div className="accordion-content-inner">
                                 <div className="row-training-controls">
-                                    {/* Left Column: Model Architecture & Dataset Config */}
+                                    {/* Left Column: Model Architecture */}
                                     <div className="section-column">
                                         <div className="section">
                                             <div className="section-title">
@@ -205,9 +205,14 @@ export default function TrainingPage() {
                                                     </label>
                                                 </div>
                                             </div>
+                                        </div>
+                                    </div>
 
-                                            <div className="sub-section-title">
-                                                <Settings size={16} />
+                                    {/* Right Column: Dataset Config */}
+                                    <div className="section-column">
+                                        <div className="section">
+                                            <div className="section-title">
+                                                <Settings size={18} />
                                                 <span>Dataset Config</span>
                                             </div>
                                             <div className="toggles-grid config-group-spacing">
@@ -252,8 +257,8 @@ export default function TrainingPage() {
                                     </div>
                                 </div>
 
-                                {/* Right Column: Training Parameters */}
-                                <div className="section-column">
+                                {/* Full Width Row: Training Parameters */}
+                                <div style={{ marginTop: '1rem' }}>
                                     <div className="section">
                                         <div className="section-title">
                                             <Activity size={18} />
