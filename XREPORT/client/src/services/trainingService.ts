@@ -20,7 +20,6 @@ export interface DatasetUploadResponse {
 export interface LoadDatasetRequest {
     image_folder_path: string;
     sample_size?: number;
-    seed?: number;
 }
 
 export interface LoadDatasetResponse {
@@ -164,7 +163,6 @@ export async function loadDataset(
             body: JSON.stringify({
                 image_folder_path: request.image_folder_path,
                 sample_size: request.sample_size ?? 1.0,
-                seed: request.seed ?? 42,
             }),
         });
         if (!response.ok) {
@@ -208,9 +206,7 @@ export async function browseDirectory(
 
 export interface ProcessDatasetRequest {
     sample_size: number;
-    seed: number;
     validation_size: number;
-    split_seed: number;
     tokenizer: string;
     max_report_size: number;
 }

@@ -14,10 +14,8 @@ import { TableInfo } from './services/databaseBrowser';
 // Default States
 // ============================================================================
 const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
-    seed: 42,
     sampleSize: 1.0,
     validationSize: 0.2,
-    splitSeed: 42,
     maxReportSize: 200,
     tokenizer: 'distilbert-base-uncased',
     imgStats: false,

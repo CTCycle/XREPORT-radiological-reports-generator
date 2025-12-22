@@ -213,7 +213,7 @@
 /* Form Styles */
 .config-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
 }
 
@@ -349,8 +349,8 @@ input[type="checkbox"] {
 }
 
 /* Span helpers for grid */
-.span-3 {
-    grid-column: span 3;
+.span-4 {
+    grid-column: 1 / -1;
 }
 
 /* Responsive */

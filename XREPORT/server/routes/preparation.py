@@ -21,6 +21,7 @@ from XREPORT.server.database.database import database
 from XREPORT.server.routes.upload import temp_dataset_storage
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.configurations.server import server_settings
 
 
 router = APIRouter(prefix="/preparation", tags=["preparation"])
@@ -145,7 +146,7 @@ async def validate_image_path(request: ImagePathRequest) -> ImagePathResponse:
 async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
     folder_path = request.image_folder_path.strip()
     sample_size = request.sample_size
-    seed = request.seed
+    seed = server_settings.global_settings.seed
     
     # Validate folder path
     if not os.path.isdir(folder_path):
@@ -260,11 +261,12 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
     
     serializer = DataSerializer()
     configuration = request.model_dump()
+    configuration["seed"] = server_settings.global_settings.seed
     
     # Load source dataset from RADIOGRAPHY_DATA
     dataset = serializer.load_source_dataset(
         sample_size=request.sample_size,
-        seed=request.seed,
+        seed=server_settings.global_settings.seed,
     )
     
     if dataset.empty:

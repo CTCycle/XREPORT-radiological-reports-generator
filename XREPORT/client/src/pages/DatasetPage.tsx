@@ -78,9 +78,7 @@ export default function DatasetPage() {
 
         const { result, error } = await processDataset({
             sample_size: state.config.sampleSize,
-            seed: state.config.seed,
             validation_size: state.config.validationSize,
-            split_seed: state.config.splitSeed,
             tokenizer: state.config.tokenizer,
             max_report_size: state.config.maxReportSize,
         });
@@ -152,7 +150,6 @@ export default function DatasetPage() {
         const { result, error } = await loadDataset({
             image_folder_path: state.imageFolderPath,
             sample_size: state.config.sampleSize,
-            seed: state.config.seed,
         });
 
         setIsLoading(false);
@@ -278,15 +275,6 @@ export default function DatasetPage() {
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Seed</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={state.config.seed}
-                                    onChange={(e) => handleConfigChange('seed', parseInt(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
                                 <label className="form-label">Val Split (0-1)</label>
                                 <input
                                     type="number"
@@ -295,15 +283,6 @@ export default function DatasetPage() {
                                     className="form-input"
                                     value={state.config.validationSize}
                                     onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Split Seed</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={state.config.splitSeed}
-                                    onChange={(e) => handleConfigChange('splitSeed', parseInt(e.target.value))}
                                 />
                             </div>
                             <div className="form-group">
@@ -327,7 +306,7 @@ export default function DatasetPage() {
                                     <option value="roberta-base">roberta-base</option>
                                 </select>
                             </div>
-                            <div className="form-group span-3">
+                            <div className="form-group span-4">
                                 <div className="build-dataset-row">
                                     <span
                                         className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}

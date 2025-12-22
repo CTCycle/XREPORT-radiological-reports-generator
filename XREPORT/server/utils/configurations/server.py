@@ -52,11 +52,18 @@ class ServiceSettings:
     param_C: float
 
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+@dataclass(frozen=True)
+class GlobalSettings:
+    seed: int
+
+# -----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ServerSettings:
     fastapi: FastAPISettings
     database: DatabaseSettings     
     service: ServiceSettings
+    global_settings: GlobalSettings
 
 
 # [BUILDER FUNCTIONS]
@@ -67,6 +74,13 @@ def build_fastapi_settings(data: dict[str, Any]) -> FastAPISettings:
         title=coerce_str(payload.get("title"), "XREPORT Backend"),
         version=coerce_str(payload.get("version"), "0.1.0"),
         description=coerce_str(payload.get("description"), "FastAPI backend"),        
+    )
+
+# -----------------------------------------------------------------------------
+def build_global_settings(data: dict[str, Any]) -> GlobalSettings:
+    payload = ensure_mapping(data)
+    return GlobalSettings(
+        seed=coerce_int(payload.get("seed"), 42),
     )
 
 # -----------------------------------------------------------------------------
@@ -124,11 +138,13 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
     service_payload = ensure_mapping(payload.get("service") or payload.get("service_A"))
+    global_payload = ensure_mapping(payload.get("global"))
   
     return ServerSettings(
         fastapi=build_fastapi_settings(fastapi_payload),
         database=build_database_settings(database_payload),
-        service=build_service_settings(service_payload),      
+        service=build_service_settings(service_payload),
+        global_settings=build_global_settings(global_payload),      
     
     )
 
