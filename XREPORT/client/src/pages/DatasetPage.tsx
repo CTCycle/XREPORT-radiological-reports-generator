@@ -161,6 +161,19 @@ export default function DatasetPage() {
             setUploadError(error);
         } else if (result) {
             setLoadResult(result);
+            // Refresh dataset status and names after successful load
+            const { result: statusResult } = await getDatasetStatus();
+            if (statusResult) {
+                setDbStatus(statusResult);
+            }
+            const { result: namesResult } = await getDatasetNames();
+            if (namesResult) {
+                setDatasetNames(namesResult);
+                // Auto-select the first dataset if none is selected
+                if (namesResult.dataset_names.length > 0 && !state.selectedDataset) {
+                    setSelectedDataset(namesResult.dataset_names[0]);
+                }
+            }
         }
     };
 
