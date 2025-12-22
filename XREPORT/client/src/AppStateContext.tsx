@@ -7,7 +7,7 @@ import {
     InferencePageState,
     DatabaseBrowserPageState
 } from './types';
-import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse } from './services/trainingService';
+import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
 import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
@@ -38,7 +38,9 @@ const DEFAULT_DATASET_STATE: DatasetPageState = {
     folderBrowserOpen: false,
     isProcessing: false,
     processingResult: null,
-    dbStatus: null
+    dbStatus: null,
+    datasetNames: null,
+    selectedDataset: ''
 };
 
 const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
@@ -221,6 +223,14 @@ export function useDatasetPageState() {
         setDatasetPageState(prev => ({ ...prev, dbStatus: status }));
     }, [setDatasetPageState]);
 
+    const setDatasetNames = useCallback((names: DatasetNamesResponse | null) => {
+        setDatasetPageState(prev => ({ ...prev, datasetNames: names }));
+    }, [setDatasetPageState]);
+
+    const setSelectedDataset = useCallback((dataset: string) => {
+        setDatasetPageState(prev => ({ ...prev, selectedDataset: dataset }));
+    }, [setDatasetPageState]);
+
     return {
         state: datasetPageState,
         updateConfig,
@@ -235,7 +245,9 @@ export function useDatasetPageState() {
         setFolderBrowserOpen,
         setIsProcessing,
         setProcessingResult,
-        setDbStatus
+        setDbStatus,
+        setDatasetNames,
+        setSelectedDataset
     };
 }
 
