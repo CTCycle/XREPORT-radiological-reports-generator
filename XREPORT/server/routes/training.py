@@ -1,387 +1,470 @@
 from __future__ import annotations
 
-import os
+import asyncio
+import json
+from collections.abc import Callable
+from typing import Any
 
-import pandas as pd
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
 
 from XREPORT.server.schemas.training import (
-    BrowseResponse,
-    DirectoryItem,
-    ImagePathRequest,
-    ImagePathResponse,
-    LoadDatasetRequest,
-    LoadDatasetResponse,
-    ProcessDatasetRequest,
-    ProcessDatasetResponse,
+    CheckpointInfo,
+    CheckpointsResponse,
+    StartTrainingRequest,
+    ResumeTrainingRequest,
+    TrainingStatusResponse,
 )
-from XREPORT.server.database.database import database
-from XREPORT.server.routes.upload import temp_dataset_storage
-from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
-
+from XREPORT.server.utils.services.training.device import DeviceConfig
+from XREPORT.server.utils.services.training.serializer import (
+    DataSerializer,
+    ModelSerializer,
+)
+from XREPORT.server.utils.services.training.dataloader import XRAYDataLoader
+from XREPORT.server.utils.services.training.callbacks import TrainingInterruptCallback
+from XREPORT.server.utils.services.training.trainer import ModelTrainer
 
 router = APIRouter(prefix="/training", tags=["training"])
 
+# Training state management
+training_state: dict[str, Any] = {
+    "is_training": False,
+    "current_epoch": 0,
+    "total_epochs": 0,
+    "loss": 0.0,
+    "val_loss": 0.0,
+    "accuracy": 0.0,
+    "val_accuracy": 0.0,
+    "progress_percent": 0,
+    "elapsed_seconds": 0,
+}
+
+# Active WebSocket connections
+active_connections: list[WebSocket] = []
+
+# Interrupt callback for stopping training
+interrupt_callback: TrainingInterruptCallback | None = None
+
 
 # -----------------------------------------------------------------------------
-def scan_image_folder(folder_path: str) -> list[str]:
-    if not os.path.isdir(folder_path):
-        return []
-    
-    image_paths = []
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            ext = os.path.splitext(file)[1].lower()
-            if ext in VALID_IMAGE_EXTENSIONS:
-                image_paths.append(os.path.join(root, file))
-    
-    return image_paths
-
-
-###############################################################################
-@router.post(
-    "/images/validate",
-    response_model=ImagePathResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def validate_image_path(request: ImagePathRequest) -> ImagePathResponse:
-    folder_path = request.folder_path.strip()
-    
-    if not folder_path:
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message="Folder path cannot be empty",
-        )
-    
-    if not os.path.exists(folder_path):
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"Path does not exist: {folder_path}",
-        )
-    
-    if not os.path.isdir(folder_path):
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"Path is not a directory: {folder_path}",
-        )
-    
-    image_paths = scan_image_folder(folder_path)
-    image_count = len(image_paths)
-    
-    if image_count == 0:
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"No valid images found in: {folder_path}",
-        )
-    
-    logger.info(f"Validated image folder: {folder_path} with {image_count} images")
-    
-    return ImagePathResponse(
-        valid=True,
-        folder_path=folder_path,
-        image_count=image_count,
-        message=f"Found {image_count} valid images",
-    )
-
-
-
-
-
-###############################################################################
-@router.post(
-    "/dataset/load",
-    response_model=LoadDatasetResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
-    folder_path = request.image_folder_path.strip()
-    sample_size = request.sample_size
-    seed = request.seed
-    
-    # Validate folder path
-    if not os.path.isdir(folder_path):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid image folder path: {folder_path}",
-        )
-    
-    # Scan for images
-    image_paths = scan_image_folder(folder_path)
-    if not image_paths:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No valid images found in: {folder_path}",
-        )
-    
-    # Check if we have an uploaded dataset
-    if not temp_dataset_storage:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
-        )
-    
-    # Get the most recently uploaded dataset
-    latest_key = list(temp_dataset_storage.keys())[-1]
-    dataset_info = temp_dataset_storage[latest_key]
-    df: pd.DataFrame = dataset_info["dataframe"].copy()
-    dataset_name: str = dataset_info["dataset_name"]
-    
-    # Apply sample size if needed
-    if sample_size < 1.0:
-        df = df.sample(frac=sample_size, random_state=seed)
-    
-    # Build image name to path mapping
-    images_mapping = {}
-    for path in image_paths:
-        basename = os.path.basename(path)
-        name_no_ext = os.path.splitext(basename)[0]
-        images_mapping[name_no_ext] = path
-    
-    # Try to match images with dataset records
-    # Look for 'image' column in dataset
-    image_column = None
-    for col in df.columns:
-        if col.lower() in {"image", "filename", "file", "img", "image_name"}:
-            image_column = col
-            break
-    
-    if image_column is None:
-        # Just return stats without matching
-        logger.warning("No image column found in dataset for matching")
-        return LoadDatasetResponse(
-            success=True,
-            total_images=len(image_paths),
-            matched_records=0,
-            unmatched_records=len(df),
-            message=f"Loaded {len(image_paths)} images and {len(df)} records. No image column found for matching.",
-        )
-    
-    # Match records to image paths
-    df["_path"] = df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
-    matched = df.dropna(subset=["_path"])
-    unmatched = len(df) - len(matched)
-    
-    logger.info(f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records")
-    
-    # Persist matched data to database with dataset_name and incremental id
-    if not matched.empty:
+async def broadcast_message(message: dict[str, Any]) -> None:
+    disconnected = []
+    for connection in active_connections:
         try:
-            # Prepare data for database - include dataset_name and id
-            db_df = matched[[image_column, "text"]].copy()
-            db_df = db_df.rename(columns={image_column: "image"})
-            db_df["dataset_name"] = dataset_name
-            db_df["id"] = range(1, len(db_df) + 1)  # Incremental ID per dataset
-            # Reorder columns to match schema: dataset_name, id, image, text
-            db_df = db_df[["dataset_name", "id", "image", "text"]]
-            database.save_into_database(db_df, "RADIOGRAPHY_DATA")
-            logger.info(f"Saved {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
-        except Exception as e:
-            logger.exception("Failed to save data to database")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save data to database: {str(e)}",
-            ) from e
+            await connection.send_json(message)
+        except Exception:
+            disconnected.append(connection)
     
-    # Clear temporary storage after loading
-    temp_dataset_storage.clear()
+    for conn in disconnected:
+        if conn in active_connections:
+            active_connections.remove(conn)
+
+
+# -----------------------------------------------------------------------------
+def sync_websocket_callback(message: dict[str, Any]) -> None:
+    global training_state
+    training_state.update({
+        "current_epoch": message.get("epoch", 0),
+        "total_epochs": message.get("total_epochs", 0),
+        "loss": message.get("loss", 0.0),
+        "val_loss": message.get("val_loss", 0.0),
+        "accuracy": message.get("accuracy", 0.0),
+        "val_accuracy": message.get("val_accuracy", 0.0),
+        "progress_percent": message.get("progress_percent", 0),
+        "elapsed_seconds": message.get("elapsed_seconds", 0),
+    })
     
-    return LoadDatasetResponse(
-        success=True,
-        total_images=len(image_paths),
-        matched_records=len(matched),
-        unmatched_records=unmatched,
-        message=f"Successfully loaded dataset with {len(matched)} matched records",
-    )
+    # Schedule async broadcast in event loop
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.create_task(broadcast_message(message))
+    except RuntimeError:
+        pass
 
 
 ###############################################################################
-@router.post(
-    "/dataset/process",
-    response_model=ProcessDatasetResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetResponse:
-    """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
-    from XREPORT.server.utils.services.training.serializer import DataSerializer
-    from XREPORT.server.utils.services.training.processing import (
-        TextSanitizer,
-        TokenizerHandler,
-        TrainValidationSplit,
-    )
+@router.websocket("/ws")
+async def training_websocket(websocket: WebSocket) -> None:
+    await websocket.accept()
+    active_connections.append(websocket)
+    logger.info(f"WebSocket connected. Total connections: {len(active_connections)}")
     
-    serializer = DataSerializer()
-    configuration = request.model_dump()
-    
-    # Load source dataset from RADIOGRAPHY_DATA
-    dataset = serializer.load_source_dataset(
-        sample_size=request.sample_size,
-        seed=request.seed,
-    )
-    
-    if dataset.empty:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
-        )
-    
-    logger.info(f"Processing dataset with {len(dataset)} samples")
-    
-    # Step 1: Sanitize text corpus
-    sanitizer = TextSanitizer(configuration)
-    processed_data = sanitizer.sanitize_text(dataset)
-    logger.info("Text sanitization completed")
-    
-    # Step 2: Tokenize text using Hugging Face tokenizer
     try:
-        tokenization = TokenizerHandler(configuration)
-        logger.info(f"Tokenizing text using {tokenization.tokenizer_id} tokenizer")
-        processed_data = tokenization.tokenize_text_corpus(processed_data)
-        vocabulary_size = tokenization.vocabulary_size
-        logger.info(f"Vocabulary size: {vocabulary_size} tokens")
-    except Exception as e:
-        logger.exception("Failed to tokenize text")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tokenization failed: {str(e)}",
-        ) from e
-    
-    # Step 3: Drop raw text column (keep only tokens)
-    processed_data = processed_data.drop(columns=["text"])
-    
-    # Step 4: Split into train and validation sets
-    splitter = TrainValidationSplit(configuration, processed_data)
-    training_data = splitter.split_train_and_validation()
-    
-    train_samples = len(training_data[training_data["split"] == "train"])
-    validation_samples = len(training_data[training_data["split"] == "validation"])
-    
-    logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
-    
-    # Step 5: Save processed data and metadata to database
-    try:
-        serializer.save_training_data(configuration, training_data, vocabulary_size)
-        logger.info("Preprocessed data saved to database")
-    except Exception as e:
-        logger.exception("Failed to save training data")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save training data: {str(e)}",
-        ) from e
-    
-    return ProcessDatasetResponse(
-        success=True,
-        total_samples=len(training_data),
-        train_samples=train_samples,
-        validation_samples=validation_samples,
-        vocabulary_size=vocabulary_size,
-        message=f"Successfully processed {len(training_data)} samples",
-    )
-
-
-###############################################################################
-def get_windows_drives() -> list[str]:
-    """Get list of available Windows drives."""
-    drives = []
-    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-        drive = f"{letter}:\\"
-        if os.path.exists(drive):
-            drives.append(drive)
-    return drives
-
-
-def count_images_in_folder(folder_path: str) -> int:
-    """Quick count of image files in a folder (non-recursive for speed)."""
-    try:
-        count = 0
-        for item in os.listdir(folder_path):
-            ext = os.path.splitext(item)[1].lower()
-            if ext in VALID_IMAGE_EXTENSIONS:
-                count += 1
-        return count
-    except (PermissionError, OSError):
-        return 0
+        # Send current state immediately
+        await websocket.send_json({
+            "type": "connection_established",
+            "is_training": training_state["is_training"],
+            **training_state,
+        })
+        
+        # Keep connection alive and handle messages
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
+                message = json.loads(data)
+                
+                if message.get("type") == "ping":
+                    await websocket.send_json({"type": "pong"})
+                    
+            except asyncio.TimeoutError:
+                # Send ping to keep connection alive
+                await websocket.send_json({"type": "ping"})
+                
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected")
+    finally:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+        logger.info(f"WebSocket removed. Total connections: {len(active_connections)}")
 
 
 ###############################################################################
 @router.get(
-    "/browse",
-    response_model=BrowseResponse,
+    "/checkpoints",
+    response_model=CheckpointsResponse,
     status_code=status.HTTP_200_OK,
 )
-async def browse_directory(
-    path: str = Query("", description="Directory path to browse. Empty returns drives.")
-) -> BrowseResponse:
-    """Browse directories on the server filesystem."""
+async def get_checkpoints() -> CheckpointsResponse:
+    modser = ModelSerializer()
+    checkpoint_names = modser.scan_checkpoints_folder()
     
-    # If no path provided or path is empty, return drives (Windows)
-    if not path or path.strip() == "":
-        drives = get_windows_drives()
-        return BrowseResponse(
-            current_path="",
-            parent_path=None,
-            items=[
-                DirectoryItem(name=d, path=d, is_dir=True, image_count=0)
-                for d in drives
-            ],
-            drives=drives,
-        )
+    checkpoints = []
+    for name in checkpoint_names:
+        try:
+            _, config, _, session, _ = modser.load_checkpoint(name)
+            checkpoints.append(CheckpointInfo(
+                name=name,
+                epochs=session.get("epochs", 0),
+                loss=session.get("history", {}).get("loss", [0])[-1] if session.get("history") else 0,
+                val_loss=session.get("history", {}).get("val_loss", [0])[-1] if session.get("history") else 0,
+            ))
+        except Exception as e:
+            logger.warning(f"Failed to load checkpoint {name}: {e}")
+            checkpoints.append(CheckpointInfo(name=name, epochs=0, loss=0, val_loss=0))
     
-    path = path.strip()
+    return CheckpointsResponse(checkpoints=checkpoints)
+
+
+###############################################################################
+@router.get(
+    "/status",
+    response_model=TrainingStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_training_status() -> TrainingStatusResponse:
+    return TrainingStatusResponse(
+        is_training=training_state["is_training"],
+        current_epoch=training_state["current_epoch"],
+        total_epochs=training_state["total_epochs"],
+        loss=training_state["loss"],
+        val_loss=training_state["val_loss"],
+        accuracy=training_state["accuracy"],
+        val_accuracy=training_state["val_accuracy"],
+        progress_percent=training_state["progress_percent"],
+        elapsed_seconds=training_state["elapsed_seconds"],
+    )
+
+
+###############################################################################
+@router.post(
+    "/start",
+    response_model=TrainingStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def start_training(request: StartTrainingRequest) -> TrainingStatusResponse:
+    global training_state, interrupt_callback
     
-    # Validate path exists
-    if not os.path.exists(path):
+    if training_state["is_training"]:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Path not found: {path}",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Training is already in progress",
         )
     
-    if not os.path.isdir(path):
+    # Build configuration from request
+    configuration = request.model_dump()
+    
+    # Initialize serializers
+    serializer = DataSerializer()
+    modser = ModelSerializer()
+    
+    # Load training data
+    train_data, validation_data, metadata = serializer.load_training_data()
+    if train_data.empty or validation_data.empty:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Path is not a directory: {path}",
+            detail="No training data found. Please process a dataset first.",
         )
     
-    # Get parent path
-    parent_path = os.path.dirname(path)
-    if parent_path == path:  # At drive root
-        parent_path = ""  # Return to drives list
+    # Update image paths
+    train_data = serializer.update_img_path(train_data)
+    validation_data = serializer.update_img_path(validation_data)
     
-    # List directory contents
-    items: list[DirectoryItem] = []
+    if train_data.empty or validation_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No images found matching the training data.",
+        )
+    
+    # Set training state
+    training_state["is_training"] = True
+    training_state["current_epoch"] = 0
+    training_state["total_epochs"] = configuration.get("epochs", 10)
+    
+    # Broadcast training started
+    await broadcast_message({
+        "type": "training_started",
+        "total_epochs": training_state["total_epochs"],
+    })
+    
     try:
-        for item_name in sorted(os.listdir(path)):
-            item_path = os.path.join(path, item_name)
-            is_dir = os.path.isdir(item_path)
-            
-            # Only include directories (not files) for navigation
-            if is_dir:
-                image_count = count_images_in_folder(item_path)
-                items.append(DirectoryItem(
-                    name=item_name,
-                    path=item_path,
-                    is_dir=True,
-                    image_count=image_count,
-                ))
-    except PermissionError:
-        logger.warning(f"Permission denied accessing: {path}")
-    except OSError as e:
-        logger.warning(f"Error accessing {path}: {e}")
+        # Set device for training
+        logger.info("Setting device for training operations")
+        device = DeviceConfig(configuration)
+        device.set_device()
+        
+        # Create checkpoint folder
+        checkpoint_path = modser.create_checkpoint_folder()
+        
+        # Build data loaders
+        logger.info("Building model data loaders")
+        builder = XRAYDataLoader(configuration)
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data)
+        
+        # Build model (deferred import to avoid circular imports)
+        from XREPORT.server.utils.services.training.model import build_xreport_model
+        
+        logger.info("Building XREPORT Transformer model")
+        model = build_xreport_model(metadata, configuration)
+        
+        # Initialize interrupt callback
+        interrupt_callback = TrainingInterruptCallback()
+        
+        # Train model
+        logger.info("Starting XREPORT Transformer model training")
+        trainer = ModelTrainer(configuration)
+        model, history = trainer.train_model(
+            model,
+            train_dataset,
+            validation_dataset,
+            checkpoint_path,
+            websocket_callback=sync_websocket_callback,
+            interrupt_callback=interrupt_callback,
+        )
+        
+        # Save model and configuration
+        modser.save_pretrained_model(model, checkpoint_path)
+        modser.save_training_configuration(checkpoint_path, history, configuration, metadata)
+        
+        # Broadcast training completed
+        await broadcast_message({
+            "type": "training_completed",
+            "epochs": history.get("epochs", 0),
+            "final_loss": history.get("history", {}).get("loss", [0])[-1],
+            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+        })
+        
+        logger.info("Training completed successfully")
+        
+    except Exception as e:
+        logger.exception("Training failed")
+        await broadcast_message({
+            "type": "training_error",
+            "error": str(e),
+        })
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Training failed: {str(e)}",
+        ) from e
     
-    # Also count images in current folder
-    current_image_count = count_images_in_folder(path)
+    finally:
+        training_state["is_training"] = False
+        interrupt_callback = None
     
-    return BrowseResponse(
-        current_path=path,
-        parent_path=parent_path if parent_path else None,
-        items=items,
-        drives=get_windows_drives(),
+    return TrainingStatusResponse(
+        is_training=False,
+        current_epoch=training_state["current_epoch"],
+        total_epochs=training_state["total_epochs"],
+        loss=training_state["loss"],
+        val_loss=training_state["val_loss"],
+        accuracy=training_state["accuracy"],
+        val_accuracy=training_state["val_accuracy"],
+        progress_percent=100,
+        elapsed_seconds=training_state["elapsed_seconds"],
+    )
+
+
+###############################################################################
+@router.post(
+    "/resume",
+    response_model=TrainingStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusResponse:
+    global training_state, interrupt_callback
+    
+    if training_state["is_training"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Training is already in progress",
+        )
+    
+    # Initialize serializers
+    serializer = DataSerializer()
+    modser = ModelSerializer()
+    
+    # Load checkpoint
+    logger.info(f"Loading checkpoint: {request.checkpoint}")
+    try:
+        model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
+            request.checkpoint
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checkpoint not found: {request.checkpoint}",
+        ) from e
+    
+    # Load and validate training data
+    current_metadata = serializer.load_training_data(only_metadata=True)
+    is_validated = serializer.validate_metadata(current_metadata, model_metadata)
+    
+    if is_validated:
+        logger.info("Loading processed dataset")
+        train_data, validation_data, _ = serializer.load_training_data()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current dataset metadata doesn't match checkpoint. Please reprocess the dataset.",
+        )
+    
+    # Update image paths
+    train_data = serializer.update_img_path(train_data)
+    validation_data = serializer.update_img_path(validation_data)
+    
+    if train_data.empty or validation_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No images found matching the training data.",
+        )
+    
+    # Set training state
+    from_epoch = session.get("epochs", 0)
+    training_state["is_training"] = True
+    training_state["current_epoch"] = from_epoch
+    training_state["total_epochs"] = from_epoch + request.additional_epochs
+    
+    # Broadcast training resumed
+    await broadcast_message({
+        "type": "training_resumed",
+        "from_epoch": from_epoch,
+        "additional_epochs": request.additional_epochs,
+    })
+    
+    try:
+        # Set device for training
+        logger.info("Setting device for training operations")
+        device = DeviceConfig(train_config)
+        device.set_device()
+        
+        # Build data loaders
+        logger.info("Building model data loaders")
+        builder = XRAYDataLoader(train_config)
+        train_dataset = builder.build_training_dataloader(train_data)
+        validation_dataset = builder.build_training_dataloader(validation_data)
+        
+        # Initialize interrupt callback
+        interrupt_callback = TrainingInterruptCallback()
+        
+        # Resume training
+        logger.info(f"Resuming training from epoch {from_epoch}")
+        trainer = ModelTrainer(train_config, model_metadata)
+        model, history = trainer.resume_training(
+            model,
+            train_dataset,
+            validation_dataset,
+            checkpoint_path,
+            session=session,
+            additional_epochs=request.additional_epochs,
+            websocket_callback=sync_websocket_callback,
+            interrupt_callback=interrupt_callback,
+        )
+        
+        # Save model and configuration
+        modser.save_pretrained_model(model, checkpoint_path)
+        modser.save_training_configuration(checkpoint_path, history, train_config, model_metadata)
+        
+        # Broadcast training completed
+        await broadcast_message({
+            "type": "training_completed",
+            "epochs": history.get("epochs", 0),
+            "final_loss": history.get("history", {}).get("loss", [0])[-1],
+            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+        })
+        
+        logger.info("Resumed training completed successfully")
+        
+    except Exception as e:
+        logger.exception("Resume training failed")
+        await broadcast_message({
+            "type": "training_error",
+            "error": str(e),
+        })
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Training failed: {str(e)}",
+        ) from e
+    
+    finally:
+        training_state["is_training"] = False
+        interrupt_callback = None
+    
+    return TrainingStatusResponse(
+        is_training=False,
+        current_epoch=training_state["current_epoch"],
+        total_epochs=training_state["total_epochs"],
+        loss=training_state["loss"],
+        val_loss=training_state["val_loss"],
+        accuracy=training_state["accuracy"],
+        val_accuracy=training_state["val_accuracy"],
+        progress_percent=100,
+        elapsed_seconds=training_state["elapsed_seconds"],
+    )
+
+
+###############################################################################
+@router.post(
+    "/stop",
+    response_model=TrainingStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def stop_training() -> TrainingStatusResponse:
+    global interrupt_callback
+    
+    if not training_state["is_training"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No training is currently in progress",
+        )
+    
+    if interrupt_callback is not None:
+        interrupt_callback.request_stop()
+        logger.info("Training stop requested")
+        
+        await broadcast_message({
+            "type": "training_stopping",
+            "message": "Training stop requested. Will stop after current epoch.",
+        })
+    
+    return TrainingStatusResponse(
+        is_training=training_state["is_training"],
+        current_epoch=training_state["current_epoch"],
+        total_epochs=training_state["total_epochs"],
+        loss=training_state["loss"],
+        val_loss=training_state["val_loss"],
+        accuracy=training_state["accuracy"],
+        val_accuracy=training_state["val_accuracy"],
+        progress_percent=training_state["progress_percent"],
+        elapsed_seconds=training_state["elapsed_seconds"],
     )

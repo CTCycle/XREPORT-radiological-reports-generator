@@ -1,5 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Square, Clock, TrendingDown, Target, Percent } from 'lucide-react';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+} from 'recharts';
 import './TrainingDashboard.css';
 
 export interface TrainingMetrics {
@@ -12,6 +22,15 @@ export interface TrainingMetrics {
     valAccuracy: number;
     progressPercent: number;
     elapsedSeconds: number;
+}
+
+interface ChartDataPoint {
+    epoch: number;
+    loss?: number;
+    val_loss?: number;
+    MaskedAccuracy?: number;
+    val_MaskedAccuracy?: number;
+    [key: string]: number | undefined;
 }
 
 interface TrainingDashboardProps {
@@ -31,6 +50,16 @@ function formatTime(seconds: number): string {
     return `${secs}s`;
 }
 
+// Chart colors for different metrics
+const CHART_COLORS = {
+    loss: '#f59e0b',
+    val_loss: '#fbbf24',
+    MaskedAccuracy: '#22c55e',
+    val_MaskedAccuracy: '#4ade80',
+    accuracy: '#22c55e',
+    val_accuracy: '#4ade80',
+};
+
 export default function TrainingDashboard({ onStopTraining }: TrainingDashboardProps) {
     const [metrics, setMetrics] = useState<TrainingMetrics>({
         isTraining: false,
@@ -44,6 +73,8 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
         elapsedSeconds: 0,
     });
     const [connected, setConnected] = useState(false);
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+    const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<number | null>(null);
 
@@ -53,7 +84,7 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/pipeline/ws`;
+        const wsUrl = `${protocol}//${window.location.host}/api/training/ws`;
 
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -85,6 +116,11 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                         isTraining: true,
                         totalEpochs: data.total_epochs || prev.totalEpochs,
                     }));
+                    // Clear chart data on new training session
+                    if (data.type === 'training_started') {
+                        setChartData([]);
+                        setAvailableMetrics([]);
+                    }
                 } else if (data.type === 'training_completed' || data.type === 'training_error') {
                     setMetrics(prev => ({
                         ...prev,
@@ -106,6 +142,11 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                     }));
                 } else if (data.type === 'ping') {
                     ws.send(JSON.stringify({ type: 'pong' }));
+                } else if (data.type === 'training_plot' && data.chart_data) {
+                    setChartData(data.chart_data);
+                    if (data.metrics) {
+                        setAvailableMetrics(data.metrics);
+                    }
                 }
             } catch (e) {
                 console.error('Failed to parse WebSocket message:', e);
@@ -146,6 +187,12 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
             onStopTraining();
         }
     };
+
+    // Group metrics into loss and accuracy for separate charts
+    const lossMetrics = availableMetrics.filter(m => m.toLowerCase().includes('loss'));
+    const accuracyMetrics = availableMetrics.filter(m =>
+        m.toLowerCase().includes('accuracy') || m.toLowerCase().includes('maskedaccuracy')
+    );
 
     return (
         <div className="training-dashboard">
@@ -226,6 +273,90 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                                 <Square size={16} />
                                 Stop Training
                             </button>
+                        </div>
+                    )}
+
+                    {chartData.length > 0 && (
+                        <div className="training-charts-container">
+                            {/* Loss Chart */}
+                            {lossMetrics.length > 0 && (
+                                <div className="chart-section">
+                                    <div className="chart-title">Loss</div>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <LineChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis
+                                                dataKey="epoch"
+                                                stroke="#9ca3af"
+                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            />
+                                            <YAxis
+                                                stroke="#9ca3af"
+                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    background: 'rgba(30, 30, 35, 0.95)',
+                                                    border: '1px solid rgba(255, 215, 0, 0.2)',
+                                                    borderRadius: '8px',
+                                                }}
+                                            />
+                                            <Legend />
+                                            {lossMetrics.map((metric) => (
+                                                <Line
+                                                    key={metric}
+                                                    type="monotone"
+                                                    dataKey={metric}
+                                                    stroke={CHART_COLORS[metric as keyof typeof CHART_COLORS] || '#ffd700'}
+                                                    strokeWidth={2}
+                                                    dot={false}
+                                                    name={metric.replace('_', ' ')}
+                                                />
+                                            ))}
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
+
+                            {/* Accuracy Chart */}
+                            {accuracyMetrics.length > 0 && (
+                                <div className="chart-section">
+                                    <div className="chart-title">Accuracy</div>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <LineChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                            <XAxis
+                                                dataKey="epoch"
+                                                stroke="#9ca3af"
+                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            />
+                                            <YAxis
+                                                stroke="#9ca3af"
+                                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    background: 'rgba(30, 30, 35, 0.95)',
+                                                    border: '1px solid rgba(255, 215, 0, 0.2)',
+                                                    borderRadius: '8px',
+                                                }}
+                                            />
+                                            <Legend />
+                                            {accuracyMetrics.map((metric) => (
+                                                <Line
+                                                    key={metric}
+                                                    type="monotone"
+                                                    dataKey={metric}
+                                                    stroke={CHART_COLORS[metric as keyof typeof CHART_COLORS] || '#22c55e'}
+                                                    strokeWidth={2}
+                                                    dot={false}
+                                                    name={metric.replace('_', ' ')}
+                                                />
+                                            ))}
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
                         </div>
                     )}
                 </>
