@@ -5,10 +5,8 @@ import { TableInfo } from './services/databaseBrowser';
 // Dataset Page State
 // ============================================================================
 export interface DatasetProcessingConfig {
-    seed: number;
     sampleSize: number;
     validationSize: number;
-    splitSeed: number;
     maxReportSize: number;
     tokenizer: string;
     imgStats: boolean;

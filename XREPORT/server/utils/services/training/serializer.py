@@ -162,7 +162,6 @@ class DataSerializer:
             "seed": configuration.get("seed", 42),
             "sample_size": configuration.get("sample_size", 1.0),
             "validation_size": configuration.get("validation_size", 0.2),
-            "split_seed": configuration.get("split_seed", 42),
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
@@ -170,7 +169,7 @@ class DataSerializer:
         
         metadata_df = pd.DataFrame([metadata])
         try:
-            database.upsert_into_database(metadata_df, "PROCESSING_METADATA")
+            database.save_into_database(metadata_df, "PROCESSING_METADATA")
         except OperationalError as e:
             error_msg = str(e)
             if "no column named" in error_msg or "has no column" in error_msg:
