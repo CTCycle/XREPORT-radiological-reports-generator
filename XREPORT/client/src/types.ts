@@ -52,8 +52,6 @@ export interface TrainingConfig {
     checkpointFreq: number;
     mixedPrecision: boolean;
     runTensorboard: boolean;
-    useJIT: boolean;
-    jitBackend: string;
     useScheduler: boolean;
     targetLR: number;
     warmupSteps: number;
