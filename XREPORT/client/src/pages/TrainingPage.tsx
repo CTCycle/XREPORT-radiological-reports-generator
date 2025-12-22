@@ -41,7 +41,7 @@ export default function TrainingPage() {
         fetchCheckpoints();
     }, []);
 
-    const handleConfigChange = (key: string, value: number | string | boolean) => {
+    const handleConfigChange = (key: string, value: number | boolean) => {
         updateConfig(key as keyof typeof state.config, value);
     };
 
@@ -143,7 +143,7 @@ export default function TrainingPage() {
                                                 <Cpu size={18} />
                                                 <span>Model Architecture</span>
                                             </div>
-                                            <div className="config-grid">
+                                            <div className="inputs-grid config-group-spacing">
                                                 <div className="form-group">
                                                     <label className="form-label">Encoders</label>
                                                     <input
@@ -163,7 +163,7 @@ export default function TrainingPage() {
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Embed Dims</label>
+                                                    <label className="form-label">Embedding Dims</label>
                                                     <input
                                                         type="number"
                                                         step="8"
@@ -173,7 +173,7 @@ export default function TrainingPage() {
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Attn Heads</label>
+                                                    <label className="form-label">Attention Heads</label>
                                                     <input
                                                         type="number"
                                                         className="form-input"
@@ -182,7 +182,7 @@ export default function TrainingPage() {
                                                     />
                                                 </div>
                                                 <div className="form-group">
-                                                    <label className="form-label">Temp</label>
+                                                    <label className="form-label">Temperature</label>
                                                     <input
                                                         type="number"
                                                         step="0.05"
@@ -191,7 +191,9 @@ export default function TrainingPage() {
                                                         onChange={(e) => handleConfigChange('trainTemp', parseFloat(e.target.value))}
                                                     />
                                                 </div>
-                                                <div className="form-group" style={{ alignSelf: 'end' }}>
+                                            </div>
+                                            <div className="toggles-grid">
+                                                <div className="form-group">
                                                     <label className="form-checkbox">
                                                         <input
                                                             type="checkbox"
@@ -208,7 +210,7 @@ export default function TrainingPage() {
                                                 <Settings size={16} />
                                                 <span>Dataset Config</span>
                                             </div>
-                                            <div className="config-grid">
+                                            <div className="toggles-grid config-group-spacing">
                                                 <div className="form-group">
                                                     <label className="form-checkbox">
                                                         <input
@@ -217,7 +219,7 @@ export default function TrainingPage() {
                                                             onChange={(e) => handleConfigChange('useImgAugment', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Image Augment</span>
+                                                        <span className="checkbox-label">Image Augmentation</span>
                                                     </label>
                                                 </div>
                                                 <div className="form-group">
@@ -228,10 +230,12 @@ export default function TrainingPage() {
                                                             onChange={(e) => handleConfigChange('shuffleWithBuffer', e.target.checked)}
                                                         />
                                                         <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Shuffle Buffer</span>
+                                                        <span className="checkbox-label">Shuffle Buffered</span>
                                                     </label>
                                                 </div>
-                                                {state.config.shuffleWithBuffer && (
+                                            </div>
+                                            {state.config.shuffleWithBuffer && (
+                                                <div className="inputs-grid">
                                                     <div className="form-group">
                                                         <label className="form-label">Buffer Size</label>
                                                         <input
@@ -242,244 +246,206 @@ export default function TrainingPage() {
                                                             onChange={(e) => handleConfigChange('shuffleBufferSize', parseInt(e.target.value))}
                                                         />
                                                     </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Right Column: Training Parameters */}
-                                    <div className="section-column">
-                                        <div className="section">
-                                            <div className="section-title">
-                                                <Activity size={18} />
-                                                <span>Training Parameters</span>
-                                            </div>
-                                            <div className="config-grid">
-                                                <div className="form-group">
-                                                    <label className="form-label">Epochs</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.epochs}
-                                                        onChange={(e) => handleConfigChange('epochs', parseInt(e.target.value))}
-                                                    />
                                                 </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Batch Size</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.batchSize}
-                                                        onChange={(e) => handleConfigChange('batchSize', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Training Seed</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.trainSeed}
-                                                        onChange={(e) => handleConfigChange('trainSeed', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.saveCheckpoints}
-                                                            onChange={(e) => handleConfigChange('saveCheckpoints', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Checkpoints</span>
-                                                    </label>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.runTensorboard}
-                                                            onChange={(e) => handleConfigChange('runTensorboard', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Tensorboard</span>
-                                                    </label>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.mixedPrecision}
-                                                            onChange={(e) => handleConfigChange('mixedPrecision', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Mixed Prec.</span>
-                                                    </label>
-                                                </div>
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.useJIT}
-                                                            onChange={(e) => handleConfigChange('useJIT', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">JIT Compiler</span>
-                                                    </label>
-                                                </div>
-
-                                                {state.config.useJIT && (
-                                                    <div className="form-group span-2">
-                                                        <label className="form-label">JIT Backend</label>
-                                                        <select
-                                                            className="form-select"
-                                                            value={state.config.jitBackend}
-                                                            onChange={(e) => handleConfigChange('jitBackend', e.target.value)}
-                                                        >
-                                                            <option value="inductor">inductor</option>
-                                                            <option value="eager">eager</option>
-                                                            <option value="aot_eager">aot_eager</option>
-                                                            <option value="nvprims_nvfuser">nvprims_nvfuser</option>
-                                                        </select>
-                                                    </div>
-                                                )}
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.useScheduler}
-                                                            onChange={(e) => handleConfigChange('useScheduler', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">LR Scheduler</span>
-                                                    </label>
-                                                </div>
-
-                                                {state.config.useScheduler && (
-                                                    <>
-                                                        <div className="form-group">
-                                                            <label className="form-label">Target LR</label>
-                                                            <input
-                                                                type="number"
-                                                                step="0.0001"
-                                                                className="form-input"
-                                                                value={state.config.targetLR}
-                                                                onChange={(e) => handleConfigChange('targetLR', parseFloat(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div className="form-group">
-                                                            <label className="form-label">Warmup Steps</label>
-                                                            <input
-                                                                type="number"
-                                                                className="form-input"
-                                                                value={state.config.warmupSteps}
-                                                                onChange={(e) => handleConfigChange('warmupSteps', parseInt(e.target.value))}
-                                                            />
-                                                        </div>
-                                                    </>
-                                                )}
-
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.realTimePlot}
-                                                            onChange={(e) => handleConfigChange('realTimePlot', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Real-time Plot</span>
-                                                    </label>
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Actions Bar inside accordion */}
-                                <div className="actions-bar" style={{ marginTop: '1rem' }}>
-                                    <button
-                                        className="btn btn-primary"
-                                        onClick={handleStartTraining}
-                                        disabled={isLoading}
-                                    >
-                                        <Play size={16} />
-                                        {isLoading ? 'Starting...' : 'Start Training'}
-                                    </button>
-                                    {error && (
-                                        <span style={{ color: '#ef4444', marginLeft: '1rem', fontSize: '0.85rem' }}>
-                                            {error}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                {/* Right Column: Training Parameters */}
+                                <div className="section-column">
+                                    <div className="section">
+                                        <div className="section-title">
+                                            <Activity size={18} />
+                                            <span>Training Parameters</span>
+                                        </div>
+                                        <div className="inputs-grid config-group-spacing">
+                                            <div className="form-group">
+                                                <label className="form-label">Epochs</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    value={state.config.epochs}
+                                                    onChange={(e) => handleConfigChange('epochs', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Batch Size</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    value={state.config.batchSize}
+                                                    onChange={(e) => handleConfigChange('batchSize', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Training Seed</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    value={state.config.trainSeed}
+                                                    onChange={(e) => handleConfigChange('trainSeed', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                        </div>
 
-                    {/* Resume Training Session Accordion */}
-                    <div className="accordion">
-                        <div
-                            className="accordion-header"
-                            onClick={() => setResumeSessionExpanded(!state.resumeSessionExpanded)}
-                        >
-                            <div className="accordion-header-left">
-                                <RotateCcw size={18} />
-                                <span>Resume Training Session</span>
-                            </div>
-                            <ChevronDown
-                                size={20}
-                                className={`accordion-chevron ${state.resumeSessionExpanded ? 'expanded' : ''}`}
-                            />
-                        </div>
-                        {state.resumeSessionExpanded && <div className="accordion-divider" />}
-                        <div className={`accordion-content ${state.resumeSessionExpanded ? 'expanded' : ''}`}>
-                            <div className="accordion-content-inner">
-                                <div className="resume-session-grid">
-                                    <div className="form-group">
-                                        <label className="form-label">Select Checkpoint</label>
-                                        <select
-                                            className="form-select"
-                                            value={state.selectedCheckpoint}
-                                            onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                                        >
-                                            <option value="">-- Select a checkpoint --</option>
-                                            {checkpoints.map((cp) => (
-                                                <option key={cp.name} value={cp.name}>
-                                                    {cp.name} - Epoch {cp.epochs} - Loss: {cp.loss.toFixed(4)}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="toggles-grid">
+                                            <div className="form-group">
+                                                <label className="form-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={state.config.saveCheckpoints}
+                                                        onChange={(e) => handleConfigChange('saveCheckpoints', e.target.checked)}
+                                                    />
+                                                    <div className="checkbox-visual" />
+                                                    <span className="checkbox-label">Save Checkpoints</span>
+                                                </label>
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label className="form-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={state.config.runTensorboard}
+                                                        onChange={(e) => handleConfigChange('runTensorboard', e.target.checked)}
+                                                    />
+                                                    <div className="checkbox-visual" />
+                                                    <span className="checkbox-label">Tensorboard</span>
+                                                </label>
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label className="form-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={state.config.mixedPrecision}
+                                                        onChange={(e) => handleConfigChange('mixedPrecision', e.target.checked)}
+                                                    />
+                                                    <div className="checkbox-visual" />
+                                                    <span className="checkbox-label">Mixed Precision</span>
+                                                </label>
+                                            </div>
+
+                                            <div className="form-group">
+                                                <label className="form-checkbox">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={state.config.useScheduler}
+                                                        onChange={(e) => handleConfigChange('useScheduler', e.target.checked)}
+                                                    />
+                                                    <div className="checkbox-visual" />
+                                                    <span className="checkbox-label">LR Scheduler</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {/* Scheduler configuration row */}
+                                        {state.config.useScheduler && (
+                                            <div className="scheduler-config-row">
+                                                <div className="form-group">
+                                                    <label className="form-label">Target Learning Rate</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.0001"
+                                                        className="form-input"
+                                                        value={state.config.targetLR}
+                                                        onChange={(e) => handleConfigChange('targetLR', parseFloat(e.target.value))}
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Warmup Steps</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        value={state.config.warmupSteps}
+                                                        onChange={(e) => handleConfigChange('warmupSteps', parseInt(e.target.value))}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Additional Epochs</label>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            value={state.additionalEpochs}
-                                            onChange={(e) => setAdditionalEpochs(parseInt(e.target.value))}
-                                            min={1}
-                                        />
-                                    </div>
-                                    <button
-                                        className="btn btn-primary"
-                                        disabled={!state.selectedCheckpoint || isLoading}
-                                        onClick={handleResumeTraining}
-                                    >
-                                        <RotateCcw size={16} />
-                                        {isLoading ? 'Resuming...' : 'Resume Training'}
-                                    </button>
                                 </div>
+                            </div>
+
+                            {/* Actions Bar inside accordion */}
+                            <div className="actions-bar" style={{ marginTop: '1rem' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleStartTraining}
+                                    disabled={isLoading}
+                                >
+                                    <Play size={16} />
+                                    {isLoading ? 'Starting...' : 'Start Training'}
+                                </button>
+                                {error && (
+                                    <span style={{ color: '#ef4444', marginLeft: '1rem', fontSize: '0.85rem' }}>
+                                        {error}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Training Dashboard */}
-                <TrainingDashboard onStopTraining={handleStopTraining} />
+                {/* Resume Training Session Accordion */}
+                <div className="accordion">
+                    <div
+                        className="accordion-header"
+                        onClick={() => setResumeSessionExpanded(!state.resumeSessionExpanded)}
+                    >
+                        <div className="accordion-header-left">
+                            <RotateCcw size={18} />
+                            <span>Resume Training Session</span>
+                        </div>
+                        <ChevronDown
+                            size={20}
+                            className={`accordion-chevron ${state.resumeSessionExpanded ? 'expanded' : ''}`}
+                        />
+                    </div>
+                    {state.resumeSessionExpanded && <div className="accordion-divider" />}
+                    <div className={`accordion-content ${state.resumeSessionExpanded ? 'expanded' : ''}`}>
+                        <div className="accordion-content-inner">
+                            <div className="resume-session-grid">
+                                <div className="form-group">
+                                    <label className="form-label">Select Checkpoint</label>
+                                    <select
+                                        className="form-select"
+                                        value={state.selectedCheckpoint}
+                                        onChange={(e) => setSelectedCheckpoint(e.target.value)}
+                                    >
+                                        <option value="">-- Select a checkpoint --</option>
+                                        {checkpoints.map((cp) => (
+                                            <option key={cp.name} value={cp.name}>
+                                                {cp.name} - Epoch {cp.epochs} - Loss: {cp.loss.toFixed(4)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Additional Epochs</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={state.additionalEpochs}
+                                        onChange={(e) => setAdditionalEpochs(parseInt(e.target.value))}
+                                        min={1}
+                                    />
+                                </div>
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={!state.selectedCheckpoint || isLoading}
+                                    onClick={handleResumeTraining}
+                                >
+                                    <RotateCcw size={16} />
+                                    {isLoading ? 'Resuming...' : 'Resume Training'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            {/* Training Dashboard */}
+            <TrainingDashboard onStopTraining={handleStopTraining} />
         </div>
     );
 }

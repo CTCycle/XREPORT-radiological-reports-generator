@@ -52,10 +52,15 @@ class ServiceSettings:
     param_C: float
 
 # -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
+
+# -----------------------------------------------------------------------------
+@dataclass(frozen=True)
+class TrainingSettings:
+    use_jit: bool
+    jit_backend: str
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -64,6 +69,7 @@ class ServerSettings:
     database: DatabaseSettings     
     service: ServiceSettings
     global_settings: GlobalSettings
+    training: TrainingSettings
 
 
 # [BUILDER FUNCTIONS]
@@ -130,7 +136,17 @@ def build_service_settings(data: dict[str, Any]) -> ServiceSettings:
         param_C=coerce_float(payload.get("param_C"), 0.0),
     )
 
-
+# -----------------------------------------------------------------------------
+def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
+    payload = ensure_mapping(data)
+    jit_backend = coerce_str(payload.get("jit_backend"), "inductor")
+    valid_backends = ["inductor", "eager", "aot_eager", "nvprims_nvfuser"]
+    if jit_backend not in valid_backends:
+        jit_backend = "inductor"
+    return TrainingSettings(
+        use_jit=bool(payload.get("use_jit", True)),
+        jit_backend=jit_backend,
+    )
 
 # -----------------------------------------------------------------------------
 def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
@@ -139,13 +155,14 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     database_payload = ensure_mapping(payload.get("database"))
     service_payload = ensure_mapping(payload.get("service") or payload.get("service_A"))
     global_payload = ensure_mapping(payload.get("global"))
+    training_payload = ensure_mapping(payload.get("training"))
   
     return ServerSettings(
         fastapi=build_fastapi_settings(fastapi_payload),
         database=build_database_settings(database_payload),
         service=build_service_settings(service_payload),
-        global_settings=build_global_settings(global_payload),      
-    
+        global_settings=build_global_settings(global_payload),
+        training=build_training_settings(training_payload),
     )
 
 
