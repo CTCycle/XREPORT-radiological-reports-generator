@@ -10,6 +10,7 @@ export interface ImagePathResponse {
 export interface DatasetUploadResponse {
     success: boolean;
     filename: string;
+    dataset_name: string;
     row_count: number;
     column_count: number;
     columns: string[];
@@ -50,6 +51,11 @@ export interface DatasetStatusResponse {
     message: string;
 }
 
+export interface DatasetNamesResponse {
+    dataset_names: string[];
+    count: number;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -69,6 +75,24 @@ export async function getDatasetStatus(): Promise<{ result: DatasetStatusRespons
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<DatasetStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get list of distinct dataset names available in the database
+ */
+export async function getDatasetNames(): Promise<{ result: DatasetNamesResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/preparation/dataset/names');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DatasetNamesResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -111,7 +135,7 @@ export async function uploadDataset(
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/api/preparation/dataset/upload', {
+        const response = await fetch('/api/upload/dataset', {
             method: 'POST',
             body: formData,
         });

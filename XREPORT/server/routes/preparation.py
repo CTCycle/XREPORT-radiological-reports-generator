@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import os
-from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from XREPORT.server.schemas.training import (
     BrowseResponse,
+    DatasetNamesResponse,
     DatasetStatusResponse,
-    DatasetUploadResponse,
     DirectoryItem,
     ImagePathRequest,
     ImagePathResponse,
@@ -19,14 +18,12 @@ from XREPORT.server.schemas.training import (
     ProcessDatasetResponse,
 )
 from XREPORT.server.database.database import database
+from XREPORT.server.routes.upload import temp_dataset_storage
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
 
 
 router = APIRouter(prefix="/preparation", tags=["preparation"])
-
-# Temporary storage for uploaded dataset
-temp_dataset_storage: dict[str, Any] = {}
 
 
 ###############################################################################
@@ -42,6 +39,28 @@ async def get_dataset_status() -> DatasetStatusResponse:
         has_data=row_count > 0,
         row_count=row_count,
         message=f"Found {row_count} records in RADIOGRAPHY_DATA" if row_count > 0 else "No data found in RADIOGRAPHY_DATA table",
+    )
+
+
+###############################################################################
+@router.get(
+    "/dataset/names",
+    response_model=DatasetNamesResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_dataset_names() -> DatasetNamesResponse:
+    """Get list of distinct dataset names available in the database."""
+    import sqlalchemy
+    
+    with database.backend.engine.connect() as conn:
+        result = conn.execute(
+            sqlalchemy.text('SELECT DISTINCT dataset_name FROM "RADIOGRAPHY_DATA" ORDER BY dataset_name')
+        )
+        dataset_names = [row[0] for row in result.fetchall()]
+    
+    return DatasetNamesResponse(
+        dataset_names=dataset_names,
+        count=len(dataset_names),
     )
 
 
@@ -114,63 +133,7 @@ async def validate_image_path(request: ImagePathRequest) -> ImagePathResponse:
     )
 
 
-###############################################################################
-@router.post(
-    "/dataset/upload",
-    response_model=DatasetUploadResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def upload_dataset(file: UploadFile = File(...)) -> DatasetUploadResponse:
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No file provided",
-        )
-    
-    filename = file.filename
-    ext = os.path.splitext(filename)[1].lower()
-    
-    if ext not in {".csv", ".xlsx"}:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type: {ext}. Only .csv and .xlsx files are allowed",
-        )
-    
-    try:
-        contents = await file.read()
-        
-        if ext == ".csv":
-            import io
-            # Use sep=None to auto-detect delimiter (handles both comma and semicolon)
-            df = pd.read_csv(io.BytesIO(contents), sep=None, engine='python')
-        else:  # .xlsx
-            import io
-            df = pd.read_excel(io.BytesIO(contents))
-        
-        # Store in temporary storage with unique key
-        storage_key = f"dataset_{filename}"
-        temp_dataset_storage[storage_key] = {
-            "dataframe": df,
-            "filename": filename,
-        }
-        
-        logger.info(f"Dataset uploaded: {filename} with {len(df)} rows, {len(df.columns)} columns")
-        
-        return DatasetUploadResponse(
-            success=True,
-            filename=filename,
-            row_count=len(df),
-            column_count=len(df.columns),
-            columns=list(df.columns),
-            message=f"Successfully parsed {filename}",
-        )
-        
-    except Exception as e:
-        logger.exception(f"Failed to parse dataset file: {filename}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse file: {str(e)}",
-        ) from e
+
 
 
 ###############################################################################
@@ -210,6 +173,7 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
     latest_key = list(temp_dataset_storage.keys())[-1]
     dataset_info = temp_dataset_storage[latest_key]
     df: pd.DataFrame = dataset_info["dataframe"].copy()
+    dataset_name: str = dataset_info["dataset_name"]
     
     # Apply sample size if needed
     if sample_size < 1.0:
@@ -248,14 +212,18 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
     
     logger.info(f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records")
     
-    # Persist matched data to database (only 'image' and 'text' columns)
+    # Persist matched data to database with dataset_name and incremental id
     if not matched.empty:
         try:
-            # Prepare data for database - only keep 'image' and 'text' columns
+            # Prepare data for database - include dataset_name and id
             db_df = matched[[image_column, "text"]].copy()
             db_df = db_df.rename(columns={image_column: "image"})
+            db_df["dataset_name"] = dataset_name
+            db_df["id"] = range(1, len(db_df) + 1)  # Incremental ID per dataset
+            # Reorder columns to match schema: dataset_name, id, image, text
+            db_df = db_df[["dataset_name", "id", "image", "text"]]
             database.save_into_database(db_df, "RADIOGRAPHY_DATA")
-            logger.info(f"Saved {len(db_df)} records to RADIOGRAPHY_DATA table")
+            logger.info(f"Saved {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
         except Exception as e:
             logger.exception("Failed to save data to database")
             raise HTTPException(
@@ -342,6 +310,13 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
     try:
         serializer.save_training_data(configuration, training_data, vocabulary_size)
         logger.info("Preprocessed data saved to database")
+    except RuntimeError as e:
+        # Schema mismatch or other runtime errors - use the clean message directly
+        logger.error(f"Database error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e
     except Exception as e:
         logger.exception("Failed to save training data")
         raise HTTPException(
