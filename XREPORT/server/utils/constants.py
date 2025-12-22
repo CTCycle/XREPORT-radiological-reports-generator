@@ -40,3 +40,10 @@ TABLE_COLUMNS = [
 ###############################################################################
 IMAGES_BASE_PATH = join(RESOURCES_PATH, "images")
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
+
+# [MODEL PATHS]
+###############################################################################
+MODELS_PATH = join(RESOURCES_PATH, "models")
+ENCODERS_PATH = join(MODELS_PATH, "XRAYEncoder")
+TOKENIZERS_PATH = join(MODELS_PATH, "tokenizers")
+CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")

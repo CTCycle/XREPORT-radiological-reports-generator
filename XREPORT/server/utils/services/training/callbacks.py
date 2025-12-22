@@ -119,6 +119,7 @@ class RealTimeMetricsCallback(Callback):
         if not metrics:
             return
 
+        # Save plot to file (for backup/debugging)
         base_metrics = sorted(
             set(
                 metric[4:] if metric.startswith("val_") else metric
@@ -147,11 +148,32 @@ class RealTimeMetricsCallback(Callback):
 
         fig.tight_layout()
         buffer = BytesIO()
-        fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=300)
-        buffer.getvalue()
+        fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=150)
+        plot_data = buffer.getvalue()
+        
+        # Save to file
         with open(fig_path, "wb") as target:
-            target.write(buffer.getvalue())
+            target.write(plot_data)
         plt.close(fig)
+        
+        # Send raw metrics data via WebSocket for native charting
+        if self.websocket_callback is not None:
+            # Build chart data points for frontend
+            epochs = list(range(1, self.history["epochs"] + 1))
+            chart_data = []
+            for i, epoch in enumerate(epochs):
+                point = {"epoch": epoch}
+                for metric_name, values in metrics.items():
+                    if i < len(values):
+                        point[metric_name] = values[i]
+                chart_data.append(point)
+            
+            self.websocket_callback({
+                "type": "training_plot",
+                "chart_data": chart_data,
+                "metrics": list(metrics.keys()),
+                "epochs": self.history["epochs"],
+            })
 
 
 ###############################################################################

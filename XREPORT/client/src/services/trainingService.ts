@@ -300,7 +300,7 @@ export interface TrainingStatusResponse {
  */
 export async function getCheckpoints(): Promise<{ result: CheckpointsResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/pipeline/checkpoints');
+        const response = await fetch('/api/training/checkpoints');
         if (!response.ok) {
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
@@ -318,7 +318,7 @@ export async function getCheckpoints(): Promise<{ result: CheckpointsResponse | 
  */
 export async function getTrainingStatus(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/pipeline/status');
+        const response = await fetch('/api/training/status');
         if (!response.ok) {
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
@@ -338,7 +338,7 @@ export async function startTraining(
     config: StartTrainingConfig
 ): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/pipeline/start', {
+        const response = await fetch('/api/training/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config),
@@ -363,7 +363,7 @@ export async function resumeTraining(
     additionalEpochs: number
 ): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/pipeline/resume', {
+        const response = await fetch('/api/training/resume', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -388,7 +388,7 @@ export async function resumeTraining(
  */
 export async function stopTraining(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
-        const response = await fetch('/api/pipeline/stop', {
+        const response = await fetch('/api/training/stop', {
             method: 'POST',
         });
         if (!response.ok) {

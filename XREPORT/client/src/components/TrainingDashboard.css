@@ -190,3 +190,42 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* Training Charts Styles */
+.training-charts-container {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.chart-section {
+    padding: 1rem;
+    background: rgba(20, 20, 25, 0.6);
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    border-radius: 8px;
+}
+
+.chart-title {
+    color: #ffd700;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Recharts overrides */
+.recharts-legend-wrapper {
+    padding-top: 0.5rem !important;
+}
+
+.recharts-legend-item-text {
+    color: #9ca3af !important;
+    font-size: 0.8rem !important;
+}
+
+.recharts-tooltip-label {
+    color: #ffd700 !important;
+    font-weight: 600;
+}
