@@ -58,8 +58,6 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     checkpointFreq: 1,
     mixedPrecision: false,
     runTensorboard: false,
-    useJIT: false,
-    jitBackend: 'inductor',
     useScheduler: false,
     targetLR: 0.001,
     warmupSteps: 1000,

@@ -20,5 +20,9 @@
   },
   "global": {
     "seed": 42
+  },
+  "training": {
+    "use_jit": true,
+    "jit_backend": "inductor"
   }
 }
