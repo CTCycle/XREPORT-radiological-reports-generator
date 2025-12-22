@@ -23,6 +23,8 @@
   },
   "training": {
     "use_jit": true,
-    "jit_backend": "inductor"
+    "jit_backend": "inductor",
+    "update_frequency_seconds": 1,
+    "plot_update_batch_interval": 10
   }
 }

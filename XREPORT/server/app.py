@@ -11,7 +11,6 @@ from XREPORT.server.routes.browser import router as browser_router
 from XREPORT.server.routes.upload import router as upload_router
 from XREPORT.server.routes.preparation import router as preparation_router
 from XREPORT.server.routes.training import router as training_router
-from XREPORT.server.routes.pipeline import router as pipeline_router
 
 ###############################################################################
 app = FastAPI(
@@ -24,7 +23,6 @@ app.include_router(browser_router)
 app.include_router(upload_router)
 app.include_router(preparation_router)
 app.include_router(training_router)
-app.include_router(pipeline_router)
 
 @app.get("/")
 def redirect_to_docs() -> RedirectResponse:
