@@ -20,6 +20,7 @@ class ImagePathResponse(BaseModel):
 class DatasetUploadResponse(BaseModel):
     success: bool
     filename: str
+    dataset_name: str
     row_count: int
     column_count: int
     columns: list[str]
@@ -140,5 +141,11 @@ class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
     message: str
+
+
+###############################################################################
+class DatasetNamesResponse(BaseModel):
+    dataset_names: list[str]
+    count: int
 
 

@@ -16,9 +16,11 @@ Base = declarative_base()
 class RadiographyData(Base):
     """Raw radiography images and their associated text reports."""
     __tablename__ = "RADIOGRAPHY_DATA"
-    image = Column(String, primary_key=True)
+    dataset_name = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    image = Column(String)
     text = Column(String)
-    __table_args__ = (UniqueConstraint("image"),)
+    __table_args__ = (UniqueConstraint("dataset_name", "id"),)
 
 
 ###############################################################################

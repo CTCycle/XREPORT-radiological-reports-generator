@@ -136,8 +136,24 @@ class DataSerializer:
         training_data: pd.DataFrame,
         vocabulary_size: int | None = None,
     ) -> None:
+        from sqlalchemy.exc import OperationalError
+        
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
-        database.save_into_database(training_data, "TRAINING_DATASET")
+        # Only keep columns that exist in the TRAINING_DATASET schema
+        db_columns = ["image", "tokens", "split"]
+        training_data_filtered = training_data[db_columns].copy()
+        
+        try:
+            database.save_into_database(training_data_filtered, "TRAINING_DATASET")
+        except OperationalError as e:
+            error_msg = str(e)
+            if "no column named" in error_msg or "has no column" in error_msg:
+                raise RuntimeError(
+                    "Database schema mismatch detected. The database table structure "
+                    "does not match the expected schema. Please delete the database file "
+                    "(resources/database/XREPORT.db) and restart the server to reinitialize."
+                ) from e
+            raise
         
         # Save metadata to database table
         metadata = {
@@ -153,7 +169,16 @@ class DataSerializer:
         }
         
         metadata_df = pd.DataFrame([metadata])
-        database.upsert_into_database(metadata_df, "PROCESSING_METADATA")
+        try:
+            database.upsert_into_database(metadata_df, "PROCESSING_METADATA")
+        except OperationalError as e:
+            error_msg = str(e)
+            if "no column named" in error_msg or "has no column" in error_msg:
+                raise RuntimeError(
+                    "Database schema mismatch for PROCESSING_METADATA table. "
+                    "Please delete the database file and restart the server to reinitialize."
+                ) from e
+            raise
 
     # -------------------------------------------------------------------------
     def save_generated_reports(self, reports: list[dict]) -> None:

@@ -10,6 +10,7 @@ import {
     validateImagePath,
     processDataset,
     getDatasetStatus,
+    getDatasetNames,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -30,19 +31,33 @@ export default function DatasetPage() {
         setIsProcessing,
         setProcessingResult,
         setDbStatus,
+        setDatasetNames,
+        setSelectedDataset,
     } = useDatasetPageState();
 
-    // Fetch database status on component mount
+    // Fetch database status and dataset names on component mount
     useEffect(() => {
-        const fetchDbStatus = async () => {
-            const { result } = await getDatasetStatus();
-            if (result) {
-                setDbStatus(result);
+        const fetchData = async () => {
+            // Fetch database status
+            const { result: statusResult } = await getDatasetStatus();
+            if (statusResult) {
+                setDbStatus(statusResult);
+            }
+            // Fetch dataset names
+            const { result: namesResult } = await getDatasetNames();
+            if (namesResult) {
+                setDatasetNames(namesResult);
+                // Auto-select first dataset if available and none selected
+                if (namesResult.dataset_names.length > 0 && !state.selectedDataset) {
+                    setSelectedDataset(namesResult.dataset_names[0]);
+                }
             }
         };
-        fetchDbStatus();
-    }, [setDbStatus]);
+        fetchData();
+    }, [setDbStatus, setDatasetNames, setSelectedDataset, state.selectedDataset]);
 
+    // Determine if at least one dataset exists (for LED indicator)
+    const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
     // Determine if data is available for processing
     const hasDataForProcessing = state.loadResult?.success || state.dbStatus?.has_data;
 
@@ -302,17 +317,31 @@ export default function DatasetPage() {
                             <div className="form-group span-3">
                                 <div className="build-dataset-row">
                                     <span
-                                        className={`status-led ${hasDataForProcessing ? 'led-green' : 'led-red'}`}
-                                        title={hasDataForProcessing
-                                            ? `Data available: ${state.dbStatus?.row_count || state.loadResult?.matched_records || 0} records`
-                                            : 'No data available for processing'
+                                        className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
+                                        title={hasDatasets
+                                            ? `${state.datasetNames?.count} dataset(s) available`
+                                            : 'No datasets in database'
                                         }
                                     />
+                                    <select
+                                        className="form-select"
+                                        value={state.selectedDataset}
+                                        onChange={(e) => setSelectedDataset(e.target.value)}
+                                        disabled={!hasDatasets}
+                                        style={{ flex: 1 }}
+                                    >
+                                        {!hasDatasets && (
+                                            <option value="">No datasets available</option>
+                                        )}
+                                        {state.datasetNames?.dataset_names.map((name) => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                    </select>
                                     <button
                                         className="btn btn-primary"
                                         onClick={handleBuildDataset}
                                         disabled={state.isProcessing}
-                                        style={{ flex: 1, justifyContent: 'center' }}
+                                        style={{ justifyContent: 'center' }}
                                     >
                                         {state.isProcessing ? (
                                             <><Loader size={16} className="spin" /> Processing Dataset...</>
