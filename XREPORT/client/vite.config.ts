@@ -14,7 +14,7 @@ export default defineConfig({
         port: 7861,
         strictPort: false,
         proxy: {
-            '/api/pipeline/ws': {
+            '/api/training/ws': {
                 target: apiTarget.replace('http', 'ws'),
                 ws: true,
                 changeOrigin: true,
@@ -32,7 +32,7 @@ export default defineConfig({
         port: 7861,
         strictPort: false,
         proxy: {
-            '/api/pipeline/ws': {
+            '/api/training/ws': {
                 target: apiTarget.replace('http', 'ws'),
                 ws: true,
                 changeOrigin: true,
