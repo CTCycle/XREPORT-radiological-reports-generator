@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
@@ -45,6 +46,12 @@ active_connections: list[WebSocket] = []
 # Interrupt callback for stopping training
 interrupt_callback: TrainingInterruptCallback | None = None
 
+# Thread pool for running training without blocking the event loop
+training_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="training")
+
+# Reference to the main event loop for WebSocket callbacks
+main_event_loop: asyncio.AbstractEventLoop | None = None
+
 
 # -----------------------------------------------------------------------------
 async def broadcast_message(message: dict[str, Any]) -> None:
@@ -74,13 +81,10 @@ def sync_websocket_callback(message: dict[str, Any]) -> None:
         "elapsed_seconds": message.get("elapsed_seconds", 0),
     })
     
-    # Schedule async broadcast in event loop
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.create_task(broadcast_message(message))
-    except RuntimeError:
-        pass
+    # Use the stored main event loop to schedule WebSocket broadcast
+    # This works because training runs in a separate thread
+    if main_event_loop is not None and main_event_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_message(message), main_event_loop)
 
 
 ###############################################################################
@@ -179,7 +183,7 @@ async def get_training_status() -> TrainingStatusResponse:
     status_code=status.HTTP_200_OK,
 )
 async def start_training(request: StartTrainingRequest) -> TrainingStatusResponse:
-    global training_state, interrupt_callback
+    global training_state, interrupt_callback, main_event_loop
     
     if training_state["is_training"]:
         raise HTTPException(
@@ -217,13 +221,19 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     training_state["current_epoch"] = 0
     training_state["total_epochs"] = configuration.get("epochs", 10)
     
+    # Store reference to the current event loop for WebSocket callbacks
+    main_event_loop = asyncio.get_running_loop()
+    
     # Broadcast training started
     await broadcast_message({
         "type": "training_started",
         "total_epochs": training_state["total_epochs"],
     })
     
-    try:        
+    # Define the blocking training function to run in a thread
+    def run_training_sync() -> tuple[Any, dict[str, Any]]:
+        global interrupt_callback
+        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(configuration)
@@ -250,7 +260,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         # Train model
         logger.info("Starting XREPORT Transformer model training")
         trainer = ModelTrainer(configuration)
-        model, history = trainer.train_model(
+        trained_model, history = trainer.train_model(
             model,
             train_dataset,
             validation_dataset,
@@ -260,8 +270,15 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         )
         
         # Save model and configuration
-        modser.save_pretrained_model(model, checkpoint_path)
+        modser.save_pretrained_model(trained_model, checkpoint_path)
         modser.save_training_configuration(checkpoint_path, history, configuration, metadata)
+        
+        return trained_model, history
+    
+    try:
+        # Run training in a thread so the event loop stays free for WebSocket
+        loop = asyncio.get_running_loop()
+        model, history = await loop.run_in_executor(training_executor, run_training_sync)
         
         # Broadcast training completed
         await broadcast_message({
@@ -308,7 +325,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     status_code=status.HTTP_200_OK,
 )
 async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusResponse:
-    global training_state, interrupt_callback
+    global training_state, interrupt_callback, main_event_loop
     
     if training_state["is_training"]:
         raise HTTPException(
@@ -361,6 +378,9 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     training_state["current_epoch"] = from_epoch
     training_state["total_epochs"] = from_epoch + request.additional_epochs
     
+    # Store reference to the current event loop for WebSocket callbacks
+    main_event_loop = asyncio.get_running_loop()
+    
     # Broadcast training resumed
     await broadcast_message({
         "type": "training_resumed",
@@ -368,7 +388,10 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         "additional_epochs": request.additional_epochs,
     })
     
-    try:    
+    # Define the blocking resume function to run in a thread
+    def run_resume_sync() -> tuple[Any, dict[str, Any]]:
+        global interrupt_callback
+        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(train_config)
@@ -386,7 +409,7 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         # Resume training
         logger.info(f"Resuming training from epoch {from_epoch}")
         trainer = ModelTrainer(train_config, model_metadata)
-        model, history = trainer.resume_training(
+        trained_model, history = trainer.resume_training(
             model,
             train_dataset,
             validation_dataset,
@@ -398,8 +421,15 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         )
         
         # Save model and configuration
-        modser.save_pretrained_model(model, checkpoint_path)
+        modser.save_pretrained_model(trained_model, checkpoint_path)
         modser.save_training_configuration(checkpoint_path, history, train_config, model_metadata)
+        
+        return trained_model, history
+    
+    try:
+        # Run training in a thread so the event loop stays free for WebSocket
+        loop = asyncio.get_running_loop()
+        model, history = await loop.run_in_executor(training_executor, run_resume_sync)
         
         # Broadcast training completed
         await broadcast_message({

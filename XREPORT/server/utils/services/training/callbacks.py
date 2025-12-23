@@ -152,8 +152,19 @@ class RealTimeMetricsCallback(Callback):
         self.batch_interval = configuration.get("plot_update_batch_interval", 10)
         self.last_update_time = time.time()
         
-        # Store batch-level data for smoother plotting during the epoch
+        # Track cumulative batch index for X-axis
+        self.global_batch_index = 0
+        self.current_epoch_index = 0
+        
+        # Store batch-level data for plotting
         self.batch_history: list[dict[str, Any]] = []
+        
+        # Track epoch boundary batch indices for vertical separator lines
+        self.epoch_boundaries: list[int] = []
+        
+        # Store last validation metrics for display during training batches
+        self.last_val_loss = 0.0
+        self.last_val_accuracy = 0.0
         
         # Restore past history if available
         if past_logs and "history" in past_logs:
@@ -164,75 +175,61 @@ class RealTimeMetricsCallback(Callback):
             )
             
             # Reconstruct batch history from epoch history for continuity
-            # We map 1-based epochs to points
+            # Use epoch index as batch index for resumed sessions (approximate)
             epochs_count = self.history["epochs"]
             if epochs_count > 0:
                 for i in range(epochs_count):
-                    point = {"epoch": i + 1}
+                    point = {"batch": i + 1}
                     for metric, values in self.history["history"].items():
                         if i < len(values):
                             point[metric] = values[i]
                     self.batch_history.append(point)
+                    self.epoch_boundaries.append(i + 1)
+                self.global_batch_index = epochs_count
 
     # -------------------------------------------------------------------------
-    def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
-        if batch % self.batch_interval != 0:
-            return
-            
-        logs = logs or {}
-        current_time = time.time()
-        
-        # Determine current fraction of epoch
-        # self.params['steps'] contains steps_per_epoch if known
-        steps = self.params.get('steps')
-        current_epoch = self.history["epochs"] # This is start of current epoch 0-indexed (wait, self.history['epochs'] is updated at on_epoch_end)
-        # Actually in Keras Callback, self.model.stop_training etc.
-        # But we don't have easy access to 'current epoch index' in on_train_batch_end arguments without state tracking?
-        # Typically we use a counter or self.model?
-        # We can track it by updating a counter in on_epoch_begin
-        
-        # Wait, let's just use a simple state tracker
-        pass
-
     def on_epoch_begin(self, epoch: int, logs: dict | None = None) -> None:
         self.current_epoch_index = epoch
 
+    # -------------------------------------------------------------------------
     def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
+        self.global_batch_index += 1
+        
+        # Only record data every N batches
         if batch % self.batch_interval != 0:
-             return
+            return
 
         current_time = time.time()
-        if (current_time - self.last_update_time) < self.update_frequency:
-            return
+        # Check if enough time has passed since last update
+        time_elapsed = (current_time - self.last_update_time) >= self.update_frequency
             
-        self.last_update_time = current_time
         logs = logs or {}
         
-        # Calculate fractional epoch for smooth plotting
-        steps_per_epoch = self.params.get('steps', 1)
-        fractional_epoch = self.current_epoch_index + (batch + 1) / steps_per_epoch
+        # Create data point with cumulative batch index for X-axis
+        point = {"batch": self.global_batch_index}
         
-        # Create data point
-        point = {"epoch": float(f"{fractional_epoch:.3f}")}
-        
-        # Add metrics
+        # Add training metrics from batch logs
         for key, value in logs.items():
-            # Filter out non-metric keys if necessary, or just send all
             point[key] = float(value)
-            
-        # Update volatile batch history (we might discard this at epoch end to replace with final epoch value, 
-        # or keep it if we want detailed history. User asked for 'update every N iterations')
-        # To avoid infinite growth, maybe we only keep the LAST N points per epoch?
-        # Or user said "I do not want to add a new point... every websocket iteration... but rather update the graph every N iterations".
-        # This implies we keep them. But we should be careful with memory.
-        # For now, let's append. If it gets too big, we can decimate.
+        
+        # Include last known validation metrics  
+        point["val_loss"] = self.last_val_loss
+        point["val_MaskedAccuracy"] = self.last_val_accuracy
+        
         self.batch_history.append(point)
         
-        self.send_plot_update()
+        # Only send WebSocket update if enough time has passed
+        if time_elapsed:
+            self.last_update_time = current_time
+            self.send_plot_update()
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
         logs = logs or {}
+        
+        # Store validation metrics for next epoch's batch updates
+        self.last_val_loss = float(logs.get("val_loss", 0))
+        self.last_val_accuracy = float(logs.get("val_MaskedAccuracy", logs.get("val_accuracy", 0)))
         
         # Update canonical history
         for key, value in logs.items():
@@ -241,16 +238,13 @@ class RealTimeMetricsCallback(Callback):
             self.history["history"][key].append(float(value))
         self.history["epochs"] = epoch + 1
         
-        # Add final epoch point to batch_history (replacing the last fractional points of this epoch to clean up?)
-        # Or just add it as the integer epoch point.
-        point = {"epoch": float(epoch + 1)}
+        # Record epoch boundary at current batch index
+        self.epoch_boundaries.append(self.global_batch_index)
+        
+        # Add final epoch point to batch_history
+        point = {"batch": self.global_batch_index}
         for key, value in logs.items():
             point[key] = float(value)
-        
-        # Option: Remove fractional points for this epoch to save memory and only keep final?
-        # The user wanted "current evolution", which implies seeing the curve *during* training.
-        # Once epoch is done, maybe the detailed intra-epoch noise is less relevant?
-        # Let's keep it simple: Just append the final epoch point.
         self.batch_history.append(point)
         
         self.plot_training_history(save_png=False)
@@ -318,6 +312,7 @@ class RealTimeMetricsCallback(Callback):
                 "chart_data": self.batch_history,
                 "metrics": list(self.history["history"].keys()),
                 "epochs": self.history["epochs"],
+                "epoch_boundaries": self.epoch_boundaries,
             })
 
 
