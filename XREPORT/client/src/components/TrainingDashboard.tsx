@@ -9,6 +9,7 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
+    ReferenceLine,
 } from 'recharts';
 import './TrainingDashboard.css';
 
@@ -25,7 +26,7 @@ export interface TrainingMetrics {
 }
 
 interface ChartDataPoint {
-    epoch: number;
+    batch: number;
     loss?: number;
     val_loss?: number;
     MaskedAccuracy?: number;
@@ -75,6 +76,7 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
     const [connected, setConnected] = useState(false);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
+    const [epochBoundaries, setEpochBoundaries] = useState<number[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<number | null>(null);
 
@@ -146,6 +148,9 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                     setChartData(data.chart_data);
                     if (data.metrics) {
                         setAvailableMetrics(data.metrics);
+                    }
+                    if (data.epoch_boundaries) {
+                        setEpochBoundaries(data.epoch_boundaries);
                     }
                 }
             } catch (e) {
@@ -237,10 +242,19 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                         <div className="metric-card">
                             <div className="metric-label">
                                 <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                                Accuracy
+                                Train Acc
                             </div>
                             <div className="metric-value accuracy">
                                 {(metrics.accuracy * 100).toFixed(2)}%
+                            </div>
+                        </div>
+                        <div className="metric-card">
+                            <div className="metric-label">
+                                <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                                Val Acc
+                            </div>
+                            <div className="metric-value accuracy">
+                                {(metrics.valAccuracy * 100).toFixed(2)}%
                             </div>
                         </div>
                     </div>
@@ -286,9 +300,10 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                                         <LineChart data={chartData}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                                             <XAxis
-                                                dataKey="epoch"
+                                                dataKey="batch"
                                                 stroke="#9ca3af"
                                                 tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                                tickFormatter={(value) => Math.round(value).toString()}
                                             />
                                             <YAxis
                                                 stroke="#9ca3af"
@@ -300,8 +315,23 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                                                     border: '1px solid rgba(255, 215, 0, 0.2)',
                                                     borderRadius: '8px',
                                                 }}
+                                                labelFormatter={(value) => `Batch ${Math.round(value)}`}
                                             />
                                             <Legend />
+                                            {epochBoundaries.map((boundary, index) => (
+                                                <ReferenceLine
+                                                    key={`epoch-${index}`}
+                                                    x={boundary}
+                                                    stroke="rgba(255,255,255,0.3)"
+                                                    strokeDasharray="3 3"
+                                                    label={{
+                                                        value: `E${index + 1}`,
+                                                        position: 'top',
+                                                        fill: '#9ca3af',
+                                                        fontSize: 10,
+                                                    }}
+                                                />
+                                            ))}
                                             {lossMetrics.map((metric) => (
                                                 <Line
                                                     key={metric}
@@ -326,9 +356,10 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                                         <LineChart data={chartData}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                                             <XAxis
-                                                dataKey="epoch"
+                                                dataKey="batch"
                                                 stroke="#9ca3af"
                                                 tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                                tickFormatter={(value) => Math.round(value).toString()}
                                             />
                                             <YAxis
                                                 stroke="#9ca3af"
@@ -340,8 +371,23 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
                                                     border: '1px solid rgba(255, 215, 0, 0.2)',
                                                     borderRadius: '8px',
                                                 }}
+                                                labelFormatter={(value) => `Batch ${Math.round(value)}`}
                                             />
                                             <Legend />
+                                            {epochBoundaries.map((boundary, index) => (
+                                                <ReferenceLine
+                                                    key={`epoch-${index}`}
+                                                    x={boundary}
+                                                    stroke="rgba(255,255,255,0.3)"
+                                                    strokeDasharray="3 3"
+                                                    label={{
+                                                        value: `E${index + 1}`,
+                                                        position: 'top',
+                                                        fill: '#9ca3af',
+                                                        fontSize: 10,
+                                                    }}
+                                                />
+                                            ))}
                                             {accuracyMetrics.map((metric) => (
                                                 <Line
                                                     key={metric}
