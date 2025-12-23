@@ -28,7 +28,7 @@ set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
 set "scripts_dir=%server_dir%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
-set "gibs_script=%scripts_dir%\update_gibs_layers.py"
+
 set "init_db_module=AEGIS.server.scripts.initialize_database"
 set "gibs_module=AEGIS.server.scripts.update_gibs_layers"
 

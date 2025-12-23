@@ -217,22 +217,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         "total_epochs": training_state["total_epochs"],
     })
     
-    try:
-        # Clear Keras session at the start to ensure fresh state
-        # This is important because the web server runs in a single process
-        # (unlike the legacy desktop app which used separate worker processes)
-        from keras import backend as K
-        K.clear_session()
-        
-        # Also clear PyTorch CUDA cache
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
-        # Garbage collect before starting
-        import gc
-        gc.collect()
-        
+    try:        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(configuration)
@@ -293,22 +278,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
             detail=f"Training failed: {str(e)}",
         ) from e
     
-    finally:
-        # Clean up Keras session to release GPU memory and clear variable state
-        # This prevents "Variable is already initialized" errors on subsequent training attempts
-        from keras import backend as K
-        K.clear_session()
-        
-        # Also clear PyTorch CUDA cache for more thorough cleanup
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-        
-        # Run Python garbage collection
-        import gc
-        gc.collect()
-        
+    finally:        
         training_state["is_training"] = False
         interrupt_callback = None
     
@@ -392,20 +362,7 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         "additional_epochs": request.additional_epochs,
     })
     
-    try:
-        # Clear Keras session at the start to ensure fresh state
-        from keras import backend as K
-        K.clear_session()
-        
-        # Also clear PyTorch CUDA cache
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
-        # Garbage collect before starting
-        import gc
-        gc.collect()
-        
+    try:    
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(train_config)
