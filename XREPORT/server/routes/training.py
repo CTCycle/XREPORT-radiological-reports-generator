@@ -126,22 +126,28 @@ async def training_websocket(websocket: WebSocket) -> None:
     status_code=status.HTTP_200_OK,
 )
 async def get_checkpoints() -> CheckpointsResponse:
+    """Get list of available checkpoints (JSON config only, no model loading)."""
+    import os
+    from XREPORT.server.utils.services.training.serializer import CHECKPOINT_PATH
+    
     modser = ModelSerializer()
     checkpoint_names = modser.scan_checkpoints_folder()
     
     checkpoints = []
     for name in checkpoint_names:
         try:
-            _, config, _, session, _ = modser.load_checkpoint(name)
+            # Only load JSON configuration files, NOT the model
+            checkpoint_path = os.path.join(CHECKPOINT_PATH, name)
+            _, _, session = modser.load_training_configuration(checkpoint_path)
             checkpoints.append(CheckpointInfo(
                 name=name,
                 epochs=session.get("epochs", 0),
-                loss=session.get("history", {}).get("loss", [0])[-1] if session.get("history") else 0,
-                val_loss=session.get("history", {}).get("val_loss", [0])[-1] if session.get("history") else 0,
+                loss=session.get("history", {}).get("loss", [0])[-1] if session.get("history") else 0.0,
+                val_loss=session.get("history", {}).get("val_loss", [0])[-1] if session.get("history") else 0.0,
             ))
         except Exception as e:
-            logger.warning(f"Failed to load checkpoint {name}: {e}")
-            checkpoints.append(CheckpointInfo(name=name, epochs=0, loss=0, val_loss=0))
+            logger.warning(f"Failed to load checkpoint config {name}: {e}")
+            checkpoints.append(CheckpointInfo(name=name, epochs=0, loss=0.0, val_loss=0.0))
     
     return CheckpointsResponse(checkpoints=checkpoints)
 
