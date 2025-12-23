@@ -20,6 +20,7 @@ class RadiographyData(Base):
     id = Column(Integer, primary_key=True)
     image = Column(String)
     text = Column(String)
+    path = Column(String)  # Full path to image file
     __table_args__ = (UniqueConstraint("dataset_name", "id"),)
 
 
@@ -31,6 +32,7 @@ class TrainingData(Base):
     text = Column(String)
     tokens = Column(String)
     split = Column(String)
+    path = Column(String)  # Full image path for training
     __table_args__ = (UniqueConstraint("image"),)
 
 

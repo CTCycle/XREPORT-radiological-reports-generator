@@ -213,16 +213,16 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
     
     logger.info(f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records")
     
-    # Persist matched data to database with dataset_name and incremental id
+    # Persist matched data to database with dataset_name, id, and path
     if not matched.empty:
         try:
-            # Prepare data for database - include dataset_name and id
-            db_df = matched[[image_column, "text"]].copy()
-            db_df = db_df.rename(columns={image_column: "image"})
+            # Prepare data for database - include dataset_name, id, and path
+            db_df = matched[[image_column, "text", "_path"]].copy()
+            db_df = db_df.rename(columns={image_column: "image", "_path": "path"})
             db_df["dataset_name"] = dataset_name
             db_df["id"] = range(1, len(db_df) + 1)  # Incremental ID per dataset
-            # Reorder columns to match schema: dataset_name, id, image, text
-            db_df = db_df[["dataset_name", "id", "image", "text"]]
+            # Reorder columns to match schema: dataset_name, id, image, text, path
+            db_df = db_df[["dataset_name", "id", "image", "text", "path"]]
             database.save_into_database(db_df, "RADIOGRAPHY_DATA")
             logger.info(f"Saved {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
         except Exception as e:

@@ -38,7 +38,6 @@ TABLE_COLUMNS = [
 
 # [TRAINING CONSTANTS]
 ###############################################################################
-IMAGES_BASE_PATH = join(RESOURCES_PATH, "images")
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
 # [MODEL PATHS]

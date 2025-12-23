@@ -60,3 +60,4 @@ class BeitXRayImageEncoder(layers.Layer):
         cls: type[BeitXRayImageEncoder], config: dict[str, Any]
     ) -> BeitXRayImageEncoder:
         return cls(**config)
+
