@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from keras import layers, ops
+from keras.layers import TorchModuleWrapper
 from keras.saving import register_keras_serializable
 from transformers import AutoImageProcessor, AutoModel
 
@@ -21,13 +22,16 @@ class BeitXRayImageEncoder(layers.Layer):
         self.freeze_layers = freeze_layers
         self.embedding_dims = embedding_dims
 
-        self.model = AutoModel.from_pretrained(
+        # Load the pretrained BEiT model
+        beit_model = AutoModel.from_pretrained(
             self.encoder_name, cache_dir=ENCODERS_PATH
         )
         if self.freeze_layers is True:
-            for param in self.model.parameters():
+            for param in beit_model.parameters():
                 param.requires_grad = False
 
+        # Wrap with TorchModuleWrapper for Keras gradient tracking
+        self.model = TorchModuleWrapper(beit_model)
         self.processor = AutoImageProcessor.from_pretrained(
             self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True
         )
@@ -37,7 +41,8 @@ class BeitXRayImageEncoder(layers.Layer):
     # -------------------------------------------------------------------------
     def call(self, inputs: Any, **kwargs) -> Any:
         inputs = ops.transpose(inputs, axes=(0, 3, 1, 2))
-        outputs = self.model(inputs, **kwargs)
+        # Do not pass kwargs to BeitModel - it doesn't accept arbitrary kwargs
+        outputs = self.model(inputs)
         output = outputs.last_hidden_state
         output = self.dense(output)
 
