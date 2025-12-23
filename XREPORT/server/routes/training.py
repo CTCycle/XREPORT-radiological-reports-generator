@@ -196,14 +196,14 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
             detail="No training data found. Please process a dataset first.",
         )
     
-    # Update image paths
-    train_data = serializer.update_img_path(train_data)
-    validation_data = serializer.update_img_path(validation_data)
+    # Validate stored image paths exist
+    train_data = serializer.validate_img_paths(train_data)
+    validation_data = serializer.validate_img_paths(validation_data)
     
     if train_data.empty or validation_data.empty:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No images found matching the training data.",
+            detail="No valid images found. Image paths may have changed since dataset was processed.",
         )
     
     # Set training state
@@ -218,6 +218,21 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     })
     
     try:
+        # Clear Keras session at the start to ensure fresh state
+        # This is important because the web server runs in a single process
+        # (unlike the legacy desktop app which used separate worker processes)
+        from keras import backend as K
+        K.clear_session()
+        
+        # Also clear PyTorch CUDA cache
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        # Garbage collect before starting
+        import gc
+        gc.collect()
+        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(configuration)
@@ -279,6 +294,21 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         ) from e
     
     finally:
+        # Clean up Keras session to release GPU memory and clear variable state
+        # This prevents "Variable is already initialized" errors on subsequent training attempts
+        from keras import backend as K
+        K.clear_session()
+        
+        # Also clear PyTorch CUDA cache for more thorough cleanup
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+        # Run Python garbage collection
+        import gc
+        gc.collect()
+        
         training_state["is_training"] = False
         interrupt_callback = None
     
@@ -339,14 +369,14 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
             detail="Current dataset metadata doesn't match checkpoint. Please reprocess the dataset.",
         )
     
-    # Update image paths
-    train_data = serializer.update_img_path(train_data)
-    validation_data = serializer.update_img_path(validation_data)
+    # Validate stored image paths exist
+    train_data = serializer.validate_img_paths(train_data)
+    validation_data = serializer.validate_img_paths(validation_data)
     
     if train_data.empty or validation_data.empty:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No images found matching the training data.",
+            detail="No valid images found. Image paths may have changed since dataset was processed.",
         )
     
     # Set training state
@@ -363,6 +393,19 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     })
     
     try:
+        # Clear Keras session at the start to ensure fresh state
+        from keras import backend as K
+        K.clear_session()
+        
+        # Also clear PyTorch CUDA cache
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        # Garbage collect before starting
+        import gc
+        gc.collect()
+        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(train_config)
@@ -417,6 +460,20 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         ) from e
     
     finally:
+        # Clean up Keras session to release GPU memory and clear variable state
+        from keras import backend as K
+        K.clear_session()
+        
+        # Also clear PyTorch CUDA cache for more thorough cleanup
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+        # Run Python garbage collection
+        import gc
+        gc.collect()
+        
         training_state["is_training"] = False
         interrupt_callback = None
     
