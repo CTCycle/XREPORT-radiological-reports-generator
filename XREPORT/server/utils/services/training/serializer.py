@@ -285,13 +285,24 @@ class ModelSerializer:
     def load_checkpoint(
         self, checkpoint: str, custom_objects: dict[str, Any] | None = None
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
+        """Load checkpoint model and configuration for resume training or inference."""
+        from XREPORT.server.utils.services.training.metrics import (
+            MaskedSparseCategoricalCrossentropy,
+            MaskedAccuracy,
+        )
+        
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
         
-        if custom_objects is None:
-            custom_objects = {}
+        # Default custom objects for XREPORT models
+        default_custom_objects = {
+            "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
+            "MaskedAccuracy": MaskedAccuracy,
+        }
+        if custom_objects:
+            default_custom_objects.update(custom_objects)
         
-        model = load_model(model_path, custom_objects=custom_objects)
+        model = load_model(model_path, custom_objects=default_custom_objects)
         configuration, metadata, session = self.load_training_configuration(
             checkpoint_path
         )
