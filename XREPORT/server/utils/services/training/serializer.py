@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import Any
@@ -13,7 +14,6 @@ from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.database import database
 
 CHECKPOINT_PATH = os.path.join(RESOURCES_PATH, "checkpoints")
-IMG_PATH = os.path.join(RESOURCES_PATH, "images")
 
 VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
@@ -49,23 +49,22 @@ class DataSerializer:
         return False if differences else True
 
     # -------------------------------------------------------------------------
-    def update_img_path(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        images_path = {}
-        for root, _, files in os.walk(IMG_PATH):
-            for file in files:
-                if os.path.splitext(file)[1].lower() in self.valid_extensions:
-                    path_pair = {file.split(".")[0]: os.path.join(IMG_PATH, file)}
-                    images_path.update(path_pair)
-
-        dataset["path"] = dataset["image"].map(images_path)
-        clean_dataset = dataset.dropna(subset=["path"]).reset_index(drop=True)
-        logger.info(
-            f"Updated dataset with images paths: {len(clean_dataset)} records found"
-        )
-        logger.info(
-            f"{len(dataset) - len(clean_dataset)} records were dropped due to missing images"
-        )
-
+    def validate_img_paths(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        """Validate that stored image paths exist and filter out missing ones."""
+        if "path" not in dataset.columns:
+            logger.error("Dataset missing 'path' column - images were not stored with paths")
+            return pd.DataFrame()
+        
+        # Check which paths actually exist
+        valid_mask = dataset["path"].apply(lambda p: os.path.isfile(p) if pd.notna(p) else False)
+        clean_dataset = dataset[valid_mask].reset_index(drop=True)
+        dropped = len(dataset) - len(clean_dataset)
+        
+        if len(clean_dataset) > 0:
+            logger.info(f"Validated image paths: {len(clean_dataset)} valid records")
+        if dropped > 0:
+            logger.warning(f"{dropped} records have missing or invalid image paths")
+        
         return clean_dataset
 
     # -------------------------------------------------------------------------
@@ -139,8 +138,12 @@ class DataSerializer:
         from sqlalchemy.exc import OperationalError
         
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
-        # Only keep columns that exist in the TRAINING_DATASET schema
-        db_columns = ["image", "tokens", "split"]
+        # Keep columns that exist in the TRAINING_DATASET schema (including path)
+        db_columns = ["image", "tokens", "split", "path"]
+        # Ensure path column exists
+        if "path" not in training_data.columns:
+            logger.warning("Training data missing 'path' column - adding empty paths")
+            training_data["path"] = None
         training_data_filtered = training_data[db_columns].copy()
         
         try:

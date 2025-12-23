@@ -1,8 +1,8 @@
 # Project-specific generated/runtime artifacts
 docs/**
+XREPORT/resources/models/**
 XREPORT/resources/database/**
 XREPORT/resources/runtimes/**
-XREPORT/resources/runtimes/uv_cache/**
 XREPORT/resources/logs/**
 XREPORT/client/node_modules/
 XREPORT/client/dist/
