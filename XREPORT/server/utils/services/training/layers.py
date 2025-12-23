@@ -91,6 +91,7 @@ class AddNorm(layers.Layer):
         self.epsilon = epsilon
         self.add = layers.Add()
         self.layernorm = layers.LayerNormalization(epsilon=self.epsilon)
+        self.supports_masking = True
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
@@ -187,6 +188,7 @@ class SoftMaxClassifier(layers.Layer):
         self.dense2 = layers.Dense(
             output_size, kernel_initializer="he_uniform", dtype=floatx()
         )
+        self.supports_masking = True
 
     # build method for the custom layer
     # -------------------------------------------------------------------------
