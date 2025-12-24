@@ -188,6 +188,13 @@ class RealTimeMetricsCallback(Callback):
                 self.global_batch_index = epochs_count
 
     # -------------------------------------------------------------------------
+    def on_train_begin(self, logs: dict | None = None) -> None:
+        """Send historical chart data immediately when training starts."""
+        # If we have historical data from a resumed session, send it to the frontend
+        if self.batch_history:
+            self.send_plot_update()
+
+    # -------------------------------------------------------------------------
     def on_epoch_begin(self, epoch: int, logs: dict | None = None) -> None:
         self.current_epoch_index = epoch
 
