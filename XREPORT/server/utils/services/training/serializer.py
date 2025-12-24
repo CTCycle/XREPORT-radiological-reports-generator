@@ -290,6 +290,7 @@ class ModelSerializer:
             MaskedSparseCategoricalCrossentropy,
             MaskedAccuracy,
         )
+        from XREPORT.server.utils.services.training.scheduler import WarmUpLRScheduler
         
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
@@ -298,6 +299,7 @@ class ModelSerializer:
         default_custom_objects = {
             "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
             "MaskedAccuracy": MaskedAccuracy,
+            "LRScheduler": WarmUpLRScheduler,
         }
         if custom_objects:
             default_custom_objects.update(custom_objects)
