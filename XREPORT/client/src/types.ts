@@ -1,4 +1,5 @@
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
+import { ValidationResponse } from './services/validationService';
 import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
@@ -30,6 +31,10 @@ export interface DatasetPageState {
     dbStatus: DatasetStatusResponse | null;
     datasetNames: DatasetNamesResponse | null;
     selectedDataset: string;
+    // Validation state
+    isValidating: boolean;
+    validationResult: ValidationResponse | null;
+    validationError: string | null;
 }
 
 // ============================================================================

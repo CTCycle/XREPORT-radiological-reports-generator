@@ -8,6 +8,7 @@ import {
     DatabaseBrowserPageState
 } from './types';
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
+import { ValidationResponse } from './services/validationService';
 import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
@@ -38,7 +39,10 @@ const DEFAULT_DATASET_STATE: DatasetPageState = {
     processingResult: null,
     dbStatus: null,
     datasetNames: null,
-    selectedDataset: ''
+    selectedDataset: '',
+    isValidating: false,
+    validationResult: null,
+    validationError: null
 };
 
 const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
@@ -227,6 +231,18 @@ export function useDatasetPageState() {
         setDatasetPageState(prev => ({ ...prev, selectedDataset: dataset }));
     }, [setDatasetPageState]);
 
+    const setIsValidating = useCallback((validating: boolean) => {
+        setDatasetPageState(prev => ({ ...prev, isValidating: validating }));
+    }, [setDatasetPageState]);
+
+    const setValidationResult = useCallback((result: ValidationResponse | null) => {
+        setDatasetPageState(prev => ({ ...prev, validationResult: result }));
+    }, [setDatasetPageState]);
+
+    const setValidationError = useCallback((error: string | null) => {
+        setDatasetPageState(prev => ({ ...prev, validationError: error }));
+    }, [setDatasetPageState]);
+
     return {
         state: datasetPageState,
         updateConfig,
@@ -243,7 +259,10 @@ export function useDatasetPageState() {
         setProcessingResult,
         setDbStatus,
         setDatasetNames,
-        setSelectedDataset
+        setSelectedDataset,
+        setIsValidating,
+        setValidationResult,
+        setValidationError
     };
 }
 

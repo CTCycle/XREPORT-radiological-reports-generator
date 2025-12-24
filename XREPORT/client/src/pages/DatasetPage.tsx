@@ -12,7 +12,9 @@ import {
     getDatasetStatus,
     getDatasetNames,
 } from '../services/trainingService';
+import { runValidation } from '../services/validationService';
 import FolderBrowser from '../components/FolderBrowser';
+import ValidationDashboard from '../components/ValidationDashboard';
 import { useDatasetPageState } from '../AppStateContext';
 
 export default function DatasetPage() {
@@ -33,6 +35,9 @@ export default function DatasetPage() {
         setDbStatus,
         setDatasetNames,
         setSelectedDataset,
+        setIsValidating,
+        setValidationResult,
+        setValidationError,
     } = useDatasetPageState();
 
     // Fetch database status and dataset names on component mount
@@ -89,6 +94,36 @@ export default function DatasetPage() {
             setUploadError(error);
         } else if (result) {
             setProcessingResult(result);
+        }
+    };
+
+    const handleViewEvaluation = async () => {
+        // Build metrics list from config
+        const metrics: string[] = [];
+        if (state.config.imgStats) metrics.push('image_statistics');
+        if (state.config.textStats) metrics.push('text_statistics');
+        if (state.config.pixDist) metrics.push('pixels_distribution');
+
+        if (metrics.length === 0) {
+            setValidationError('Please select at least one validation metric');
+            return;
+        }
+
+        setIsValidating(true);
+        setValidationError(null);
+        setValidationResult(null);
+
+        const { result, error } = await runValidation({
+            metrics,
+            sample_size: state.config.sampleSize,
+        });
+
+        setIsValidating(false);
+
+        if (error) {
+            setValidationError(error);
+        } else if (result) {
+            setValidationResult(result);
         }
     };
 
@@ -395,8 +430,17 @@ export default function DatasetPage() {
                                 <div className="checkbox-visual" />
                                 <span className="checkbox-label">Pixel intensity dist.</span>
                             </label>
-                            <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.25rem' }}>
-                                View Evaluation
+                            <button
+                                className="btn btn-secondary btn-sm"
+                                style={{ marginTop: '0.25rem' }}
+                                onClick={handleViewEvaluation}
+                                disabled={state.isValidating}
+                            >
+                                {state.isValidating ? (
+                                    <><Loader size={14} className="spin" /> Validating...</>
+                                ) : (
+                                    'View Evaluation'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -409,6 +453,15 @@ export default function DatasetPage() {
                 onClose={() => setFolderBrowserOpen(false)}
                 onSelect={handleFolderSelect}
             />
+
+            {/* Validation Dashboard */}
+            {(state.isValidating || state.validationResult || state.validationError) && (
+                <ValidationDashboard
+                    isLoading={state.isValidating}
+                    validationResult={state.validationResult}
+                    error={state.validationError}
+                />
+            )}
         </div>
     );
 }
