@@ -453,20 +453,6 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         ) from e
     
     finally:
-        # Clean up Keras session to release GPU memory and clear variable state
-        from keras import backend as K
-        K.clear_session()
-        
-        # Also clear PyTorch CUDA cache for more thorough cleanup
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-        
-        # Run Python garbage collection
-        import gc
-        gc.collect()
-        
         training_state["is_training"] = False
         interrupt_callback = None
     
