@@ -5,6 +5,7 @@ import {
     TrainingPageState,
     TrainingConfig,
     InferencePageState,
+    GenerationMode,
     DatabaseBrowserPageState
 } from './types';
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
@@ -85,7 +86,14 @@ const DEFAULT_INFERENCE_STATE: InferencePageState = {
     currentIndex: 0,
     generatedReport: '',
     isGenerating: false,
-    isCopied: false
+    isCopied: false,
+    selectedCheckpoint: '',
+    generationMode: 'greedy_search',
+    checkpoints: [],
+    isLoadingCheckpoints: false,
+    reports: {},
+    streamingTokens: '',
+    currentStreamingIndex: -1
 };
 
 const DEFAULT_BATCH_SIZE = 200;
@@ -332,8 +340,53 @@ export function useInferencePageState() {
             ...prev,
             images: [],
             currentIndex: 0,
-            generatedReport: ''
+            generatedReport: '',
+            reports: {},
+            streamingTokens: '',
+            currentStreamingIndex: -1
         }));
+    }, [setInferencePageState]);
+
+    const setSelectedCheckpoint = useCallback((checkpoint: string) => {
+        setInferencePageState(prev => ({ ...prev, selectedCheckpoint: checkpoint }));
+    }, [setInferencePageState]);
+
+    const setGenerationMode = useCallback((mode: GenerationMode) => {
+        setInferencePageState(prev => ({ ...prev, generationMode: mode }));
+    }, [setInferencePageState]);
+
+    const setCheckpoints = useCallback((checkpoints: string[]) => {
+        setInferencePageState(prev => ({ ...prev, checkpoints }));
+    }, [setInferencePageState]);
+
+    const setIsLoadingCheckpoints = useCallback((loading: boolean) => {
+        setInferencePageState(prev => ({ ...prev, isLoadingCheckpoints: loading }));
+    }, [setInferencePageState]);
+
+    const setReports = useCallback((reports: Record<number, string>) => {
+        setInferencePageState(prev => ({ ...prev, reports }));
+    }, [setInferencePageState]);
+
+    const setReportForIndex = useCallback((index: number, report: string) => {
+        setInferencePageState(prev => ({
+            ...prev,
+            reports: { ...prev.reports, [index]: report }
+        }));
+    }, [setInferencePageState]);
+
+    const setStreamingTokens = useCallback((tokens: string) => {
+        setInferencePageState(prev => ({ ...prev, streamingTokens: tokens }));
+    }, [setInferencePageState]);
+
+    const appendStreamingToken = useCallback((token: string) => {
+        setInferencePageState(prev => ({
+            ...prev,
+            streamingTokens: prev.streamingTokens + token
+        }));
+    }, [setInferencePageState]);
+
+    const setCurrentStreamingIndex = useCallback((index: number) => {
+        setInferencePageState(prev => ({ ...prev, currentStreamingIndex: index }));
     }, [setInferencePageState]);
 
     return {
@@ -343,7 +396,16 @@ export function useInferencePageState() {
         setGeneratedReport,
         setIsGenerating,
         setIsCopied,
-        clearImages
+        clearImages,
+        setSelectedCheckpoint,
+        setGenerationMode,
+        setCheckpoints,
+        setIsLoadingCheckpoints,
+        setReports,
+        setReportForIndex,
+        setStreamingTokens,
+        appendStreamingToken,
+        setCurrentStreamingIndex
     };
 }
 
