@@ -59,14 +59,16 @@ function PixelDistributionChart({ data }: { data: PixelDistribution }) {
                     />
                     <Tooltip
                         contentStyle={{
-                            background: 'rgba(30, 30, 35, 0.95)',
-                            border: '1px solid rgba(255, 215, 0, 0.2)',
+                            background: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
                             borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                            color: '#1e293b',
                         }}
                         labelFormatter={(value) => `Intensity: ${value}-${Number(value) + binSize - 1}`}
                         formatter={(value) => [typeof value === 'number' ? value.toLocaleString() : String(value ?? 0), 'Count']}
                     />
-                    <Bar dataKey="count" fill="#ffd700" opacity={0.8} />
+                    <Bar dataKey="count" fill="#3b82f6" opacity={0.8} />
                 </BarChart>
             </ResponsiveContainer>
         </div>

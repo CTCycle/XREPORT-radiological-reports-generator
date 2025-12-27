@@ -11,6 +11,7 @@ from XREPORT.server.schemas.validation import (
     PixelDistribution,
     TextStatistics,
 )
+from XREPORT.server.utils.logger import logger
 
 
 ###############################################################################
@@ -80,8 +81,10 @@ class DatasetValidator:
         noise_ratios: list[float] = []
         
         valid_count = 0
+        total_images = len(image_paths)
+        log_interval = max(1, total_images // 10)  # Log every 10%
         
-        for path in image_paths:
+        for idx, path in enumerate(image_paths):
             if not os.path.exists(path):
                 continue
                 
@@ -109,6 +112,11 @@ class DatasetValidator:
             noise_ratios.append(noise_ratio)
             
             valid_count += 1
+            
+            # Log progress every 10%
+            if (idx + 1) % log_interval == 0 or (idx + 1) == total_images:
+                progress = ((idx + 1) / total_images) * 100
+                logger.info(f"  Image statistics progress: {idx + 1}/{total_images} ({progress:.0f}%)")
             
         if valid_count == 0:
             return ImageStatistics(
@@ -139,8 +147,11 @@ class DatasetValidator:
             
         image_paths = self.dataset["path"].tolist()
         combined_hist = np.zeros(256, dtype=np.int64)
+        total_images = len(image_paths)
+        log_interval = max(1, total_images // 10)  # Log every 10%
+        processed = 0
         
-        for path in image_paths:
+        for idx, path in enumerate(image_paths):
             if not os.path.exists(path):
                 continue
                 
@@ -151,6 +162,12 @@ class DatasetValidator:
             # Calculate histogram
             hist = cv2.calcHist([img], [0], None, [256], [0, 256]).flatten()
             combined_hist += hist.astype(np.int64)
+            processed += 1
+            
+            # Log progress every 10%
+            if (idx + 1) % log_interval == 0 or (idx + 1) == total_images:
+                progress = ((idx + 1) / total_images) * 100
+                logger.info(f"  Pixel distribution progress: {idx + 1}/{total_images} ({progress:.0f}%)")
             
         return PixelDistribution(
             bins=list(range(256)),
