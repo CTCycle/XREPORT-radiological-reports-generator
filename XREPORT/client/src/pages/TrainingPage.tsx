@@ -27,6 +27,7 @@ export default function TrainingPage() {
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [shouldConnectWs, setShouldConnectWs] = useState(false);
 
     // Fetch checkpoints on mount
     useEffect(() => {
@@ -48,6 +49,7 @@ export default function TrainingPage() {
     const handleStartTraining = async () => {
         setIsLoading(true);
         setError(null);
+        setShouldConnectWs(true); // Connect WebSocket when training starts
 
         const config: StartTrainingConfig = {
             epochs: state.config.epochs,
@@ -87,6 +89,7 @@ export default function TrainingPage() {
 
         setIsLoading(true);
         setError(null);
+        setShouldConnectWs(true); // Connect WebSocket when resume starts
 
         const { error: resumeError } = await resumeTraining(
             state.selectedCheckpoint,
@@ -450,7 +453,7 @@ export default function TrainingPage() {
             </div>
 
             {/* Training Dashboard */}
-            <TrainingDashboard onStopTraining={handleStopTraining} />
+            <TrainingDashboard onStopTraining={handleStopTraining} shouldConnect={shouldConnectWs} />
         </div>
     );
 }
