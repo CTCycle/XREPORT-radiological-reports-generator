@@ -19,6 +19,8 @@ const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
     validationSize: 0.2,
     maxReportSize: 200,
     tokenizer: 'distilbert-base-uncased',
+    // Evaluation defaults (separate from processing)
+    evalSampleSize: 0.1,
     imgStats: false,
     textStats: false,
     pixDist: false

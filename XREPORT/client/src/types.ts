@@ -10,6 +10,8 @@ export interface DatasetProcessingConfig {
     validationSize: number;
     maxReportSize: number;
     tokenizer: string;
+    // Evaluation settings (separate from processing)
+    evalSampleSize: number;
     imgStats: boolean;
     textStats: boolean;
     pixDist: boolean;

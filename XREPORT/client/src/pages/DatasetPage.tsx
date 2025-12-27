@@ -115,7 +115,7 @@ export default function DatasetPage() {
 
         const { result, error } = await runValidation({
             metrics,
-            sample_size: state.config.sampleSize,
+            sample_size: state.config.evalSampleSize,
         });
 
         setIsValidating(false);
@@ -403,36 +403,50 @@ export default function DatasetPage() {
                             <span>Dataset Evaluation</span>
                         </div>
                         <div className="config-grid" style={{ gridTemplateColumns: '1fr' }}>
-                            <label className="form-checkbox">
+                            <div className="form-group">
+                                <label className="form-label">Evaluation Sample (0-1)</label>
                                 <input
-                                    type="checkbox"
-                                    checked={state.config.imgStats}
-                                    onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
+                                    type="number"
+                                    step="0.05"
+                                    min="0.01"
+                                    max="1.0"
+                                    className="form-input"
+                                    value={state.config.evalSampleSize}
+                                    onChange={(e) => handleConfigChange('evalSampleSize', parseFloat(e.target.value))}
                                 />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Image statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={state.config.textStats}
-                                    onChange={(e) => handleConfigChange('textStats', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Text statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={state.config.pixDist}
-                                    onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Pixel intensity dist.</span>
-                            </label>
+                            </div>
+                            <div className="eval-checkboxes">
+                                <label className="form-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={state.config.imgStats}
+                                        onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
+                                    />
+                                    <div className="checkbox-visual" />
+                                    <span className="checkbox-label">Image statistics</span>
+                                </label>
+                                <label className="form-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={state.config.textStats}
+                                        onChange={(e) => handleConfigChange('textStats', e.target.checked)}
+                                    />
+                                    <div className="checkbox-visual" />
+                                    <span className="checkbox-label">Text statistics</span>
+                                </label>
+                                <label className="form-checkbox">
+                                    <input
+                                        type="checkbox"
+                                        checked={state.config.pixDist}
+                                        onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
+                                    />
+                                    <div className="checkbox-visual" />
+                                    <span className="checkbox-label">Pixel intensity dist.</span>
+                                </label>
+                            </div>
                             <button
                                 className="btn btn-secondary btn-sm"
-                                style={{ marginTop: '0.25rem' }}
+                                style={{ marginTop: '0.5rem' }}
                                 onClick={handleViewEvaluation}
                                 disabled={state.isValidating}
                             >
