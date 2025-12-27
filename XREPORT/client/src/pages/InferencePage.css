@@ -9,6 +9,103 @@
     flex-direction: column;
 }
 
+/* Control Panel */
+.inference-control-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.control-panel-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.control-panel-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.control-panel-item svg {
+    color: var(--accent-color);
+}
+
+.control-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.control-panel-item label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.control-panel-item select {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    min-width: 180px;
+}
+
+.control-panel-item select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.control-panel-item select:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Image Limit Badge */
+.image-limit-badge {
+    margin-left: auto;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--accent-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Streaming Indicator */
+.streaming-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-left: 0.5rem;
+    color: var(--accent-color);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.markdown-report.streaming {
+    position: relative;
+}
+
+.markdown-report.streaming::after {
+    content: '▋';
+    animation: cursor-blink 1s step-end infinite;
+    color: var(--accent-color);
+}
+
+@keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
 .inference-header {
     margin-bottom: 1.5rem;
 }

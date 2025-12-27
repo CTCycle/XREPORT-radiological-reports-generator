@@ -78,12 +78,24 @@ export interface TrainingPageState {
 // ============================================================================
 // Inference Page State
 // ============================================================================
+export type GenerationMode = 'greedy_search' | 'beam_search';
+
 export interface InferencePageState {
     images: File[];
     currentIndex: number;
     generatedReport: string;
     isGenerating: boolean;
     isCopied: boolean;
+    // Checkpoint and generation settings
+    selectedCheckpoint: string;
+    generationMode: GenerationMode;
+    checkpoints: string[];
+    isLoadingCheckpoints: boolean;
+    // Per-image reports for synchronized navigation
+    reports: Record<number, string>;
+    // Streaming state
+    streamingTokens: string;
+    currentStreamingIndex: number;
 }
 
 // ============================================================================
