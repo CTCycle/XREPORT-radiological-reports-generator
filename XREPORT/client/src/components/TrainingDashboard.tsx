@@ -36,6 +36,7 @@ interface ChartDataPoint {
 
 interface TrainingDashboardProps {
     onStopTraining?: () => void;
+    shouldConnect?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -61,7 +62,7 @@ const CHART_COLORS = {
     val_accuracy: '#4ade80',
 };
 
-export default function TrainingDashboard({ onStopTraining }: TrainingDashboardProps) {
+export default function TrainingDashboard({ onStopTraining, shouldConnect = false }: TrainingDashboardProps) {
     const [metrics, setMetrics] = useState<TrainingMetrics>({
         isTraining: false,
         currentEpoch: 0,
@@ -175,17 +176,27 @@ export default function TrainingDashboard({ onStopTraining }: TrainingDashboardP
     }, []);
 
     useEffect(() => {
-        connectWebSocket();
+        // Only connect WebSocket when shouldConnect is true
+        if (shouldConnect) {
+            connectWebSocket();
+        }
 
         return () => {
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
+            // Only close on unmount, not when shouldConnect changes to false
+        };
+    }, [connectWebSocket, shouldConnect]);
+
+    // Cleanup WebSocket on unmount
+    useEffect(() => {
+        return () => {
             if (wsRef.current) {
                 wsRef.current.close();
             }
         };
-    }, [connectWebSocket]);
+    }, []);
 
     const handleStopTraining = () => {
         if (onStopTraining) {
