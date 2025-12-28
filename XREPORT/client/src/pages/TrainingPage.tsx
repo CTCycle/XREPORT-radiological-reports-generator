@@ -10,6 +10,7 @@ import {
     resumeTraining,
     stopTraining,
     getCheckpoints,
+    getTrainingStatus,
     CheckpointInfo,
     StartTrainingConfig,
 } from '../services/trainingService';
@@ -29,7 +30,19 @@ export default function TrainingPage() {
     const [error, setError] = useState<string | null>(null);
     const [shouldConnectWs, setShouldConnectWs] = useState(false);
 
+    // Check if training is in progress on mount and auto-connect WebSocket if so
+    useEffect(() => {
+        const checkTrainingStatus = async () => {
+            const { result } = await getTrainingStatus();
+            if (result?.is_training) {
+                setShouldConnectWs(true);
+            }
+        };
+        checkTrainingStatus();
+    }, []);
+
     // Fetch checkpoints on mount
+
     useEffect(() => {
         const fetchCheckpoints = async () => {
             const { result, error: fetchError } = await getCheckpoints();

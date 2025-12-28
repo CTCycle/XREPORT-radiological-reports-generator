@@ -38,6 +38,10 @@ training_state: dict[str, Any] = {
     "val_accuracy": 0.0,
     "progress_percent": 0,
     "elapsed_seconds": 0,
+    # Chart data for reconnection
+    "chart_data": [],
+    "epoch_boundaries": [],
+    "available_metrics": [],
 }
 
 # Active WebSocket connections
@@ -70,6 +74,8 @@ async def broadcast_message(message: dict[str, Any]) -> None:
 # -----------------------------------------------------------------------------
 def sync_websocket_callback(message: dict[str, Any]) -> None:
     global training_state
+    
+    # Update basic metrics
     training_state.update({
         "current_epoch": message.get("epoch", 0),
         "total_epochs": message.get("total_epochs", 0),
@@ -80,6 +86,12 @@ def sync_websocket_callback(message: dict[str, Any]) -> None:
         "progress_percent": message.get("progress_percent", 0),
         "elapsed_seconds": message.get("elapsed_seconds", 0),
     })
+    
+    # Accumulate chart data from training_plot messages
+    if message.get("type") == "training_plot":
+        training_state["chart_data"] = message.get("chart_data", [])
+        training_state["epoch_boundaries"] = message.get("epoch_boundaries", [])
+        training_state["available_metrics"] = message.get("metrics", [])
     
     # Use the stored main event loop to schedule WebSocket broadcast
     # This works because training runs in a separate thread
@@ -101,6 +113,17 @@ async def training_websocket(websocket: WebSocket) -> None:
             "is_training": training_state["is_training"],
             **training_state,
         })
+        
+        # Send accumulated chart data if training is in progress
+        if training_state["is_training"] and training_state["chart_data"]:
+            await websocket.send_json({
+                "type": "training_plot",
+                "chart_data": training_state["chart_data"],
+                "metrics": training_state["available_metrics"],
+                "epochs": training_state["current_epoch"],
+                "epoch_boundaries": training_state["epoch_boundaries"],
+            })
+
         
         # Keep connection alive and handle messages
         while True:
@@ -220,6 +243,11 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     training_state["is_training"] = True
     training_state["current_epoch"] = 0
     training_state["total_epochs"] = configuration.get("epochs", 10)
+    # Clear chart data from previous sessions
+    training_state["chart_data"] = []
+    training_state["epoch_boundaries"] = []
+    training_state["available_metrics"] = []
+
     
     # Store reference to the current event loop for WebSocket callbacks
     main_event_loop = asyncio.get_running_loop()
