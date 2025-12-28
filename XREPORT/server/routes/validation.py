@@ -41,6 +41,12 @@ async def run_validation(request: ValidationRequest) -> ValidationResponse:
             )
         
         logger.info(f"Loaded {len(dataset)} records for validation")
+        
+        # Extract dataset_name from source data (use first record's dataset_name if available)
+        if "dataset_name" in dataset.columns and not dataset.empty:
+            dataset_name = dataset["dataset_name"].iloc[0]
+        else:
+            dataset_name = "default"
             
         # Validate that stored image paths exist
         dataset = serializer.validate_img_paths(dataset)
@@ -53,7 +59,7 @@ async def run_validation(request: ValidationRequest) -> ValidationResponse:
         
         logger.info(f"Starting analysis on {len(dataset)} validated records")
         
-        validator = DatasetValidator(dataset)
+        validator = DatasetValidator(dataset, dataset_name=dataset_name)
         response = ValidationResponse(success=True, message="Validation completed successfully")
         
         metrics_requested = [m for m in request.metrics]
@@ -61,13 +67,25 @@ async def run_validation(request: ValidationRequest) -> ValidationResponse:
         
         if "text_statistics" in request.metrics:
             logger.info(f"[1/3] Calculating text statistics for {len(dataset)} reports...")
-            response.text_statistics = validator.calculate_text_statistics()
-            logger.info(f"[1/3] Text statistics complete: {response.text_statistics.total_words} total words, {response.text_statistics.unique_words} unique")
+            text_stats, text_records_df = validator.calculate_text_statistics()
+            response.text_statistics = text_stats
+            logger.info(f"[1/3] Text statistics complete: {text_stats.total_words} total words, {text_stats.unique_words} unique")
+            
+            # Persist per-record text statistics
+            if not text_records_df.empty:
+                serializer.save_text_statistics(text_records_df)
+                logger.info(f"Saved {len(text_records_df)} text statistics records to database")
             
         if "image_statistics" in request.metrics:
             logger.info(f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)...")
-            response.image_statistics = validator.calculate_image_statistics()
-            logger.info(f"[2/3] Image statistics complete: analyzed {response.image_statistics.count} images")
+            image_stats, image_records_df = validator.calculate_image_statistics()
+            response.image_statistics = image_stats
+            logger.info(f"[2/3] Image statistics complete: analyzed {image_stats.count} images")
+            
+            # Persist per-record image statistics
+            if not image_records_df.empty:
+                serializer.save_images_statistics(image_records_df)
+                logger.info(f"Saved {len(image_records_df)} image statistics records to database")
             
         if "pixels_distribution" in request.metrics:
             logger.info(f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images...")

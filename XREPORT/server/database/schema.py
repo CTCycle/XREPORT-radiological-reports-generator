@@ -66,6 +66,7 @@ class GeneratedReport(Base):
 class ImageStatistics(Base):
     """Statistical analysis of images in the dataset."""
     __tablename__ = "IMAGE_STATISTICS"
+    dataset_name = Column(String, primary_key=True)
     name = Column(String, primary_key=True)
     height = Column(Integer)
     width = Column(Integer)
@@ -77,16 +78,17 @@ class ImageStatistics(Base):
     pixel_range = Column(Float)
     noise_std = Column(Float)
     noise_ratio = Column(Float)
-    __table_args__ = (UniqueConstraint("name"),)
+    __table_args__ = (UniqueConstraint("dataset_name", "name"),)
 
 
 ###############################################################################
 class TextStatistics(Base):
     """Statistical analysis of text reports in the dataset."""
     __tablename__ = "TEXT_STATISTICS"
+    dataset_name = Column(String, primary_key=True)
     name = Column(String, primary_key=True)
     words_count = Column(Integer)
-    __table_args__ = (UniqueConstraint("name"),)
+    __table_args__ = (UniqueConstraint("dataset_name", "name"),)
 
 
 ###############################################################################
