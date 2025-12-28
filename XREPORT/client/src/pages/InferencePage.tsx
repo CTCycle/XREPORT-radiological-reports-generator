@@ -59,15 +59,16 @@ export default function InferencePage() {
 
     // Handle WebSocket messages
     const handleWebSocketMessage = useCallback((message: InferenceStreamMessage) => {
+        console.log('WebSocket message received:', message.type, message);
         if (message.type === 'token') {
-            const imgIdx = message.image_index ?? 0;
-            if (imgIdx === state.currentStreamingIndex) {
-                appendStreamingToken(message.token ?? '');
-            }
+            // Append token for streaming display
+            appendStreamingToken(message.token ?? '');
         } else if (message.type === 'start') {
+            console.log('Generation started via WebSocket');
             setStreamingTokens('');
             setCurrentStreamingIndex(0);
         } else if (message.type === 'complete' && message.reports) {
+            console.log('Generation complete via WebSocket');
             // Store all reports by index
             const reportsByIndex: Record<number, string> = {};
             Object.values(message.reports).forEach((report, idx) => {
@@ -85,7 +86,21 @@ export default function InferencePage() {
             setIsGenerating(false);
             setCurrentStreamingIndex(-1);
         }
-    }, [state.currentStreamingIndex, state.currentIndex, appendStreamingToken, setStreamingTokens, setCurrentStreamingIndex, setReports, setIsGenerating, setGeneratedReport]);
+    }, [state.currentIndex, appendStreamingToken, setStreamingTokens, setCurrentStreamingIndex, setReports, setIsGenerating, setGeneratedReport]);
+
+    // Connect WebSocket on mount (like training dashboard)
+    useEffect(() => {
+        wsRef.current = connectInferenceWebSocket(
+            handleWebSocketMessage,
+            () => console.log('Inference WebSocket error'),
+            () => console.log('Inference WebSocket closed')
+        );
+
+        return () => {
+            disconnectInferenceWebSocket(wsRef.current);
+            wsRef.current = null;
+        };
+    }, [handleWebSocketMessage]);
 
     // Handle file selection
     const handleFileSelect = (files: FileList | null) => {
@@ -167,17 +182,11 @@ export default function InferencePage() {
         setIsGenerating(true);
         setStreamingTokens('');
         setReports({});
+        setGeneratedReport('');
         setCurrentStreamingIndex(0);
 
-        // Connect WebSocket for streaming
-        wsRef.current = connectInferenceWebSocket(
-            handleWebSocketMessage,
-            () => setIsGenerating(false),
-            () => setIsGenerating(false)
-        );
-
         // Call generate endpoint
-        const { result: _result, error } = await generateReports(
+        const { result, error } = await generateReports(
             state.images,
             state.selectedCheckpoint,
             state.generationMode
@@ -186,13 +195,22 @@ export default function InferencePage() {
         if (error) {
             console.error('Generation failed:', error);
             setIsGenerating(false);
+        } else if (result && result.success && result.reports) {
+            // Use the HTTP response to set reports
+            const reportsByIndex: Record<number, string> = {};
+            Object.values(result.reports).forEach((report, idx) => {
+                reportsByIndex[idx] = report;
+            });
+            setReports(reportsByIndex);
+            setIsGenerating(false);
+            setCurrentStreamingIndex(-1);
+            // Set the generated report for the current index
+            if (reportsByIndex[state.currentIndex] !== undefined) {
+                setGeneratedReport(reportsByIndex[state.currentIndex]);
+            }
+        } else {
+            setIsGenerating(false);
         }
-
-        // Clean up WebSocket after a delay
-        setTimeout(() => {
-            disconnectInferenceWebSocket(wsRef.current);
-            wsRef.current = null;
-        }, 1000);
     };
 
     // Copy report to clipboard
