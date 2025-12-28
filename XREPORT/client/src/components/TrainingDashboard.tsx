@@ -73,9 +73,33 @@ export default function TrainingDashboard({
     const [connected, setConnected] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<number | null>(null);
+    const shouldConnectRef = useRef(shouldConnect);
+
+    // Keep refs updated to avoid stale closures while preventing effect re-runs
+    const callbacksRef = useRef({
+        onDashboardStateChange,
+        onChartDataChange,
+        onAvailableMetricsChange,
+        onEpochBoundariesChange,
+    });
+
+    useEffect(() => {
+        callbacksRef.current = {
+            onDashboardStateChange,
+            onChartDataChange,
+            onAvailableMetricsChange,
+            onEpochBoundariesChange,
+        };
+    });
+
+    useEffect(() => {
+        shouldConnectRef.current = shouldConnect;
+    }, [shouldConnect]);
 
     const connectWebSocket = useCallback(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
+        // Don't connect if already connected or connecting
+        if (wsRef.current?.readyState === WebSocket.OPEN ||
+            wsRef.current?.readyState === WebSocket.CONNECTING) {
             return;
         }
 
@@ -93,9 +117,10 @@ export default function TrainingDashboard({
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                const callbacks = callbacksRef.current;
 
                 if (data.type === 'training_update') {
-                    onDashboardStateChange({
+                    callbacks.onDashboardStateChange({
                         isTraining: true,
                         currentEpoch: data.epoch || 0,
                         totalEpochs: data.total_epochs || 0,
@@ -107,24 +132,24 @@ export default function TrainingDashboard({
                         elapsedSeconds: data.elapsed_seconds || 0,
                     });
                 } else if (data.type === 'training_started' || data.type === 'training_resumed') {
-                    onDashboardStateChange(prev => ({
+                    callbacks.onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: true,
                         totalEpochs: data.total_epochs || prev.totalEpochs,
                     }));
                     // Clear chart data on new training session
                     if (data.type === 'training_started') {
-                        onChartDataChange([]);
-                        onAvailableMetricsChange([]);
+                        callbacks.onChartDataChange([]);
+                        callbacks.onAvailableMetricsChange([]);
                     }
                 } else if (data.type === 'training_completed' || data.type === 'training_error') {
-                    onDashboardStateChange(prev => ({
+                    callbacks.onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: false,
                         progressPercent: data.type === 'training_completed' ? 100 : prev.progressPercent,
                     }));
                 } else if (data.type === 'connection_established') {
-                    onDashboardStateChange(prev => ({
+                    callbacks.onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: data.is_training || false,
                         currentEpoch: data.current_epoch || 0,
@@ -139,12 +164,12 @@ export default function TrainingDashboard({
                 } else if (data.type === 'ping') {
                     ws.send(JSON.stringify({ type: 'pong' }));
                 } else if (data.type === 'training_plot' && data.chart_data) {
-                    onChartDataChange(data.chart_data);
+                    callbacks.onChartDataChange(data.chart_data);
                     if (data.metrics) {
-                        onAvailableMetricsChange(data.metrics);
+                        callbacks.onAvailableMetricsChange(data.metrics);
                     }
                     if (data.epoch_boundaries) {
-                        onEpochBoundariesChange(data.epoch_boundaries);
+                        callbacks.onEpochBoundariesChange(data.epoch_boundaries);
                     }
                 }
             } catch (e) {
@@ -157,39 +182,37 @@ export default function TrainingDashboard({
             setConnected(false);
             wsRef.current = null;
 
-            // Reconnect after 3 seconds
-            reconnectTimeoutRef.current = window.setTimeout(() => {
-                connectWebSocket();
-            }, 3000);
+            // Only reconnect if we should still be connected
+            if (shouldConnectRef.current) {
+                reconnectTimeoutRef.current = window.setTimeout(() => {
+                    connectWebSocket();
+                }, 3000);
+            }
         };
 
         ws.onerror = (error) => {
             console.error('Training WebSocket error:', error);
         };
-    }, [onDashboardStateChange, onChartDataChange, onAvailableMetricsChange, onEpochBoundariesChange]);
+    }, []); // No dependencies - uses refs for all external values
 
     useEffect(() => {
-        // Only connect WebSocket when shouldConnect is true
         if (shouldConnect) {
             connectWebSocket();
         }
 
         return () => {
+            // Clear reconnect timeout
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
             }
-            // Only close on unmount, not when shouldConnect changes to false
-        };
-    }, [connectWebSocket, shouldConnect]);
-
-    // Cleanup WebSocket on unmount
-    useEffect(() => {
-        return () => {
+            // Close WebSocket when effect cleans up
             if (wsRef.current) {
                 wsRef.current.close();
+                wsRef.current = null;
             }
         };
-    }, []);
+    }, [shouldConnect, connectWebSocket]);
 
     const handleStopTraining = () => {
         if (onStopTraining) {

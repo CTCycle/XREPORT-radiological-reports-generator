@@ -34,6 +34,13 @@ class PositionalEmbedding(layers.Layer):
         )
         self.embedding_scale = ops.sqrt(ops.cast(self.embedding_dims, floatx()))
 
+    # build method for the custom layer
+    # -------------------------------------------------------------------------
+    def build(self, input_shape: Any) -> None:
+        self.token_embeddings.build(input_shape)
+        self.position_embeddings.build((input_shape[-1],))
+        super(PositionalEmbedding, self).build(input_shape)
+
     # implement positional embedding through call method
     # -------------------------------------------------------------------------
     def call(self, inputs: Any) -> Any:
