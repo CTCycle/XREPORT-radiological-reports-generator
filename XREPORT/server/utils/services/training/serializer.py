@@ -12,6 +12,20 @@ from keras.models import load_model
 from XREPORT.server.utils.constants import RESOURCES_PATH
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.database import database
+from XREPORT.server.utils.services.training.metrics import (
+    MaskedSparseCategoricalCrossentropy,
+    MaskedAccuracy,
+)
+from XREPORT.server.utils.services.training.scheduler import WarmUpLRScheduler
+from XREPORT.server.utils.services.training.layers import (
+    PositionalEmbedding,
+    AddNorm,
+    FeedForward,
+    SoftMaxClassifier,
+    TransformerEncoder,
+    TransformerDecoder,
+)
+from XREPORT.server.utils.services.training.encoder import BeitXRayImageEncoder
 
 CHECKPOINT_PATH = os.path.join(RESOURCES_PATH, "checkpoints")
 
@@ -286,20 +300,25 @@ class ModelSerializer:
         self, checkpoint: str, custom_objects: dict[str, Any] | None = None
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load checkpoint model and configuration for resume training or inference."""
-        from XREPORT.server.utils.services.training.metrics import (
-            MaskedSparseCategoricalCrossentropy,
-            MaskedAccuracy,
-        )
-        from XREPORT.server.utils.services.training.scheduler import WarmUpLRScheduler
         
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
         
         # Default custom objects for XREPORT models
+        # Include all custom layers, metrics, and loss functions
         default_custom_objects = {
+            # Loss and metrics
             "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
             "MaskedAccuracy": MaskedAccuracy,
             "LRScheduler": WarmUpLRScheduler,
+            # Custom layers
+            "PositionalEmbedding": PositionalEmbedding,
+            "AddNorm": AddNorm,
+            "FeedForward": FeedForward,
+            "SoftMaxClassifier": SoftMaxClassifier,
+            "TransformerEncoder": TransformerEncoder,
+            "TransformerDecoder": TransformerDecoder,
+            "BeitXRayImageEncoder": BeitXRayImageEncoder,
         }
         if custom_objects:
             default_custom_objects.update(custom_objects)
