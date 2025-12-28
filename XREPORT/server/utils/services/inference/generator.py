@@ -73,9 +73,9 @@ class TextGenerator:
         tokenizer_config: dict[str, Any],
     ) -> str:
         token_sequence = [
-            index_lookup[idx.item()]
+            index_lookup[int(idx)]
             for idx in sequence[0, :]
-            if idx.item() in index_lookup and idx != 0
+            if int(idx) in index_lookup and idx != 0
         ]
 
         special_tokens = [
@@ -107,17 +107,18 @@ class TextGenerator:
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
         image = dataloader.processor.load_image(image_path, as_array=True)
         image = dataloader.processor.image_normalization(image)
-        image = ops.expand_dims(image, axis=0)
+        # Use numpy for expand_dims to keep data on CPU
+        image = np.expand_dims(image, axis=0)
 
-        seq_input = ops.zeros((1, self.max_report_size), dtype="int32")
-        seq_input = seq_input.numpy()
+        # Create sequence input as numpy array (stays on CPU)
+        seq_input = np.zeros((1, self.max_report_size), dtype=np.int32)
         seq_input[0, 0] = start_token_idx
 
         for i in range(1, self.max_report_size):
-            predictions = self.model.predict(
-                [image, seq_input], verbose=0
-            )
-            next_token_idx = int(ops.argmax(predictions[0, i - 1, :], axis=-1))
+            predictions = self.model.predict([image, seq_input], verbose=0)
+            # Convert predictions to numpy to handle CUDA tensors
+            pred_numpy = ops.convert_to_numpy(predictions[0, i - 1, :])
+            next_token_idx = int(np.argmax(pred_numpy))
             next_token = index_lookup.get(next_token_idx, "")
 
             if next_token == end_token:
@@ -154,7 +155,8 @@ class TextGenerator:
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
         image = dataloader.processor.load_image(image_path, as_array=True)
         image = dataloader.processor.image_normalization(image)
-        image = ops.expand_dims(image, axis=0)
+        # Use numpy for expand_dims to keep data on CPU
+        image = np.expand_dims(image, axis=0)
 
         # Initialize beam: (sequence, cumulative_log_prob)
         beams: list[tuple[list[int], float]] = [([start_token_idx], 0.0)]
@@ -173,8 +175,8 @@ class TextGenerator:
                     seq_input[0, j] = token
 
                 predictions = self.model.predict([image, seq_input], verbose=0)
-                # Use same indexing as greedy: predictions at position len(seq)-1
-                next_token_logits = predictions[0, len(seq) - 1, :]
+                # Convert to numpy to handle CUDA tensors
+                next_token_logits = ops.convert_to_numpy(predictions[0, len(seq) - 1, :])
 
                 log_probs = np.log(np.clip(next_token_logits, 1e-12, 1.0))
                 top_indices = np.argsort(log_probs)[-beam_width:][::-1]
