@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import {
-    FolderUp, FileSpreadsheet, Database, Sliders, BarChart2,
+    FolderUp, FileSpreadsheet, Database, Sliders,
     Loader, CheckCircle, AlertCircle
 } from 'lucide-react';
 import './DatasetPage.css';
@@ -288,100 +288,107 @@ export default function DatasetPage() {
                     </div>
                 </div>
 
-                {/* Row 2: Dataset Processing & Evaluation */}
-                <div className="layout-row row-processing-analysis">
-                    {/* Processing */}
+                {/* Row 2: Dataset Processing & Evaluation - Unified Section */}
+                <div className="layout-row">
                     <div className="section">
                         <div className="section-title">
                             <Sliders size={18} />
-                            <span>Dataset Processing</span>
+                            <span>Dataset Processing & Evaluation</span>
                         </div>
-                        <div className="config-grid">
-                            <div className="form-group">
-                                <label className="form-label">Sample Size (0-1)</label>
-                                <input
-                                    type="number"
-                                    step="0.05"
-                                    min="0.01"
-                                    max="1.0"
-                                    className="form-input"
-                                    value={state.config.sampleSize}
-                                    onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Val Split (0-1)</label>
-                                <input
-                                    type="number"
-                                    step="0.05"
-                                    max="1.0"
-                                    className="form-input"
-                                    value={state.config.validationSize}
-                                    onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Max Report Size</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={state.config.maxReportSize}
-                                    onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Tokenizer</label>
-                                <select
-                                    className="form-select"
-                                    value={state.config.tokenizer}
-                                    onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
-                                >
-                                    <option value="distilbert-base-uncased">distilbert-base-uncased</option>
-                                    <option value="bert-base-uncased">bert-base-uncased</option>
-                                    <option value="roberta-base">roberta-base</option>
-                                </select>
-                            </div>
-                            <div className="form-group span-4">
-                                <div className="build-dataset-row">
-                                    <span
-                                        className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
-                                        title={hasDatasets
-                                            ? `${state.datasetNames?.count} dataset(s) available`
-                                            : 'No datasets in database'
-                                        }
-                                    />
-                                    <select
-                                        className="form-select"
-                                        value={state.selectedDataset}
-                                        onChange={(e) => setSelectedDataset(e.target.value)}
-                                        disabled={!hasDatasets}
-                                        style={{ flex: 1 }}
-                                    >
-                                        {!hasDatasets && (
-                                            <option value="">No datasets available</option>
-                                        )}
-                                        {state.datasetNames?.dataset_names.map((name) => (
-                                            <option key={name} value={name}>{name}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        className="btn btn-primary"
-                                        onClick={handleBuildDataset}
-                                        disabled={state.isProcessing}
-                                        style={{ justifyContent: 'center' }}
-                                    >
-                                        {state.isProcessing ? (
-                                            <><Loader size={16} className="spin" /> Processing Dataset...</>
-                                        ) : (
-                                            <><Sliders size={16} /> Build Dataset</>
-                                        )}
-                                    </button>
-                                </div>
-                                {state.dbStatus?.has_data && !state.loadResult?.success && (
-                                    <div className="upload-status info" style={{ marginTop: '0.5rem' }}>
-                                        Using existing data: {state.dbStatus.row_count.toLocaleString()} records in database
-                                    </div>
+
+                        {/* Shared Dataset Selector Bar */}
+                        <div className="dataset-selector-bar">
+                            <span
+                                className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
+                                title={hasDatasets
+                                    ? `${state.datasetNames?.count} dataset(s) available`
+                                    : 'No datasets in database'
+                                }
+                            />
+                            <select
+                                className="form-select"
+                                value={state.selectedDataset}
+                                onChange={(e) => setSelectedDataset(e.target.value)}
+                                disabled={!hasDatasets}
+                                style={{ flex: 1 }}
+                            >
+                                {!hasDatasets && (
+                                    <option value="">No datasets available</option>
                                 )}
+                                {state.datasetNames?.dataset_names.map((name) => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
+                            {state.dbStatus?.has_data && !state.loadResult?.success && (
+                                <div className="upload-status info">
+                                    {state.dbStatus.row_count.toLocaleString()} records in database
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Two-Column Layout for Processing & Evaluation */}
+                        <div className="processing-evaluation-columns">
+                            {/* Processing Column */}
+                            <div className="processing-column">
+                                <div className="subsection-header">Processing</div>
+                                <div className="config-grid-compact">
+                                    <div className="form-group">
+                                        <label className="form-label">Sample Size (0-1)</label>
+                                        <input
+                                            type="number"
+                                            step="0.05"
+                                            min="0.01"
+                                            max="1.0"
+                                            className="form-input"
+                                            value={state.config.sampleSize}
+                                            onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Val Split (0-1)</label>
+                                        <input
+                                            type="number"
+                                            step="0.05"
+                                            max="1.0"
+                                            className="form-input"
+                                            value={state.config.validationSize}
+                                            onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Max Report Size</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={state.config.maxReportSize}
+                                            onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Tokenizer</label>
+                                        <select
+                                            className="form-select"
+                                            value={state.config.tokenizer}
+                                            onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
+                                        >
+                                            <option value="distilbert-base-uncased">distilbert-base-uncased</option>
+                                            <option value="bert-base-uncased">bert-base-uncased</option>
+                                            <option value="roberta-base">roberta-base</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleBuildDataset}
+                                    disabled={state.isProcessing}
+                                    style={{ marginTop: '0.75rem', justifyContent: 'center' }}
+                                >
+                                    {state.isProcessing ? (
+                                        <><Loader size={16} className="spin" /> Processing Dataset...</>
+                                    ) : (
+                                        <><Sliders size={16} /> Build Dataset</>
+                                    )}
+                                </button>
                                 {state.processingResult?.success && (
                                     <div className="upload-status success" style={{ marginTop: '0.5rem' }}>
                                         <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val samples
@@ -393,69 +400,64 @@ export default function DatasetPage() {
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Evaluation */}
-                    <div className="section">
-                        <div className="section-title">
-                            <BarChart2 size={18} />
-                            <span>Dataset Evaluation</span>
-                        </div>
-                        <div className="config-grid" style={{ gridTemplateColumns: '1fr' }}>
-                            <div className="form-group">
-                                <label className="form-label">Evaluation Sample (0-1)</label>
-                                <input
-                                    type="number"
-                                    step="0.05"
-                                    min="0.01"
-                                    max="1.0"
-                                    className="form-input"
-                                    value={state.config.evalSampleSize}
-                                    onChange={(e) => handleConfigChange('evalSampleSize', parseFloat(e.target.value))}
-                                />
+                            {/* Evaluation Column */}
+                            <div className="evaluation-column">
+                                <div className="subsection-header">Evaluation</div>
+                                <div className="form-group">
+                                    <label className="form-label">Eval Sample (0-1)</label>
+                                    <input
+                                        type="number"
+                                        step="0.05"
+                                        min="0.01"
+                                        max="1.0"
+                                        className="form-input"
+                                        value={state.config.evalSampleSize}
+                                        onChange={(e) => handleConfigChange('evalSampleSize', parseFloat(e.target.value))}
+                                    />
+                                </div>
+                                <div className="eval-checkboxes">
+                                    <label className="form-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={state.config.imgStats}
+                                            onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
+                                        />
+                                        <div className="checkbox-visual" />
+                                        <span className="checkbox-label">Image statistics</span>
+                                    </label>
+                                    <label className="form-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={state.config.textStats}
+                                            onChange={(e) => handleConfigChange('textStats', e.target.checked)}
+                                        />
+                                        <div className="checkbox-visual" />
+                                        <span className="checkbox-label">Text statistics</span>
+                                    </label>
+                                    <label className="form-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            checked={state.config.pixDist}
+                                            onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
+                                        />
+                                        <div className="checkbox-visual" />
+                                        <span className="checkbox-label">Pixel intensity dist.</span>
+                                    </label>
+                                </div>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ marginTop: '0.75rem' }}
+                                    onClick={handleViewEvaluation}
+                                    disabled={state.isValidating}
+                                >
+                                    {state.isValidating ? (
+                                        <><Loader size={14} className="spin" /> Validating...</>
+                                    ) : (
+                                        'View Evaluation'
+                                    )}
+                                </button>
                             </div>
-                            <div className="eval-checkboxes">
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={state.config.imgStats}
-                                        onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Image statistics</span>
-                                </label>
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={state.config.textStats}
-                                        onChange={(e) => handleConfigChange('textStats', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Text statistics</span>
-                                </label>
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={state.config.pixDist}
-                                        onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Pixel intensity dist.</span>
-                                </label>
-                            </div>
-                            <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ marginTop: '0.5rem' }}
-                                onClick={handleViewEvaluation}
-                                disabled={state.isValidating}
-                            >
-                                {state.isValidating ? (
-                                    <><Loader size={14} className="spin" /> Validating...</>
-                                ) : (
-                                    'View Evaluation'
-                                )}
-                            </button>
                         </div>
                     </div>
                 </div>
