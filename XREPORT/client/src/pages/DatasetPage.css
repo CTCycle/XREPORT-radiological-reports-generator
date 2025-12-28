@@ -92,6 +92,10 @@
     margin-bottom: 1rem;
 }
 
+.dataset-selector-bar .form-select {
+    max-width: 400px;
+}
+
 /* Two-Column Layout for Processing & Evaluation */
 .processing-evaluation-columns {
     display: grid;
@@ -103,6 +107,12 @@
 .evaluation-column {
     display: flex;
     flex-direction: column;
+    height: 100%;
+}
+
+.processing-column .btn,
+.evaluation-column .btn {
+    margin-top: auto;
 }
 
 .subsection-header {
@@ -118,6 +128,7 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 /* Upload Section Styles */

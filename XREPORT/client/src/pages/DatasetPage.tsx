@@ -381,7 +381,7 @@ export default function DatasetPage() {
                                     className="btn btn-primary"
                                     onClick={handleBuildDataset}
                                     disabled={state.isProcessing}
-                                    style={{ marginTop: '0.75rem', justifyContent: 'center' }}
+                                    style={{ justifyContent: 'center' }}
                                 >
                                     {state.isProcessing ? (
                                         <><Loader size={16} className="spin" /> Processing Dataset...</>
@@ -446,8 +446,8 @@ export default function DatasetPage() {
                                     </label>
                                 </div>
                                 <button
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ marginTop: '0.75rem' }}
+                                    className="btn btn-secondary"
+                                    style={{ justifyContent: 'center' }}
                                     onClick={handleViewEvaluation}
                                     disabled={state.isValidating}
                                 >
