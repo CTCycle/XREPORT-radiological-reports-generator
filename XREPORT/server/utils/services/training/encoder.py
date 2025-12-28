@@ -37,6 +37,12 @@ class BeitXRayImageEncoder(layers.Layer):
         )
         self.dense = layers.Dense(self.embedding_dims)
 
+    # build method for the custom layer
+    # -------------------------------------------------------------------------
+    def build(self, input_shape: Any) -> None:
+        self.dense.build(input_shape[:-1] + (768,))  # BEiT outputs 768-dim
+        super(BeitXRayImageEncoder, self).build(input_shape)
+
     # call method
     # -------------------------------------------------------------------------
     def call(self, inputs: Any, **kwargs) -> Any:

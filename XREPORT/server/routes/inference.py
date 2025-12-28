@@ -194,8 +194,8 @@ async def generate_reports(
 
         max_report_size = model_metadata.get("max_report_size", 200)
 
-        # Initialize generator
-        generator = TextGenerator(model, train_config, max_report_size)
+        # Initialize generator with model metadata (contains tokenizer info)
+        generator = TextGenerator(model, model_metadata, max_report_size)
 
         # Run generation in thread pool to not block event loop
         loop = asyncio.get_event_loop()
