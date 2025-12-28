@@ -102,8 +102,15 @@
 }
 
 @keyframes cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
 }
 
 .inference-header {
@@ -168,7 +175,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 /* Image Canvas Styles */
@@ -185,7 +192,7 @@
     transition: all 0.2s ease;
     background: var(--input-bg);
     padding: 2rem;
-    min-height: 300px;
+    min-height: 200px;
 }
 
 .image-dropzone:hover {
@@ -239,8 +246,9 @@
     justify-content: center;
     background: #1e293b;
     border-radius: 8px;
+    border-radius: 8px;
     overflow: hidden;
-    min-height: 300px;
+    min-height: 200px;
 }
 
 .image-display img {
