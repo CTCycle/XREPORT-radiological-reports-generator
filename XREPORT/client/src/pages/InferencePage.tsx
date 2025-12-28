@@ -221,6 +221,11 @@ export default function InferencePage() {
     return (
         <div className="inference-container">
             {/* Control Panel */}
+            <div className="inference-header">
+                <h1>Inference</h1>
+                <p>Generate radiological reports from X-ray scans using AI</p>
+            </div>
+
             <div className="inference-control-panel">
                 <div className="control-panel-content">
                     <div className="control-panel-item">
@@ -256,11 +261,6 @@ export default function InferencePage() {
                         </select>
                     </div>
                 </div>
-            </div>
-
-            <div className="inference-header">
-                <h1>Inference</h1>
-                <p>Generate radiological reports from X-ray scans using AI</p>
             </div>
 
             <div className="inference-main">
