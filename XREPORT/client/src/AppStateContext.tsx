@@ -4,6 +4,8 @@ import {
     DatasetProcessingConfig,
     TrainingPageState,
     TrainingConfig,
+    TrainingDashboardState,
+    ChartDataPoint,
     InferencePageState,
     GenerationMode,
     DatabaseBrowserPageState
@@ -73,12 +75,29 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     gpuId: 0
 };
 
+const DEFAULT_DASHBOARD_STATE: TrainingDashboardState = {
+    isTraining: false,
+    currentEpoch: 0,
+    totalEpochs: 0,
+    loss: 0,
+    valLoss: 0,
+    accuracy: 0,
+    valAccuracy: 0,
+    progressPercent: 0,
+    elapsedSeconds: 0,
+    chartData: [],
+    availableMetrics: [],
+    epochBoundaries: [],
+    shouldConnectWs: false
+};
+
 const DEFAULT_TRAINING_STATE: TrainingPageState = {
     config: DEFAULT_TRAINING_CONFIG,
     newSessionExpanded: true,
     resumeSessionExpanded: false,
     selectedCheckpoint: '',
-    additionalEpochs: 50
+    additionalEpochs: 50,
+    dashboardState: DEFAULT_DASHBOARD_STATE
 };
 
 const DEFAULT_INFERENCE_STATE: InferencePageState = {
@@ -302,13 +321,54 @@ export function useTrainingPageState() {
         setTrainingPageState(prev => ({ ...prev, additionalEpochs: epochs }));
     }, [setTrainingPageState]);
 
+    // Dashboard state setters
+    const setDashboardState = useCallback((updater: Partial<TrainingDashboardState> | ((prev: TrainingDashboardState) => TrainingDashboardState)) => {
+        setTrainingPageState(prev => ({
+            ...prev,
+            dashboardState: typeof updater === 'function' ? updater(prev.dashboardState) : { ...prev.dashboardState, ...updater }
+        }));
+    }, [setTrainingPageState]);
+
+    const setShouldConnectWs = useCallback((shouldConnect: boolean) => {
+        setTrainingPageState(prev => ({
+            ...prev,
+            dashboardState: { ...prev.dashboardState, shouldConnectWs: shouldConnect }
+        }));
+    }, [setTrainingPageState]);
+
+    const setChartData = useCallback((chartData: ChartDataPoint[]) => {
+        setTrainingPageState(prev => ({
+            ...prev,
+            dashboardState: { ...prev.dashboardState, chartData }
+        }));
+    }, [setTrainingPageState]);
+
+    const setAvailableMetrics = useCallback((availableMetrics: string[]) => {
+        setTrainingPageState(prev => ({
+            ...prev,
+            dashboardState: { ...prev.dashboardState, availableMetrics }
+        }));
+    }, [setTrainingPageState]);
+
+    const setEpochBoundaries = useCallback((epochBoundaries: number[]) => {
+        setTrainingPageState(prev => ({
+            ...prev,
+            dashboardState: { ...prev.dashboardState, epochBoundaries }
+        }));
+    }, [setTrainingPageState]);
+
     return {
         state: trainingPageState,
         updateConfig,
         setNewSessionExpanded,
         setResumeSessionExpanded,
         setSelectedCheckpoint,
-        setAdditionalEpochs
+        setAdditionalEpochs,
+        setDashboardState,
+        setShouldConnectWs,
+        setChartData,
+        setAvailableMetrics,
+        setEpochBoundaries
     };
 }
 

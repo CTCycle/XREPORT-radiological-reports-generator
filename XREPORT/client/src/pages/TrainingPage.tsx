@@ -22,13 +22,17 @@ export default function TrainingPage() {
         setNewSessionExpanded,
         setResumeSessionExpanded,
         setSelectedCheckpoint,
-        setAdditionalEpochs
+        setAdditionalEpochs,
+        setDashboardState,
+        setShouldConnectWs,
+        setChartData,
+        setAvailableMetrics,
+        setEpochBoundaries
     } = useTrainingPageState();
 
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [shouldConnectWs, setShouldConnectWs] = useState(false);
 
     // Check if training is in progress on mount and auto-connect WebSocket if so
     useEffect(() => {
@@ -466,7 +470,15 @@ export default function TrainingPage() {
             </div>
 
             {/* Training Dashboard */}
-            <TrainingDashboard onStopTraining={handleStopTraining} shouldConnect={shouldConnectWs} />
+            <TrainingDashboard
+                onStopTraining={handleStopTraining}
+                shouldConnect={state.dashboardState.shouldConnectWs}
+                dashboardState={state.dashboardState}
+                onDashboardStateChange={setDashboardState}
+                onChartDataChange={setChartData}
+                onAvailableMetricsChange={setAvailableMetrics}
+                onEpochBoundariesChange={setEpochBoundaries}
+            />
         </div>
     );
 }
