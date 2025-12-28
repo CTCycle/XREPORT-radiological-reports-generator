@@ -67,12 +67,38 @@ export interface TrainingConfig {
     gpuId: number;
 }
 
+export interface ChartDataPoint {
+    batch: number;
+    loss?: number;
+    val_loss?: number;
+    MaskedAccuracy?: number;
+    val_MaskedAccuracy?: number;
+    [key: string]: number | undefined;
+}
+
+export interface TrainingDashboardState {
+    isTraining: boolean;
+    currentEpoch: number;
+    totalEpochs: number;
+    loss: number;
+    valLoss: number;
+    accuracy: number;
+    valAccuracy: number;
+    progressPercent: number;
+    elapsedSeconds: number;
+    chartData: ChartDataPoint[];
+    availableMetrics: string[];
+    epochBoundaries: number[];
+    shouldConnectWs: boolean;
+}
+
 export interface TrainingPageState {
     config: TrainingConfig;
     newSessionExpanded: boolean;
     resumeSessionExpanded: boolean;
     selectedCheckpoint: string;
     additionalEpochs: number;
+    dashboardState: TrainingDashboardState;
 }
 
 // ============================================================================

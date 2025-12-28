@@ -12,31 +12,16 @@ import {
     ReferenceLine,
 } from 'recharts';
 import './TrainingDashboard.css';
-
-export interface TrainingMetrics {
-    isTraining: boolean;
-    currentEpoch: number;
-    totalEpochs: number;
-    loss: number;
-    valLoss: number;
-    accuracy: number;
-    valAccuracy: number;
-    progressPercent: number;
-    elapsedSeconds: number;
-}
-
-interface ChartDataPoint {
-    batch: number;
-    loss?: number;
-    val_loss?: number;
-    MaskedAccuracy?: number;
-    val_MaskedAccuracy?: number;
-    [key: string]: number | undefined;
-}
+import { TrainingDashboardState, ChartDataPoint } from '../types';
 
 interface TrainingDashboardProps {
     onStopTraining?: () => void;
     shouldConnect?: boolean;
+    dashboardState: TrainingDashboardState;
+    onDashboardStateChange: (updater: Partial<TrainingDashboardState> | ((prev: TrainingDashboardState) => TrainingDashboardState)) => void;
+    onChartDataChange: (chartData: ChartDataPoint[]) => void;
+    onAvailableMetricsChange: (metrics: string[]) => void;
+    onEpochBoundariesChange: (boundaries: number[]) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -62,22 +47,30 @@ const CHART_COLORS = {
     val_accuracy: '#4ade80',
 };
 
-export default function TrainingDashboard({ onStopTraining, shouldConnect = false }: TrainingDashboardProps) {
-    const [metrics, setMetrics] = useState<TrainingMetrics>({
-        isTraining: false,
-        currentEpoch: 0,
-        totalEpochs: 0,
-        loss: 0,
-        valLoss: 0,
-        accuracy: 0,
-        valAccuracy: 0,
-        progressPercent: 0,
-        elapsedSeconds: 0,
-    });
+export default function TrainingDashboard({
+    onStopTraining,
+    shouldConnect = false,
+    dashboardState,
+    onDashboardStateChange,
+    onChartDataChange,
+    onAvailableMetricsChange,
+    onEpochBoundariesChange
+}: TrainingDashboardProps) {
+    // Extract state from props
+    const { chartData, availableMetrics, epochBoundaries } = dashboardState;
+    const metrics = {
+        isTraining: dashboardState.isTraining,
+        currentEpoch: dashboardState.currentEpoch,
+        totalEpochs: dashboardState.totalEpochs,
+        loss: dashboardState.loss,
+        valLoss: dashboardState.valLoss,
+        accuracy: dashboardState.accuracy,
+        valAccuracy: dashboardState.valAccuracy,
+        progressPercent: dashboardState.progressPercent,
+        elapsedSeconds: dashboardState.elapsedSeconds,
+    };
+
     const [connected, setConnected] = useState(false);
-    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-    const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
-    const [epochBoundaries, setEpochBoundaries] = useState<number[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<number | null>(null);
 
@@ -102,7 +95,7 @@ export default function TrainingDashboard({ onStopTraining, shouldConnect = fals
                 const data = JSON.parse(event.data);
 
                 if (data.type === 'training_update') {
-                    setMetrics({
+                    onDashboardStateChange({
                         isTraining: true,
                         currentEpoch: data.epoch || 0,
                         totalEpochs: data.total_epochs || 0,
@@ -114,24 +107,24 @@ export default function TrainingDashboard({ onStopTraining, shouldConnect = fals
                         elapsedSeconds: data.elapsed_seconds || 0,
                     });
                 } else if (data.type === 'training_started' || data.type === 'training_resumed') {
-                    setMetrics(prev => ({
+                    onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: true,
                         totalEpochs: data.total_epochs || prev.totalEpochs,
                     }));
                     // Clear chart data on new training session
                     if (data.type === 'training_started') {
-                        setChartData([]);
-                        setAvailableMetrics([]);
+                        onChartDataChange([]);
+                        onAvailableMetricsChange([]);
                     }
                 } else if (data.type === 'training_completed' || data.type === 'training_error') {
-                    setMetrics(prev => ({
+                    onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: false,
                         progressPercent: data.type === 'training_completed' ? 100 : prev.progressPercent,
                     }));
                 } else if (data.type === 'connection_established') {
-                    setMetrics(prev => ({
+                    onDashboardStateChange(prev => ({
                         ...prev,
                         isTraining: data.is_training || false,
                         currentEpoch: data.current_epoch || 0,
@@ -146,12 +139,12 @@ export default function TrainingDashboard({ onStopTraining, shouldConnect = fals
                 } else if (data.type === 'ping') {
                     ws.send(JSON.stringify({ type: 'pong' }));
                 } else if (data.type === 'training_plot' && data.chart_data) {
-                    setChartData(data.chart_data);
+                    onChartDataChange(data.chart_data);
                     if (data.metrics) {
-                        setAvailableMetrics(data.metrics);
+                        onAvailableMetricsChange(data.metrics);
                     }
                     if (data.epoch_boundaries) {
-                        setEpochBoundaries(data.epoch_boundaries);
+                        onEpochBoundariesChange(data.epoch_boundaries);
                     }
                 }
             } catch (e) {
@@ -173,7 +166,7 @@ export default function TrainingDashboard({ onStopTraining, shouldConnect = fals
         ws.onerror = (error) => {
             console.error('Training WebSocket error:', error);
         };
-    }, []);
+    }, [onDashboardStateChange, onChartDataChange, onAvailableMetricsChange, onEpochBoundariesChange]);
 
     useEffect(() => {
         // Only connect WebSocket when shouldConnect is true
