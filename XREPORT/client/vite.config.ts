@@ -20,6 +20,12 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api/, ''),
             },
+            '/api/inference/ws': {
+                target: apiTarget.replace('http', 'ws'),
+                ws: true,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
             '/api': {
                 target: apiTarget,
                 changeOrigin: true,
@@ -33,6 +39,12 @@ export default defineConfig({
         strictPort: false,
         proxy: {
             '/api/training/ws': {
+                target: apiTarget.replace('http', 'ws'),
+                ws: true,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
+            '/api/inference/ws': {
                 target: apiTarget.replace('http', 'ws'),
                 ws: true,
                 changeOrigin: true,

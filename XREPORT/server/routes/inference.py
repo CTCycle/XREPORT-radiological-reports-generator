@@ -57,7 +57,11 @@ class GenerationResponse(BaseModel):
 # -----------------------------------------------------------------------------
 def broadcast_inference_message(message: dict[str, Any]) -> None:
     global main_event_loop
-    if main_event_loop is None or len(inference_connections) == 0:
+    if main_event_loop is None:
+        logger.warning("No event loop available for WebSocket broadcast")
+        return
+    if len(inference_connections) == 0:
+        logger.warning("No WebSocket connections to broadcast to")
         return
 
     async def send_to_all() -> None:
@@ -78,6 +82,7 @@ def broadcast_inference_message(message: dict[str, Any]) -> None:
 def sync_stream_callback(
     image_idx: int, token: str, step: int, total: int
 ) -> None:
+    logger.debug(f"Streaming token {step}/{total}: {token}")
     broadcast_inference_message({
         "type": "token",
         "image_index": image_idx,
