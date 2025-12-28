@@ -166,6 +166,10 @@ class RealTimeMetricsCallback(Callback):
         self.last_val_loss = 0.0
         self.last_val_accuracy = 0.0
         
+        # Track available metrics from batch logs (for chart rendering before epoch ends)
+        self.available_batch_metrics: set[str] = set()
+
+        
         # Restore past history if available
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
@@ -215,15 +219,20 @@ class RealTimeMetricsCallback(Callback):
         # Create data point with cumulative batch index for X-axis
         point = {"batch": self.global_batch_index}
         
-        # Add training metrics from batch logs
+        # Add training metrics from batch logs and track available metrics
         for key, value in logs.items():
             point[key] = float(value)
+            self.available_batch_metrics.add(key)
         
         # Include last known validation metrics  
         point["val_loss"] = self.last_val_loss
         point["val_MaskedAccuracy"] = self.last_val_accuracy
+        # Track validation metrics as available too
+        self.available_batch_metrics.add("val_loss")
+        self.available_batch_metrics.add("val_MaskedAccuracy")
         
         self.batch_history.append(point)
+
         
         # Only send WebSocket update if enough time has passed
         if time_elapsed:
@@ -314,13 +323,16 @@ class RealTimeMetricsCallback(Callback):
     # -------------------------------------------------------------------------
     def send_plot_update(self) -> None:
         if self.websocket_callback is not None:
-             self.websocket_callback({
+            # Combine metrics from epoch history and batch logs
+            all_metrics = set(self.history["history"].keys()) | self.available_batch_metrics
+            self.websocket_callback({
                 "type": "training_plot",
                 "chart_data": self.batch_history,
-                "metrics": list(self.history["history"].keys()),
+                "metrics": list(all_metrics),
                 "epochs": self.history["epochs"],
                 "epoch_boundaries": self.epoch_boundaries,
             })
+
 
 
 ###############################################################################
