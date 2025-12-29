@@ -4,9 +4,10 @@
     max-width: 1600px;
     margin: 0 auto;
     font-family: 'Inter', system-ui, sans-serif;
-    height: calc(100vh - 4rem);
+    min-height: calc(100vh - 4rem);
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 
 /* Control Panel */
@@ -135,8 +136,7 @@
     display: grid;
     grid-template-columns: 1fr 180px 1fr;
     gap: 1.5rem;
-    flex: 1;
-    min-height: 0;
+    min-height: 400px;
 }
 
 /* Panel Base Styles */
@@ -619,5 +619,386 @@
             opacity: 1;
             transform: translateY(-4px);
         }
+    }
+}
+
+/* ============================================================================
+   Validation Section Styles
+   ============================================================================ */
+
+.validation-section {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Vertical Flow Arrow */
+.validation-flow-connector {
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem 0;
+}
+
+.validation-flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.validation-flow-arrow svg {
+    color: var(--accent-color);
+    animation: pulse-arrow-down 2s ease-in-out infinite;
+}
+
+.validation-flow-arrow svg:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.validation-flow-arrow svg:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+@keyframes pulse-arrow-down {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: translateY(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateY(4px);
+    }
+}
+
+/* Validation Panel */
+.validation-panel {
+    width: 100%;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.validation-panel-content {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    padding: 1.25rem;
+}
+
+/* Metrics Selection */
+.metrics-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.metrics-selection h3,
+.validation-dashboard h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.metric-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.metric-toggle-row:hover {
+    border-color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.03);
+}
+
+.metric-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.metric-info svg {
+    color: var(--accent-color);
+}
+
+.metric-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.metric-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: 0.25rem;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.3s;
+    border-radius: 26px;
+}
+
+.toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+    transform: translateX(22px);
+}
+
+.toggle-switch input:disabled+.toggle-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* BLEU Samples Config */
+.bleu-samples-config {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: var(--input-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.bleu-samples-config label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.bleu-samples-config input[type="number"] {
+    width: 70px;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.bleu-samples-config input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Evaluate Button */
+.btn-evaluate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+    margin-top: 1rem;
+}
+
+.btn-evaluate:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}
+
+.btn-evaluate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-evaluate.evaluating {
+    animation: pulse-button-eval 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-button-eval {
+
+    0%,
+    100% {
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+    }
+
+    50% {
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+    }
+}
+
+/* Validation Dashboard */
+.validation-dashboard {
+    display: flex;
+    flex-direction: column;
+}
+
+.evaluation-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.metric-cards {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.metric-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    min-width: 160px;
+    transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.metric-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 10px;
+    color: var(--accent-color);
+}
+
+.metric-icon.accuracy {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.metric-icon.bleu {
+    background: rgba(168, 85, 247, 0.1);
+    color: #a855f7;
+}
+
+.metric-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dashboard-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    background: var(--input-bg);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.dashboard-empty svg {
+    opacity: 0.4;
+}
+
+.dashboard-empty p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .validation-panel-content {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-cards {
+        flex-direction: column;
+    }
+
+    .metric-card {
+        min-width: 100%;
     }
 }

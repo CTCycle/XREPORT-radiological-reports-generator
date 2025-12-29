@@ -122,6 +122,19 @@ export interface InferencePageState {
     // Streaming state
     streamingTokens: string;
     currentStreamingIndex: number;
+    // Validation state
+    validationMetrics: {
+        evaluationReport: boolean;
+        bleuScore: boolean;
+    };
+    numBleuSamples: number;
+    isEvaluating: boolean;
+    evaluationResults: {
+        loss?: number;
+        accuracy?: number;
+        bleuScore?: number;
+    } | null;
+    evaluationError: string | null;
 }
 
 // ============================================================================
