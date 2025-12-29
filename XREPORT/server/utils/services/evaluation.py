@@ -12,14 +12,14 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
+from torch.utils.data import DataLoader
 
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.services.inference import TextGenerator
 
-
+###############################################################################
 class CheckpointEvaluator:
     """Evaluates checkpoint quality using loss, accuracy, and BLEU score metrics."""
 
@@ -34,14 +34,13 @@ class CheckpointEvaluator:
         self.model_metadata = model_metadata
         self.max_report_size = model_metadata.get("max_report_size", 200)
 
-    def evaluate_model(
-        self, validation_dataset: tf.data.Dataset
-    ) -> dict[str, float]:
+    # -------------------------------------------------------------------------
+    def evaluate_model(self, validation_dataset: DataLoader) -> dict[str, float]:
         """
         Run model.evaluate() to get loss and accuracy metrics.
         
         Args:
-            validation_dataset: TensorFlow dataset for validation
+            validation_dataset: Torch DataLoader for validation
             
         Returns:
             Dictionary with 'loss' and 'accuracy' values
@@ -68,6 +67,7 @@ class CheckpointEvaluator:
             logger.error(f"Model evaluation failed: {e}")
             raise
 
+    # -------------------------------------------------------------------------
     def calculate_bleu_score(
         self,
         validation_data: pd.DataFrame,
