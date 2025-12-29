@@ -20,9 +20,8 @@ class DataLoaderProcessor:
         self.augmentation = configuration.get("use_img_augmentation", False)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
-        self.color_encoding = (
-            cv2.COLOR_BGR2RGB if self.num_channels == 3 else cv2.COLOR_BGR2GRAY
-        )
+        self.color_encoding = cv2.COLOR_BGR2RGB
+        self.rng = np.random.default_rng(seed=42)
 
         handler = TokenizerHandler(configuration)
         self.pad_token = handler.pad_token
@@ -72,18 +71,18 @@ class DataLoaderProcessor:
 
     # -------------------------------------------------------------------------
     def image_augmentation(self, image: np.ndarray) -> np.ndarray:
-        if np.random.rand() <= 0.5:
+        if self.rng.random() <= 0.5:
             image = np.fliplr(image)
 
-        if np.random.rand() <= 0.5:
+        if self.rng.random() <= 0.5:
             image = np.flipud(image)
 
-        if np.random.rand() <= 0.25:
-            brightness_delta = np.random.uniform(-0.2, 0.2)
+        if self.rng.random() <= 0.25:
+            brightness_delta = self.rng.uniform(-0.2, 0.2)
             image = np.clip(image + brightness_delta, 0.0, 255.0)
 
-        if np.random.rand() <= 0.35:
-            contrast_factor = np.random.uniform(0.7, 1.3)
+        if self.rng.random() <= 0.35:
+            contrast_factor = self.rng.uniform(0.7, 1.3)
             mean = np.mean(image, axis=(0, 1), keepdims=True)
             image = np.clip((image - mean) * contrast_factor + mean, 0.0, 255.0)
 
