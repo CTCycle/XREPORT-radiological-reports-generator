@@ -56,3 +56,33 @@ class ValidationResponse(BaseModel):
     pixel_distribution: PixelDistribution | None = None
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
+
+
+###############################################################################
+class CheckpointEvaluationRequest(BaseModel):
+    """Request model for checkpoint evaluation."""
+    
+    checkpoint: str
+    metrics: list[str]  # ["evaluation_report", "bleu_score"]
+    num_samples: int = 10  # Number of samples for BLEU calculation
+    
+    model_config = ConfigDict(extra="forbid")
+
+
+###############################################################################
+class CheckpointEvaluationResults(BaseModel):
+    """Evaluation metric results."""
+    
+    loss: float | None = None
+    accuracy: float | None = None
+    bleu_score: float | None = None
+
+
+###############################################################################
+class CheckpointEvaluationResponse(BaseModel):
+    """Response model for checkpoint evaluation."""
+    
+    success: bool
+    message: str
+    results: CheckpointEvaluationResults | None = None
+
