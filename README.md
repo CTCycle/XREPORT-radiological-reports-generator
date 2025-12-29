@@ -119,8 +119,7 @@ Environmental variables reside in `XREPORT/setup/.env`. Copy the template from `
 
 | Variable              | Description                                                               |
 |-----------------------|---------------------------------------------------------------------------|
-| KERAS_BACKEND         | Backend for Keras 3; keep `torch` unless you explicitly need TensorFlow.  |
-| TF_CPP_MIN_LOG_LEVEL  | Controls TensorFlow logging verbosity (set to `2` to suppress INFO logs). |
+| KERAS_BACKEND         | Backend for Keras 3; keep `torch` for this project.                       |
 | MPLBACKEND            | Matplotlib backend; `Agg` keeps plotting headless for worker threads.     |
 
 ## 5. License
