@@ -5,7 +5,7 @@ from typing import Any
 import cv2
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+from torch.utils.data import DataLoader, Dataset
 
 from XREPORT.server.utils.services.training.processing import TokenizerHandler
 
@@ -29,73 +29,94 @@ class DataLoaderProcessor:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def load_image(self, path: str, as_array: bool = False) -> np.ndarray | tf.Tensor:
+    def load_image(self, path: str, as_array: bool = False) -> np.ndarray:
+        image = cv2.imread(path)
+        image = cv2.cvtColor(image, self.color_encoding)
+        image = cv2.resize(image, self.img_shape)
         if as_array:
-            image = cv2.imread(path)
-            image = cv2.cvtColor(image, self.color_encoding)
-            image = np.asarray(cv2.resize(image, self.img_shape), dtype=np.float32)
+            image = np.asarray(image, dtype=np.float32)
         else:
-            image = tf.io.read_file(path)
-            image = tf.image.decode_image(
-                image, channels=self.num_channels, expand_animations=False
-            )
-            image = tf.image.resize(image, self.img_shape)
+            image = image.astype(np.float32)
 
         return image
 
     # -------------------------------------------------------------------------
     def load_data_for_training(
-        self, path: str, text: str
-    ) -> tuple[tuple[np.ndarray | tf.Tensor, str], str]:
+        self, path: str, text: list[int] | np.ndarray
+    ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray]:
         rgb_image = self.load_image(path)
         rgb_image = (
             self.image_augmentation(rgb_image) if self.augmentation else rgb_image
         )
         rgb_image = self.image_normalization(rgb_image)
 
-        input_text = text[:-1]
-        output_text = text[1:]
+        token_array = np.asarray(text, dtype=np.int32)
+        input_text = token_array[:-1]
+        output_text = token_array[1:]
 
         return (rgb_image, input_text), output_text
 
     # -------------------------------------------------------------------------
-    def load_data_for_inference(self, path: str) -> np.ndarray | tf.Tensor:
+    def load_data_for_inference(self, path: str) -> np.ndarray:
         rgb_image = self.load_image(path)
         rgb_image = self.image_normalization(rgb_image)
 
         return rgb_image
 
     # -------------------------------------------------------------------------
-    def image_normalization(
-        self, image: np.ndarray | tf.Tensor
-    ) -> np.ndarray | tf.Tensor:
+    def image_normalization(self, image: np.ndarray) -> np.ndarray:
         normalized_image = image / 255.0
         normalized_image = (normalized_image - self.image_mean) / self.image_std
 
         return normalized_image
 
     # -------------------------------------------------------------------------
-    def image_augmentation(
-        self, image: np.ndarray | tf.Tensor
-    ) -> np.ndarray | tf.Tensor:
-        augmentations = {
-            "flip_left_right": (lambda img: tf.image.random_flip_left_right(img), 0.5),
-            "flip_up_down": (lambda img: tf.image.random_flip_up_down(img), 0.5),
-            "brightness": (
-                lambda img: tf.image.random_brightness(img, max_delta=0.2),
-                0.25,
-            ),
-            "contrast": (
-                lambda img: tf.image.random_contrast(img, lower=0.7, upper=1.3),
-                0.35,
-            ),
-        }
+    def image_augmentation(self, image: np.ndarray) -> np.ndarray:
+        if np.random.rand() <= 0.5:
+            image = np.fliplr(image)
 
-        for _, (func, prob) in augmentations.items():
-            if np.random.rand() <= prob:
-                image = func(image)
+        if np.random.rand() <= 0.5:
+            image = np.flipud(image)
+
+        if np.random.rand() <= 0.25:
+            brightness_delta = np.random.uniform(-0.2, 0.2)
+            image = np.clip(image + brightness_delta, 0.0, 255.0)
+
+        if np.random.rand() <= 0.35:
+            contrast_factor = np.random.uniform(0.7, 1.3)
+            mean = np.mean(image, axis=(0, 1), keepdims=True)
+            image = np.clip((image - mean) * contrast_factor + mean, 0.0, 255.0)
 
         return image
+
+
+###############################################################################
+class XRAYDataset(Dataset):
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        processor: DataLoaderProcessor,
+        training: bool,
+    ) -> None:
+        self.paths = data["path"].to_list()
+        self.tokens = data["tokens"].to_list()
+        self.processor = processor
+        self.training = training
+
+    # -------------------------------------------------------------------------
+    def __len__(self) -> int:
+        return len(self.paths)
+
+    # -------------------------------------------------------------------------
+    def __getitem__(
+        self, index: int
+    ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray] | np.ndarray:
+        path = self.paths[index]
+        tokens = self.tokens[index]
+        if self.training:
+            return self.processor.load_data_for_training(path, tokens)
+
+        return self.processor.load_data_for_inference(path)
 
 
 ###############################################################################
@@ -104,28 +125,32 @@ class XRAYDataLoader:
         self.processor = DataLoaderProcessor(configuration)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
-        self.shuffle_samples = configuration.get("shuffle_size", 1024)
-        self.buffer_size = tf.data.AUTOTUNE
+        self.num_workers = configuration.get("dataloader_workers", 0)
+        self.prefetch_factor = configuration.get("prefetch_factor", 2)
+        self.pin_memory = configuration.get(
+            "pin_memory", configuration.get("use_device_GPU", False)
+        )
+        self.persistent_workers = configuration.get("persistent_workers", True)
         self.configuration = configuration
         self.shuffle = shuffle
 
     # -------------------------------------------------------------------------
     def build_training_dataloader(
         self, data: pd.DataFrame, batch_size: int | None = None
-    ) -> tf.data.Dataset:
-        images, tokens = data["path"].to_list(), data["tokens"].to_list()
+    ) -> DataLoader:
         batch_size = self.batch_size if batch_size is None else batch_size
-        dataset = tf.data.Dataset.from_tensor_slices((images, tokens))
-        dataset = dataset.map(
-            self.processor.load_data_for_training, num_parallel_calls=self.buffer_size
-        )
-        dataset = dataset.batch(batch_size)
-        dataset = dataset.prefetch(buffer_size=self.buffer_size)
-        dataset = (
-            dataset.shuffle(buffer_size=self.shuffle_samples)
-            if self.shuffle
-            else dataset
-        )
+        dataset = XRAYDataset(data, self.processor, training=True)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": self.shuffle,
+            "num_workers": self.num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+        if self.num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+        dataset = DataLoader(dataset, **loader_settings)
 
         return dataset
 
@@ -134,15 +159,21 @@ class XRAYDataLoader:
         self,
         data: pd.DataFrame,
         batch_size: int | None = None,
-        buffer_size: int = tf.data.AUTOTUNE,
-    ) -> tf.data.Dataset:
-        images, tokens = data["path"].to_list(), data["tokens"].to_list()
+        buffer_size: int | None = None,
+    ) -> DataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
-        dataset = tf.data.Dataset.from_tensor_slices((images, tokens))
-        dataset = dataset.map(
-            self.processor.load_data_for_inference, num_parallel_calls=buffer_size
-        )
-        dataset = dataset.batch(batch_size)
-        dataset = dataset.prefetch(buffer_size=buffer_size)
+        num_workers = self.num_workers if buffer_size is None else buffer_size
+        dataset = XRAYDataset(data, self.processor, training=False)
+        loader_settings: dict[str, Any] = {
+            "batch_size": batch_size,
+            "shuffle": False,
+            "num_workers": num_workers,
+            "pin_memory": self.pin_memory,
+            "drop_last": False,
+        }
+        if num_workers > 0:
+            loader_settings["prefetch_factor"] = self.prefetch_factor
+            loader_settings["persistent_workers"] = self.persistent_workers
+        dataset = DataLoader(dataset, **loader_settings)
 
         return dataset
