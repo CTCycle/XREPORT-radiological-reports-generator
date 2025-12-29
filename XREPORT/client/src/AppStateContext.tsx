@@ -439,10 +439,29 @@ export function useInferencePageState() {
     }, [setInferencePageState]);
 
     const appendStreamingToken = useCallback((token: string) => {
-        setInferencePageState(prev => ({
-            ...prev,
-            streamingTokens: prev.streamingTokens + token
-        }));
+        setInferencePageState(prev => {
+            if (!token) return prev;
+
+            let newTokens = prev.streamingTokens;
+
+            // Handle WordPiece subword tokens (## prefix means continuation of previous word)
+            if (token.startsWith('##')) {
+                // Subword: append without space, removing ## prefix
+                newTokens = newTokens + token.slice(2);
+            } else {
+                // Regular token: add space before (unless first token or after newline)
+                if (newTokens.length > 0 && !newTokens.endsWith('\n') && !newTokens.endsWith(' ')) {
+                    newTokens = newTokens + ' ' + token;
+                } else {
+                    newTokens = newTokens + token;
+                }
+            }
+
+            return {
+                ...prev,
+                streamingTokens: newTokens
+            };
+        });
     }, [setInferencePageState]);
 
     const setCurrentStreamingIndex = useCallback((index: number) => {
