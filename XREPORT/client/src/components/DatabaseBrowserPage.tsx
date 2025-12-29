@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { RefreshCcw, Database as DatabaseIcon } from 'lucide-react';
 import './DatabaseBrowserPage.css';
 import { fetchBrowseConfig, fetchTableData, fetchTableList } from '../services/databaseBrowser';
@@ -8,55 +8,69 @@ const DEFAULT_BATCH_SIZE = 200;
 
 export default function DatabaseBrowserPage() {
     const { state, setState } = useDatabaseBrowserState();
-
-    const pageIndex = useMemo(() => Math.floor(state.offset / state.limit), [state.offset, state.limit]);
-    const pageStart = useMemo(() => (state.rowCount === 0 ? 0 : state.offset + 1), [state.offset, state.rowCount]);
-    const pageEnd = useMemo(
-        () => Math.min(state.offset + state.rows.length, state.rowCount),
-        [state.offset, state.rows.length, state.rowCount],
-    );
-
-    const canGoPrevious = useMemo(() => state.offset > 0 && !state.loading, [state.offset, state.loading]);
-    const canGoNext = useMemo(
-        () => state.offset + state.limit < state.rowCount && !state.loading,
-        [state.offset, state.limit, state.rowCount, state.loading],
-    );
+    const sentinelRef = useRef<HTMLDivElement>(null);
+    const tableScrollRef = useRef<HTMLDivElement>(null);
 
     const loadTableData = useCallback(
-        async (tableName: string, limit: number, offset: number) => {
+        async (tableName: string, limit: number, offset: number, append = false) => {
             if (!tableName) return;
-            setState(prev => ({ ...prev, selectedTable: tableName, limit, offset, loading: true, error: null }));
-            const { result, error } = await fetchTableData(tableName, limit, offset);
-            if (error || !result) {
+
+            if (append) {
+                setState(prev => ({ ...prev, loadingMore: true, error: null }));
+            } else {
                 setState(prev => ({
                     ...prev,
                     selectedTable: tableName,
+                    limit,
+                    offset: 0,
+                    loading: true,
+                    error: null,
                     rows: [],
-                    columns: [],
-                    rowCount: 0,
-                    columnCount: 0,
-                    displayName: '',
+                    hasMore: true
+                }));
+            }
+
+            const { result, error } = await fetchTableData(tableName, limit, offset);
+
+            if (error || !result) {
+                setState(prev => ({
+                    ...prev,
                     loading: false,
-                    dataLoaded: true,
-                    error: error ?? 'Unable to load table.',
+                    loadingMore: false,
+                    error: error ?? 'Unable to load table.'
                 }));
                 return;
             }
-            setState(prev => ({
-                ...prev,
-                selectedTable: tableName,
-                rows: result.data,
-                columns: result.columns,
-                rowCount: result.row_count,
-                columnCount: result.column_count,
-                displayName: result.display_name,
-                loading: false,
-                dataLoaded: true,
-                error: null,
-            }));
+
+            setState(prev => {
+                const newRows = append ? [...prev.rows, ...result.data] : result.data;
+                const newOffset = newRows.length;
+                const hasMore = newRows.length < result.row_count;
+
+                return {
+                    ...prev,
+                    selectedTable: tableName,
+                    rows: newRows,
+                    columns: result.columns,
+                    rowCount: result.row_count,
+                    columnCount: result.column_count,
+                    displayName: result.display_name,
+                    offset: newOffset,
+                    loading: false,
+                    loadingMore: false,
+                    dataLoaded: true,
+                    hasMore,
+                    error: null
+                };
+            });
         },
         [setState],
     );
+
+    const loadMore = useCallback(() => {
+        if (state.loadingMore || state.loading || !state.hasMore || !state.selectedTable) return;
+        loadTableData(state.selectedTable, state.limit, state.offset, true);
+    }, [state.loadingMore, state.loading, state.hasMore, state.selectedTable, state.limit, state.offset, loadTableData]);
 
     // Load tables list and config on mount (but NOT data)
     useEffect(() => {
@@ -86,27 +100,45 @@ export default function DatabaseBrowserPage() {
         void loadTablesAndConfig();
     }, [state.tablesLoaded, setState]);
 
+    // Intersection Observer for infinite scroll
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel || !state.dataLoaded) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && state.hasMore && !state.loadingMore && !state.loading) {
+                    loadMore();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [state.dataLoaded, state.hasMore, state.loadingMore, state.loading, loadMore]);
+
     const onTableChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const tableName = event.target.value;
-        // Rule 2: selecting a table always fetches data
+        // Reset scroll position when changing tables
+        if (tableScrollRef.current) {
+            tableScrollRef.current.scrollTop = 0;
+        }
+        // Selecting a table always fetches data from the start
         void loadTableData(tableName, state.limit, 0);
     };
 
     const refresh = () => {
         if (state.selectedTable) {
-            void loadTableData(state.selectedTable, state.limit, state.offset);
+            // Reset scroll position on refresh
+            if (tableScrollRef.current) {
+                tableScrollRef.current.scrollTop = 0;
+            }
+            void loadTableData(state.selectedTable, state.limit, 0);
         }
     };
 
-    const goPrevious = () => {
-        const nextOffset = Math.max(0, state.offset - state.limit);
-        void loadTableData(state.selectedTable, state.limit, nextOffset);
-    };
-
-    const goNext = () => {
-        const nextOffset = state.offset + state.limit;
-        void loadTableData(state.selectedTable, state.limit, nextOffset);
-    };
+    const displayedRowCount = useMemo(() => state.rows.length, [state.rows.length]);
 
     return (
         <div className="dbb-page">
@@ -163,6 +195,12 @@ export default function DatabaseBrowserPage() {
                         <span className="dbb-stat-name">Table:</span>
                         <span className="dbb-stat-value">{state.dataLoaded ? (state.displayName || '-') : '-'}</span>
                     </div>
+                    {state.dataLoaded && (
+                        <div className="dbb-stat-item">
+                            <span className="dbb-stat-name">Loaded:</span>
+                            <span className="dbb-stat-value">{displayedRowCount} / {state.rowCount}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -178,7 +216,7 @@ export default function DatabaseBrowserPage() {
                         Select a table and click refresh, or choose a different table to view data.
                     </div>
                 ) : state.rows.length > 0 ? (
-                    <div className="dbb-table-scroll">
+                    <div className="dbb-table-scroll" ref={tableScrollRef}>
                         <table className="dbb-table">
                             <thead>
                                 <tr>
@@ -191,7 +229,7 @@ export default function DatabaseBrowserPage() {
                             <tbody>
                                 {state.rows.map((row, idx) => (
                                     <tr key={idx}>
-                                        <td className="dbb-row-num">{state.offset + idx + 1}</td>
+                                        <td className="dbb-row-num">{idx + 1}</td>
                                         {state.columns.map(col => (
                                             <td key={col}>
                                                 {row[col] !== null && row[col] !== undefined ? String(row[col]) : ''}
@@ -201,6 +239,21 @@ export default function DatabaseBrowserPage() {
                                 ))}
                             </tbody>
                         </table>
+
+                        {/* Infinite scroll sentinel and loading indicator */}
+                        <div ref={sentinelRef} className="dbb-scroll-sentinel">
+                            {state.loadingMore && (
+                                <div className="dbb-load-more">
+                                    <div className="dbb-load-more-spinner" />
+                                    <span>Loading more...</span>
+                                </div>
+                            )}
+                            {!state.hasMore && state.rows.length > 0 && (
+                                <div className="dbb-end-of-data">
+                                    All {state.rowCount} rows loaded
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     <div className="dbb-empty">
@@ -210,21 +263,6 @@ export default function DatabaseBrowserPage() {
                     </div>
                 )}
             </div>
-
-            {/* Pagination */}
-            {state.dataLoaded && state.rows.length > 0 && (
-                <div className="dbb-pagination">
-                    <button className="dbb-page-btn" onClick={goPrevious} disabled={!canGoPrevious}>
-                        Previous
-                    </button>
-                    <span className="dbb-page-info">
-                        Page {state.rowCount === 0 ? 0 : pageIndex + 1} · Showing {pageStart}-{pageEnd} of {state.rowCount}
-                    </span>
-                    <button className="dbb-page-btn" onClick={goNext} disabled={!canGoNext}>
-                        Next
-                    </button>
-                </div>
-            )}
         </div>
     );
 }
