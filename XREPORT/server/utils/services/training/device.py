@@ -21,8 +21,7 @@ class DeviceConfig:
 
         if device_name == "cuda" and torch.cuda.is_available():
             device_id = self.configuration.get("device_ID", 0)
-            dev = torch.device(f"cuda:{device_id}")
-            torch.cuda.set_device(dev)
+            torch.cuda.set_device(device_id)
             logger.info(f"GPU (cuda:{device_id}) is set as the active device.")
             if mixed_precision:
                 set_global_policy("mixed_float16")
@@ -30,5 +29,4 @@ class DeviceConfig:
         else:
             if device_name == "cuda":
                 logger.info("No GPU found. Falling back to CPU.")
-            dev = torch.device("cpu")
             logger.info("CPU is set as the active device.")
