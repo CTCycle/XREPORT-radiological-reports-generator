@@ -1,11 +1,15 @@
 # XREPORT: Radiological Reports Generation
 
+> [!WARNING]
+> **Work in Progress**: This project is currently under active development and has recently transitioned to a new web-based architecture. While core features are functional, you may encounter bugs, UI glitches, or incomplete sections. Please report any issues you experience.
+
 ## 1. Introduction
 XRAY Report Generator is a machine learning-based tool designed to assist radiologists in generating descriptive reports from X-ray images. This project aims to reduce the time and effort required by radiologists to write detailed reports based on the XRAY scan description, thereby increasing efficiency and turnover. The generative model is trained using combinations of XRAY images and their labels (descriptions), in the same fashion as image captioning models learn a sequence of word tokens associated to specific parts of the image. While originally developed around the MIMIC-CXR Database (https://www.kaggle.com/datasets/wasifnafee/mimic-cxr), this project can be applied to any dataset with X-ray scans labeled with their respective radiological reports (or any kind of description). The XREPORT Deep Learning (DL) model developed for this scope makes use of a transformer encoder-decoder architecture, which relies on both self attention and cross attention to improve text significance within the clinical image context. The images features are extracted using a custom convolutional encoder with pooling layers to reduce dimensionality. Once a pretrained model is obtained leveraging a large number of X-RAY scans and their descriptions, the model can be used in inference mode to generate radiological reports from the raw pictures.
 
 **Current application capabilities**
 
-- End-to-end workflow that covers dataset profiling, preprocessing, model training, checkpoint management, inference, and visualization within a single desktop interface.
+- **Modern Web Application**: Recently re-architected as a client-server application with a React/Vite frontend and a Python/FastAPI backend, offering a modern and responsive user experience.
+- End-to-end workflow that covers dataset profiling, preprocessing, model training, checkpoint management, inference, and visualization within a unified web interface.
 - Portable Windows distribution with an embedded Python 3.12 runtime, uv-based dependency management, and one-click bootstrap scripts. Manual instructions for Linux and macOS are also provided.
 - Dataset governance utilities including CSV/SQLite ingestion, schema validation, train/validation splits, pixel-statistics dashboards, and tokenization quality checks.
 - Transformer-based training loop with resuming, mixed precision, torch.compile acceleration, integrated callbacks, gradient monitoring, BLEU scoring, and auto-saved checkpoints.
