@@ -18,7 +18,7 @@ set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
 set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
 
-set "py_version=3.12.10"
+set "py_version=3.14.2"
 set "python_zip_filename=python-%py_version%-embed-amd64.zip"
 set "python_zip_url=https://www.python.org/ftp/python/%py_version%/%python_zip_filename%"
 set "python_zip_path=%python_dir%\%python_zip_filename%"
@@ -50,6 +50,9 @@ set "TMPVER=%TEMP%\app_pyver.ps1"
 set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
+
+REM Set to "true" to install optional dependencies (e.g., test dependencies)
+set "INSTALL_EXTRAS=true"
 
 title XREPORT Launcher
 echo.
@@ -162,11 +165,13 @@ if not exist "%pyproject%" (
 )
 
 pushd "%root_folder%" >nul
-"%uv_exe%" sync --python "%python_exe%"
+set "uv_extras_flag="
+if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
+"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
-  "%uv_exe%" sync
+  "%uv_exe%" sync %uv_extras_flag%
   set "sync_ec=%ERRORLEVEL%"
 )
 popd >nul
