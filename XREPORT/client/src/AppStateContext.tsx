@@ -128,6 +128,8 @@ const DEFAULT_DATABASE_BROWSER_STATE: DatabaseBrowserPageState = {
     limit: DEFAULT_BATCH_SIZE,
     offset: 0,
     loading: false,
+    loadingMore: false,
+    hasMore: true,
     error: null,
     tablesLoaded: false,
     dataLoaded: false

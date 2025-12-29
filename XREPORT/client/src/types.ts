@@ -138,6 +138,8 @@ export interface DatabaseBrowserPageState {
     limit: number;
     offset: number;
     loading: boolean;
+    loadingMore: boolean;
+    hasMore: boolean;
     error: string | null;
     tablesLoaded: boolean;
     dataLoaded: boolean;
