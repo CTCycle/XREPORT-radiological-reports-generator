@@ -5,6 +5,9 @@ from fastapi import APIRouter, HTTPException, status
 from XREPORT.server.schemas.validation import (
     ValidationRequest,
     ValidationResponse,
+    CheckpointEvaluationRequest,
+    CheckpointEvaluationResponse,
+    CheckpointEvaluationResults,
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.services.validation import DatasetValidator
@@ -102,3 +105,99 @@ async def run_validation(request: ValidationRequest) -> ValidationResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Validation failed: {str(e)}",
         ) from e
+
+
+###############################################################################
+@router.post(
+    "/checkpoint",
+    response_model=CheckpointEvaluationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def evaluate_checkpoint(
+    request: CheckpointEvaluationRequest,
+) -> CheckpointEvaluationResponse:
+    """Evaluate a model checkpoint using selected metrics."""
+    try:
+        from XREPORT.server.utils.services.training.serializer import ModelSerializer
+        from XREPORT.server.utils.services.training.dataloader import XRAYDataLoader
+        from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
+        
+        logger.info(f"Starting checkpoint evaluation: {request.checkpoint}")
+        logger.info(f"Metrics: {request.metrics}, Samples: {request.num_samples}")
+        
+        # Load the model checkpoint
+        model_serializer = ModelSerializer()
+        model, train_config, model_metadata, _, _ = model_serializer.load_checkpoint(
+            request.checkpoint
+        )
+        model.summary(expand_nested=True)
+        
+        # Initialize evaluator
+        evaluator = CheckpointEvaluator(model, train_config, model_metadata)
+        results = CheckpointEvaluationResults()
+        
+        # Run evaluation_report metric (requires validation dataset)
+        if "evaluation_report" in request.metrics:
+            logger.info("Running evaluation report (loss and accuracy)...")
+            
+            # Load validation data
+            data_serializer = DataSerializer()
+            _, validation_data, _ = data_serializer.load_training_data()
+            
+            if validation_data.empty:
+                logger.warning("No validation data available for evaluation report")
+            else:
+                # Validate image paths
+                validation_data = data_serializer.validate_img_paths(validation_data)
+                
+                if not validation_data.empty:
+                    # Build validation dataset
+                    loader = XRAYDataLoader(train_config)
+                    validation_dataset = loader.build_training_dataloader(validation_data)
+                    
+                    # Run evaluation
+                    eval_results = evaluator.evaluate_model(validation_dataset)
+                    results.loss = eval_results.get("loss")
+                    results.accuracy = eval_results.get("accuracy")
+        
+        # Run BLEU score metric
+        if "bleu_score" in request.metrics:
+            logger.info(f"Calculating BLEU score with {request.num_samples} samples...")
+            
+            # Load validation data with text for BLEU comparison
+            data_serializer = DataSerializer()
+            _, validation_data, _ = data_serializer.load_training_data()
+            
+            if validation_data.empty:
+                logger.warning("No validation data available for BLEU calculation")
+            else:
+                # Validate image paths
+                validation_data = data_serializer.validate_img_paths(validation_data)
+                
+                if not validation_data.empty:
+                    bleu = evaluator.calculate_bleu_score(
+                        validation_data, 
+                        num_samples=request.num_samples
+                    )
+                    results.bleu_score = bleu
+        
+        return CheckpointEvaluationResponse(
+            success=True,
+            message=f"Evaluation completed for {request.checkpoint}",
+            results=results,
+        )
+
+    except FileNotFoundError as e:
+        logger.error(f"Checkpoint not found: {e}")
+        return CheckpointEvaluationResponse(
+            success=False,
+            message=f"Checkpoint not found: {request.checkpoint}",
+            results=None,
+        )
+    except Exception as e:
+        logger.exception("Checkpoint evaluation failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Checkpoint evaluation failed: {str(e)}",
+        ) from e
+

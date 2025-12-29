@@ -112,7 +112,16 @@ const DEFAULT_INFERENCE_STATE: InferencePageState = {
     isLoadingCheckpoints: false,
     reports: {},
     streamingTokens: '',
-    currentStreamingIndex: -1
+    currentStreamingIndex: -1,
+    // Validation defaults
+    validationMetrics: {
+        evaluationReport: true,
+        bleuScore: false,
+    },
+    numBleuSamples: 10,
+    isEvaluating: false,
+    evaluationResults: null,
+    evaluationError: null
 };
 
 const DEFAULT_BATCH_SIZE = 200;
@@ -470,6 +479,30 @@ export function useInferencePageState() {
         setInferencePageState(prev => ({ ...prev, currentStreamingIndex: index }));
     }, [setInferencePageState]);
 
+    // Validation state setters
+    const setValidationMetric = useCallback((metric: 'evaluationReport' | 'bleuScore', value: boolean) => {
+        setInferencePageState(prev => ({
+            ...prev,
+            validationMetrics: { ...prev.validationMetrics, [metric]: value }
+        }));
+    }, [setInferencePageState]);
+
+    const setNumBleuSamples = useCallback((samples: number) => {
+        setInferencePageState(prev => ({ ...prev, numBleuSamples: samples }));
+    }, [setInferencePageState]);
+
+    const setIsEvaluating = useCallback((evaluating: boolean) => {
+        setInferencePageState(prev => ({ ...prev, isEvaluating: evaluating }));
+    }, [setInferencePageState]);
+
+    const setEvaluationResults = useCallback((results: { loss?: number; accuracy?: number; bleuScore?: number } | null) => {
+        setInferencePageState(prev => ({ ...prev, evaluationResults: results }));
+    }, [setInferencePageState]);
+
+    const setEvaluationError = useCallback((error: string | null) => {
+        setInferencePageState(prev => ({ ...prev, evaluationError: error }));
+    }, [setInferencePageState]);
+
     return {
         state: inferencePageState,
         setImages,
@@ -486,7 +519,13 @@ export function useInferencePageState() {
         setReportForIndex,
         setStreamingTokens,
         appendStreamingToken,
-        setCurrentStreamingIndex
+        setCurrentStreamingIndex,
+        // Validation hooks
+        setValidationMetric,
+        setNumBleuSamples,
+        setIsEvaluating,
+        setEvaluationResults,
+        setEvaluationError
     };
 }
 

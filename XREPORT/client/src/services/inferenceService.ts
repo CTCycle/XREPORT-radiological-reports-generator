@@ -153,3 +153,63 @@ export function disconnectInferenceWebSocket(ws: WebSocket | null): void {
         ws.close();
     }
 }
+
+// ============================================================================
+// Checkpoint Evaluation
+// ============================================================================
+
+export interface CheckpointEvaluationRequest {
+    checkpoint: string;
+    metrics: string[];
+    num_samples: number;
+}
+
+export interface CheckpointEvaluationResults {
+    loss?: number;
+    accuracy?: number;
+    bleu_score?: number;
+}
+
+export interface CheckpointEvaluationResponse {
+    success: boolean;
+    message: string;
+    results?: CheckpointEvaluationResults;
+}
+
+/**
+ * Evaluate a checkpoint using selected metrics
+ */
+export async function evaluateCheckpoint(
+    checkpoint: string,
+    metrics: string[],
+    numSamples: number = 10
+): Promise<{ result: CheckpointEvaluationResponse | null; error: string | null }> {
+    try {
+        const request: CheckpointEvaluationRequest = {
+            checkpoint,
+            metrics,
+            num_samples: numSamples,
+        };
+
+        const response = await fetch('/api/validation/checkpoint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok) {
+            const body = await response.text();
+            return {
+                result: null,
+                error: `${response.status} ${response.statusText}: ${body}`,
+            };
+        }
+
+        const payload = await readJson<CheckpointEvaluationResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
