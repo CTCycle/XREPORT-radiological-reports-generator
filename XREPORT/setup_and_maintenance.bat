@@ -10,7 +10,7 @@ set "runtimes_dir=%project_folder%resources\runtimes"
 set "settings_dir=%project_folder%settings"
 set "python_dir=%runtimes_dir%\python"
 set "python_exe=%python_dir%\python.exe"
-set "python_pth_file=%python_dir%\python312._pth"
+set "python_pth_file=%python_dir%\python313._pth"
 set "env_marker=%python_dir%\.is_installed"
 
 set "uv_dir=%runtimes_dir%\uv"

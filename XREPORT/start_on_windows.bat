@@ -10,7 +10,7 @@ set "runtimes_dir=%project_folder%resources\runtimes"
 set "settings_dir=%project_folder%settings"
 set "python_dir=%runtimes_dir%\python"
 set "python_exe=%python_dir%\python.exe"
-set "python_pth_file=%python_dir%\python312._pth"
+set "python_pth_file=%python_dir%\python313._pth"
 set "env_marker=%python_dir%\.is_installed"
 
 set "uv_dir=%runtimes_dir%\uv"
@@ -223,6 +223,11 @@ set "UI_URL=http://!UI_HOST!:!UI_PORT!"
 set "RELOAD_FLAG="
 if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
 
+REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
+set "PYTHONHOME=%python_dir%"
+set "PYTHONPATH="
+set "PYTHONNOUSERSITE=1"
+
 REM ============================================================================
 REM Start backend and frontend
 REM ============================================================================
@@ -260,7 +265,6 @@ if not exist "%FRONTEND_DIST%" (
 ) else (
   echo [INFO] Frontend build already present at "%FRONTEND_DIST%".
 )
-
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
 call :kill_port %UI_PORT%
