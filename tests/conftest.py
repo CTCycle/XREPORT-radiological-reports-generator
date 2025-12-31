@@ -2,12 +2,19 @@
 Pytest configuration for XREPORT E2E tests.
 Provides fixtures for Playwright page objects and API client.
 """
+import os
+
 import pytest
 from playwright.sync_api import Page
 
-# Base URLs - adjust these if your app runs on different ports
-UI_BASE_URL = "http://localhost:7861"
-API_BASE_URL = "http://localhost:8000"
+# Base URLs - configured via environment variables when running tests
+UI_HOST = os.environ.get("UI_HOST", "127.0.0.1")
+UI_PORT = os.environ.get("UI_PORT", "7861")
+FASTAPI_HOST = os.environ.get("FASTAPI_HOST", "127.0.0.1")
+FASTAPI_PORT = os.environ.get("FASTAPI_PORT", "8000")
+
+UI_BASE_URL = f"http://{UI_HOST}:{UI_PORT}"
+API_BASE_URL = f"http://{FASTAPI_HOST}:{FASTAPI_PORT}"
 
 
 @pytest.fixture(scope="session")
