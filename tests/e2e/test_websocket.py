@@ -5,21 +5,28 @@ Tests the training and inference WebSocket endpoints.
 from playwright.sync_api import Page
 
 
+def build_ws_url(api_base_url: str, path: str) -> str:
+    if api_base_url.startswith("https://"):
+        return f"wss://{api_base_url.removeprefix('https://')}{path}"
+    return f"ws://{api_base_url.removeprefix('http://')}{path}"
+
+
 class TestTrainingWebSocket:
     """Tests for the /training/ws WebSocket endpoint."""
 
-    def test_websocket_connection_via_page(self, page: Page, base_url: str):
+    def test_websocket_connection_via_page(self, page: Page, base_url: str, api_base_url: str):
         """
         Test that the training WebSocket establishes a connection.
         Uses the browser's WebSocket API through Playwright.
         """
         page.goto(base_url)
-        
+
+        ws_url = build_ws_url(api_base_url, "/training/ws")
         # Execute JavaScript to test WebSocket connection
         result = page.evaluate("""
-            async () => {
+            async (wsUrl) => {
                 return new Promise((resolve) => {
-                    const ws = new WebSocket('ws://localhost:8000/training/ws');
+                    const ws = new WebSocket(wsUrl);
                     let connectionResult = { connected: false, message: null };
                     
                     ws.onopen = () => {
@@ -48,23 +55,24 @@ class TestTrainingWebSocket:
                     }, 5000);
                 });
             }
-        """)
+        """, ws_url)
         
         # WebSocket should have connected
         assert result.get("connected") or result.get("message") is not None, \
             f"WebSocket connection failed: {result}"
 
-    def test_websocket_receives_initial_state(self, page: Page, base_url: str):
+    def test_websocket_receives_initial_state(self, page: Page, base_url: str, api_base_url: str):
         """
         Test that the WebSocket sends initial connection state.
-        XREPORT sends a 'connection' message with training status.
+        XREPORT sends a 'connection_established' message with training status.
         """
         page.goto(base_url)
-        
+
+        ws_url = build_ws_url(api_base_url, "/training/ws")
         result = page.evaluate("""
-            async () => {
+            async (wsUrl) => {
                 return new Promise((resolve) => {
-                    const ws = new WebSocket('ws://localhost:8000/training/ws');
+                    const ws = new WebSocket(wsUrl);
                     
                     ws.onmessage = (event) => {
                         try {
@@ -86,32 +94,33 @@ class TestTrainingWebSocket:
                     }, 5000);
                 });
             }
-        """)
+        """, ws_url)
         
         # Should receive a connection message with initial state
-        if result.get("type") == "connection":
-            assert "data" in result
-            data = result["data"]
-            assert "is_training" in data
-            assert "latest_stats" in data
+        if result.get("type") == "connection_established":
+            assert "is_training" in result
+            assert "current_epoch" in result
+            assert "total_epochs" in result
+            assert "loss" in result
+            assert "val_loss" in result
 
-    def test_websocket_ping_pong(self, page: Page, base_url: str):
+    def test_websocket_ping_pong(self, page: Page, base_url: str, api_base_url: str):
         """
         Test that the WebSocket responds to ping with pong.
         """
         page.goto(base_url)
-        
+
+        ws_url = build_ws_url(api_base_url, "/training/ws")
         result = page.evaluate("""
-            async () => {
+            async (wsUrl) => {
                 return new Promise((resolve) => {
-                    const ws = new WebSocket('ws://localhost:8000/training/ws');
+                    const ws = new WebSocket(wsUrl);
                     let gotPong = false;
+                    let sentPing = false;
                     
                     ws.onopen = () => {
-                        // Wait a bit then send ping
-                        setTimeout(() => {
-                            ws.send('ping');
-                        }, 100);
+                        sentPing = true;
+                        ws.send(JSON.stringify({ type: 'ping' }));
                     };
                     
                     ws.onmessage = (event) => {
@@ -121,6 +130,9 @@ class TestTrainingWebSocket:
                                 gotPong = true;
                                 ws.close();
                                 resolve({ gotPong: true });
+                            } else if (data.type === 'connection_established' && !sentPing) {
+                                sentPing = true;
+                                ws.send(JSON.stringify({ type: 'ping' }));
                             }
                         } catch {
                             // Ignore parse errors
@@ -133,7 +145,7 @@ class TestTrainingWebSocket:
                     }, 3000);
                 });
             }
-        """)
+        """, ws_url)
         
         # Should have received pong response
         assert result.get("gotPong", False), "Did not receive pong response"
@@ -142,16 +154,17 @@ class TestTrainingWebSocket:
 class TestInferenceWebSocket:
     """Tests for the /inference/ws WebSocket endpoint."""
 
-    def test_inference_websocket_connection(self, page: Page, base_url: str):
+    def test_inference_websocket_connection(self, page: Page, base_url: str, api_base_url: str):
         """
         Test that the inference WebSocket establishes a connection.
         """
         page.goto(base_url)
-        
+
+        ws_url = build_ws_url(api_base_url, "/inference/ws")
         result = page.evaluate("""
-            async () => {
+            async (wsUrl) => {
                 return new Promise((resolve) => {
-                    const ws = new WebSocket('ws://localhost:8000/inference/ws');
+                    const ws = new WebSocket(wsUrl);
                     let connectionResult = { connected: false };
                     
                     ws.onopen = () => {
@@ -171,7 +184,7 @@ class TestInferenceWebSocket:
                     }, 5000);
                 });
             }
-        """)
+        """, ws_url)
         
         assert result.get("connected"), f"Inference WebSocket connection failed: {result}"
 
@@ -179,18 +192,19 @@ class TestInferenceWebSocket:
 class TestWebSocketMessageFormats:
     """Tests for WebSocket message formats and protocol."""
 
-    def test_training_websocket_message_types(self, page: Page, base_url: str):
+    def test_training_websocket_message_types(self, page: Page, base_url: str, api_base_url: str):
         """
         Test that training WebSocket messages have expected types.
-        Expected types: connection, training_update, training_started, 
+        Expected types: connection_established, training_update, training_started, 
         training_resumed, training_plot, training_completed, training_error
         """
         page.goto(base_url)
-        
+
+        ws_url = build_ws_url(api_base_url, "/training/ws")
         result = page.evaluate("""
-            async () => {
+            async (wsUrl) => {
                 return new Promise((resolve) => {
-                    const ws = new WebSocket('ws://localhost:8000/training/ws');
+                    const ws = new WebSocket(wsUrl);
                     let firstMessage = null;
                     
                     ws.onmessage = (event) => {
@@ -213,20 +227,22 @@ class TestWebSocketMessageFormats:
                     }, 5000);
                 });
             }
-        """)
+        """, ws_url)
         
         if result and not result.get("error"):
             # First message should have a 'type' field
             assert "type" in result
             # Type should be one of the expected values
             expected_types = [
-                "connection",
+                "connection_established",
                 "training_update",
                 "training_started",
                 "training_resumed",
                 "training_plot",
                 "training_completed",
                 "training_error",
+                "training_stopping",
+                "ping",
                 "pong",
             ]
             assert result["type"] in expected_types, f"Unexpected message type: {result['type']}"

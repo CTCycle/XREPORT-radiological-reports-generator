@@ -7,8 +7,8 @@ REM == Automatically starts the application, runs tests, and cleans up.
 REM ============================================================================
 
 set "tests_folder=%~dp0"
-set "project_folder=%tests_folder%..\XREPORT\"
 set "root_folder=%tests_folder%..\"
+set "project_folder=%root_folder%XREPORT\"
 set "runtimes_dir=%project_folder%resources\runtimes"
 set "settings_dir=%project_folder%settings"
 
@@ -47,6 +47,10 @@ if not exist "%node_exe%" (
     echo [ERROR] Node.js not found. Please run XREPORT\start_on_windows.bat first.
     goto error
 )
+if not exist "%npm_cmd%" (
+    echo [ERROR] npm not found. Please run XREPORT\start_on_windows.bat first.
+    goto error
+)
 
 echo [OK] All prerequisites found.
 
@@ -75,7 +79,17 @@ if exist "%DOTENV%" (
     )
 )
 
-set "PATH=%nodejs_dir%;%PATH%"
+REM ============================================================================
+REM == Force portable runtimes (avoid global Python/npm)
+REM ============================================================================
+set "PATH=%python_dir%;%nodejs_dir%;%PATH%"
+set "PYTHONHOME=%python_dir%"
+set "PYTHONPATH="
+set "PYTHONNOUSERSITE=1"
+set "VIRTUAL_ENV="
+set "__PYVENV_LAUNCHER__="
+set "PYTHON=%python_exe%"
+set "npm_config_python=%python_exe%"
 
 REM ============================================================================
 REM == Configure pytest / Playwright options

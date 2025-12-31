@@ -265,6 +265,19 @@ if not exist "%FRONTEND_DIST%" (
 ) else (
   echo [INFO] Frontend build already present at "%FRONTEND_DIST%".
 )
+
+REM ============================================================================
+REM Wait for backend to allow it to initialize
+REM ============================================================================
+echo [WAIT] Waiting for backend to be ready on port %FASTAPI_PORT%...
+for /L %%i in (1,1,20) do (
+  netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
+  if !errorlevel! equ 0 goto :backend_ready_check
+  timeout /t 1 /nobreak >nul
+)
+echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
+:backend_ready_check
+
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
 call :kill_port %UI_PORT%
