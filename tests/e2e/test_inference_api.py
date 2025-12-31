@@ -54,7 +54,7 @@ class TestInferenceEndpoints:
             "/inference/generate",
             multipart={
                 "checkpoint": "non_existent_checkpoint_xyz",
-                "generation_mode": "greedy",
+                "generation_mode": "greedy_search",
                 "images": {
                     "name": "test.png",
                     "mimeType": "image/png",
