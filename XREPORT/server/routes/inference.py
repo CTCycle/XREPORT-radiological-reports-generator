@@ -8,7 +8,8 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from fastapi import APIRouter, File, Form, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, File, Form, UploadFile, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from XREPORT.server.utils.constants import RESOURCES_PATH
@@ -52,6 +53,17 @@ class GenerationResponse(BaseModel):
     success: bool
     message: str
     reports: dict[str, str] | None = None
+
+
+def error_response(status_code: int, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content=GenerationResponse(
+            success=False,
+            message=message,
+            reports=None,
+        ).model_dump(),
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -145,7 +157,7 @@ def get_checkpoints() -> CheckpointsResponse:
 
 
 ###############################################################################
-@router.post("/generate")
+@router.post("/generate", response_model=GenerationResponse)
 async def generate_reports(
     checkpoint: str = Form(...),
     generation_mode: str = Form(...),
@@ -155,15 +167,22 @@ async def generate_reports(
     main_event_loop = asyncio.get_event_loop()
 
     if len(images) == 0:
-        return GenerationResponse(
-            success=False,
-            message="No images provided",
+        return error_response(
+            status.HTTP_400_BAD_REQUEST,
+            "No images provided",
         )
 
     if len(images) > 16:
-        return GenerationResponse(
-            success=False,
-            message="Maximum 16 images allowed",
+        return error_response(
+            status.HTTP_400_BAD_REQUEST,
+            "Maximum 16 images allowed",
+        )
+
+    allowed_modes = {"greedy_search", "beam_search"}
+    if generation_mode not in allowed_modes:
+        return error_response(
+            status.HTTP_400_BAD_REQUEST,
+            f"Unsupported generation mode: {generation_mode}",
         )
 
     # Create temp directory for uploaded images
@@ -192,9 +211,16 @@ async def generate_reports(
         # Load model checkpoint
         logger.info(f"Loading checkpoint: {checkpoint}")
         serializer = ModelSerializer()
-        model, train_config, model_metadata, _, _ = serializer.load_checkpoint(
-            checkpoint
-        )
+        try:
+            model, train_config, model_metadata, _, _ = serializer.load_checkpoint(
+                checkpoint
+            )
+        except Exception as e:
+            logger.error(f"Checkpoint load failed for {checkpoint}: {e}")
+            return error_response(
+                status.HTTP_404_NOT_FOUND,
+                f"Checkpoint not found: {checkpoint}",
+            )
         model.summary(expand_nested=True)
 
         max_report_size = model_metadata.get("max_report_size", 200)
@@ -218,9 +244,9 @@ async def generate_reports(
                 "type": "error",
                 "message": "Failed to generate reports",
             })
-            return GenerationResponse(
-                success=False,
-                message="Failed to generate reports",
+            return error_response(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "Failed to generate reports",
             )
 
         # Convert paths to filenames for response
@@ -245,9 +271,9 @@ async def generate_reports(
             "type": "error",
             "message": str(e),
         })
-        return GenerationResponse(
-            success=False,
-            message=str(e),
+        return error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            str(e),
         )
 
     finally:
