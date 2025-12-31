@@ -15,17 +15,24 @@ class TestTrainingEndpoints:
         
         data = response.json()
         assert "is_training" in data
-        assert "latest_stats" in data
+        assert "current_epoch" in data
+        assert "total_epochs" in data
+        assert "loss" in data
+        assert "val_loss" in data
+        assert "accuracy" in data
+        assert "val_accuracy" in data
+        assert "progress_percent" in data
+        assert "elapsed_seconds" in data
         assert isinstance(data["is_training"], bool)
 
     def test_get_training_status_includes_chart_data(self, api_context: APIRequestContext):
-        """GET /training/status should include chart data for dashboard reconnection."""
+        """GET /training/status should return numeric fields for dashboard display."""
         response = api_context.get("/training/status")
         assert response.ok
         
         data = response.json()
-        # These fields are used by the dashboard for reconnection
-        assert "chart_data" in data or "history" in data
+        assert isinstance(data.get("current_epoch"), int)
+        assert isinstance(data.get("total_epochs"), int)
 
     def test_get_checkpoints_list(self, api_context: APIRequestContext):
         """GET /training/checkpoints should return a list of checkpoint info."""
@@ -33,10 +40,10 @@ class TestTrainingEndpoints:
         assert response.ok, f"Expected 200, got {response.status}"
         
         data = response.json()
-        assert isinstance(data, list)
-        
-        # Each checkpoint should have name and optional metadata
-        for checkpoint in data:
+        assert isinstance(data, dict)
+        assert "checkpoints" in data
+
+        for checkpoint in data["checkpoints"]:
             assert "name" in checkpoint
 
     def test_stop_training_when_not_running(self, api_context: APIRequestContext):
@@ -94,7 +101,8 @@ class TestTrainingResumeEndpoint:
     def test_resume_with_invalid_checkpoint_returns_error(self, api_context: APIRequestContext):
         """POST /training/resume with invalid checkpoint should fail."""
         response = api_context.post("/training/resume", data={
-            "checkpoint_name": "non_existent_checkpoint_xyz"
+            "checkpoint": "non_existent_checkpoint_xyz",
+            "additional_epochs": 1
         })
         
         # Should return 404 or 400
