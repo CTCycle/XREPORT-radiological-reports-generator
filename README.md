@@ -1,127 +1,104 @@
-# XREPORT: Radiological Reports Generation
+# XREPORT Radiological Reports Generator
 
+## 1. Project Overview
+XREPORT is a client-server application that generates radiology reports from X-ray images. The FastAPI backend handles dataset ingestion, preprocessing, training and inference, and stores outputs under the resources directory. The React/Vite frontend provides the UI for configuring runs, monitoring progress, and reviewing outputs. The core workflow is: load labeled image-report data, prepare and validate it, train or load a transformer captioning model, run inference on new images, and review reports and diagnostics.
 
-## 1. Introduction
-XRAY Report Generator is a machine learning-based tool designed to assist radiologists in generating descriptive reports from X-ray images. This project aims to reduce the time and effort required by radiologists to write detailed reports based on the XRAY scan description, thereby increasing efficiency and turnover. The generative model is trained using combinations of XRAY images and their labels (descriptions), in the same fashion as image captioning models learn a sequence of word tokens associated to specific parts of the image. While originally developed around the MIMIC-CXR Database (https://www.kaggle.com/datasets/wasifnafee/mimic-cxr), this project can be applied to any dataset with X-ray scans labeled with their respective radiological reports (or any kind of description). The XREPORT Deep Learning (DL) model developed for this scope makes use of a transformer encoder-decoder architecture, which relies on both self attention and cross attention to improve text significance within the clinical image context. The images features are extracted using a custom convolutional encoder with pooling layers to reduce dimensionality. Once a pretrained model is obtained leveraging a large number of X-RAY scans and their descriptions, the model can be used in inference mode to generate radiological reports from the raw pictures.
+## 2. Model and dataset
+XREPORT uses a transformer encoder-decoder approach for image captioning in the radiology domain. A BEiT-based vision encoder extracts image features and the decoder generates report text token by token, using a configurable Hugging Face tokenizer. The project was initially built around the MIMIC-CXR dataset but can be adapted to any dataset of X-ray images paired with report text.
 
-> **Work in Progress**: This project is currently under active development and has recently transitioned to a new web-based architecture. While core features are functional, you may encounter bugs, UI glitches, or incomplete sections. Please report any issues you experience.
+## 2. Installation
 
-**Current application capabilities**
+### 2.1 Windows (One Click Setup)
+The Windows setup is automated via `XREPORT/start_on_windows.bat`. The launcher performs the following actions:
 
-- **Modern Web Application**: Recently re-architected as a client-server application with a React/Vite frontend and a Python/FastAPI backend, offering a modern and responsive user experience.
-- End-to-end workflow that covers dataset profiling, preprocessing, model training, checkpoint management, inference, and visualization within a unified web interface.
-- Portable Windows distribution with an embedded Python 3.12 runtime, uv-based dependency management, and one-click bootstrap scripts. Manual instructions for Linux and macOS are also provided.
-- Dataset governance utilities including CSV/SQLite ingestion, schema validation, train/validation splits, pixel-statistics dashboards, and tokenization quality checks.
-- Transformer-based training loop with resuming, mixed precision, torch.compile acceleration, integrated callbacks, gradient monitoring, BLEU scoring, and auto-saved checkpoints.
-- Rich inference experience that supports greedy, beam-search, and temperature sampling strategies as well as side-by-side comparison with ground-truth narratives.
-- Visual analytics area hosting real-time plots (loss, accuracy, BLEU) and curated galleries for both training and inference imagery to support qualitative auditing.
+1. Downloads a portable Python 3.13.1 runtime, uv, and Node.js into `XREPORT/resources/runtimes`.
+2. Syncs backend dependencies from `pyproject.toml` using uv (optionally with extras).
+3. Prunes the uv cache to keep the runtime folder small.
+4. Starts the FastAPI backend with uvicorn using settings from `XREPORT/settings/.env`.
+5. Installs frontend dependencies, builds the UI, starts the Vite preview server, and opens the browser.
 
-## 2. XREPORT model
-The XREPORT model leverages a robust transformer encoder-decoder architecture to generate detailed radiology reports from X-ray images. It begins by extracting rich image features using a state-of-the-art, pretrained image encoder (*beit-base-patch16-224*) that is integrated into the captioner model. This vision transformer model utilizes the BEiT architecture, which is designed to pre-train image transformers in a manner analogous to BERT in natural language processing, enabling efficient feature extraction from images for various vision tasks.
+First run behavior: it downloads runtimes and installs all dependencies, so it can take a few minutes. Subsequent runs reuse the local runtimes and only re-sync when dependencies change; the frontend build is reused if `XREPORT/client/dist` already exists.
 
-![BeiT architecture encoder](XREPORT/assets/figures/beit_architecture.jpg)
-Architecture of BeiT models
+Portability and side effects: everything is stored inside the project folder (portable runtimes under `XREPORT/resources/runtimes`, Python env under `.venv`, and frontend artifacts under `XREPORT/client`). No system-wide installs are performed.
 
-Subsequently, the stacked transformer encoders, each equipped with multi-head self-attention and feedforward networks, further process these refined image vectors. These encoders produce high-level feature representations that capture the essential characteristics of the scans. The transformer decoder then employs a cross-attention mechanism to align the image features with specific words during report generation. To maintain coherence and context throughout the generated report, the model utilizes causal masking in its auto-regressive decoding process, ensuring that each token is generated with full consideration of the preceding context.
+### 2.2 macOS / Linux (Manual Setup)
+Prerequisites:
+- Python 3.13.x
+- Node.js 22.x and npm
+- uv (recommended for dependency management)
 
-![transformer architecture encoder](XREPORT/assets/figures/transformers.png)
-General transformer model architecture
+Setup steps:
+1. Review and edit `XREPORT/settings/.env` to match your environment.
+2. Backend setup: from the repository root, run `uv sync` to install Python dependencies.
+3. Frontend setup: run `npm install` and `npm run build` in `XREPORT/client`.
 
-**Parametric tokenization:** to improve the vectorization and semantic representation of the training text corpus, this framework now supports multiple pretrained tokenizers from the Hugging Face library. By default, we use the distilbert/distilbert-base-uncased tokenizer, but the system can be configured to use a variety of models, such as BERT (bert-base-uncased), RoBERTa (roberta-base), GPT-2 (gpt2), and more, depending on the user's choice.
+Optional extras: use `uv sync --all-extras` if you want the test dependencies.
 
-The tokenizer model is automatically downloaded and cached in *resources/models/tokenizers* on the first run, with the weights being reused for future training sessions. For word embedding, the XREPORT model uses positional embeddings, allowing it to encode the relative positions of tokens within sequences. Additionally, the model supports masking for variable-length sequences, ensuring adaptability to text inputs of different lengths. This flexibility allows seamless processing of diverse textual data while maintaining accurate and meaningful representations.
+## 3. How to use
 
-**Training and inference engines**
+### 3.1 Windows
+Double-click `XREPORT/start_on_windows.bat`. The UI opens at `http://127.0.0.1:7861` by default, and the backend listens on `http://127.0.0.1:8000`.
 
-- *Training:* configurable learning rate schedulers, gradient clipping, teacher forcing warm-up, dataset shuffling, deterministic seeds, and resumable checkpoints. Validation hooks compute sparse categorical loss, accuracy, BLEU-1/2/3/4, and inference latency.
-- *Inference:* supports greedy, beam, and sampling search with adjustable temperature and length penalties, and exports generated reports to CSV/SQLite for downstream review.
-- *Metrics and monitoring:* callbacks stream loss/accuracy curves to the Viewer tab, persist history under *resources/logs*, and can emit JSON snapshots for automated QA pipelines.
+### 3.2 macOS / Linux
+Backend:
+```bash
+uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
+```
 
-## 3. Installation
-The project targets Windows 10/11 and requires roughly 2 GB of free disk space for the embedded Python runtime, dependencies, checkpoints, and datasets. A CUDA-capable NVIDIA GPU is recommended but not mandatory. Ensure you have the latest GPU drivers installed when enabling TorchInductor + Triton acceleration.
+Frontend:
+```bash
+cd XREPORT/client
+npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
+```
 
-1. **Download the project**: clone the repository or extract the release archive into a writable location (avoid paths that require admin privileges).
-2. **Configure environment variables**: copy `XREPORT/resources/templates/.env` into `XREPORT/setup/.env` and adjust values (e.g., backend selection).
-3. **Run `start_on_windows.bat`**: the bootstrapper installs a portable Python 3.12 build, downloads Astral’s `uv`, syncs dependencies from `pyproject.toml`, prunes caches, then launches the UI through `uv run`. The script is idempotent, rerun it any time to repair the environment or launch the app.
+URLs:
+- UI: `http://127.0.0.1:7861`
+- Backend API: `http://127.0.0.1:8000`
+- API docs: `http://127.0.0.1:8000/docs`
 
-Running the script the first time can take several minutes depending on bandwidth. Subsequent runs reuse the cached Python runtime and only re-sync packages when `pyproject.toml` changes.
+### 3.3 Using the Application
+Use the Dataset area to load and validate labeled image-report pairs, run preprocessing, and confirm the dataset is ready for training and inference.
 
-### 4.1 Just-In-Time (JIT) Compiler
-`torch.compile` is enabled throughout the training and inference pipelines. TorchInductor optimizes the computation graph, performs kernel fusion, and lowers operations to Triton-generated kernels on NVIDIA GPUs or to optimized CPU kernels otherwise. Triton is bundled automatically so no separate CUDA toolkit installation is required.
+![Dataset page](XREPORT/assets/figures/dataset_page.png)
 
-### 4.2 Manual or developer installation
-If you prefer managing Python yourself (for debugging or CI):
+Use the Models area to train a transformer model or load a checkpoint, then run inference to generate reports and review evaluation metrics.
 
-1. Install Python 3.12.x and `uv` (https://github.com/astral-sh/uv).
-2. From the repository root run `uv sync` to create a virtual environment with the versions pinned in `pyproject.toml`.
-3. Copy `.env` as described earlier and ensure the `KERAS_BACKEND` is set to `torch`.
-4. Launch the UI with `uv run python XREPORT/src/app/app.py`.
+![Models page](XREPORT/assets/figures/model_tab.png)
 
+Use the Viewer area to browse images, plots, and report outputs for quick qualitative review.
 
-## 5. How to use
-Launch the application by double-clicking `start_on_windows.bat` (or via `uv run python XREPORT/src/app/app.py`). On startup the UI loads the last-used configuration, scans the resources folder, and initializes worker pools so long-running jobs (training, inference, validation) do not block the interface.
+![Viewer page](XREPORT/assets/figures/viewer_tab.png)
 
-1. **Prepare data**: verify that `resources/database/images` (training) and `resources/database/inference` (inference) contain the expected files. Large datasets can be sub-sampled through the configuration dialog (`train_sample_size`).
-2. **Adjust configuration**: use the toolbar to load/save configuration templates or modify each parameter manually from the UI.
-3. **Run a pipeline**: pick an action under the Data, Model, or Viewer tabs. Progress bars, log panes, and popup notifications keep you informed. Background workers can be interrupted at any time.
+## 4. Setup and Maintenance
+`XREPORT/setup_and_maintenance.bat` provides a small maintenance menu for Windows:
 
-**Data tab:** analyze and validate the image and text dataset using different metrics.
+- Remove logs: deletes files from `XREPORT/resources/logs`.
+- Uninstall app: removes portable runtimes, uv caches, `.venv`, and frontend build artifacts.
+- Initialize database: runs the backend database initialization script.
 
-- **Automatic CSV and SQLite ingestion**: load metadata from *database/dataset/XREPORT_dataset.csv* or from the embedded SQLite file and preview the cleaned table before committing changes.
-- **Calculation of images statistics**: pixels mean values, standard deviation, values range, noise ratio.
-- **Calculation of average pixel distribution** plus drift checks that highlight modality shifts between folds.
-- **Average pixel distribution of train versus validation** with live histograms and summary cards.
-- **Report pre-processing pipeline**: configurable text cleaning (case folding, punctuation removal, stopword filtering), token balancing, and vocabulary pruning.
-- **Tokenization tests**: visualize tokenizer coverage, rare tokens, BOS/EOS padding, and verify that max length limits are honored.
+## 5. Resources
+`XREPORT/resources` stores runtime assets and generated artifacts so the project remains portable.
 
-Also allows building the ML dataset that will be used for training the XREPORT model. Prepare the reports dataset for machine learning by processing the source data through the following steps:
-- **Text cleaning for X-ray reports**
-- **Tokenization of reports**
-- **Mapping of images path with their corresponding labels**
-- **Train and validation dataset splitting** with deterministic seeds, stratified sampling, and imbalance warnings.
-- **Export helpers** to persist the processed samples as parquet, CSV, or SQLite tables for reproducibility.
+- checkpoints: saved model checkpoints and training artifacts created during training and evaluation.
+- database: local datasets and the embedded SQLite database (`sqlite.db`) used by the backend.
+- logs: application logs for troubleshooting.
+- models: cached model artifacts such as encoders and tokenizers.
+- runtimes: portable Python, uv, and Node.js installations used by the Windows launcher.
+- templates: reserved for template files (the folder exists but is empty in this repo).
 
-![data tab](XREPORT/assets/figures/data_tab.png)
+## 6. Configuration
+Backend configuration lives in `XREPORT/settings/.env` (runtime variables) and `XREPORT/settings/server_configurations.json` (backend metadata, database defaults, and training defaults). Frontend build and preview settings live in `XREPORT/client/vite.config.ts`, while the Windows launcher reads `XREPORT/settings/.env` to control UI host/port overrides.
 
-**Models tab:** through this tab one can train the XREPORT transformer from scratch or resume training for previously trained checkpoints. Moreover, this section provides both model inference and evaluation functionalities. Use the pretrained transformer decoder from a model checkpoint to generate radiological reports from input images. Reports can be generated using various auto-regressive strategies, including greedy search and beam search, temperature sampling, and nucleus sampling. Moreover, the XREPORT transformer model can be evaluated using different metrics, such as:
+| Variable | Description |
+|----------|-------------|
+| FASTAPI_HOST | Backend bind host; defined in `XREPORT/settings/.env`; default `127.0.0.1`. |
+| FASTAPI_PORT | Backend port; defined in `XREPORT/settings/.env`; default `8000`. |
+| UI_HOST | UI bind host; defined in `XREPORT/start_on_windows.bat` (override via `XREPORT/settings/.env`); default `127.0.0.1`. |
+| UI_PORT | UI port; defined in `XREPORT/start_on_windows.bat` (override via `XREPORT/settings/.env`); default `7861`. |
+| RELOAD | Backend autoreload toggle; defined in `XREPORT/start_on_windows.bat` (override via `XREPORT/settings/.env`); default `false`. |
+| MPLBACKEND | Matplotlib backend for headless rendering; defined in `XREPORT/settings/.env`; default `Agg`. |
+| KERAS_BACKEND | Keras runtime backend; defined in `XREPORT/settings/.env`; default `torch`. |
+| TF_CPP_MIN_LOG_LEVEL | TensorFlow log verbosity; defined in `XREPORT/settings/.env`; default `1`. |
 
-- **Average mean sparse categorical loss and accuracy** 
-- **Calculation of BLEU scores** (1–4) along with ROUGE-L and average report length
-- **Per-token attention diagnostics** stored as NumPy arrays for offline inspection
-- **Checkpoint manager** to promote, archive, or delete runs, and to export ONNX weights for deployment
-
-![model tab](XREPORT/assets/figures/model_tab.png)
-
-**Viewer tab:** visualization hub.
-- Browse training and inference images, as well as plots generated during dataset or model evaluation.
-- Useful for quick sanity checks without leaving the application.
-
-![viewer tab](XREPORT/assets/figures/viewer_tab.png)
-
-### 5.1 Setup and Maintenance
-`setup_and_maintenance.bat` launches a lightweight maintenance console with these options:
-
-- **Update project**: performs a `git pull` (or fetches release artifacts) so the local checkout stays in sync.
-- **Remove logs**: clears `resources/logs` to save disk space or to reset diagnostics before a new run.
-- **Open tools**: quick shortcuts to DB Browser for SQLite or other external utilities defined in the script.
-
-### 5.2 Resources
-The `XREPORT/resources` tree keeps all mutable assets, making backups and migrations straightforward:
-
-- **checkpoints** — versioned folders containing saved models, training history, evaluation reports, reconstructed samples, and the JSON configuration that produced them. These folders are what you load when resuming training or running inference.
-- **configurations** — reusable JSON presets saved through the UI dialogs.
-- **database** — includes sub-folders for `images` (training data), `inference` (raw inputs and exported `.npy` embeddings), `metadata` (SQLite records), and `validation` (plots + stats reports).
-- **logs** — rotating application logs for troubleshooting. Attach these when reporting issues.
-- **models:** shared cache for Hugging Face tokenizers and any ONNX exports generated during evaluation.
-- **templates** — contains `.env` and other templates that need to be copied into write-protected directories (`XREPORT/app`).
-
-Environmental variables reside in `XREPORT/setup/.env`. Copy the template from `resources/templates/.env` and adjust as needed:
-
-| Variable              | Description                                                               |
-|-----------------------|---------------------------------------------------------------------------|
-| KERAS_BACKEND         | Backend for Keras 3; keep `torch` for this project.                       |
-| MPLBACKEND            | Matplotlib backend; `Agg` keeps plotting headless for worker threads.     |
-
-## 5. License
-This project is licensed under the terms of the MIT license. See the LICENSE file for details.
-
+## 7. License
+This project is licensed under the MIT License. See `LICENSE`.

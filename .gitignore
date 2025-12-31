@@ -58,6 +58,7 @@ Thumbs.db
 *.sqlite*
 *.exe
 *.gz
+*.env
 
 !.gitkeep
 !XREPORT/settings/server_configurations.json
