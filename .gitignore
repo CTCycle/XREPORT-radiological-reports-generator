@@ -1,28 +1,68 @@
-XREPORT/resources/database/dataset/*
-XREPORT/resources/database/dataset/images/*
-XREPORT/resources/database/metadata/*
-XREPORT/resources/checkpoints/*
-XREPORT/resources/validation/*
-XREPORT/resources/models/tokenizers/*
-XREPORT/resources/models/XRAYEncoder/*
-XREPORT/resources/database/inference/*
-XREPORT/resources/database/validation/*
+# Project-specific generated/runtime artifacts
+docs/**
+XREPORT/resources/models/**
+XREPORT/resources/checkpoints/**
+XREPORT/resources/database/**
+XREPORT/resources/runtimes/**
+XREPORT/resources/logs/**
+XREPORT/client/node_modules/
+XREPORT/client/dist/
+XREPORT/client/dist-ssr/
+XREPORT/client/package-lock.json
+XREPORT/client/logs/
+XREPORT/resources/tokenizers/**
 
-XREPORT/setup/python/*
-XREPORT/setup/uv/*
-XREPORT/setup/.env
+# Environment files (keep templates)
+XREPORT/settings/.env
+XREPORT/client/.env
+XREPORT/client/*.local
+!.env.example
+!.env.sample
+!XREPORT/resources/templates/.env
 
-__pycache__
-*.vscode
-*.db
-*.log
-*.npy
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+.coverage
+htmlcov/
+
+# Node / JS
+**/node_modules/
+**/dist/
+**/dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE / OS
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
 *.lock
-*.venv
-*.egg-info
-!.gitkeep
+*.log
+*.db
+*.sqlite*
+*.exe
+*.gz
+*.env
 
-AGENTS.md
+!.gitkeep
+!XREPORT/settings/server_configurations.json
+
 
 
 
