@@ -127,7 +127,13 @@ start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MO
 
 REM Wait for backend to be ready
 echo [INFO] Waiting for backend to start...
-timeout /t 5 /nobreak >nul
+for /L %%i in (1,1,120) do (
+  netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
+  if !errorlevel! equ 0 goto :backend_ready_check
+  timeout /t 1 /nobreak >nul
+)
+echo [WARN] Timed out waiting for backend.
+:backend_ready_check
 
 REM ============================================================================
 REM == Start frontend

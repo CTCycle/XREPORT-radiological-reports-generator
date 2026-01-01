@@ -270,7 +270,7 @@ REM ============================================================================
 REM Wait for backend to allow it to initialize
 REM ============================================================================
 echo [WAIT] Waiting for backend to be ready on port %FASTAPI_PORT%...
-for /L %%i in (1,1,20) do (
+for /L %%i in (1,1,120) do (
   netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
   if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul
