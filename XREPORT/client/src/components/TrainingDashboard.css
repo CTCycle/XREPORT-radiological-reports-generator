@@ -80,8 +80,8 @@
     margin-bottom: 1.5rem;
 }
 
-.metric-card {
-    background: rgba(20, 20, 25, 0.6);
+.training-dashboard .metric-card {
+    background: #1a1a1f;
     border: 1px solid rgba(255, 215, 0, 0.1);
     border-radius: 8px;
     padding: 1rem;
@@ -195,11 +195,12 @@
 .training-charts-container {
     margin-top: 1.5rem;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 1.5rem;
 }
 
 .chart-section {
+    flex: 1;
     padding: 1rem;
     background: rgba(20, 20, 25, 0.6);
     border: 1px solid rgba(255, 215, 0, 0.1);
@@ -228,4 +229,16 @@
 .recharts-tooltip-label {
     color: #ffd700 !important;
     font-weight: 600;
+}
+
+.chart-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: #6b7280;
+    font-size: 0.9rem;
+    background: rgba(20, 20, 25, 0.4);
+    border: 1px dashed rgba(255, 215, 0, 0.2);
+    border-radius: 8px;
 }
