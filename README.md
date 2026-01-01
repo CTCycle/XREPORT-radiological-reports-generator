@@ -66,18 +66,21 @@ URLs:
 - API docs: `http://127.0.0.1:8000/docs`
 
 ### 4.3 Using the Application
-Use the Dataset area to load and validate labeled image-report pairs, run preprocessing, and confirm the dataset is ready for training and inference.
 
-**Dataset**: Upload CSV/XLSX datasets and related images
+**Dataset**: Use the Dataset area to load and validate labeled image-report pairs, run preprocessing, and confirm the dataset is ready for training and inference.
+
 ![Dataset page](XREPORT/assets/figures/dataset_page.png)
 
 **Training**: Configure a run, monitor loss/rewards, and resume from checkpoints.
+
 ![Training page](XREPORT/assets/figures/training_page.png)
 
 **Inference**: Load a checkpoint and generate reports from X-ray scans.
+
 ![inference_page](XREPORT/assets/figures/inference_page.png)
 
 **Database browser**: Use the database browser area to browse data saved into the database, such as previous training sessions, uploaded data, etc.
+
 ![Database browser](XREPORT/assets/figures/database_browser.png)
 
 ## 5. Setup and Maintenance
