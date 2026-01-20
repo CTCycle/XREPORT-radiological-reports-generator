@@ -24,7 +24,7 @@ Portability and side effects: everything stays inside the project folder. No sys
 
 ### 3.2 macOS / Linux (Manual Setup)
 Prerequisites:
-- Python 3.13.x
+- Python 3.14.x
 - Node.js 22.x and npm
 - uv (recommended for dependency management)
 
