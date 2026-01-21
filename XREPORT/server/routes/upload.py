@@ -13,9 +13,35 @@ from XREPORT.server.utils.logger import logger
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
-# Shared temporary storage for uploaded dataset
-# This is imported by other route modules (training.py, preparation.py)
-temp_dataset_storage: dict[str, Any] = {}
+
+###############################################################################
+class UploadState:
+    """Encapsulates temporary dataset storage."""
+
+    def __init__(self) -> None:
+        self.storage: dict[str, Any] = {}
+
+    # -------------------------------------------------------------------------
+    def store(self, key: str, data: dict[str, Any]) -> None:
+        self.storage[key] = data
+
+    # -------------------------------------------------------------------------
+    def get_latest(self) -> tuple[str, dict[str, Any]] | None:
+        if not self.storage:
+            return None
+        latest_key = list(self.storage.keys())[-1]
+        return latest_key, self.storage[latest_key]
+
+    # -------------------------------------------------------------------------
+    def clear(self) -> None:
+        self.storage.clear()
+
+    # -------------------------------------------------------------------------
+    def is_empty(self) -> bool:
+        return len(self.storage) == 0
+
+
+upload_state = UploadState()
 
 
 ###############################################################################
@@ -59,11 +85,11 @@ async def upload_dataset(file: UploadFile = File(...)) -> DatasetUploadResponse:
         
         # Store in temporary storage with unique key
         storage_key = f"dataset_{filename}"
-        temp_dataset_storage[storage_key] = {
+        upload_state.store(storage_key, {
             "dataframe": df,
             "filename": filename,
             "dataset_name": dataset_name,
-        }
+        })
         
         logger.info(f"Dataset uploaded: {filename} (name: {dataset_name}) with {len(df)} rows, {len(df.columns)} columns")
         

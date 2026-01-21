@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import tempfile
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -19,17 +17,67 @@ from XREPORT.server.utils.services.training.serializer import ModelSerializer
 
 router = APIRouter(prefix="/inference", tags=["inference"])
 
-# WebSocket connections for inference streaming
-inference_connections: list[WebSocket] = []
-
-# Thread pool for inference without blocking event loop
-inference_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="inference")
-
-# Main event loop reference for WebSocket callbacks
-main_event_loop: asyncio.AbstractEventLoop | None = None
-
 # Inference temp folder for uploaded images
 INFERENCE_TEMP_PATH = os.path.join(RESOURCES_PATH, "inference_temp")
+
+
+###############################################################################
+class InferenceState:
+    """Encapsulates all inference session state."""
+
+    def __init__(self) -> None:
+        self.connections: list[WebSocket] = []
+        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="inference"
+        )
+        self.event_loop: asyncio.AbstractEventLoop | None = None
+
+    # -------------------------------------------------------------------------
+    def broadcast(self, message: dict[str, Any]) -> None:
+        """Thread-safe broadcast to all connected clients."""
+        if self.event_loop is None:
+            logger.warning("No event loop available for WebSocket broadcast")
+            return
+        if len(self.connections) == 0:
+            logger.warning("No WebSocket connections to broadcast to")
+            return
+
+        async def send_to_all() -> None:
+            disconnected = []
+            for connection in self.connections:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    disconnected.append(connection)
+            for conn in disconnected:
+                if conn in self.connections:
+                    self.connections.remove(conn)
+
+        asyncio.run_coroutine_threadsafe(send_to_all(), self.event_loop)
+
+    # -------------------------------------------------------------------------
+    def add_connection(self, websocket: WebSocket) -> None:
+        self.connections.append(websocket)
+
+    # -------------------------------------------------------------------------
+    def remove_connection(self, websocket: WebSocket) -> None:
+        if websocket in self.connections:
+            self.connections.remove(websocket)
+
+    # -------------------------------------------------------------------------
+    def stream_token(self, image_idx: int, token: str, step: int, total: int) -> None:
+        """Stream a generated token to all connected clients."""
+        logger.debug(f"Streaming token {step}/{total}: {token}")
+        self.broadcast({
+            "type": "token",
+            "image_index": image_idx,
+            "token": token,
+            "step": step,
+            "total": total,
+        })
+
+
+inference_state = InferenceState()
 
 
 ###############################################################################
@@ -38,23 +86,27 @@ class CheckpointInfo(BaseModel):
     created: str | None = None
 
 
+###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointInfo]
     success: bool
     message: str
 
 
+###############################################################################
 class GenerationRequest(BaseModel):
     checkpoint: str
     generation_mode: str
 
 
+###############################################################################
 class GenerationResponse(BaseModel):
     success: bool
     message: str
     reports: dict[str, str] | None = None
 
 
+# -----------------------------------------------------------------------------
 def error_response(status_code: int, message: str) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
@@ -66,52 +118,13 @@ def error_response(status_code: int, message: str) -> JSONResponse:
     )
 
 
-# -----------------------------------------------------------------------------
-def broadcast_inference_message(message: dict[str, Any]) -> None:
-    global main_event_loop
-    if main_event_loop is None:
-        logger.warning("No event loop available for WebSocket broadcast")
-        return
-    if len(inference_connections) == 0:
-        logger.warning("No WebSocket connections to broadcast to")
-        return
-
-    async def send_to_all() -> None:
-        disconnected = []
-        for connection in inference_connections:
-            try:
-                await connection.send_json(message)
-            except Exception:
-                disconnected.append(connection)
-        for conn in disconnected:
-            if conn in inference_connections:
-                inference_connections.remove(conn)
-
-    asyncio.run_coroutine_threadsafe(send_to_all(), main_event_loop)
-
-
-# -----------------------------------------------------------------------------
-def sync_stream_callback(
-    image_idx: int, token: str, step: int, total: int
-) -> None:
-    logger.debug(f"Streaming token {step}/{total}: {token}")
-    broadcast_inference_message({
-        "type": "token",
-        "image_index": image_idx,
-        "token": token,
-        "step": step,
-        "total": total,
-    })
-
-
 ###############################################################################
 @router.websocket("/ws")
 async def inference_websocket(websocket: WebSocket) -> None:
-    global main_event_loop
-    main_event_loop = asyncio.get_event_loop()
+    inference_state.event_loop = asyncio.get_event_loop()
 
     await websocket.accept()
-    inference_connections.append(websocket)
+    inference_state.add_connection(websocket)
     logger.info("Inference WebSocket connection established")
 
     try:
@@ -127,8 +140,7 @@ async def inference_websocket(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error(f"Inference WebSocket error: {e}")
     finally:
-        if websocket in inference_connections:
-            inference_connections.remove(websocket)
+        inference_state.remove_connection(websocket)
 
 
 ###############################################################################
@@ -163,8 +175,7 @@ async def generate_reports(
     generation_mode: str = Form(...),
     images: list[UploadFile] = File(...),
 ) -> GenerationResponse:
-    global main_event_loop
-    main_event_loop = asyncio.get_event_loop()
+    inference_state.event_loop = asyncio.get_event_loop()
 
     if len(images) == 0:
         return error_response(
@@ -201,7 +212,7 @@ async def generate_reports(
             image_paths.append(temp_path)
 
         # Broadcast generation start
-        broadcast_inference_message({
+        inference_state.broadcast({
             "type": "start",
             "total_images": len(image_paths),
             "checkpoint": checkpoint,
@@ -231,16 +242,16 @@ async def generate_reports(
         # Run generation in thread pool to not block event loop
         loop = asyncio.get_event_loop()
         reports = await loop.run_in_executor(
-            inference_executor,
+            inference_state.executor,
             lambda: generator.generate_radiological_reports(
                 image_paths,
                 generation_mode,
-                stream_callback=sync_stream_callback,
+                stream_callback=inference_state.stream_token,
             ),
         )
 
         if reports is None:
-            broadcast_inference_message({
+            inference_state.broadcast({
                 "type": "error",
                 "message": "Failed to generate reports",
             })
@@ -254,7 +265,7 @@ async def generate_reports(
             os.path.basename(k): v for k, v in reports.items()
         }
 
-        broadcast_inference_message({
+        inference_state.broadcast({
             "type": "complete",
             "reports": reports_by_filename,
         })
@@ -267,7 +278,7 @@ async def generate_reports(
 
     except Exception as e:
         logger.error(f"Error generating reports: {e}")
-        broadcast_inference_message({
+        inference_state.broadcast({
             "type": "error",
             "message": str(e),
         })
