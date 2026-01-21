@@ -18,7 +18,7 @@ from XREPORT.server.schemas.training import (
     ProcessDatasetResponse,
 )
 from XREPORT.server.database.database import database
-from XREPORT.server.routes.upload import temp_dataset_storage
+from XREPORT.server.routes.upload import upload_state
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.configurations.server import server_settings
@@ -164,15 +164,14 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
         )
     
     # Check if we have an uploaded dataset
-    if not temp_dataset_storage:
+    if upload_state.is_empty():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
         )
     
     # Get the most recently uploaded dataset
-    latest_key = list(temp_dataset_storage.keys())[-1]
-    dataset_info = temp_dataset_storage[latest_key]
+    _, dataset_info = upload_state.get_latest()
     df: pd.DataFrame = dataset_info["dataframe"].copy()
     dataset_name: str = dataset_info["dataset_name"]
     
@@ -233,7 +232,7 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
             ) from e
     
     # Clear temporary storage after loading
-    temp_dataset_storage.clear()
+    upload_state.clear()
     
     return LoadDatasetResponse(
         success=True,

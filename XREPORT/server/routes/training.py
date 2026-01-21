@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -27,101 +26,123 @@ from XREPORT.server.utils.services.training.trainer import ModelTrainer
 
 router = APIRouter(prefix="/training", tags=["training"])
 
-# Training state management
-training_state: dict[str, Any] = {
-    "is_training": False,
-    "current_epoch": 0,
-    "total_epochs": 0,
-    "loss": 0.0,
-    "val_loss": 0.0,
-    "accuracy": 0.0,
-    "val_accuracy": 0.0,
-    "progress_percent": 0,
-    "elapsed_seconds": 0,
-    # Chart data for reconnection
-    "chart_data": [],
-    "epoch_boundaries": [],
-    "available_metrics": [],
-}
 
-# Active WebSocket connections
-active_connections: list[WebSocket] = []
+###############################################################################
+class TrainingState:
+    """Encapsulates all training session state."""
 
-# Interrupt callback for stopping training
-interrupt_callback: TrainingInterruptCallback | None = None
+    def __init__(self) -> None:
+        self.state: dict[str, Any] = {
+            "is_training": False,
+            "current_epoch": 0,
+            "total_epochs": 0,
+            "loss": 0.0,
+            "val_loss": 0.0,
+            "accuracy": 0.0,
+            "val_accuracy": 0.0,
+            "progress_percent": 0,
+            "elapsed_seconds": 0,
+            "chart_data": [],
+            "epoch_boundaries": [],
+            "available_metrics": [],
+        }
+        self.connections: list[WebSocket] = []
+        self.interrupt_callback: TrainingInterruptCallback | None = None
+        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="training"
+        )
+        self.event_loop: asyncio.AbstractEventLoop | None = None
 
-# Thread pool for running training without blocking the event loop
-training_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="training")
+    # -------------------------------------------------------------------------
+    def update_metrics(self, message: dict[str, Any]) -> None:
+        """Update state from a training callback message."""
+        self.state.update({
+            "current_epoch": message.get("epoch", 0),
+            "total_epochs": message.get("total_epochs", 0),
+            "loss": message.get("loss", 0.0),
+            "val_loss": message.get("val_loss", 0.0),
+            "accuracy": message.get("accuracy", 0.0),
+            "val_accuracy": message.get("val_accuracy", 0.0),
+            "progress_percent": message.get("progress_percent", 0),
+            "elapsed_seconds": message.get("elapsed_seconds", 0),
+        })
+        if message.get("type") == "training_plot":
+            self.state["chart_data"] = message.get("chart_data", [])
+            self.state["epoch_boundaries"] = message.get("epoch_boundaries", [])
+            self.state["available_metrics"] = message.get("metrics", [])
 
-# Reference to the main event loop for WebSocket callbacks
-main_event_loop: asyncio.AbstractEventLoop | None = None
+    # -------------------------------------------------------------------------
+    async def broadcast(self, message: dict[str, Any]) -> None:
+        """Broadcast message to all connected WebSocket clients."""
+        disconnected = []
+        for connection in self.connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            if conn in self.connections:
+                self.connections.remove(conn)
+
+    # -------------------------------------------------------------------------
+    def sync_broadcast(self, message: dict[str, Any]) -> None:
+        """Thread-safe broadcast from training thread."""
+        self.update_metrics(message)
+        if self.event_loop is not None and self.event_loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.broadcast(message), self.event_loop)
+
+    # -------------------------------------------------------------------------
+    def add_connection(self, websocket: WebSocket) -> None:
+        self.connections.append(websocket)
+
+    # -------------------------------------------------------------------------
+    def remove_connection(self, websocket: WebSocket) -> None:
+        if websocket in self.connections:
+            self.connections.remove(websocket)
+
+    # -------------------------------------------------------------------------
+    def reset_for_new_session(self, total_epochs: int) -> None:
+        """Reset state for a new training session."""
+        self.state["is_training"] = True
+        self.state["current_epoch"] = 0
+        self.state["total_epochs"] = total_epochs
+        self.state["chart_data"] = []
+        self.state["epoch_boundaries"] = []
+        self.state["available_metrics"] = []
+
+    # -------------------------------------------------------------------------
+    def finish_session(self) -> None:
+        """Mark training session as complete."""
+        self.state["is_training"] = False
+        self.interrupt_callback = None
 
 
-# -----------------------------------------------------------------------------
-async def broadcast_message(message: dict[str, Any]) -> None:
-    disconnected = []
-    for connection in active_connections:
-        try:
-            await connection.send_json(message)
-        except Exception:
-            disconnected.append(connection)
-    
-    for conn in disconnected:
-        if conn in active_connections:
-            active_connections.remove(conn)
-
-
-# -----------------------------------------------------------------------------
-def sync_websocket_callback(message: dict[str, Any]) -> None:
-    global training_state
-    
-    # Update basic metrics
-    training_state.update({
-        "current_epoch": message.get("epoch", 0),
-        "total_epochs": message.get("total_epochs", 0),
-        "loss": message.get("loss", 0.0),
-        "val_loss": message.get("val_loss", 0.0),
-        "accuracy": message.get("accuracy", 0.0),
-        "val_accuracy": message.get("val_accuracy", 0.0),
-        "progress_percent": message.get("progress_percent", 0),
-        "elapsed_seconds": message.get("elapsed_seconds", 0),
-    })
-    
-    # Accumulate chart data from training_plot messages
-    if message.get("type") == "training_plot":
-        training_state["chart_data"] = message.get("chart_data", [])
-        training_state["epoch_boundaries"] = message.get("epoch_boundaries", [])
-        training_state["available_metrics"] = message.get("metrics", [])
-    
-    # Use the stored main event loop to schedule WebSocket broadcast
-    # This works because training runs in a separate thread
-    if main_event_loop is not None and main_event_loop.is_running():
-        asyncio.run_coroutine_threadsafe(broadcast_message(message), main_event_loop)
+training_state = TrainingState()
 
 
 ###############################################################################
 @router.websocket("/ws")
 async def training_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
-    active_connections.append(websocket)
-    logger.info(f"WebSocket connected. Total connections: {len(active_connections)}")
+    training_state.add_connection(websocket)
+    logger.info(f"WebSocket connected. Total connections: {len(training_state.connections)}")
     
     try:
         # Send current state immediately
         await websocket.send_json({
             "type": "connection_established",
-            "is_training": training_state["is_training"],
-            **training_state,
+            "is_training": training_state.state["is_training"],
+            **training_state.state,
         })
         
         # Send accumulated chart data if training is in progress
-        if training_state["is_training"] and training_state["chart_data"]:
+        if training_state.state["is_training"] and training_state.state["chart_data"]:
             await websocket.send_json({
                 "type": "training_plot",
-                "chart_data": training_state["chart_data"],
-                "metrics": training_state["available_metrics"],
-                "epochs": training_state["current_epoch"],
-                "epoch_boundaries": training_state["epoch_boundaries"],
+                "chart_data": training_state.state["chart_data"],
+                "metrics": training_state.state["available_metrics"],
+                "epochs": training_state.state["current_epoch"],
+                "epoch_boundaries": training_state.state["epoch_boundaries"],
             })
 
         
@@ -141,9 +162,8 @@ async def training_websocket(websocket: WebSocket) -> None:
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
     finally:
-        if websocket in active_connections:
-            active_connections.remove(websocket)
-        logger.info(f"WebSocket removed. Total connections: {len(active_connections)}")
+        training_state.remove_connection(websocket)
+        logger.info(f"WebSocket removed. Total connections: {len(training_state.connections)}")
 
 
 ###############################################################################
@@ -187,15 +207,15 @@ async def get_checkpoints() -> CheckpointsResponse:
 )
 async def get_training_status() -> TrainingStatusResponse:
     return TrainingStatusResponse(
-        is_training=training_state["is_training"],
-        current_epoch=training_state["current_epoch"],
-        total_epochs=training_state["total_epochs"],
-        loss=training_state["loss"],
-        val_loss=training_state["val_loss"],
-        accuracy=training_state["accuracy"],
-        val_accuracy=training_state["val_accuracy"],
-        progress_percent=training_state["progress_percent"],
-        elapsed_seconds=training_state["elapsed_seconds"],
+        is_training=training_state.state["is_training"],
+        current_epoch=training_state.state["current_epoch"],
+        total_epochs=training_state.state["total_epochs"],
+        loss=training_state.state["loss"],
+        val_loss=training_state.state["val_loss"],
+        accuracy=training_state.state["accuracy"],
+        val_accuracy=training_state.state["val_accuracy"],
+        progress_percent=training_state.state["progress_percent"],
+        elapsed_seconds=training_state.state["elapsed_seconds"],
     )
 
 
@@ -206,9 +226,7 @@ async def get_training_status() -> TrainingStatusResponse:
     status_code=status.HTTP_200_OK,
 )
 async def start_training(request: StartTrainingRequest) -> TrainingStatusResponse:
-    global training_state, interrupt_callback, main_event_loop
-    
-    if training_state["is_training"]:
+    if training_state.state["is_training"]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Training is already in progress",
@@ -240,28 +258,19 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         )
     
     # Set training state
-    training_state["is_training"] = True
-    training_state["current_epoch"] = 0
-    training_state["total_epochs"] = configuration.get("epochs", 10)
-    # Clear chart data from previous sessions
-    training_state["chart_data"] = []
-    training_state["epoch_boundaries"] = []
-    training_state["available_metrics"] = []
-
+    training_state.reset_for_new_session(configuration.get("epochs", 10))
     
     # Store reference to the current event loop for WebSocket callbacks
-    main_event_loop = asyncio.get_running_loop()
+    training_state.event_loop = asyncio.get_running_loop()
     
     # Broadcast training started
-    await broadcast_message({
+    await training_state.broadcast({
         "type": "training_started",
-        "total_epochs": training_state["total_epochs"],
+        "total_epochs": training_state.state["total_epochs"],
     })
     
     # Define the blocking training function to run in a thread
     def run_training_sync() -> tuple[Any, dict[str, Any]]:
-        global interrupt_callback
-        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(configuration)
@@ -283,7 +292,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         model = build_xreport_model(metadata, configuration)
         
         # Initialize interrupt callback
-        interrupt_callback = TrainingInterruptCallback()
+        training_state.interrupt_callback = TrainingInterruptCallback()
         
         # Train model
         logger.info("Starting XREPORT Transformer model training")
@@ -293,8 +302,8 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
             train_dataset,
             validation_dataset,
             checkpoint_path,
-            websocket_callback=sync_websocket_callback,
-            interrupt_callback=interrupt_callback,
+            websocket_callback=training_state.sync_broadcast,
+            interrupt_callback=training_state.interrupt_callback,
         )
         
         # Save model and configuration
@@ -306,10 +315,10 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     try:
         # Run training in a thread so the event loop stays free for WebSocket
         loop = asyncio.get_running_loop()
-        model, history = await loop.run_in_executor(training_executor, run_training_sync)
+        model, history = await loop.run_in_executor(training_state.executor, run_training_sync)
         
         # Broadcast training completed
-        await broadcast_message({
+        await training_state.broadcast({
             "type": "training_completed",
             "epochs": history.get("epochs", 0),
             "final_loss": history.get("history", {}).get("loss", [0])[-1],
@@ -320,7 +329,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
         
     except Exception as e:
         logger.exception("Training failed")
-        await broadcast_message({
+        await training_state.broadcast({
             "type": "training_error",
             "error": str(e),
         })
@@ -329,20 +338,19 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
             detail=f"Training failed: {str(e)}",
         ) from e
     
-    finally:        
-        training_state["is_training"] = False
-        interrupt_callback = None
+    finally:
+        training_state.finish_session()
     
     return TrainingStatusResponse(
         is_training=False,
-        current_epoch=training_state["current_epoch"],
-        total_epochs=training_state["total_epochs"],
-        loss=training_state["loss"],
-        val_loss=training_state["val_loss"],
-        accuracy=training_state["accuracy"],
-        val_accuracy=training_state["val_accuracy"],
+        current_epoch=training_state.state["current_epoch"],
+        total_epochs=training_state.state["total_epochs"],
+        loss=training_state.state["loss"],
+        val_loss=training_state.state["val_loss"],
+        accuracy=training_state.state["accuracy"],
+        val_accuracy=training_state.state["val_accuracy"],
         progress_percent=100,
-        elapsed_seconds=training_state["elapsed_seconds"],
+        elapsed_seconds=training_state.state["elapsed_seconds"],
     )
 
 
@@ -353,9 +361,7 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     status_code=status.HTTP_200_OK,
 )
 async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusResponse:
-    global training_state, interrupt_callback, main_event_loop
-    
-    if training_state["is_training"]:
+    if training_state.state["is_training"]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Training is already in progress",
@@ -402,15 +408,15 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     
     # Set training state
     from_epoch = session.get("epochs", 0)
-    training_state["is_training"] = True
-    training_state["current_epoch"] = from_epoch
-    training_state["total_epochs"] = from_epoch + request.additional_epochs
+    training_state.state["is_training"] = True
+    training_state.state["current_epoch"] = from_epoch
+    training_state.state["total_epochs"] = from_epoch + request.additional_epochs
     
     # Store reference to the current event loop for WebSocket callbacks
-    main_event_loop = asyncio.get_running_loop()
+    training_state.event_loop = asyncio.get_running_loop()
     
     # Broadcast training resumed
-    await broadcast_message({
+    await training_state.broadcast({
         "type": "training_resumed",
         "from_epoch": from_epoch,
         "additional_epochs": request.additional_epochs,
@@ -418,8 +424,6 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     
     # Define the blocking resume function to run in a thread
     def run_resume_sync() -> tuple[Any, dict[str, Any]]:
-        global interrupt_callback
-        
         # Set device for training
         logger.info("Setting device for training operations")
         device = DeviceConfig(train_config)
@@ -432,7 +436,7 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         validation_dataset = builder.build_training_dataloader(validation_data)
         
         # Initialize interrupt callback
-        interrupt_callback = TrainingInterruptCallback()
+        training_state.interrupt_callback = TrainingInterruptCallback()
         
         # Resume training
         logger.info(f"Resuming training from epoch {from_epoch}")
@@ -444,8 +448,8 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
             checkpoint_path,
             session=session,
             additional_epochs=request.additional_epochs,
-            websocket_callback=sync_websocket_callback,
-            interrupt_callback=interrupt_callback,
+            websocket_callback=training_state.sync_broadcast,
+            interrupt_callback=training_state.interrupt_callback,
         )
         
         # Save model and configuration
@@ -457,10 +461,10 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     try:
         # Run training in a thread so the event loop stays free for WebSocket
         loop = asyncio.get_running_loop()
-        model, history = await loop.run_in_executor(training_executor, run_resume_sync)
+        model, history = await loop.run_in_executor(training_state.executor, run_resume_sync)
         
         # Broadcast training completed
-        await broadcast_message({
+        await training_state.broadcast({
             "type": "training_completed",
             "epochs": history.get("epochs", 0),
             "final_loss": history.get("history", {}).get("loss", [0])[-1],
@@ -471,7 +475,7 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         
     except Exception as e:
         logger.exception("Resume training failed")
-        await broadcast_message({
+        await training_state.broadcast({
             "type": "training_error",
             "error": str(e),
         })
@@ -481,19 +485,18 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
         ) from e
     
     finally:
-        training_state["is_training"] = False
-        interrupt_callback = None
+        training_state.finish_session()
     
     return TrainingStatusResponse(
         is_training=False,
-        current_epoch=training_state["current_epoch"],
-        total_epochs=training_state["total_epochs"],
-        loss=training_state["loss"],
-        val_loss=training_state["val_loss"],
-        accuracy=training_state["accuracy"],
-        val_accuracy=training_state["val_accuracy"],
+        current_epoch=training_state.state["current_epoch"],
+        total_epochs=training_state.state["total_epochs"],
+        loss=training_state.state["loss"],
+        val_loss=training_state.state["val_loss"],
+        accuracy=training_state.state["accuracy"],
+        val_accuracy=training_state.state["val_accuracy"],
         progress_percent=100,
-        elapsed_seconds=training_state["elapsed_seconds"],
+        elapsed_seconds=training_state.state["elapsed_seconds"],
     )
 
 
@@ -504,31 +507,29 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     status_code=status.HTTP_200_OK,
 )
 async def stop_training() -> TrainingStatusResponse:
-    global interrupt_callback
-    
-    if not training_state["is_training"]:
+    if not training_state.state["is_training"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No training is currently in progress",
         )
     
-    if interrupt_callback is not None:
-        interrupt_callback.request_stop()
+    if training_state.interrupt_callback is not None:
+        training_state.interrupt_callback.request_stop()
         logger.info("Training stop requested")
         
-        await broadcast_message({
+        await training_state.broadcast({
             "type": "training_stopping",
             "message": "Training stop requested. Will stop after current epoch.",
         })
     
     return TrainingStatusResponse(
-        is_training=training_state["is_training"],
-        current_epoch=training_state["current_epoch"],
-        total_epochs=training_state["total_epochs"],
-        loss=training_state["loss"],
-        val_loss=training_state["val_loss"],
-        accuracy=training_state["accuracy"],
-        val_accuracy=training_state["val_accuracy"],
-        progress_percent=training_state["progress_percent"],
-        elapsed_seconds=training_state["elapsed_seconds"],
+        is_training=training_state.state["is_training"],
+        current_epoch=training_state.state["current_epoch"],
+        total_epochs=training_state.state["total_epochs"],
+        loss=training_state.state["loss"],
+        val_loss=training_state.state["val_loss"],
+        accuracy=training_state.state["accuracy"],
+        val_accuracy=training_state.state["val_accuracy"],
+        progress_percent=training_state.state["progress_percent"],
+        elapsed_seconds=training_state.state["elapsed_seconds"],
     )
