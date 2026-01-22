@@ -55,6 +55,32 @@ export interface DatasetNamesResponse {
     count: number;
 }
 
+// ============================================================================
+// Job API Types
+// ============================================================================
+
+export interface JobStartResponse {
+    job_id: string;
+    message: string;
+}
+
+export interface JobStatusResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress: number;
+    result: Record<string, unknown> | null;
+    error: string | null;
+    created_at: number;
+    completed_at: number | null;
+}
+
+export interface JobCancelResponse {
+    job_id: string;
+    success: boolean;
+    message: string;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -222,10 +248,11 @@ export interface ProcessDatasetResponse {
 
 /**
  * Process the loaded dataset (sanitize, tokenize, split)
+ * Returns a job_id for polling status
  */
 export async function processDataset(
     config: ProcessDatasetRequest
-): Promise<{ result: ProcessDatasetResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/preparation/dataset/process', {
             method: 'POST',
@@ -236,7 +263,49 @@ export async function processDataset(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<ProcessDatasetResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get preparation job status
+ */
+export async function getPreparationJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Cancel a preparation job
+ */
+export async function cancelPreparationJob(
+    jobId: string
+): Promise<{ result: JobCancelResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobCancelResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -333,10 +402,11 @@ export async function getTrainingStatus(): Promise<{ result: TrainingStatusRespo
 
 /**
  * Start a new training session
+ * Returns a job_id for polling status
  */
 export async function startTraining(
     config: StartTrainingConfig
-): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/training/start', {
             method: 'POST',
@@ -347,7 +417,7 @@ export async function startTraining(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<TrainingStatusResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -357,11 +427,12 @@ export async function startTraining(
 
 /**
  * Resume training from a checkpoint
+ * Returns a job_id for polling status
  */
 export async function resumeTraining(
     checkpoint: string,
     additionalEpochs: number
-): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/training/resume', {
             method: 'POST',
@@ -375,7 +446,7 @@ export async function resumeTraining(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<TrainingStatusResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -384,7 +455,49 @@ export async function resumeTraining(
 }
 
 /**
- * Stop current training session
+ * Get training job status
+ */
+export async function getTrainingJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Cancel a training job
+ */
+export async function cancelTrainingJob(
+    jobId: string
+): Promise<{ result: JobCancelResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobCancelResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Stop current training session (legacy endpoint)
  */
 export async function stopTraining(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
@@ -403,3 +516,62 @@ export async function stopTraining(): Promise<{ result: TrainingStatusResponse |
     }
 }
 
+// ============================================================================
+// Job Polling Helpers
+// ============================================================================
+
+/**
+ * Poll a job until it completes, fails, or is cancelled
+ * Returns a cleanup function to stop polling
+ */
+export function pollJobStatus(
+    getStatusFn: (jobId: string) => Promise<{ result: JobStatusResponse | null; error: string | null }>,
+    jobId: string,
+    onUpdate: (status: JobStatusResponse) => void,
+    onComplete: (status: JobStatusResponse) => void,
+    onError: (error: string) => void,
+    intervalMs: number = 2000
+): { stop: () => void } {
+    let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+        if (stopped) return;
+
+        const { result, error } = await getStatusFn(jobId);
+
+        if (stopped) return;
+
+        if (error) {
+            onError(error);
+            return;
+        }
+
+        if (!result) {
+            onError('No result returned');
+            return;
+        }
+
+        onUpdate(result);
+
+        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
+            onComplete(result);
+            return;
+        }
+
+        // Schedule next poll
+        timeoutId = setTimeout(poll, intervalMs);
+    };
+
+    // Start polling
+    poll();
+
+    return {
+        stop: () => {
+            stopped = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        },
+    };
+}
