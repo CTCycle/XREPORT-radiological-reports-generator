@@ -254,12 +254,13 @@ export interface CheckpointEvaluationResponse {
 
 /**
  * Evaluate a checkpoint using selected metrics
+ * Returns a job_id for polling status
  */
 export async function evaluateCheckpoint(
     checkpoint: string,
     metrics: string[],
     numSamples: number = 10
-): Promise<{ result: CheckpointEvaluationResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const request: CheckpointEvaluationRequest = {
             checkpoint,
@@ -281,7 +282,30 @@ export async function evaluateCheckpoint(
             };
         }
 
-        const payload = await readJson<CheckpointEvaluationResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get checkpoint evaluation job status (from validation endpoint)
+ */
+export async function getCheckpointEvaluationJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/validation/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return {
+                result: null,
+                error: `${response.status} ${response.statusText}: ${body}`,
+            };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
