@@ -152,18 +152,72 @@ export default function DatasetPage() {
         setValidationError(null);
         setValidationResult(null);
 
-        const { result, error } = await runValidation({
+        const { result: jobResult, error: startError } = await runValidation({
             metrics,
             sample_size: state.config.evalSampleSize,
         });
 
-        setIsValidating(false);
-
-        if (error) {
-            setValidationError(error);
-        } else if (result) {
-            setValidationResult(result);
+        if (startError || !jobResult) {
+            setIsValidating(false);
+            setValidationError(startError || 'Failed to start validation job');
+            return;
         }
+
+        // Poll for job completion
+        const { getValidationJobStatus } = await import('../services/validationService');
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);
+
+            if (pollError) {
+                setIsValidating(false);
+                setValidationError(pollError);
+                return;
+            }
+
+            if (!status) {
+                setIsValidating(false);
+                setValidationError('Failed to get job status');
+                return;
+            }
+
+            if (status.status === 'completed' && status.result) {
+                setIsValidating(false);
+                const res = status.result as Record<string, unknown>;
+                setValidationResult({
+                    success: res.success as boolean ?? true,
+                    message: res.message as string ?? 'Validation completed',
+                    pixel_distribution: res.pixel_distribution as { bins: number[]; counts: number[] } | undefined,
+                    image_statistics: res.image_statistics as {
+                        count: number;
+                        mean_height: number;
+                        mean_width: number;
+                        mean_pixel_value: number;
+                        std_pixel_value: number;
+                        mean_noise_std: number;
+                        mean_noise_ratio: number;
+                    } | undefined,
+                    text_statistics: res.text_statistics as {
+                        count: number;
+                        total_words: number;
+                        unique_words: number;
+                        avg_words_per_report: number;
+                        min_words_per_report: number;
+                        max_words_per_report: number;
+                    } | undefined,
+                });
+            } else if (status.status === 'failed') {
+                setIsValidating(false);
+                setValidationError(status.error || 'Validation failed');
+            } else if (status.status === 'cancelled') {
+                setIsValidating(false);
+                setValidationError('Validation was cancelled');
+            } else {
+                // Still running, poll again
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
     };
 
     const handleFolderSelect = async (path: string, _imageCount: number) => {
