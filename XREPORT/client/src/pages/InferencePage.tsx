@@ -285,30 +285,63 @@ export default function InferencePage() {
         setEvaluationError(null);
         setEvaluationResults(null);
 
-        const { result, error } = await evaluateCheckpoint(
+        const { result: jobResult, error: startError } = await evaluateCheckpoint(
             state.selectedCheckpoint,
             selectedMetrics,
             state.numBleuSamples
         );
 
-        if (error) {
-            console.error('Evaluation failed:', error);
-            setEvaluationError(error);
+        if (startError || !jobResult) {
+            console.error('Evaluation failed:', startError);
+            setEvaluationError(startError || 'Failed to start evaluation job');
             setIsEvaluating(false);
             return;
         }
 
-        if (result && result.success && result.results) {
-            setEvaluationResults({
-                loss: result.results.loss,
-                accuracy: result.results.accuracy,
-                bleuScore: result.results.bleu_score,
-            });
-        } else {
-            setEvaluationError(result?.message || 'Evaluation failed');
-        }
+        // Poll for job completion
+        const { getCheckpointEvaluationJobStatus } = await import('../services/inferenceService');
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getCheckpointEvaluationJobStatus(jobResult.job_id);
 
-        setIsEvaluating(false);
+            if (pollError) {
+                console.error('Poll error:', pollError);
+                setEvaluationError(pollError);
+                setIsEvaluating(false);
+                return;
+            }
+
+            if (!status) {
+                setEvaluationError('Failed to get job status');
+                setIsEvaluating(false);
+                return;
+            }
+
+            if (status.status === 'completed' && status.result) {
+                const res = status.result as Record<string, unknown>;
+                const results = res.results as Record<string, number> | undefined;
+                if (results) {
+                    setEvaluationResults({
+                        loss: results.loss,
+                        accuracy: results.accuracy,
+                        bleuScore: results.bleu_score,
+                    });
+                } else {
+                    setEvaluationError((res.message as string) || 'Evaluation completed but no results');
+                }
+                setIsEvaluating(false);
+            } else if (status.status === 'failed') {
+                setEvaluationError(status.error || 'Evaluation failed');
+                setIsEvaluating(false);
+            } else if (status.status === 'cancelled') {
+                setEvaluationError('Evaluation was cancelled');
+                setIsEvaluating(false);
+            } else {
+                // Still running, poll again
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
     };
 
     // Get current image URL
