@@ -3,16 +3,21 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, File, Form, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from XREPORT.server.schemas.jobs import (
+    JobStartResponse,
+    JobStatusResponse,
+    JobCancelResponse,
+)
 from XREPORT.server.utils.constants import RESOURCES_PATH
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.services.inference import TextGenerator
+from XREPORT.server.utils.services.jobs import job_manager
 from XREPORT.server.utils.services.training.serializer import ModelSerializer
 
 router = APIRouter(prefix="/inference", tags=["inference"])
@@ -27,9 +32,6 @@ class InferenceState:
 
     def __init__(self) -> None:
         self.connections: list[WebSocket] = []
-        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="inference"
-        )
         self.event_loop: asyncio.AbstractEventLoop | None = None
 
     # -------------------------------------------------------------------------
@@ -168,32 +170,105 @@ def get_checkpoints() -> CheckpointsResponse:
         )
 
 
+# -----------------------------------------------------------------------------
+def run_inference_job(
+    checkpoint: str,
+    generation_mode: str,
+    image_paths: list[str],
+    job_id: str,
+) -> dict[str, Any]:
+    """Blocking inference function that runs in background thread."""
+    # Load model checkpoint
+    logger.info(f"Loading checkpoint: {checkpoint}")
+    serializer = ModelSerializer()
+    
+    try:
+        model, train_config, model_metadata, _, _ = serializer.load_checkpoint(checkpoint)
+    except Exception as e:
+        logger.error(f"Checkpoint load failed for {checkpoint}: {e}")
+        raise RuntimeError(f"Checkpoint not found: {checkpoint}") from e
+    
+    model.summary(expand_nested=True)
+    max_report_size = model_metadata.get("max_report_size", 200)
+
+    # Initialize generator with model metadata (contains tokenizer info)
+    generator = TextGenerator(model, model_metadata, max_report_size)
+
+    # Broadcast generation start
+    inference_state.broadcast({
+        "type": "start",
+        "job_id": job_id,
+        "total_images": len(image_paths),
+        "checkpoint": checkpoint,
+        "mode": generation_mode,
+    })
+
+    # Generate reports
+    reports = generator.generate_radiological_reports(
+        image_paths,
+        generation_mode,
+        stream_callback=inference_state.stream_token,
+    )
+
+    if reports is None:
+        inference_state.broadcast({
+            "type": "error",
+            "job_id": job_id,
+            "message": "Failed to generate reports",
+        })
+        raise RuntimeError("Failed to generate reports")
+
+    # Convert paths to filenames for response
+    reports_by_filename = {
+        os.path.basename(k): v for k, v in reports.items()
+    }
+
+    inference_state.broadcast({
+        "type": "complete",
+        "job_id": job_id,
+        "reports": reports_by_filename,
+    })
+
+    # Clean up temp files
+    for path in image_paths:
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+    return {
+        "reports": reports_by_filename,
+        "count": len(reports_by_filename),
+    }
+
+
 ###############################################################################
-@router.post("/generate", response_model=GenerationResponse)
+@router.post("/generate", response_model=JobStartResponse, status_code=status.HTTP_202_ACCEPTED)
 async def generate_reports(
     checkpoint: str = Form(...),
     generation_mode: str = Form(...),
     images: list[UploadFile] = File(...),
-) -> GenerationResponse:
+) -> JobStartResponse:
     inference_state.event_loop = asyncio.get_event_loop()
 
     if len(images) == 0:
-        return error_response(
-            status.HTTP_400_BAD_REQUEST,
-            "No images provided",
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No images provided",
         )
 
     if len(images) > 16:
-        return error_response(
-            status.HTTP_400_BAD_REQUEST,
-            "Maximum 16 images allowed",
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 16 images allowed",
         )
 
     allowed_modes = {"greedy_search", "beam_search"}
     if generation_mode not in allowed_modes:
-        return error_response(
-            status.HTTP_400_BAD_REQUEST,
-            f"Unsupported generation mode: {generation_mode}",
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported generation mode: {generation_mode}",
         )
 
     # Create temp directory for uploaded images
@@ -211,87 +286,76 @@ async def generate_reports(
                 f.write(content)
             image_paths.append(temp_path)
 
-        # Broadcast generation start
-        inference_state.broadcast({
-            "type": "start",
-            "total_images": len(image_paths),
-            "checkpoint": checkpoint,
-            "mode": generation_mode,
-        })
-
-        # Load model checkpoint
-        logger.info(f"Loading checkpoint: {checkpoint}")
-        serializer = ModelSerializer()
-        try:
-            model, train_config, model_metadata, _, _ = serializer.load_checkpoint(
-                checkpoint
-            )
-        except Exception as e:
-            logger.error(f"Checkpoint load failed for {checkpoint}: {e}")
-            return error_response(
-                status.HTTP_404_NOT_FOUND,
-                f"Checkpoint not found: {checkpoint}",
-            )
-        model.summary(expand_nested=True)
-
-        max_report_size = model_metadata.get("max_report_size", 200)
-
-        # Initialize generator with model metadata (contains tokenizer info)
-        generator = TextGenerator(model, model_metadata, max_report_size)
-
-        # Run generation in thread pool to not block event loop
-        loop = asyncio.get_event_loop()
-        reports = await loop.run_in_executor(
-            inference_state.executor,
-            lambda: generator.generate_radiological_reports(
-                image_paths,
-                generation_mode,
-                stream_callback=inference_state.stream_token,
-            ),
+        # Start background job
+        job_id = job_manager.start_job(
+            job_type="inference",
+            runner=run_inference_job,
+            kwargs={
+                "checkpoint": checkpoint,
+                "generation_mode": generation_mode,
+                "image_paths": image_paths,
+                "job_id": "",
+            },
         )
 
-        if reports is None:
-            inference_state.broadcast({
-                "type": "error",
-                "message": "Failed to generate reports",
-            })
-            return error_response(
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "Failed to generate reports",
-            )
-
-        # Convert paths to filenames for response
-        reports_by_filename = {
-            os.path.basename(k): v for k, v in reports.items()
-        }
-
-        inference_state.broadcast({
-            "type": "complete",
-            "reports": reports_by_filename,
-        })
-
-        return GenerationResponse(
-            success=True,
-            message=f"Generated {len(reports)} reports",
-            reports=reports_by_filename,
+        return JobStartResponse(
+            job_id=job_id,
+            message=f"Inference job started for {len(image_paths)} images",
         )
 
     except Exception as e:
-        logger.error(f"Error generating reports: {e}")
-        inference_state.broadcast({
-            "type": "error",
-            "message": str(e),
-        })
-        return error_response(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            str(e),
-        )
-
-    finally:
-        # Clean up temp files
+        # Clean up on error
         for path in image_paths:
             try:
                 if os.path.exists(path):
                     os.remove(path)
             except Exception:
                 pass
+        logger.error(f"Error starting inference job: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e
+
+
+###############################################################################
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_inference_job_status(job_id: str) -> JobStatusResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
+    return JobStatusResponse(**job_status)
+
+
+###############################################################################
+@router.delete(
+    "/jobs/{job_id}",
+    response_model=JobCancelResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_inference_job(job_id: str) -> JobCancelResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
+    
+    success = job_manager.cancel_job(job_id)
+    
+    return JobCancelResponse(
+        job_id=job_id,
+        success=success,
+        message="Cancellation requested" if success else "Job cannot be cancelled",
+    )
+
+
+# Import HTTPException at module level
+from fastapi import HTTPException

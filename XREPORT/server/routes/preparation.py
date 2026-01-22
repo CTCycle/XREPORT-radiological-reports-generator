@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, status
@@ -17,10 +18,16 @@ from XREPORT.server.schemas.training import (
     ProcessDatasetRequest,
     ProcessDatasetResponse,
 )
+from XREPORT.server.schemas.jobs import (
+    JobStartResponse,
+    JobStatusResponse,
+    JobCancelResponse,
+)
 from XREPORT.server.database.database import database
 from XREPORT.server.routes.upload import upload_state
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.services.jobs import job_manager
 from XREPORT.server.utils.configurations.server import server_settings
 
 
@@ -136,7 +143,6 @@ async def validate_image_path(request: ImagePathRequest) -> ImagePathResponse:
 
 
 
-
 ###############################################################################
 @router.post(
     "/dataset/load",
@@ -243,14 +249,12 @@ async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
     )
 
 
-###############################################################################
-@router.post(
-    "/dataset/process",
-    response_model=ProcessDatasetResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetResponse:
-    """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
+# -----------------------------------------------------------------------------
+def run_process_dataset_job(
+    configuration: dict[str, Any],
+    job_id: str,
+) -> dict[str, Any]:
+    """Blocking dataset processing function that runs in background thread."""
     from XREPORT.server.utils.services.training.serializer import DataSerializer
     from XREPORT.server.utils.services.training.processing import (
         TextSanitizer,
@@ -259,27 +263,27 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
     )
     
     serializer = DataSerializer()
-    configuration = request.model_dump()
-    configuration["seed"] = server_settings.global_settings.seed
     
     # Load source dataset from RADIOGRAPHY_DATA
     dataset = serializer.load_source_dataset(
-        sample_size=request.sample_size,
-        seed=server_settings.global_settings.seed,
+        sample_size=configuration["sample_size"],
+        seed=configuration["seed"],
     )
     
     if dataset.empty:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
-        )
+        raise RuntimeError("No data found in RADIOGRAPHY_DATA table. Please load a dataset first.")
     
     logger.info(f"Processing dataset with {len(dataset)} samples")
+    
+    # Update progress
+    job_manager.update_progress(job_id, 10.0)
     
     # Step 1: Sanitize text corpus
     sanitizer = TextSanitizer(configuration)
     processed_data = sanitizer.sanitize_text(dataset)
     logger.info("Text sanitization completed")
+    
+    job_manager.update_progress(job_id, 30.0)
     
     # Step 2: Tokenize text using Hugging Face tokenizer
     try:
@@ -290,10 +294,9 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
         logger.info(f"Vocabulary size: {vocabulary_size} tokens")
     except Exception as e:
         logger.exception("Failed to tokenize text")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tokenization failed: {str(e)}",
-        ) from e
+        raise RuntimeError(f"Tokenization failed: {str(e)}") from e
+    
+    job_manager.update_progress(job_id, 60.0)
     
     # Step 3: Drop raw text column (keep only tokens)
     processed_data = processed_data.drop(columns=["text"])
@@ -307,6 +310,8 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
     
     logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
     
+    job_manager.update_progress(job_id, 80.0)
+    
     # Step 5: Save processed data and metadata to database
     try:
         serializer.save_training_data(configuration, training_data, vocabulary_size)
@@ -314,24 +319,98 @@ async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetRespo
     except RuntimeError as e:
         # Schema mismatch or other runtime errors - use the clean message directly
         logger.error(f"Database error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
+        raise
     except Exception as e:
         logger.exception("Failed to save training data")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save training data: {str(e)}",
-        ) from e
+        raise RuntimeError(f"Failed to save training data: {str(e)}") from e
     
-    return ProcessDatasetResponse(
-        success=True,
-        total_samples=len(training_data),
-        train_samples=train_samples,
-        validation_samples=validation_samples,
-        vocabulary_size=vocabulary_size,
-        message=f"Successfully processed {len(training_data)} samples",
+    job_manager.update_progress(job_id, 100.0)
+    
+    return {
+        "total_samples": len(training_data),
+        "train_samples": train_samples,
+        "validation_samples": validation_samples,
+        "vocabulary_size": vocabulary_size,
+    }
+
+
+###############################################################################
+@router.post(
+    "/dataset/process",
+    response_model=JobStartResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def process_dataset(request: ProcessDatasetRequest) -> JobStartResponse:
+    """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
+    if job_manager.is_job_running("dataset_processing"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dataset processing is already in progress",
+        )
+    
+    configuration = request.model_dump()
+    configuration["seed"] = server_settings.global_settings.seed
+    
+    # Quick validation - check if source data exists
+    row_count = database.count_rows("RADIOGRAPHY_DATA")
+    if row_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
+        )
+    
+    # Start background job
+    job_id = job_manager.start_job(
+        job_type="dataset_processing",
+        runner=run_process_dataset_job,
+        kwargs={
+            "configuration": configuration,
+            "job_id": "",
+        },
+    )
+    
+    return JobStartResponse(
+        job_id=job_id,
+        message=f"Dataset processing job started for {row_count} samples",
+    )
+
+
+###############################################################################
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_preparation_job_status(job_id: str) -> JobStatusResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
+    return JobStatusResponse(**job_status)
+
+
+###############################################################################
+@router.delete(
+    "/jobs/{job_id}",
+    response_model=JobCancelResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_preparation_job(job_id: str) -> JobCancelResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
+    
+    success = job_manager.cancel_job(job_id)
+    
+    return JobCancelResponse(
+        job_id=job_id,
+        success=success,
+        message="Cancellation requested" if success else "Job cannot be cancelled",
     )
 
 

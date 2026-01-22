@@ -81,20 +81,59 @@ export default function DatasetPage() {
         setUploadError(null);
         setProcessingResult(null);
 
-        const { result, error } = await processDataset({
+        const { result: jobResult, error: startError } = await processDataset({
             sample_size: state.config.sampleSize,
             validation_size: state.config.validationSize,
             tokenizer: state.config.tokenizer,
             max_report_size: state.config.maxReportSize,
         });
 
-        setIsProcessing(false);
-
-        if (error) {
-            setUploadError(error);
-        } else if (result) {
-            setProcessingResult(result);
+        if (startError || !jobResult) {
+            setIsProcessing(false);
+            setUploadError(startError || 'Failed to start processing job');
+            return;
         }
+
+        // Poll for job completion
+        const { getPreparationJobStatus } = await import('../services/trainingService');
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getPreparationJobStatus(jobResult.job_id);
+
+            if (pollError) {
+                setIsProcessing(false);
+                setUploadError(pollError);
+                return;
+            }
+
+            if (!status) {
+                setIsProcessing(false);
+                setUploadError('Failed to get job status');
+                return;
+            }
+
+            if (status.status === 'completed' && status.result) {
+                setIsProcessing(false);
+                setProcessingResult({
+                    success: true,
+                    total_samples: (status.result as Record<string, number>).total_samples ?? 0,
+                    train_samples: (status.result as Record<string, number>).train_samples ?? 0,
+                    validation_samples: (status.result as Record<string, number>).validation_samples ?? 0,
+                    vocabulary_size: (status.result as Record<string, number>).vocabulary_size ?? 0,
+                    message: 'Dataset processed successfully',
+                });
+            } else if (status.status === 'failed') {
+                setIsProcessing(false);
+                setUploadError(status.error || 'Processing failed');
+            } else if (status.status === 'cancelled') {
+                setIsProcessing(false);
+                setUploadError('Processing was cancelled');
+            } else {
+                // Still running, poll again
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
     };
 
     const handleViewEvaluation = async () => {
