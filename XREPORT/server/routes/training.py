@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, status
@@ -14,7 +13,13 @@ from XREPORT.server.schemas.training import (
     ResumeTrainingRequest,
     TrainingStatusResponse,
 )
+from XREPORT.server.schemas.jobs import (
+    JobStartResponse,
+    JobStatusResponse,
+    JobCancelResponse,
+)
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.services.jobs import job_manager
 from XREPORT.server.utils.services.training.device import DeviceConfig
 from XREPORT.server.utils.services.training.serializer import (
     DataSerializer,
@@ -48,10 +53,8 @@ class TrainingState:
         }
         self.connections: list[WebSocket] = []
         self.interrupt_callback: TrainingInterruptCallback | None = None
-        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="training"
-        )
         self.event_loop: asyncio.AbstractEventLoop | None = None
+        self.current_job_id: str | None = None
 
     # -------------------------------------------------------------------------
     def update_metrics(self, message: dict[str, Any]) -> None:
@@ -101,7 +104,7 @@ class TrainingState:
             self.connections.remove(websocket)
 
     # -------------------------------------------------------------------------
-    def reset_for_new_session(self, total_epochs: int) -> None:
+    def reset_for_new_session(self, total_epochs: int, job_id: str) -> None:
         """Reset state for a new training session."""
         self.state["is_training"] = True
         self.state["current_epoch"] = 0
@@ -109,12 +112,14 @@ class TrainingState:
         self.state["chart_data"] = []
         self.state["epoch_boundaries"] = []
         self.state["available_metrics"] = []
+        self.current_job_id = job_id
 
     # -------------------------------------------------------------------------
     def finish_session(self) -> None:
         """Mark training session as complete."""
         self.state["is_training"] = False
         self.interrupt_callback = None
+        self.current_job_id = None
 
 
 training_state = TrainingState()
@@ -219,14 +224,87 @@ async def get_training_status() -> TrainingStatusResponse:
     )
 
 
+# -----------------------------------------------------------------------------
+def run_training_job(
+    configuration: dict[str, Any],
+    train_data: Any,
+    validation_data: Any,
+    metadata: dict[str, Any],
+    job_id: str,
+) -> dict[str, Any]:
+    """Blocking training function that runs in background thread."""
+    # Initialize serializers
+    modser = ModelSerializer()
+    
+    # Set device for training
+    logger.info("Setting device for training operations")
+    device = DeviceConfig(configuration)
+    device.set_device()
+    
+    # Create checkpoint folder
+    checkpoint_path = modser.create_checkpoint_folder()
+    
+    # Build data loaders
+    logger.info("Building model data loaders")
+    builder = XRAYDataLoader(configuration)
+    train_dataset = builder.build_training_dataloader(train_data)
+    validation_dataset = builder.build_training_dataloader(validation_data)
+    
+    # Build model (deferred import to avoid circular imports)
+    from XREPORT.server.utils.services.training.model import build_xreport_model
+    
+    logger.info("Building XREPORT Transformer model")
+    model = build_xreport_model(metadata, configuration)
+    
+    # Initialize interrupt callback that checks job manager
+    training_state.interrupt_callback = TrainingInterruptCallback()
+    
+    # Train model
+    logger.info("Starting XREPORT Transformer model training")
+    trainer = ModelTrainer(configuration)
+    trained_model, history = trainer.train_model(
+        model,
+        train_dataset,
+        validation_dataset,
+        checkpoint_path,
+        websocket_callback=training_state.sync_broadcast,
+        interrupt_callback=training_state.interrupt_callback,
+    )
+    
+    # Save model and configuration
+    modser.save_pretrained_model(trained_model, checkpoint_path)
+    modser.save_training_configuration(checkpoint_path, history, configuration, metadata)
+    
+    # Broadcast training completed
+    if training_state.event_loop is not None and training_state.event_loop.is_running():
+        asyncio.run_coroutine_threadsafe(
+            training_state.broadcast({
+                "type": "training_completed",
+                "epochs": history.get("epochs", 0),
+                "final_loss": history.get("history", {}).get("loss", [0])[-1],
+                "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+            }),
+            training_state.event_loop,
+        )
+    
+    training_state.finish_session()
+    
+    return {
+        "epochs": history.get("epochs", 0),
+        "final_loss": history.get("history", {}).get("loss", [0])[-1],
+        "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+        "checkpoint_path": checkpoint_path,
+    }
+
+
 ###############################################################################
 @router.post(
     "/start",
-    response_model=TrainingStatusResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=JobStartResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
-async def start_training(request: StartTrainingRequest) -> TrainingStatusResponse:
-    if training_state.state["is_training"]:
+async def start_training(request: StartTrainingRequest) -> JobStartResponse:
+    if job_manager.is_job_running("training"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Training is already in progress",
@@ -237,7 +315,6 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
     
     # Initialize serializers
     serializer = DataSerializer()
-    modser = ModelSerializer()
     
     # Load training data
     train_data, validation_data, metadata = serializer.load_training_data()
@@ -257,111 +334,119 @@ async def start_training(request: StartTrainingRequest) -> TrainingStatusRespons
             detail="No valid images found. Image paths may have changed since dataset was processed.",
         )
     
-    # Set training state
-    training_state.reset_for_new_session(configuration.get("epochs", 10))
-    
     # Store reference to the current event loop for WebSocket callbacks
     training_state.event_loop = asyncio.get_running_loop()
+    
+    # Start background job
+    job_id = job_manager.start_job(
+        job_type="training",
+        runner=run_training_job,
+        kwargs={
+            "configuration": configuration,
+            "train_data": train_data,
+            "validation_data": validation_data,
+            "metadata": metadata,
+            "job_id": "",  # Will be updated below
+        },
+    )
+    
+    # Update the job_id in the kwargs (hacky but necessary)
+    with job_manager.lock:
+        state = job_manager.jobs.get(job_id)
+        if state:
+            training_state.reset_for_new_session(configuration.get("epochs", 10), job_id)
     
     # Broadcast training started
     await training_state.broadcast({
         "type": "training_started",
-        "total_epochs": training_state.state["total_epochs"],
+        "job_id": job_id,
+        "total_epochs": configuration.get("epochs", 10),
     })
     
-    # Define the blocking training function to run in a thread
-    def run_training_sync() -> tuple[Any, dict[str, Any]]:
-        # Set device for training
-        logger.info("Setting device for training operations")
-        device = DeviceConfig(configuration)
-        device.set_device()
-        
-        # Create checkpoint folder
-        checkpoint_path = modser.create_checkpoint_folder()
-        
-        # Build data loaders
-        logger.info("Building model data loaders")
-        builder = XRAYDataLoader(configuration)
-        train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data)
-        
-        # Build model (deferred import to avoid circular imports)
-        from XREPORT.server.utils.services.training.model import build_xreport_model
-        
-        logger.info("Building XREPORT Transformer model")
-        model = build_xreport_model(metadata, configuration)
-        
-        # Initialize interrupt callback
-        training_state.interrupt_callback = TrainingInterruptCallback()
-        
-        # Train model
-        logger.info("Starting XREPORT Transformer model training")
-        trainer = ModelTrainer(configuration)
-        trained_model, history = trainer.train_model(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            websocket_callback=training_state.sync_broadcast,
-            interrupt_callback=training_state.interrupt_callback,
-        )
-        
-        # Save model and configuration
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(checkpoint_path, history, configuration, metadata)
-        
-        return trained_model, history
-    
-    try:
-        # Run training in a thread so the event loop stays free for WebSocket
-        loop = asyncio.get_running_loop()
-        model, history = await loop.run_in_executor(training_state.executor, run_training_sync)
-        
-        # Broadcast training completed
-        await training_state.broadcast({
-            "type": "training_completed",
-            "epochs": history.get("epochs", 0),
-            "final_loss": history.get("history", {}).get("loss", [0])[-1],
-            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
-        })
-        
-        logger.info("Training completed successfully")
-        
-    except Exception as e:
-        logger.exception("Training failed")
-        await training_state.broadcast({
-            "type": "training_error",
-            "error": str(e),
-        })
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Training failed: {str(e)}",
-        ) from e
-    
-    finally:
-        training_state.finish_session()
-    
-    return TrainingStatusResponse(
-        is_training=False,
-        current_epoch=training_state.state["current_epoch"],
-        total_epochs=training_state.state["total_epochs"],
-        loss=training_state.state["loss"],
-        val_loss=training_state.state["val_loss"],
-        accuracy=training_state.state["accuracy"],
-        val_accuracy=training_state.state["val_accuracy"],
-        progress_percent=100,
-        elapsed_seconds=training_state.state["elapsed_seconds"],
+    return JobStartResponse(
+        job_id=job_id,
+        message="Training job started",
     )
+
+
+# -----------------------------------------------------------------------------
+def run_resume_training_job(
+    model: Any,
+    train_config: dict[str, Any],
+    model_metadata: dict[str, Any],
+    session: dict[str, Any],
+    checkpoint_path: str,
+    train_data: Any,
+    validation_data: Any,
+    additional_epochs: int,
+    job_id: str,
+) -> dict[str, Any]:
+    """Blocking resume training function that runs in background thread."""
+    modser = ModelSerializer()
+    from_epoch = session.get("epochs", 0)
+    
+    # Set device for training
+    logger.info("Setting device for training operations")
+    device = DeviceConfig(train_config)
+    device.set_device()
+    
+    # Build data loaders
+    logger.info("Building model data loaders")
+    builder = XRAYDataLoader(train_config)
+    train_dataset = builder.build_training_dataloader(train_data)
+    validation_dataset = builder.build_training_dataloader(validation_data)
+    
+    # Initialize interrupt callback
+    training_state.interrupt_callback = TrainingInterruptCallback()
+    
+    # Resume training
+    logger.info(f"Resuming training from epoch {from_epoch}")
+    trainer = ModelTrainer(train_config, model_metadata)
+    trained_model, history = trainer.resume_training(
+        model,
+        train_dataset,
+        validation_dataset,
+        checkpoint_path,
+        session=session,
+        additional_epochs=additional_epochs,
+        websocket_callback=training_state.sync_broadcast,
+        interrupt_callback=training_state.interrupt_callback,
+    )
+    
+    # Save model and configuration
+    modser.save_pretrained_model(trained_model, checkpoint_path)
+    modser.save_training_configuration(checkpoint_path, history, train_config, model_metadata)
+    
+    # Broadcast training completed
+    if training_state.event_loop is not None and training_state.event_loop.is_running():
+        asyncio.run_coroutine_threadsafe(
+            training_state.broadcast({
+                "type": "training_completed",
+                "epochs": history.get("epochs", 0),
+                "final_loss": history.get("history", {}).get("loss", [0])[-1],
+                "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+            }),
+            training_state.event_loop,
+        )
+    
+    training_state.finish_session()
+    
+    return {
+        "epochs": history.get("epochs", 0),
+        "final_loss": history.get("history", {}).get("loss", [0])[-1],
+        "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+        "checkpoint_path": checkpoint_path,
+    }
 
 
 ###############################################################################
 @router.post(
     "/resume",
-    response_model=TrainingStatusResponse,
-    status_code=status.HTTP_200_OK,
+    response_model=JobStartResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
-async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusResponse:
-    if training_state.state["is_training"]:
+async def resume_training(request: ResumeTrainingRequest) -> JobStartResponse:
+    if job_manager.is_job_running("training"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Training is already in progress",
@@ -406,97 +491,93 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
             detail="No valid images found. Image paths may have changed since dataset was processed.",
         )
     
-    # Set training state
     from_epoch = session.get("epochs", 0)
-    training_state.state["is_training"] = True
-    training_state.state["current_epoch"] = from_epoch
-    training_state.state["total_epochs"] = from_epoch + request.additional_epochs
     
     # Store reference to the current event loop for WebSocket callbacks
     training_state.event_loop = asyncio.get_running_loop()
     
+    # Start background job
+    job_id = job_manager.start_job(
+        job_type="training",
+        runner=run_resume_training_job,
+        kwargs={
+            "model": model,
+            "train_config": train_config,
+            "model_metadata": model_metadata,
+            "session": session,
+            "checkpoint_path": checkpoint_path,
+            "train_data": train_data,
+            "validation_data": validation_data,
+            "additional_epochs": request.additional_epochs,
+            "job_id": "",
+        },
+    )
+    
+    # Update training state
+    training_state.reset_for_new_session(from_epoch + request.additional_epochs, job_id)
+    training_state.state["current_epoch"] = from_epoch
+    
     # Broadcast training resumed
     await training_state.broadcast({
         "type": "training_resumed",
+        "job_id": job_id,
         "from_epoch": from_epoch,
         "additional_epochs": request.additional_epochs,
     })
     
-    # Define the blocking resume function to run in a thread
-    def run_resume_sync() -> tuple[Any, dict[str, Any]]:
-        # Set device for training
-        logger.info("Setting device for training operations")
-        device = DeviceConfig(train_config)
-        device.set_device()
-        
-        # Build data loaders
-        logger.info("Building model data loaders")
-        builder = XRAYDataLoader(train_config)
-        train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data)
-        
-        # Initialize interrupt callback
-        training_state.interrupt_callback = TrainingInterruptCallback()
-        
-        # Resume training
-        logger.info(f"Resuming training from epoch {from_epoch}")
-        trainer = ModelTrainer(train_config, model_metadata)
-        trained_model, history = trainer.resume_training(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            session=session,
-            additional_epochs=request.additional_epochs,
-            websocket_callback=training_state.sync_broadcast,
-            interrupt_callback=training_state.interrupt_callback,
-        )
-        
-        # Save model and configuration
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(checkpoint_path, history, train_config, model_metadata)
-        
-        return trained_model, history
-    
-    try:
-        # Run training in a thread so the event loop stays free for WebSocket
-        loop = asyncio.get_running_loop()
-        model, history = await loop.run_in_executor(training_state.executor, run_resume_sync)
-        
-        # Broadcast training completed
-        await training_state.broadcast({
-            "type": "training_completed",
-            "epochs": history.get("epochs", 0),
-            "final_loss": history.get("history", {}).get("loss", [0])[-1],
-            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
-        })
-        
-        logger.info("Resumed training completed successfully")
-        
-    except Exception as e:
-        logger.exception("Resume training failed")
-        await training_state.broadcast({
-            "type": "training_error",
-            "error": str(e),
-        })
+    return JobStartResponse(
+        job_id=job_id,
+        message=f"Training resumed from epoch {from_epoch}",
+    )
+
+
+###############################################################################
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_training_job_status(job_id: str) -> JobStatusResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Training failed: {str(e)}",
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
+    return JobStatusResponse(**job_status)
+
+
+###############################################################################
+@router.delete(
+    "/jobs/{job_id}",
+    response_model=JobCancelResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def cancel_training_job(job_id: str) -> JobCancelResponse:
+    job_status = job_manager.get_job_status(job_id)
+    if job_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {job_id}",
+        )
     
-    finally:
-        training_state.finish_session()
+    # Also trigger the interrupt callback if training is active
+    if training_state.interrupt_callback is not None:
+        training_state.interrupt_callback.request_stop()
     
-    return TrainingStatusResponse(
-        is_training=False,
-        current_epoch=training_state.state["current_epoch"],
-        total_epochs=training_state.state["total_epochs"],
-        loss=training_state.state["loss"],
-        val_loss=training_state.state["val_loss"],
-        accuracy=training_state.state["accuracy"],
-        val_accuracy=training_state.state["val_accuracy"],
-        progress_percent=100,
-        elapsed_seconds=training_state.state["elapsed_seconds"],
+    success = job_manager.cancel_job(job_id)
+    
+    if success:
+        await training_state.broadcast({
+            "type": "training_stopping",
+            "job_id": job_id,
+            "message": "Training stop requested. Will stop after current epoch.",
+        })
+    
+    return JobCancelResponse(
+        job_id=job_id,
+        success=success,
+        message="Cancellation requested" if success else "Job cannot be cancelled",
     )
 
 
@@ -507,6 +588,7 @@ async def resume_training(request: ResumeTrainingRequest) -> TrainingStatusRespo
     status_code=status.HTTP_200_OK,
 )
 async def stop_training() -> TrainingStatusResponse:
+    """Legacy stop endpoint - maintained for backward compatibility."""
     if not training_state.state["is_training"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -516,6 +598,10 @@ async def stop_training() -> TrainingStatusResponse:
     if training_state.interrupt_callback is not None:
         training_state.interrupt_callback.request_stop()
         logger.info("Training stop requested")
+        
+        # Also cancel via job manager if we have a job_id
+        if training_state.current_job_id:
+            job_manager.cancel_job(training_state.current_job_id)
         
         await training_state.broadcast({
             "type": "training_stopping",

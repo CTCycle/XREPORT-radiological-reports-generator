@@ -193,32 +193,62 @@ export default function InferencePage() {
         setGeneratedReport('');
         setCurrentStreamingIndex(0);
 
-        // Call generate endpoint
-        const { result, error } = await generateReports(
+        // Call generate endpoint - now returns job_id
+        const { result: jobResult, error: startError } = await generateReports(
             state.images,
             state.selectedCheckpoint,
             state.generationMode
         );
 
-        if (error) {
-            console.error('Generation failed:', error);
+        if (startError || !jobResult) {
+            console.error('Generation failed:', startError);
             setIsGenerating(false);
-        } else if (result && result.success && result.reports) {
-            // Use the HTTP response to set reports
-            const reportsByIndex: Record<number, string> = {};
-            Object.values(result.reports).forEach((report, idx) => {
-                reportsByIndex[idx] = report;
-            });
-            setReports(reportsByIndex);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-            // Set the generated report for the current index
-            if (reportsByIndex[state.currentIndex] !== undefined) {
-                setGeneratedReport(reportsByIndex[state.currentIndex]);
-            }
-        } else {
-            setIsGenerating(false);
+            return;
         }
+
+        // Poll for job completion (WebSocket provides real-time tokens)
+        const { getInferenceJobStatus } = await import('../services/inferenceService');
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getInferenceJobStatus(jobResult.job_id);
+
+            if (pollError) {
+                console.error('Poll error:', pollError);
+                setIsGenerating(false);
+                return;
+            }
+
+            if (!status) {
+                setIsGenerating(false);
+                return;
+            }
+
+            if (status.status === 'completed' && status.result) {
+                // Get reports from result
+                const reports = (status.result as Record<string, unknown>).reports as Record<string, string> | undefined;
+                if (reports) {
+                    const reportsByIndex: Record<number, string> = {};
+                    Object.values(reports).forEach((report, idx) => {
+                        reportsByIndex[idx] = report as string;
+                    });
+                    setReports(reportsByIndex);
+                    setCurrentStreamingIndex(-1);
+                    if (reportsByIndex[state.currentIndex] !== undefined) {
+                        setGeneratedReport(reportsByIndex[state.currentIndex]);
+                    }
+                }
+                setIsGenerating(false);
+            } else if (status.status === 'failed') {
+                console.error('Generation failed:', status.error);
+                setIsGenerating(false);
+            } else if (status.status === 'cancelled') {
+                setIsGenerating(false);
+            } else {
+                // Still running, poll again
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
     };
 
     // Copy report to clipboard

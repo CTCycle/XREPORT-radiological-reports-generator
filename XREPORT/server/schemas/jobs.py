@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel
+
+
+###############################################################################
+class JobStartResponse(BaseModel):
+    job_id: str
+    message: str
+
+
+###############################################################################
+class JobStatusResponse(BaseModel):
+    job_id: str
+    job_type: str
+    status: str
+    progress: float
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: float
+    completed_at: float | None = None
+
+
+###############################################################################
+class JobCancelResponse(BaseModel):
+    job_id: str
+    success: bool
+    message: str
