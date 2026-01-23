@@ -17,12 +17,12 @@ from XREPORT.server.schemas.jobs import (
     JobCancelResponse,
 )
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.services.jobs import job_manager
+from XREPORT.server.utils.services.jobs import JobManager, job_manager
 from XREPORT.server.utils.services.validation import DatasetValidator
-from XREPORT.server.utils.services.training.serializer import DataSerializer
-from XREPORT.server.utils.configurations.server import server_settings
-
-router = APIRouter(prefix="/validation", tags=["validation"])
+from XREPORT.server.utils.services.training.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
+from XREPORT.server.utils.services.training.dataloader import XRAYDataLoader
+from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
 
 
 # -----------------------------------------------------------------------------
@@ -31,17 +31,22 @@ def run_validation_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking validation function that runs in background thread."""
+    # Use global job_manager imported at top level
+    jm = job_manager
+    
     serializer = DataSerializer()
     
     sample_size = request_data.get("sample_size", 1.0)
-    seed = request_data.get("seed") or server_settings.global_settings.seed
+    # Access server_settings carefully if inside thread, but here we pass request_data.
+    # We should have passed the seed in request_data from the caller.
+    seed = request_data.get("seed", 42)
     metrics = request_data.get("metrics", [])
     
     # Log validation configuration
     sample_pct = sample_size * 100
     logger.info(f"Starting dataset validation with {sample_pct:.1f}% sample size")
     
-    job_manager.update_progress(job_id, 5.0)
+    jm.update_progress(job_id, 5.0)
     
     dataset = serializer.load_source_dataset(
         sample_size=sample_size,
@@ -55,7 +60,7 @@ def run_validation_job(
         }
     
     logger.info(f"Loaded {len(dataset)} records for validation")
-    job_manager.update_progress(job_id, 15.0)
+    jm.update_progress(job_id, 15.0)
     
     # Extract dataset_name from source data
     if "dataset_name" in dataset.columns and not dataset.empty:
@@ -73,7 +78,7 @@ def run_validation_job(
         }
     
     logger.info(f"Starting analysis on {len(dataset)} validated records")
-    job_manager.update_progress(job_id, 20.0)
+    jm.update_progress(job_id, 20.0)
     
     validator = DatasetValidator(dataset, dataset_name=dataset_name)
     result: dict[str, Any] = {
@@ -81,8 +86,7 @@ def run_validation_job(
         "message": "Validation completed successfully",
     }
     
-    metrics_requested = [m for m in metrics]
-    logger.info(f"Metrics to compute: {', '.join(metrics_requested)}")
+    logger.info(f"Metrics to compute: {', '.join(metrics)}")
     
     progress_per_metric = 25.0
     current_progress = 20.0
@@ -106,7 +110,7 @@ def run_validation_job(
             logger.info(f"Saved {len(text_records_df)} text statistics records to database")
         
         current_progress += progress_per_metric
-        job_manager.update_progress(job_id, current_progress)
+        jm.update_progress(job_id, current_progress)
         
     if "image_statistics" in metrics:
         logger.info(f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)...")
@@ -128,7 +132,7 @@ def run_validation_job(
             logger.info(f"Saved {len(image_records_df)} image statistics records to database")
         
         current_progress += progress_per_metric
-        job_manager.update_progress(job_id, current_progress)
+        jm.update_progress(job_id, current_progress)
         
     if "pixels_distribution" in metrics:
         logger.info(f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images...")
@@ -140,42 +144,12 @@ def run_validation_job(
         logger.info("[3/3] Pixel distribution complete")
         
         current_progress += progress_per_metric
-        job_manager.update_progress(job_id, current_progress)
+        jm.update_progress(job_id, current_progress)
     
     logger.info("Dataset validation completed successfully")
-    job_manager.update_progress(job_id, 100.0)
+    jm.update_progress(job_id, 100.0)
     
     return result
-
-
-###############################################################################
-@router.post(
-    "/run",
-    response_model=JobStartResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def run_validation(request: ValidationRequest) -> JobStartResponse:
-    """Run validation analytics on the current dataset."""
-    if job_manager.is_job_running("validation"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Validation is already in progress",
-        )
-    
-    # Start background job
-    job_id = job_manager.start_job(
-        job_type="validation",
-        runner=run_validation_job,
-        kwargs={
-            "request_data": request.model_dump(),
-            "job_id": "",
-        },
-    )
-    
-    return JobStartResponse(
-        job_id=job_id,
-        message="Validation job started",
-    )
 
 
 # -----------------------------------------------------------------------------
@@ -184,9 +158,8 @@ def run_checkpoint_evaluation_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking checkpoint evaluation function that runs in background thread."""
-    from XREPORT.server.utils.services.training.serializer import ModelSerializer
-    from XREPORT.server.utils.services.training.dataloader import XRAYDataLoader
-    from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
+    # Use global job_manager imported at top level
+    jm = job_manager
     
     checkpoint = request_data.get("checkpoint", "")
     metrics = request_data.get("metrics", [])
@@ -195,7 +168,7 @@ def run_checkpoint_evaluation_job(
     logger.info(f"Starting checkpoint evaluation: {checkpoint}")
     logger.info(f"Metrics: {metrics}, Samples: {num_samples}")
     
-    job_manager.update_progress(job_id, 10.0)
+    jm.update_progress(job_id, 10.0)
     
     # Load the model checkpoint
     model_serializer = ModelSerializer()
@@ -209,7 +182,7 @@ def run_checkpoint_evaluation_job(
         }
     
     model.summary(expand_nested=True)
-    job_manager.update_progress(job_id, 30.0)
+    jm.update_progress(job_id, 30.0)
     
     # Initialize evaluator
     evaluator = CheckpointEvaluator(model, train_config, model_metadata)
@@ -239,7 +212,7 @@ def run_checkpoint_evaluation_job(
                 results["loss"] = eval_results.get("loss")
                 results["accuracy"] = eval_results.get("accuracy")
         
-        job_manager.update_progress(job_id, 60.0)
+        jm.update_progress(job_id, 60.0)
     
     # Run BLEU score metric
     if "bleu_score" in metrics:
@@ -262,9 +235,9 @@ def run_checkpoint_evaluation_job(
                 )
                 results["bleu_score"] = bleu
         
-        job_manager.update_progress(job_id, 90.0)
+        jm.update_progress(job_id, 90.0)
     
-    job_manager.update_progress(job_id, 100.0)
+    jm.update_progress(job_id, 100.0)
     
     return {
         "success": True,
@@ -274,71 +247,140 @@ def run_checkpoint_evaluation_job(
 
 
 ###############################################################################
-@router.post(
-    "/checkpoint",
-    response_model=JobStartResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-)
-async def evaluate_checkpoint(
-    request: CheckpointEvaluationRequest,
-) -> JobStartResponse:
-    """Evaluate a model checkpoint using selected metrics."""
-    if job_manager.is_job_running("checkpoint_evaluation"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Checkpoint evaluation is already in progress",
+class ValidationEndpoint:
+    """Endpoint for dataset validation and checkpoint evaluation analytics."""
+
+    def __init__(
+        self,
+        router: APIRouter,
+        job_manager: JobManager,
+        server_settings: ServerSettings,
+    ) -> None:
+        self.router = router
+        self.job_manager = job_manager
+        self.server_settings = server_settings
+
+    # -----------------------------------------------------------------------------
+    async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
+        """Run validation analytics on the current dataset."""
+        if self.job_manager.is_job_running("validation"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Validation is already in progress",
+            )
+        
+        # Prepare request data with default seed if not provided
+        request_data = request.model_dump()
+        if not request_data.get("seed"):
+            request_data["seed"] = self.server_settings.global_settings.seed
+            
+        # Start background job
+        job_id = self.job_manager.start_job(
+            job_type="validation",
+            runner=run_validation_job,
+            kwargs={
+                "request_data": request_data,
+                "job_id": "",
+            },
         )
-    
-    # Start background job
-    job_id = job_manager.start_job(
-        job_type="checkpoint_evaluation",
-        runner=run_checkpoint_evaluation_job,
-        kwargs={
-            "request_data": request.model_dump(),
-            "job_id": "",
-        },
-    )
-    
-    return JobStartResponse(
-        job_id=job_id,
-        message=f"Checkpoint evaluation job started for {request.checkpoint}",
-    )
+        
+        return JobStartResponse(
+            job_id=job_id,
+            message="Validation job started",
+        )
+
+    # -----------------------------------------------------------------------------
+    async def evaluate_checkpoint(
+        self,
+        request: CheckpointEvaluationRequest,
+    ) -> JobStartResponse:
+        """Evaluate a model checkpoint using selected metrics."""
+        if self.job_manager.is_job_running("checkpoint_evaluation"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Checkpoint evaluation is already in progress",
+            )
+        
+        # Start background job
+        job_id = self.job_manager.start_job(
+            job_type="checkpoint_evaluation",
+            runner=run_checkpoint_evaluation_job,
+            kwargs={
+                "request_data": request.model_dump(),
+                "job_id": "",
+            },
+        )
+        
+        return JobStartResponse(
+            job_id=job_id,
+            message=f"Checkpoint evaluation job started for {request.checkpoint}",
+        )
+
+    # -----------------------------------------------------------------------------
+    async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job not found: {job_id}",
+            )
+        return JobStatusResponse(**job_status)
+
+    # -----------------------------------------------------------------------------
+    async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job not found: {job_id}",
+            )
+        
+        success = self.job_manager.cancel_job(job_id)
+        
+        return JobCancelResponse(
+            job_id=job_id,
+            success=success,
+            message="Cancellation requested" if success else "Job cannot be cancelled",
+        )
+
+    # -----------------------------------------------------------------------------
+    def add_routes(self) -> None:
+        """Register all validation-related routes."""
+        self.router.add_api_route(
+            "/run",
+            self.run_validation,
+            methods=["POST"],
+            response_model=JobStartResponse,
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/checkpoint",
+            self.evaluate_checkpoint,
+            methods=["POST"],
+            response_model=JobStartResponse,
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.get_validation_job_status,
+            methods=["GET"],
+            response_model=JobStatusResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.cancel_validation_job,
+            methods=["DELETE"],
+            response_model=JobCancelResponse,
+            status_code=status.HTTP_200_OK,
+        )
 
 
 ###############################################################################
-@router.get(
-    "/jobs/{job_id}",
-    response_model=JobStatusResponse,
-    status_code=status.HTTP_200_OK,
+router = APIRouter(prefix="/validation", tags=["validation"])
+validation_endpoint = ValidationEndpoint(
+    router=router,
+    job_manager=job_manager,
+    server_settings=server_settings,
 )
-async def get_validation_job_status(job_id: str) -> JobStatusResponse:
-    job_status = job_manager.get_job_status(job_id)
-    if job_status is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job not found: {job_id}",
-        )
-    return JobStatusResponse(**job_status)
-
-
-###############################################################################
-@router.delete(
-    "/jobs/{job_id}",
-    response_model=JobCancelResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def cancel_validation_job(job_id: str) -> JobCancelResponse:
-    job_status = job_manager.get_job_status(job_id)
-    if job_status is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Job not found: {job_id}",
-        )
-    
-    success = job_manager.cancel_job(job_id)
-    
-    return JobCancelResponse(
-        job_id=job_id,
-        success=success,
-        message="Cancellation requested" if success else "Job cannot be cancelled",
-    )
+validation_endpoint.add_routes()
