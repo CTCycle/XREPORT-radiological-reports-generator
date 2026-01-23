@@ -7,8 +7,13 @@ from typing import Any
 
 from fastapi import APIRouter, File, Form, UploadFile, WebSocket, WebSocketDisconnect, status, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
+from XREPORT.server.schemas.inference import (
+    CheckpointInfo,
+    CheckpointsResponse,
+    GenerationRequest,
+    GenerationResponse,
+)
 from XREPORT.server.schemas.jobs import (
     JobStartResponse,
     JobStatusResponse,
@@ -78,33 +83,8 @@ class InferenceState:
         })
 
 
+
 inference_state = InferenceState()
-
-
-###############################################################################
-class CheckpointInfo(BaseModel):
-    name: str
-    created: str | None = None
-
-
-###############################################################################
-class CheckpointsResponse(BaseModel):
-    checkpoints: list[CheckpointInfo]
-    success: bool
-    message: str
-
-
-###############################################################################
-class GenerationRequest(BaseModel):
-    checkpoint: str
-    generation_mode: str
-
-
-###############################################################################
-class GenerationResponse(BaseModel):
-    success: bool
-    message: str
-    reports: dict[str, str] | None = None
 
 
 # -----------------------------------------------------------------------------
