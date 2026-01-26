@@ -47,6 +47,8 @@ def run_validation_job(
     logger.info(f"Starting dataset validation with {sample_pct:.1f}% sample size")
     
     jm.update_progress(job_id, 5.0)
+    if jm.should_stop(job_id):
+        return {}
     
     dataset = serializer.load_source_dataset(
         sample_size=sample_size,
@@ -61,6 +63,8 @@ def run_validation_job(
     
     logger.info(f"Loaded {len(dataset)} records for validation")
     jm.update_progress(job_id, 15.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Extract dataset_name from source data
     if "dataset_name" in dataset.columns and not dataset.empty:
@@ -79,6 +83,8 @@ def run_validation_job(
     
     logger.info(f"Starting analysis on {len(dataset)} validated records")
     jm.update_progress(job_id, 20.0)
+    if jm.should_stop(job_id):
+        return {}
     
     validator = DatasetValidator(dataset, dataset_name=dataset_name)
     result: dict[str, Any] = {
@@ -92,6 +98,8 @@ def run_validation_job(
     current_progress = 20.0
     
     if "text_statistics" in metrics:
+        if jm.should_stop(job_id):
+            return {}
         logger.info(f"[1/3] Calculating text statistics for {len(dataset)} reports...")
         text_stats, text_records_df = validator.calculate_text_statistics()
         result["text_statistics"] = {
@@ -113,6 +121,8 @@ def run_validation_job(
         jm.update_progress(job_id, current_progress)
         
     if "image_statistics" in metrics:
+        if jm.should_stop(job_id):
+            return {}
         logger.info(f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)...")
         image_stats, image_records_df = validator.calculate_image_statistics()
         result["image_statistics"] = {
@@ -135,6 +145,8 @@ def run_validation_job(
         jm.update_progress(job_id, current_progress)
         
     if "pixels_distribution" in metrics:
+        if jm.should_stop(job_id):
+            return {}
         logger.info(f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images...")
         pixel_dist = validator.calculate_pixel_distribution()
         result["pixel_distribution"] = {
@@ -169,6 +181,8 @@ def run_checkpoint_evaluation_job(
     logger.info(f"Metrics: {metrics}, Samples: {num_samples}")
     
     jm.update_progress(job_id, 10.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Load the model checkpoint
     model_serializer = ModelSerializer()
@@ -183,6 +197,8 @@ def run_checkpoint_evaluation_job(
     
     model.summary(expand_nested=True)
     jm.update_progress(job_id, 30.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Initialize evaluator
     evaluator = CheckpointEvaluator(model, train_config, model_metadata)
@@ -190,6 +206,8 @@ def run_checkpoint_evaluation_job(
     
     # Run evaluation_report metric (requires validation dataset)
     if "evaluation_report" in metrics:
+        if jm.should_stop(job_id):
+            return {}
         logger.info("Running evaluation report (loss and accuracy)...")
         
         # Load validation data
@@ -216,6 +234,8 @@ def run_checkpoint_evaluation_job(
     
     # Run BLEU score metric
     if "bleu_score" in metrics:
+        if jm.should_stop(job_id):
+            return {}
         logger.info(f"Calculating BLEU score with {num_samples} samples...")
         
         # Load validation data with text for BLEU comparison
@@ -280,12 +300,20 @@ class ValidationEndpoint:
             runner=run_validation_job,
             kwargs={
                 "request_data": request_data,
-                "job_id": "",
             },
         )
+
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to initialize validation job",
+            )
         
         return JobStartResponse(
             job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
             message="Validation job started",
         )
 
@@ -307,12 +335,20 @@ class ValidationEndpoint:
             runner=run_checkpoint_evaluation_job,
             kwargs={
                 "request_data": request.model_dump(),
-                "job_id": "",
             },
         )
+
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to initialize checkpoint evaluation job",
+            )
         
         return JobStartResponse(
             job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
             message=f"Checkpoint evaluation job started for {request.checkpoint}",
         )
 

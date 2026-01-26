@@ -61,6 +61,8 @@ export interface DatasetNamesResponse {
 
 export interface JobStartResponse {
     job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     message: string;
 }
 
@@ -71,8 +73,6 @@ export interface JobStatusResponse {
     progress: number;
     result: Record<string, unknown> | null;
     error: string | null;
-    created_at: number;
-    completed_at: number | null;
 }
 
 export interface JobCancelResponse {
@@ -353,6 +353,7 @@ export interface CheckpointsResponse {
 }
 
 export interface TrainingStatusResponse {
+    job_id?: string | null;
     is_training: boolean;
     current_epoch: number;
     total_epochs: number;

@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import os
 from typing import Any
 
-from fastapi import APIRouter, File, Form, UploadFile, WebSocket, WebSocketDisconnect, status, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
 from fastapi.responses import JSONResponse
 
 from XREPORT.server.schemas.inference import (
     CheckpointInfo,
     CheckpointsResponse,
-    GenerationRequest,
     GenerationResponse,
 )
 from XREPORT.server.schemas.jobs import (
@@ -28,63 +25,6 @@ from XREPORT.server.utils.services.training.serializer import ModelSerializer
 
 # Inference temp folder for uploaded images
 INFERENCE_TEMP_PATH = os.path.join(RESOURCES_PATH, "inference_temp")
-
-
-###############################################################################
-class InferenceState:
-    """Encapsulates all inference session state."""
-
-    def __init__(self) -> None:
-        self.connections: list[WebSocket] = []
-        self.event_loop: asyncio.AbstractEventLoop | None = None
-
-    # -----------------------------------------------------------------------------
-    def broadcast(self, message: dict[str, Any]) -> None:
-        """Thread-safe broadcast to all connected clients."""
-        if self.event_loop is None:
-            logger.warning("No event loop available for WebSocket broadcast")
-            return
-        if len(self.connections) == 0:
-            logger.warning("No WebSocket connections to broadcast to")
-            return
-
-        async def send_to_all() -> None:
-            disconnected = []
-            for connection in self.connections:
-                try:
-                    await connection.send_json(message)
-                except Exception:
-                    disconnected.append(connection)
-            for conn in disconnected:
-                if conn in self.connections:
-                    self.connections.remove(conn)
-
-        asyncio.run_coroutine_threadsafe(send_to_all(), self.event_loop)
-
-    # -----------------------------------------------------------------------------
-    def add_connection(self, websocket: WebSocket) -> None:
-        self.connections.append(websocket)
-
-    # -----------------------------------------------------------------------------
-    def remove_connection(self, websocket: WebSocket) -> None:
-        if websocket in self.connections:
-            self.connections.remove(websocket)
-
-    # -----------------------------------------------------------------------------
-    def stream_token(self, image_idx: int, token: str, step: int, total: int) -> None:
-        """Stream a generated token to all connected clients."""
-        logger.debug(f"Streaming token {step}/{total}: {token}")
-        self.broadcast({
-            "type": "token",
-            "image_index": image_idx,
-            "token": token,
-            "step": step,
-            "total": total,
-        })
-
-
-
-inference_state = InferenceState()
 
 
 # -----------------------------------------------------------------------------
@@ -107,12 +47,6 @@ def run_inference_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking inference function that runs in background thread."""
-    # Note: Using module-level inference_state here is required unless we pass it,
-    # but run_in_executor kwargs must be picklable.
-    # InferenceState contains event loop references which are NOT picklable.
-    # So we MUST use the module-level singleton here.
-    # This is an exception to strict DI because of ThreadPoolExecutor constraints.
-    
     # Load model checkpoint
     logger.info(f"Loading checkpoint: {checkpoint}")
     serializer = ModelSerializer()
@@ -128,41 +62,42 @@ def run_inference_job(
 
     # Initialize generator with model metadata (contains tokenizer info)
     generator = TextGenerator(model, model_metadata, max_report_size)
+    tokenizers_info = generator.load_tokenizer_and_configuration()
+    if tokenizers_info is None:
+        raise RuntimeError("Failed to load tokenizer")
 
-    # Broadcast generation start
-    inference_state.broadcast({
-        "type": "start",
-        "job_id": job_id,
-        "total_images": len(image_paths),
-        "checkpoint": checkpoint,
-        "mode": generation_mode,
-    })
+    tokenizer, tokenizer_config = tokenizers_info
+    vocabulary = tokenizer.get_vocab()
 
-    # Generate reports
-    reports = generator.generate_radiological_reports(
-        image_paths,
-        generation_mode,
-        stream_callback=inference_state.stream_token,
-    )
+    generator_fn = generator.generator_methods.get(generation_mode)
+    if generator_fn is None:
+        raise RuntimeError(f"Unknown generation mode: {generation_mode}")
 
-    if reports is None:
-        inference_state.broadcast({
-            "type": "error",
-            "job_id": job_id,
-            "message": "Failed to generate reports",
-        })
-        raise RuntimeError("Failed to generate reports")
+    reports_by_filename: dict[str, str] = {}
+    total_images = max(1, len(image_paths))
 
-    # Convert paths to filenames for response
-    reports_by_filename = {
-        os.path.basename(k): v for k, v in reports.items()
-    }
+    for idx, path in enumerate(image_paths):
+        if job_manager.should_stop(job_id):
+            break
 
-    inference_state.broadcast({
-        "type": "complete",
-        "job_id": job_id,
-        "reports": reports_by_filename,
-    })
+        report = generator_fn(
+            tokenizer_config,
+            vocabulary,
+            path,
+            stream_callback=None,
+        )
+        reports_by_filename[os.path.basename(path)] = report
+        progress = ((idx + 1) / total_images) * 100.0
+        job_manager.update_progress(job_id, progress)
+        job_manager.update_result(
+            job_id,
+            {
+                "reports": dict(reports_by_filename),
+                "count": len(reports_by_filename),
+                "processed_images": idx + 1,
+                "total_images": total_images,
+            },
+        )
 
     # Clean up temp files
     for path in image_paths:
@@ -186,34 +121,9 @@ class InferenceEndpoint:
         self,
         router: APIRouter,
         job_manager: JobManager,
-        inference_state: InferenceState,
     ) -> None:
         self.router = router
         self.job_manager = job_manager
-        self.inference_state = inference_state
-
-    # -----------------------------------------------------------------------------
-    async def inference_websocket(self, websocket: WebSocket) -> None:
-        self.inference_state.event_loop = asyncio.get_event_loop()
-
-        await websocket.accept()
-        self.inference_state.add_connection(websocket)
-        logger.info("Inference WebSocket connection established")
-
-        try:
-            while True:
-                data = await websocket.receive_text()
-                message = json.loads(data)
-
-                if message.get("type") == "ping":
-                    await websocket.send_json({"type": "pong"})
-
-        except WebSocketDisconnect:
-            logger.info("Inference WebSocket connection closed")
-        except Exception as e:
-            logger.error(f"Inference WebSocket error: {e}")
-        finally:
-            self.inference_state.remove_connection(websocket)
 
     # -----------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
@@ -245,8 +155,6 @@ class InferenceEndpoint:
         generation_mode: str = Form(...),
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
-        self.inference_state.event_loop = asyncio.get_event_loop()
-
         if len(images) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -289,12 +197,20 @@ class InferenceEndpoint:
                     "checkpoint": checkpoint,
                     "generation_mode": generation_mode,
                     "image_paths": image_paths,
-                    "job_id": "",
                 },
             )
 
+            job_status = self.job_manager.get_job_status(job_id)
+            if job_status is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to initialize inference job",
+                )
+
             return JobStartResponse(
                 job_id=job_id,
+                job_type=job_status["job_type"],
+                status=job_status["status"],
                 message=f"Inference job started for {len(image_paths)} images",
             )
 
@@ -342,7 +258,6 @@ class InferenceEndpoint:
     # -----------------------------------------------------------------------------
     def add_routes(self) -> None:
         """Register all inference-related routes."""
-        self.router.add_api_websocket_route("/ws", self.inference_websocket)
         self.router.add_api_route(
             "/checkpoints",
             self.get_checkpoints,
@@ -378,6 +293,5 @@ router = APIRouter(prefix="/inference", tags=["inference"])
 inference_endpoint = InferenceEndpoint(
     router=router,
     job_manager=job_manager,
-    inference_state=inference_state,
 )
 inference_endpoint.add_routes()

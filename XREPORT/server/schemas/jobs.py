@@ -8,6 +8,8 @@ from pydantic import BaseModel
 ###############################################################################
 class JobStartResponse(BaseModel):
     job_id: str
+    job_type: str
+    status: str
     message: str
 
 
@@ -19,8 +21,11 @@ class JobStatusResponse(BaseModel):
     progress: float
     result: dict[str, Any] | None = None
     error: str | None = None
-    created_at: float
-    completed_at: float | None = None
+
+
+###############################################################################
+class JobListResponse(BaseModel):
+    jobs: list[JobStatusResponse]
 
 
 ###############################################################################

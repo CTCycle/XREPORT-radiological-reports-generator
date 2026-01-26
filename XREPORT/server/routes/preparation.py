@@ -101,6 +101,8 @@ def run_process_dataset_job(
     
     # Update progress
     jm.update_progress(job_id, 10.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Step 1: Sanitize text corpus
     sanitizer = TextSanitizer(configuration)
@@ -108,6 +110,8 @@ def run_process_dataset_job(
     logger.info("Text sanitization completed")
     
     jm.update_progress(job_id, 30.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Step 2: Tokenize text using Hugging Face tokenizer
     try:
@@ -121,6 +125,8 @@ def run_process_dataset_job(
         raise RuntimeError(f"Tokenization failed: {str(e)}") from e
     
     jm.update_progress(job_id, 60.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Step 3: Drop raw text column (keep only tokens)
     processed_data = processed_data.drop(columns=["text"])
@@ -135,6 +141,8 @@ def run_process_dataset_job(
     logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
     
     jm.update_progress(job_id, 80.0)
+    if jm.should_stop(job_id):
+        return {}
     
     # Step 5: Save processed data and metadata to database
     try:
@@ -374,12 +382,20 @@ class PreparationEndpoint:
             runner=run_process_dataset_job,
             kwargs={
                 "configuration": configuration,
-                "job_id": "",
             },
         )
+
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to initialize dataset processing job",
+            )
         
         return JobStartResponse(
             job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
             message=f"Dataset processing job started for {row_count} samples",
         )
 

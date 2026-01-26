@@ -104,6 +104,7 @@ class CheckpointsResponse(BaseModel):
 
 ###############################################################################
 class TrainingStatusResponse(BaseModel):
+    job_id: str | None = None
     is_training: bool
     current_epoch: int = 0
     total_epochs: int = 0

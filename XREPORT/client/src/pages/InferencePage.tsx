@@ -1,4 +1,4 @@
-import { useRef, DragEvent, ChangeEvent, useEffect, useCallback } from 'react';
+import { useRef, DragEvent, ChangeEvent, useEffect } from 'react';
 import {
     ImagePlus, ChevronLeft, ChevronRight, Trash2, FileText,
     Sparkles, ArrowRight, Copy, Check, Loader2, Settings2,
@@ -10,9 +10,6 @@ import { GenerationMode } from '../types';
 import {
     getInferenceCheckpoints,
     generateReports,
-    connectInferenceWebSocket,
-    disconnectInferenceWebSocket,
-    InferenceStreamMessage,
     evaluateCheckpoint
 } from '../services/inferenceService';
 
@@ -33,7 +30,6 @@ export default function InferencePage() {
         setIsLoadingCheckpoints,
         setReports,
         setStreamingTokens,
-        appendStreamingToken,
         setCurrentStreamingIndex,
         // Validation hooks
         setValidationMetric,
@@ -44,8 +40,6 @@ export default function InferencePage() {
     } = useInferencePageState();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const wsRef = useRef<WebSocket | null>(null);
-
     // Fetch checkpoints on mount
     useEffect(() => {
         const fetchCheckpoints = async () => {
@@ -64,51 +58,6 @@ export default function InferencePage() {
         };
         fetchCheckpoints();
     }, []);
-
-    // Handle WebSocket messages
-    const handleWebSocketMessage = useCallback((message: InferenceStreamMessage) => {
-        console.log('WebSocket message received:', message.type, message);
-        if (message.type === 'token') {
-            // Append token for streaming display
-            appendStreamingToken(message.token ?? '');
-        } else if (message.type === 'start') {
-            console.log('Generation started via WebSocket');
-            setStreamingTokens('');
-            setCurrentStreamingIndex(0);
-        } else if (message.type === 'complete' && message.reports) {
-            console.log('Generation complete via WebSocket');
-            // Store all reports by index
-            const reportsByIndex: Record<number, string> = {};
-            Object.values(message.reports).forEach((report, idx) => {
-                reportsByIndex[idx] = report;
-            });
-            setReports(reportsByIndex);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-            // Set the generated report for the current index
-            if (reportsByIndex[state.currentIndex]) {
-                setGeneratedReport(reportsByIndex[state.currentIndex]);
-            }
-        } else if (message.type === 'error') {
-            console.error('Generation error:', message.message);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-        }
-    }, [state.currentIndex, appendStreamingToken, setStreamingTokens, setCurrentStreamingIndex, setReports, setIsGenerating, setGeneratedReport]);
-
-    // Connect WebSocket on mount (like training dashboard)
-    useEffect(() => {
-        wsRef.current = connectInferenceWebSocket(
-            handleWebSocketMessage,
-            () => console.log('Inference WebSocket error'),
-            () => console.log('Inference WebSocket closed')
-        );
-
-        return () => {
-            disconnectInferenceWebSocket(wsRef.current);
-            wsRef.current = null;
-        };
-    }, [handleWebSocketMessage]);
 
     // Handle file selection
     const handleFileSelect = (files: FileList | null) => {
@@ -191,7 +140,7 @@ export default function InferencePage() {
         setStreamingTokens('');
         setReports({});
         setGeneratedReport('');
-        setCurrentStreamingIndex(0);
+        setCurrentStreamingIndex(-1);
 
         // Call generate endpoint - now returns job_id
         const { result: jobResult, error: startError } = await generateReports(
@@ -206,7 +155,7 @@ export default function InferencePage() {
             return;
         }
 
-        // Poll for job completion (WebSocket provides real-time tokens)
+        // Poll for job completion
         const { getInferenceJobStatus } = await import('../services/inferenceService');
         const pollInterval = 2000;
         const poll = async () => {
@@ -223,8 +172,7 @@ export default function InferencePage() {
                 return;
             }
 
-            if (status.status === 'completed' && status.result) {
-                // Get reports from result
+            if (status.result) {
                 const reports = (status.result as Record<string, unknown>).reports as Record<string, string> | undefined;
                 if (reports) {
                     const reportsByIndex: Record<number, string> = {};
@@ -232,11 +180,13 @@ export default function InferencePage() {
                         reportsByIndex[idx] = report as string;
                     });
                     setReports(reportsByIndex);
-                    setCurrentStreamingIndex(-1);
                     if (reportsByIndex[state.currentIndex] !== undefined) {
                         setGeneratedReport(reportsByIndex[state.currentIndex]);
                     }
                 }
+            }
+
+            if (status.status === 'completed') {
                 setIsGenerating(false);
             } else if (status.status === 'failed') {
                 console.error('Generation failed:', status.error);
