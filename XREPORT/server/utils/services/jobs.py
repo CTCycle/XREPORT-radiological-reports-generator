@@ -1,5 +1,3 @@
-"""Background job manager for long-running operations."""
-
 from __future__ import annotations
 
 import inspect
@@ -44,6 +42,8 @@ class JobState:
                 "progress": self.progress,
                 "result": self.result,
                 "error": self.error,
+                "created_at": self.created_at,
+                "completed_at": self.completed_at,
             }
 
 
@@ -64,9 +64,10 @@ class JobManager:
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
-        runner_kwargs = kwargs or {}
+        runner_kwargs = kwargs.copy() if kwargs else {}
 
-        if self.runner_accepts_job_id(runner):
+        # Inject job_id if the runner accepts it
+        if self._runner_accepts_job_id(runner):
             runner_kwargs["job_id"] = job_id
 
         with self.lock:
@@ -94,24 +95,6 @@ class JobManager:
         if state is None:
             return None
         return state.snapshot()
-
-    # -------------------------------------------------------------------------
-    def update_job(self, job_id: str, **kwargs: Any) -> None:
-        with self.lock:
-            state = self.jobs.get(job_id)
-        if state:
-            state.update(**kwargs)
-
-    # -------------------------------------------------------------------------
-    def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
-        with self.lock:
-            state = self.jobs.get(job_id)
-        if state is None:
-            return
-        with state.lock:
-            existing = state.result or {}
-            merged = {**existing, **patch}
-            state.result = merged
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> bool:
@@ -160,6 +143,17 @@ class JobManager:
             state.update(progress=min(100.0, max(0.0, progress)))
 
     # -------------------------------------------------------------------------
+    def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return
+        with state.lock:
+            existing = state.result or {}
+            merged = {**existing, **patch}
+            state.result = merged
+
+    # -------------------------------------------------------------------------
     def _run_job(
         self,
         job_id: str,
@@ -177,8 +171,10 @@ class JobManager:
             if state.stop_requested:
                 state.update(status="cancelled", completed_at=monotonic())
             else:
+                # Merge runner result with any partial results pushed during execution
                 result_payload = result or {}
-                merged = {**(state.result or {}), **result_payload}
+                with state.lock:
+                    merged = {**(state.result or {}), **result_payload}
                 state.update(
                     status="completed",
                     result=merged if merged else None,
@@ -197,7 +193,7 @@ class JobManager:
             logger.debug("Job %s error details", job_id, exc_info=True)
 
     # -------------------------------------------------------------------------
-    def runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
+    def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
         except (TypeError, ValueError):
