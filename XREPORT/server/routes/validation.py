@@ -270,6 +270,9 @@ def run_checkpoint_evaluation_job(
 class ValidationEndpoint:
     """Endpoint for dataset validation and checkpoint evaluation analytics."""
 
+    JOB_TYPE_VALIDATION = "validation"
+    JOB_TYPE_EVALUATION = "checkpoint_evaluation"
+
     def __init__(
         self,
         router: APIRouter,

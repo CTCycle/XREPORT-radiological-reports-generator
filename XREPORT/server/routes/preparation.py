@@ -170,6 +170,8 @@ def run_process_dataset_job(
 class PreparationEndpoint:
     """Endpoint for dataset preparation and browsing operations."""
 
+    JOB_TYPE = "dataset_processing"
+
     def __init__(
         self,
         router: APIRouter,

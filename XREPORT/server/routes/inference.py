@@ -117,6 +117,8 @@ def run_inference_job(
 class InferenceEndpoint:
     """Endpoint for inference and report generation operations."""
 
+    JOB_TYPE = "inference"
+
     def __init__(
         self,
         router: APIRouter,

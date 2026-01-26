@@ -259,6 +259,8 @@ def run_resume_training_job(
 class TrainingEndpoint:
     """Endpoint for model training operations."""
 
+    JOB_TYPE = "training"
+
     def __init__(
         self,
         router: APIRouter,
