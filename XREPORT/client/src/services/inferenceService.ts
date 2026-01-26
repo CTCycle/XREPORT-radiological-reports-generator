@@ -19,26 +19,14 @@ export interface GenerationResponse {
 
 export type GenerationMode = 'greedy_search' | 'beam_search';
 
-export interface InferenceStreamMessage {
-    type: 'start' | 'token' | 'complete' | 'error' | 'pong';
-    job_id?: string;
-    image_index?: number;
-    token?: string;
-    step?: number;
-    total?: number;
-    total_images?: number;
-    checkpoint?: string;
-    mode?: string;
-    reports?: Record<string, string>;
-    message?: string;
-}
-
 // ============================================================================
 // Job API Types
 // ============================================================================
 
 export interface JobStartResponse {
     job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     message: string;
 }
 
@@ -49,8 +37,6 @@ export interface JobStatusResponse {
     progress: number;
     result: Record<string, unknown> | null;
     error: string | null;
-    created_at: number;
-    completed_at: number | null;
 }
 
 export interface JobCancelResponse {
@@ -175,58 +161,6 @@ export async function cancelInferenceJob(
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
-    }
-}
-
-/**
- * Connect to inference WebSocket for streaming updates
- */
-export function connectInferenceWebSocket(
-    onMessage: (message: InferenceStreamMessage) => void,
-    onError?: (error: Event) => void,
-    onClose?: () => void
-): WebSocket {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/inference/ws`;
-
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-        console.log('Inference WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-        try {
-            const message = JSON.parse(event.data) as InferenceStreamMessage;
-            onMessage(message);
-        } catch (err) {
-            console.error('Failed to parse WebSocket message:', err);
-        }
-    };
-
-    ws.onerror = (error) => {
-        console.error('Inference WebSocket error:', error);
-        if (onError) {
-            onError(error);
-        }
-    };
-
-    ws.onclose = () => {
-        console.log('Inference WebSocket closed');
-        if (onClose) {
-            onClose();
-        }
-    };
-
-    return ws;
-}
-
-/**
- * Close inference WebSocket connection
- */
-export function disconnectInferenceWebSocket(ws: WebSocket | null): void {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
     }
 }
 
