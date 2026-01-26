@@ -13,8 +13,6 @@ XREPORT/client/logs/
 XREPORT/resources/tokenizers/**
 
 # Environment files (keep templates)
-XREPORT/settings/.env
-XREPORT/client/.env
 XREPORT/client/*.local
 !.env.example
 !.env.sample
@@ -58,10 +56,9 @@ Thumbs.db
 *.sqlite*
 *.exe
 *.gz
-*.env
 
 !.gitkeep
-!XREPORT/settings/server_configurations.json
+!XREPORT/settings/configurations.json
 
 
 

@@ -89,7 +89,6 @@ export interface TrainingDashboardState {
     chartData: ChartDataPoint[];
     availableMetrics: string[];
     epochBoundaries: number[];
-    shouldConnectWs: boolean;
 }
 
 export interface TrainingPageState {

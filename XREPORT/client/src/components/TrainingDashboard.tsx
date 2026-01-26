@@ -1,4 +1,3 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Square, Clock, TrendingDown, Target, Percent } from 'lucide-react';
 import {
     LineChart,
@@ -12,16 +11,11 @@ import {
     ReferenceLine,
 } from 'recharts';
 import './TrainingDashboard.css';
-import { TrainingDashboardState, ChartDataPoint } from '../types';
+import { TrainingDashboardState } from '../types';
 
 interface TrainingDashboardProps {
     onStopTraining?: () => void;
-    shouldConnect?: boolean;
     dashboardState: TrainingDashboardState;
-    onDashboardStateChange: (updater: Partial<TrainingDashboardState> | ((prev: TrainingDashboardState) => TrainingDashboardState)) => void;
-    onChartDataChange: (chartData: ChartDataPoint[]) => void;
-    onAvailableMetricsChange: (metrics: string[]) => void;
-    onEpochBoundariesChange: (boundaries: number[]) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -49,12 +43,7 @@ const CHART_COLORS = {
 
 export default function TrainingDashboard({
     onStopTraining,
-    shouldConnect = false,
-    dashboardState,
-    onDashboardStateChange,
-    onChartDataChange,
-    onAvailableMetricsChange,
-    onEpochBoundariesChange
+    dashboardState
 }: TrainingDashboardProps) {
     // Extract state from props
     const { chartData, availableMetrics, epochBoundaries } = dashboardState;
@@ -69,150 +58,6 @@ export default function TrainingDashboard({
         progressPercent: dashboardState.progressPercent,
         elapsedSeconds: dashboardState.elapsedSeconds,
     };
-
-    const [connected, setConnected] = useState(false);
-    const wsRef = useRef<WebSocket | null>(null);
-    const reconnectTimeoutRef = useRef<number | null>(null);
-    const shouldConnectRef = useRef(shouldConnect);
-
-    // Keep refs updated to avoid stale closures while preventing effect re-runs
-    const callbacksRef = useRef({
-        onDashboardStateChange,
-        onChartDataChange,
-        onAvailableMetricsChange,
-        onEpochBoundariesChange,
-    });
-
-    useEffect(() => {
-        callbacksRef.current = {
-            onDashboardStateChange,
-            onChartDataChange,
-            onAvailableMetricsChange,
-            onEpochBoundariesChange,
-        };
-    });
-
-    useEffect(() => {
-        shouldConnectRef.current = shouldConnect;
-    }, [shouldConnect]);
-
-    const connectWebSocket = useCallback(() => {
-        // Don't connect if already connected or connecting
-        if (wsRef.current?.readyState === WebSocket.OPEN ||
-            wsRef.current?.readyState === WebSocket.CONNECTING) {
-            return;
-        }
-
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/training/ws`;
-
-        const ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-            console.log('Training WebSocket connected');
-            setConnected(true);
-        };
-
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                const callbacks = callbacksRef.current;
-
-                if (data.type === 'training_update') {
-                    callbacks.onDashboardStateChange({
-                        isTraining: true,
-                        currentEpoch: data.epoch || 0,
-                        totalEpochs: data.total_epochs || 0,
-                        loss: data.loss || 0,
-                        valLoss: data.val_loss || 0,
-                        accuracy: data.accuracy || 0,
-                        valAccuracy: data.val_accuracy || 0,
-                        progressPercent: data.progress_percent || 0,
-                        elapsedSeconds: data.elapsed_seconds || 0,
-                    });
-                } else if (data.type === 'training_started' || data.type === 'training_resumed') {
-                    callbacks.onDashboardStateChange(prev => ({
-                        ...prev,
-                        isTraining: true,
-                        totalEpochs: data.total_epochs || prev.totalEpochs,
-                    }));
-                    // Clear chart data on new training session
-                    if (data.type === 'training_started') {
-                        callbacks.onChartDataChange([]);
-                        callbacks.onAvailableMetricsChange([]);
-                    }
-                } else if (data.type === 'training_completed' || data.type === 'training_error') {
-                    callbacks.onDashboardStateChange(prev => ({
-                        ...prev,
-                        isTraining: false,
-                        progressPercent: data.type === 'training_completed' ? 100 : prev.progressPercent,
-                    }));
-                } else if (data.type === 'connection_established') {
-                    callbacks.onDashboardStateChange(prev => ({
-                        ...prev,
-                        isTraining: data.is_training || false,
-                        currentEpoch: data.current_epoch || 0,
-                        totalEpochs: data.total_epochs || 0,
-                        loss: data.loss || 0,
-                        valLoss: data.val_loss || 0,
-                        accuracy: data.accuracy || 0,
-                        valAccuracy: data.val_accuracy || 0,
-                        progressPercent: data.progress_percent || 0,
-                        elapsedSeconds: data.elapsed_seconds || 0,
-                    }));
-                } else if (data.type === 'ping') {
-                    ws.send(JSON.stringify({ type: 'pong' }));
-                } else if (data.type === 'training_plot' && data.chart_data) {
-                    callbacks.onChartDataChange(data.chart_data);
-                    if (data.metrics) {
-                        callbacks.onAvailableMetricsChange(data.metrics);
-                    }
-                    if (data.epoch_boundaries) {
-                        callbacks.onEpochBoundariesChange(data.epoch_boundaries);
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to parse WebSocket message:', e);
-            }
-        };
-
-        ws.onclose = () => {
-            console.log('Training WebSocket disconnected');
-            setConnected(false);
-            wsRef.current = null;
-
-            // Only reconnect if we should still be connected
-            if (shouldConnectRef.current) {
-                reconnectTimeoutRef.current = window.setTimeout(() => {
-                    connectWebSocket();
-                }, 3000);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('Training WebSocket error:', error);
-        };
-    }, []); // No dependencies - uses refs for all external values
-
-    useEffect(() => {
-        if (shouldConnect) {
-            connectWebSocket();
-        }
-
-        return () => {
-            // Clear reconnect timeout
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-                reconnectTimeoutRef.current = null;
-            }
-            // Close WebSocket when effect cleans up
-            if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
-            }
-        };
-    }, [shouldConnect, connectWebSocket]);
 
     const handleStopTraining = () => {
         if (onStopTraining) {
@@ -235,7 +80,7 @@ export default function TrainingDashboard({
                 </div>
                 <div className={`dashboard-status ${metrics.isTraining ? 'training' : 'idle'}`}>
                     <div className={`status-indicator ${metrics.isTraining ? 'training' : 'idle'}`} />
-                    {metrics.isTraining ? 'Training in Progress' : (connected ? 'Idle' : 'Disconnected')}
+                    {metrics.isTraining ? 'Training in Progress' : 'Idle'}
                 </div>
             </div>
 

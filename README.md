@@ -101,7 +101,7 @@ URLs:
 - templates: reserved for template files (the folder exists but is empty in this repo).
 
 ## 7. Configuration
-Backend configuration lives in `XREPORT/settings/.env` (runtime variables) and `XREPORT/settings/server_configurations.json` (backend metadata, database defaults, and training defaults). Frontend build and preview settings live in `XREPORT/client/vite.config.ts`. The Windows launcher reads `XREPORT/settings/.env` to control UI host/port overrides.
+Backend configuration lives in `XREPORT/settings/.env` (runtime variables) and `XREPORT/settings/configurations.json` (backend metadata, database defaults, and training defaults). Frontend build and preview settings live in `XREPORT/client/vite.config.ts`. The Windows launcher reads `XREPORT/settings/.env` to control UI host/port overrides.
 
 | Variable | Description |
 |----------|-------------|
