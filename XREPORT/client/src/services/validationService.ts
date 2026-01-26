@@ -44,6 +44,8 @@ export interface ValidationResponse {
 
 export interface JobStartResponse {
     job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     message: string;
 }
 
@@ -54,8 +56,6 @@ export interface JobStatusResponse {
     progress: number;
     result: Record<string, unknown> | null;
     error: string | null;
-    created_at: number;
-    completed_at: number | null;
 }
 
 export interface JobCancelResponse {

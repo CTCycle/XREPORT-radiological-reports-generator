@@ -87,8 +87,7 @@ const DEFAULT_DASHBOARD_STATE: TrainingDashboardState = {
     elapsedSeconds: 0,
     chartData: [],
     availableMetrics: [],
-    epochBoundaries: [],
-    shouldConnectWs: false
+    epochBoundaries: []
 };
 
 const DEFAULT_TRAINING_STATE: TrainingPageState = {
@@ -340,13 +339,6 @@ export function useTrainingPageState() {
         }));
     }, [setTrainingPageState]);
 
-    const setShouldConnectWs = useCallback((shouldConnect: boolean) => {
-        setTrainingPageState(prev => ({
-            ...prev,
-            dashboardState: { ...prev.dashboardState, shouldConnectWs: shouldConnect }
-        }));
-    }, [setTrainingPageState]);
-
     const setChartData = useCallback((chartData: ChartDataPoint[]) => {
         setTrainingPageState(prev => ({
             ...prev,
@@ -376,7 +368,6 @@ export function useTrainingPageState() {
         setSelectedCheckpoint,
         setAdditionalEpochs,
         setDashboardState,
-        setShouldConnectWs,
         setChartData,
         setAvailableMetrics,
         setEpochBoundaries

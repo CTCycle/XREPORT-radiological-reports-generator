@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Play, Settings, Activity, Cpu, ChevronDown, RotateCcw
 } from 'lucide-react';
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
 import TrainingDashboard from '../components/TrainingDashboard';
+import { ChartDataPoint } from '../types';
 import {
     startTraining,
     resumeTraining,
     stopTraining,
     getCheckpoints,
     getTrainingStatus,
+    getTrainingJobStatus,
+    pollJobStatus,
     CheckpointInfo,
+    JobStatusResponse,
     StartTrainingConfig,
 } from '../services/trainingService';
 
@@ -24,7 +28,6 @@ export default function TrainingPage() {
         setSelectedCheckpoint,
         setAdditionalEpochs,
         setDashboardState,
-        setShouldConnectWs,
         setChartData,
         setAvailableMetrics,
         setEpochBoundaries
@@ -33,17 +36,94 @@ export default function TrainingPage() {
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const pollerRef = useRef<{ stop: () => void } | null>(null);
 
-    // Check if training is in progress on mount and auto-connect WebSocket if so
+    const stopPolling = useCallback(() => {
+        if (pollerRef.current) {
+            pollerRef.current.stop();
+            pollerRef.current = null;
+        }
+    }, []);
+
+    const applyJobStatus = useCallback((status: JobStatusResponse | null) => {
+        if (!status) return;
+
+        const result = (status.result ?? {}) as Record<string, unknown>;
+        const currentEpoch = typeof result.current_epoch === 'number' ? result.current_epoch : undefined;
+        const totalEpochs = typeof result.total_epochs === 'number' ? result.total_epochs : undefined;
+        const loss = typeof result.loss === 'number' ? result.loss : undefined;
+        const valLoss = typeof result.val_loss === 'number' ? result.val_loss : undefined;
+        const accuracy = typeof result.accuracy === 'number' ? result.accuracy : undefined;
+        const valAccuracy = typeof result.val_accuracy === 'number' ? result.val_accuracy : undefined;
+        const progressPercent = typeof result.progress_percent === 'number' ? result.progress_percent : status.progress;
+        const elapsedSeconds = typeof result.elapsed_seconds === 'number' ? result.elapsed_seconds : undefined;
+
+        setDashboardState((prev) => ({
+            ...prev,
+            isTraining: status.status === 'running' || status.status === 'pending',
+            currentEpoch: currentEpoch ?? prev.currentEpoch,
+            totalEpochs: totalEpochs ?? prev.totalEpochs,
+            loss: loss ?? prev.loss,
+            valLoss: valLoss ?? prev.valLoss,
+            accuracy: accuracy ?? prev.accuracy,
+            valAccuracy: valAccuracy ?? prev.valAccuracy,
+            progressPercent: progressPercent ?? prev.progressPercent,
+            elapsedSeconds: elapsedSeconds ?? prev.elapsedSeconds,
+        }));
+
+        if (Array.isArray(result.chart_data)) {
+            setChartData(result.chart_data as ChartDataPoint[]);
+        }
+        if (Array.isArray(result.available_metrics)) {
+            setAvailableMetrics(result.available_metrics as string[]);
+        }
+        if (Array.isArray(result.epoch_boundaries)) {
+            setEpochBoundaries(result.epoch_boundaries as number[]);
+        }
+    }, [setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
+
+    const startPolling = useCallback((jobId: string) => {
+        stopPolling();
+        pollerRef.current = pollJobStatus(
+            getTrainingJobStatus,
+            jobId,
+            (status) => applyJobStatus(status),
+            (status) => applyJobStatus(status),
+            (pollError) => {
+                console.error('Training poll error:', pollError);
+                stopPolling();
+            },
+            2000
+        );
+    }, [applyJobStatus, stopPolling]);
+
+    // Check if training is in progress on mount and resume polling if so
     useEffect(() => {
         const checkTrainingStatus = async () => {
             const { result } = await getTrainingStatus();
-            if (result?.is_training) {
-                setShouldConnectWs(true);
+            if (result) {
+                setDashboardState((prev) => ({
+                    ...prev,
+                    isTraining: result.is_training,
+                    currentEpoch: result.current_epoch,
+                    totalEpochs: result.total_epochs,
+                    loss: result.loss,
+                    valLoss: result.val_loss,
+                    accuracy: result.accuracy,
+                    valAccuracy: result.val_accuracy,
+                    progressPercent: result.progress_percent,
+                    elapsedSeconds: result.elapsed_seconds,
+                }));
+            }
+            if (result?.is_training && result.job_id) {
+                startPolling(result.job_id);
             }
         };
         checkTrainingStatus();
-    }, []);
+        return () => {
+            stopPolling();
+        };
+    }, [setDashboardState, startPolling, stopPolling]);
 
     // Fetch checkpoints on mount
 
@@ -66,7 +146,9 @@ export default function TrainingPage() {
     const handleStartTraining = async () => {
         setIsLoading(true);
         setError(null);
-        setShouldConnectWs(true); // Connect WebSocket when training starts
+        setChartData([]);
+        setAvailableMetrics([]);
+        setEpochBoundaries([]);
 
         const config: StartTrainingConfig = {
             epochs: state.config.epochs,
@@ -92,12 +174,16 @@ export default function TrainingPage() {
             warmup_steps: state.config.warmupSteps,
         };
 
-        const { error: trainError } = await startTraining(config);
+        const { result: startResult, error: trainError } = await startTraining(config);
         setIsLoading(false);
 
         if (trainError) {
             setError(trainError);
             console.error('Training failed:', trainError);
+            return;
+        }
+        if (startResult) {
+            startPolling(startResult.job_id);
         }
     };
 
@@ -106,9 +192,8 @@ export default function TrainingPage() {
 
         setIsLoading(true);
         setError(null);
-        setShouldConnectWs(true); // Connect WebSocket when resume starts
 
-        const { error: resumeError } = await resumeTraining(
+        const { result: startResult, error: resumeError } = await resumeTraining(
             state.selectedCheckpoint,
             state.additionalEpochs
         );
@@ -117,6 +202,10 @@ export default function TrainingPage() {
         if (resumeError) {
             setError(resumeError);
             console.error('Resume training failed:', resumeError);
+            return;
+        }
+        if (startResult) {
+            startPolling(startResult.job_id);
         }
     };
 
@@ -472,12 +561,7 @@ export default function TrainingPage() {
             {/* Training Dashboard */}
             <TrainingDashboard
                 onStopTraining={handleStopTraining}
-                shouldConnect={state.dashboardState.shouldConnectWs}
                 dashboardState={state.dashboardState}
-                onDashboardStateChange={setDashboardState}
-                onChartDataChange={setChartData}
-                onAvailableMetricsChange={setAvailableMetrics}
-                onEpochBoundariesChange={setEpochBoundaries}
             />
         </div>
     );
