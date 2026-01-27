@@ -10,7 +10,9 @@ import { GenerationMode } from '../types';
 import {
     getInferenceCheckpoints,
     generateReports,
-    evaluateCheckpoint
+    evaluateCheckpoint,
+    getInferenceJobStatus,
+    getCheckpointEvaluationJobStatus
 } from '../services/inferenceService';
 
 const MAX_IMAGES = 16;
@@ -156,7 +158,6 @@ export default function InferencePage() {
         }
 
         // Poll for job completion
-        const { getInferenceJobStatus } = await import('../services/inferenceService');
         const pollInterval = 2000;
         const poll = async () => {
             const { result: status, error: pollError } = await getInferenceJobStatus(jobResult.job_id);
@@ -249,7 +250,6 @@ export default function InferencePage() {
         }
 
         // Poll for job completion
-        const { getCheckpointEvaluationJobStatus } = await import('../services/inferenceService');
         const pollInterval = 2000;
         const poll = async () => {
             const { result: status, error: pollError } = await getCheckpointEvaluationJobStatus(jobResult.job_id);

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Play, Settings } from 'lucide-react';
+import { ArrowLeft, Play, Settings } from 'lucide-react';
 import ValidationDashboard from '../components/ValidationDashboard';
-import { runValidation } from '../services/validationService';
+import { runValidation, getValidationJobStatus } from '../services/validationService';
 import './DatasetPage.css'; // Reusing styles for now
 
 export default function DatasetValidationPage() {
@@ -71,7 +71,6 @@ export default function DatasetValidationPage() {
         }
 
         // Poll for job completion
-        const { getValidationJobStatus } = await import('../services/validationService');
         const pollInterval = 2000;
         const poll = async () => {
             const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);

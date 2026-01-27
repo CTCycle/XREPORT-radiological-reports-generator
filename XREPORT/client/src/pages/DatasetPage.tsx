@@ -11,6 +11,7 @@ import {
     processDataset,
     getDatasetStatus,
     getDatasetNames,
+    getPreparationJobStatus,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -90,7 +91,6 @@ export default function DatasetPage() {
         }
 
         // Poll for job completion
-        const { getPreparationJobStatus } = await import('../services/trainingService');
         const pollInterval = 2000;
         const poll = async () => {
             const { result: status, error: pollError } = await getPreparationJobStatus(jobResult.job_id);
@@ -329,7 +329,7 @@ export default function DatasetPage() {
                                                     <div
                                                         key={dataset.name}
                                                         className={`dataset-table-row ${isSelected ? 'selected' : ''}`}
-                                                        onClick={(e) => {
+                                                        onClick={() => {
                                                             // Prevent row selection when clicking the validation icon if it propagates
                                                             let newSelection: string[];
                                                             const currentSelection = state.selectedDatasets || [];
