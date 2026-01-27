@@ -8,7 +8,7 @@ from XREPORT.server.utils.configurations.base import (
     load_configuration_data    
 )
 
-from XREPORT.server.utils.constants import SERVER_CONFIGURATION_FILE
+from XREPORT.server.utils.constants import CONFIGURATION_FILE
 
 from XREPORT.server.utils.types import (
     coerce_float,
@@ -169,7 +169,7 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
 # [SERVER CONFIGURATION LOADER]
 ###############################################################################
 def get_server_settings(config_path: str | None = None) -> ServerSettings:
-    path = config_path or SERVER_CONFIGURATION_FILE
+    path = config_path or CONFIGURATION_FILE
     payload = load_configuration_data(path)
     
     return build_server_settings(payload)

@@ -7,7 +7,7 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.services.training.callbacks import (
+from XREPORT.server.utils.learning.training.callbacks import (
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )
