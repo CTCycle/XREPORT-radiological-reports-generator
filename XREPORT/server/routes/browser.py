@@ -11,6 +11,7 @@ from XREPORT.server.database.database import XREPORTDatabase, database
 from XREPORT.server.schemas.browser import BrowseConfigResponse, TableDataResponse, TableInfo, TableListResponse
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.repository.serializer import DataSerializer
 
 
 # -----------------------------------------------------------------------------
@@ -91,7 +92,8 @@ class BrowserEndpoint:
             ) from exc
 
         try:
-            total_rows = self.database.count_rows(table_name)
+            serializer = DataSerializer()
+            total_rows = serializer.count_rows(table_name)
         except Exception:  # noqa: BLE001
             total_rows = 0
 

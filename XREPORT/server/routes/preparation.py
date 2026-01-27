@@ -31,8 +31,9 @@ from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
-from XREPORT.server.utils.learning.training.serializer import DataSerializer
-from XREPORT.server.utils.learning.training.processing import (
+from XREPORT.server.utils.repository.serializer import DataSerializer
+from XREPORT.server.utils.constants import RADIOGRAPHY_TABLE
+from XREPORT.server.utils.learning.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
@@ -190,7 +191,8 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     async def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
-        row_count = self.database.count_rows("RADIOGRAPHY_DATA")
+        serializer = DataSerializer()
+        row_count = serializer.count_rows(RADIOGRAPHY_TABLE)
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
@@ -352,6 +354,7 @@ class PreparationEndpoint:
         # Persist matched data to database with dataset_name, id, and path
         if not matched.empty:
             try:
+                serializer = DataSerializer()
                 # Prepare data for database - include dataset_name, id, and path
                 db_df = matched[[image_column, "text", "_path"]].copy()
                 db_df = db_df.rename(columns={image_column: "image", "_path": "path"})
@@ -359,7 +362,7 @@ class PreparationEndpoint:
                 db_df["id"] = range(1, len(db_df) + 1)  # Incremental ID per dataset
                 # Reorder columns to match schema: dataset_name, id, image, text, path
                 db_df = db_df[["dataset_name", "id", "image", "text", "path"]]
-                self.database.upsert_into_database(db_df, "RADIOGRAPHY_DATA")
+                serializer.upsert_source_dataset(db_df)
                 logger.info(f"Upserted {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
             except Exception as e:
                 logger.exception("Failed to save data to database")
@@ -392,7 +395,8 @@ class PreparationEndpoint:
         configuration["seed"] = self.server_settings.global_settings.seed
         
         # Quick validation - check if source data exists
-        row_count = self.database.count_rows("RADIOGRAPHY_DATA")
+        serializer = DataSerializer()
+        row_count = serializer.count_rows(RADIOGRAPHY_TABLE)
         if row_count == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -8,8 +8,22 @@ from typing import Any
 import pandas as pd
 from keras import Model
 from keras.models import load_model
+from sqlalchemy.exc import OperationalError
 
-from XREPORT.server.utils.constants import RESOURCES_PATH
+from XREPORT.server.utils.constants import (
+    RESOURCES_PATH,
+    CHECKPOINT_PATH,
+    VALID_IMAGE_EXTENSIONS,
+    RADIOGRAPHY_TABLE,
+    TRAINING_DATASET_TABLE,
+    PROCESSING_METADATA_TABLE,
+    GENERATED_REPORTS_TABLE,
+    TEXT_STATISTICS_TABLE,
+    IMAGE_STATISTICS_TABLE,
+    CHECKPOINTS_SUMMARY_TABLE,
+    TABLE_REQUIRED_COLUMNS,
+    TABLE_MERGE_KEYS,
+)
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.database import database
 from XREPORT.server.utils.learning.training.metrics import (
@@ -27,9 +41,7 @@ from XREPORT.server.utils.learning.training.layers import (
 )
 from XREPORT.server.utils.learning.training.encoder import BeitXRayImageEncoder
 
-CHECKPOINT_PATH = os.path.join(RESOURCES_PATH, "checkpoints")
-
-VALID_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
+VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
 
 ###############################################################################
@@ -40,12 +52,119 @@ class DataSerializer:
         self.valid_extensions = VALID_EXTENSIONS
 
     # -------------------------------------------------------------------------
-    def serialize_series(self, col: list[str] | str) -> str | list[int]:
+    def serialize_series(self, col: list[int] | str) -> str | list[int]:
         if isinstance(col, list):
             return " ".join(map(str, col))
         if isinstance(col, str):
             return [int(f) for f in col.split() if f.strip()]
         return []
+
+    # -------------------------------------------------------------------------
+    def validate_required_columns(
+        self,
+        dataset: pd.DataFrame,
+        required_columns: list[str],
+        table_name: str,
+        operation: str,
+    ) -> None:
+        missing = [col for col in required_columns if col not in dataset.columns]
+        if missing:
+            raise ValueError(
+                f"Missing required columns for {table_name} {operation}: {', '.join(missing)}"
+            )
+
+    # -------------------------------------------------------------------------
+    def load_table(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
+        if limit is not None and limit < 0:
+            raise ValueError("limit must be >= 0")
+        if offset is not None and offset < 0:
+            raise ValueError("offset must be >= 0")
+
+        dataset = database.load_from_database(table_name)
+        if dataset.empty:
+            return dataset
+
+        if offset:
+            dataset = dataset.iloc[offset:]
+        if limit is not None:
+            dataset = dataset.head(limit)
+
+        return dataset.reset_index(drop=True)
+
+    # -------------------------------------------------------------------------
+    def count_rows(self, table_name: str) -> int:
+        return database.count_rows(table_name)
+
+    # -------------------------------------------------------------------------
+    def save_table(self, dataset: pd.DataFrame, table_name: str) -> None:
+        if dataset.empty:
+            logger.debug("Skipping save for %s: dataset is empty", table_name)
+            return
+        required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
+        if required_columns:
+            self.validate_required_columns(
+                dataset, required_columns, table_name, "save"
+            )
+        database.save_into_database(dataset, table_name)
+
+    # -------------------------------------------------------------------------
+    def merge_table(
+        self,
+        dataset: pd.DataFrame,
+        table_name: str,
+        merge_keys: list[str],
+    ) -> None:
+        if dataset.empty:
+            logger.debug("Skipping merge for %s: dataset is empty", table_name)
+            return
+        required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
+        if required_columns:
+            self.validate_required_columns(
+                dataset, required_columns, table_name, "merge"
+            )
+        missing_merge_keys = [key for key in merge_keys if key not in dataset.columns]
+        if missing_merge_keys:
+            raise ValueError(
+                f"Missing merge keys for {table_name}: {', '.join(missing_merge_keys)}"
+            )
+
+        existing = self.load_table(table_name)
+        if existing.empty:
+            merged = dataset.copy()
+        else:
+            merged = pd.concat([existing, dataset], ignore_index=True)
+            merged = merged.drop_duplicates(subset=merge_keys, keep="last")
+
+        database.save_into_database(merged, table_name)
+
+    # -------------------------------------------------------------------------
+    def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
+        if dataset.empty:
+            logger.debug("Skipping upsert for %s: dataset is empty", table_name)
+            return
+        required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
+        if required_columns:
+            self.validate_required_columns(
+                dataset, required_columns, table_name, "upsert"
+            )
+        try:
+            database.upsert_into_database(dataset, table_name)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Upsert failed for %s, falling back to merge/save: %s",
+                table_name,
+                exc,
+            )
+            merge_keys = TABLE_MERGE_KEYS.get(table_name, [])
+            if merge_keys:
+                self.merge_table(dataset, table_name, merge_keys)
+            else:
+                self.save_table(dataset, table_name)
 
     # -------------------------------------------------------------------------
     def validate_metadata(
@@ -104,7 +223,7 @@ class DataSerializer:
     def load_source_dataset(
         self, sample_size: float = 1.0, seed: int = 42
     ) -> pd.DataFrame:
-        dataset = database.load_from_database("RADIOGRAPHY_DATA")
+        dataset = self.load_table(RADIOGRAPHY_TABLE)
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=seed)
 
@@ -115,7 +234,7 @@ class DataSerializer:
         self, only_metadata: bool = False
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
         # Load metadata from database
-        metadata_df = database.load_from_database("PROCESSING_METADATA")
+        metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
         if metadata_df.empty:
             logger.warning("No processing metadata found in database")
             if only_metadata:
@@ -130,7 +249,7 @@ class DataSerializer:
         if only_metadata:
             return latest_metadata
 
-        training_data = database.load_from_database("TRAINING_DATASET")
+        training_data = self.load_table(TRAINING_DATASET_TABLE)
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
@@ -149,8 +268,16 @@ class DataSerializer:
         training_data: pd.DataFrame,
         vocabulary_size: int | None = None,
     ) -> None:
-        from sqlalchemy.exc import OperationalError
-        
+        if training_data.empty:
+            raise ValueError("Training dataset is empty; nothing to save.")
+
+        self.validate_required_columns(
+            training_data,
+            ["image", "tokens", "split"],
+            TRAINING_DATASET_TABLE,
+            "prepare",
+        )
+
         training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
         # Keep columns that exist in the TRAINING_DATASET schema (including path)
         db_columns = ["image", "tokens", "split", "path"]
@@ -159,9 +286,15 @@ class DataSerializer:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
         training_data_filtered = training_data[db_columns].copy()
+
+        required_columns = TABLE_REQUIRED_COLUMNS.get(TRAINING_DATASET_TABLE, [])
+        if required_columns:
+            self.validate_required_columns(
+                training_data_filtered, required_columns, TRAINING_DATASET_TABLE, "save"
+            )
         
         try:
-            database.save_into_database(training_data_filtered, "TRAINING_DATASET")
+            self.save_table(training_data_filtered, TRAINING_DATASET_TABLE)
         except OperationalError as e:
             error_msg = str(e)
             if "no column named" in error_msg or "has no column" in error_msg:
@@ -186,7 +319,7 @@ class DataSerializer:
         
         metadata_df = pd.DataFrame([metadata])
         try:
-            database.save_into_database(metadata_df, "PROCESSING_METADATA")
+            self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
         except OperationalError as e:
             error_msg = str(e)
             if "no column named" in error_msg or "has no column" in error_msg:
@@ -197,21 +330,25 @@ class DataSerializer:
             raise
 
     # -------------------------------------------------------------------------
+    def upsert_source_dataset(self, dataset: pd.DataFrame) -> None:
+        self.upsert_table(dataset, RADIOGRAPHY_TABLE)
+
+    # -------------------------------------------------------------------------
     def save_generated_reports(self, reports: list[dict]) -> None:
         reports_dataframe = pd.DataFrame(reports)
-        database.upsert_into_database(reports_dataframe, "GENERATED_REPORTS")
+        self.upsert_table(reports_dataframe, GENERATED_REPORTS_TABLE)
 
     # -------------------------------------------------------------------------
     def save_text_statistics(self, data: pd.DataFrame) -> None:
-        database.upsert_into_database(data, "TEXT_STATISTICS")
+        self.upsert_table(data, TEXT_STATISTICS_TABLE)
 
     # -------------------------------------------------------------------------
     def save_images_statistics(self, data: pd.DataFrame) -> None:
-        database.upsert_into_database(data, "IMAGE_STATISTICS")
+        self.upsert_table(data, IMAGE_STATISTICS_TABLE)
 
     # -------------------------------------------------------------------------
     def save_checkpoints_summary(self, data: pd.DataFrame) -> None:
-        database.upsert_into_database(data, "CHECKPOINTS_SUMMARY")
+        self.upsert_table(data, CHECKPOINTS_SUMMARY_TABLE)
 
 
 ###############################################################################
