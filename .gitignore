@@ -1,5 +1,5 @@
 # Project-specific generated/runtime artifacts
-docs/**
+assets/docs/**
 XREPORT/resources/models/**
 XREPORT/resources/checkpoints/**
 XREPORT/resources/database/**
@@ -11,8 +11,6 @@ XREPORT/client/dist-ssr/
 XREPORT/client/package-lock.json
 XREPORT/client/logs/
 XREPORT/resources/tokenizers/**
-
-# Environment files (keep templates)
 XREPORT/client/*.local
 
 
@@ -56,7 +54,7 @@ Thumbs.db
 *.gz
 
 !.gitkeep
-!XREPORT/settings/configurations.json
+
 
 
 
