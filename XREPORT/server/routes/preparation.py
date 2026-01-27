@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from XREPORT.server.database.database import XREPORTDatabase, database
 from XREPORT.server.schemas.training import (
     BrowseResponse,
+    DatasetInfo,
     DatasetNamesResponse,
     DatasetStatusResponse,
     DirectoryItem,
@@ -198,16 +199,36 @@ class PreparationEndpoint:
 
     # -----------------------------------------------------------------------------
     async def get_dataset_names(self) -> DatasetNamesResponse:
-        """Get list of distinct dataset names available in the database."""
+        """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
+            # Get dataset name, folder path (dirname of first path), and row count per dataset
             result = conn.execute(
-                sqlalchemy.text('SELECT DISTINCT dataset_name FROM "RADIOGRAPHY_DATA" ORDER BY dataset_name')
+                sqlalchemy.text('''
+                    SELECT 
+                        dataset_name,
+                        MIN(path) as sample_path,
+                        COUNT(*) as row_count
+                    FROM "RADIOGRAPHY_DATA"
+                    GROUP BY dataset_name
+                    ORDER BY dataset_name
+                ''')
             )
-            dataset_names = [row[0] for row in result.fetchall()]
+            datasets = []
+            for row in result.fetchall():
+                name = row[0]
+                sample_path = row[1] or ""
+                row_count = row[2]
+                # Extract folder path from the sample path
+                folder_path = os.path.dirname(sample_path) if sample_path else ""
+                datasets.append(DatasetInfo(
+                    name=name,
+                    folder_path=folder_path,
+                    row_count=row_count,
+                ))
         
         return DatasetNamesResponse(
-            dataset_names=dataset_names,
-            count=len(dataset_names),
+            datasets=datasets,
+            count=len(datasets),
         )
 
     # -----------------------------------------------------------------------------

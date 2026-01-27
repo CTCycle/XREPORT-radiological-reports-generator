@@ -53,8 +53,8 @@ export default function DatasetPage() {
             if (namesResult) {
                 setDatasetNames(namesResult);
                 // Auto-select first dataset if available and none selected
-                if (namesResult.dataset_names.length > 0 && !state.selectedDataset) {
-                    setSelectedDataset(namesResult.dataset_names[0]);
+                if (namesResult.datasets.length > 0 && !state.selectedDataset) {
+                    setSelectedDataset(namesResult.datasets[0].name);
                 }
             }
         };
@@ -323,6 +323,7 @@ export default function DatasetPage() {
                                 <div className="upload-card" onClick={() => setFolderBrowserOpen(true)}>
                                     <FolderUp className="upload-icon" />
                                     <div className="upload-text">Upload Image Folder</div>
+                                    <div className="upload-hint">DICOM, PNG, JPG</div>
                                     <div className="upload-subtext">
                                         {state.imageFolderName ? state.imageFolderName : 'Select directory'}
                                     </div>
@@ -341,6 +342,7 @@ export default function DatasetPage() {
                                 <div className="upload-card" onClick={handleFileUpload}>
                                     <FileSpreadsheet className="upload-icon" />
                                     <div className="upload-text">Upload Data File</div>
+                                    <div className="upload-hint">Reports & Metadata</div>
                                     <div className="upload-subtext">
                                         {state.datasetFile ? state.datasetFile.name : 'Select .csv or .xlsx'}
                                     </div>
@@ -381,100 +383,106 @@ export default function DatasetPage() {
                     </div>
                 </div>
 
-                {/* Row 2: Dataset Processing & Evaluation - Unified Section */}
+                {/* Row 2: Dataset Processing */}
                 <div className="layout-row">
                     <div className="section">
                         <div className="section-title">
                             <Sliders size={18} />
-                            <span>Dataset Processing & Evaluation</span>
+                            <span>Dataset Processing</span>
                         </div>
 
-                        {/* Shared Dataset Selector Bar */}
-                        <div className="dataset-selector-bar">
-                            <span
-                                className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
-                                title={hasDatasets
-                                    ? `${state.datasetNames?.count} dataset(s) available`
-                                    : 'No datasets in database'
-                                }
-                            />
-                            <select
-                                className="form-select"
-                                value={state.selectedDataset}
-                                onChange={(e) => setSelectedDataset(e.target.value)}
-                                disabled={!hasDatasets}
-                                style={{ flex: 1 }}
-                            >
-                                {!hasDatasets && (
-                                    <option value="">No datasets available</option>
-                                )}
-                                {state.datasetNames?.dataset_names.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
-                                ))}
-                            </select>
-                            {state.dbStatus?.has_data && !state.loadResult?.success && (
-                                <div className="upload-status info">
-                                    {state.dbStatus.row_count.toLocaleString()} records in database
+                        {/* Dataset Table */}
+                        <div className="dataset-table-container">
+                            <div className="dataset-table-header-row">
+                                <span
+                                    className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
+                                    title={hasDatasets
+                                        ? `${state.datasetNames?.count} dataset(s) available`
+                                        : 'No datasets in database'
+                                    }
+                                />
+                                <span className="dataset-table-title">Available Datasets</span>
+                            </div>
+                            <div className="dataset-table">
+                                <div className="dataset-table-header">
+                                    <span>Name</span>
+                                    <span>Source</span>
+                                    <span>Rows</span>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Two-Column Layout for Processing & Evaluation */}
-                        <div className="processing-evaluation-columns">
-                            {/* Processing Column */}
-                            <div className="processing-column">
-                                <div className="subsection-header">Processing</div>
-                                <div className="config-grid-compact">
-                                    <div className="form-group">
-                                        <label className="form-label">Sample Size (0-1)</label>
-                                        <input
-                                            type="number"
-                                            step="0.05"
-                                            min="0.01"
-                                            max="1.0"
-                                            className="form-input"
-                                            value={state.config.sampleSize}
-                                            onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Val Split (0-1)</label>
-                                        <input
-                                            type="number"
-                                            step="0.05"
-                                            max="1.0"
-                                            className="form-input"
-                                            value={state.config.validationSize}
-                                            onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Max Report Size</label>
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            value={state.config.maxReportSize}
-                                            onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Tokenizer</label>
-                                        <select
-                                            className="form-select"
-                                            value={state.config.tokenizer}
-                                            onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
+                                <div className="dataset-table-body">
+                                    {!hasDatasets && (
+                                        <div className="dataset-table-empty">
+                                            No datasets available yet.
+                                        </div>
+                                    )}
+                                    {state.datasetNames?.datasets.map((dataset) => (
+                                        <div
+                                            key={dataset.name}
+                                            className={`dataset-table-row ${state.selectedDataset === dataset.name ? 'selected' : ''}`}
+                                            onClick={() => setSelectedDataset(dataset.name)}
                                         >
-                                            <option value="distilbert-base-uncased">distilbert-base-uncased</option>
-                                            <option value="bert-base-uncased">bert-base-uncased</option>
-                                            <option value="roberta-base">roberta-base</option>
-                                        </select>
-                                    </div>
+                                            <span className="dataset-name">{dataset.name}</span>
+                                            <span className="dataset-path" title={dataset.folder_path}>{dataset.folder_path}</span>
+                                            <span className="dataset-rows">{dataset.row_count.toLocaleString()}</span>
+                                        </div>
+                                    ))}
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Processing Content */}
+                        <div className="processing-content">
+                            <div className="config-grid-compact">
+                                <div className="form-group">
+                                    <label className="form-label">Sample Size (0-1)</label>
+                                    <input
+                                        type="number"
+                                        step="0.05"
+                                        min="0.01"
+                                        max="1.0"
+                                        className="form-input"
+                                        value={state.config.sampleSize}
+                                        onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Val Split (0-1)</label>
+                                    <input
+                                        type="number"
+                                        step="0.05"
+                                        max="1.0"
+                                        className="form-input"
+                                        value={state.config.validationSize}
+                                        onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Max Report Size</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={state.config.maxReportSize}
+                                        onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Tokenizer</label>
+                                    <select
+                                        className="form-select"
+                                        value={state.config.tokenizer}
+                                        onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
+                                    >
+                                        <option value="distilbert-base-uncased">distilbert-base-uncased</option>
+                                        <option value="bert-base-uncased">bert-base-uncased</option>
+                                        <option value="roberta-base">roberta-base</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                 <button
                                     className="btn btn-primary"
                                     onClick={handleBuildDataset}
                                     disabled={state.isProcessing}
-                                    style={{ justifyContent: 'center' }}
                                 >
                                     {state.isProcessing ? (
                                         <><Loader size={16} className="spin" /> Processing Dataset...</>
@@ -483,21 +491,31 @@ export default function DatasetPage() {
                                     )}
                                 </button>
                                 {state.processingResult?.success && (
-                                    <div className="upload-status success" style={{ marginTop: '0.5rem' }}>
-                                        <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val samples
+                                    <div className="upload-status success">
+                                        <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val
                                     </div>
                                 )}
                                 {state.processingResult === undefined && state.uploadError && state.uploadError.includes("Tokenization") && (
-                                    <div className="upload-status error" style={{ marginTop: '0.5rem' }}>
+                                    <div className="upload-status error">
                                         <AlertCircle size={14} /> {state.uploadError}
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                </div>
 
-                            {/* Evaluation Column */}
-                            <div className="evaluation-column">
-                                <div className="subsection-header">Evaluation</div>
-                                <div className="form-group">
+                {/* Row 3: Evaluation */}
+                <div className="layout-row">
+                    <div className="section">
+                        <div className="section-title">
+                            <CheckCircle size={18} />
+                            <span>Data Evaluation</span>
+                        </div>
+
+                        <div className="evaluation-content">
+                            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                                <div className="form-group" style={{ minWidth: '150px' }}>
                                     <label className="form-label">Eval Sample (0-1)</label>
                                     <input
                                         type="number"
@@ -509,7 +527,7 @@ export default function DatasetPage() {
                                         onChange={(e) => handleConfigChange('evalSampleSize', parseFloat(e.target.value))}
                                     />
                                 </div>
-                                <div className="eval-checkboxes">
+                                <div className="eval-checkboxes" style={{ marginBottom: '0.5rem' }}>
                                     <label className="form-checkbox">
                                         <input
                                             type="checkbox"
@@ -540,7 +558,6 @@ export default function DatasetPage() {
                                 </div>
                                 <button
                                     className="btn btn-secondary"
-                                    style={{ justifyContent: 'center' }}
                                     onClick={handleViewEvaluation}
                                     disabled={state.isValidating}
                                 >
