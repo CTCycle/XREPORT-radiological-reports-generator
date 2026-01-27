@@ -25,7 +25,6 @@ class DatabaseBackend(Protocol):
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
-    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
     # -------------------------------------------------------------------------
@@ -79,7 +78,6 @@ class XREPORTDatabase:
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.save_into_database(df, table_name)
 
-    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.upsert_into_database(df, table_name)
 
