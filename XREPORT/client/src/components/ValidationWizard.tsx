@@ -45,17 +45,16 @@ export default function ValidationWizard({
     onClose,
     onConfirm,
 }: ValidationWizardProps) {
-    const [currentPage, setCurrentPage] = useState(0);
     const [selectedMetrics, setSelectedMetrics] = useState<ValidationMetric[]>([]);
+    const [validateFullDataset, setValidateFullDataset] = useState(true);
+    const [validationFraction, setValidationFraction] = useState<string>('0.5');
 
     useEffect(() => {
         if (!isOpen) return;
-        setCurrentPage(0);
         setSelectedMetrics(initialSelected ?? []);
+        setValidateFullDataset(true);
+        setValidationFraction('0.5');
     }, [isOpen, initialSelected, row]);
-
-    const isLastPage = currentPage >= STEPS.length - 1;
-    const currentStep = STEPS[currentPage];
 
     const datasetLabel = useMemo(() => {
         if (!row) return 'Select a dataset';
@@ -71,16 +70,14 @@ export default function ValidationWizard({
         });
     };
 
-    const handlePrevious = () => {
-        setCurrentPage(prev => Math.max(0, prev - 1));
-    };
-
-    const handleNext = () => {
-        if (!isLastPage) {
-            setCurrentPage(prev => Math.min(STEPS.length - 1, prev + 1));
-            return;
-        }
-        onConfirm({ metrics: selectedMetrics, row });
+    const handleConfirm = () => {
+        const fraction = validateFullDataset ? 1.0 : parseFloat(validationFraction);
+        onConfirm({
+            metrics: selectedMetrics,
+            row,
+            // @ts-ignore - Let the parent handle the connection, or update types later if needed
+            fraction
+        });
         onClose();
     };
 
@@ -99,60 +96,60 @@ export default function ValidationWizard({
                     </button>
                 </div>
 
-                <div className="wizard-page-indicator">
-                    {STEPS.map((step, index) => (
-                        <span
-                            key={step.id}
-                            className={`wizard-dot ${currentPage === index ? 'active' : ''}`}
-                        >
-                            {index + 1}
-                        </span>
-                    ))}
+                <div className="wizard-config-bar">
+                    <div className="config-option" onClick={() => setValidateFullDataset(!validateFullDataset)}>
+                        <div className={`toggle-switch ${validateFullDataset ? 'checked' : ''}`}>
+                            <div className="toggle-slider"></div>
+                        </div>
+                        <span className="toggle-label">Validate full dataset</span>
+                    </div>
+
+                    <div className={`config-input-group ${validateFullDataset ? 'disabled' : ''}`}>
+                        <span>Fraction:</span>
+                        <input
+                            type="number"
+                            min="0.01"
+                            max="1.0"
+                            step="0.01"
+                            value={validationFraction}
+                            disabled={validateFullDataset}
+                            onChange={(e) => setValidationFraction(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 <div className="wizard-body">
-                    {currentPage === 0 && (
-                        <div className="wizard-page">
-                            <div className="wizard-card">
-                                <div className="wizard-step-title">{currentStep.title}</div>
-                                <div className="wizard-metrics-grid">
-                                    {METRICS.map(metric => {
-                                        const isSelected = selectedMetrics.includes(metric.id);
-                                        return (
-                                            <button
-                                                key={metric.id}
-                                                type="button"
-                                                className={`wizard-metric ${isSelected ? 'selected' : ''}`}
-                                                onClick={() => toggleMetric(metric.id)}
-                                            >
-                                                <div className="wizard-metric-title">{metric.name}</div>
-                                                <div className="wizard-metric-desc">{metric.description}</div>
-                                                <div className="wizard-metric-state">
-                                                    {isSelected ? 'Selected' : 'Select'}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
+                    <div className="wizard-page">
+                        <div className="wizard-step-title">Metrics selection</div>
+                        <div className="wizard-metrics-grid">
+                            {METRICS.map(metric => {
+                                const isSelected = selectedMetrics.includes(metric.id);
+                                return (
+                                    <button
+                                        key={metric.id}
+                                        type="button"
+                                        className={`wizard-metric ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => toggleMetric(metric.id)}
+                                    >
+                                        <div className="wizard-metric-title">{metric.name}</div>
+                                        <div className="wizard-metric-desc">{metric.description}</div>
+                                        <div className="wizard-metric-state">
+                                            {isSelected ? 'Selected' : 'Select'}
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 <div className="wizard-footer">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={handlePrevious}
-                        disabled={currentPage === 0}
-                    >
-                        Previous
-                    </button>
                     <div className="wizard-footer-actions">
                         <button className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
-                        <button className="btn btn-primary" onClick={handleNext}>
-                            {isLastPage ? 'Confirm' : 'Next'}
+                        <button className="btn btn-primary" onClick={handleConfirm}>
+                            Confirm
                         </button>
                     </div>
                 </div>
