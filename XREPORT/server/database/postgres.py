@@ -102,6 +102,7 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        """Overwrite table contents before inserting new rows."""
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             if inspector.has_table(table_name):
