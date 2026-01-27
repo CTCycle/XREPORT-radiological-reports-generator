@@ -25,6 +25,7 @@ export interface TextStatistics {
 }
 
 export interface ValidationRequest {
+    dataset_name: string;
     metrics: string[];
     sample_size?: number;
     seed?: number;
@@ -36,6 +37,17 @@ export interface ValidationResponse {
     pixel_distribution?: PixelDistribution;
     image_statistics?: ImageStatistics;
     text_statistics?: TextStatistics;
+}
+
+export interface ValidationReport {
+    dataset_name: string;
+    date?: string | null;
+    sample_size?: number | null;
+    metrics: string[];
+    pixel_distribution?: PixelDistribution;
+    image_statistics?: ImageStatistics;
+    text_statistics?: TextStatistics;
+    artifacts?: Record<string, { mime_type: string; data: string }> | null;
 }
 
 // ============================================================================
@@ -90,6 +102,26 @@ export async function runValidation(
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<JobStartResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get a persisted validation report for a dataset
+ */
+export async function getValidationReport(
+    datasetName: string
+): Promise<{ result: ValidationReport | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/validation/reports/${encodeURIComponent(datasetName)}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ValidationReport>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

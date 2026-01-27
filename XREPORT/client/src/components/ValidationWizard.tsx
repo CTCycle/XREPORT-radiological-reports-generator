@@ -10,7 +10,7 @@ interface ValidationWizardProps {
     row: DatasetInfo | null;
     initialSelected?: ValidationMetric[];
     onClose: () => void;
-    onConfirm: (config: { metrics: ValidationMetric[]; row: DatasetInfo | null }) => void;
+    onConfirm: (config: { metrics: ValidationMetric[]; row: DatasetInfo | null; sampleFraction: number }) => void;
 }
 
 const METRICS: Array<{ id: ValidationMetric; name: string; description: string }> = [
@@ -71,12 +71,14 @@ export default function ValidationWizard({
     };
 
     const handleConfirm = () => {
-        const fraction = validateFullDataset ? 1.0 : parseFloat(validationFraction);
+        const fractionValue = validateFullDataset ? 1.0 : parseFloat(validationFraction);
+        const fraction = Number.isFinite(fractionValue)
+            ? Math.min(Math.max(fractionValue, 0.01), 1.0)
+            : 1.0;
         onConfirm({
             metrics: selectedMetrics,
             row,
-            // @ts-ignore - Let the parent handle the connection, or update types later if needed
-            fraction
+            sampleFraction: fraction,
         });
         onClose();
     };
@@ -148,7 +150,11 @@ export default function ValidationWizard({
                         <button className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
-                        <button className="btn btn-primary" onClick={handleConfirm}>
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleConfirm}
+                            disabled={selectedMetrics.length === 0}
+                        >
                             Confirm
                         </button>
                     </div>
