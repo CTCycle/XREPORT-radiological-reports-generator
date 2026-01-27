@@ -33,7 +33,7 @@ class BrowserEndpoint:
         self.server_settings = server_settings
 
     # -----------------------------------------------------------------------------
-    async def list_tables(self) -> TableListResponse:
+    def list_tables(self) -> TableListResponse:
         engine = self.database.backend.engine
         try:
             inspector = sqlalchemy.inspect(engine)
@@ -51,13 +51,13 @@ class BrowserEndpoint:
         return TableListResponse(tables=tables)
 
     # -----------------------------------------------------------------------------
-    async def get_browse_config(self) -> BrowseConfigResponse:
+    def get_browse_config(self) -> BrowseConfigResponse:
         return BrowseConfigResponse(
             browse_batch_size=self.server_settings.database.browse_batch_size,
         )
 
     # -----------------------------------------------------------------------------
-    async def get_table_data(
+    def get_table_data(
         self,
         table_name: str,
         limit: int = Query(200, ge=1, le=1000),
@@ -90,6 +90,11 @@ class BrowserEndpoint:
                 detail=f"Failed to load table schema: {exc}",
             ) from exc
 
+        try:
+            total_rows = self.database.count_rows(table_name)
+        except Exception:  # noqa: BLE001
+            total_rows = 0
+
         pk_constraint = inspector.get_pk_constraint(table_name) or {}
         pk_columns = pk_constraint.get("constrained_columns") or []
         order_columns: list[Any] = []
@@ -114,15 +119,11 @@ class BrowserEndpoint:
             ) from exc
         data = [dict(row) for row in rows]
 
-        try:
-            row_count = self.database.count_rows(table_name)
-        except Exception:  # noqa: BLE001
-            row_count = 0
-
         return TableDataResponse(
             table_name=table_name,
             display_name=build_display_name(table_name),
-            row_count=row_count,
+            total_rows=total_rows,
+            row_count=len(data),
             column_count=len(columns),
             columns=columns,
             data=data,
