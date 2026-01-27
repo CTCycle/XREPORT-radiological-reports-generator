@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -7,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from XREPORT.server.schemas.validation import (
     ValidationRequest,
     ValidationResponse,
+    ValidationReportResponse,
     CheckpointEvaluationRequest,
     CheckpointEvaluationResponse,
     CheckpointEvaluationResults,
@@ -41,6 +43,7 @@ def run_validation_job(
     # We should have passed the seed in request_data from the caller.
     seed = request_data.get("seed", 42)
     metrics = request_data.get("metrics", [])
+    dataset_name = request_data.get("dataset_name")
     
     # Log validation configuration
     sample_pct = sample_size * 100
@@ -52,13 +55,18 @@ def run_validation_job(
     
     dataset = serializer.load_source_dataset(
         sample_size=sample_size,
-        seed=seed
+        seed=seed,
+        dataset_name=dataset_name,
     )
     
     if dataset.empty:
         return {
             "success": False,
-            "message": "No data found in the database to validate.",
+            "message": (
+                f"No data found for dataset: {dataset_name}."
+                if dataset_name
+                else "No data found in the database to validate."
+            ),
         }
     
     logger.info(f"Loaded {len(dataset)} records for validation")
@@ -66,11 +74,12 @@ def run_validation_job(
     if jm.should_stop(job_id):
         return {}
     
-    # Extract dataset_name from source data
-    if "dataset_name" in dataset.columns and not dataset.empty:
-        dataset_name = dataset["dataset_name"].iloc[0]
-    else:
-        dataset_name = "default"
+    # Ensure dataset_name is set for downstream persistence
+    if not dataset_name:
+        if "dataset_name" in dataset.columns and not dataset.empty:
+            dataset_name = dataset["dataset_name"].iloc[0]
+        else:
+            dataset_name = "default"
         
     # Validate that stored image paths exist
     dataset = serializer.validate_img_paths(dataset)
@@ -90,6 +99,9 @@ def run_validation_job(
     result: dict[str, Any] = {
         "success": True,
         "message": "Validation completed successfully",
+        "dataset_name": dataset_name,
+        "sample_size": sample_size,
+        "metrics": metrics,
     }
     
     logger.info(f"Metrics to compute: {', '.join(metrics)}")
@@ -160,6 +172,18 @@ def run_validation_job(
     
     logger.info("Dataset validation completed successfully")
     jm.update_progress(job_id, 100.0)
+
+    report_payload = {
+        "dataset_name": dataset_name,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "sample_size": sample_size,
+        "metrics": metrics,
+        "text_statistics": result.get("text_statistics"),
+        "image_statistics": result.get("image_statistics"),
+        "pixel_distribution": result.get("pixel_distribution"),
+        "artifacts": None,
+    }
+    serializer.save_validation_report(report_payload)
     
     return result
 
@@ -320,6 +344,19 @@ class ValidationEndpoint:
             message="Validation job started",
         )
 
+    # -------------------------------------------------------------------------
+    async def get_validation_report(
+        self, dataset_name: str
+    ) -> ValidationReportResponse:
+        serializer = DataSerializer()
+        report = serializer.get_validation_report(dataset_name)
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No validation report found for dataset: {dataset_name}",
+            )
+        return ValidationReportResponse(**report)
+
     # -----------------------------------------------------------------------------
     async def evaluate_checkpoint(
         self,
@@ -398,6 +435,13 @@ class ValidationEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/reports/{dataset_name}",
+            self.get_validation_report,
+            methods=["GET"],
+            response_model=ValidationReportResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/jobs/{job_id}",

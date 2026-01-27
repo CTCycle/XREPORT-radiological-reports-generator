@@ -40,28 +40,10 @@ export default function DatasetValidationPage() {
         setValidationError(null);
         setValidationResult(null);
 
-        // Note: The original runValidation service might not take datasetName if it relied on global state.
-        // I need to check if runValidation supports passing the dataset name. 
-        // Based on previous code, it seemed to rely on backend state or just arguments. 
-        // Assuming for now it works on the "current" dataset or I might need to update the service 
-        // to accept a dataset name if the backend requires it.
-        // *Correction*: The user context implies we are validating a specific dataset found in the grid.
-        // If the backend operates on a "loaded" dataset, we might need to "load" it first? 
-        // Or does `runValidation` assume the dataset is already loaded/processed?
-        // Looking at previous `DatasetPage.tsx`, no dataset name was passed to `runValidation`.
-        // However, `loadDataset` was called before. 
-        // Ideally, the backend should be stateless or accept the dataset name.
-        // CONSTANT: We will treat this as if the backend knows what to do, 
-        // but robustly we might need to ensure the dataset is "selected" or "active".
-
-        // *Optimistic approach*: We call runValidation. If it fails because the dataset isn't loaded,
-        // we might need to handle that. But let's stick to the extracted logic.
-
         const { result: jobResult, error: startError } = await runValidation({
+            dataset_name: datasetName || 'default',
             metrics,
             sample_size: config.evalSampleSize,
-            // If the API supports it, we should pass datasetName here. 
-            // If not, we assume the backend knows.
         });
 
         if (startError || !jobResult) {

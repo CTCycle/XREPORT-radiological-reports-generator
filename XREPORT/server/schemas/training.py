@@ -146,6 +146,7 @@ class DatasetInfo(BaseModel):
     name: str
     folder_path: str
     row_count: int
+    has_validation_report: bool = False
 
 
 ###############################################################################

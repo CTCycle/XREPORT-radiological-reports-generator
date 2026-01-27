@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders,
-    Loader, CheckCircle, AlertCircle
+    Loader, CheckCircle, AlertCircle, BarChart2
 } from 'lucide-react';
 import './DatasetPage.css';
 import {
@@ -17,10 +17,28 @@ import {
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
 import ValidationWizard, { ValidationMetric } from '../components/ValidationWizard';
+import ValidationReportModal from '../components/ValidationReportModal';
+import {
+    runValidation,
+    getValidationJobStatus,
+    getValidationReport,
+    ValidationReport,
+    ValidationResponse,
+} from '../services/validationService';
 
 export default function DatasetPage() {
     const [validationWizardOpen, setValidationWizardOpen] = useState(false);
     const [validationRow, setValidationRow] = useState<DatasetInfo | null>(null);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportDataset, setReportDataset] = useState<DatasetInfo | null>(null);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+    const [reportResult, setReportResult] = useState<ValidationResponse | null>(null);
+    const [reportMetadata, setReportMetadata] = useState<{
+        date?: string | null;
+        sampleSize?: number | null;
+        metrics?: string[];
+    } | null>(null);
 
     const {
         state,
@@ -184,12 +202,119 @@ export default function DatasetPage() {
         return selection;
     }, [state.config.pixDist, state.config.textStats, state.config.imgStats]);
 
-    const handleValidationConfirm = (config: { metrics: ValidationMetric[]; row: DatasetInfo | null }) => {
+    const handleValidationConfirm = async (config: { metrics: ValidationMetric[]; row: DatasetInfo | null; sampleFraction: number }) => {
         updateConfig('pixDist', config.metrics.includes('pixels_distribution'));
         updateConfig('textStats', config.metrics.includes('text_statistics'));
         updateConfig('imgStats', config.metrics.includes('image_statistics'));
+        updateConfig('evalSampleSize', config.sampleFraction);
         setValidationRow(config.row);
         setValidationWizardOpen(false);
+
+        if (!config.row) {
+            return;
+        }
+
+        if (config.metrics.length === 0) {
+            setReportError('Please select at least one validation metric.');
+            setReportResult(null);
+            setReportLoading(false);
+            setReportDataset(config.row);
+            setReportMetadata({ sampleSize: config.sampleFraction, metrics: [] });
+            setReportModalOpen(true);
+            return;
+        }
+
+        setReportDataset(config.row);
+        setReportMetadata({ sampleSize: config.sampleFraction, metrics: config.metrics });
+        setReportResult(null);
+        setReportError(null);
+        setReportLoading(true);
+        setReportModalOpen(true);
+
+        const { result: jobResult, error: startError } = await runValidation({
+            dataset_name: config.row.name,
+            metrics: config.metrics,
+            sample_size: config.sampleFraction,
+        });
+
+        if (startError || !jobResult) {
+            setReportLoading(false);
+            setReportError(startError || 'Failed to start validation job');
+            return;
+        }
+
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);
+
+            if (pollError) {
+                setReportLoading(false);
+                setReportError(pollError);
+                return;
+            }
+
+            if (!status) {
+                setReportLoading(false);
+                setReportError('Failed to get validation job status');
+                return;
+            }
+
+            if (status.status === 'completed' && status.result) {
+                setReportLoading(false);
+                const res = status.result as Record<string, unknown>;
+                setReportResult({
+                    success: (res.success as boolean) ?? true,
+                    message: (res.message as string) ?? 'Validation completed',
+                    pixel_distribution: res.pixel_distribution as ValidationResponse['pixel_distribution'],
+                    image_statistics: res.image_statistics as ValidationResponse['image_statistics'],
+                    text_statistics: res.text_statistics as ValidationResponse['text_statistics'],
+                });
+                const { result: namesResult } = await getDatasetNames();
+                if (namesResult) {
+                    setDatasetNames(namesResult);
+                }
+            } else if (status.status === 'failed') {
+                setReportLoading(false);
+                setReportError(status.error || 'Validation failed');
+            } else if (status.status === 'cancelled') {
+                setReportLoading(false);
+                setReportError('Validation was cancelled');
+            } else {
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
+    };
+
+    const handleVisualizeReport = async (dataset: DatasetInfo) => {
+        setReportDataset(dataset);
+        setReportResult(null);
+        setReportError(null);
+        setReportMetadata(null);
+        setReportLoading(true);
+        setReportModalOpen(true);
+
+        const { result, error } = await getValidationReport(dataset.name);
+        if (error || !result) {
+            setReportLoading(false);
+            setReportError(error || 'Failed to load validation report');
+            return;
+        }
+
+        const report = result as ValidationReport;
+        setReportMetadata({
+            date: report.date,
+            sampleSize: report.sample_size ?? null,
+            metrics: report.metrics,
+        });
+        setReportResult({
+            success: true,
+            message: 'Validation report loaded',
+            pixel_distribution: report.pixel_distribution,
+            image_statistics: report.image_statistics,
+            text_statistics: report.text_statistics,
+        });
+        setReportLoading(false);
     };
 
     const handleLoadDataset = async () => {
@@ -333,7 +458,7 @@ export default function DatasetPage() {
                                     </div>
                                     <div className="dataset-table">
                                         <div className="dataset-table-header">
-                                            <span style={{ textAlign: 'center' }}>Validate</span>
+                                            <span style={{ textAlign: 'center' }}>Actions</span>
                                             <span>Name</span>
                                             <span>Source</span>
                                             <span style={{ textAlign: 'right' }}>Rows</span>
@@ -381,6 +506,20 @@ export default function DatasetPage() {
                                                                 }}
                                                             >
                                                                 <CheckCircle size={16} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-icon-small"
+                                                                title={dataset.has_validation_report ? 'Visualize Report' : 'No report available'}
+                                                                disabled={!dataset.has_validation_report}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    if (!dataset.has_validation_report) return;
+                                                                    handleVisualizeReport(dataset);
+                                                                }}
+                                                            >
+                                                                <BarChart2 size={16} />
                                                             </button>
                                                         </div>
                                                         <span className="dataset-name">{dataset.name}</span>
@@ -493,6 +632,16 @@ export default function DatasetPage() {
                 initialSelected={currentValidationSelection}
                 onClose={() => setValidationWizardOpen(false)}
                 onConfirm={handleValidationConfirm}
+            />
+
+            <ValidationReportModal
+                isOpen={reportModalOpen}
+                datasetName={reportDataset?.name ?? null}
+                isLoading={reportLoading}
+                validationResult={reportResult}
+                error={reportError}
+                metadata={reportMetadata}
+                onClose={() => setReportModalOpen(false)}
             />
         </div>
     );

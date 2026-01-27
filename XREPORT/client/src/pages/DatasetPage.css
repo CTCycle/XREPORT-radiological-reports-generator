@@ -107,7 +107,7 @@
 
 .dataset-table-header {
     display: grid;
-    grid-template-columns: 80px 1.5fr 2fr 100px;
+    grid-template-columns: 110px 1.5fr 2fr 100px;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     background: var(--bg-secondary);
@@ -128,7 +128,7 @@
 
 .dataset-table-row {
     display: grid;
-    grid-template-columns: 80px 1.5fr 2fr 100px;
+    grid-template-columns: 110px 1.5fr 2fr 100px;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     font-size: 0.8rem;
@@ -367,6 +367,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 0.35rem;
 }
 
 .btn-icon-small {
@@ -387,6 +388,13 @@
     color: var(--text-primary);
     background: var(--input-bg);
     border-color: var(--border-color);
+}
+
+.btn-icon-small:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: transparent;
 }
 
 /* Load dataset section */

@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 from keras import Model
 from keras.models import load_model
+import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
 from XREPORT.server.utils.constants import (
@@ -21,6 +22,7 @@ from XREPORT.server.utils.constants import (
     TEXT_STATISTICS_TABLE,
     IMAGE_STATISTICS_TABLE,
     CHECKPOINTS_SUMMARY_TABLE,
+    VALIDATION_REPORTS_TABLE,
     TABLE_REQUIRED_COLUMNS,
     TABLE_MERGE_KEYS,
 )
@@ -221,9 +223,14 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_source_dataset(
-        self, sample_size: float = 1.0, seed: int = 42
+        self,
+        sample_size: float = 1.0,
+        seed: int = 42,
+        dataset_name: str | None = None,
     ) -> pd.DataFrame:
         dataset = self.load_table(RADIOGRAPHY_TABLE)
+        if dataset_name and "dataset_name" in dataset.columns:
+            dataset = dataset[dataset["dataset_name"] == dataset_name]
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=seed)
 
@@ -349,6 +356,88 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_checkpoints_summary(self, data: pd.DataFrame) -> None:
         self.upsert_table(data, CHECKPOINTS_SUMMARY_TABLE)
+
+    # -------------------------------------------------------------------------
+    def save_validation_report(self, report: dict[str, Any]) -> None:
+        dataset_name = str(report.get("dataset_name") or "default")
+        record = {
+            "dataset_name": dataset_name,
+            "date": report.get("date"),
+            "sample_size": report.get("sample_size"),
+            "metrics": json.dumps(report.get("metrics", [])),
+            "text_statistics": (
+                json.dumps(report.get("text_statistics"))
+                if report.get("text_statistics") is not None
+                else None
+            ),
+            "image_statistics": (
+                json.dumps(report.get("image_statistics"))
+                if report.get("image_statistics") is not None
+                else None
+            ),
+            "pixel_distribution": (
+                json.dumps(report.get("pixel_distribution"))
+                if report.get("pixel_distribution") is not None
+                else None
+            ),
+            "artifacts": (
+                json.dumps(report.get("artifacts"))
+                if report.get("artifacts") is not None
+                else None
+            ),
+        }
+        report_df = pd.DataFrame([record])
+        self.upsert_table(report_df, VALIDATION_REPORTS_TABLE)
+
+    # -------------------------------------------------------------------------
+    def get_validation_report(self, dataset_name: str) -> dict[str, Any] | None:
+        with database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(VALIDATION_REPORTS_TABLE):
+                return None
+            reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
+            if reports.empty:
+                return None
+        filtered = reports[reports["dataset_name"] == dataset_name]
+        if filtered.empty:
+            return None
+        row = filtered.iloc[-1]
+        metrics_raw = row.get("metrics")
+        text_raw = row.get("text_statistics")
+        image_raw = row.get("image_statistics")
+        pixel_raw = row.get("pixel_distribution")
+        artifacts_raw = row.get("artifacts")
+
+        def parse_json(value: Any) -> Any:
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                return None
+            if isinstance(value, str) and value.strip():
+                return json.loads(value)
+            return None
+
+        return {
+            "dataset_name": dataset_name,
+            "date": row.get("date") if "date" in row else None,
+            "sample_size": row.get("sample_size"),
+            "metrics": (
+                json.loads(metrics_raw) if isinstance(metrics_raw, str) and metrics_raw else []
+            ),
+            "text_statistics": parse_json(text_raw),
+            "image_statistics": parse_json(image_raw),
+            "pixel_distribution": parse_json(pixel_raw),
+            "artifacts": parse_json(artifacts_raw),
+        }
+
+    # -------------------------------------------------------------------------
+    def validation_report_exists(self, dataset_name: str) -> bool:
+        with database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(VALIDATION_REPORTS_TABLE):
+                return False
+            reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
+            if reports.empty or "dataset_name" not in reports.columns:
+                return False
+            return bool((reports["dataset_name"] == dataset_name).any())
 
 
 ###############################################################################
