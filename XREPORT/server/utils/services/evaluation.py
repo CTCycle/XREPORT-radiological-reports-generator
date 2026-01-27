@@ -1,11 +1,3 @@
-"""
-Checkpoint evaluation service for computing model quality metrics.
-
-Adapted from legacy validation logic in:
-- legacy/XREPORT/app/utils/validation/checkpoints.py
-- legacy/XREPORT/app/client/events.py
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -20,8 +12,7 @@ from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.services.inference import TextGenerator
 
 ###############################################################################
-class CheckpointEvaluator:
-    """Evaluates checkpoint quality using loss, accuracy, and BLEU score metrics."""
+class CheckpointEvaluator: 
 
     def __init__(
         self,
@@ -35,18 +26,8 @@ class CheckpointEvaluator:
         self.max_report_size = model_metadata.get("max_report_size", 200)
 
     # -------------------------------------------------------------------------
-    def evaluate_model(self, validation_dataset: DataLoader) -> dict[str, float]:
-        """
-        Run model.evaluate() to get loss and accuracy metrics.
-        
-        Args:
-            validation_dataset: Torch DataLoader for validation
-            
-        Returns:
-            Dictionary with 'loss' and 'accuracy' values
-        """
-        logger.info("Running model evaluation on validation dataset...")
-        
+    def evaluate_model(self, validation_dataset: DataLoader) -> dict[str, float]:        
+        logger.info("Running model evaluation on validation dataset...")        
         try:
             validation_results = self.model.evaluate(
                 validation_dataset,
