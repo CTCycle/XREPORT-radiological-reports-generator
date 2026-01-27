@@ -36,3 +36,56 @@ BASE_URL = "/base/tags"
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
 
+# [DATABASE TABLES]
+###############################################################################
+RADIOGRAPHY_TABLE = "RADIOGRAPHY_DATA"
+TRAINING_DATASET_TABLE = "TRAINING_DATASET"
+PROCESSING_METADATA_TABLE = "PROCESSING_METADATA"
+GENERATED_REPORTS_TABLE = "GENERATED_REPORTS"
+TEXT_STATISTICS_TABLE = "TEXT_STATISTICS"
+IMAGE_STATISTICS_TABLE = "IMAGE_STATISTICS"
+CHECKPOINTS_SUMMARY_TABLE = "CHECKPOINTS_SUMMARY"
+
+TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
+    RADIOGRAPHY_TABLE: ["dataset_name", "id", "image", "text", "path"],
+    TRAINING_DATASET_TABLE: ["image", "tokens", "split", "path"],
+    PROCESSING_METADATA_TABLE: [
+        "dataset_name",
+        "date",
+        "seed",
+        "sample_size",
+        "validation_size",
+        "vocabulary_size",
+        "max_report_size",
+        "tokenizer",
+    ],
+    GENERATED_REPORTS_TABLE: ["image", "report", "checkpoint"],
+    TEXT_STATISTICS_TABLE: ["dataset_name", "name", "words_count"],
+    IMAGE_STATISTICS_TABLE: [
+        "dataset_name",
+        "name",
+        "height",
+        "width",
+        "mean",
+        "median",
+        "std",
+        "min",
+        "max",
+        "pixel_range",
+        "noise_std",
+        "noise_ratio",
+    ],
+    CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
+}
+
+TABLE_MERGE_KEYS: dict[str, list[str]] = {
+    RADIOGRAPHY_TABLE: ["dataset_name", "id"],
+    TRAINING_DATASET_TABLE: ["image"],
+    PROCESSING_METADATA_TABLE: ["dataset_name"],
+    GENERATED_REPORTS_TABLE: ["image", "checkpoint"],
+    TEXT_STATISTICS_TABLE: ["dataset_name", "name"],
+    IMAGE_STATISTICS_TABLE: ["dataset_name", "name"],
+    CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
+}
+
+

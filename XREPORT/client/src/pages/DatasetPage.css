@@ -369,6 +369,26 @@
     align-items: center;
 }
 
+.btn-icon-small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-icon-small:hover {
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border-color: var(--border-color);
+}
+
 /* Load dataset section */
 .load-dataset-section {
     display: flex;
