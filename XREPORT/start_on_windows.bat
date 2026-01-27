@@ -18,7 +18,7 @@ set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
 set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
 
-set "py_version=3.14.1"
+set "py_version=3.14.2"
 set "python_zip_filename=python-%py_version%-embed-amd64.zip"
 set "python_zip_url=https://www.python.org/ftp/python/%py_version%/%python_zip_filename%"
 set "python_zip_path=%python_dir%\%python_zip_filename%"
@@ -270,7 +270,7 @@ REM ============================================================================
 REM Wait for backend to allow it to initialize
 REM ============================================================================
 echo [WAIT] Waiting for backend to be ready on port %FASTAPI_PORT%...
-for /L %%i in (1,1,120) do (
+for /L %%i in (1,1,20) do (
   netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
   if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul
