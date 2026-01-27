@@ -17,11 +17,11 @@ from XREPORT.server.schemas.jobs import (
     JobCancelResponse,
 )
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.services.jobs import JobManager, job_manager
+from XREPORT.server.utils.jobs import JobManager, job_manager
 from XREPORT.server.utils.services.validation import DatasetValidator
-from XREPORT.server.utils.services.training.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.utils.learning.training.serializer import DataSerializer, ModelSerializer
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
-from XREPORT.server.utils.services.training.dataloader import XRAYDataLoader
+from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
 
 

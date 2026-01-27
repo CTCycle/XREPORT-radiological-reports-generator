@@ -18,9 +18,9 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.constants import RESOURCES_PATH
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.services.inference import TextGenerator
-from XREPORT.server.utils.services.jobs import JobManager, job_manager
-from XREPORT.server.utils.services.training.serializer import ModelSerializer
+from XREPORT.server.utils.learning.inference import TextGenerator
+from XREPORT.server.utils.jobs import JobManager, job_manager
+from XREPORT.server.utils.learning.training.serializer import ModelSerializer
 
 
 # Inference temp folder for uploaded images

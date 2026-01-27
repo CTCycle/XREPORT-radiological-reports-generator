@@ -11,9 +11,6 @@ RESOURCES_PATH = join(PROJECT_DIR, "resources")
 DATA_PATH = join(RESOURCES_PATH, "database")
 LOGS_PATH = join(RESOURCES_PATH, "logs")
 ENV_FILE_PATH = join(SETTING_PATH, ".env")
-
-# [MODEL PATHS]
-###############################################################################
 MODELS_PATH = join(RESOURCES_PATH, "models")
 ENCODERS_PATH = join(MODELS_PATH, "XRAYEncoder")
 TOKENIZERS_PATH = join(MODELS_PATH, "tokenizers")
@@ -23,7 +20,7 @@ CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")
 DATABASE_FILENAME = "sqlite.db"
 
 ###############################################################################
-SERVER_CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
+CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
 # [ENDPOINS]
 ###############################################################################

@@ -1,36 +1,36 @@
 from __future__ import annotations
 
-from XREPORT.server.utils.services.training.device import DeviceConfig
-from XREPORT.server.utils.services.training.processing import (
+from XREPORT.server.utils.learning.training.device import DeviceConfig
+from XREPORT.server.utils.learning.training.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
-from XREPORT.server.utils.services.training.dataloader import (
+from XREPORT.server.utils.learning.training.dataloader import (
     DataLoaderProcessor,
     XRAYDataLoader,
 )
-from XREPORT.server.utils.services.training.serializer import (
+from XREPORT.server.utils.learning.training.serializer import (
     DataSerializer,
     ModelSerializer,
 )
-from XREPORT.server.utils.services.training.callbacks import (
+from XREPORT.server.utils.learning.training.callbacks import (
     WebSocketProgressCallback,
     RealTimeMetricsCallback,
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )
-from XREPORT.server.utils.services.training.trainer import ModelTrainer
-from XREPORT.server.utils.services.training.model import (
+from XREPORT.server.utils.learning.training.trainer import ModelTrainer
+from XREPORT.server.utils.learning.training.model import (
     XREPORTModel,
     build_xreport_model,
 )
-from XREPORT.server.utils.services.training.metrics import (
+from XREPORT.server.utils.learning.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from XREPORT.server.utils.services.training.scheduler import WarmUpLRScheduler
-from XREPORT.server.utils.services.training.layers import (
+from XREPORT.server.utils.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.server.utils.learning.training.layers import (
     AddNorm,
     FeedForward,
     PositionalEmbedding,
@@ -38,7 +38,7 @@ from XREPORT.server.utils.services.training.layers import (
     TransformerDecoder,
     TransformerEncoder,
 )
-from XREPORT.server.utils.services.training.encoder import BeitXRayImageEncoder
+from XREPORT.server.utils.learning.training.encoder import BeitXRayImageEncoder
 
 __all__ = [
     "DeviceConfig",

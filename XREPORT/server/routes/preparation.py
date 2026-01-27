@@ -28,11 +28,11 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.services.jobs import JobManager, job_manager
+from XREPORT.server.utils.jobs import JobManager, job_manager
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
-from XREPORT.server.utils.services.training.serializer import DataSerializer
-from XREPORT.server.utils.services.training.processing import (
+from XREPORT.server.utils.learning.training.serializer import DataSerializer
+from XREPORT.server.utils.learning.training.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
