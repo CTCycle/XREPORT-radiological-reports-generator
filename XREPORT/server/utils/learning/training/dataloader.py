@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader, Dataset
 
-from XREPORT.server.utils.learning.training.processing import TokenizerHandler
+from XREPORT.server.utils.learning.processing import TokenizerHandler
 
 
 ###############################################################################

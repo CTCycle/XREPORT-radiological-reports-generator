@@ -10,7 +10,7 @@ from keras.utils import set_random_seed
 
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.learning.training.processing import TokenizerHandler
+from XREPORT.server.utils.learning.processing import TokenizerHandler
 
 
 ###############################################################################

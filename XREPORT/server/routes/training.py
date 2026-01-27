@@ -20,14 +20,14 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.learning.training.device import DeviceConfig
-from XREPORT.server.utils.learning.training.serializer import (
+from XREPORT.server.utils.learning.device import DeviceConfig
+from XREPORT.server.utils.repository.serializer import (
     DataSerializer,
     ModelSerializer,
     CHECKPOINT_PATH,
 )
 from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.learning.training.callbacks import TrainingInterruptCallback
+from XREPORT.server.utils.learning.callbacks import TrainingInterruptCallback
 from XREPORT.server.utils.learning.training.trainer import ModelTrainer
 # Moved imports to top-level as requested
 from XREPORT.server.utils.learning.training.model import build_xreport_model
