@@ -54,6 +54,7 @@ export interface DatasetInfo {
     name: string;
     folder_path: string;
     row_count: number;
+    has_validation_report: boolean;
 }
 
 export interface DatasetNamesResponse {

@@ -32,7 +32,7 @@ from XREPORT.server.utils.jobs import JobManager, job_manager
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.utils.repository.serializer import DataSerializer
-from XREPORT.server.utils.constants import RADIOGRAPHY_TABLE
+from XREPORT.server.utils.constants import RADIOGRAPHY_TABLE, VALIDATION_REPORTS_TABLE
 from XREPORT.server.utils.learning.processing import (
     TextSanitizer,
     TokenizerHandler,
@@ -203,6 +203,12 @@ class PreparationEndpoint:
     async def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            report_names = set()
+            if inspector.has_table(VALIDATION_REPORTS_TABLE):
+                reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
+                if not reports.empty and "dataset_name" in reports.columns:
+                    report_names = set(reports["dataset_name"].dropna().astype(str).tolist())
             # Get dataset name, folder path (dirname of first path), and row count per dataset
             result = conn.execute(
                 sqlalchemy.text('''
@@ -226,6 +232,7 @@ class PreparationEndpoint:
                     name=name,
                     folder_path=folder_path,
                     row_count=row_count,
+                    has_validation_report=name in report_names,
                 ))
         
         return DatasetNamesResponse(
