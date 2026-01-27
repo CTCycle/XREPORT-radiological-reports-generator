@@ -61,31 +61,91 @@
     color: var(--text-primary);
 }
 
-.wizard-page-indicator {
-    display: flex;
-    gap: 0.35rem;
-    padding: 0.6rem 1.25rem;
-    background: var(--input-bg);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.wizard-dot {
-    width: 26px;
-    height: 26px;
-    border-radius: 999px;
+.wizard-config-bar {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: var(--input-bg);
+    border-bottom: 1px solid var(--border-color);
+    gap: 1.5rem;
 }
 
-.wizard-dot.active {
-    background: var(--accent-color);
-    color: #fff;
+.config-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-switch {
+    width: 44px;
+    height: 24px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    position: relative;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.toggle-switch.checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.toggle-slider {
+    width: 18px;
+    height: 18px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch.checked .toggle-slider {
+    transform: translateX(20px);
+    background-color: #fff;
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.config-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: opacity 0.2s ease;
+}
+
+.config-input-group.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.config-input-group input[type="number"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    width: 80px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.config-input-group input[type="number"]:focus {
     border-color: var(--accent-color);
 }
 
@@ -157,6 +217,7 @@
     letter-spacing: 0.6px;
     font-weight: 600;
     color: var(--text-secondary);
+    margin-top: auto;
 }
 
 .wizard-metric.selected .wizard-metric-state {
