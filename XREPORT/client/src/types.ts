@@ -144,6 +144,7 @@ export interface DatabaseBrowserPageState {
     selectedTable: string;
     rows: Record<string, unknown>[];
     columns: string[];
+    totalRows: number;
     rowCount: number;
     columnCount: number;
     displayName: string;

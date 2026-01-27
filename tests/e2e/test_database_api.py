@@ -31,16 +31,6 @@ class TestDatabaseBrowserEndpoints:
         table_names = [t["table_name"] for t in data["tables"]]
         
         # Check for at least one expected XREPORT table
-        expected_tables = [
-            "RADIOGRAPHY_DATA",
-            "TRAINING_DATASET", 
-            "PROCESSING_METADATA",
-            "GENERATED_REPORTS",
-            "IMAGE_STATISTICS",
-            "TEXT_STATISTICS",
-            "CHECKPOINTS_SUMMARY",
-        ]
-        
         # At minimum, some system tables should exist
         # Note: Tables may not exist if database is empty, so we just check the response format
         assert isinstance(table_names, list)
@@ -76,8 +66,10 @@ class TestDatabaseBrowserEndpoints:
         assert "display_name" in data
         assert "columns" in data
         assert "data" in data
+        assert "total_rows" in data
         assert "row_count" in data
         assert "column_count" in data
+        assert "status" in data
         assert isinstance(data["columns"], list)
         assert isinstance(data["data"], list)
 
@@ -101,6 +93,7 @@ class TestDatabaseBrowserEndpoints:
         data = response.json()
         # Data length should be at most the limit
         assert len(data["data"]) <= 10
+        assert data["row_count"] == len(data["data"])
 
     def test_get_table_data_invalid_table_returns_404(self, api_context: APIRequestContext):
         """GET /data/browser/data/{invalid} should return 404."""
@@ -145,3 +138,4 @@ class TestDatabaseBrowserEdgeCases:
         data = response.json()
         # With a very large offset, data should be empty
         assert data["data"] == []
+        assert data["row_count"] == 0
