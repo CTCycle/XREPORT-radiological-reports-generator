@@ -130,6 +130,7 @@ const DEFAULT_DATABASE_BROWSER_STATE: DatabaseBrowserPageState = {
     selectedTable: '',
     rows: [],
     columns: [],
+    totalRows: 0,
     rowCount: 0,
     columnCount: 0,
     displayName: '',
