@@ -31,7 +31,7 @@ class CheckpointEvaluator:
         try:
             validation_results = self.model.evaluate(
                 validation_dataset,
-                verbose=1,
+                verbose="auto",
             )
             
             # Model returns [loss, accuracy] for compiled metrics
