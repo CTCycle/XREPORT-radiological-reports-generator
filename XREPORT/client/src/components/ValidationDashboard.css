@@ -47,6 +47,43 @@
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+.validation-dashboard .dashboard-status.running {
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.validation-dashboard .validation-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.validation-dashboard .progress-bar {
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.2);
+    overflow: hidden;
+}
+
+.validation-dashboard .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    transition: width 0.4s ease;
+}
+
+.validation-dashboard .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.validation-dashboard .progress-status {
+    text-transform: capitalize;
+}
+
 .validation-dashboard .validation-content {
     display: flex;
     flex-direction: column;
@@ -139,6 +176,10 @@
 .validation-dashboard .loading-container .spin {
     animation: spin 1s linear infinite;
     color: #3b82f6;
+}
+
+.validation-dashboard .spin {
+    animation: spin 1s linear infinite;
 }
 
 @keyframes spin {

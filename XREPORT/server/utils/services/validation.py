@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 
+from collections.abc import Callable
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -83,7 +85,10 @@ class DatasetValidator:
         return aggregate_stats, per_record_df
 
     # -------------------------------------------------------------------------
-    def calculate_image_statistics(self) -> tuple[ImageStatistics, pd.DataFrame]:
+    def calculate_image_statistics(
+        self,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> tuple[ImageStatistics, pd.DataFrame]:
         """Calculate statistics for the images.
         
         Returns tuple of (aggregate stats for dashboard, per-record DataFrame for DB).
@@ -180,6 +185,8 @@ class DatasetValidator:
             if (idx + 1) % log_interval == 0 or (idx + 1) == total_images:
                 progress = ((idx + 1) / total_images) * 100
                 logger.info(f"  Image statistics progress: {idx + 1}/{total_images} ({progress:.0f}%)")
+                if progress_callback:
+                    progress_callback((idx + 1) / total_images)
         
         per_record_df = pd.DataFrame(records)
             
@@ -207,7 +214,10 @@ class DatasetValidator:
         return aggregate_stats, per_record_df
 
     # -------------------------------------------------------------------------
-    def calculate_pixel_distribution(self) -> PixelDistribution:
+    def calculate_pixel_distribution(
+        self,
+        progress_callback: Callable[[float], None] | None = None,
+    ) -> PixelDistribution:
         """Calculate pixel intensity distribution (histogram)."""
         if "path" not in self.dataset.columns or self.dataset.empty:
             return PixelDistribution(bins=[], counts=[])
@@ -235,6 +245,8 @@ class DatasetValidator:
             if (idx + 1) % log_interval == 0 or (idx + 1) == total_images:
                 progress = ((idx + 1) / total_images) * 100
                 logger.info(f"  Pixel distribution progress: {idx + 1}/{total_images} ({progress:.0f}%)")
+                if progress_callback:
+                    progress_callback((idx + 1) / total_images)
             
         return PixelDistribution(
             bins=list(range(256)),

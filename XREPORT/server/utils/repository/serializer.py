@@ -28,6 +28,7 @@ from XREPORT.server.utils.constants import (
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.database import database
+from XREPORT.server.database.sqlite import SQLiteRepository
 from XREPORT.server.utils.learning.training.metrics import (
     MaskedSparseCategoricalCrossentropy,
     MaskedAccuracy,
@@ -356,15 +357,32 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "default")
+        should_serialize_json = isinstance(database.backend, SQLiteRepository)
+        metrics = report.get("metrics") or []
+        text_statistics = report.get("text_statistics")
+        image_statistics = report.get("image_statistics")
+        pixel_distribution = report.get("pixel_distribution")
+        artifacts = report.get("artifacts")
+        if should_serialize_json:
+            if isinstance(metrics, (list, dict)):
+                metrics = json.dumps(metrics)
+            if isinstance(text_statistics, (list, dict)):
+                text_statistics = json.dumps(text_statistics)
+            if isinstance(image_statistics, (list, dict)):
+                image_statistics = json.dumps(image_statistics)
+            if isinstance(pixel_distribution, (list, dict)):
+                pixel_distribution = json.dumps(pixel_distribution)
+            if isinstance(artifacts, (list, dict)):
+                artifacts = json.dumps(artifacts)
         record = {
             "dataset_name": dataset_name,
             "date": report.get("date"),
             "sample_size": report.get("sample_size"),
-            "metrics": report.get("metrics", []),
-            "text_statistics": report.get("text_statistics"),
-            "image_statistics": report.get("image_statistics"),
-            "pixel_distribution": report.get("pixel_distribution"),
-            "artifacts": report.get("artifacts"),
+            "metrics": metrics,
+            "text_statistics": text_statistics,
+            "image_statistics": image_statistics,
+            "pixel_distribution": pixel_distribution,
+            "artifacts": artifacts,
         }
         report_df = pd.DataFrame([record])
         self.upsert_table(report_df, VALIDATION_REPORTS_TABLE)
@@ -382,16 +400,58 @@ class DataSerializer:
         if filtered.empty:
             return None
         row = filtered.iloc[-1]
+
+        metrics = row.get("metrics") if "metrics" in row else []
+        text_statistics = row.get("text_statistics") if "text_statistics" in row else None
+        image_statistics = row.get("image_statistics") if "image_statistics" in row else None
+        pixel_distribution = row.get("pixel_distribution") if "pixel_distribution" in row else None
+        artifacts = row.get("artifacts") if "artifacts" in row else None
+
+        if isinstance(metrics, float) and pd.isna(metrics):
+            metrics = []
+        if isinstance(metrics, str):
+            try:
+                metrics = json.loads(metrics)
+            except json.JSONDecodeError:
+                metrics = []
+        if isinstance(text_statistics, float) and pd.isna(text_statistics):
+            text_statistics = None
+        if isinstance(text_statistics, str):
+            try:
+                text_statistics = json.loads(text_statistics)
+            except json.JSONDecodeError:
+                text_statistics = None
+        if isinstance(image_statistics, float) and pd.isna(image_statistics):
+            image_statistics = None
+        if isinstance(image_statistics, str):
+            try:
+                image_statistics = json.loads(image_statistics)
+            except json.JSONDecodeError:
+                image_statistics = None
+        if isinstance(pixel_distribution, float) and pd.isna(pixel_distribution):
+            pixel_distribution = None
+        if isinstance(pixel_distribution, str):
+            try:
+                pixel_distribution = json.loads(pixel_distribution)
+            except json.JSONDecodeError:
+                pixel_distribution = None
+        if isinstance(artifacts, float) and pd.isna(artifacts):
+            artifacts = None
+        if isinstance(artifacts, str):
+            try:
+                artifacts = json.loads(artifacts)
+            except json.JSONDecodeError:
+                artifacts = None
         
         return {
             "dataset_name": dataset_name,
             "date": row.get("date") if "date" in row else None,
             "sample_size": row.get("sample_size"),
-            "metrics": row.get("metrics") or [],
-            "text_statistics": row.get("text_statistics"),
-            "image_statistics": row.get("image_statistics"),
-            "pixel_distribution": row.get("pixel_distribution"),
-            "artifacts": row.get("artifacts"),
+            "metrics": metrics if isinstance(metrics, list) else [],
+            "text_statistics": text_statistics,
+            "image_statistics": image_statistics,
+            "pixel_distribution": pixel_distribution,
+            "artifacts": artifacts,
         }
 
     # -------------------------------------------------------------------------

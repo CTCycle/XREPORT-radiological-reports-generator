@@ -9,6 +9,8 @@ interface ValidationReportModalProps {
     isLoading: boolean;
     validationResult: ValidationResponse | null;
     error: string | null;
+    progress?: number | null;
+    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
     metadata?: {
         date?: string | null;
         sampleSize?: number | null;
@@ -44,6 +46,8 @@ export default function ValidationReportModal({
     isLoading,
     validationResult,
     error,
+    progress,
+    status,
     metadata,
     onClose,
 }: ValidationReportModalProps) {
@@ -96,6 +100,8 @@ export default function ValidationReportModal({
                         isLoading={isLoading}
                         validationResult={validationResult}
                         error={error}
+                        progress={progress}
+                        status={status}
                     />
                 </div>
             </div>

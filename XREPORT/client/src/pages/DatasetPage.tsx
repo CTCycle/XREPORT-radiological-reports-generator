@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders,
     Loader, CheckCircle, AlertCircle, BarChart2
@@ -20,11 +20,45 @@ import ValidationWizard, { ValidationMetric } from '../components/ValidationWiza
 import ValidationReportModal from '../components/ValidationReportModal';
 import {
     runValidation,
-    getValidationJobStatus,
     getValidationReport,
+    pollValidationJobStatus,
     ValidationReport,
     ValidationResponse,
 } from '../services/validationService';
+
+const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
+
+type StoredValidationJob = {
+    jobId: string;
+    metrics: ValidationMetric[];
+    sampleSize: number;
+    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress?: number;
+};
+
+function loadStoredValidationJobs(): Record<string, StoredValidationJob> {
+    try {
+        const raw = localStorage.getItem(VALIDATION_JOB_STORAGE_KEY);
+        if (!raw) {
+            return {};
+        }
+        const parsed = JSON.parse(raw) as Record<string, StoredValidationJob>;
+        if (!parsed || typeof parsed !== 'object') {
+            return {};
+        }
+        return parsed;
+    } catch {
+        return {};
+    }
+}
+
+function persistStoredValidationJobs(jobs: Record<string, StoredValidationJob>) {
+    try {
+        localStorage.setItem(VALIDATION_JOB_STORAGE_KEY, JSON.stringify(jobs));
+    } catch {
+        // Ignore storage errors (private mode or quota limits)
+    }
+}
 
 export default function DatasetPage() {
     const [validationWizardOpen, setValidationWizardOpen] = useState(false);
@@ -34,11 +68,18 @@ export default function DatasetPage() {
     const [reportLoading, setReportLoading] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
     const [reportResult, setReportResult] = useState<ValidationResponse | null>(null);
+    const [reportProgress, setReportProgress] = useState<number | null>(null);
+    const [reportStatus, setReportStatus] = useState<
+        'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null
+    >(null);
     const [reportMetadata, setReportMetadata] = useState<{
         date?: string | null;
         sampleSize?: number | null;
         metrics?: string[];
     } | null>(null);
+    const [validationJobs, setValidationJobs] = useState<Record<string, StoredValidationJob>>({});
+    const validationPollers = useRef<Record<string, { stop: () => void }>>({});
+    const reportDatasetRef = useRef<string | null>(null);
 
     const {
         state,
@@ -58,6 +99,118 @@ export default function DatasetPage() {
         setDatasetNames,
         setSelectedDatasets,
     } = useDatasetPageState();
+
+    useEffect(() => {
+        reportDatasetRef.current = reportDataset?.name ?? null;
+    }, [reportDataset]);
+
+    const updateValidationJobs = (
+        updater: (prev: Record<string, StoredValidationJob>) => Record<string, StoredValidationJob>
+    ) => {
+        setValidationJobs(prev => {
+            const next = updater(prev);
+            persistStoredValidationJobs(next);
+            return next;
+        });
+    };
+
+    const removeValidationJob = (datasetName: string) => {
+        updateValidationJobs(prev => {
+            if (!prev[datasetName]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[datasetName];
+            return next;
+        });
+    };
+
+    const stopValidationPolling = (jobId: string) => {
+        const poller = validationPollers.current[jobId];
+        if (poller) {
+            poller.stop();
+            delete validationPollers.current[jobId];
+        }
+    };
+
+    const startValidationPolling = (datasetName: string, jobId: string, jobMeta: StoredValidationJob) => {
+        if (validationPollers.current[jobId]) {
+            return;
+        }
+
+        const poller = pollValidationJobStatus(
+            jobId,
+            (status) => {
+                updateValidationJobs(prev => {
+                    const current = prev[datasetName] ?? jobMeta;
+                    return {
+                        ...prev,
+                        [datasetName]: {
+                            ...current,
+                            status: status.status,
+                            progress: status.progress,
+                        },
+                    };
+                });
+
+                if (reportDatasetRef.current === datasetName) {
+                    setReportProgress(status.progress);
+                    setReportStatus(status.status);
+                    setReportLoading(status.status === 'running' || status.status === 'pending');
+                }
+            },
+            (status) => {
+                stopValidationPolling(jobId);
+                removeValidationJob(datasetName);
+
+                if (reportDatasetRef.current === datasetName) {
+                    setReportStatus(status.status);
+                    setReportProgress(status.progress ?? 100);
+                    setReportLoading(false);
+                }
+
+                if (status.status === 'completed' && status.result) {
+                    const res = status.result as Record<string, unknown>;
+                    if (reportDatasetRef.current === datasetName) {
+                        setReportResult({
+                            success: (res.success as boolean) ?? true,
+                            message: (res.message as string) ?? 'Validation completed',
+                            pixel_distribution: res.pixel_distribution as ValidationResponse['pixel_distribution'],
+                            image_statistics: res.image_statistics as ValidationResponse['image_statistics'],
+                            text_statistics: res.text_statistics as ValidationResponse['text_statistics'],
+                        });
+                        setReportError(null);
+                    }
+                    void (async () => {
+                        const { result: namesResult } = await getDatasetNames();
+                        if (namesResult) {
+                            setDatasetNames(namesResult);
+                        }
+                    })();
+                } else if (status.status === 'failed') {
+                    if (reportDatasetRef.current === datasetName) {
+                        setReportError(status.error || 'Validation failed');
+                    }
+                } else if (status.status === 'cancelled') {
+                    if (reportDatasetRef.current === datasetName) {
+                        setReportError('Validation was cancelled');
+                    }
+                }
+            },
+            (error) => {
+                stopValidationPolling(jobId);
+                removeValidationJob(datasetName);
+                if (reportDatasetRef.current === datasetName) {
+                    setReportLoading(false);
+                    setReportStatus('failed');
+                    setReportError(error);
+                }
+            },
+            2000
+        );
+
+        validationPollers.current[jobId] = poller;
+    };
 
     // Fetch database status and dataset names on component mount
     useEffect(() => {
@@ -79,6 +232,25 @@ export default function DatasetPage() {
         };
         fetchData();
     }, [setDbStatus, setDatasetNames, setSelectedDatasets, state.selectedDatasets]);
+
+    useEffect(() => {
+        const storedJobs = loadStoredValidationJobs();
+        const entries = Object.entries(storedJobs);
+        if (entries.length === 0) {
+            return;
+        }
+        setValidationJobs(storedJobs);
+        entries.forEach(([datasetName, job]) => {
+            startValidationPolling(datasetName, job.jobId, job);
+        });
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            Object.values(validationPollers.current).forEach(poller => poller.stop());
+            validationPollers.current = {};
+        };
+    }, []);
 
     // Determine if at least one dataset exists (for LED indicator)
     const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
@@ -217,6 +389,8 @@ export default function DatasetPage() {
         if (config.metrics.length === 0) {
             setReportError('Please select at least one validation metric.');
             setReportResult(null);
+            setReportProgress(null);
+            setReportStatus(null);
             setReportLoading(false);
             setReportDataset(config.row);
             setReportMetadata({ sampleSize: config.sampleFraction, metrics: [] });
@@ -228,6 +402,8 @@ export default function DatasetPage() {
         setReportMetadata({ sampleSize: config.sampleFraction, metrics: config.metrics });
         setReportResult(null);
         setReportError(null);
+        setReportProgress(0);
+        setReportStatus('pending');
         setReportLoading(true);
         setReportModalOpen(true);
 
@@ -243,47 +419,21 @@ export default function DatasetPage() {
             return;
         }
 
-        const pollInterval = 2000;
-        const poll = async () => {
-            const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);
-
-            if (pollError) {
-                setReportLoading(false);
-                setReportError(pollError);
-                return;
-            }
-
-            if (!status) {
-                setReportLoading(false);
-                setReportError('Failed to get validation job status');
-                return;
-            }
-
-            if (status.status === 'completed' && status.result) {
-                setReportLoading(false);
-                const res = status.result as Record<string, unknown>;
-                setReportResult({
-                    success: (res.success as boolean) ?? true,
-                    message: (res.message as string) ?? 'Validation completed',
-                    pixel_distribution: res.pixel_distribution as ValidationResponse['pixel_distribution'],
-                    image_statistics: res.image_statistics as ValidationResponse['image_statistics'],
-                    text_statistics: res.text_statistics as ValidationResponse['text_statistics'],
-                });
-                const { result: namesResult } = await getDatasetNames();
-                if (namesResult) {
-                    setDatasetNames(namesResult);
-                }
-            } else if (status.status === 'failed') {
-                setReportLoading(false);
-                setReportError(status.error || 'Validation failed');
-            } else if (status.status === 'cancelled') {
-                setReportLoading(false);
-                setReportError('Validation was cancelled');
-            } else {
-                setTimeout(poll, pollInterval);
-            }
+        const jobMeta: StoredValidationJob = {
+            jobId: jobResult.job_id,
+            metrics: config.metrics,
+            sampleSize: config.sampleFraction,
+            status: jobResult.status,
+            progress: 0,
         };
-        poll();
+        updateValidationJobs(prev => ({
+            ...prev,
+            [config.row.name]: jobMeta,
+        }));
+        setReportProgress(0);
+        setReportStatus(jobResult.status);
+        setReportLoading(true);
+        startValidationPolling(config.row.name, jobResult.job_id, jobMeta);
     };
 
     const handleVisualizeReport = async (dataset: DatasetInfo) => {
@@ -291,8 +441,23 @@ export default function DatasetPage() {
         setReportResult(null);
         setReportError(null);
         setReportMetadata(null);
+        setReportProgress(null);
+        setReportStatus(null);
         setReportLoading(true);
         setReportModalOpen(true);
+
+        const activeJob = validationJobs[dataset.name];
+        if (activeJob && activeJob.status !== 'completed' && activeJob.status !== 'failed' && activeJob.status !== 'cancelled') {
+            setReportMetadata({
+                sampleSize: activeJob.sampleSize,
+                metrics: activeJob.metrics,
+            });
+            setReportProgress(activeJob.progress ?? 0);
+            setReportStatus(activeJob.status ?? 'running');
+            setReportLoading(activeJob.status === 'running' || activeJob.status === 'pending');
+            startValidationPolling(dataset.name, activeJob.jobId, activeJob);
+            return;
+        }
 
         const { result, error } = await getValidationReport(dataset.name);
         if (error || !result) {
@@ -314,6 +479,8 @@ export default function DatasetPage() {
             image_statistics: report.image_statistics,
             text_statistics: report.text_statistics,
         });
+        setReportProgress(100);
+        setReportStatus('completed');
         setReportLoading(false);
     };
 
@@ -471,6 +638,14 @@ export default function DatasetPage() {
                                             )}
                                             {state.datasetNames?.datasets.map((dataset) => {
                                                 const isSelected = (state.selectedDatasets || []).includes(dataset.name);
+                                                const activeJob = validationJobs[dataset.name];
+                                                const hasActiveJob = Boolean(
+                                                    activeJob &&
+                                                    activeJob.status !== 'completed' &&
+                                                    activeJob.status !== 'failed' &&
+                                                    activeJob.status !== 'cancelled'
+                                                );
+                                                const canViewReport = dataset.has_validation_report || hasActiveJob;
                                                 return (
                                                     <div
                                                         key={dataset.name}
@@ -510,12 +685,18 @@ export default function DatasetPage() {
                                                             <button
                                                                 type="button"
                                                                 className="btn-icon-small"
-                                                                title={dataset.has_validation_report ? 'Visualize Report' : 'No report available'}
-                                                                disabled={!dataset.has_validation_report}
+                                                                title={
+                                                                    hasActiveJob
+                                                                        ? 'Validation in progress'
+                                                                        : dataset.has_validation_report
+                                                                            ? 'Visualize Report'
+                                                                            : 'No report available'
+                                                                }
+                                                                disabled={!canViewReport}
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
                                                                     e.stopPropagation();
-                                                                    if (!dataset.has_validation_report) return;
+                                                                    if (!canViewReport) return;
                                                                     handleVisualizeReport(dataset);
                                                                 }}
                                                             >
@@ -640,6 +821,8 @@ export default function DatasetPage() {
                 isLoading={reportLoading}
                 validationResult={reportResult}
                 error={reportError}
+                progress={reportProgress}
+                status={reportStatus}
                 metadata={reportMetadata}
                 onClose={() => setReportModalOpen(false)}
             />

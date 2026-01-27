@@ -28,6 +28,20 @@ from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
 
 
 # -----------------------------------------------------------------------------
+class ProgressRange:
+    def __init__(self, job_id: str, start: float, end: float) -> None:
+        self.job_id = job_id
+        self.start = start
+        self.end = end
+
+    # -------------------------------------------------------------------------
+    def update(self, fraction: float) -> None:
+        clamped = min(1.0, max(0.0, fraction))
+        progress = self.start + (self.end - self.start) * clamped
+        job_manager.update_progress(self.job_id, progress)
+
+
+# -----------------------------------------------------------------------------
 def run_validation_job(
     request_data: dict[str, Any],
     job_id: str,
@@ -136,7 +150,10 @@ def run_validation_job(
         if jm.should_stop(job_id):
             return {}
         logger.info(f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)...")
-        image_stats, image_records_df = validator.calculate_image_statistics()
+        progress_range = ProgressRange(job_id, current_progress, current_progress + progress_per_metric)
+        image_stats, image_records_df = validator.calculate_image_statistics(
+            progress_callback=progress_range.update,
+        )
         result["image_statistics"] = {
             "count": image_stats.count,
             "mean_height": image_stats.mean_height,
@@ -160,7 +177,10 @@ def run_validation_job(
         if jm.should_stop(job_id):
             return {}
         logger.info(f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images...")
-        pixel_dist = validator.calculate_pixel_distribution()
+        progress_range = ProgressRange(job_id, current_progress, current_progress + progress_per_metric)
+        pixel_dist = validator.calculate_pixel_distribution(
+            progress_callback=progress_range.update,
+        )
         result["pixel_distribution"] = {
             "bins": pixel_dist.bins,
             "counts": pixel_dist.counts,

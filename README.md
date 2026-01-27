@@ -69,19 +69,19 @@ URLs:
 
 **Dataset**: Use the Dataset area to load and validate labeled image-report pairs, run preprocessing, and confirm the dataset is ready for training and inference.
 
-![Dataset page](XREPORT/assets/figures/dataset_page.png)
+![Dataset page](assets/figures/dataset_page.png)
 
 **Training**: Configure a run, monitor loss/rewards, and resume from checkpoints.
 
-![Training page](XREPORT/assets/figures/training_page.png)
+![Training page](assets/figures/training_page.png)
 
 **Inference**: Load a checkpoint and generate reports from X-ray scans.
 
-![inference_page](XREPORT/assets/figures/inference_page.png)
+![inference_page](assets/figures/inference_page.png)
 
 **Database browser**: Use the database browser area to browse data saved into the database, such as previous training sessions, uploaded data, etc.
 
-![Database browser](XREPORT/assets/figures/database_browser.png)
+![Database browser](assets/figures/database_browser.png)
 
 ## 5. Setup and Maintenance
 `XREPORT/setup_and_maintenance.bat` provides a small maintenance menu for Windows:
