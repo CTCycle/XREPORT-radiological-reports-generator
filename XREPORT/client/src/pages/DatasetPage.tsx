@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders,
     Loader, CheckCircle, AlertCircle
@@ -12,11 +12,16 @@ import {
     getDatasetStatus,
     getDatasetNames,
     getPreparationJobStatus,
+    DatasetInfo,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
+import ValidationWizard, { ValidationMetric } from '../components/ValidationWizard';
 
 export default function DatasetPage() {
+    const [validationWizardOpen, setValidationWizardOpen] = useState(false);
+    const [validationRow, setValidationRow] = useState<DatasetInfo | null>(null);
+
     const {
         state,
         updateConfig,
@@ -169,6 +174,22 @@ export default function DatasetPage() {
             }
         };
         input.click();
+    };
+
+    const currentValidationSelection = useMemo<ValidationMetric[]>(() => {
+        const selection: ValidationMetric[] = [];
+        if (state.config.pixDist) selection.push('pixels_distribution');
+        if (state.config.textStats) selection.push('text_statistics');
+        if (state.config.imgStats) selection.push('image_statistics');
+        return selection;
+    }, [state.config.pixDist, state.config.textStats, state.config.imgStats]);
+
+    const handleValidationConfirm = (config: { metrics: ValidationMetric[]; row: DatasetInfo | null }) => {
+        updateConfig('pixDist', config.metrics.includes('pixels_distribution'));
+        updateConfig('textStats', config.metrics.includes('text_statistics'));
+        updateConfig('imgStats', config.metrics.includes('image_statistics'));
+        setValidationRow(config.row);
+        setValidationWizardOpen(false);
     };
 
     const handleLoadDataset = async () => {
@@ -348,17 +369,19 @@ export default function DatasetPage() {
                                                         <div className="dataset-actions" onClick={(e) => {
                                                             e.stopPropagation(); // Don't toggle selection
                                                         }}>
-                                                            <a
-                                                                href={`/dataset/validate/${dataset.name}`}
+                                                            <button
+                                                                type="button"
                                                                 className="btn-icon-small"
                                                                 title="Run Validation"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
-                                                                    window.location.href = `/dataset/validate/${dataset.name}`;
+                                                                    e.stopPropagation();
+                                                                    setValidationRow(dataset);
+                                                                    setValidationWizardOpen(true);
                                                                 }}
                                                             >
                                                                 <CheckCircle size={16} />
-                                                            </a>
+                                                            </button>
                                                         </div>
                                                         <span className="dataset-name">{dataset.name}</span>
                                                         <span className="dataset-path" title={dataset.folder_path}>{dataset.folder_path}</span>
@@ -462,6 +485,14 @@ export default function DatasetPage() {
                 isOpen={state.folderBrowserOpen}
                 onClose={() => setFolderBrowserOpen(false)}
                 onSelect={handleFolderSelect}
+            />
+
+            <ValidationWizard
+                isOpen={validationWizardOpen}
+                row={validationRow}
+                initialSelected={currentValidationSelection}
+                onClose={() => setValidationWizardOpen(false)}
+                onConfirm={handleValidationConfirm}
             />
         </div>
     );
