@@ -9,6 +9,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 
+from XREPORT.server.database.types import IntSequence, JSONSequence
+
 Base = declarative_base()
 
 
@@ -30,7 +32,7 @@ class TrainingData(Base):
     __tablename__ = "TRAINING_DATASET"
     image = Column(String, primary_key=True)
     text = Column(String)
-    tokens = Column(String)
+    tokens = Column(IntSequence)
     split = Column(String)
     path = Column(String)  # Full image path for training
     __table_args__ = (UniqueConstraint("image"),)
@@ -133,9 +135,9 @@ class ValidationReport(Base):
     dataset_name = Column(String, primary_key=True)
     date = Column(String)
     sample_size = Column(Float)
-    metrics = Column(String)  # JSON list of metrics
-    text_statistics = Column(String)  # JSON payload
-    image_statistics = Column(String)  # JSON payload
-    pixel_distribution = Column(String)  # JSON payload
-    artifacts = Column(String)  # JSON payload (base64-encoded assets)
+    metrics = Column(JSONSequence)  # JSON list of metrics
+    text_statistics = Column(JSONSequence)  # JSON payload
+    image_statistics = Column(JSONSequence)  # JSON payload
+    pixel_distribution = Column(JSONSequence)  # JSON payload
+    artifacts = Column(JSONSequence)  # JSON payload (base64-encoded assets)
     __table_args__ = (UniqueConstraint("dataset_name"),)

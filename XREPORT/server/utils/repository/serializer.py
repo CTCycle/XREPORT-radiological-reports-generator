@@ -260,9 +260,7 @@ class DataSerializer:
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
-        training_data["tokens"] = training_data["tokens"].apply(
-            self.serialize_series
-        )
+
         train_data = training_data[training_data["split"] == "train"]
         val_data = training_data[training_data["split"] == "validation"]
 
@@ -285,8 +283,6 @@ class DataSerializer:
             "prepare",
         )
 
-        training_data["tokens"] = training_data["tokens"].apply(self.serialize_series)
-        # Keep columns that exist in the TRAINING_DATASET schema (including path)
         db_columns = ["image", "tokens", "split", "path"]
         # Ensure path column exists
         if "path" not in training_data.columns:
@@ -364,27 +360,11 @@ class DataSerializer:
             "dataset_name": dataset_name,
             "date": report.get("date"),
             "sample_size": report.get("sample_size"),
-            "metrics": json.dumps(report.get("metrics", [])),
-            "text_statistics": (
-                json.dumps(report.get("text_statistics"))
-                if report.get("text_statistics") is not None
-                else None
-            ),
-            "image_statistics": (
-                json.dumps(report.get("image_statistics"))
-                if report.get("image_statistics") is not None
-                else None
-            ),
-            "pixel_distribution": (
-                json.dumps(report.get("pixel_distribution"))
-                if report.get("pixel_distribution") is not None
-                else None
-            ),
-            "artifacts": (
-                json.dumps(report.get("artifacts"))
-                if report.get("artifacts") is not None
-                else None
-            ),
+            "metrics": report.get("metrics", []),
+            "text_statistics": report.get("text_statistics"),
+            "image_statistics": report.get("image_statistics"),
+            "pixel_distribution": report.get("pixel_distribution"),
+            "artifacts": report.get("artifacts"),
         }
         report_df = pd.DataFrame([record])
         self.upsert_table(report_df, VALIDATION_REPORTS_TABLE)
@@ -402,30 +382,16 @@ class DataSerializer:
         if filtered.empty:
             return None
         row = filtered.iloc[-1]
-        metrics_raw = row.get("metrics")
-        text_raw = row.get("text_statistics")
-        image_raw = row.get("image_statistics")
-        pixel_raw = row.get("pixel_distribution")
-        artifacts_raw = row.get("artifacts")
-
-        def parse_json(value: Any) -> Any:
-            if value is None or (isinstance(value, float) and pd.isna(value)):
-                return None
-            if isinstance(value, str) and value.strip():
-                return json.loads(value)
-            return None
-
+        
         return {
             "dataset_name": dataset_name,
             "date": row.get("date") if "date" in row else None,
             "sample_size": row.get("sample_size"),
-            "metrics": (
-                json.loads(metrics_raw) if isinstance(metrics_raw, str) and metrics_raw else []
-            ),
-            "text_statistics": parse_json(text_raw),
-            "image_statistics": parse_json(image_raw),
-            "pixel_distribution": parse_json(pixel_raw),
-            "artifacts": parse_json(artifacts_raw),
+            "metrics": row.get("metrics") or [],
+            "text_statistics": row.get("text_statistics"),
+            "image_statistics": row.get("image_statistics"),
+            "pixel_distribution": row.get("pixel_distribution"),
+            "artifacts": row.get("artifacts"),
         }
 
     # -------------------------------------------------------------------------
