@@ -44,7 +44,7 @@ const DEFAULT_DATASET_STATE: DatasetPageState = {
     processingResult: null,
     dbStatus: null,
     datasetNames: null,
-    selectedDataset: '',
+    selectedDatasets: [],
     isValidating: false,
     validationResult: null,
     validationError: null
@@ -267,8 +267,8 @@ export function useDatasetPageState() {
         setDatasetPageState(prev => ({ ...prev, datasetNames: names }));
     }, [setDatasetPageState]);
 
-    const setSelectedDataset = useCallback((dataset: string) => {
-        setDatasetPageState(prev => ({ ...prev, selectedDataset: dataset }));
+    const setSelectedDatasets = useCallback((datasets: string[]) => {
+        setDatasetPageState(prev => ({ ...prev, selectedDatasets: datasets }));
     }, [setDatasetPageState]);
 
     const setIsValidating = useCallback((validating: boolean) => {
@@ -299,7 +299,7 @@ export function useDatasetPageState() {
         setProcessingResult,
         setDbStatus,
         setDatasetNames,
-        setSelectedDataset,
+        setSelectedDatasets,
         setIsValidating,
         setValidationResult,
         setValidationError

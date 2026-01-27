@@ -32,7 +32,7 @@ export interface DatasetPageState {
     processingResult: ProcessDatasetResponse | null;
     dbStatus: DatasetStatusResponse | null;
     datasetNames: DatasetNamesResponse | null;
-    selectedDataset: string;
+    selectedDatasets: string[];
     // Validation state
     isValidating: boolean;
     validationResult: ValidationResponse | null;
