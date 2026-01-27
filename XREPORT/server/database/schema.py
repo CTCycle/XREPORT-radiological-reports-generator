@@ -124,3 +124,18 @@ class CheckpointSummary(Base):
     train_accuracy = Column(Float)
     val_accuracy = Column(Float)
     __table_args__ = (UniqueConstraint("checkpoint"),)
+
+
+###############################################################################
+class ValidationReport(Base):
+    """Aggregated validation report payloads for datasets."""
+    __tablename__ = "VALIDATION_REPORTS"
+    dataset_name = Column(String, primary_key=True)
+    date = Column(String)
+    sample_size = Column(Float)
+    metrics = Column(String)  # JSON list of metrics
+    text_statistics = Column(String)  # JSON payload
+    image_statistics = Column(String)  # JSON payload
+    pixel_distribution = Column(String)  # JSON payload
+    artifacts = Column(String)  # JSON payload (base64-encoded assets)
+    __table_args__ = (UniqueConstraint("dataset_name"),)
