@@ -25,7 +25,12 @@ export default function DatabaseBrowserPage() {
                     offset: 0,
                     loading: true,
                     error: null,
+                    columns: [],
+                    columnCount: 0,
+                    displayName: '',
                     rows: [],
+                    totalRows: 0,
+                    rowCount: 0,
                     hasMore: true
                 }));
             }
@@ -45,14 +50,15 @@ export default function DatabaseBrowserPage() {
             setState(prev => {
                 const newRows = append ? [...prev.rows, ...result.data] : result.data;
                 const newOffset = newRows.length;
-                const hasMore = newRows.length < result.row_count;
+                const hasMore = newRows.length < result.total_rows;
 
                 return {
                     ...prev,
                     selectedTable: tableName,
                     rows: newRows,
                     columns: result.columns,
-                    rowCount: result.row_count,
+                    totalRows: result.total_rows,
+                    rowCount: newRows.length,
                     columnCount: result.column_count,
                     displayName: result.display_name,
                     offset: newOffset,
@@ -138,7 +144,7 @@ export default function DatabaseBrowserPage() {
         }
     };
 
-    const displayedRowCount = useMemo(() => state.rows.length, [state.rows.length]);
+    const displayedRowCount = useMemo(() => state.rowCount, [state.rowCount]);
 
     return (
         <div className="dbb-page">
@@ -184,9 +190,9 @@ export default function DatabaseBrowserPage() {
                 <div className="dbb-stats-row">
                     <span className="dbb-stats-label">Statistics</span>
                     <div className="dbb-stat-item">
-                        <span className="dbb-stat-name">Rows:</span>
-                        <span className="dbb-stat-value">{state.dataLoaded ? state.rowCount : '-'}</span>
-                    </div>
+                    <span className="dbb-stat-name">Rows:</span>
+                    <span className="dbb-stat-value">{state.dataLoaded ? state.totalRows : '-'}</span>
+                </div>
                     <div className="dbb-stat-item">
                         <span className="dbb-stat-name">Columns:</span>
                         <span className="dbb-stat-value">{state.dataLoaded ? state.columnCount : '-'}</span>
@@ -198,7 +204,7 @@ export default function DatabaseBrowserPage() {
                     {state.dataLoaded && (
                         <div className="dbb-stat-item">
                             <span className="dbb-stat-name">Loaded:</span>
-                            <span className="dbb-stat-value">{displayedRowCount} / {state.rowCount}</span>
+                            <span className="dbb-stat-value">{displayedRowCount} / {state.totalRows}</span>
                         </div>
                     )}
                 </div>
@@ -250,7 +256,7 @@ export default function DatabaseBrowserPage() {
                             )}
                             {!state.hasMore && state.rows.length > 0 && (
                                 <div className="dbb-end-of-data">
-                                    All {state.rowCount} rows loaded
+                                    All {state.totalRows} rows loaded
                                 </div>
                             )}
                         </div>
