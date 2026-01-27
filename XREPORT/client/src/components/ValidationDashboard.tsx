@@ -20,6 +20,8 @@ interface ValidationDashboardProps {
     isLoading: boolean;
     validationResult: ValidationResponse | null;
     error: string | null;
+    progress?: number | null;
+    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
 }
 
 function PixelDistributionChart({ data }: { data: PixelDistribution }) {
@@ -153,12 +155,20 @@ export default function ValidationDashboard({
     isLoading,
     validationResult,
     error,
+    progress,
+    status,
 }: ValidationDashboardProps) {
     const hasResults = validationResult?.success && (
         validationResult.text_statistics ||
         validationResult.image_statistics ||
         validationResult.pixel_distribution
     );
+    const progressValue = Number.isFinite(progress ?? NaN)
+        ? Math.min(100, Math.max(0, progress ?? 0))
+        : 0;
+    const isRunning = status === 'running' || status === 'pending';
+    const showProgress = isLoading || isRunning;
+    const statusLabel = status ? status.replace(/_/g, ' ') : 'running';
 
     return (
         <div className="validation-dashboard">
@@ -173,6 +183,12 @@ export default function ValidationDashboard({
                         Complete
                     </div>
                 )}
+                {isRunning && !hasResults && (
+                    <div className="dashboard-status running">
+                        <Loader size={14} className="spin" />
+                        Running
+                    </div>
+                )}
                 {error && (
                     <div className="dashboard-status error">
                         <AlertCircle size={14} />
@@ -180,6 +196,18 @@ export default function ValidationDashboard({
                     </div>
                 )}
             </div>
+
+            {showProgress && (
+                <div className="validation-progress">
+                    <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${progressValue}%` }}></div>
+                    </div>
+                    <div className="progress-meta">
+                        <span>{progressValue.toFixed(0)}%</span>
+                        <span className="progress-status">{statusLabel}</span>
+                    </div>
+                </div>
+            )}
 
             {isLoading ? (
                 <div className="loading-container">
