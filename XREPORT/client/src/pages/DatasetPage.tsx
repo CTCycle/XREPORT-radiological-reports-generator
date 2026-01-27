@@ -12,9 +12,7 @@ import {
     getDatasetStatus,
     getDatasetNames,
 } from '../services/trainingService';
-import { runValidation } from '../services/validationService';
 import FolderBrowser from '../components/FolderBrowser';
-import ValidationDashboard from '../components/ValidationDashboard';
 import { useDatasetPageState } from '../AppStateContext';
 
 export default function DatasetPage() {
@@ -34,10 +32,7 @@ export default function DatasetPage() {
         setProcessingResult,
         setDbStatus,
         setDatasetNames,
-        setSelectedDataset,
-        setIsValidating,
-        setValidationResult,
-        setValidationError,
+        setSelectedDatasets,
     } = useDatasetPageState();
 
     // Fetch database status and dataset names on component mount
@@ -53,18 +48,18 @@ export default function DatasetPage() {
             if (namesResult) {
                 setDatasetNames(namesResult);
                 // Auto-select first dataset if available and none selected
-                if (namesResult.datasets.length > 0 && !state.selectedDataset) {
-                    setSelectedDataset(namesResult.datasets[0].name);
+                if (namesResult.datasets.length > 0 && (state.selectedDatasets || []).length === 0) {
+                    if (setSelectedDatasets) setSelectedDatasets([namesResult.datasets[0].name]);
                 }
             }
         };
         fetchData();
-    }, [setDbStatus, setDatasetNames, setSelectedDataset, state.selectedDataset]);
+    }, [setDbStatus, setDatasetNames, setSelectedDatasets, state.selectedDatasets]);
 
     // Determine if at least one dataset exists (for LED indicator)
     const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
     // Determine if data is available for processing
-    const hasDataForProcessing = state.loadResult?.success || state.dbStatus?.has_data;
+    const hasDataForProcessing = state.loadResult?.success || (state.dbStatus?.has_data && state.selectedDatasets.length > 0);
 
     const handleConfigChange = (key: string, value: number | string | boolean) => {
         updateConfig(key as keyof typeof state.config, value);
@@ -128,90 +123,6 @@ export default function DatasetPage() {
             } else if (status.status === 'cancelled') {
                 setIsProcessing(false);
                 setUploadError('Processing was cancelled');
-            } else {
-                // Still running, poll again
-                setTimeout(poll, pollInterval);
-            }
-        };
-        poll();
-    };
-
-    const handleViewEvaluation = async () => {
-        // Build metrics list from config
-        const metrics: string[] = [];
-        if (state.config.imgStats) metrics.push('image_statistics');
-        if (state.config.textStats) metrics.push('text_statistics');
-        if (state.config.pixDist) metrics.push('pixels_distribution');
-
-        if (metrics.length === 0) {
-            setValidationError('Please select at least one validation metric');
-            return;
-        }
-
-        setIsValidating(true);
-        setValidationError(null);
-        setValidationResult(null);
-
-        const { result: jobResult, error: startError } = await runValidation({
-            metrics,
-            sample_size: state.config.evalSampleSize,
-        });
-
-        if (startError || !jobResult) {
-            setIsValidating(false);
-            setValidationError(startError || 'Failed to start validation job');
-            return;
-        }
-
-        // Poll for job completion
-        const { getValidationJobStatus } = await import('../services/validationService');
-        const pollInterval = 2000;
-        const poll = async () => {
-            const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);
-
-            if (pollError) {
-                setIsValidating(false);
-                setValidationError(pollError);
-                return;
-            }
-
-            if (!status) {
-                setIsValidating(false);
-                setValidationError('Failed to get job status');
-                return;
-            }
-
-            if (status.status === 'completed' && status.result) {
-                setIsValidating(false);
-                const res = status.result as Record<string, unknown>;
-                setValidationResult({
-                    success: res.success as boolean ?? true,
-                    message: res.message as string ?? 'Validation completed',
-                    pixel_distribution: res.pixel_distribution as { bins: number[]; counts: number[] } | undefined,
-                    image_statistics: res.image_statistics as {
-                        count: number;
-                        mean_height: number;
-                        mean_width: number;
-                        mean_pixel_value: number;
-                        std_pixel_value: number;
-                        mean_noise_std: number;
-                        mean_noise_ratio: number;
-                    } | undefined,
-                    text_statistics: res.text_statistics as {
-                        count: number;
-                        total_words: number;
-                        unique_words: number;
-                        avg_words_per_report: number;
-                        min_words_per_report: number;
-                        max_words_per_report: number;
-                    } | undefined,
-                });
-            } else if (status.status === 'failed') {
-                setIsValidating(false);
-                setValidationError(status.error || 'Validation failed');
-            } else if (status.status === 'cancelled') {
-                setIsValidating(false);
-                setValidationError('Validation was cancelled');
             } else {
                 // Still running, poll again
                 setTimeout(poll, pollInterval);
@@ -295,8 +206,8 @@ export default function DatasetPage() {
             if (namesResult) {
                 setDatasetNames(namesResult);
                 // Auto-select the first dataset if none is selected
-                if (namesResult.dataset_names.length > 0 && !state.selectedDataset) {
-                    setSelectedDataset(namesResult.dataset_names[0]);
+                if (namesResult.datasets.length > 0 && (state.selectedDatasets || []).length === 0) {
+                    if (setSelectedDatasets) setSelectedDatasets([namesResult.datasets[0].name]);
                 }
             }
         }
@@ -391,182 +302,155 @@ export default function DatasetPage() {
                             <span>Dataset Processing</span>
                         </div>
 
-                        {/* Dataset Table */}
-                        <div className="dataset-table-container">
-                            <div className="dataset-table-header-row">
-                                <span
-                                    className={`status-led ${hasDatasets ? 'led-green' : 'led-red'}`}
-                                    title={hasDatasets
-                                        ? `${state.datasetNames?.count} dataset(s) available`
-                                        : 'No datasets in database'
-                                    }
-                                />
-                                <span className="dataset-table-title">Available Datasets</span>
-                            </div>
-                            <div className="dataset-table">
-                                <div className="dataset-table-header">
-                                    <span>Name</span>
-                                    <span>Source</span>
-                                    <span>Rows</span>
-                                </div>
-                                <div className="dataset-table-body">
-                                    {!hasDatasets && (
-                                        <div className="dataset-table-empty">
-                                            No datasets available yet.
+                        {/* Dataset Processing Split View */}
+                        <div className="dataset-processing-split">
+                            {/* Left: Dataset Grid */}
+                            <div className="dataset-grid-section">
+                                <div className="dataset-table-container">
+                                    <div className="dataset-table-header-row">
+                                        <span className="dataset-table-title">Available Datasets</span>
+                                    </div>
+                                    <div className="dataset-table">
+                                        <div className="dataset-table-header">
+                                            <span style={{ textAlign: 'center' }}>Validate</span>
+                                            <span>Name</span>
+                                            <span>Source</span>
+                                            <span style={{ textAlign: 'right' }}>Rows</span>
                                         </div>
-                                    )}
-                                    {state.datasetNames?.datasets.map((dataset) => (
-                                        <div
-                                            key={dataset.name}
-                                            className={`dataset-table-row ${state.selectedDataset === dataset.name ? 'selected' : ''}`}
-                                            onClick={() => setSelectedDataset(dataset.name)}
+                                        <div className="dataset-table-body">
+                                            {!hasDatasets && (
+                                                <div className="dataset-table-empty">
+                                                    Please upload at least one dataset
+                                                </div>
+                                            )}
+                                            {state.datasetNames?.datasets.map((dataset) => {
+                                                const isSelected = (state.selectedDatasets || []).includes(dataset.name);
+                                                return (
+                                                    <div
+                                                        key={dataset.name}
+                                                        className={`dataset-table-row ${isSelected ? 'selected' : ''}`}
+                                                        onClick={(e) => {
+                                                            // Prevent row selection when clicking the validation icon if it propagates
+                                                            let newSelection: string[];
+                                                            const currentSelection = state.selectedDatasets || [];
+                                                            if (isSelected) {
+                                                                // Deselect
+                                                                newSelection = currentSelection.filter(n => n !== dataset.name);
+                                                            } else {
+                                                                // Select (append)
+                                                                newSelection = [...currentSelection, dataset.name];
+                                                            }
+                                                            if (setSelectedDatasets) {
+                                                                setSelectedDatasets(newSelection);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className="dataset-actions" onClick={(e) => {
+                                                            e.stopPropagation(); // Don't toggle selection
+                                                        }}>
+                                                            <a
+                                                                href={`/dataset/validate/${dataset.name}`}
+                                                                className="btn-icon-small"
+                                                                title="Run Validation"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    window.location.href = `/dataset/validate/${dataset.name}`;
+                                                                }}
+                                                            >
+                                                                <CheckCircle size={16} />
+                                                            </a>
+                                                        </div>
+                                                        <span className="dataset-name">{dataset.name}</span>
+                                                        <span className="dataset-path" title={dataset.folder_path}>{dataset.folder_path}</span>
+                                                        <span className="dataset-rows">{dataset.row_count.toLocaleString()}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Vertical Separator */}
+                            <div className="vertical-separator"></div>
+
+                            {/* Right: Processing Configuration */}
+                            <div className="processing-config-section">
+                                <div className="processing-content">
+                                    <h4 className="config-panel-title">Configurations</h4>
+                                    <div className="config-grid-compact-vertical">
+                                        <div className="form-group">
+                                            <label className="form-label">Sample Size (0-1)</label>
+                                            <input
+                                                type="number"
+                                                step="0.05"
+                                                min="0.01"
+                                                max="1.0"
+                                                className="form-input"
+                                                value={state.config.sampleSize}
+                                                onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Val Split (0-1)</label>
+                                            <input
+                                                type="number"
+                                                step="0.05"
+                                                max="1.0"
+                                                className="form-input"
+                                                value={state.config.validationSize}
+                                                onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Max Report Size</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                value={state.config.maxReportSize}
+                                                onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Tokenizer</label>
+                                            <select
+                                                className="form-select"
+                                                value={state.config.tokenizer}
+                                                onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
+                                            >
+                                                <option value="distilbert-base-uncased">distilbert-base-uncased</option>
+                                                <option value="bert-base-uncased">bert-base-uncased</option>
+                                                <option value="roberta-base">roberta-base</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Button at Bottom Right */}
+                                    <div className="processing-actions">
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleBuildDataset}
+                                            disabled={state.isProcessing}
                                         >
-                                            <span className="dataset-name">{dataset.name}</span>
-                                            <span className="dataset-path" title={dataset.folder_path}>{dataset.folder_path}</span>
-                                            <span className="dataset-rows">{dataset.row_count.toLocaleString()}</span>
+                                            {state.isProcessing ? (
+                                                <><Loader size={16} className="spin" /> Processing...</>
+                                            ) : (
+                                                <><Sliders size={16} /> Build Dataset</>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {state.processingResult?.success && (
+                                        <div className="upload-status success text-right">
+                                            <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Processing Content */}
-                        <div className="processing-content">
-                            <div className="config-grid-compact">
-                                <div className="form-group">
-                                    <label className="form-label">Sample Size (0-1)</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        min="0.01"
-                                        max="1.0"
-                                        className="form-input"
-                                        value={state.config.sampleSize}
-                                        onChange={(e) => handleConfigChange('sampleSize', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Val Split (0-1)</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        max="1.0"
-                                        className="form-input"
-                                        value={state.config.validationSize}
-                                        onChange={(e) => handleConfigChange('validationSize', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Max Report Size</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={state.config.maxReportSize}
-                                        onChange={(e) => handleConfigChange('maxReportSize', parseInt(e.target.value))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Tokenizer</label>
-                                    <select
-                                        className="form-select"
-                                        value={state.config.tokenizer}
-                                        onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
-                                    >
-                                        <option value="distilbert-base-uncased">distilbert-base-uncased</option>
-                                        <option value="bert-base-uncased">bert-base-uncased</option>
-                                        <option value="roberta-base">roberta-base</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleBuildDataset}
-                                    disabled={state.isProcessing}
-                                >
-                                    {state.isProcessing ? (
-                                        <><Loader size={16} className="spin" /> Processing Dataset...</>
-                                    ) : (
-                                        <><Sliders size={16} /> Build Dataset</>
                                     )}
-                                </button>
-                                {state.processingResult?.success && (
-                                    <div className="upload-status success">
-                                        <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val
-                                    </div>
-                                )}
-                                {state.processingResult === undefined && state.uploadError && state.uploadError.includes("Tokenization") && (
-                                    <div className="upload-status error">
-                                        <AlertCircle size={14} /> {state.uploadError}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Row 3: Evaluation */}
-                <div className="layout-row">
-                    <div className="section">
-                        <div className="section-title">
-                            <CheckCircle size={18} />
-                            <span>Data Evaluation</span>
-                        </div>
-
-                        <div className="evaluation-content">
-                            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                                <div className="form-group" style={{ minWidth: '150px' }}>
-                                    <label className="form-label">Eval Sample (0-1)</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        min="0.01"
-                                        max="1.0"
-                                        className="form-input"
-                                        value={state.config.evalSampleSize}
-                                        onChange={(e) => handleConfigChange('evalSampleSize', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                                <div className="eval-checkboxes" style={{ marginBottom: '0.5rem' }}>
-                                    <label className="form-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={state.config.imgStats}
-                                            onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
-                                        />
-                                        <div className="checkbox-visual" />
-                                        <span className="checkbox-label">Image statistics</span>
-                                    </label>
-                                    <label className="form-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={state.config.textStats}
-                                            onChange={(e) => handleConfigChange('textStats', e.target.checked)}
-                                        />
-                                        <div className="checkbox-visual" />
-                                        <span className="checkbox-label">Text statistics</span>
-                                    </label>
-                                    <label className="form-checkbox">
-                                        <input
-                                            type="checkbox"
-                                            checked={state.config.pixDist}
-                                            onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
-                                        />
-                                        <div className="checkbox-visual" />
-                                        <span className="checkbox-label">Pixel intensity dist.</span>
-                                    </label>
-                                </div>
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={handleViewEvaluation}
-                                    disabled={state.isValidating}
-                                >
-                                    {state.isValidating ? (
-                                        <><Loader size={14} className="spin" /> Validating...</>
-                                    ) : (
-                                        'View Evaluation'
+                                    {state.processingResult === undefined && state.uploadError && state.uploadError.includes("Tokenization") && (
+                                        <div className="upload-status error text-right">
+                                            <AlertCircle size={14} /> {state.uploadError}
+                                        </div>
                                     )}
-                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -579,15 +463,6 @@ export default function DatasetPage() {
                 onClose={() => setFolderBrowserOpen(false)}
                 onSelect={handleFolderSelect}
             />
-
-            {/* Validation Dashboard */}
-            {(state.isValidating || state.validationResult || state.validationError) && (
-                <ValidationDashboard
-                    isLoading={state.isValidating}
-                    validationResult={state.validationResult}
-                    error={state.validationError}
-                />
-            )}
         </div>
     );
 }

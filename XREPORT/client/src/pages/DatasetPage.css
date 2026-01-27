@@ -107,9 +107,9 @@
 
 .dataset-table-header {
     display: grid;
-    grid-template-columns: 1fr 2fr 80px;
+    grid-template-columns: 80px 1.5fr 2fr 100px;
     gap: 0.75rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     font-size: 0.7rem;
@@ -117,23 +117,26 @@
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    align-items: center;
 }
 
 .dataset-table-body {
-    max-height: 240px; /* ~8 rows */
+    max-height: 240px;
+    /* ~8 rows */
     overflow-y: auto;
 }
 
 .dataset-table-row {
     display: grid;
-    grid-template-columns: 1fr 2fr 80px;
+    grid-template-columns: 80px 1.5fr 2fr 100px;
     gap: 0.75rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
     font-size: 0.8rem;
     color: var(--text-primary);
     cursor: pointer;
     transition: background 0.15s;
     border-bottom: 1px solid var(--border-color);
+    align-items: center;
 }
 
 .dataset-table-row:last-child {
@@ -195,11 +198,61 @@
     margin-bottom: 0.5rem;
 }
 
-.config-grid-compact {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+/* Dataset Processing Split View */
+.dataset-processing-split {
+    display: flex;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+.dataset-grid-section {
+    flex: 1;
+    /* Takes available space, usually around 60-70% */
+    min-width: 0;
+    /* Prevents overflow */
+}
+
+.processing-config-section {
+    width: 320px;
+    /* Fixed width for config panel */
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.vertical-separator {
+    width: 1px;
+    background-color: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+/* Config Grid - Vertical Layout for Side Panel */
+.config-grid-compact-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.config-panel-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.processing-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
 }
 
 /* Upload Section Styles */
@@ -308,6 +361,12 @@
     align-items: center;
     gap: 0.75rem;
     margin-top: 0.25rem;
+}
+
+.dataset-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* Load dataset section */
