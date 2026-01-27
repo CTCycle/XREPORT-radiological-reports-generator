@@ -142,8 +142,13 @@ class DatasetStatusResponse(BaseModel):
 
 
 ###############################################################################
+class DatasetInfo(BaseModel):    
+    name: str
+    folder_path: str
+    row_count: int
+
+
+###############################################################################
 class DatasetNamesResponse(BaseModel):
-    dataset_names: list[str]
+    datasets: list[DatasetInfo]
     count: int
-
-

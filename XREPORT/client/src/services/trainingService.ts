@@ -50,14 +50,21 @@ export interface DatasetStatusResponse {
     message: string;
 }
 
+export interface DatasetInfo {
+    name: string;
+    folder_path: string;
+    row_count: number;
+}
+
 export interface DatasetNamesResponse {
-    dataset_names: string[];
+    datasets: DatasetInfo[];
     count: number;
 }
 
 // ============================================================================
 // Job API Types
 // ============================================================================
+
 
 export interface JobStartResponse {
     job_id: string;
