@@ -57,14 +57,41 @@ export interface DatasetInfo {
     has_validation_report: boolean;
 }
 
+export interface ProcessingMetadataResponse {
+    dataset_name: string;
+    metadata: Record<string, unknown>;
+}
+
+export interface CheckpointMetadataResponse {
+    checkpoint: string;
+    configuration: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    session: Record<string, unknown>;
+}
+
+export interface DeleteResponse {
+    success: boolean;
+    message: string;
+}
+
 export interface DatasetNamesResponse {
     datasets: DatasetInfo[];
     count: number;
 }
 
-// ============================================================================
-// Job API Types
-// ============================================================================
+export interface ImageCountResponse {
+    dataset_name: string;
+    count: number;
+}
+
+export interface ImageMetadataResponse {
+    dataset_name: string;
+    index: number;
+    image_name: string;
+    caption: string;
+    valid_path: boolean;
+    path: string;
+}
 
 
 export interface JobStartResponse {
@@ -126,6 +153,48 @@ export async function getDatasetNames(): Promise<{ result: DatasetNamesResponse 
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<DatasetNamesResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get processing metadata for a dataset
+ */
+export async function getProcessingMetadata(
+    datasetName: string
+): Promise<{ result: ProcessingMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/metadata/${encodeURIComponent(datasetName)}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ProcessingMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Delete a dataset and related metadata
+ */
+export async function deleteDataset(
+    datasetName: string
+): Promise<{ result: DeleteResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DeleteResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -392,6 +461,48 @@ export async function getCheckpoints(): Promise<{ result: CheckpointsResponse | 
 }
 
 /**
+ * Get checkpoint metadata without loading the model
+ */
+export async function getCheckpointMetadata(
+    checkpoint: string
+): Promise<{ result: CheckpointMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/checkpoints/${encodeURIComponent(checkpoint)}/metadata`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<CheckpointMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Delete a checkpoint
+ */
+export async function deleteCheckpoint(
+    checkpoint: string
+): Promise<{ result: DeleteResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/checkpoints/${encodeURIComponent(checkpoint)}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DeleteResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
  * Get current training status
  */
 export async function getTrainingStatus(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
@@ -523,6 +634,49 @@ export async function stopTraining(): Promise<{ result: TrainingStatusResponse |
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
     }
+}
+
+// ============================================================================
+// Image Viewer API
+// ============================================================================
+
+export async function getDatasetImageCount(
+    datasetName: string
+): Promise<{ result: ImageCountResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/count`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ImageCountResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+export async function getDatasetImageMetadata(
+    datasetName: string,
+    index: number
+): Promise<{ result: ImageMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ImageMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+export function getDatasetImageContentUrl(datasetName: string, index: number): string {
+    return `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}/content`;
 }
 
 // ============================================================================
