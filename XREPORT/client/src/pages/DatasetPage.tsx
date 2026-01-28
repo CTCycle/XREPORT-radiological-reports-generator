@@ -385,6 +385,7 @@ export default function DatasetPage() {
         if (!config.row) {
             return;
         }
+        const selectedRow = config.row;
 
         if (config.metrics.length === 0) {
             setReportError('Please select at least one validation metric.');
@@ -392,13 +393,13 @@ export default function DatasetPage() {
             setReportProgress(null);
             setReportStatus(null);
             setReportLoading(false);
-            setReportDataset(config.row);
+            setReportDataset(selectedRow);
             setReportMetadata({ sampleSize: config.sampleFraction, metrics: [] });
             setReportModalOpen(true);
             return;
         }
 
-        setReportDataset(config.row);
+        setReportDataset(selectedRow);
         setReportMetadata({ sampleSize: config.sampleFraction, metrics: config.metrics });
         setReportResult(null);
         setReportError(null);
@@ -408,7 +409,7 @@ export default function DatasetPage() {
         setReportModalOpen(true);
 
         const { result: jobResult, error: startError } = await runValidation({
-            dataset_name: config.row.name,
+            dataset_name: selectedRow.name,
             metrics: config.metrics,
             sample_size: config.sampleFraction,
         });
@@ -428,12 +429,12 @@ export default function DatasetPage() {
         };
         updateValidationJobs(prev => ({
             ...prev,
-            [config.row.name]: jobMeta,
+            [selectedRow.name]: jobMeta,
         }));
         setReportProgress(0);
         setReportStatus(jobResult.status);
         setReportLoading(true);
-        startValidationPolling(config.row.name, jobResult.job_id, jobMeta);
+        startValidationPolling(selectedRow.name, jobResult.job_id, jobMeta);
     };
 
     const handleVisualizeReport = async (dataset: DatasetInfo) => {
@@ -841,4 +842,3 @@ export default function DatasetPage() {
         </div>
     );
 }
-

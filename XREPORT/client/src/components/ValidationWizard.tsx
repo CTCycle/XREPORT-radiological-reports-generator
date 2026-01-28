@@ -31,13 +31,6 @@ const METRICS: Array<{ id: ValidationMetric; name: string; description: string }
     },
 ];
 
-const STEPS = [
-    {
-        id: 'metrics',
-        title: 'Metrics selection',
-    },
-];
-
 export default function ValidationWizard({
     isOpen,
     row,
