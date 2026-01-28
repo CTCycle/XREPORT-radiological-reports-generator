@@ -75,16 +75,14 @@ class StartTrainingRequest(BaseModel):
     shuffle_with_buffer: bool = Field(True, description="Enable shuffle with buffer")
     shuffle_size: int = Field(1024, ge=1, description="Shuffle buffer size")
     save_checkpoints: bool = Field(True, description="Save checkpoints during training")
-    use_tensorboard: bool = Field(False, description="Enable TensorBoard logging")
-    use_mixed_precision: bool = Field(False, description="Enable mixed precision training")
+    checkpoint_id: str | None = Field(None, description="Optional custom identifier for the checkpoint")
+    validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of dataset for validation")
     use_device_GPU: bool = Field(True, description="Use GPU for training")
     device_ID: int = Field(0, ge=0, description="GPU device ID")
     plot_training_metrics: bool = Field(True, description="Generate training plots")
     use_scheduler: bool = Field(False, description="Use learning rate scheduler")
     target_LR: float = Field(0.0001, ge=0.000001, le=0.1, description="Target learning rate")
     warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
-
-
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
     checkpoint: str = Field(..., description="Checkpoint name to resume from")
