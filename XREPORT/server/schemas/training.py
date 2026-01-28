@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -153,3 +155,40 @@ class DatasetInfo(BaseModel):
 class DatasetNamesResponse(BaseModel):
     datasets: list[DatasetInfo]
     count: int
+
+
+###############################################################################
+class ProcessingMetadataResponse(BaseModel):
+    dataset_name: str
+    metadata: dict[str, Any]
+
+
+###############################################################################
+class CheckpointMetadataResponse(BaseModel):
+    checkpoint: str
+    configuration: dict[str, Any]
+    metadata: dict[str, Any]
+    session: dict[str, Any]
+
+
+###############################################################################
+class DeleteResponse(BaseModel):
+    success: bool
+    message: str
+
+
+###############################################################################
+class ImageCountResponse(BaseModel):
+    dataset_name: str
+    count: int
+
+
+###############################################################################
+class ImageMetadataResponse(BaseModel):
+    dataset_name: str
+    index: int
+    image_name: str
+    caption: str
+    valid_path: bool
+    path: str
+
