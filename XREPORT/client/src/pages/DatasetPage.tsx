@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders,
-    Loader, CheckCircle, AlertCircle, BarChart2
+    Loader, CheckCircle, AlertCircle, BarChart2, RefreshCw
 } from 'lucide-react';
 import './DatasetPage.css';
 import {
@@ -622,6 +622,18 @@ export default function DatasetPage() {
                                 <div className="dataset-table-container">
                                     <div className="dataset-table-header-row">
                                         <span className="dataset-table-title">Available Datasets</span>
+                                        <button
+                                            className="btn-icon-small"
+                                            style={{ marginLeft: 'auto' }}
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                const { result } = await getDatasetNames();
+                                                if (result) setDatasetNames(result);
+                                            }}
+                                            title="Refresh datasets"
+                                        >
+                                            <RefreshCw size={16} />
+                                        </button>
                                     </div>
                                     <div className="dataset-table">
                                         <div className="dataset-table-header">
