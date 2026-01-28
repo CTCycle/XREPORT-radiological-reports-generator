@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     FolderUp, FileSpreadsheet, Database, Sliders,
-    Loader, CheckCircle, AlertCircle, BarChart2, RefreshCw
+    Loader, CheckCircle, AlertCircle, BarChart2, RefreshCw, Trash2, Eye
 } from 'lucide-react';
 import './DatasetPage.css';
 import {
@@ -25,6 +25,8 @@ import {
     ValidationReport,
     ValidationResponse,
 } from '../services/validationService';
+import ImageViewerModal from '../components/ImageViewerModal';
+import { deleteDataset } from '../services/trainingService';
 
 const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
 
@@ -80,6 +82,10 @@ export default function DatasetPage() {
     const [validationJobs, setValidationJobs] = useState<Record<string, StoredValidationJob>>({});
     const validationPollers = useRef<Record<string, { stop: () => void }>>({});
     const reportDatasetRef = useRef<string | null>(null);
+
+    // Image Viewer State
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [viewerDataset, setViewerDataset] = useState<string | null>(null);
 
     const {
         state,
@@ -527,6 +533,27 @@ export default function DatasetPage() {
         }
     };
 
+    const handleDeleteDataset = async (datasetName: string) => {
+        if (!confirm(`Are you sure you want to delete dataset "${datasetName}"?`)) {
+            return;
+        }
+
+        const { error } = await deleteDataset(datasetName);
+        if (error) {
+            setUploadError(error); // Or a toast if available
+        } else {
+            // Refresh list
+            const { result: namesResult } = await getDatasetNames();
+            if (namesResult) {
+                setDatasetNames(namesResult);
+                if (setSelectedDatasets) {
+                    // Remove deleted dataset from selection
+                    setSelectedDatasets((state.selectedDatasets || []).filter(n => n !== datasetName));
+                }
+            }
+        }
+    };
+
     return (
         <div className="dataset-container">
             <div className="header">
@@ -685,6 +712,31 @@ export default function DatasetPage() {
                                                             <button
                                                                 type="button"
                                                                 className="btn-icon-small"
+                                                                title="Delete Dataset"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    handleDeleteDataset(dataset.name);
+                                                                }}
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-icon-small"
+                                                                title="View Images"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setViewerDataset(dataset.name);
+                                                                    setViewerOpen(true);
+                                                                }}
+                                                            >
+                                                                <Eye size={16} />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-icon-small"
                                                                 title="Run Validation"
                                                                 onClick={(e) => {
                                                                     e.preventDefault();
@@ -827,7 +879,7 @@ export default function DatasetPage() {
                 onClose={() => setValidationWizardOpen(false)}
                 onConfirm={handleValidationConfirm}
             />
-
+            {/* Validation Report Modal */}
             <ValidationReportModal
                 isOpen={reportModalOpen}
                 datasetName={reportDataset?.name ?? null}
@@ -838,6 +890,16 @@ export default function DatasetPage() {
                 status={reportStatus}
                 metadata={reportMetadata}
                 onClose={() => setReportModalOpen(false)}
+            />
+
+            {/* Image Viewer Modal */}
+            <ImageViewerModal
+                isOpen={viewerOpen}
+                datasetName={viewerDataset}
+                onClose={() => {
+                    setViewerOpen(false);
+                    setViewerDataset(null);
+                }}
             />
         </div>
     );

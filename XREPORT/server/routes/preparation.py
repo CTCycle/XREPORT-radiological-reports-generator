@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 import sqlalchemy
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import FileResponse
 
 from XREPORT.server.database.database import XREPORTDatabase, database
 from XREPORT.server.schemas.training import (
@@ -18,8 +19,12 @@ from XREPORT.server.schemas.training import (
     ImagePathResponse,
     LoadDatasetRequest,
     LoadDatasetResponse,
+    ProcessingMetadataResponse,
+    DeleteResponse,
     ProcessDatasetRequest,
     ProcessDatasetResponse,
+    ImageCountResponse,
+    ImageMetadataResponse,
 )
 from XREPORT.server.schemas.jobs import (
     JobStartResponse,
@@ -32,7 +37,13 @@ from XREPORT.server.utils.jobs import JobManager, job_manager
 from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.utils.repository.serializer import DataSerializer
-from XREPORT.server.utils.constants import RADIOGRAPHY_TABLE, VALIDATION_REPORTS_TABLE
+from XREPORT.server.utils.constants import (
+    RADIOGRAPHY_TABLE,
+    VALIDATION_REPORTS_TABLE,
+    PROCESSING_METADATA_TABLE,
+    IMAGE_STATISTICS_TABLE,
+    TEXT_STATISTICS_TABLE,
+)
 from XREPORT.server.utils.learning.processing import (
     TextSanitizer,
     TokenizerHandler,
@@ -238,6 +249,99 @@ class PreparationEndpoint:
         return DatasetNamesResponse(
             datasets=datasets,
             count=len(datasets),
+        )
+
+    # -----------------------------------------------------------------------------
+    async def get_processing_metadata(self, dataset_name: str) -> ProcessingMetadataResponse:
+        dataset_name = dataset_name.strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dataset name cannot be empty",
+            )
+
+        serializer = DataSerializer()
+        metadata_df = serializer.load_table(PROCESSING_METADATA_TABLE)
+        if metadata_df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No processing metadata found",
+            )
+
+        if "dataset_name" in metadata_df.columns:
+            filtered = metadata_df[metadata_df["dataset_name"] == dataset_name]
+        else:
+            filtered = metadata_df
+
+        if filtered.empty:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No processing metadata found for dataset: {dataset_name}",
+            )
+
+        metadata = filtered.iloc[-1].to_dict()
+        metadata.pop("id", None)
+
+        return ProcessingMetadataResponse(
+            dataset_name=str(metadata.get("dataset_name") or dataset_name),
+            metadata=metadata,
+        )
+
+    # -----------------------------------------------------------------------------
+    async def delete_dataset(self, dataset_name: str) -> DeleteResponse:
+        dataset_name = dataset_name.strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dataset name cannot be empty",
+            )
+
+        with self.database.backend.engine.begin() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(RADIOGRAPHY_TABLE):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="RADIOGRAPHY_DATA table not found",
+                )
+
+            row_result = conn.execute(
+                sqlalchemy.text(
+                    'SELECT COUNT(*) FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
+                ),
+                {"dataset_name": dataset_name},
+            )
+            row_count = row_result.scalar() or 0
+            if row_count == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Dataset not found: {dataset_name}",
+                )
+
+            conn.execute(
+                sqlalchemy.text(
+                    'DELETE FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
+                ),
+                {"dataset_name": dataset_name},
+            )
+
+            cleanup_tables = [
+                PROCESSING_METADATA_TABLE,
+                VALIDATION_REPORTS_TABLE,
+                IMAGE_STATISTICS_TABLE,
+                TEXT_STATISTICS_TABLE,
+            ]
+            for table_name in cleanup_tables:
+                if inspector.has_table(table_name):
+                    conn.execute(
+                        sqlalchemy.text(
+                            f'DELETE FROM "{table_name}" WHERE dataset_name = :dataset_name'
+                        ),
+                        {"dataset_name": dataset_name},
+                    )
+
+        return DeleteResponse(
+            success=True,
+            message=f"Deleted dataset {dataset_name}",
         )
 
     # -----------------------------------------------------------------------------
@@ -518,7 +622,6 @@ class PreparationEndpoint:
                     ))
         except PermissionError:
             logger.warning(f"Permission denied accessing: {path}")
-        except OSError as e:
             logger.warning(f"Error accessing {path}: {e}")
         
         # Also count images in current folder
@@ -530,6 +633,88 @@ class PreparationEndpoint:
             items=items,
             drives=get_windows_drives(),
         )
+
+    # -----------------------------------------------------------------------------
+    async def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
+        """Get total number of images in a dataset."""
+        dataset_name = dataset_name.strip()
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    'SELECT COUNT(*) FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
+                ),
+                {"dataset_name": dataset_name},
+            )
+            count = result.scalar() or 0
+        
+        return ImageCountResponse(dataset_name=dataset_name, count=count)
+
+    # -----------------------------------------------------------------------------
+    async def get_dataset_image_metadata(self, dataset_name: str, index: int) -> ImageMetadataResponse:
+        """Get metadata for a specific image by 1-based index (id)."""
+        dataset_name = dataset_name.strip()
+        
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    'SELECT image, text, path FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name AND id = :id'
+                ),
+                {"dataset_name": dataset_name, "id": index},
+            )
+            row = result.fetchone()
+            
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Image index {index} not found in dataset {dataset_name}",
+                )
+            
+            image_name = row[0]
+            caption = row[1] or ""
+            path = row[2] or ""
+            
+            # Check if file exists
+            valid_path = os.path.exists(path) if path else False
+            
+            return ImageMetadataResponse(
+                dataset_name=dataset_name,
+                index=index,
+                image_name=image_name,
+                caption=caption,
+                valid_path=valid_path,
+                path=path,
+            )
+
+    # -----------------------------------------------------------------------------
+    async def get_dataset_image_content(self, dataset_name: str, index: int):
+        """Serve the image file content."""
+        dataset_name = dataset_name.strip()
+        
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    'SELECT path FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name AND id = :id'
+                ),
+                {"dataset_name": dataset_name, "id": index},
+            )
+            row = result.fetchone()
+            
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Image index {index} not found in dataset {dataset_name}",
+                )
+            
+            path = row[0]
+            
+            if not path or not os.path.exists(path):
+                # Elegant warning message as requested
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Source file not found at {path}",
+                )
+                
+            return FileResponse(path)
 
     # -----------------------------------------------------------------------------
     def add_routes(self) -> None:
@@ -546,6 +731,20 @@ class PreparationEndpoint:
             self.get_dataset_names,
             methods=["GET"],
             response_model=DatasetNamesResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/metadata/{dataset_name}",
+            self.get_processing_metadata,
+            methods=["GET"],
+            response_model=ProcessingMetadataResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}",
+            self.delete_dataset,
+            methods=["DELETE"],
+            response_model=DeleteResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
@@ -568,6 +767,27 @@ class PreparationEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/count",
+            self.get_dataset_image_count,
+            methods=["GET"],
+            response_model=ImageCountResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/{index}",
+            self.get_dataset_image_metadata,
+            methods=["GET"],
+            response_model=ImageMetadataResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/{index}/content",
+            self.get_dataset_image_content,
+            methods=["GET"],
+            status_code=status.HTTP_200_OK,
+            # FileResponse is not a Pydantic model, so we don't set response_model
         )
         self.router.add_api_route(
             "/jobs/{job_id}",
