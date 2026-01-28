@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# CRITICAL: Load environment variables BEFORE any torch/keras imports
+
 from XREPORT.server.utils.variables import env_variables  # noqa: F401
 
 from fastapi import FastAPI
