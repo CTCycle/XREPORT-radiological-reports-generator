@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 from keras import Model
 from keras.models import load_model
+import hashlib
 import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
@@ -53,6 +54,28 @@ class DataSerializer:
         self.img_shape = (224, 224)
         self.num_channels = 3
         self.valid_extensions = VALID_EXTENSIONS
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def generate_hashcode(metadata: dict) -> str:
+        """Generate a deterministic hash for the dataset processing configuration."""
+        if not metadata:
+            return ""
+        
+        # Deterministic payload extraction
+        payload = {
+            "dataset_name": metadata.get("dataset_name"),
+            "sample_size": metadata.get("sample_size"),
+            "validation_size": metadata.get("validation_size"),
+            "seed": metadata.get("seed"),
+            "vocabulary_size": metadata.get("vocabulary_size"),
+            "max_report_size": metadata.get("max_report_size"),
+            "tokenizer": metadata.get("tokenizer"),
+        }
+        
+        # Serialize to JSON with sort_keys=True
+        serialized = json.dumps(payload, sort_keys=True)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -327,6 +350,7 @@ class DataSerializer:
         configuration: dict[str, Any],
         training_data: pd.DataFrame,
         vocabulary_size: int | None = None,
+        hashcode: str | None = None,
     ) -> None:
         if training_data.empty:
             raise ValueError("Training dataset is empty; nothing to save.")
@@ -373,6 +397,7 @@ class DataSerializer:
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
+            "hashcode": hashcode,
         }
         
         metadata_df = pd.DataFrame([metadata])

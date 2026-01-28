@@ -159,8 +159,19 @@ def run_process_dataset_job(
     
     # Step 5: Save processed data and metadata to database
     try:
-        serializer.save_training_data(configuration, training_data, vocabulary_size)
-        logger.info("Preprocessed data saved to database")
+        metadata_for_hash = {
+            "dataset_name": configuration.get("dataset_name", "default"),
+            "seed": configuration.get("seed", 42),
+            "sample_size": configuration.get("sample_size", 1.0),
+            "validation_size": configuration.get("validation_size", 0.2),
+            "vocabulary_size": vocabulary_size,
+            "max_report_size": configuration.get("max_report_size", 200),
+            "tokenizer": configuration.get("tokenizer", None),
+        }
+        hashcode = serializer.generate_hashcode(metadata_for_hash)
+        
+        serializer.save_training_data(configuration, training_data, vocabulary_size, hashcode)
+        logger.info(f"Preprocessed data saved to database with hash: {hashcode}")
     except RuntimeError as e:
         # Schema mismatch or other runtime errors - use the clean message directly
         logger.error(f"Database error: {e}")
