@@ -273,12 +273,18 @@ export default function DatasetPage() {
             setUploadError("No data available. Please load a dataset or ensure data exists in the database.");
             return;
         }
+        const selectedNames = state.selectedDatasets || [];
+        if (selectedNames.length !== 1) {
+            setUploadError('Select exactly one dataset to process.');
+            return;
+        }
 
         setIsProcessing(true);
         setUploadError(null);
         setProcessingResult(null);
 
         const { result: jobResult, error: startError } = await processDataset({
+            dataset_name: selectedNames[0],
             sample_size: state.config.sampleSize,
             validation_size: state.config.validationSize,
             tokenizer: state.config.tokenizer,

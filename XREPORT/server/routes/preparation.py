@@ -100,14 +100,18 @@ def run_process_dataset_job(
     jm = job_manager
     
     serializer = DataSerializer()
+    dataset_name = configuration.get("dataset_name")
     
     # Load source dataset from RADIOGRAPHY_DATA
     dataset = serializer.load_source_dataset(
         sample_size=configuration["sample_size"],
         seed=configuration["seed"],
+        dataset_name=dataset_name,
     )
     
     if dataset.empty:
+        if dataset_name:
+            raise RuntimeError(f"No data found for dataset: {dataset_name}. Please load the dataset and try again.")
         raise RuntimeError("No data found in RADIOGRAPHY_DATA table. Please load a dataset first.")
     
     logger.info(f"Processing dataset with {len(dataset)} samples")
@@ -515,14 +519,24 @@ class PreparationEndpoint:
         
         configuration = request.model_dump()
         configuration["seed"] = self.server_settings.global_settings.seed
+        dataset_name = configuration.get("dataset_name", "").strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Dataset name cannot be empty",
+            )
         
         # Quick validation - check if source data exists
         serializer = DataSerializer()
-        row_count = serializer.count_rows(RADIOGRAPHY_TABLE)
-        if row_count == 0:
+        dataset = serializer.load_source_dataset(
+            sample_size=1.0,
+            seed=configuration["seed"],
+            dataset_name=dataset_name,
+        )
+        if dataset.empty:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset not found: {dataset_name}",
             )
         
         # Start background job
@@ -545,7 +559,7 @@ class PreparationEndpoint:
             job_id=job_id,
             job_type=job_status["job_type"],
             status=job_status["status"],
-            message=f"Dataset processing job started for {row_count} samples",
+            message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
         )
 
     # -----------------------------------------------------------------------------

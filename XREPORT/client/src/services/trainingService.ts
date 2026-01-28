@@ -308,6 +308,7 @@ export async function browseDirectory(
 // ============================================================================
 
 export interface ProcessDatasetRequest {
+    dataset_name: string;
     sample_size: number;
     validation_size: number;
     tokenizer: string;

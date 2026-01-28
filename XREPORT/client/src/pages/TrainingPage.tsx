@@ -52,6 +52,17 @@ type MetadataModalState = {
     error?: string;
 };
 
+const PROCESSING_METADATA_ORDER = [
+    'dataset_name',
+    'date',
+    'seed',
+    'sample_size',
+    'validation_size',
+    'vocabulary_size',
+    'max_report_size',
+    'tokenizer',
+];
+
 const formatMetadataValue = (value: unknown) => {
     if (value === null || value === undefined || value === '') {
         return 'N/A';
@@ -66,18 +77,45 @@ const formatMetadataValue = (value: unknown) => {
     return String(value);
 };
 
+const formatMetadataLabel = (label: string) => {
+    return label
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const stripHashFields = (data: Record<string, unknown>) => {
     return Object.fromEntries(
         Object.entries(data).filter(([key]) => !key.toLowerCase().includes('hash'))
     );
 };
 
-const buildEntries = (data: Record<string, unknown>): MetadataEntry[] => {
+const buildEntries = (data: Record<string, unknown>, preferredOrder: string[] = []): MetadataEntry[] => {
     const sanitized = stripHashFields(data);
-    return Object.entries(sanitized).map(([label, value]) => ({
-        label,
-        value: formatMetadataValue(value),
+    const preferredSet = new Set(preferredOrder);
+    const orderedKeys = preferredOrder.filter((key) => key in sanitized);
+    const remainingKeys = Object.keys(sanitized)
+        .filter((key) => !preferredSet.has(key))
+        .sort((a, b) => a.localeCompare(b));
+    const keys = preferredOrder.length > 0 ? [...orderedKeys, ...remainingKeys] : Object.keys(sanitized);
+    return keys.map((label) => ({
+        label: formatMetadataLabel(label),
+        value: formatMetadataValue(sanitized[label]),
     }));
+};
+
+const parseMetadataError = (error: string) => {
+    const match = error.match(/:\s*(\{.*\})\s*$/);
+    if (match) {
+        try {
+            const parsed = JSON.parse(match[1]) as { detail?: string };
+            if (parsed.detail) {
+                return parsed.detail;
+            }
+        } catch {
+            return error;
+        }
+    }
+    return error;
 };
 
 function MetadataModal({
@@ -116,6 +154,11 @@ function MetadataModal({
                             </div>
                         </div>
                     ))}
+                </div>
+                <div className="metadata-footer">
+                    <button className="btn btn-secondary" type="button" onClick={onClose}>
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -865,21 +908,29 @@ export default function TrainingPage() {
 
         const { result, error } = await getProcessingMetadata(dataset.name);
         if (error || !result) {
+            const parsedError = error ? parseMetadataError(error) : null;
+            const friendlyError = parsedError?.includes('No processing metadata found')
+                ? `No processing metadata found for "${dataset.name}". Run "Build Dataset" on the Dataset page to generate it.`
+                : parsedError || 'No metadata found';
             setMetadataModal({
                 title: 'Dataset Processing Metadata',
                 subtitle: dataset.name,
-                error: error || 'No metadata found',
+                error: friendlyError,
             });
             return;
         }
 
+        const metadata = {
+            dataset_name: result.dataset_name,
+            ...result.metadata,
+        };
         setMetadataModal({
             title: 'Dataset Processing Metadata',
             subtitle: result.dataset_name,
             sections: [
                 {
                     title: 'Processing Parameters',
-                    entries: buildEntries(result.metadata),
+                    entries: buildEntries(metadata, PROCESSING_METADATA_ORDER),
                 },
             ],
         });
@@ -893,10 +944,11 @@ export default function TrainingPage() {
 
         const { result, error } = await getCheckpointMetadata(checkpoint.name);
         if (error || !result) {
+            const parsedError = error ? parseMetadataError(error) : null;
             setMetadataModal({
                 title: 'Checkpoint Metadata',
                 subtitle: checkpoint.name,
-                error: error || 'No metadata found',
+                error: parsedError || 'No metadata found',
             });
             return;
         }

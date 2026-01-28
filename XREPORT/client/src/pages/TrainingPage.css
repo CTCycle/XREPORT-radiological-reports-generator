@@ -656,6 +656,13 @@ input[type="checkbox"] {
     gap: 1rem;
 }
 
+.metadata-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 0.85rem 1.25rem 1rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
 .metadata-section h4 {
     margin: 0 0 0.5rem;
     font-size: 0.85rem;
