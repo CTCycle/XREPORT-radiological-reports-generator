@@ -61,6 +61,8 @@ class GlobalSettings:
 class TrainingSettings:
     use_jit: bool
     jit_backend: str
+    use_mixed_precision: bool
+    sample_size: float
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -146,6 +148,8 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
     return TrainingSettings(
         use_jit=bool(payload.get("use_jit", True)),
         jit_backend=jit_backend,
+        use_mixed_precision=bool(payload.get("use_mixed_precision", False)),
+        sample_size=coerce_float(payload.get("sample_size"), 1.0),
     )
 
 # -----------------------------------------------------------------------------

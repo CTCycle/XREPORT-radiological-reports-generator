@@ -22,8 +22,10 @@
     "seed": 42
   },
   "training": {
-    "use_jit": true,
+    "use_jit": false,
     "jit_backend": "inductor",
+    "use_mixed_precision": false,
+    "sample_size": 1.0,
     "update_frequency_seconds": 1,
     "plot_update_batch_interval": 10
   }
