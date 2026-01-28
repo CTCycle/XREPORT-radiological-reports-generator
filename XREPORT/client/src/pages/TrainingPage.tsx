@@ -1015,21 +1015,21 @@ export default function TrainingPage() {
                         </div>
                     </div>
 
-                    <div className="panel-divider" />
+
 
                     <div className="panel-right">
                         <div className="panel-card">
                             <div className="panel-card-header">
-                                <Play size={18} />
-                                <div>
+                                <div className="panel-card-title-row">
+                                    <Play size={18} />
                                     <h4>Initialize Training</h4>
-                                    <p>Launch the configuration wizard to set up your training run.</p>
                                 </div>
+                                <p>Launch the configuration wizard to set up your training run.</p>
                             </div>
                             <div className="panel-card-summary">
                                 <span>Selected Dataset</span>
                                 <strong>{selectedDataset?.name || 'None selected'}</strong>
-                                <span>Rows</span>
+                                <span>Samples</span>
                                 <strong>{selectedDataset ? selectedDataset.row_count.toLocaleString() : 'N/A'}</strong>
                             </div>
                             <button
@@ -1113,16 +1113,16 @@ export default function TrainingPage() {
                         </div>
                     </div>
 
-                    <div className="panel-divider" />
+
 
                     <div className="panel-right">
                         <div className="panel-card">
                             <div className="panel-card-header">
-                                <RotateCcw size={18} />
-                                <div>
+                                <div className="panel-card-title-row">
+                                    <RotateCcw size={18} />
                                     <h4>Resume Session</h4>
-                                    <p>Continue training with a previous checkpoint.</p>
                                 </div>
+                                <p>Continue training with a previous checkpoint.</p>
                             </div>
                             <div className="panel-card-summary">
                                 <span>Selected Checkpoint</span>
