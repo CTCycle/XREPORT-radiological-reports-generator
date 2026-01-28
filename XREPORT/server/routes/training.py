@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
+import shutil
 from typing import Any
 from functools import partial
 
 from fastapi import APIRouter, HTTPException, status
+import sqlalchemy
 
 from XREPORT.server.schemas.training import (
     CheckpointInfo,
     CheckpointsResponse,
+    CheckpointMetadataResponse,
+    DeleteResponse,
     StartTrainingRequest,
     ResumeTrainingRequest,
     TrainingStatusResponse,
@@ -26,6 +30,8 @@ from XREPORT.server.utils.repository.serializer import (
     ModelSerializer,
     CHECKPOINT_PATH,
 )
+from XREPORT.server.database.database import database
+from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
 from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.utils.learning.callbacks import TrainingInterruptCallback
 from XREPORT.server.utils.learning.training.trainer import ModelTrainer
@@ -296,6 +302,84 @@ class TrainingEndpoint:
         return CheckpointsResponse(checkpoints=checkpoints)
 
     # -----------------------------------------------------------------------------
+    async def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
+        """Get metadata and configuration for a checkpoint without loading the model."""
+        checkpoint = checkpoint.strip()
+        if not checkpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkpoint name cannot be empty",
+            )
+
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        if not os.path.isdir(checkpoint_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Checkpoint not found: {checkpoint}",
+            )
+
+        try:
+            modser = ModelSerializer()
+            configuration, metadata, session = modser.load_training_configuration(checkpoint_path)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to load checkpoint metadata: {exc}",
+            ) from exc
+
+        return CheckpointMetadataResponse(
+            checkpoint=checkpoint,
+            configuration=configuration,
+            metadata=metadata,
+            session=session,
+        )
+
+    # -----------------------------------------------------------------------------
+    async def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
+        checkpoint = checkpoint.strip()
+        if not checkpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkpoint name cannot be empty",
+            )
+
+        if self.training_state.state.get("is_training"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete checkpoints while training is active",
+            )
+
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        if not os.path.isdir(checkpoint_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Checkpoint not found: {checkpoint}",
+            )
+
+        try:
+            shutil.rmtree(checkpoint_path)
+        except OSError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete checkpoint: {exc}",
+            ) from exc
+
+        with database.backend.engine.begin() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if inspector.has_table(CHECKPOINTS_SUMMARY_TABLE):
+                conn.execute(
+                    sqlalchemy.text(
+                        'DELETE FROM "CHECKPOINTS_SUMMARY" WHERE checkpoint = :checkpoint'
+                    ),
+                    {"checkpoint": checkpoint},
+                )
+
+        return DeleteResponse(
+            success=True,
+            message=f"Deleted checkpoint {checkpoint}",
+        )
+
+    # -----------------------------------------------------------------------------
     async def get_training_status(self) -> TrainingStatusResponse:
         return TrainingStatusResponse(
             job_id=self.training_state.current_job_id,
@@ -557,6 +641,20 @@ class TrainingEndpoint:
             self.get_checkpoints,
             methods=["GET"],
             response_model=CheckpointsResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/checkpoints/{checkpoint}/metadata",
+            self.get_checkpoint_metadata,
+            methods=["GET"],
+            response_model=CheckpointMetadataResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/checkpoints/{checkpoint}",
+            self.delete_checkpoint,
+            methods=["DELETE"],
+            response_model=DeleteResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
