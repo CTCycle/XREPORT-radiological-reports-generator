@@ -55,12 +55,49 @@ class DataSerializer:
         self.valid_extensions = VALID_EXTENSIONS
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _parse_json(value: Any, default: Any = None) -> Any:
+        if default is None:
+            default = {}
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return default
+        if isinstance(value, (dict, list)):
+            return value
+        return default
+
+    # -------------------------------------------------------------------------
     def serialize_series(self, col: list[int] | str) -> str | list[int]:
         if isinstance(col, list):
             return " ".join(map(str, col))
         if isinstance(col, str):
             return [int(f) for f in col.split() if f.strip()]
         return []
+
+    # -------------------------------------------------------------------------
+    def _serialize_json_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Identify columns containing lists or dicts and serialize them to JSON strings.
+        Returns a copy of the dataframe with serialized columns.
+        """
+        if df.empty:
+            return df
+            
+        df_copy = df.copy()
+        for col in df_copy.columns:
+            # Check first non-null value
+            first_valid = df_copy[col].dropna().iloc[0] if not df_copy[col].dropna().empty else None
+            
+            if isinstance(first_valid, (list, dict)):
+                # Serialize list/dict to JSON string
+                # We use generic json.dumps. 
+                # Note: This modifies the column to object/string type.
+                df_copy[col] = df_copy[col].apply(
+                    lambda x: json.dumps(x) if isinstance(x, (list, dict)) else x
+                )
+        return df_copy
 
     # -------------------------------------------------------------------------
     def validate_required_columns(
@@ -113,7 +150,10 @@ class DataSerializer:
             self.validate_required_columns(
                 dataset, required_columns, table_name, "save"
             )
-        database.save_into_database(dataset, table_name)
+        
+        # Serialize list/dict columns to JSON strings if needed
+        dataset_to_save = self._serialize_json_columns(dataset)
+        database.save_into_database(dataset_to_save, table_name)
 
     # -------------------------------------------------------------------------
     def merge_table(
@@ -143,7 +183,9 @@ class DataSerializer:
             merged = pd.concat([existing, dataset], ignore_index=True)
             merged = merged.drop_duplicates(subset=merge_keys, keep="last")
 
-        database.save_into_database(merged, table_name)
+        # Serialize list/dict columns to JSON strings if needed
+        merged_to_save = self._serialize_json_columns(merged)
+        database.save_into_database(merged_to_save, table_name)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
@@ -156,7 +198,9 @@ class DataSerializer:
                 dataset, required_columns, table_name, "upsert"
             )
         try:
-            database.upsert_into_database(dataset, table_name)
+            # Serialize list/dict columns to JSON strings if needed
+            dataset_to_save = self._serialize_json_columns(dataset)
+            database.upsert_into_database(dataset_to_save, table_name)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "Upsert failed for %s, falling back to merge/save: %s",
@@ -262,8 +306,18 @@ class DataSerializer:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
 
-        train_data = training_data[training_data["split"] == "train"]
-        val_data = training_data[training_data["split"] == "validation"]
+        train_data = training_data[training_data["split"] == "train"].copy()
+        val_data = training_data[training_data["split"] == "validation"].copy()
+
+        # Deserialize tokens from JSON strings if specific columns exist
+        if not train_data.empty and "tokens" in train_data.columns:
+            train_data["tokens"] = train_data["tokens"].apply(
+                lambda x: DataSerializer._parse_json(x, default=[])
+            )
+        if not val_data.empty and "tokens" in val_data.columns:
+            val_data["tokens"] = val_data["tokens"].apply(
+                lambda x: DataSerializer._parse_json(x, default=[])
+            )
 
         return train_data, val_data, latest_metadata
 
@@ -401,47 +455,21 @@ class DataSerializer:
             return None
         row = filtered.iloc[-1]
 
-        metrics = row.get("metrics") if "metrics" in row else []
-        text_statistics = row.get("text_statistics") if "text_statistics" in row else None
-        image_statistics = row.get("image_statistics") if "image_statistics" in row else None
-        pixel_distribution = row.get("pixel_distribution") if "pixel_distribution" in row else None
-        artifacts = row.get("artifacts") if "artifacts" in row else None
-
-        if isinstance(metrics, float) and pd.isna(metrics):
-            metrics = []
-        if isinstance(metrics, str):
-            try:
-                metrics = json.loads(metrics)
-            except json.JSONDecodeError:
-                metrics = []
-        if isinstance(text_statistics, float) and pd.isna(text_statistics):
-            text_statistics = None
-        if isinstance(text_statistics, str):
-            try:
-                text_statistics = json.loads(text_statistics)
-            except json.JSONDecodeError:
-                text_statistics = None
-        if isinstance(image_statistics, float) and pd.isna(image_statistics):
-            image_statistics = None
-        if isinstance(image_statistics, str):
-            try:
-                image_statistics = json.loads(image_statistics)
-            except json.JSONDecodeError:
-                image_statistics = None
-        if isinstance(pixel_distribution, float) and pd.isna(pixel_distribution):
-            pixel_distribution = None
-        if isinstance(pixel_distribution, str):
-            try:
-                pixel_distribution = json.loads(pixel_distribution)
-            except json.JSONDecodeError:
-                pixel_distribution = None
-        if isinstance(artifacts, float) and pd.isna(artifacts):
-            artifacts = None
-        if isinstance(artifacts, str):
-            try:
-                artifacts = json.loads(artifacts)
-            except json.JSONDecodeError:
-                artifacts = None
+        metrics = DataSerializer._parse_json(
+            row.get("metrics"), default=[]
+        )
+        text_statistics = DataSerializer._parse_json(
+            row.get("text_statistics")
+        )
+        image_statistics = DataSerializer._parse_json(
+            row.get("image_statistics")
+        )
+        pixel_distribution = DataSerializer._parse_json(
+            row.get("pixel_distribution")
+        )
+        artifacts = DataSerializer._parse_json(
+            row.get("artifacts")
+        )
         
         return {
             "dataset_name": dataset_name,
