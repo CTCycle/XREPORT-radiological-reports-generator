@@ -409,8 +409,8 @@ export interface StartTrainingConfig {
     shuffle_with_buffer: boolean;
     shuffle_size: number;
     save_checkpoints: boolean;
-    use_tensorboard: boolean;
-    use_mixed_precision: boolean;
+    checkpoint_id?: string;
+    validation_size: number;
     use_device_GPU: boolean;
     device_ID: number;
     plot_training_metrics: boolean;

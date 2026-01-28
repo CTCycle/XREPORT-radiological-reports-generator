@@ -57,8 +57,7 @@ export interface TrainingConfig {
     trainSeed: number;
     saveCheckpoints: boolean;
     checkpointFreq: number;
-    mixedPrecision: boolean;
-    runTensorboard: boolean;
+    validationSize: number;
     useScheduler: boolean;
     targetLR: number;
     warmupSteps: number;

@@ -378,16 +378,6 @@ def initialize_training_callbacks(
         )
 
 
-    # TensorBoard callback
-    if configuration.get("use_tensorboard", False):
-        logger.debug("Using tensorboard during training")
-        log_path = os.path.join(checkpoint_path, "tensorboard")
-        callbacks_list.append(
-            keras.callbacks.TensorBoard(
-                log_dir=log_path, histogram_freq=1, write_images=True
-            )
-        )
-
     # Checkpoint saving callback
     if configuration.get("save_checkpoints", False):
         logger.debug("Adding checkpoint saving callback")

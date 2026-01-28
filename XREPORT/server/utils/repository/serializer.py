@@ -525,11 +525,19 @@ class ModelSerializer:
         self.model_name = "XREPORT"
 
     # -------------------------------------------------------------------------
-    def create_checkpoint_folder(self) -> str:
-        today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-        checkpoint_path = os.path.join(
-            CHECKPOINT_PATH, f"{self.model_name}_{today_datetime}"
-        )
+    def create_checkpoint_folder(self, name: str | None = None) -> str:
+        if name:
+            # Sanitize name: remove non-alphanumeric except underscore and hyphen
+            import re
+            sanitized_name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+            if not sanitized_name:
+                today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
+                sanitized_name = f"{self.model_name}_{today_datetime}"
+        else:
+            today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
+            sanitized_name = f"{self.model_name}_{today_datetime}"
+            
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, sanitized_name)
         os.makedirs(checkpoint_path, exist_ok=True)
         os.makedirs(os.path.join(checkpoint_path, "configuration"), exist_ok=True)
         logger.debug(f"Created checkpoint folder at {checkpoint_path}")

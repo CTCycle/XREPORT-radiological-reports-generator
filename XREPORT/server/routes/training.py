@@ -30,6 +30,7 @@ from XREPORT.server.utils.repository.serializer import (
     ModelSerializer,
     CHECKPOINT_PATH,
 )
+from XREPORT.server.utils.configurations.server import server_settings
 from XREPORT.server.database.database import database
 from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
 from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
@@ -162,7 +163,7 @@ def run_training_job(
         device.set_device()
 
         # Create checkpoint folder
-        checkpoint_path = modser.create_checkpoint_folder()
+        checkpoint_path = modser.create_checkpoint_folder(name=configuration.get("checkpoint_id"))
 
         # Build data loaders
         logger.info("Building model data loaders")
@@ -405,22 +406,72 @@ class TrainingEndpoint:
         # Build configuration from request
         configuration = request.model_dump()
         
-        # Initialize serializers
-        serializer = DataSerializer()
+        # Inject configurations from configurations.json
+        configuration["use_mixed_precision"] = server_settings.training.use_mixed_precision
+        configuration["sample_size"] = server_settings.training.sample_size
+        
+        # Load training metadata to check if we need to re-split
+        stored_metadata = serializer.load_training_data(only_metadata=True)
+        
+        # Check if requested sample_size or validation_size differs from stored one
+        req_sample = configuration["sample_size"]
+        req_val = request.validation_size
+        stored_sample = stored_metadata.get("sample_size", 1.0)
+        stored_val = stored_metadata.get("validation_size", 0.2)
         
         # Load training data
         train_data, validation_data, metadata = serializer.load_training_data()
-        if train_data.empty or validation_data.empty:
+        
+        if train_data.empty and validation_data.empty:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No training data found. Please process a dataset first.",
             )
-        
+
+        # If splitting parameters differ, re-split the already processed data
+        if abs(req_sample - stored_sample) > 1e-6 or abs(req_val - stored_val) > 1e-6:
+            logger.info("Splitting parameters changed, re-splitting data")
+            from XREPORT.server.utils.learning.processing import TrainValidationSplit
+            import pandas as pd
+            
+            # Combine train and validation data
+            full_data = pd.concat([train_data, validation_data], ignore_index=True)
+            
+            # Apply new sample size if it changed
+            if abs(req_sample - stored_sample) > 1e-6:
+                # We assume the stored data is already sampled at stored_sample. 
+                # If req_sample is different, we might need to go back to source, 
+                # but for now let's just sample from the already processed data if possible,
+                # or warn that we are sampling from the already sampled set.
+                # Actually, the most robust way is to re-load from RADIOGRAPHY_TABLE,
+                # but that would lose tokenization.
+                # Let's just sample the current data for now.
+                if req_sample < stored_sample:
+                    frac = req_sample / stored_sample
+                    full_data = full_data.sample(frac=frac, random_state=request.training_seed)
+                else:
+                    logger.warning("Requested sample_size is larger than stored sample_size. Using all available data.")
+            
+            # Re-split
+            splitter = TrainValidationSplit({
+                "validation_size": req_val,
+                "split_seed": request.training_seed
+            }, full_data)
+            split_data = splitter.split_train_and_validation()
+            
+            train_data = split_data[split_data["split"] == "train"].reset_index(drop=True)
+            validation_data = split_data[split_data["split"] == "validation"].reset_index(drop=True)
+            
+            # Update metadata for the job
+            metadata["sample_size"] = req_sample
+            metadata["validation_size"] = req_val
+            metadata["seed"] = request.training_seed
+
         # Validate stored image paths exist
         train_data = serializer.validate_img_paths(train_data)
         validation_data = serializer.validate_img_paths(validation_data)
         
-        if train_data.empty or validation_data.empty:
+        if train_data.empty and validation_data.empty:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No valid images found. Image paths may have changed since dataset was processed.",
@@ -435,6 +486,7 @@ class TrainingEndpoint:
                 "train_data": train_data,
                 "validation_data": validation_data,
                 "metadata": metadata,
+                "job_id": job_id,
             },
         )
         
