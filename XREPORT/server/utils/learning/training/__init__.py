@@ -7,8 +7,8 @@ from XREPORT.server.utils.learning.processing import (
     TrainValidationSplit,
 )
 from XREPORT.server.utils.learning.training.dataloader import (
-    DataLoaderProcessor,
     XRAYDataLoader,
+    XRAYDataset,
 )
 from XREPORT.server.utils.learning.callbacks import (
     TrainingProgressCallback,
@@ -41,8 +41,8 @@ __all__ = [
     "TextSanitizer",
     "TokenizerHandler",
     "TrainValidationSplit",
-    "DataLoaderProcessor",
     "XRAYDataLoader",
+    "XRAYDataset",
     "TrainingProgressCallback",
     "RealTimeMetricsCallback",
     "TrainingInterruptCallback",
@@ -61,4 +61,3 @@ __all__ = [
     "TransformerEncoder",
     "BeitXRayImageEncoder",
 ]
-

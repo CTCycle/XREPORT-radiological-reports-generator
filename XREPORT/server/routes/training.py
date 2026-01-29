@@ -262,8 +262,7 @@ def run_resume_training_job(
 
 
 ###############################################################################
-class TrainingEndpoint:
-    """Endpoint for model training operations."""
+class TrainingEndpoint:    
 
     JOB_TYPE = "training"
 
@@ -303,7 +302,6 @@ class TrainingEndpoint:
 
     # -----------------------------------------------------------------------------
     async def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
-        """Get metadata and configuration for a checkpoint without loading the model."""
         checkpoint = checkpoint.strip()
         if not checkpoint:
             raise HTTPException(
