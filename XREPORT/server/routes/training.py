@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-import multiprocessing
 import os
-import queue
 import shutil
-import signal
-import subprocess
 import time
 from typing import Any
 
@@ -38,6 +34,7 @@ from XREPORT.server.database.database import database
 from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
 from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
 from XREPORT.server.utils.learning.training.worker import (
+    ProcessWorker,
     run_resume_training_process,
     run_training_process,
 )
@@ -62,8 +59,7 @@ class TrainingState:
             "epoch_boundaries": [],
             "available_metrics": [],
         }
-        self.stop_event: Any | None = None
-        self.training_process: multiprocessing.Process | None = None
+        self.worker: ProcessWorker | None = None
         self.current_job_id: str | None = None
 
     # -----------------------------------------------------------------------------
@@ -111,16 +107,13 @@ class TrainingState:
         self.state["chart_data"] = []
         self.state["epoch_boundaries"] = []
         self.state["available_metrics"] = []
-        self.stop_event = None
-        self.training_process = None
         self.current_job_id = job_id
 
     # -----------------------------------------------------------------------------
     def finish_session(self) -> None:
         """Mark training session as complete."""
         self.state["is_training"] = False
-        self.stop_event = None
-        self.training_process = None
+        self.worker = None
         self.current_job_id = None
 
 
@@ -162,85 +155,45 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
 
 
 # -----------------------------------------------------------------------------
-def drain_progress_queue(job_id: str, progress_queue: Any) -> None:
+def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
     while True:
-        try:
-            message = progress_queue.get_nowait()
-        except queue.Empty:
+        message = worker.poll(timeout=0.0)
+        if message is None:
             return
         handle_training_progress(job_id, message)
 
 
 # -----------------------------------------------------------------------------
-def read_result_queue(result_queue: Any) -> dict[str, Any] | None:
-    try:
-        payload = result_queue.get_nowait()
-    except queue.Empty:
-        return None
-    if isinstance(payload, dict):
-        return payload
-    return None
-
-
-# -----------------------------------------------------------------------------
-def terminate_process_tree(process: multiprocessing.Process) -> None:
-    pid = process.pid
-    if pid is None:
-        return
-    if os.name == "nt":
-        subprocess.run(
-            ["cmd", "/c", f"taskkill /PID {pid} /T /F"],
-            check=False,
-            capture_output=True,
-        )
-        return
-    try:
-        pgid = os.getpgid(pid)
-        os.killpg(pgid, signal.SIGTERM)
-        time.sleep(1)
-        if process.is_alive():
-            os.killpg(pgid, signal.SIGKILL)
-    except ProcessLookupError:
-        return
-
-
-# -----------------------------------------------------------------------------
 def monitor_training_process(
     job_id: str,
-    process: multiprocessing.Process,
-    progress_queue: Any,
-    result_queue: Any,
-    stop_event: Any,
+    worker: ProcessWorker,
     stop_timeout_seconds: float,
 ) -> dict[str, Any]:
     stop_requested_at: float | None = None
 
-    while process.is_alive():
+    while worker.is_alive():
         if job_manager.should_stop(job_id):
-            if not stop_event.is_set():
-                stop_event.set()
+            if not worker.is_interrupted():
+                worker.stop()
                 stop_requested_at = time.monotonic()
         if stop_requested_at is not None:
             elapsed = time.monotonic() - stop_requested_at
             if elapsed >= stop_timeout_seconds:
-                terminate_process_tree(process)
+                worker.terminate()
                 break
-        try:
-            message = progress_queue.get(timeout=0.25)
-        except queue.Empty:
-            message = None
+        message = worker.poll(timeout=0.25)
         if message is not None:
             handle_training_progress(job_id, message)
-            drain_progress_queue(job_id, progress_queue)
+            drain_worker_progress(job_id, worker)
 
-    process.join(timeout=5)
-    drain_progress_queue(job_id, progress_queue)
+    worker.join(timeout=5)
+    drain_worker_progress(job_id, worker)
 
-    result_payload = read_result_queue(result_queue)
+    result_payload = worker.read_result()
     if result_payload is None:
-        if process.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+        if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
             raise RuntimeError(
-                f"Training process exited with code {process.exitcode}"
+                f"Training process exited with code {worker.exitcode}"
             )
         return {}
     if "error" in result_payload and result_payload["error"]:
@@ -256,41 +209,24 @@ def run_training_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking training function that runs in background thread."""
+    worker = ProcessWorker()
+    training_state.worker = worker
     try:
-        ctx = multiprocessing.get_context("spawn")
-        progress_queue = ctx.Queue(maxsize=256)
-        result_queue = ctx.Queue(maxsize=8)
-        stop_event = ctx.Event()
-        training_state.stop_event = stop_event
+        worker.start(
+            target=run_training_process,
+            kwargs={"configuration": configuration},
+        )
 
-        try:
-            process = ctx.Process(
-                target=run_training_process,
-                kwargs={
-                    "configuration": configuration,
-                    "progress_queue": progress_queue,
-                    "result_queue": result_queue,
-                    "stop_event": stop_event,
-                },
-                daemon=False,
-            )
-            training_state.training_process = process
-            process.start()
-
-            return monitor_training_process(
-                job_id,
-                process,
-                progress_queue,
-                result_queue,
-                stop_event,
-                stop_timeout_seconds=5.0,
-            )
-        finally:
-            progress_queue.close()
-            result_queue.close()
-            progress_queue.join_thread()
-            result_queue.join_thread()
+        return monitor_training_process(
+            job_id,
+            worker,
+            stop_timeout_seconds=5.0,
+        )
     finally:
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=5)
+        worker.cleanup()
         training_state.finish_session()
 
 
@@ -301,42 +237,27 @@ def run_resume_training_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking resume training function that runs in background thread."""
+    worker = ProcessWorker()
+    training_state.worker = worker
     try:
-        ctx = multiprocessing.get_context("spawn")
-        progress_queue = ctx.Queue(maxsize=256)
-        result_queue = ctx.Queue(maxsize=8)
-        stop_event = ctx.Event()
-        training_state.stop_event = stop_event
+        worker.start(
+            target=run_resume_training_process,
+            kwargs={
+                "checkpoint": checkpoint,
+                "additional_epochs": additional_epochs,
+            },
+        )
 
-        try:
-            process = ctx.Process(
-                target=run_resume_training_process,
-                kwargs={
-                    "checkpoint": checkpoint,
-                    "additional_epochs": additional_epochs,
-                    "progress_queue": progress_queue,
-                    "result_queue": result_queue,
-                    "stop_event": stop_event,
-                },
-                daemon=False,
-            )
-            training_state.training_process = process
-            process.start()
-
-            return monitor_training_process(
-                job_id,
-                process,
-                progress_queue,
-                result_queue,
-                stop_event,
-                stop_timeout_seconds=5.0,
-            )
-        finally:
-            progress_queue.close()
-            result_queue.close()
-            progress_queue.join_thread()
-            result_queue.join_thread()
+        return monitor_training_process(
+            job_id,
+            worker,
+            stop_timeout_seconds=5.0,
+        )
     finally:
+        if worker.is_alive():
+            worker.terminate()
+            worker.join(timeout=5)
+        worker.cleanup()
         training_state.finish_session()
 
 
@@ -650,8 +571,8 @@ class TrainingEndpoint:
                 detail=f"Job not found: {job_id}",
             )
         
-        if self.training_state.stop_event is not None:
-            self.training_state.stop_event.set()
+        if self.training_state.worker is not None:
+            self.training_state.worker.stop()
         
         success = self.job_manager.cancel_job(job_id)
         
@@ -673,8 +594,8 @@ class TrainingEndpoint:
                 detail="No training is currently in progress",
             )
         
-        if self.training_state.stop_event is not None:
-            self.training_state.stop_event.set()
+        if self.training_state.worker is not None:
+            self.training_state.worker.stop()
             logger.info("Training stop requested")
         
         # Also cancel via job manager if we have a job_id
