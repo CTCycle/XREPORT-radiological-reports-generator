@@ -417,7 +417,6 @@ export async function cancelPreparationJob(
 export interface StartTrainingConfig {
     epochs: number;
     batch_size: number;
-    training_seed: number;
     num_encoders: number;
     num_decoders: number;
     embedding_dims: number;
@@ -429,7 +428,6 @@ export interface StartTrainingConfig {
     shuffle_size: number;
     save_checkpoints: boolean;
     checkpoint_id?: string;
-    validation_size: number;
     use_device_GPU: boolean;
     device_ID: number;
     plot_training_metrics: boolean;

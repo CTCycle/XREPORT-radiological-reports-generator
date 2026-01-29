@@ -5,7 +5,7 @@ from typing import Any
 from keras import layers, ops
 from keras.layers import TorchModuleWrapper
 from keras.saving import register_keras_serializable
-from transformers import AutoImageProcessor, AutoModel
+from transformers import AutoModel
 
 from XREPORT.server.utils.constants import ENCODERS_PATH
 
@@ -32,9 +32,6 @@ class BeitXRayImageEncoder(layers.Layer):
 
         # Wrap with TorchModuleWrapper for Keras gradient tracking
         self.model = TorchModuleWrapper(beit_model)
-        self.processor = AutoImageProcessor.from_pretrained(
-            self.encoder_name, cache_dir=ENCODERS_PATH, use_fast=True
-        )
         self.dense = layers.Dense(self.embedding_dims)
 
     # build method for the custom layer

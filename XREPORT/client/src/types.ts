@@ -55,10 +55,8 @@ export interface TrainingConfig {
     shuffleBufferSize: number;
     epochs: number;
     batchSize: number;
-    trainSeed: number;
     saveCheckpoints: boolean;
     checkpointFreq: number;
-    validationSize: number;
     useScheduler: boolean;
     targetLR: number;
     warmupSteps: number;

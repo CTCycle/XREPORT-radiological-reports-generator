@@ -257,7 +257,6 @@ export default function TrainingPage() {
         const config: StartTrainingConfig = {
             epochs: state.config.epochs,
             batch_size: state.config.batchSize,
-            training_seed: state.config.trainSeed,
             num_encoders: state.config.numEncoders,
             num_decoders: state.config.numDecoders,
             embedding_dims: state.config.embeddingDims,
@@ -269,7 +268,6 @@ export default function TrainingPage() {
             shuffle_size: state.config.shuffleBufferSize,
             save_checkpoints: state.config.saveCheckpoints,
             checkpoint_id: checkpointName,
-            validation_size: state.config.validationSize,
             use_device_GPU: state.config.useGpu,
             device_ID: state.config.gpuId,
             plot_training_metrics: state.config.realTimePlot,

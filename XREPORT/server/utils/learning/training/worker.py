@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+import os
 import queue
 
 import pandas as pd
@@ -8,7 +9,6 @@ import pandas as pd
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.learning.callbacks import TrainingInterruptCallback
 from XREPORT.server.utils.learning.device import DeviceConfig
-from XREPORT.server.utils.learning.processing import TrainValidationSplit
 from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.utils.learning.training.model import build_xreport_model
 from XREPORT.server.utils.learning.training.trainer import ModelTrainer
@@ -43,51 +43,18 @@ def prepare_training_data(
     if train_data.empty and validation_data.empty:
         raise ValueError("No training data found. Please process a dataset first.")
 
-    req_sample = float(configuration.get("sample_size", 1.0))
-    req_val = float(configuration.get("validation_size", 0.2))
-    stored_sample = float(stored_metadata.get("sample_size", 1.0))
-    stored_val = float(stored_metadata.get("validation_size", 0.2))
+    # Data logic has been moved to dataset processing.
+    # We use the dataset exactly as it was processed and split.
 
-    if abs(req_sample - stored_sample) > 1e-6 or abs(req_val - stored_val) > 1e-6:
-        logger.info("Splitting parameters changed, re-splitting data")
-        full_data = pd.concat([train_data, validation_data], ignore_index=True)
 
-        if abs(req_sample - stored_sample) > 1e-6:
-            if req_sample < stored_sample:
-                frac = req_sample / stored_sample
-                full_data = full_data.sample(
-                    frac=frac,
-                    random_state=int(configuration.get("training_seed", 42)),
-                )
-            else:
-                logger.warning(
-                    "Requested sample_size is larger than stored sample_size. "
-                    "Using all available data."
-                )
-
-        splitter = TrainValidationSplit(
-            {
-                "validation_size": req_val,
-                "split_seed": int(configuration.get("training_seed", 42)),
-            },
-            full_data,
-        )
-        split_data = splitter.split_train_and_validation()
-
-        train_data = split_data[split_data["split"] == "train"].reset_index(drop=True)
-        validation_data = split_data[split_data["split"] == "validation"].reset_index(
-            drop=True
-        )
-        metadata["sample_size"] = req_sample
-        metadata["validation_size"] = req_val
-        metadata["seed"] = int(configuration.get("training_seed", 42))
-
-    train_data = serializer.validate_img_paths(train_data)
-    validation_data = serializer.validate_img_paths(validation_data)
-    if train_data.empty and validation_data.empty:
-        raise ValueError(
-            "No valid images found. Image paths may have changed since dataset was processed."
-        )
+    validate_paths = bool(configuration.get("validate_paths_on_train", False))
+    if validate_paths:
+        train_data = serializer.validate_img_paths(train_data)
+        validation_data = serializer.validate_img_paths(validation_data)
+        if train_data.empty and validation_data.empty:
+            raise ValueError(
+                "No valid images found. Image paths may have changed since dataset was processed."
+            )
 
     return train_data, validation_data, metadata
 
@@ -96,6 +63,7 @@ def prepare_training_data(
 def load_resume_training_data(
     train_config: dict[str, Any],
     model_metadata: dict[str, Any],
+    validate_paths: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     serializer = DataSerializer()
     current_metadata = serializer.load_training_data(only_metadata=True)
@@ -106,12 +74,13 @@ def load_resume_training_data(
         )
 
     train_data, validation_data, _ = serializer.load_training_data()
-    train_data = serializer.validate_img_paths(train_data)
-    validation_data = serializer.validate_img_paths(validation_data)
-    if train_data.empty or validation_data.empty:
-        raise ValueError(
-            "No valid images found. Image paths may have changed since dataset was processed."
-        )
+    if validate_paths:
+        train_data = serializer.validate_img_paths(train_data)
+        validation_data = serializer.validate_img_paths(validation_data)
+        if train_data.empty or validation_data.empty:
+            raise ValueError(
+                "No valid images found. Image paths may have changed since dataset was processed."
+            )
 
     return train_data, validation_data
 
@@ -124,7 +93,15 @@ def run_training_process(
     stop_event: Any,
 ) -> None:
     try:
+        if os.name != "nt":
+            os.setsid()
         train_data, validation_data, metadata = prepare_training_data(configuration)
+        if train_data.empty or validation_data.empty:
+            raise ValueError(
+                "Training data split is empty. Reprocess the dataset or adjust "
+                "sample_size/validation_size to ensure both train and validation "
+                "sets contain data."
+            )
 
         if stop_event.is_set():
             result_queue.put({"result": {}})
@@ -196,15 +173,24 @@ def run_resume_training_process(
     stop_event: Any,
 ) -> None:
     try:
+        if os.name != "nt":
+            os.setsid()
         modser = ModelSerializer()
         model, train_config, model_metadata, session, checkpoint_path = (
             modser.load_checkpoint(checkpoint)
         )
         train_config["additional_epochs"] = additional_epochs
 
+        validate_paths = bool(train_config.get("validate_paths_on_train", False))
         train_data, validation_data = load_resume_training_data(
-            train_config, model_metadata
+            train_config, model_metadata, validate_paths
         )
+        if train_data.empty or validation_data.empty:
+            raise ValueError(
+                "Training data split is empty. Reprocess the dataset or adjust "
+                "sample_size/validation_size to ensure both train and validation "
+                "sets contain data."
+            )
 
         if stop_event.is_set():
             result_queue.put({"result": {}})
