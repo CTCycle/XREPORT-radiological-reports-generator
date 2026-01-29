@@ -51,9 +51,6 @@ set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
 
-REM Set to "true" to install optional dependencies (e.g., test dependencies)
-set "INSTALL_EXTRAS=true"
-
 title XREPORT Launcher
 echo.
 
@@ -156,6 +153,49 @@ if exist "%node_exe%" (
 )
 
 REM ============================================================================
+REM == Load env overrides (needed before dependency install)
+REM ============================================================================
+:load_env
+set "FASTAPI_HOST=127.0.0.1"
+set "FASTAPI_PORT=8000"
+set "UI_HOST=127.0.0.1"
+set "UI_PORT=7861"
+set "RELOAD=false"
+set "OPTIONAL_DEPENDENCIES=false"
+
+if exist "%DOTENV%" (
+  for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
+    set "line=%%L"
+    if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
+      for /f "tokens=1* delims==" %%K in ("!line!") do (
+        set "k=%%K"
+        set "v=%%L"
+        if defined v (
+          if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
+          if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
+        )
+        set "!k!=!v!"
+      )
+    )
+  )
+) else (
+  echo [INFO] No .env overrides found at "%DOTENV%". Using defaults.
+)
+
+set "INSTALL_EXTRAS=false"
+if /i "!OPTIONAL_DEPENDENCIES!"=="true" set "INSTALL_EXTRAS=true"
+
+echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
+set "UI_URL=http://!UI_HOST!:!UI_PORT!"
+set "RELOAD_FLAG="
+if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
+
+REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
+set "PYTHONHOME=%python_dir%"
+set "PYTHONPATH="
+set "PYTHONNOUSERSITE=1"
+
+REM ============================================================================
 REM == Step 4: Install deps via uv
 REM ============================================================================
 echo [STEP 4/5] Installing dependencies with uv from pyproject.toml
@@ -190,45 +230,6 @@ echo [STEP 5/5] Pruning uv cache
 if exist "%UV_CACHE_DIR%" rd /s /q "%UV_CACHE_DIR%" || echo [WARN] Could not delete cache dir quickly.
 
 REM ============================================================================
-REM == Load env overrides
-REM ============================================================================
-:load_env
-set "FASTAPI_HOST=127.0.0.1"
-set "FASTAPI_PORT=8000"
-set "UI_HOST=127.0.0.1"
-set "UI_PORT=7861"
-set "RELOAD=false"
-
-if exist "%DOTENV%" (
-  for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
-    set "line=%%L"
-    if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
-      for /f "tokens=1* delims==" %%K in ("!line!") do (
-        set "k=%%K"
-        set "v=%%L"
-        if defined v (
-          if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
-          if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
-        )
-        set "!k!=!v!"
-      )
-    )
-  )
-) else (
-  echo [INFO] No .env overrides found at "%DOTENV%". Using defaults.
-)
-
-echo [INFO] FASTAPI_HOST=!FASTAPI_HOST! FASTAPI_PORT=!FASTAPI_PORT! UI_HOST=!UI_HOST! UI_PORT=!UI_PORT! RELOAD=!RELOAD!
-set "UI_URL=http://!UI_HOST!:!UI_PORT!"
-set "RELOAD_FLAG="
-if /i "!RELOAD!"=="true" set "RELOAD_FLAG=--reload"
-
-REM Ensure the embeddable runtime is used (avoid picking up Conda/other Python DLLs)
-set "PYTHONHOME=%python_dir%"
-set "PYTHONPATH="
-set "PYTHONNOUSERSITE=1"
-
-REM ============================================================================
 REM Start backend and frontend
 REM ============================================================================
 if not exist "%python_exe%" (
@@ -237,8 +238,8 @@ if not exist "%python_exe%" (
 )
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
-call :kill_port %FASTAPI_PORT%
-start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host %FASTAPI_HOST% --port %FASTAPI_PORT% %RELOAD_FLAG% --log-level info
+call :kill_port !FASTAPI_PORT!
+start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 
 if not exist "%FRONTEND_DIR%\node_modules" (
   echo [STEP] Installing frontend dependencies...
@@ -269,9 +270,9 @@ if not exist "%FRONTEND_DIST%" (
 REM ============================================================================
 REM Wait for backend to allow it to initialize
 REM ============================================================================
-echo [WAIT] Waiting for backend to be ready on port %FASTAPI_PORT%...
+echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
 for /L %%i in (1,1,20) do (
-  netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
+  netstat -ano | findstr ":!FASTAPI_PORT!" | findstr "LISTENING" >nul
   if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul
 )
@@ -280,8 +281,8 @@ echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
 
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
-call :kill_port %UI_PORT%
-start "" /b "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT% --strictPort
+call :kill_port !UI_PORT!
+start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
 popd >nul
 
 start "" "%UI_URL%"
