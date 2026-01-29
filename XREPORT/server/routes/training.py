@@ -4,6 +4,8 @@ import multiprocessing
 import os
 import queue
 import shutil
+import signal
+import subprocess
 import time
 from typing import Any
 
@@ -169,6 +171,28 @@ def read_result_queue(result_queue: Any) -> dict[str, Any] | None:
 
 
 # -----------------------------------------------------------------------------
+def terminate_process_tree(process: multiprocessing.Process) -> None:
+    pid = process.pid
+    if pid is None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["cmd", "/c", f"taskkill /PID {pid} /T /F"],
+            check=False,
+            capture_output=True,
+        )
+        return
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, signal.SIGTERM)
+        time.sleep(1)
+        if process.is_alive():
+            os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+
+
+# -----------------------------------------------------------------------------
 def monitor_training_process(
     job_id: str,
     process: multiprocessing.Process,
@@ -187,7 +211,7 @@ def monitor_training_process(
         if stop_requested_at is not None:
             elapsed = time.monotonic() - stop_requested_at
             if elapsed >= stop_timeout_seconds:
-                process.terminate()
+                terminate_process_tree(process)
                 break
         try:
             message = progress_queue.get(timeout=0.25)
@@ -246,7 +270,7 @@ def run_training_job(
                 progress_queue,
                 result_queue,
                 stop_event,
-                stop_timeout_seconds=10.0,
+                stop_timeout_seconds=5.0,
             )
         finally:
             progress_queue.close()
@@ -292,7 +316,7 @@ def run_resume_training_job(
                 progress_queue,
                 result_queue,
                 stop_event,
-                stop_timeout_seconds=10.0,
+                stop_timeout_seconds=5.0,
             )
         finally:
             progress_queue.close()
@@ -452,6 +476,7 @@ class TrainingEndpoint:
         # Inject configurations from configurations.json
         configuration["use_mixed_precision"] = server_settings.training.use_mixed_precision
         configuration["sample_size"] = server_settings.training.sample_size
+        configuration["training_seed"] = server_settings.global_settings.seed
         
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:

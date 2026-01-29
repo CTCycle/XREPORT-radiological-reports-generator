@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-import os
 
 import cv2
 import numpy as np
@@ -149,13 +148,11 @@ class XRAYDataset(Dataset):
 ###############################################################################
 class XRAYDataLoader:
     def __init__(self, configuration: dict[str, Any], shuffle: bool = True) -> None:
-        cpu_count = os.cpu_count() or 1
-        default_workers = min(4, max(1, cpu_count // 2))
         self.processor = DataLoaderProcessor(configuration)
         self.batch_size = configuration.get("batch_size", 32)
         self.inference_batch_size = configuration.get("inference_batch_size", 32)
-        self.num_workers = configuration.get("dataloader_workers", default_workers)
-        self.prefetch_factor = configuration.get("prefetch_factor", 2)
+        self.num_workers = configuration.get("dataloader_workers", 0)
+        self.prefetch_factor = configuration.get("prefetch_factor", 1)
         self.pin_memory = configuration.get("pin_memory", False)
         self.persistent_workers = configuration.get("persistent_workers", False)
         self.configuration = configuration

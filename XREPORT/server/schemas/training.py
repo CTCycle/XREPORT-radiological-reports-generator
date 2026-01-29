@@ -56,7 +56,6 @@ class BrowseResponse(BaseModel):
 class StartTrainingRequest(BaseModel):
     epochs: int = Field(10, ge=1, le=1000, description="Number of training epochs")
     batch_size: int = Field(32, ge=1, le=256, description="Batch size for training")
-    training_seed: int = Field(42, description="Random seed for training")
     num_encoders: int = Field(4, ge=1, le=12, description="Number of encoder layers")
     num_decoders: int = Field(4, ge=1, le=12, description="Number of decoder layers")
     embedding_dims: int = Field(256, ge=64, le=1024, description="Embedding dimensions")
@@ -68,7 +67,6 @@ class StartTrainingRequest(BaseModel):
     shuffle_size: int = Field(1024, ge=1, description="Shuffle buffer size")
     save_checkpoints: bool = Field(True, description="Save checkpoints during training")
     checkpoint_id: str | None = Field(None, description="Optional custom identifier for the checkpoint")
-    validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of dataset for validation")
     use_device_GPU: bool = Field(True, description="Use GPU for training")
     device_ID: int = Field(0, ge=0, description="GPU device ID")
     plot_training_metrics: bool = Field(True, description="Generate training plots")
