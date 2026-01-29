@@ -98,7 +98,7 @@ export default function TrainingDashboard({
                         Train Loss
                     </div>
                     <div className="metric-value loss">
-                        {metrics.loss.toFixed(4)}
+                        {metrics.loss.toFixed(3)}
                     </div>
                 </div>
                 <div className="metric-card">
@@ -107,7 +107,7 @@ export default function TrainingDashboard({
                         Val Loss
                     </div>
                     <div className="metric-value loss">
-                        {metrics.valLoss.toFixed(4)}
+                        {metrics.valLoss.toFixed(3)}
                     </div>
                 </div>
                 <div className="metric-card">
@@ -116,7 +116,7 @@ export default function TrainingDashboard({
                         Train Acc
                     </div>
                     <div className="metric-value accuracy">
-                        {(metrics.accuracy * 100).toFixed(2)}%
+                        {(metrics.accuracy * 100).toFixed(3)}%
                     </div>
                 </div>
                 <div className="metric-card">
@@ -125,7 +125,7 @@ export default function TrainingDashboard({
                         Val Acc
                     </div>
                     <div className="metric-value accuracy">
-                        {(metrics.valAccuracy * 100).toFixed(2)}%
+                        {(metrics.valAccuracy * 100).toFixed(3)}%
                     </div>
                 </div>
             </div>
@@ -160,7 +160,7 @@ export default function TrainingDashboard({
                 </div>
             </div>
 
-            <div className="dashboard-divider" />
+
 
             <div className="training-charts-container">
                 {chartData.length > 0 ? (

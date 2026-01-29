@@ -146,6 +146,54 @@ export default function DatabaseBrowserPage() {
 
     const displayedRowCount = useMemo(() => state.rowCount, [state.rowCount]);
 
+    // Group tables logic
+    const groupedTables = useMemo(() => {
+        const groups: Record<string, typeof state.tables> = {
+            'Reports': [],
+            'Statistics': [],
+            'Data': [],
+            'Metadata': [],
+            'Other': []
+        };
+
+        state.tables.forEach(table => {
+            const name = table.display_name;
+            if (name.endsWith('Reports')) {
+                groups['Reports'].push(table);
+            } else if (name.endsWith('Statistics')) {
+                groups['Statistics'].push(table);
+            } else if (name.endsWith('Data') || name === 'Training Dataset') {
+                groups['Data'].push(table);
+            } else if (name === 'Processing Metadata' || name === 'Checkpoints Summary') {
+                groups['Metadata'].push(table);
+            } else {
+                groups['Other'].push(table);
+            }
+        });
+
+        // Filter out empty groups and valid groups with only 1 item (move to Other)
+        // User requested: "only if groups have at least more than 1 table"
+        const finalGroups: Record<string, typeof state.tables> = {};
+        const otherAndSingles: typeof state.tables = [...groups['Other']];
+
+        Object.entries(groups).forEach(([key, tables]) => {
+            if (key === 'Other') return;
+            if (tables.length > 1) {
+                finalGroups[key] = tables;
+            } else {
+                otherAndSingles.push(...tables);
+            }
+        });
+
+        if (otherAndSingles.length > 0) {
+            // Sort to ensure consistent order
+            otherAndSingles.sort((a, b) => a.display_name.localeCompare(b.display_name));
+            finalGroups['Other'] = otherAndSingles;
+        }
+
+        return finalGroups;
+    }, [state.tables]);
+
     return (
         <div className="dbb-page">
             {/* Header */}
@@ -169,11 +217,24 @@ export default function DatabaseBrowserPage() {
                                 onChange={onTableChange}
                                 disabled={state.loading || state.tables.length === 0}
                             >
-                                {state.tables.map(table => (
-                                    <option key={table.table_name} value={table.table_name}>
-                                        {table.display_name}
-                                    </option>
-                                ))}
+                                {Object.entries(groupedTables).map(([groupName, tables]) => {
+                                    if (groupName === 'Other') {
+                                        return tables.map(table => (
+                                            <option key={table.table_name} value={table.table_name}>
+                                                {table.display_name}
+                                            </option>
+                                        ));
+                                    }
+                                    return (
+                                        <optgroup key={groupName} label={groupName}>
+                                            {tables.map(table => (
+                                                <option key={table.table_name} value={table.table_name}>
+                                                    {table.display_name}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    );
+                                })}
                             </select>
                             <button
                                 className="dbb-refresh-btn"
@@ -190,9 +251,9 @@ export default function DatabaseBrowserPage() {
                 <div className="dbb-stats-row">
                     <span className="dbb-stats-label">Statistics</span>
                     <div className="dbb-stat-item">
-                    <span className="dbb-stat-name">Rows:</span>
-                    <span className="dbb-stat-value">{state.dataLoaded ? state.totalRows : '-'}</span>
-                </div>
+                        <span className="dbb-stat-name">Rows:</span>
+                        <span className="dbb-stat-value">{state.dataLoaded ? state.totalRows : '-'}</span>
+                    </div>
                     <div className="dbb-stat-item">
                         <span className="dbb-stat-name">Columns:</span>
                         <span className="dbb-stat-value">{state.dataLoaded ? state.columnCount : '-'}</span>
