@@ -69,16 +69,16 @@ class TrainingInterruptCallback(Callback):
 
 
 ###############################################################################
-class WebSocketProgressCallback(Callback):
+class TrainingProgressCallback(Callback):
     def __init__(
         self,
-        websocket_callback: Callable[[dict[str, Any]], Any] | None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None,
         total_epochs: int,
         from_epoch: int = 0,
         update_interval: float = 1.0,
     ) -> None:
         super().__init__()
-        self.websocket_callback = websocket_callback
+        self.progress_callback = progress_callback
         self.total_epochs = total_epochs
         self.from_epoch = from_epoch
         self.start_time = time.time()
@@ -128,8 +128,8 @@ class WebSocketProgressCallback(Callback):
             "val_accuracy": self.last_val_accuracy,
         }
 
-        if self.websocket_callback is not None:
-            self.websocket_callback(message)
+        if self.progress_callback is not None:
+            self.progress_callback(message)
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
@@ -160,8 +160,8 @@ class WebSocketProgressCallback(Callback):
             "val_accuracy": self.last_val_accuracy,
         }
 
-        if self.websocket_callback is not None:
-            self.websocket_callback(message)
+        if self.progress_callback is not None:
+            self.progress_callback(message)
 
 
 ###############################################################################
@@ -171,7 +171,7 @@ class RealTimeMetricsCallback(Callback):
         configuration: dict[str, Any],
         checkpoint_path: str,
         past_logs: dict | None = None,
-        websocket_callback: Callable[[dict[str, Any]], Any] | None = None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None = None,
     ) -> None:
         super().__init__()
         self.configuration = configuration
@@ -180,7 +180,7 @@ class RealTimeMetricsCallback(Callback):
         
         self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
-        self.websocket_callback = websocket_callback
+        self.progress_callback = progress_callback
         
         # Real-time plotting configurations
         self.update_frequency = configuration.get("update_frequency_seconds", 1.0)
@@ -231,7 +231,7 @@ class RealTimeMetricsCallback(Callback):
         """Send historical chart data immediately when training starts."""
         # If we have historical data from a resumed session, send it to the frontend
         if self.batch_history:
-            self.send_plot_update()
+            self.send_plot_update(full_sync=True)
 
     # -------------------------------------------------------------------------
     def on_epoch_begin(self, epoch: int, logs: dict | None = None) -> None:
@@ -268,7 +268,7 @@ class RealTimeMetricsCallback(Callback):
         self.batch_history.append(point)
         
         self.plot_training_history(save_png=False)
-        self.send_plot_update()
+        self.send_plot_update(full_sync=False)
 
     # -------------------------------------------------------------------------
     def on_train_end(self, logs: dict | None = None) -> None:
@@ -325,17 +325,35 @@ class RealTimeMetricsCallback(Callback):
         plt.close(fig)
 
     # -------------------------------------------------------------------------
-    def send_plot_update(self) -> None:
-        if self.websocket_callback is not None:
-            # Combine metrics from epoch history and batch logs
-            all_metrics = set(self.history["history"].keys()) | self.available_batch_metrics
-            self.websocket_callback({
+    def send_plot_update(self, full_sync: bool = False) -> None:
+        if self.progress_callback is None:
+            return
+
+        if not self.batch_history:
+            return
+
+        # Combine metrics from epoch history and batch logs
+        all_metrics = set(self.history["history"].keys()) | self.available_batch_metrics
+        if full_sync:
+            self.progress_callback({
                 "type": "training_plot",
                 "chart_data": self.batch_history,
                 "metrics": list(all_metrics),
                 "epochs": self.history["epochs"],
                 "epoch_boundaries": self.epoch_boundaries,
             })
+            return
+
+        latest_point = self.batch_history[-1]
+        payload: dict[str, Any] = {
+            "type": "training_plot",
+            "chart_point": latest_point,
+            "metrics": list(all_metrics),
+            "epochs": self.history["epochs"],
+        }
+        if self.epoch_boundaries:
+            payload["epoch_boundary"] = self.epoch_boundaries[-1]
+        self.progress_callback(payload)
 
 
 
@@ -343,7 +361,7 @@ class RealTimeMetricsCallback(Callback):
 def initialize_training_callbacks(
     configuration: dict[str, Any],
     checkpoint_path: str,
-    websocket_callback: Callable[[dict[str, Any]], Any] | None = None,
+    progress_callback: Callable[[dict[str, Any]], Any] | None = None,
     interrupt_callback: TrainingInterruptCallback | None = None,
     session: dict[str, Any] | None = None,
     total_epochs: int = 100,
@@ -359,8 +377,8 @@ def initialize_training_callbacks(
     # WebSocket progress callback
     update_frequency = configuration.get("update_frequency_seconds", 1.0)
     callbacks_list.append(
-        WebSocketProgressCallback(
-            websocket_callback, total_epochs, from_epoch, update_frequency
+        TrainingProgressCallback(
+            progress_callback, total_epochs, from_epoch, update_frequency
         )
     )
 
@@ -377,7 +395,7 @@ def initialize_training_callbacks(
                 configuration,
                 checkpoint_path,
                 past_logs=session,
-                websocket_callback=websocket_callback,
+                progress_callback=progress_callback,
             )
         )
 

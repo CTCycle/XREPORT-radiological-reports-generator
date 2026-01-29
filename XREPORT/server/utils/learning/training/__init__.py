@@ -11,7 +11,7 @@ from XREPORT.server.utils.learning.training.dataloader import (
     XRAYDataLoader,
 )
 from XREPORT.server.utils.learning.callbacks import (
-    WebSocketProgressCallback,
+    TrainingProgressCallback,
     RealTimeMetricsCallback,
     TrainingInterruptCallback,
     initialize_training_callbacks,
@@ -43,7 +43,7 @@ __all__ = [
     "TrainValidationSplit",
     "DataLoaderProcessor",
     "XRAYDataLoader",
-    "WebSocketProgressCallback",
+    "TrainingProgressCallback",
     "RealTimeMetricsCallback",
     "TrainingInterruptCallback",
     "initialize_training_callbacks",

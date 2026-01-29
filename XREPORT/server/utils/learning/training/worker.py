@@ -21,8 +21,20 @@ class QueueProgressReporter:
         self.target_queue = target_queue
 
     # -------------------------------------------------------------------------
+    def drain_queue(self) -> None:
+        while True:
+            try:
+                self.target_queue.get_nowait()
+            except queue.Empty:
+                return
+            except Exception:
+                return
+
+    # -------------------------------------------------------------------------
     def __call__(self, message: dict[str, Any]) -> None:
         try:
+            if message.get("type") == "training_plot":
+                self.drain_queue()
             self.target_queue.put(message, block=False)
         except queue.Full:
             return
@@ -141,7 +153,7 @@ def run_training_process(
             train_loader,
             validation_loader,
             checkpoint_path,
-            websocket_callback=reporter,
+            progress_callback=reporter,
             interrupt_callback=interrupt_callback,
         )
 
@@ -221,7 +233,7 @@ def run_resume_training_process(
             checkpoint_path,
             session=session,
             additional_epochs=additional_epochs,
-            websocket_callback=reporter,
+            progress_callback=reporter,
             interrupt_callback=interrupt_callback,
         )
 

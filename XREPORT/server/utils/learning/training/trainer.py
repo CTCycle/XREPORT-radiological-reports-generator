@@ -30,7 +30,7 @@ class ModelTrainer:
         train_data: Any,
         validation_data: Any,
         checkpoint_path: str,
-        websocket_callback: Callable[[dict[str, Any]], Any] | None = None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None = None,
         interrupt_callback: TrainingInterruptCallback | None = None,
     ) -> tuple[Model, dict[str, Any]]:
         total_epochs = self.configuration.get("epochs", 10)
@@ -38,7 +38,7 @@ class ModelTrainer:
         callbacks_list = initialize_training_callbacks(
             self.configuration,
             checkpoint_path,
-            websocket_callback=websocket_callback,
+            progress_callback=progress_callback,
             interrupt_callback=interrupt_callback,
             total_epochs=total_epochs,
         )
@@ -66,7 +66,7 @@ class ModelTrainer:
         checkpoint_path: str,
         session: dict[str, Any] | None = None,
         additional_epochs: int = 10,
-        websocket_callback: Callable[[dict[str, Any]], Any] | None = None,
+        progress_callback: Callable[[dict[str, Any]], Any] | None = None,
         interrupt_callback: TrainingInterruptCallback | None = None,
     ) -> tuple[Model, dict[str, Any]]:
         session = session or {}
@@ -76,7 +76,7 @@ class ModelTrainer:
         callbacks_list = initialize_training_callbacks(
             self.configuration,
             checkpoint_path,
-            websocket_callback=websocket_callback,
+            progress_callback=progress_callback,
             interrupt_callback=interrupt_callback,
             session=session,
             total_epochs=total_epochs,
