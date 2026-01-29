@@ -1,9 +1,10 @@
 .training-dashboard {
-    background: linear-gradient(135deg, rgba(30, 30, 35, 0.95), rgba(25, 25, 30, 0.9));
-    border: 1px solid rgba(255, 215, 0, 0.2);
-    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
     padding: 1.5rem;
     margin-top: 1.5rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 
 .dashboard-header {
@@ -12,15 +13,15 @@
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .dashboard-title {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    color: #ffd700;
-    font-size: 1.1rem;
+    color: var(--text-primary);
+    font-size: 1.05rem;
     font-weight: 600;
 }
 
@@ -32,18 +33,19 @@
     border-radius: 20px;
     font-size: 0.85rem;
     font-weight: 500;
+    border: 1px solid transparent;
 }
 
 .dashboard-status.training {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803d;
+    border-color: rgba(34, 197, 94, 0.25);
 }
 
 .dashboard-status.idle {
-    background: rgba(100, 100, 110, 0.15);
-    color: #9ca3af;
-    border: 1px solid rgba(100, 100, 110, 0.3);
+    background: rgba(148, 163, 184, 0.2);
+    color: #475569;
+    border-color: rgba(148, 163, 184, 0.4);
 }
 
 .status-indicator {
@@ -81,34 +83,31 @@
 }
 
 .training-dashboard .metric-card {
-    background: #1a1a1f;
-    border: 1px solid rgba(255, 215, 0, 0.1);
-    border-radius: 8px;
-    padding: 1rem;
-    text-align: center;
+    padding: 0.35rem 0;
+    text-align: left;
 }
 
 .metric-label {
-    color: #9ca3af;
-    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 0.5rem;
 }
 
 .metric-value {
-    color: #f3f4f6;
-    font-size: 1.5rem;
+    color: var(--text-primary);
+    font-size: 1.15rem;
     font-weight: 600;
     font-family: 'JetBrains Mono', monospace;
 }
 
 .metric-value.loss {
-    color: #f59e0b;
+    color: #b45309;
 }
 
 .metric-value.accuracy {
-    color: #22c55e;
+    color: #2563eb;
 }
 
 .progress-section {
@@ -123,54 +122,56 @@
 }
 
 .progress-label {
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
 .progress-time {
-    color: #6b7280;
+    color: var(--text-secondary);
     font-size: 0.8rem;
     font-family: 'JetBrains Mono', monospace;
 }
 
+.progress-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .progress-bar-container {
-    height: 8px;
-    background: rgba(100, 100, 110, 0.3);
+    height: 10px;
+    background: #e2e8f0;
     border-radius: 4px;
     overflow: hidden;
+    flex: 1;
 }
 
 .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #ffd700, #fbbf24);
+    background: linear-gradient(90deg, #60a5fa, #34d399);
     border-radius: 4px;
     transition: width 0.3s ease;
-}
-
-.dashboard-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 1rem;
 }
 
 .btn-stop {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 6px;
-    color: #ef4444;
+    padding: 0.45rem 0.9rem;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 8px;
+    color: #dc2626;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 .btn-stop:hover {
-    background: rgba(239, 68, 68, 0.25);
-    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 .btn-stop:disabled {
@@ -179,7 +180,7 @@
 }
 
 .idle-message {
-    color: #6b7280;
+    color: var(--text-secondary);
     text-align: center;
     padding: 2rem;
     font-size: 0.9rem;
@@ -189,27 +190,44 @@
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .progress-bar-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-stop {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+@media (max-width: 960px) {
+    .training-charts-container {
+        flex-direction: column;
+    }
 }
 
 /* Training Charts Styles */
 .training-charts-container {
-    margin-top: 1.5rem;
+    margin-top: 1.25rem;
     display: flex;
     flex-direction: row;
-    gap: 1.5rem;
+    gap: 2rem;
+    flex-wrap: wrap;
 }
 
 .chart-section {
-    flex: 1;
-    padding: 1rem;
-    background: rgba(20, 20, 25, 0.6);
-    border: 1px solid rgba(255, 215, 0, 0.1);
-    border-radius: 8px;
+    flex: 1 1 320px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .chart-title {
-    color: #ffd700;
-    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
     font-weight: 600;
     margin-bottom: 1rem;
     text-transform: uppercase;
@@ -222,12 +240,12 @@
 }
 
 .recharts-legend-item-text {
-    color: #9ca3af !important;
+    color: var(--text-secondary) !important;
     font-size: 0.8rem !important;
 }
 
 .recharts-tooltip-label {
-    color: #ffd700 !important;
+    color: #0f172a !important;
     font-weight: 600;
 }
 
@@ -235,10 +253,51 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 200px;
-    color: #6b7280;
+    height: 260px;
+    color: var(--text-secondary);
     font-size: 0.9rem;
-    background: rgba(20, 20, 25, 0.4);
-    border: 1px dashed rgba(255, 215, 0, 0.2);
-    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.1);
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+}
+
+.dashboard-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 1.25rem 0;
+}
+
+.dashboard-logs {
+    margin-top: 1.5rem;
+}
+
+.log-header {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.log-body {
+    background: #f1f5f9;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #0f172a;
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+.log-empty {
+    background: #f1f5f9;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }
