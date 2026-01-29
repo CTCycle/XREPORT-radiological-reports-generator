@@ -285,6 +285,7 @@ export default function DatasetPage() {
 
         const { result: jobResult, error: startError } = await processDataset({
             dataset_name: selectedNames[0],
+            custom_name: state.config.datasetName,
             sample_size: state.config.sampleSize,
             validation_size: state.config.validationSize,
             tokenizer: state.config.tokenizer,
@@ -836,6 +837,16 @@ export default function DatasetPage() {
                                                 <option value="bert-base-uncased">bert-base-uncased</option>
                                                 <option value="roberta-base">roberta-base</option>
                                             </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Dataset Name (Optional)</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Default: source name"
+                                                value={state.config.datasetName || ''}
+                                                onChange={(e) => handleConfigChange('datasetName', e.target.value)}
+                                            />
                                         </div>
                                     </div>
 
