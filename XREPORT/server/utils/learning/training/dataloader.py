@@ -45,8 +45,7 @@ class DataLoaderProcessor:
             self.image_augmentation(rgb_image) if self.augmentation else rgb_image
         )
         rgb_image = self.image_normalization(rgb_image)
-        # HWC -> CHW conversion
-        rgb_image = np.transpose(rgb_image, (2, 0, 1))
+        rgb_image = np.ascontiguousarray(rgb_image)
 
         token_array = np.asarray(text, dtype=np.int64)
         input_text = token_array[:-1]
@@ -61,8 +60,7 @@ class DataLoaderProcessor:
     def load_data_for_inference(self, path: str) -> torch.Tensor:
         rgb_image = self.load_image(path)
         rgb_image = self.image_normalization(rgb_image)
-        # HWC -> CHW conversion
-        rgb_image = np.transpose(rgb_image, (2, 0, 1))
+        rgb_image = np.ascontiguousarray(rgb_image)
         return torch.from_numpy(rgb_image)
 
     # -------------------------------------------------------------------------

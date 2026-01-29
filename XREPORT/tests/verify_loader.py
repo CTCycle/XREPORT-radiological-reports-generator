@@ -70,14 +70,14 @@ def verify_loader():
     assert isinstance(inputs, torch.Tensor), "Inputs should be Tensor"
     assert isinstance(outputs, torch.Tensor), "Outputs should be Tensor"
     
-    # Check shapes. Default HWC -> CHW done in processor.
-    # Batch size 2. Image (3, 224, 224).
+    # Check shapes. Processor keeps images as HWC.
+    # Batch size 2. Image (224, 224, 3).
     # Tokens: [1, 2, 3] -> input [1, 2], output [2, 3] (length 2)
     print(f"Image shape: {images.shape}")
     print(f"Input shape: {inputs.shape}")
     print(f"Output shape: {outputs.shape}")
 
-    assert images.shape == (2, 3, 224, 224), f"Incorrect image shape: {images.shape}"
+    assert images.shape == (2, 224, 224, 3), f"Incorrect image shape: {images.shape}"
     assert inputs.shape == (2, 2), f"Incorrect input shape: {inputs.shape}"
     assert outputs.shape == (2, 2), f"Incorrect output shape: {outputs.shape}"
     
@@ -92,7 +92,7 @@ def verify_loader():
     batch_inf = next(iter(inf_loader))
     
     assert isinstance(batch_inf, torch.Tensor), "Inference batch should be Tensor"
-    assert batch_inf.shape == (2, 3, 224, 224), f"Incorrect inference shape: {batch_inf.shape}"
+    assert batch_inf.shape == (2, 224, 224, 3), f"Incorrect inference shape: {batch_inf.shape}"
     assert batch_inf.dtype == torch.float32, f"Inference dtype should be float32, got {batch_inf.dtype}"
 
     print("Verification Successful!")
