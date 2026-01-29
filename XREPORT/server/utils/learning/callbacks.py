@@ -16,10 +16,22 @@ from XREPORT.server.utils.jobs import job_manager
 
 
 ###############################################################################
+class WorkerInterrupted(RuntimeError):
+    pass
+
+
+
+###############################################################################
 class TrainingInterruptCallback(Callback):
-    def __init__(self, job_id: str | None = None, stop_event: Any | None = None) -> None:
+    def __init__(
+        self,
+        worker: Any | None = None,
+        job_id: str | None = None,
+        stop_event: Any | None = None,
+    ) -> None:
         super().__init__()
         self.should_stop = False
+        self.worker = worker
         self.job_id = job_id
         self.stop_event = stop_event
         self.stop_logged = False
@@ -32,6 +44,12 @@ class TrainingInterruptCallback(Callback):
 
     # -------------------------------------------------------------------------
     def is_stop_requested(self) -> bool:
+        if self.worker is not None:
+            try:
+                if self.worker.is_interrupted():
+                    return True
+            except Exception:  # noqa: BLE001
+                pass
         if self.should_stop:
             return True
         if self.stop_event is not None and self.stop_event.is_set():
@@ -52,19 +70,32 @@ class TrainingInterruptCallback(Callback):
             self.stop_logged = True
 
     # -------------------------------------------------------------------------
+    def raise_if_interrupted(self) -> None:
+        if self.worker is None:
+            return
+        try:
+            if self.worker.is_interrupted():
+                raise WorkerInterrupted("Training interrupted")
+        except Exception:  # noqa: BLE001
+            return
+
+    # -------------------------------------------------------------------------
     def on_train_begin(self, logs: dict | None = None) -> None:
         self.apply_stop_if_requested()
 
     # -------------------------------------------------------------------------
     def on_batch_end(self, batch: int, logs: dict | None = None) -> None:
+        self.raise_if_interrupted()
         self.apply_stop_if_requested()
 
     # -------------------------------------------------------------------------
     def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
+        self.raise_if_interrupted()
         self.apply_stop_if_requested()
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
+        self.raise_if_interrupted()
         self.apply_stop_if_requested()
 
 
@@ -363,6 +394,7 @@ def initialize_training_callbacks(
     checkpoint_path: str,
     progress_callback: Callable[[dict[str, Any]], Any] | None = None,
     interrupt_callback: TrainingInterruptCallback | None = None,
+    worker: Any | None = None,
     session: dict[str, Any] | None = None,
     total_epochs: int = 100,
 ) -> list[Any]:
@@ -384,9 +416,11 @@ def initialize_training_callbacks(
 
     # Training interrupt callback
     if interrupt_callback is not None:
+        if worker is not None and getattr(interrupt_callback, "worker", None) is None:
+            interrupt_callback.worker = worker
         callbacks_list.append(interrupt_callback)
     else:
-        callbacks_list.append(TrainingInterruptCallback())
+        callbacks_list.append(TrainingInterruptCallback(worker=worker))
 
     # Real-time metrics plotting
     if configuration.get("plot_training_metrics", False):

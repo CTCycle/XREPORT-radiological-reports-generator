@@ -32,6 +32,7 @@ class ModelTrainer:
         checkpoint_path: str,
         progress_callback: Callable[[dict[str, Any]], Any] | None = None,
         interrupt_callback: TrainingInterruptCallback | None = None,
+        worker: Any | None = None,
     ) -> tuple[Model, dict[str, Any]]:
         total_epochs = self.configuration.get("epochs", 10)
         
@@ -40,6 +41,7 @@ class ModelTrainer:
             checkpoint_path,
             progress_callback=progress_callback,
             interrupt_callback=interrupt_callback,
+            worker=worker,
             total_epochs=total_epochs,
         )
 
@@ -68,6 +70,7 @@ class ModelTrainer:
         additional_epochs: int = 10,
         progress_callback: Callable[[dict[str, Any]], Any] | None = None,
         interrupt_callback: TrainingInterruptCallback | None = None,
+        worker: Any | None = None,
     ) -> tuple[Model, dict[str, Any]]:
         session = session or {}
         from_epoch = session.get("epochs", 0)
@@ -78,6 +81,7 @@ class ModelTrainer:
             checkpoint_path,
             progress_callback=progress_callback,
             interrupt_callback=interrupt_callback,
+            worker=worker,
             session=session,
             total_epochs=total_epochs,
         )
