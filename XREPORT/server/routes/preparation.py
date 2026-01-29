@@ -39,6 +39,7 @@ from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.utils.repository.serializer import DataSerializer
 from XREPORT.server.utils.constants import (
     RADIOGRAPHY_TABLE,
+    TRAINING_DATASET_TABLE,
     VALIDATION_REPORTS_TABLE,
     PROCESSING_METADATA_TABLE,
     IMAGE_STATISTICS_TABLE,
@@ -253,6 +254,53 @@ class PreparationEndpoint:
                     folder_path=folder_path,
                     row_count=row_count,
                     has_validation_report=name in report_names,
+                ))
+        
+        return DatasetNamesResponse(
+            datasets=datasets,
+            count=len(datasets),
+        )
+
+    # -----------------------------------------------------------------------------
+    async def get_processed_dataset_names(self) -> DatasetNamesResponse:
+        """Get list of processed datasets available for training."""
+        with self.database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(TRAINING_DATASET_TABLE):
+                return DatasetNamesResponse(datasets=[], count=0)
+
+            # Get dataset name and row count from TRAINING_DATASET table
+            # Group by dataset_name
+            result = conn.execute(
+                sqlalchemy.text('''
+                    SELECT 
+                        dataset_name,
+                        COUNT(*) as row_count
+                    FROM "TRAINING_DATASET"
+                    GROUP BY dataset_name
+                    ORDER BY dataset_name
+                ''')
+            )
+            
+            datasets = []
+            for row in result.fetchall():
+                name = row[0]
+                row_count = row[1]
+                
+                # Check for validation report to flag it
+                has_report = False
+                if inspector.has_table(VALIDATION_REPORTS_TABLE):
+                    report_result = conn.execute(
+                        sqlalchemy.text('SELECT 1 FROM "VALIDATION_REPORTS" WHERE dataset_name = :name'),
+                        {"name": name}
+                    )
+                    has_report = report_result.fetchone() is not None
+
+                datasets.append(DatasetInfo(
+                    name=name,
+                    folder_path="processed",  # Placeholder indicating processed data
+                    row_count=row_count,
+                    has_validation_report=has_report,
                 ))
         
         return DatasetNamesResponse(
@@ -748,6 +796,13 @@ class PreparationEndpoint:
         self.router.add_api_route(
             "/dataset/names",
             self.get_dataset_names,
+            methods=["GET"],
+            response_model=DatasetNamesResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/processed/names",
+            self.get_processed_dataset_names,
             methods=["GET"],
             response_model=DatasetNamesResponse,
             status_code=status.HTTP_200_OK,

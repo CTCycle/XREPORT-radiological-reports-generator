@@ -306,7 +306,9 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def load_training_data(
-        self, only_metadata: bool = False
+        self,
+        only_metadata: bool = False,
+        dataset_name: str | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
         # Load metadata from database
         metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
@@ -316,8 +318,19 @@ class DataSerializer:
                 return {}
             return pd.DataFrame(), pd.DataFrame(), {}
 
-        # Get the latest metadata record (last row)
-        latest_metadata = metadata_df.iloc[-1].to_dict()
+        # Filter metadata by dataset_name if provided
+        if dataset_name:
+            filtered_meta = metadata_df[metadata_df["dataset_name"] == dataset_name]
+            if filtered_meta.empty:
+                logger.warning(f"No metadata found for dataset: {dataset_name}")
+                if only_metadata:
+                    return {}
+                return pd.DataFrame(), pd.DataFrame(), {}
+            latest_metadata = filtered_meta.iloc[-1].to_dict()
+        else:
+            # Get the latest metadata record (last row) if no specific dataset requested
+            latest_metadata = metadata_df.iloc[-1].to_dict()
+            
         # Remove the 'id' column from metadata dict
         latest_metadata.pop("id", None)
 
@@ -327,7 +340,12 @@ class DataSerializer:
         training_data = self.load_table(TRAINING_DATASET_TABLE)
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
-
+        
+        # Filter training data by dataset_name if using the new schema
+        if "dataset_name" in training_data.columns:
+            target_name = dataset_name or latest_metadata.get("dataset_name")
+            if target_name:
+                training_data = training_data[training_data["dataset_name"] == target_name]
 
         train_data = training_data[training_data["split"] == "train"].copy()
         val_data = training_data[training_data["split"] == "validation"].copy()
@@ -362,11 +380,18 @@ class DataSerializer:
             "prepare",
         )
 
-        db_columns = ["image", "tokens", "split", "path"]
+        db_columns = ["dataset_name", "hashcode", "id", "image", "tokens", "split", "path"]
+        
         # Ensure path column exists
         if "path" not in training_data.columns:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
+            
+        # Add dataset_name and hashcode
+        dataset_name = configuration.get("dataset_name", "default")
+        training_data["dataset_name"] = dataset_name
+        training_data["hashcode"] = hashcode
+            
         training_data_filtered = training_data[db_columns].copy()
 
         required_columns = TABLE_REQUIRED_COLUMNS.get(TRAINING_DATASET_TABLE, [])
@@ -376,7 +401,8 @@ class DataSerializer:
             )
         
         try:
-            self.save_table(training_data_filtered, TRAINING_DATASET_TABLE)
+            # Use upsert instead of save_table to allow multiple datasets to coexist
+            self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
         except OperationalError as e:
             error_msg = str(e)
             if "no column named" in error_msg or "has no column" in error_msg:
