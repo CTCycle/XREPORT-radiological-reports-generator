@@ -55,6 +55,7 @@ class ProcessingMetadata(Base):
     max_report_size = Column(Integer)
     tokenizer = Column(String)
     hashcode = Column(String)
+    source_dataset = Column(String)
     __table_args__ = (UniqueConstraint("dataset_name"),)
 
 
