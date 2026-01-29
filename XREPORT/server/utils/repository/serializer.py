@@ -414,6 +414,7 @@ class DataSerializer:
             raise
         
         # Save metadata to database table
+        # Save metadata to database table
         metadata = {
             "dataset_name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -424,6 +425,7 @@ class DataSerializer:
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
             "hashcode": hashcode,
+            "source_dataset": configuration.get("source_dataset", None),
         }
         
         metadata_df = pd.DataFrame([metadata])
@@ -431,12 +433,24 @@ class DataSerializer:
             self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
         except OperationalError as e:
             error_msg = str(e)
-            if "no column named" in error_msg or "has no column" in error_msg:
-                raise RuntimeError(
-                    "Database schema mismatch for PROCESSING_METADATA table. "
-                    "Please delete the database file and restart the server to reinitialize."
-                ) from e
-            raise
+            if "no column named" in error_msg or "has no column" in error_msg or "source_dataset" in error_msg:
+                logger.warning("Schema mismatch detected. Attempting to migrate PROCESSING_METADATA table...")
+                try:
+                    # Auto-migration: Add the missing source_dataset column
+                    with database.backend.engine.connect() as conn:
+                        conn.execute(sqlalchemy.text('ALTER TABLE "PROCESSING_METADATA" ADD COLUMN source_dataset VARCHAR'))
+                        conn.commit()
+                    logger.info("Successfully added 'source_dataset' column to PROCESSING_METADATA.")
+                    # Retry save
+                    self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
+                except Exception as migration_error:
+                    logger.error(f"Migration failed: {migration_error}")
+                    raise RuntimeError(
+                        "Database schema mismatch for PROCESSING_METADATA table and migration failed. "
+                        "Please delete the database file and restart to reinitialize."
+                    ) from e
+            else:
+                raise
 
     # -------------------------------------------------------------------------
     def upsert_source_dataset(self, dataset: pd.DataFrame) -> None:
