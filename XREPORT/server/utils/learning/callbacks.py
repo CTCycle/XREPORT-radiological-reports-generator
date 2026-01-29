@@ -17,10 +17,11 @@ from XREPORT.server.utils.jobs import job_manager
 
 ###############################################################################
 class TrainingInterruptCallback(Callback):
-    def __init__(self, job_id: str | None = None) -> None:
+    def __init__(self, job_id: str | None = None, stop_event: Any | None = None) -> None:
         super().__init__()
         self.should_stop = False
         self.job_id = job_id
+        self.stop_event = stop_event
         self.stop_logged = False
         self.model: keras.Model
 
@@ -32,6 +33,8 @@ class TrainingInterruptCallback(Callback):
     # -------------------------------------------------------------------------
     def is_stop_requested(self) -> bool:
         if self.should_stop:
+            return True
+        if self.stop_event is not None and self.stop_event.is_set():
             return True
         if self.job_id is None:
             return False
