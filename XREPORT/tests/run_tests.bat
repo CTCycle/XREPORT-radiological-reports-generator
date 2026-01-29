@@ -100,7 +100,7 @@ set "STARTED_FRONTEND=0"
 
 if "%BACKEND_RUNNING%"=="0" (
     echo [INFO] Starting backend server...
-    start "" /B cmd /c "cd /d ""%PROJECT_ROOT%"" && ""%PYTHON_CMD%"" -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000"
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
     set "STARTED_BACKEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -131,7 +131,7 @@ if "%FRONTEND_RUNNING%"=="0" (
     )
 
     echo [INFO] Starting frontend server...
-    start "" /B cmd /c "cd /d ""%FRONTEND_DIR%"" && ""%NPM_RUN%"" run preview"
+    start "" /B /D "%FRONTEND_DIR%" "%NPM_RUN%" run preview -- --host 127.0.0.1 --port 7861 --strictPort
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -199,3 +199,4 @@ if "%STARTED_FRONTEND%"=="1" (
 )
 
 exit /b %TEST_RESULT%
+
