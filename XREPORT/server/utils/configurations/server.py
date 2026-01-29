@@ -11,6 +11,7 @@ from XREPORT.server.utils.configurations.base import (
 from XREPORT.server.utils.constants import CONFIGURATION_FILE
 
 from XREPORT.server.utils.types import (
+    coerce_bool,
     coerce_float,
     coerce_int,
     coerce_str,
@@ -62,7 +63,10 @@ class TrainingSettings:
     use_jit: bool
     jit_backend: str
     use_mixed_precision: bool
-    sample_size: float
+    dataloader_workers: int
+    prefetch_factor: int
+    pin_memory: bool
+    persistent_workers: bool
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -149,7 +153,10 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
         use_jit=bool(payload.get("use_jit", True)),
         jit_backend=jit_backend,
         use_mixed_precision=bool(payload.get("use_mixed_precision", False)),
-        sample_size=coerce_float(payload.get("sample_size"), 1.0),
+        dataloader_workers=coerce_int(payload.get("dataloader_workers"), 0, minimum=0),
+        prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
+        pin_memory=coerce_bool(payload.get("pin_memory"), False),
+        persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
     )
 
 # -----------------------------------------------------------------------------
