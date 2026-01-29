@@ -55,8 +55,8 @@ export default function ResumeTrainingWizard({
     const canConfirm = Boolean(selectedCheckpoint);
 
     return (
-        <div className="training-modal-backdrop" onClick={onClose}>
-            <div className="training-wizard-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="training-modal-backdrop">
+            <div className="training-wizard-modal">
                 <div className="training-wizard-header">
                     <div>
                         <h3>Resume Training Wizard</h3>

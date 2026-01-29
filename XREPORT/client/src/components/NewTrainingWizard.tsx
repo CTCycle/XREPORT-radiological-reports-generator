@@ -60,8 +60,8 @@ export default function NewTrainingWizard({
     };
 
     return (
-        <div className="training-modal-backdrop" onClick={onClose}>
-            <div className="training-wizard-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="training-modal-backdrop">
+            <div className="training-wizard-modal">
                 <div className="training-wizard-header">
                     <div>
                         <h3>New Training Wizard</h3>
@@ -159,21 +159,8 @@ export default function NewTrainingWizard({
                                 <span>Dataset Configuration</span>
                             </div>
                             <div className="wizard-aligned-grid">
-                                {/* Row 1 */}
                                 <div className="form-group grid-col-left">
-                                    <label className="form-label">Validation Split</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0.05"
-                                        max="0.5"
-                                        className="form-input"
-                                        value={config.validationSize}
-                                        onChange={(e) => onConfigChange('validationSize', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                                <div className="grid-col-right form-group">
-                                    <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Validation Split</label>
+                                    <label className="form-label">Image Augmentation</label>
                                     <label className="form-checkbox">
                                         <input
                                             type="checkbox"
@@ -181,22 +168,11 @@ export default function NewTrainingWizard({
                                             onChange={(e) => onConfigChange('useImgAugment', e.target.checked)}
                                         />
                                         <div className="checkbox-visual" />
-                                        <span className="checkbox-label">Image Augmentation</span>
+                                        <span className="checkbox-label">Enable Augmentation</span>
                                     </label>
                                 </div>
-
-                                {/* Row 2 */}
-                                <div className="form-group grid-col-left">
-                                    <label className="form-label">Split Seed</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.trainSeed}
-                                        onChange={(e) => onConfigChange('trainSeed', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
                                 <div className="shuffle-container grid-col-right form-group">
-                                    <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Shuffle</label>
+                                    <label className="form-label" style={{ userSelect: 'none' }}>Shuffle</label>
                                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'stretch' }}>
                                         <label className="form-checkbox" style={{ marginBottom: 0 }}>
                                             <input
@@ -332,8 +308,7 @@ export default function NewTrainingWizard({
                                         <h5>Dataset & Training</h5>
                                         <div className="summary-grid">
                                             <div className="summary-item"><label>Dataset:</label> <span>{selectedDatasetLabel}</span></div>
-                                            <div className="summary-item"><label>Validation:</label> <span>{config.validationSize}</span></div>
-                                            <div className="summary-item"><label>Split Seed:</label> <span>{config.trainSeed}</span></div>
+
                                             <div className="summary-item"><label>Epochs:</label> <span>{config.epochs}</span></div>
                                             <div className="summary-item"><label>Batch Size:</label> <span>{config.batchSize}</span></div>
                                         </div>
