@@ -1,215 +1,159 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
 
 REM ============================================================================
-REM == XREPORT E2E Test Runner
-REM == Automatically starts the application, runs tests, and cleans up.
+REM XREPORT Test Runner
+REM Automated E2E test execution for Windows
 REM ============================================================================
 
-set "tests_folder=%~dp0"
-set "root_folder=%tests_folder%..\"
-set "project_folder=%root_folder%XREPORT\"
-set "runtimes_dir=%project_folder%resources\runtimes"
-set "settings_dir=%project_folder%settings"
-
-set "python_dir=%runtimes_dir%\python"
-set "python_exe=%python_dir%\python.exe"
-set "uv_dir=%runtimes_dir%\uv"
-set "uv_exe=%uv_dir%\uv.exe"
-set "nodejs_dir=%runtimes_dir%\nodejs"
-set "node_exe=%nodejs_dir%\node.exe"
-set "npm_cmd=%nodejs_dir%\npm.cmd"
-
-set "DOTENV=%settings_dir%\.env"
-set "FRONTEND_DIR=%project_folder%client"
-set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
-set "UVICORN_MODULE=XREPORT.server.app:app"
-
-title XREPORT Test Runner
 echo.
-echo ============================================================================
-echo    XREPORT E2E Test Runner
-echo ============================================================================
+echo ============================================================
+echo  XREPORT Test Runner
+echo ============================================================
 echo.
 
-REM ============================================================================
-REM == Check prerequisites
-REM ============================================================================
-if not exist "%python_exe%" (
-    echo [ERROR] Python not found. Please run XREPORT\start_on_windows.bat first.
-    goto error
-)
-if not exist "%uv_exe%" (
-    echo [ERROR] uv not found. Please run XREPORT\start_on_windows.bat first.
-    goto error
-)
-if not exist "%node_exe%" (
-    echo [ERROR] Node.js not found. Please run XREPORT\start_on_windows.bat first.
-    goto error
-)
-if not exist "%npm_cmd%" (
-    echo [ERROR] npm not found. Please run XREPORT\start_on_windows.bat first.
-    goto error
+REM Store the script directory
+set "SCRIPT_DIR=%~dp0"
+set "PROJECT_ROOT=%SCRIPT_DIR%.."
+set "XREPORT_DIR=%SCRIPT_DIR%.."
+set "PYTHON_EXE=%PROJECT_ROOT%\\XREPORT\\resources\\runtimes\\python\\python.exe"
+set "VENV_PYTHON=%PROJECT_ROOT%\\.venv\\Scripts\\python.exe"
+
+REM Check for Python (prefer uv-created .venv, then embedded runtime)
+if exist "%VENV_PYTHON%" (
+    set "PYTHON_CMD=%VENV_PYTHON%"
+) else if exist "%PYTHON_EXE%" (
+    set "PYTHON_CMD=%PYTHON_EXE%"
+) else (
+    where python >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Python not found in PATH. Please install Python 3.14+.
+        exit /b 1
+    )
+    set "PYTHON_CMD=python"
 )
 
-echo [OK] All prerequisites found.
-
-REM ============================================================================
-REM == Load environment variables
-REM ============================================================================
-set "FASTAPI_HOST=127.0.0.1"
-set "FASTAPI_PORT=8000"
-set "UI_HOST=127.0.0.1"
-set "UI_PORT=7861"
-
-if exist "%DOTENV%" (
-    for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
-        set "line=%%L"
-        if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
-            for /f "tokens=1* delims==" %%K in ("!line!") do (
-                set "k=%%K"
-                set "v=%%L"
-                if defined v (
-                    if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
-                    if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
-                )
-                set "!k!=!v!"
-            )
-        )
+REM Check for pytest
+"%PYTHON_CMD%" -c "import pytest" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Installing test dependencies...
+    "%PYTHON_CMD%" -m pip install -e "%PROJECT_ROOT%[test]"
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to install test dependencies.
+        exit /b 1
     )
 )
 
-REM ============================================================================
-REM == Force portable runtimes (avoid global Python/npm)
-REM ============================================================================
-set "PATH=%python_dir%;%nodejs_dir%;%PATH%"
-set "PYTHONHOME=%python_dir%"
-set "PYTHONPATH="
-set "PYTHONNOUSERSITE=1"
-set "VIRTUAL_ENV="
-set "__PYVENV_LAUNCHER__="
-set "PYTHON=%python_exe%"
-set "npm_config_python=%python_exe%"
+REM Check for playwright
+"%PYTHON_CMD%" -c "import playwright" >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Installing Playwright...
+    "%PYTHON_CMD%" -m pip install pytest-playwright
+)
 
-REM ============================================================================
-REM == Configure pytest / Playwright options
-REM ============================================================================
-if not defined E2E_HEADLESS set "E2E_HEADLESS=true"
-if not defined E2E_BROWSER set "E2E_BROWSER=chromium"
-if not defined E2E_SLOWMO set "E2E_SLOWMO=0"
-if not defined E2E_PWDEBUG set "E2E_PWDEBUG=0"
-
-set "PYTEST_ARGS=tests -v --tb=short"
-if defined E2E_BROWSER set "PYTEST_ARGS=!PYTEST_ARGS! --browser !E2E_BROWSER!"
-if /i "!E2E_HEADLESS!"=="false" set "PYTEST_ARGS=!PYTEST_ARGS! --headed"
-if /i "!E2E_HEADLESS!"=="0" set "PYTEST_ARGS=!PYTEST_ARGS! --headed"
-if not "!E2E_SLOWMO!"=="0" set "PYTEST_ARGS=!PYTEST_ARGS! --slowmo !E2E_SLOWMO!"
-if /i "!E2E_PWDEBUG!"=="1" set "PWDEBUG=1" & set "PYTEST_ARGS=!PYTEST_ARGS! --headed"
-if /i "!E2E_PWDEBUG!"=="true" set "PWDEBUG=1" & set "PYTEST_ARGS=!PYTEST_ARGS! --headed"
-
-REM ============================================================================
-REM == Install Playwright browsers if needed
-REM ============================================================================
-echo [STEP 1/4] Checking Playwright browsers...
-"%uv_exe%" run --python "%python_exe%" python -m playwright install chromium >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
+REM Install Playwright browsers if needed
+"%PYTHON_CMD%" -m playwright install chromium >nul 2>&1
+if %ERRORLEVEL% neq 0 (
     echo [INFO] Installing Playwright browsers...
-    "%uv_exe%" run --python "%python_exe%" python -m playwright install
+    "%PYTHON_CMD%" -m playwright install
+    if %ERRORLEVEL% neq 0 (
+        echo [ERROR] Failed to install Playwright browsers.
+        exit /b 1
+    )
 )
-echo [OK] Playwright browsers ready.
-
-REM ============================================================================
-REM == Start backend
-REM ============================================================================
-echo [STEP 2/4] Starting backend server...
-call :kill_port %FASTAPI_PORT%
-start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning
-
-REM Wait for backend to be ready
-echo [INFO] Waiting for backend to start...
-for /L %%i in (1,1,120) do (
-  netstat -ano | findstr ":%FASTAPI_PORT%" | findstr "LISTENING" >nul
-  if !errorlevel! equ 0 goto :backend_ready_check
-  timeout /t 1 /nobreak >nul
-)
-echo [WARN] Timed out waiting for backend.
-:backend_ready_check
-
-REM ============================================================================
-REM == Start frontend
-REM ============================================================================
-echo [STEP 3/4] Starting frontend server...
-
-if not exist "%FRONTEND_DIR%\node_modules" (
-    echo [INFO] Installing frontend dependencies...
-    pushd "%FRONTEND_DIR%" >nul
-    call "%npm_cmd%" install
-    popd >nul
-)
-
-if not exist "%FRONTEND_DIST%" (
-    echo [INFO] Building frontend...
-    pushd "%FRONTEND_DIR%" >nul
-    call "%npm_cmd%" run build
-    popd >nul
-)
-
-call :kill_port %UI_PORT%
-pushd "%FRONTEND_DIR%" >nul
-start "" /b "%npm_cmd%" run preview -- --host %UI_HOST% --port %UI_PORT% --strictPort
-popd >nul
-
-REM Wait for frontend to be ready
-echo [INFO] Waiting for frontend to start...
-timeout /t 3 /nobreak >nul
-
-REM ============================================================================
-REM == Run tests
-REM ============================================================================
-echo [STEP 4/4] Running E2E tests...
-echo.
-echo ============================================================================
-
-pushd "%root_folder%" >nul
-"%uv_exe%" run --python "%python_exe%" python -m pytest %PYTEST_ARGS%
-set "test_result=%ERRORLEVEL%"
-popd >nul
 
 echo.
-echo ============================================================================
+echo [INFO] Prerequisites verified.
+echo.
 
-REM ============================================================================
-REM == Cleanup: Stop servers
-REM ============================================================================
-echo [CLEANUP] Stopping servers...
-call :kill_port %FASTAPI_PORT%
-call :kill_port %UI_PORT%
+REM Check if servers are already running
+set "BACKEND_RUNNING=0"
+set "FRONTEND_RUNNING=0"
 
-if %test_result% EQU 0 (
-    echo [SUCCESS] All tests passed!
-    endlocal & exit /b 0
+curl -s http://127.0.0.1:8000/docs >nul 2>&1
+if %ERRORLEVEL% equ 0 set "BACKEND_RUNNING=1"
+
+curl -s http://127.0.0.1:7861 >nul 2>&1
+if %ERRORLEVEL% equ 0 set "FRONTEND_RUNNING=1"
+
+REM Start servers if not running
+set "STARTED_BACKEND=0"
+set "STARTED_FRONTEND=0"
+
+if "%BACKEND_RUNNING%"=="0" (
+    echo [INFO] Starting backend server...
+    start /B cmd /c "cd /d %PROJECT_ROOT% && "%PYTHON_CMD%" -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000" >nul 2>&1
+    set "STARTED_BACKEND=1"
+    timeout /t 3 /nobreak >nul
+)
+
+if "%FRONTEND_RUNNING%"=="0" (
+    echo [INFO] Starting frontend server...
+    start /B cmd /c "cd /d %XREPORT_DIR%\client && npm run preview" >nul 2>&1
+    set "STARTED_FRONTEND=1"
+    timeout /t 3 /nobreak >nul
+)
+
+REM Wait for servers to be ready
+echo [INFO] Waiting for servers to be ready...
+set "ATTEMPTS=0"
+:wait_loop
+if %ATTEMPTS% geq 30 (
+    echo [ERROR] Servers failed to start within 30 seconds.
+    goto cleanup
+)
+
+curl -s http://127.0.0.1:8000/docs >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    set /a ATTEMPTS+=1
+    timeout /t 1 /nobreak >nul
+    goto wait_loop
+)
+
+curl -s http://127.0.0.1:7861 >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    set /a ATTEMPTS+=1
+    timeout /t 1 /nobreak >nul
+    goto wait_loop
+)
+
+echo [INFO] Servers are ready.
+echo.
+
+REM Run tests
+echo ============================================================
+echo  Running Tests
+echo ============================================================
+echo.
+
+cd /d "%PROJECT_ROOT%"
+"%PYTHON_CMD%" -m pytest tests -v --tb=short %*
+set "TEST_RESULT=%ERRORLEVEL%"
+
+echo.
+echo ============================================================
+if %TEST_RESULT% equ 0 (
+    echo  All tests PASSED
 ) else (
-    echo [FAILED] Some tests failed. Exit code: %test_result%
-    pause
-    endlocal & exit /b %test_result%
+    echo  Some tests FAILED
 )
-
-REM ============================================================================
-REM == Error
-REM ============================================================================
-:error
+echo ============================================================
 echo.
-echo !!! An error occurred. !!!
-pause
-endlocal & exit /b 1
 
-REM ============================================================================
-REM == Kill process on port
-REM ============================================================================
-:kill_port
-set "target_port=%~1"
-if not defined target_port goto :eof
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":%target_port%"') do (
-    taskkill /PID %%P /F >nul 2>&1
+:cleanup
+REM Cleanup: Stop servers we started
+if "%STARTED_BACKEND%"=="1" (
+    echo [INFO] Stopping backend server...
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do (
+        taskkill /F /PID %%a >nul 2>&1
+    )
 )
-goto :eof
+
+if "%STARTED_FRONTEND%"=="1" (
+    echo [INFO] Stopping frontend server...
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :7861 ^| findstr LISTENING') do (
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
+
+exit /b %TEST_RESULT%

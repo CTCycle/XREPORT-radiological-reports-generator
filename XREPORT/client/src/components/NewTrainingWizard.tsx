@@ -47,8 +47,17 @@ export default function NewTrainingWizard({
 
     if (!isOpen) return null;
 
+    const canConfirm = Boolean(selectedDatasetLabel);
     const isLastPage = currentPage === steps.length - 1;
-    const canConfirm = Boolean(selectedDatasetLabel) && checkpointName.trim().length > 0;
+
+    const handleConfirm = () => {
+        let finalName = checkpointName.trim();
+        if (!finalName) {
+            const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15);
+            finalName = `XREPORT_e${config.numEncoders}_d${config.numDecoders}_${timestamp}`;
+        }
+        onConfirm(finalName);
+    };
 
     return (
         <div className="training-modal-backdrop" onClick={onClose}>
@@ -71,65 +80,74 @@ export default function NewTrainingWizard({
                                 <Cpu size={16} />
                                 <span>Model Architecture</span>
                             </div>
-                            <div className="wizard-grid">
-                                <div className="form-group">
-                                    <label className="form-label">Encoders</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.numEncoders}
-                                        onChange={(e) => onConfigChange('numEncoders', parseInt(e.target.value, 10))}
-                                    />
+                            <div className="wizard-page-layout">
+                                <div className="wizard-left-col">
+                                    <div className="form-group">
+                                        <label className="form-label">Encoders</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={config.numEncoders}
+                                            onChange={(e) => onConfigChange('numEncoders', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Decoders</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={config.numDecoders}
+                                            onChange={(e) => onConfigChange('numDecoders', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Embedding Dims</label>
+                                        <input
+                                            type="number"
+                                            step="8"
+                                            className="form-input"
+                                            value={config.embeddingDims}
+                                            onChange={(e) => onConfigChange('embeddingDims', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Attention Heads</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={config.attnHeads}
+                                            onChange={(e) => onConfigChange('attnHeads', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Temperature</label>
+                                        <input
+                                            type="number"
+                                            step="0.05"
+                                            className="form-input"
+                                            value={config.trainTemp}
+                                            onChange={(e) => onConfigChange('trainTemp', parseFloat(e.target.value))}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Decoders</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.numDecoders}
-                                        onChange={(e) => onConfigChange('numDecoders', parseInt(e.target.value, 10))}
-                                    />
+                                <div className="wizard-right-col">
+                                    <div className="form-group check-group-right">
+                                        {/* Spacer to align checkbox with input box, matching left col label height */}
+                                        <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Encoders</label>
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.freezeImgEncoder}
+                                                onChange={(e) => onConfigChange('freezeImgEncoder', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Freeze Encoder</span>
+                                        </label>
+                                        <span className="feature-explanation">
+                                            Prevents encoder weights from being updated during training.
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Embedding Dims</label>
-                                    <input
-                                        type="number"
-                                        step="8"
-                                        className="form-input"
-                                        value={config.embeddingDims}
-                                        onChange={(e) => onConfigChange('embeddingDims', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Attention Heads</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.attnHeads}
-                                        onChange={(e) => onConfigChange('attnHeads', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Temperature</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        className="form-input"
-                                        value={config.trainTemp}
-                                        onChange={(e) => onConfigChange('trainTemp', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                            </div>
-                            <div className="wizard-toggle-grid">
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.freezeImgEncoder}
-                                        onChange={(e) => onConfigChange('freezeImgEncoder', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Freeze Encoder</span>
-                                </label>
                             </div>
                         </div>
                     )}
@@ -140,8 +158,9 @@ export default function NewTrainingWizard({
                                 <Settings size={16} />
                                 <span>Dataset Configuration</span>
                             </div>
-                            <div className="wizard-grid">
-                                <div className="form-group">
+                            <div className="wizard-aligned-grid">
+                                {/* Row 1 */}
+                                <div className="form-group grid-col-left">
                                     <label className="form-label">Validation Split</label>
                                     <input
                                         type="number"
@@ -152,43 +171,56 @@ export default function NewTrainingWizard({
                                         value={config.validationSize}
                                         onChange={(e) => onConfigChange('validationSize', parseFloat(e.target.value))}
                                     />
-                                    <span className="form-help">0.05 - 0.5 (default: 0.2)</span>
                                 </div>
-                            </div>
-                            <div className="wizard-toggle-grid">
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.useImgAugment}
-                                        onChange={(e) => onConfigChange('useImgAugment', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Image Augmentation</span>
-                                </label>
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.shuffleWithBuffer}
-                                        onChange={(e) => onConfigChange('shuffleWithBuffer', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Shuffle Buffered</span>
-                                </label>
-                            </div>
-                            {config.shuffleWithBuffer && (
-                                <div className="wizard-grid wizard-grid-single">
-                                    <div className="form-group">
-                                        <label className="form-label">Buffer Size</label>
+                                <div className="grid-col-right form-group">
+                                    <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Validation Split</label>
+                                    <label className="form-checkbox">
                                         <input
-                                            type="number"
-                                            step="10"
-                                            className="form-input"
-                                            value={config.shuffleBufferSize}
-                                            onChange={(e) => onConfigChange('shuffleBufferSize', parseInt(e.target.value, 10))}
+                                            type="checkbox"
+                                            checked={config.useImgAugment}
+                                            onChange={(e) => onConfigChange('useImgAugment', e.target.checked)}
                                         />
+                                        <div className="checkbox-visual" />
+                                        <span className="checkbox-label">Image Augmentation</span>
+                                    </label>
+                                </div>
+
+                                {/* Row 2 */}
+                                <div className="form-group grid-col-left">
+                                    <label className="form-label">Split Seed</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={config.trainSeed}
+                                        onChange={(e) => onConfigChange('trainSeed', parseInt(e.target.value, 10))}
+                                    />
+                                </div>
+                                <div className="shuffle-container grid-col-right form-group">
+                                    <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Shuffle</label>
+                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'stretch' }}>
+                                        <label className="form-checkbox" style={{ marginBottom: 0 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={config.shuffleWithBuffer}
+                                                onChange={(e) => onConfigChange('shuffleWithBuffer', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Shuffle Buffered</span>
+                                        </label>
+                                        {config.shuffleWithBuffer && (
+                                            <input
+                                                type="number"
+                                                step="10"
+                                                className="form-input"
+                                                placeholder="Size"
+                                                style={{ flex: 1, minWidth: '80px' }}
+                                                value={config.shuffleBufferSize}
+                                                onChange={(e) => onConfigChange('shuffleBufferSize', parseInt(e.target.value, 10))}
+                                            />
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
 
@@ -198,78 +230,83 @@ export default function NewTrainingWizard({
                                 <Activity size={16} />
                                 <span>Training Parameters</span>
                             </div>
-                            <div className="wizard-grid">
-                                <div className="form-group">
-                                    <label className="form-label">Epochs</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.epochs}
-                                        onChange={(e) => onConfigChange('epochs', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Batch Size</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.batchSize}
-                                        onChange={(e) => onConfigChange('batchSize', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Training Seed</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={config.trainSeed}
-                                        onChange={(e) => onConfigChange('trainSeed', parseInt(e.target.value, 10))}
-                                    />
-                                </div>
-                            </div>
-                            <div className="wizard-toggle-grid">
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.saveCheckpoints}
-                                        onChange={(e) => onConfigChange('saveCheckpoints', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">Save Checkpoints</span>
-                                </label>
-                                <label className="form-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={config.useScheduler}
-                                        onChange={(e) => onConfigChange('useScheduler', e.target.checked)}
-                                    />
-                                    <div className="checkbox-visual" />
-                                    <span className="checkbox-label">LR Scheduler</span>
-                                </label>
-                            </div>
-                            {config.useScheduler && (
-                                <div className="wizard-grid wizard-grid-scheduler">
+                            <div className="wizard-page-layout">
+                                <div className="wizard-left-col">
                                     <div className="form-group">
-                                        <label className="form-label">Target Learning Rate</label>
-                                        <input
-                                            type="number"
-                                            step="0.0001"
-                                            className="form-input"
-                                            value={config.targetLR}
-                                            onChange={(e) => onConfigChange('targetLR', parseFloat(e.target.value))}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Warmup Steps</label>
+                                        <label className="form-label">Epochs</label>
                                         <input
                                             type="number"
                                             className="form-input"
-                                            value={config.warmupSteps}
-                                            onChange={(e) => onConfigChange('warmupSteps', parseInt(e.target.value, 10))}
+                                            value={config.epochs}
+                                            onChange={(e) => onConfigChange('epochs', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Batch Size</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            value={config.batchSize}
+                                            onChange={(e) => onConfigChange('batchSize', parseInt(e.target.value, 10))}
                                         />
                                     </div>
                                 </div>
-                            )}
+                                <div className="wizard-right-col">
+                                    <div className="form-group">
+                                        <label className="form-label" style={{ opacity: 0, userSelect: 'none' }}>Save Checkpoints</label>
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.saveCheckpoints}
+                                                onChange={(e) => onConfigChange('saveCheckpoints', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Save Checkpoints</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="wizard-separator" />
+
+                            <div className="wizard-lr-card">
+                                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-end' }}>
+                                    <div style={{ paddingBottom: '1px' }}>
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.useScheduler}
+                                                onChange={(e) => onConfigChange('useScheduler', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Use LR Scheduler</span>
+                                        </label>
+                                    </div>
+                                    <div className={`lr-inputs ${!config.useScheduler ? 'disabled-section' : ''}`} style={{ display: 'flex', gap: '1.5rem', flex: 1 }}>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label className="form-label">Target Learning Rate</label>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                className="form-input"
+                                                value={config.targetLR}
+                                                onChange={(e) => onConfigChange('targetLR', parseFloat(e.target.value))}
+                                                disabled={!config.useScheduler}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ flex: 1 }}>
+                                            <label className="form-label">Warmup Steps</label>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                value={config.warmupSteps}
+                                                onChange={(e) => onConfigChange('warmupSteps', parseInt(e.target.value, 10))}
+                                                disabled={!config.useScheduler}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -292,13 +329,22 @@ export default function NewTrainingWizard({
                                         </div>
                                     </div>
                                     <div className="summary-section">
-                                        <h5>Data & Schedule</h5>
+                                        <h5>Dataset & Training</h5>
                                         <div className="summary-grid">
                                             <div className="summary-item"><label>Dataset:</label> <span>{selectedDatasetLabel}</span></div>
-                                            <div className="summary-item"><label>Validation Split:</label> <span>{config.validationSize}</span></div>
+                                            <div className="summary-item"><label>Validation:</label> <span>{config.validationSize}</span></div>
+                                            <div className="summary-item"><label>Split Seed:</label> <span>{config.trainSeed}</span></div>
                                             <div className="summary-item"><label>Epochs:</label> <span>{config.epochs}</span></div>
                                             <div className="summary-item"><label>Batch Size:</label> <span>{config.batchSize}</span></div>
-                                            <div className="summary-item"><label>Scheduler:</label> <span>{config.useScheduler ? 'Yes' : 'No'}</span></div>
+                                        </div>
+                                    </div>
+                                    <div className="summary-section">
+                                        <h5>Preprocessing & Opts</h5>
+                                        <div className="summary-grid">
+                                            <div className="summary-item"><label>Augment:</label> <span>{config.useImgAugment ? 'Yes' : 'No'}</span></div>
+                                            <div className="summary-item"><label>Shuffle:</label> <span>{config.shuffleWithBuffer ? `Yes (${config.shuffleBufferSize})` : 'No'}</span></div>
+                                            <div className="summary-item"><label>Checkpoints:</label> <span>{config.saveCheckpoints ? 'Yes' : 'No'}</span></div>
+                                            <div className="summary-item"><label>LR Scheduler:</label> <span>{config.useScheduler ? 'Yes' : 'No'}</span></div>
                                         </div>
                                     </div>
                                 </div>
@@ -307,13 +353,12 @@ export default function NewTrainingWizard({
                                     <label className="form-label">Training Checkpoint Name</label>
                                     <input
                                         type="text"
-                                        className="form-input"
-                                        placeholder="e.g. My_Experiment_v1"
+                                        className="form-input highlight-input"
+                                        placeholder="e.g. My_Experiment_v1 (Optional)"
                                         value={checkpointName}
                                         onChange={(e) => setCheckpointName(e.target.value)}
-                                        required
                                     />
-                                    <span className="form-help">Unique name for this training run. Required.</span>
+                                    <span className="form-help">Unique name for this training run. If empty, a default name will be generated.</span>
                                 </div>
                             </div>
                         </div>
@@ -349,7 +394,7 @@ export default function NewTrainingWizard({
                         {isLastPage && (
                             <button
                                 className="btn btn-primary"
-                                onClick={() => onConfirm(checkpointName)}
+                                onClick={handleConfirm}
                                 disabled={!canConfirm || isLoading}
                             >
                                 <Play size={16} />

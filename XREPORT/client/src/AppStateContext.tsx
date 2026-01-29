@@ -18,6 +18,7 @@ import { TableInfo } from './services/databaseBrowser';
 // Default States
 // ============================================================================
 const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
+    datasetName: '',
     sampleSize: 1.0,
     validationSize: 0.2,
     maxReportSize: 200,

@@ -538,6 +538,45 @@ input[type="checkbox"] {
     margin-bottom: 0.75rem;
 }
 
+/* Page Layout Columns */
+.wizard-page-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.wizard-left-col,
+.wizard-right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    /* Prevent flex overflow */
+}
+
+/* Aligned Grid for strict row alignment */
+.wizard-aligned-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.5rem;
+    align-items: start;
+}
+
+.grid-col-left {
+    grid-column: 1;
+}
+
+.grid-col-right {
+    grid-column: 2;
+}
+
+/* 2-Column Grid for cards/sections */
+.wizard-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.5rem;
+}
+
 .wizard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -794,8 +833,68 @@ input[type="checkbox"] {
 }
 
 .checkpoint-name-group {
-    border-top: 1px solid var(--border-color);
     padding-top: 1rem;
+}
+
+/* Learning Rate Card (Page 3 Bottom) */
+.wizard-separator {
+    height: 1px;
+    background: var(--border-color);
+    margin: 1.5rem 0 1rem;
+}
+
+.wizard-lr-card {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.lr-toggle-header {
+    margin-bottom: 0.75rem;
+}
+
+.wizard-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.5rem;
+    /* Matched to wizard-page-layout gap */
+}
+
+
+.lr-inputs {
+    transition: opacity 0.2s ease;
+}
+
+.lr-inputs.disabled-section {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Highlighted Input */
+.form-input.highlight-input {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input.highlight-input:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+@media (max-width: 640px) {
+
+    .wizard-grid-2col,
+    .wizard-page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .wizard-page-layout {
+        gap: 1rem;
+    }
+
+    .buffer-input-container {
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
 }
 
 .form-help {
