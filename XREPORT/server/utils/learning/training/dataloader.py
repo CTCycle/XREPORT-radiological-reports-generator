@@ -29,50 +29,49 @@ class DataLoaderProcessor:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def load_image(self, path: str, as_array: bool = False) -> np.ndarray:
+    def load_image(self, path: str) -> np.ndarray:
         image = cv2.imread(path, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, self.color_encoding)
         image = cv2.resize(image, self.img_shape, interpolation=cv2.INTER_AREA)
-        if as_array:
-            image = np.asarray(image, dtype=np.float32)
-        else:
-            image = image.astype(np.float32, copy=False)
-
-        return image
+        # Always return float32 for processing
+        return image.astype(np.float32, copy=False)
 
     # -------------------------------------------------------------------------
     def load_data_for_training(
         self, path: str, text: list[int] | np.ndarray
-    ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray]:
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
         rgb_image = self.load_image(path)
         rgb_image = (
             self.image_augmentation(rgb_image) if self.augmentation else rgb_image
         )
         rgb_image = self.image_normalization(rgb_image)
-        rgb_image = np.ascontiguousarray(rgb_image, dtype=np.float32)
+        # HWC -> CHW conversion
+        rgb_image = np.transpose(rgb_image, (2, 0, 1))
 
-        token_array = np.asarray(text, dtype=np.int32)
+        token_array = np.asarray(text, dtype=np.int64)
         input_text = token_array[:-1]
         output_text = token_array[1:]
 
-        return (rgb_image, input_text), output_text
+        return (
+            torch.from_numpy(rgb_image),
+            torch.from_numpy(input_text),
+        ), torch.from_numpy(output_text)
 
     # -------------------------------------------------------------------------
-    def load_data_for_inference(self, path: str) -> np.ndarray:
+    def load_data_for_inference(self, path: str) -> torch.Tensor:
         rgb_image = self.load_image(path)
         rgb_image = self.image_normalization(rgb_image)
-        rgb_image = np.ascontiguousarray(rgb_image, dtype=np.float32)
-
-        return rgb_image
+        # HWC -> CHW conversion
+        rgb_image = np.transpose(rgb_image, (2, 0, 1))
+        return torch.from_numpy(rgb_image)
 
     # -------------------------------------------------------------------------
     def image_normalization(self, image: np.ndarray) -> np.ndarray:
-        normalized_image = image.astype(np.float32, copy=False)
-        normalized_image *= 1.0 / 255.0
-        normalized_image -= self.image_mean
-        normalized_image /= self.image_std
-
-        return normalized_image
+        # In-place normalization
+        image *= 1.0 / 255.0
+        image -= self.image_mean
+        image /= self.image_std
+        return image
 
     # -------------------------------------------------------------------------
     def image_augmentation(self, image: np.ndarray) -> np.ndarray:
@@ -95,28 +94,6 @@ class DataLoaderProcessor:
 
 
 ###############################################################################
-def collate_training_batch(
-    batch: list[tuple[tuple[np.ndarray, np.ndarray], np.ndarray]]
-) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-    images: list[torch.Tensor] = []
-    input_tokens: list[torch.Tensor] = []
-    output_tokens: list[torch.Tensor] = []
-    for (image, input_text), output_text in batch:
-        images.append(torch.from_numpy(image))
-        input_tokens.append(torch.from_numpy(input_text))
-        output_tokens.append(torch.from_numpy(output_text))
-    return (torch.stack(images), torch.stack(input_tokens)), torch.stack(output_tokens)
-
-
-###############################################################################
-def collate_inference_batch(batch: list[np.ndarray]) -> torch.Tensor:
-    images: list[torch.Tensor] = []
-    for image in batch:
-        images.append(torch.from_numpy(image))
-    return torch.stack(images)
-
-
-###############################################################################
 class XRAYDataset(Dataset):
     def __init__(
         self,
@@ -136,7 +113,7 @@ class XRAYDataset(Dataset):
     # -------------------------------------------------------------------------
     def __getitem__(
         self, index: int
-    ) -> tuple[tuple[np.ndarray, np.ndarray], np.ndarray] | np.ndarray:
+    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor] | torch.Tensor:
         path = self.paths[index]
         tokens = self.tokens[index]
         if self.training:
@@ -157,7 +134,6 @@ class XRAYDataLoader:
         self.persistent_workers = configuration.get("persistent_workers", False)
         self.configuration = configuration
         self.shuffle = shuffle
-        self.use_collate = configuration.get("use_torch_collate", True)
 
     # -------------------------------------------------------------------------
     def build_training_dataloader(
@@ -165,21 +141,20 @@ class XRAYDataLoader:
     ) -> DataLoader:
         batch_size = self.batch_size if batch_size is None else batch_size
         dataset = XRAYDataset(data, self.processor, training=True)
-        collate_fn = collate_training_batch if self.use_collate else None
+        
         loader_settings: dict[str, Any] = {
             "batch_size": batch_size,
             "shuffle": self.shuffle,
             "num_workers": self.num_workers,
             "pin_memory": self.pin_memory,
             "drop_last": False,
-            "collate_fn": collate_fn,
         }
         if self.num_workers > 0:
             loader_settings["prefetch_factor"] = self.prefetch_factor
             loader_settings["persistent_workers"] = self.persistent_workers
-        dataset = DataLoader(dataset, **loader_settings)
-
-        return dataset
+        
+        # Uses default_collate automatically
+        return DataLoader(dataset, **loader_settings)
 
     # -------------------------------------------------------------------------
     def build_inference_dataloader(
@@ -191,18 +166,16 @@ class XRAYDataLoader:
         batch_size = self.inference_batch_size if batch_size is None else batch_size
         num_workers = self.num_workers if buffer_size is None else buffer_size
         dataset = XRAYDataset(data, self.processor, training=False)
-        collate_fn = collate_inference_batch if self.use_collate else None
+        
         loader_settings: dict[str, Any] = {
             "batch_size": batch_size,
             "shuffle": False,
             "num_workers": num_workers,
             "pin_memory": self.pin_memory,
             "drop_last": False,
-            "collate_fn": collate_fn,
         }
         if num_workers > 0:
             loader_settings["prefetch_factor"] = self.prefetch_factor
             loader_settings["persistent_workers"] = self.persistent_workers
-        dataset = DataLoader(dataset, **loader_settings)
-
-        return dataset
+            
+        return DataLoader(dataset, **loader_settings)
