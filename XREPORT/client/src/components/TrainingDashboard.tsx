@@ -33,12 +33,12 @@ function formatTime(seconds: number): string {
 
 // Chart colors for different metrics
 const CHART_COLORS = {
-    loss: '#f59e0b',
-    val_loss: '#fbbf24',
-    MaskedAccuracy: '#22c55e',
-    val_MaskedAccuracy: '#4ade80',
-    accuracy: '#22c55e',
-    val_accuracy: '#4ade80',
+    loss: '#d97706',
+    val_loss: '#ef4444',
+    MaskedAccuracy: '#2563eb',
+    val_MaskedAccuracy: '#0d9488',
+    accuracy: '#2563eb',
+    val_accuracy: '#0d9488',
 };
 
 export default function TrainingDashboard({
@@ -57,6 +57,7 @@ export default function TrainingDashboard({
         valAccuracy: dashboardState.valAccuracy,
         progressPercent: dashboardState.progressPercent,
         elapsedSeconds: dashboardState.elapsedSeconds,
+        logEntries: dashboardState.logEntries,
     };
 
     const handleStopTraining = () => {
@@ -140,25 +141,26 @@ export default function TrainingDashboard({
                         {formatTime(metrics.elapsedSeconds)}
                     </span>
                 </div>
-                <div className="progress-bar-container">
-                    <div
-                        className="progress-bar"
-                        style={{ width: `${metrics.progressPercent}%` }}
-                    />
+                <div className="progress-bar-row">
+                    <div className="progress-bar-container">
+                        <div
+                            className="progress-bar"
+                            style={{ width: `${metrics.progressPercent}%` }}
+                        />
+                    </div>
+                    {metrics.isTraining && (
+                        <button
+                            className="btn-stop"
+                            onClick={handleStopTraining}
+                        >
+                            <Square size={16} />
+                            Stop Training
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {metrics.isTraining && (
-                <div className="dashboard-actions">
-                    <button
-                        className="btn-stop"
-                        onClick={handleStopTraining}
-                    >
-                        <Square size={16} />
-                        Stop Training
-                    </button>
-                </div>
-            )}
+            <div className="dashboard-divider" />
 
             <div className="training-charts-container">
                 {chartData.length > 0 ? (
@@ -167,38 +169,39 @@ export default function TrainingDashboard({
                         {lossMetrics.length > 0 && (
                             <div className="chart-section">
                                 <div className="chart-title">Loss</div>
-                                <ResponsiveContainer width="100%" height={200}>
+                                <ResponsiveContainer width="100%" height={260}>
                                     <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.4)" />
                                         <XAxis
                                             dataKey="batch"
-                                            stroke="#9ca3af"
-                                            tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            stroke="#94a3b8"
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
                                             tickFormatter={(value) => Math.round(value).toString()}
                                         />
                                         <YAxis
-                                            stroke="#9ca3af"
-                                            tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            stroke="#94a3b8"
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
                                         />
                                         <Tooltip
                                             contentStyle={{
-                                                background: 'rgba(30, 30, 35, 0.95)',
-                                                border: '1px solid rgba(255, 215, 0, 0.2)',
+                                                background: '#ffffff',
+                                                border: '1px solid #e2e8f0',
                                                 borderRadius: '8px',
+                                                color: '#0f172a',
                                             }}
-                                            labelFormatter={(value) => `Batch ${Math.round(value)}`}
+                                            labelFormatter={(value) => `Epoch ${Math.round(value)}`}
                                         />
                                         <Legend />
                                         {epochBoundaries.map((boundary, index) => (
                                             <ReferenceLine
                                                 key={`epoch-${index}`}
                                                 x={boundary}
-                                                stroke="rgba(255,255,255,0.3)"
+                                                stroke="rgba(148, 163, 184, 0.6)"
                                                 strokeDasharray="3 3"
                                                 label={{
                                                     value: `E${index + 1}`,
                                                     position: 'top',
-                                                    fill: '#9ca3af',
+                                                    fill: '#94a3b8',
                                                     fontSize: 10,
                                                 }}
                                             />
@@ -223,38 +226,39 @@ export default function TrainingDashboard({
                         {accuracyMetrics.length > 0 && (
                             <div className="chart-section">
                                 <div className="chart-title">Accuracy</div>
-                                <ResponsiveContainer width="100%" height={200}>
+                                <ResponsiveContainer width="100%" height={260}>
                                     <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.4)" />
                                         <XAxis
                                             dataKey="batch"
-                                            stroke="#9ca3af"
-                                            tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            stroke="#94a3b8"
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
                                             tickFormatter={(value) => Math.round(value).toString()}
                                         />
                                         <YAxis
-                                            stroke="#9ca3af"
-                                            tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                            stroke="#94a3b8"
+                                            tick={{ fill: '#64748b', fontSize: 12 }}
                                         />
                                         <Tooltip
                                             contentStyle={{
-                                                background: 'rgba(30, 30, 35, 0.95)',
-                                                border: '1px solid rgba(255, 215, 0, 0.2)',
+                                                background: '#ffffff',
+                                                border: '1px solid #e2e8f0',
                                                 borderRadius: '8px',
+                                                color: '#0f172a',
                                             }}
-                                            labelFormatter={(value) => `Batch ${Math.round(value)}`}
+                                            labelFormatter={(value) => `Epoch ${Math.round(value)}`}
                                         />
                                         <Legend />
                                         {epochBoundaries.map((boundary, index) => (
                                             <ReferenceLine
                                                 key={`epoch-${index}`}
                                                 x={boundary}
-                                                stroke="rgba(255,255,255,0.3)"
+                                                stroke="rgba(148, 163, 184, 0.6)"
                                                 strokeDasharray="3 3"
                                                 label={{
                                                     value: `E${index + 1}`,
                                                     position: 'top',
-                                                    fill: '#9ca3af',
+                                                    fill: '#94a3b8',
                                                     fontSize: 10,
                                                 }}
                                             />
@@ -290,6 +294,17 @@ export default function TrainingDashboard({
                             </div>
                         </div>
                     </>
+                )}
+            </div>
+
+            <div className="dashboard-logs">
+                <div className="log-header">Training Log</div>
+                {metrics.logEntries.length > 0 ? (
+                    <pre className="log-body">
+                        {metrics.logEntries.join('\n')}
+                    </pre>
+                ) : (
+                    <div className="log-empty">No training output yet.</div>
                 )}
             </div>
         </div>
