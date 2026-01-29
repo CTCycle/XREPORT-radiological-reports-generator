@@ -29,6 +29,7 @@ import {
     getCheckpoints,
     getDatasetNames,
     getProcessingMetadata,
+    getProcessedDatasetNames,
     getTrainingJobStatus,
     getTrainingStatus,
     pollJobStatus,
@@ -173,7 +174,7 @@ export default function TrainingPage() {
     }, [applyJobStatus, stopPolling]);
 
     const fetchDatasets = useCallback(async () => {
-        const { result, error } = await getDatasetNames();
+        const { result, error } = await getProcessedDatasetNames();
         if (error) {
             console.error('Failed to fetch datasets:', error);
             return;
