@@ -12,13 +12,16 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.jobs import job_manager
 
 
 ###############################################################################
 class TrainingInterruptCallback(Callback):
-    def __init__(self) -> None:
+    def __init__(self, job_id: str | None = None) -> None:
         super().__init__()
         self.should_stop = False
+        self.job_id = job_id
+        self.stop_logged = False
         self.model: keras.Model
 
     # -------------------------------------------------------------------------
@@ -27,10 +30,39 @@ class TrainingInterruptCallback(Callback):
         logger.info("Training stop requested")
 
     # -------------------------------------------------------------------------
-    def on_batch_end(self, batch: int, logs: dict | None = None) -> None:
+    def is_stop_requested(self) -> bool:
         if self.should_stop:
-            self.model.stop_training = True
+            return True
+        if self.job_id is None:
+            return False
+        return job_manager.should_stop(self.job_id)
+
+    # -------------------------------------------------------------------------
+    def apply_stop_if_requested(self) -> None:
+        if not self.is_stop_requested():
+            return
+        if not hasattr(self, "model") or self.model is None:
+            return
+        self.model.stop_training = True
+        if not self.stop_logged:
             logger.info("Training stopped by user request")
+            self.stop_logged = True
+
+    # -------------------------------------------------------------------------
+    def on_train_begin(self, logs: dict | None = None) -> None:
+        self.apply_stop_if_requested()
+
+    # -------------------------------------------------------------------------
+    def on_batch_end(self, batch: int, logs: dict | None = None) -> None:
+        self.apply_stop_if_requested()
+
+    # -------------------------------------------------------------------------
+    def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
+        self.apply_stop_if_requested()
+
+    # -------------------------------------------------------------------------
+    def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
+        self.apply_stop_if_requested()
 
 
 ###############################################################################
