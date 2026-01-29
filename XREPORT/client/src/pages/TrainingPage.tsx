@@ -58,6 +58,8 @@ export default function TrainingPage() {
     const [isNewWizardOpen, setIsNewWizardOpen] = useState(false);
     const [isResumeWizardOpen, setIsResumeWizardOpen] = useState(false);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
+    const lastLoggedEpochRef = useRef<number | null>(null);
+    const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
 
     const stopPolling = useCallback(() => {
         if (pollerRef.current) {
@@ -65,6 +67,19 @@ export default function TrainingPage() {
             pollerRef.current = null;
         }
     }, []);
+
+    const appendLogLine = useCallback((line: string) => {
+        setDashboardState((prev) => {
+            const next = [...prev.logEntries, line];
+            return { ...prev, logEntries: next.slice(-200) };
+        });
+    }, [setDashboardState]);
+
+    const resetLogTracking = useCallback(() => {
+        lastLoggedEpochRef.current = null;
+        lastStatusRef.current = null;
+        setDashboardState((prev) => ({ ...prev, logEntries: [] }));
+    }, [setDashboardState]);
 
     const applyJobStatus = useCallback((status: JobStatusResponse | null) => {
         if (!status) return;
@@ -79,6 +94,13 @@ export default function TrainingPage() {
         const progressPercent = typeof result.progress_percent === 'number' ? result.progress_percent : status.progress;
         const elapsedSeconds = typeof result.elapsed_seconds === 'number' ? result.elapsed_seconds : undefined;
 
+        const formatMetric = (value: number | undefined, decimals: number) => (
+            typeof value === 'number' ? value.toFixed(decimals) : '--'
+        );
+        const formatAccuracy = (value: number | undefined) => (
+            typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '--'
+        );
+
         setDashboardState((prev) => ({
             ...prev,
             isTraining: status.status === 'running' || status.status === 'pending',
@@ -92,6 +114,38 @@ export default function TrainingPage() {
             elapsedSeconds: elapsedSeconds ?? prev.elapsedSeconds,
         }));
 
+        if (status.status !== lastStatusRef.current) {
+            if (status.status === 'pending') {
+                appendLogLine('Training job queued.');
+            }
+            if (status.status === 'running') {
+                appendLogLine('Training job started.');
+            }
+            if (status.status === 'completed') {
+                appendLogLine('Training completed successfully.');
+            }
+            if (status.status === 'cancelled') {
+                appendLogLine('Training cancelled.');
+            }
+            if (status.status === 'failed') {
+                appendLogLine(`Training failed: ${status.error ?? 'Unknown error'}`);
+            }
+            lastStatusRef.current = status.status;
+        }
+
+        if (typeof currentEpoch === 'number' && currentEpoch > 0 && currentEpoch !== lastLoggedEpochRef.current) {
+            const epochLabel = `Epoch ${currentEpoch}/${totalEpochs ?? '--'}`;
+            const line = [
+                epochLabel,
+                `loss ${formatMetric(loss, 4)}`,
+                `val_loss ${formatMetric(valLoss, 4)}`,
+                `acc ${formatAccuracy(accuracy)}`,
+                `val_acc ${formatAccuracy(valAccuracy)}`,
+            ].join(' | ');
+            appendLogLine(line);
+            lastLoggedEpochRef.current = currentEpoch;
+        }
+
         if (Array.isArray(result.chart_data)) {
             setChartData(result.chart_data as ChartDataPoint[]);
         }
@@ -101,7 +155,7 @@ export default function TrainingPage() {
         if (Array.isArray(result.epoch_boundaries)) {
             setEpochBoundaries(result.epoch_boundaries as number[]);
         }
-    }, [setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
+    }, [appendLogLine, setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
 
     const startPolling = useCallback((jobId: string) => {
         stopPolling();
@@ -197,6 +251,7 @@ export default function TrainingPage() {
         setChartData([]);
         setAvailableMetrics([]);
         setEpochBoundaries([]);
+        resetLogTracking();
 
         const config: StartTrainingConfig = {
             epochs: state.config.epochs,
@@ -214,8 +269,8 @@ export default function TrainingPage() {
             save_checkpoints: state.config.saveCheckpoints,
             checkpoint_id: checkpointName,
             validation_size: state.config.validationSize,
-            use_device_GPU: true,
-            device_ID: 0,
+            use_device_GPU: state.config.useGpu,
+            device_ID: state.config.gpuId,
             plot_training_metrics: state.config.realTimePlot,
             use_scheduler: state.config.useScheduler,
             target_LR: state.config.targetLR,
@@ -232,6 +287,7 @@ export default function TrainingPage() {
         }
         if (startResult) {
             setIsNewWizardOpen(false);
+            appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
             startPolling(startResult.job_id);
         }
     };
@@ -241,6 +297,7 @@ export default function TrainingPage() {
 
         setIsLoading(true);
         setResumeTrainingError(null);
+        resetLogTracking();
 
         const { result: startResult, error: resumeError } = await resumeTraining(
             state.selectedCheckpoint,
@@ -255,11 +312,13 @@ export default function TrainingPage() {
         }
         if (startResult) {
             setIsResumeWizardOpen(false);
+            appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
             startPolling(startResult.job_id);
         }
     };
 
     const handleStopTraining = async () => {
+        appendLogLine('Stop requested. Finishing current batch and shutting down training.');
         const { error: stopError } = await stopTraining();
         if (stopError) {
             console.error('Stop training failed:', stopError);

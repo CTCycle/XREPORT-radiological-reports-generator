@@ -174,6 +174,10 @@ def run_training_job(
         logger.info("Building XREPORT Transformer model")
         model = build_xreport_model(metadata, configuration)
 
+        if job_manager.should_stop(job_id):
+            logger.info("Training job %s cancelled before training started", job_id)
+            return {}
+
         # Initialize interrupt callback that checks job manager
         training_state.interrupt_callback = TrainingInterruptCallback()
 
@@ -233,6 +237,10 @@ def run_resume_training_job(
 
         # Initialize interrupt callback
         training_state.interrupt_callback = TrainingInterruptCallback()
+
+        if job_manager.should_stop(job_id):
+            logger.info("Training job %s cancelled before resume started", job_id)
+            return {}
 
         # Resume training
         logger.info(f"Resuming training from epoch {from_epoch}")
@@ -403,6 +411,8 @@ class TrainingEndpoint:
                 detail="Training is already in progress",
             )
         
+        serializer = DataSerializer()
+        
         # Build configuration from request
         configuration = request.model_dump()
         
@@ -486,7 +496,6 @@ class TrainingEndpoint:
                 "train_data": train_data,
                 "validation_data": validation_data,
                 "metadata": metadata,
-                "job_id": job_id,
             },
         )
         
