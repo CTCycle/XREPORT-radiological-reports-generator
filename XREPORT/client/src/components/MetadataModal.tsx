@@ -20,6 +20,7 @@ export type MetadataModalState = {
 };
 
 export const PROCESSING_METADATA_ORDER = [
+    'source_dataset',
     'dataset_name',
     'date',
     'seed',
