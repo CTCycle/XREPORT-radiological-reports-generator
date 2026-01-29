@@ -80,8 +80,20 @@ class TrainingState:
             "elapsed_seconds": message.get("elapsed_seconds", 0),
         })
         if message.get("type") == "training_plot":
-            self.state["chart_data"] = message.get("chart_data", [])
-            self.state["epoch_boundaries"] = message.get("epoch_boundaries", [])
+            chart_data = message.get("chart_data")
+            chart_point = message.get("chart_point")
+            if isinstance(chart_data, list):
+                self.state["chart_data"] = chart_data
+            elif isinstance(chart_point, dict):
+                self.state["chart_data"].append(chart_point)
+
+            epoch_boundaries = message.get("epoch_boundaries")
+            epoch_boundary = message.get("epoch_boundary")
+            if isinstance(epoch_boundaries, list):
+                self.state["epoch_boundaries"] = epoch_boundaries
+            elif isinstance(epoch_boundary, (int, float)):
+                self.state["epoch_boundaries"].append(epoch_boundary)
+
             self.state["available_metrics"] = message.get("metrics", [])
 
     # -----------------------------------------------------------------------------
@@ -142,9 +154,9 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
         job_manager.update_result(
             job_id,
             {
-                "chart_data": message.get("chart_data", []),
-                "epoch_boundaries": message.get("epoch_boundaries", []),
-                "available_metrics": message.get("metrics", []),
+                "chart_data": training_state.state["chart_data"],
+                "epoch_boundaries": training_state.state["epoch_boundaries"],
+                "available_metrics": training_state.state["available_metrics"],
             },
         )
 
@@ -219,6 +231,7 @@ def monitor_training_process(
             message = None
         if message is not None:
             handle_training_progress(job_id, message)
+            drain_progress_queue(job_id, progress_queue)
 
     process.join(timeout=5)
     drain_progress_queue(job_id, progress_queue)
