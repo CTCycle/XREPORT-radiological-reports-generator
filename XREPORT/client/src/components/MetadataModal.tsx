@@ -95,8 +95,8 @@ export default function MetadataModal({ state, onClose }: MetadataModalProps) {
     if (!state) return null;
 
     return (
-        <div className="metadata-backdrop" onClick={onClose}>
-            <div className="metadata-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="metadata-backdrop">
+            <div className="metadata-modal">
                 <div className="metadata-header">
                     <div>
                         <h3>{state.title}</h3>
