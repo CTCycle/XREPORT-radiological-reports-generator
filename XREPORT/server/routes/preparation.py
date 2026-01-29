@@ -101,20 +101,34 @@ def run_process_dataset_job(
     jm = job_manager
     
     serializer = DataSerializer()
-    dataset_name = configuration.get("dataset_name")
+    source_dataset_name = configuration.get("dataset_name")
+    custom_name = configuration.get("custom_name")
     
     # Load source dataset from RADIOGRAPHY_DATA
     dataset = serializer.load_source_dataset(
         sample_size=configuration["sample_size"],
         seed=configuration["seed"],
-        dataset_name=dataset_name,
+        dataset_name=source_dataset_name,
     )
     
     if dataset.empty:
-        if dataset_name:
-            raise RuntimeError(f"No data found for dataset: {dataset_name}. Please load the dataset and try again.")
+        if source_dataset_name:
+            raise RuntimeError(f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again.")
         raise RuntimeError("No data found in RADIOGRAPHY_DATA table. Please load a dataset first.")
         return {}
+    
+    # Generate dataset name logic
+    if custom_name and custom_name.strip():
+        dataset_name = custom_name.strip()
+    else:
+        # Auto-generate name: SourceName_YYYYMMDD_HHMMSS
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dataset_name = f"{source_dataset_name}_{timestamp}"
+    
+    # Update configuration for saving
+    configuration["dataset_name"] = dataset_name
+    configuration["source_dataset"] = source_dataset_name
     
     # Step 1: Sanitize text corpus
     sanitizer = TextSanitizer(configuration)
@@ -159,13 +173,15 @@ def run_process_dataset_job(
     # Step 5: Save processed data and metadata to database
     try:
         metadata_for_hash = {
-            "dataset_name": configuration.get("dataset_name", "default"),
+            "dataset_name": dataset_name,
             "seed": configuration.get("seed", 42),
             "sample_size": configuration.get("sample_size", 1.0),
             "validation_size": configuration.get("validation_size", 0.2),
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
+            # Source dataset is metadata, not processing config, but good to include if it affects reproducibility
+            "source_dataset": source_dataset_name,
         }
         hashcode = serializer.generate_hashcode(metadata_for_hash)
         
@@ -355,32 +371,30 @@ class PreparationEndpoint:
 
         with self.database.backend.engine.begin() as conn:
             inspector = sqlalchemy.inspect(conn)
-            if not inspector.has_table(RADIOGRAPHY_TABLE):
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="RADIOGRAPHY_DATA table not found",
+            
+            deleted_anything = False
+            
+            # 1. Try deleting from TRAINING_DATASET (Processed datasets)
+            if inspector.has_table(TRAINING_DATASET_TABLE):
+                result = conn.execute(
+                    sqlalchemy.text('DELETE FROM "TRAINING_DATASET" WHERE dataset_name = :dataset_name'),
+                    {"dataset_name": dataset_name}
                 )
+                if result.rowcount > 0:
+                    deleted_anything = True
+                    logger.info(f"Deleted {result.rowcount} rows from TRAINING_DATASET for {dataset_name}")
 
-            row_result = conn.execute(
-                sqlalchemy.text(
-                    'SELECT COUNT(*) FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
-                ),
-                {"dataset_name": dataset_name},
-            )
-            row_count = row_result.scalar() or 0
-            if row_count == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dataset not found: {dataset_name}",
+            # 2. Try deleting from RADIOGRAPHY_DATA (Source datasets)
+            if inspector.has_table(RADIOGRAPHY_TABLE):
+                result = conn.execute(
+                    sqlalchemy.text('DELETE FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'),
+                    {"dataset_name": dataset_name}
                 )
+                if result.rowcount > 0:
+                    deleted_anything = True
+                    logger.info(f"Deleted {result.rowcount} rows from RADIOGRAPHY_DATA for {dataset_name}")
 
-            conn.execute(
-                sqlalchemy.text(
-                    'DELETE FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
-                ),
-                {"dataset_name": dataset_name},
-            )
-
+            # 3. Clean up metadata tables for this dataset name
             cleanup_tables = [
                 PROCESSING_METADATA_TABLE,
                 VALIDATION_REPORTS_TABLE,
@@ -389,11 +403,48 @@ class PreparationEndpoint:
             ]
             for table_name in cleanup_tables:
                 if inspector.has_table(table_name):
-                    conn.execute(
-                        sqlalchemy.text(
-                            f'DELETE FROM "{table_name}" WHERE dataset_name = :dataset_name'
-                        ),
-                        {"dataset_name": dataset_name},
+                    result = conn.execute(
+                        sqlalchemy.text(f'DELETE FROM "{table_name}" WHERE dataset_name = :dataset_name'),
+                        {"dataset_name": dataset_name}
+                    )
+                    if result.rowcount > 0:
+                        logger.info(f"Deleted metadata from {table_name} for {dataset_name}")
+
+            if not deleted_anything:
+                 # Check if it existed in metadata only (edge case)
+                 # If we didn't delete from data tables, maybe we deleted from metadata tables?
+                 # Since we didn't track rowcount for metadata tables in `deleted_anything` flag (for strict ness),
+                 # check if it was truly not found at all.
+                 
+                 # Strictly speaking, if we found nothing in DATA tables, we can consider it "not found" 
+                 # or "metadata only delete". Let's assume if the user asked to delete, and we found NOTHING, return 404.
+                 # But if we found metadata, it's a valid delete of a corrupted dataset.
+                 
+                 # Let's simplify: If we didn't delete from data tables, check if we should return 404.
+                 # Actually, the user just wants it GONE. If it's already gone, success? Or 404?
+                 # Standard REST implies 404 if resource doesn't exist.
+                 
+                 # Let's check simply if we deleted from ANY table?
+                 # The previous logic counted only RADIOGRAPHY_DATA. 
+                 # Let's count if we deleted from TRAINING_DATASET as well.
+                 
+                 pass # Logic handled by `deleted_anything` flag above. 
+
+            if not deleted_anything:
+                 # Double check if it exists in metadata at least, to avoid 404ing on a "metadata-only" ghost
+                 found_in_metadata = False
+                 if inspector.has_table(PROCESSING_METADATA_TABLE):
+                     check = conn.execute(
+                        sqlalchemy.text(f'SELECT 1 FROM "{PROCESSING_METADATA_TABLE}" WHERE dataset_name = :dataset_name'),
+                        {"dataset_name": dataset_name}
+                     )
+                     if check.fetchone():
+                         found_in_metadata = True
+
+                 if not found_in_metadata:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Dataset not found: {dataset_name}",
                     )
 
         return DeleteResponse(
