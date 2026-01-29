@@ -179,7 +179,7 @@ def run_training_job(
             return {}
 
         # Initialize interrupt callback that checks job manager
-        training_state.interrupt_callback = TrainingInterruptCallback()
+        training_state.interrupt_callback = TrainingInterruptCallback(job_id)
 
         # Train model
         logger.info("Starting XREPORT Transformer model training")
@@ -236,7 +236,7 @@ def run_resume_training_job(
         validation_dataset = builder.build_training_dataloader(validation_data)
 
         # Initialize interrupt callback
-        training_state.interrupt_callback = TrainingInterruptCallback()
+        training_state.interrupt_callback = TrainingInterruptCallback(job_id)
 
         if job_manager.should_stop(job_id):
             logger.info("Training job %s cancelled before resume started", job_id)
@@ -676,10 +676,10 @@ class TrainingEndpoint:
         if self.training_state.interrupt_callback is not None:
             self.training_state.interrupt_callback.request_stop()
             logger.info("Training stop requested")
-            
-            # Also cancel via job manager if we have a job_id
-            if self.training_state.current_job_id:
-                self.job_manager.cancel_job(self.training_state.current_job_id)
+        
+        # Also cancel via job manager if we have a job_id
+        if self.training_state.current_job_id:
+            self.job_manager.cancel_job(self.training_state.current_job_id)
         
         return TrainingStatusResponse(
             job_id=self.training_state.current_job_id,
