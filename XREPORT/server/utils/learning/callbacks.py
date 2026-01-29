@@ -204,40 +204,7 @@ class RealTimeMetricsCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
-        self.global_batch_index += 1
-        
-        # Only record data every N batches
-        if batch % self.batch_interval != 0:
-            return
-
-        current_time = time.time()
-        # Check if enough time has passed since last update
-        time_elapsed = (current_time - self.last_update_time) >= self.update_frequency
-            
-        logs = logs or {}
-        
-        # Create data point with cumulative batch index for X-axis
-        point = {"batch": self.global_batch_index}
-        
-        # Add training metrics from batch logs and track available metrics
-        for key, value in logs.items():
-            point[key] = float(value)
-            self.available_batch_metrics.add(key)
-        
-        # Include last known validation metrics  
-        point["val_loss"] = self.last_val_loss
-        point["val_MaskedAccuracy"] = self.last_val_accuracy
-        # Track validation metrics as available too
-        self.available_batch_metrics.add("val_loss")
-        self.available_batch_metrics.add("val_MaskedAccuracy")
-        
-        self.batch_history.append(point)
-
-        
-        # Only send WebSocket update if enough time has passed
-        if time_elapsed:
-            self.last_update_time = current_time
-            self.send_plot_update()
+        return
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
@@ -254,13 +221,15 @@ class RealTimeMetricsCallback(Callback):
             self.history["history"][key].append(float(value))
         self.history["epochs"] = epoch + 1
         
-        # Record epoch boundary at current batch index
+        # Record epoch boundary at current epoch index
+        self.global_batch_index = epoch + 1
         self.epoch_boundaries.append(self.global_batch_index)
-        
-        # Add final epoch point to batch_history
+
+        # Add epoch point to chart history
         point = {"batch": self.global_batch_index}
         for key, value in logs.items():
             point[key] = float(value)
+            self.available_batch_metrics.add(key)
         self.batch_history.append(point)
         
         self.plot_training_history(save_png=False)

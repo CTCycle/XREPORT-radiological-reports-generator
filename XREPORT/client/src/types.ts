@@ -88,6 +88,7 @@ export interface TrainingDashboardState {
     chartData: ChartDataPoint[];
     availableMetrics: string[];
     epochBoundaries: number[];
+    logEntries: string[];
 }
 
 export interface TrainingPageState {

@@ -86,7 +86,8 @@ const DEFAULT_DASHBOARD_STATE: TrainingDashboardState = {
     elapsedSeconds: 0,
     chartData: [],
     availableMetrics: [],
-    epochBoundaries: []
+    epochBoundaries: [],
+    logEntries: []
 };
 
 const DEFAULT_TRAINING_STATE: TrainingPageState = {
