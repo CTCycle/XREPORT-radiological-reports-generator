@@ -49,7 +49,7 @@ VALIDATION_REPORTS_TABLE = "VALIDATION_REPORTS"
 
 TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     RADIOGRAPHY_TABLE: ["dataset_name", "id", "image", "text", "path"],
-    TRAINING_DATASET_TABLE: ["image", "tokens", "split", "path"],
+    TRAINING_DATASET_TABLE: ["dataset_name", "hashcode", "id", "image", "tokens", "split", "path"],
     PROCESSING_METADATA_TABLE: [
         "dataset_name",
         "date",
@@ -91,7 +91,7 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
 
 TABLE_MERGE_KEYS: dict[str, list[str]] = {
     RADIOGRAPHY_TABLE: ["dataset_name", "id"],
-    TRAINING_DATASET_TABLE: ["image"],
+    TRAINING_DATASET_TABLE: ["dataset_name", "hashcode", "id"],
     PROCESSING_METADATA_TABLE: ["dataset_name"],
     GENERATED_REPORTS_TABLE: ["image", "checkpoint"],
     TEXT_STATISTICS_TABLE: ["dataset_name", "name"],

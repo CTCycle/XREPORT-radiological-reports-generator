@@ -5,12 +5,10 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(..., description="Server-side folder path containing images")
 
 
-###############################################################################
 class ImagePathResponse(BaseModel):
     valid: bool
     folder_path: str
@@ -18,7 +16,6 @@ class ImagePathResponse(BaseModel):
     message: str
 
 
-###############################################################################
 class DatasetUploadResponse(BaseModel):
     success: bool
     filename: str
@@ -29,13 +26,11 @@ class DatasetUploadResponse(BaseModel):
     message: str
 
 
-###############################################################################
 class LoadDatasetRequest(BaseModel):
     image_folder_path: str = Field(..., description="Folder path containing X-ray images")
     sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
 
 
-###############################################################################
 class LoadDatasetResponse(BaseModel):
     success: bool
     total_images: int
@@ -44,7 +39,6 @@ class LoadDatasetResponse(BaseModel):
     message: str
 
 
-###############################################################################
 class DirectoryItem(BaseModel):
     name: str
     path: str
@@ -52,7 +46,6 @@ class DirectoryItem(BaseModel):
     image_count: int = 0  # Only for directories, count of image files
 
 
-###############################################################################
 class BrowseResponse(BaseModel):
     current_path: str
     parent_path: str | None
@@ -60,7 +53,6 @@ class BrowseResponse(BaseModel):
     drives: list[str] = []  # Windows drives like C:, D:
 
 
-###############################################################################
 class StartTrainingRequest(BaseModel):
     epochs: int = Field(10, ge=1, le=1000, description="Number of training epochs")
     batch_size: int = Field(32, ge=1, le=256, description="Batch size for training")
@@ -83,13 +75,13 @@ class StartTrainingRequest(BaseModel):
     use_scheduler: bool = Field(False, description="Use learning rate scheduler")
     target_LR: float = Field(0.0001, ge=0.000001, le=0.1, description="Target learning rate")
     warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
-###############################################################################
+
+
 class ResumeTrainingRequest(BaseModel):
     checkpoint: str = Field(..., description="Checkpoint name to resume from")
     additional_epochs: int = Field(10, ge=1, le=1000, description="Additional epochs to train")
 
 
-###############################################################################
 class CheckpointInfo(BaseModel):
     name: str
     epochs: int = 0
@@ -97,12 +89,10 @@ class CheckpointInfo(BaseModel):
     val_loss: float = 0.0
 
 
-###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointInfo]
 
 
-###############################################################################
 class TrainingStatusResponse(BaseModel):
     job_id: str | None = None
     is_training: bool
@@ -116,7 +106,6 @@ class TrainingStatusResponse(BaseModel):
     elapsed_seconds: int = 0
 
 
-###############################################################################
 class ProcessDatasetRequest(BaseModel):
     dataset_name: str = Field(..., min_length=1, description="Dataset name to process")
     custom_name: str | None = Field(None, description="Optional custom name for the processed dataset")
@@ -126,7 +115,6 @@ class ProcessDatasetRequest(BaseModel):
     max_report_size: int = Field(200, ge=50, le=1000, description="Maximum token length for reports")
 
 
-###############################################################################
 class ProcessDatasetResponse(BaseModel):
     success: bool
     total_samples: int
@@ -136,14 +124,12 @@ class ProcessDatasetResponse(BaseModel):
     message: str
 
 
-###############################################################################
 class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
     message: str
 
 
-###############################################################################
 class DatasetInfo(BaseModel):    
     name: str
     folder_path: str
@@ -151,19 +137,16 @@ class DatasetInfo(BaseModel):
     has_validation_report: bool = False
 
 
-###############################################################################
 class DatasetNamesResponse(BaseModel):
     datasets: list[DatasetInfo]
     count: int
 
 
-###############################################################################
 class ProcessingMetadataResponse(BaseModel):
     dataset_name: str
     metadata: dict[str, Any]
 
 
-###############################################################################
 class CheckpointMetadataResponse(BaseModel):
     checkpoint: str
     configuration: dict[str, Any]
@@ -171,19 +154,16 @@ class CheckpointMetadataResponse(BaseModel):
     session: dict[str, Any]
 
 
-###############################################################################
 class DeleteResponse(BaseModel):
     success: bool
     message: str
 
 
-###############################################################################
 class ImageCountResponse(BaseModel):
     dataset_name: str
     count: int
 
 
-###############################################################################
 class ImageMetadataResponse(BaseModel):
     dataset_name: str
     index: int

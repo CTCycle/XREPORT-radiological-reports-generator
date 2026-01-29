@@ -30,12 +30,15 @@ class RadiographyData(Base):
 class TrainingData(Base):
     """Processed training dataset with tokenized text and train/val split."""
     __tablename__ = "TRAINING_DATASET"
-    image = Column(String, primary_key=True)
+    dataset_name = Column(String, primary_key=True)
+    hashcode = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    image = Column(String)
     text = Column(String)
     tokens = Column(IntSequence)
     split = Column(String)
     path = Column(String)  # Full image path for training
-    __table_args__ = (UniqueConstraint("image"),)
+    __table_args__ = (UniqueConstraint("dataset_name", "hashcode", "id"),)
 
 
 ###############################################################################

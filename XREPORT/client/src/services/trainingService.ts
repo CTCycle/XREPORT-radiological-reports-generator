@@ -161,6 +161,24 @@ export async function getDatasetNames(): Promise<{ result: DatasetNamesResponse 
 }
 
 /**
+ * Get list of distinct processed dataset names available for training
+ */
+export async function getProcessedDatasetNames(): Promise<{ result: DatasetNamesResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/preparation/dataset/processed/names');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DatasetNamesResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
  * Get processing metadata for a dataset
  */
 export async function getProcessingMetadata(
