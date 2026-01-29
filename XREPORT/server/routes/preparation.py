@@ -113,12 +113,6 @@ def run_process_dataset_job(
         if dataset_name:
             raise RuntimeError(f"No data found for dataset: {dataset_name}. Please load the dataset and try again.")
         raise RuntimeError("No data found in RADIOGRAPHY_DATA table. Please load a dataset first.")
-    
-    logger.info(f"Processing dataset with {len(dataset)} samples")
-    
-    # Update progress
-    jm.update_progress(job_id, 10.0)
-    if jm.should_stop(job_id):
         return {}
     
     # Step 1: Sanitize text corpus

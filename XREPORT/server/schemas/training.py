@@ -119,6 +119,7 @@ class TrainingStatusResponse(BaseModel):
 ###############################################################################
 class ProcessDatasetRequest(BaseModel):
     dataset_name: str = Field(..., min_length=1, description="Dataset name to process")
+    custom_name: str | None = Field(None, description="Optional custom name for the processed dataset")
     sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
     validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of data for validation")
     tokenizer: str = Field("bert-base-uncased", description="Hugging Face tokenizer ID")
