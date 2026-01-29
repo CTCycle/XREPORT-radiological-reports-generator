@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import multiprocessing
 import os
+import queue
 import shutil
+import time
 from typing import Any
-from functools import partial
 
 from fastapi import APIRouter, HTTPException, status
 import sqlalchemy
@@ -24,7 +26,6 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.learning.device import DeviceConfig
 from XREPORT.server.utils.repository.serializer import (
     DataSerializer,
     ModelSerializer,
@@ -33,11 +34,11 @@ from XREPORT.server.utils.repository.serializer import (
 from XREPORT.server.utils.configurations.server import server_settings
 from XREPORT.server.database.database import database
 from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
-from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.learning.callbacks import TrainingInterruptCallback
-from XREPORT.server.utils.learning.training.trainer import ModelTrainer
-# Moved imports to top-level as requested
-from XREPORT.server.utils.learning.training.model import build_xreport_model
+from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
+from XREPORT.server.utils.learning.training.worker import (
+    run_resume_training_process,
+    run_training_process,
+)
 
 
 ###############################################################################
@@ -59,7 +60,8 @@ class TrainingState:
             "epoch_boundaries": [],
             "available_metrics": [],
         }
-        self.interrupt_callback: TrainingInterruptCallback | None = None
+        self.stop_event: Any | None = None
+        self.training_process: multiprocessing.Process | None = None
         self.current_job_id: str | None = None
 
     # -----------------------------------------------------------------------------
@@ -95,13 +97,16 @@ class TrainingState:
         self.state["chart_data"] = []
         self.state["epoch_boundaries"] = []
         self.state["available_metrics"] = []
+        self.stop_event = None
+        self.training_process = None
         self.current_job_id = job_id
 
     # -----------------------------------------------------------------------------
     def finish_session(self) -> None:
         """Mark training session as complete."""
         self.state["is_training"] = False
-        self.interrupt_callback = None
+        self.stop_event = None
+        self.training_process = None
         self.current_job_id = None
 
 
@@ -143,129 +148,157 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
 
 
 # -----------------------------------------------------------------------------
+def drain_progress_queue(job_id: str, progress_queue: Any) -> None:
+    while True:
+        try:
+            message = progress_queue.get_nowait()
+        except queue.Empty:
+            return
+        handle_training_progress(job_id, message)
+
+
+# -----------------------------------------------------------------------------
+def read_result_queue(result_queue: Any) -> dict[str, Any] | None:
+    try:
+        payload = result_queue.get_nowait()
+    except queue.Empty:
+        return None
+    if isinstance(payload, dict):
+        return payload
+    return None
+
+
+# -----------------------------------------------------------------------------
+def monitor_training_process(
+    job_id: str,
+    process: multiprocessing.Process,
+    progress_queue: Any,
+    result_queue: Any,
+    stop_event: Any,
+    stop_timeout_seconds: float,
+) -> dict[str, Any]:
+    stop_requested_at: float | None = None
+
+    while process.is_alive():
+        if job_manager.should_stop(job_id):
+            if not stop_event.is_set():
+                stop_event.set()
+                stop_requested_at = time.monotonic()
+        if stop_requested_at is not None:
+            elapsed = time.monotonic() - stop_requested_at
+            if elapsed >= stop_timeout_seconds:
+                process.terminate()
+                break
+        try:
+            message = progress_queue.get(timeout=0.25)
+        except queue.Empty:
+            message = None
+        if message is not None:
+            handle_training_progress(job_id, message)
+
+    process.join(timeout=5)
+    drain_progress_queue(job_id, progress_queue)
+
+    result_payload = read_result_queue(result_queue)
+    if result_payload is None:
+        if process.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+            raise RuntimeError(
+                f"Training process exited with code {process.exitcode}"
+            )
+        return {}
+    if "error" in result_payload and result_payload["error"]:
+        raise RuntimeError(str(result_payload["error"]))
+    if "result" in result_payload:
+        return result_payload["result"] or {}
+    return {}
+
+
+# -----------------------------------------------------------------------------
 def run_training_job(
     configuration: dict[str, Any],
-    train_data: Any,
-    validation_data: Any,
-    metadata: dict[str, Any],
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking training function that runs in background thread."""
-    # Note: Accessing training_state directly via module-level import to support ThreadPoolExecutor
-    # without pickle issues.
     try:
-        # Initialize serializers
-        modser = ModelSerializer()
+        ctx = multiprocessing.get_context("spawn")
+        progress_queue = ctx.Queue(maxsize=256)
+        result_queue = ctx.Queue(maxsize=8)
+        stop_event = ctx.Event()
+        training_state.stop_event = stop_event
 
-        # Set device for training
-        logger.info("Setting device for training operations")
-        device = DeviceConfig(configuration)
-        device.set_device()
+        try:
+            process = ctx.Process(
+                target=run_training_process,
+                kwargs={
+                    "configuration": configuration,
+                    "progress_queue": progress_queue,
+                    "result_queue": result_queue,
+                    "stop_event": stop_event,
+                },
+                daemon=False,
+            )
+            training_state.training_process = process
+            process.start()
 
-        # Create checkpoint folder
-        checkpoint_path = modser.create_checkpoint_folder(name=configuration.get("checkpoint_id"))
-
-        # Build data loaders
-        logger.info("Building model data loaders")
-        builder = XRAYDataLoader(configuration)
-        train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data)
-
-        logger.info("Building XREPORT Transformer model")
-        model = build_xreport_model(metadata, configuration)
-
-        if job_manager.should_stop(job_id):
-            logger.info("Training job %s cancelled before training started", job_id)
-            return {}
-
-        # Initialize interrupt callback that checks job manager
-        training_state.interrupt_callback = TrainingInterruptCallback(job_id)
-
-        # Train model
-        logger.info("Starting XREPORT Transformer model training")
-        trainer = ModelTrainer(configuration)
-        trained_model, history = trainer.train_model(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            websocket_callback=partial(handle_training_progress, job_id),
-            interrupt_callback=training_state.interrupt_callback,
-        )
-
-        # Save model and configuration
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(checkpoint_path, history, configuration, metadata)
-
-        return {
-            "epochs": history.get("epochs", 0),
-            "final_loss": history.get("history", {}).get("loss", [0])[-1],
-            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
-            "checkpoint_path": checkpoint_path,
-        }
+            return monitor_training_process(
+                job_id,
+                process,
+                progress_queue,
+                result_queue,
+                stop_event,
+                stop_timeout_seconds=10.0,
+            )
+        finally:
+            progress_queue.close()
+            result_queue.close()
+            progress_queue.join_thread()
+            result_queue.join_thread()
     finally:
         training_state.finish_session()
 
 
 # -----------------------------------------------------------------------------
 def run_resume_training_job(
-    model: Any,
-    train_config: dict[str, Any],
-    model_metadata: dict[str, Any],
-    session: dict[str, Any],
-    checkpoint_path: str,
-    train_data: Any,
-    validation_data: Any,
+    checkpoint: str,
     additional_epochs: int,
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking resume training function that runs in background thread."""
     try:
-        modser = ModelSerializer()
-        from_epoch = session.get("epochs", 0)
+        ctx = multiprocessing.get_context("spawn")
+        progress_queue = ctx.Queue(maxsize=256)
+        result_queue = ctx.Queue(maxsize=8)
+        stop_event = ctx.Event()
+        training_state.stop_event = stop_event
 
-        # Set device for training
-        logger.info("Setting device for training operations")
-        device = DeviceConfig(train_config)
-        device.set_device()
+        try:
+            process = ctx.Process(
+                target=run_resume_training_process,
+                kwargs={
+                    "checkpoint": checkpoint,
+                    "additional_epochs": additional_epochs,
+                    "progress_queue": progress_queue,
+                    "result_queue": result_queue,
+                    "stop_event": stop_event,
+                },
+                daemon=False,
+            )
+            training_state.training_process = process
+            process.start()
 
-        # Build data loaders
-        logger.info("Building model data loaders")
-        builder = XRAYDataLoader(train_config)
-        train_dataset = builder.build_training_dataloader(train_data)
-        validation_dataset = builder.build_training_dataloader(validation_data)
-
-        # Initialize interrupt callback
-        training_state.interrupt_callback = TrainingInterruptCallback(job_id)
-
-        if job_manager.should_stop(job_id):
-            logger.info("Training job %s cancelled before resume started", job_id)
-            return {}
-
-        # Resume training
-        logger.info(f"Resuming training from epoch {from_epoch}")
-        trainer = ModelTrainer(train_config, model_metadata)
-        trained_model, history = trainer.resume_training(
-            model,
-            train_dataset,
-            validation_dataset,
-            checkpoint_path,
-            session=session,
-            additional_epochs=additional_epochs,
-            websocket_callback=partial(handle_training_progress, job_id),
-            interrupt_callback=training_state.interrupt_callback,
-        )
-
-        # Save model and configuration
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(checkpoint_path, history, train_config, model_metadata)
-
-        return {
-            "epochs": history.get("epochs", 0),
-            "final_loss": history.get("history", {}).get("loss", [0])[-1],
-            "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
-            "checkpoint_path": checkpoint_path,
-        }
+            return monitor_training_process(
+                job_id,
+                process,
+                progress_queue,
+                result_queue,
+                stop_event,
+                stop_timeout_seconds=10.0,
+            )
+        finally:
+            progress_queue.close()
+            result_queue.close()
+            progress_queue.join_thread()
+            result_queue.join_thread()
     finally:
         training_state.finish_session()
 
@@ -420,71 +453,16 @@ class TrainingEndpoint:
         configuration["use_mixed_precision"] = server_settings.training.use_mixed_precision
         configuration["sample_size"] = server_settings.training.sample_size
         
-        # Load training metadata to check if we need to re-split
         stored_metadata = serializer.load_training_data(only_metadata=True)
-        
-        # Check if requested sample_size or validation_size differs from stored one
-        req_sample = configuration["sample_size"]
-        req_val = request.validation_size
-        stored_sample = stored_metadata.get("sample_size", 1.0)
-        stored_val = stored_metadata.get("validation_size", 0.2)
-        
-        # Load training data
-        train_data, validation_data, metadata = serializer.load_training_data()
-        
-        if train_data.empty and validation_data.empty:
+        if not stored_metadata:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No training data found. Please process a dataset first.",
             )
-
-        # If splitting parameters differ, re-split the already processed data
-        if abs(req_sample - stored_sample) > 1e-6 or abs(req_val - stored_val) > 1e-6:
-            logger.info("Splitting parameters changed, re-splitting data")
-            from XREPORT.server.utils.learning.processing import TrainValidationSplit
-            import pandas as pd
-            
-            # Combine train and validation data
-            full_data = pd.concat([train_data, validation_data], ignore_index=True)
-            
-            # Apply new sample size if it changed
-            if abs(req_sample - stored_sample) > 1e-6:
-                # We assume the stored data is already sampled at stored_sample. 
-                # If req_sample is different, we might need to go back to source, 
-                # but for now let's just sample from the already processed data if possible,
-                # or warn that we are sampling from the already sampled set.
-                # Actually, the most robust way is to re-load from RADIOGRAPHY_TABLE,
-                # but that would lose tokenization.
-                # Let's just sample the current data for now.
-                if req_sample < stored_sample:
-                    frac = req_sample / stored_sample
-                    full_data = full_data.sample(frac=frac, random_state=request.training_seed)
-                else:
-                    logger.warning("Requested sample_size is larger than stored sample_size. Using all available data.")
-            
-            # Re-split
-            splitter = TrainValidationSplit({
-                "validation_size": req_val,
-                "split_seed": request.training_seed
-            }, full_data)
-            split_data = splitter.split_train_and_validation()
-            
-            train_data = split_data[split_data["split"] == "train"].reset_index(drop=True)
-            validation_data = split_data[split_data["split"] == "validation"].reset_index(drop=True)
-            
-            # Update metadata for the job
-            metadata["sample_size"] = req_sample
-            metadata["validation_size"] = req_val
-            metadata["seed"] = request.training_seed
-
-        # Validate stored image paths exist
-        train_data = serializer.validate_img_paths(train_data)
-        validation_data = serializer.validate_img_paths(validation_data)
-        
-        if train_data.empty and validation_data.empty:
+        if serializer.count_rows(TRAINING_DATASET_TABLE) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No valid images found. Image paths may have changed since dataset was processed.",
+                detail="No training data found. Please process a dataset first.",
             )
         
         # Start background job
@@ -493,9 +471,6 @@ class TrainingEndpoint:
             runner=run_training_job,
             kwargs={
                 "configuration": configuration,
-                "train_data": train_data,
-                "validation_data": validation_data,
-                "metadata": metadata,
             },
         )
         
@@ -543,41 +518,35 @@ class TrainingEndpoint:
         serializer = DataSerializer()
         modser = ModelSerializer()
         
-        # Load checkpoint
-        logger.info(f"Loading checkpoint: {request.checkpoint}")
-        try:
-            model, train_config, model_metadata, session, checkpoint_path = modser.load_checkpoint(
-                request.checkpoint
+        stored_metadata = serializer.load_training_data(only_metadata=True)
+        if not stored_metadata:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No training data found. Please process a dataset first.",
             )
-        except Exception as e:
+
+        checkpoint = request.checkpoint.strip()
+        if not checkpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkpoint name cannot be empty",
+            )
+
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        if not os.path.isdir(checkpoint_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Checkpoint not found: {request.checkpoint}",
-            ) from e
-        
-        # Load and validate training data
-        current_metadata = serializer.load_training_data(only_metadata=True)
-        is_validated = serializer.validate_metadata(current_metadata, model_metadata)
-        
-        if is_validated:
-            logger.info("Loading processed dataset")
-            train_data, validation_data, _ = serializer.load_training_data()
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current dataset metadata doesn't match checkpoint. Please reprocess the dataset.",
+                detail=f"Checkpoint not found: {checkpoint}",
             )
-        
-        # Validate stored image paths exist
-        train_data = serializer.validate_img_paths(train_data)
-        validation_data = serializer.validate_img_paths(validation_data)
-        
-        if train_data.empty or validation_data.empty:
+
+        try:
+            _, _, session = modser.load_training_configuration(checkpoint_path)
+        except Exception as exc:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No valid images found. Image paths may have changed since dataset was processed.",
-            )
-        
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to load checkpoint metadata: {exc}",
+            ) from exc
+
         from_epoch = session.get("epochs", 0)
         
         # Start background job
@@ -585,13 +554,7 @@ class TrainingEndpoint:
             job_type="training",
             runner=run_resume_training_job,
             kwargs={
-                "model": model,
-                "train_config": train_config,
-                "model_metadata": model_metadata,
-                "session": session,
-                "checkpoint_path": checkpoint_path,
-                "train_data": train_data,
-                "validation_data": validation_data,
+                "checkpoint": checkpoint,
                 "additional_epochs": request.additional_epochs,
             },
         )
@@ -649,9 +612,8 @@ class TrainingEndpoint:
                 detail=f"Job not found: {job_id}",
             )
         
-        # Also trigger the interrupt callback if training is active
-        if self.training_state.interrupt_callback is not None:
-            self.training_state.interrupt_callback.request_stop()
+        if self.training_state.stop_event is not None:
+            self.training_state.stop_event.set()
         
         success = self.job_manager.cancel_job(job_id)
         
@@ -673,8 +635,8 @@ class TrainingEndpoint:
                 detail="No training is currently in progress",
             )
         
-        if self.training_state.interrupt_callback is not None:
-            self.training_state.interrupt_callback.request_stop()
+        if self.training_state.stop_event is not None:
+            self.training_state.stop_event.set()
             logger.info("Training stop requested")
         
         # Also cancel via job manager if we have a job_id
