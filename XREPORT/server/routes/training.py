@@ -404,11 +404,15 @@ class TrainingEndpoint:
         
         # Build configuration from request
         configuration = request.model_dump()
+        configuration.pop("sample_size", None)
         
         # Inject configurations from configurations.json
         configuration["use_mixed_precision"] = server_settings.training.use_mixed_precision
-        configuration["sample_size"] = server_settings.training.sample_size
         configuration["training_seed"] = server_settings.global_settings.seed
+        configuration["dataloader_workers"] = server_settings.training.dataloader_workers
+        configuration["prefetch_factor"] = server_settings.training.prefetch_factor
+        configuration["pin_memory"] = server_settings.training.pin_memory
+        configuration["persistent_workers"] = server_settings.training.persistent_workers
         
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:
