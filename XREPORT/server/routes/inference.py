@@ -16,7 +16,7 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.constants import RESOURCES_PATH
+from XREPORT.server.utils.constants import RESOURCES_PATH, CHECKPOINT_PATH
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.learning.inference import TextGenerator
 from XREPORT.server.utils.jobs import JobManager, job_manager
@@ -174,6 +174,20 @@ class InferenceEndpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Unsupported generation mode: {generation_mode}",
+            )
+
+        checkpoint = checkpoint.strip()
+        if not checkpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkpoint name cannot be empty",
+            )
+
+        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint, "saved_model.keras")
+        if not os.path.isfile(checkpoint_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Checkpoint not found: {checkpoint}",
             )
 
         # Create temp directory for uploaded images
