@@ -229,10 +229,6 @@ def prepare_training_data(
     if train_data.empty and validation_data.empty:
         raise ValueError("No training data found. Please process a dataset first.")
 
-    # Data logic has been moved to dataset processing.
-    # We use the dataset exactly as it was processed and split.
-
-
     validate_paths = bool(configuration.get("validate_paths_on_train", False))
     if validate_paths:
         train_data = serializer.validate_img_paths(train_data)
