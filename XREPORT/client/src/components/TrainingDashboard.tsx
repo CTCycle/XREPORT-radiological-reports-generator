@@ -85,14 +85,14 @@ export default function TrainingDashboard({
                 </div>
             </div>
 
-            <div className="metrics-grid">
-                <div className="metric-card">
+            <div className="dashboard-metrics-grid">
+                <div className="dashboard-metric-card">
                     <div className="metric-label">Epoch</div>
                     <div className="metric-value">
                         {metrics.currentEpoch} / {metrics.totalEpochs || '--'}
                     </div>
                 </div>
-                <div className="metric-card">
+                <div className="dashboard-metric-card">
                     <div className="metric-label">
                         <TrendingDown size={14} style={{ display: 'inline', marginRight: '4px' }} />
                         Train Loss
@@ -101,7 +101,7 @@ export default function TrainingDashboard({
                         {metrics.loss.toFixed(3)}
                     </div>
                 </div>
-                <div className="metric-card">
+                <div className="dashboard-metric-card">
                     <div className="metric-label">
                         <TrendingDown size={14} style={{ display: 'inline', marginRight: '4px' }} />
                         Val Loss
@@ -110,7 +110,7 @@ export default function TrainingDashboard({
                         {metrics.valLoss.toFixed(3)}
                     </div>
                 </div>
-                <div className="metric-card">
+                <div className="dashboard-metric-card">
                     <div className="metric-label">
                         <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
                         Train Acc
@@ -119,7 +119,7 @@ export default function TrainingDashboard({
                         {(metrics.accuracy * 100).toFixed(3)}%
                     </div>
                 </div>
-                <div className="metric-card">
+                <div className="dashboard-metric-card">
                     <div className="metric-label">
                         <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
                         Val Acc
