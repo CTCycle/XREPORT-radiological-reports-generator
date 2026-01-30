@@ -20,7 +20,6 @@ from XREPORT.server.utils.learning.training.metrics import (
 from XREPORT.server.utils.learning.training.scheduler import WarmUpLRScheduler
 
 
-# [XREPORT CAPTIONING MODEL]
 ###############################################################################
 class XREPORTModel:
     def __init__(self, metadata: dict[str, Any], configuration: dict[str, Any]) -> None:
@@ -40,7 +39,6 @@ class XREPORTModel:
         self.configuration = configuration
         self.metadata = metadata
 
-        # initialize the image encoder and the transformers encoders and decoders
         self.img_input = layers.Input(shape=self.img_shape, name="image_input")
         self.seq_input = layers.Input(shape=(self.sequence_length,), name="seq_input")
 
@@ -89,11 +87,8 @@ class XREPORTModel:
 
         return model
 
-    # build model given the architecture
     # -------------------------------------------------------------------------
     def get_model(self, model_summary: bool = True) -> Model:
-        # encode images and extract their features using the convolutional
-        # image encoder or a selected pretrained model
         image_features = self.img_encoder(self.img_input)
         embeddings = self.embeddings(self.seq_input)
         padding_mask = self.embeddings.compute_mask(self.seq_input)
@@ -107,10 +102,8 @@ class XREPORTModel:
                 decoder_output, encoder_output, training=False, mask=padding_mask
             )
 
-        # apply the softmax classifier layer
         output = self.classifier(decoder_output)
 
-        # wrap the model and compile it with AdamW optimizer
         model = Model(inputs=[self.img_input, self.seq_input], outputs=output)
         model = self.compile_model(model, model_summary=model_summary)
 
@@ -120,16 +113,6 @@ class XREPORTModel:
 def build_xreport_model(
     metadata: dict[str, Any], configuration: dict[str, Any]
 ) -> Model:
-    """
-    Build the XREPORT Transformer model for radiological report generation.
-    
-    Args:
-        metadata: Dataset metadata containing vocabulary_size, max_report_size, etc.
-        configuration: Training configuration with model hyperparameters.
-    
-    Returns:
-        Compiled Keras model ready for training.
-    """
     logger.info("Building XREPORT Transformer model")
     logger.info(f"  Vocabulary size: {metadata.get('vocabulary_size', 'unknown')}")
     logger.info(f"  Sequence length: {metadata.get('max_report_size', 'unknown')}")

@@ -213,7 +213,6 @@ class RealTimeMetricsCallback(Callback):
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
         self.progress_callback = progress_callback
         
-        # Real-time plotting configurations
         self.update_frequency = configuration.get("update_frequency_seconds", 1.0)
         self.batch_interval = configuration.get("plot_update_batch_interval", 10)
         self.last_update_time = time.time()
@@ -259,8 +258,6 @@ class RealTimeMetricsCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_train_begin(self, logs: dict | None = None) -> None:
-        """Send historical chart data immediately when training starts."""
-        # If we have historical data from a resumed session, send it to the frontend
         if self.batch_history:
             self.send_plot_update(full_sync=True)
 
@@ -287,11 +284,9 @@ class RealTimeMetricsCallback(Callback):
             self.history["history"][key].append(float(value))
         self.history["epochs"] = epoch + 1
         
-        # Record epoch boundary at current epoch index
         self.global_batch_index = epoch + 1
         self.epoch_boundaries.append(self.global_batch_index)
 
-        # Add epoch point to chart history
         point = {"batch": self.global_batch_index}
         for key, value in logs.items():
             point[key] = float(value)
