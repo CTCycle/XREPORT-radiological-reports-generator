@@ -18,6 +18,7 @@ set "PROJECT_ROOT=%SCRIPT_DIR%..\\.."
 set "XREPORT_DIR=%PROJECT_ROOT%\\XREPORT"
 set "PYTHON_EXE=%PROJECT_ROOT%\\XREPORT\\resources\\runtimes\\python\\python.exe"
 set "VENV_PYTHON=%PROJECT_ROOT%\\.venv\\Scripts\\python.exe"
+set "KERAS_BACKEND=torch"
 set "NODEJS_DIR=%PROJECT_ROOT%\\XREPORT\\resources\\runtimes\\nodejs"
 set "NPM_CMD=%NODEJS_DIR%\\npm.cmd"
 set "FRONTEND_DIR=%XREPORT_DIR%\\client"
@@ -161,6 +162,14 @@ if %ERRORLEVEL% neq 0 (
 
 echo [INFO] Servers are ready.
 echo.
+
+REM Perf test defaults (override by defining env vars before running)
+if not defined PERF_TEST_MATRIX set "PERF_TEST_MATRIX=default"
+if not defined PERF_TEST_STRICT set "PERF_TEST_STRICT=0"
+if not defined PERF_TEST_TIMEOUT_SECONDS set "PERF_TEST_TIMEOUT_SECONDS=120"
+if not defined PERF_TEST_RUNTIME_LIMIT_SECONDS set "PERF_TEST_RUNTIME_LIMIT_SECONDS=240"
+if not defined PERF_TEST_MEMORY_LIMIT_MB set "PERF_TEST_MEMORY_LIMIT_MB=4096"
+if not defined PERF_TEST_MEMORY_GROWTH_MB set "PERF_TEST_MEMORY_GROWTH_MB=2048"
 
 REM Run tests
 echo ============================================================
