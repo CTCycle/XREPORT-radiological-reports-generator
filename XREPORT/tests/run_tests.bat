@@ -25,6 +25,7 @@ set "FRONTEND_DIR=%XREPORT_DIR%\\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
 set "DOTENV=%XREPORT_DIR%\\settings\\.env"
 set "OPTIONAL_DEPENDENCIES=false"
+set "PERF_TEST_CONFIG_PATH=%SCRIPT_DIR%settings\\perf_config.json"
 
 REM Load OPTIONAL_DEPENDENCIES from .env if present
 if exist "%DOTENV%" (
