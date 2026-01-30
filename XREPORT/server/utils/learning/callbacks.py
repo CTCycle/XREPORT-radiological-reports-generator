@@ -106,8 +106,6 @@ class TrainingProgressCallback(Callback):
         progress_callback: Callable[[dict[str, Any]], Any] | None,
         total_epochs: int,
         from_epoch: int = 0,
-        total_epochs: int,
-        from_epoch: int = 0,
         polling_interval: float = 1.0,
     ) -> None:
         super().__init__()

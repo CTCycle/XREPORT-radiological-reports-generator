@@ -221,11 +221,17 @@ def prepare_training_data(
     configuration: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     serializer = DataSerializer()
-    stored_metadata = serializer.load_training_data(only_metadata=True)
+    dataset_name = configuration.get("dataset_name")
+    stored_metadata = serializer.load_training_data(
+        only_metadata=True,
+        dataset_name=dataset_name,
+    )
     if not stored_metadata:
         raise ValueError("No training metadata found. Please process a dataset first.")
 
-    train_data, validation_data, metadata = serializer.load_training_data()
+    train_data, validation_data, metadata = serializer.load_training_data(
+        dataset_name=dataset_name
+    )
     if train_data.empty and validation_data.empty:
         raise ValueError("No training data found. Please process a dataset first.")
 

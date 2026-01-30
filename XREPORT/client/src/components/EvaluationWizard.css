@@ -1,0 +1,311 @@
+/* Evaluation Wizard Styles */
+
+.wizard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.wizard-container {
+  background-color: var(--bg-card, #1e1e1e);
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color, #333);
+}
+
+.wizard-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color, #333);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-card-header, #252525);
+}
+
+.wizard-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wizard-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  min-height: 400px;
+}
+
+.wizard-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color, #333);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-card-footer, #252525);
+}
+
+/* Steps Indicator */
+.wizard-steps {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+  gap: 0.5rem;
+}
+
+.step-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary, #444);
+  transition: all 0.2s;
+}
+
+.step-indicator.active {
+  background-color: var(--primary-color, #3b82f6);
+  transform: scale(1.2);
+}
+
+.step-indicator.completed {
+  background-color: var(--success-color, #10b981);
+}
+
+/* Step 1: Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.metric-card {
+  background-color: var(--bg-secondary, #2d2d2d);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  background-color: var(--bg-hover, #333);
+}
+
+.metric-card.selected {
+  border-color: var(--primary-color, #3b82f6);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.metric-icon {
+  color: var(--text-secondary, #aaa);
+  margin-bottom: 0.5rem;
+}
+
+.metric-card.selected .metric-icon {
+  color: var(--primary-color, #3b82f6);
+}
+
+.metric-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary, #fff);
+}
+
+.metric-card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #aaa);
+  line-height: 1.4;
+}
+
+.metric-check {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: var(--primary-color, #3b82f6);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.2s;
+}
+
+.metric-card.selected .metric-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Step 2: Configuration */
+.config-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.config-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.config-header h3 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.config-header p {
+  color: var(--text-secondary, #aaa);
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary, #eee);
+}
+
+.range-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.range-control input[type="range"] {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  accent-color: var(--primary-color, #3b82f6);
+  background: var(--bg-secondary, #444);
+}
+
+.range-value {
+  min-width: 4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-secondary, #333);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color, #444);
+}
+
+.param-description {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #888);
+}
+
+/* Step 3: Summary */
+.summary-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.summary-card {
+  background-color: var(--bg-secondary, #2d2d2d);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color, #3d3d3d);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  color: var(--text-secondary, #aaa);
+}
+
+.summary-value {
+  color: var(--text-primary, #fff);
+  font-weight: 500;
+}
+
+.config-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Buttons */
+.btn-wizard {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-wizard-secondary {
+  background-color: transparent;
+  border-color: var(--border-color, #444);
+  color: var(--text-primary, #eee);
+}
+
+.btn-wizard-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn-wizard-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-wizard-primary {
+  background-color: var(--primary-color, #3b82f6);
+  color: white;
+}
+
+.btn-wizard-primary:hover {
+  background-color: var(--primary-hover, #2563eb);
+}
+
+.btn-wizard-primary:disabled {
+  background-color: var(--bg-disabled, #4b5563);
+  cursor: not-allowed;
+}
