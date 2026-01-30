@@ -27,7 +27,6 @@ import {
     deleteDataset,
     getCheckpointMetadata,
     getCheckpoints,
-    getDatasetNames,
     getProcessingMetadata,
     getProcessedDatasetNames,
     getTrainingJobStatus,

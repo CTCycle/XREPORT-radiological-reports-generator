@@ -210,7 +210,7 @@ class DataSerializer:
                 dataset, required_columns, table_name, "upsert"
             )
         try:
-                dataset_to_save = self._serialize_json_columns(dataset)
+            dataset_to_save = self._serialize_json_columns(dataset)
             database.upsert_into_database(dataset_to_save, table_name)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
