@@ -62,7 +62,6 @@ class DataSerializer:
         if not metadata:
             return ""
         
-        # Deterministic payload extraction
         payload = {
             "dataset_name": metadata.get("dataset_name"),
             "sample_size": metadata.get("sample_size"),
@@ -73,7 +72,6 @@ class DataSerializer:
             "tokenizer": metadata.get("tokenizer"),
         }
         
-        # Serialize to JSON with sort_keys=True
         serialized = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -101,10 +99,6 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def _serialize_json_columns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Identify columns containing lists or dicts and serialize them to JSON strings.
-        Returns a copy of the dataframe with serialized columns.
-        """
         if df.empty:
             return df
             
@@ -114,9 +108,6 @@ class DataSerializer:
             first_valid = df_copy[col].dropna().iloc[0] if not df_copy[col].dropna().empty else None
             
             if isinstance(first_valid, (list, dict)):
-                # Serialize list/dict to JSON string
-                # We use generic json.dumps. 
-                # Note: This modifies the column to object/string type.
                 df_copy[col] = df_copy[col].apply(
                     lambda x: json.dumps(x) if isinstance(x, (list, dict)) else x
                 )
@@ -174,7 +165,6 @@ class DataSerializer:
                 dataset, required_columns, table_name, "save"
             )
         
-        # Serialize list/dict columns to JSON strings if needed
         dataset_to_save = self._serialize_json_columns(dataset)
         database.save_into_database(dataset_to_save, table_name)
 
@@ -206,7 +196,6 @@ class DataSerializer:
             merged = pd.concat([existing, dataset], ignore_index=True)
             merged = merged.drop_duplicates(subset=merge_keys, keep="last")
 
-        # Serialize list/dict columns to JSON strings if needed
         merged_to_save = self._serialize_json_columns(merged)
         database.save_into_database(merged_to_save, table_name)
 
@@ -221,8 +210,7 @@ class DataSerializer:
                 dataset, required_columns, table_name, "upsert"
             )
         try:
-            # Serialize list/dict columns to JSON strings if needed
-            dataset_to_save = self._serialize_json_columns(dataset)
+                dataset_to_save = self._serialize_json_columns(dataset)
             database.upsert_into_database(dataset_to_save, table_name)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
@@ -253,7 +241,6 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def validate_img_paths(self, dataset: pd.DataFrame) -> pd.DataFrame:
-        """Validate that stored image paths exist and filter out missing ones."""
         if "path" not in dataset.columns:
             logger.error("Dataset missing 'path' column - images were not stored with paths")
             return pd.DataFrame()
@@ -310,7 +297,6 @@ class DataSerializer:
         only_metadata: bool = False,
         dataset_name: str | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
-        # Load metadata from database
         metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
         if metadata_df.empty:
             logger.warning("No processing metadata found in database")
@@ -318,7 +304,6 @@ class DataSerializer:
                 return {}
             return pd.DataFrame(), pd.DataFrame(), {}
 
-        # Filter metadata by dataset_name if provided
         if dataset_name:
             filtered_meta = metadata_df[metadata_df["dataset_name"] == dataset_name]
             if filtered_meta.empty:
@@ -328,10 +313,8 @@ class DataSerializer:
                 return pd.DataFrame(), pd.DataFrame(), {}
             latest_metadata = filtered_meta.iloc[-1].to_dict()
         else:
-            # Get the latest metadata record (last row) if no specific dataset requested
             latest_metadata = metadata_df.iloc[-1].to_dict()
             
-        # Remove the 'id' column from metadata dict
         latest_metadata.pop("id", None)
 
         if only_metadata:
@@ -341,7 +324,6 @@ class DataSerializer:
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
         
-        # Filter training data by dataset_name if using the new schema
         if "dataset_name" in training_data.columns:
             target_name = dataset_name or latest_metadata.get("dataset_name")
             if target_name:
@@ -350,7 +332,6 @@ class DataSerializer:
         train_data = training_data[training_data["split"] == "train"].copy()
         val_data = training_data[training_data["split"] == "validation"].copy()
 
-        # Deserialize tokens from JSON strings if specific columns exist
         if not train_data.empty and "tokens" in train_data.columns:
             train_data["tokens"] = train_data["tokens"].apply(
                 lambda x: DataSerializer._parse_json(x, default=[])
@@ -387,7 +368,6 @@ class DataSerializer:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
             
-        # Add dataset_name and hashcode
         dataset_name = configuration.get("dataset_name", "default")
         training_data["dataset_name"] = dataset_name
         training_data["hashcode"] = hashcode
@@ -414,7 +394,6 @@ class DataSerializer:
             raise
         
         # Save metadata to database table
-        # Save metadata to database table
         metadata = {
             "dataset_name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -436,7 +415,6 @@ class DataSerializer:
             if "no column named" in error_msg or "has no column" in error_msg or "source_dataset" in error_msg:
                 logger.warning("Schema mismatch detected. Attempting to migrate PROCESSING_METADATA table...")
                 try:
-                    # Auto-migration: Add the missing source_dataset column
                     with database.backend.engine.connect() as conn:
                         conn.execute(sqlalchemy.text('ALTER TABLE "PROCESSING_METADATA" ADD COLUMN source_dataset VARCHAR'))
                         conn.commit()
@@ -657,8 +635,6 @@ class ModelSerializer:
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
         
-        # Default custom objects for XREPORT models
-        # Include all custom layers, metrics, and loss functions
         default_custom_objects = {
             # Loss and metrics
             "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
