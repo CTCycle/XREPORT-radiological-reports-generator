@@ -5,6 +5,7 @@ import {
     RefreshCw,
     RotateCcw,
     Trash2,
+    Activity,
 } from 'lucide-react';
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
@@ -17,6 +18,7 @@ import MetadataModal, {
 } from '../components/MetadataModal';
 import NewTrainingWizard from '../components/NewTrainingWizard';
 import ResumeTrainingWizard from '../components/ResumeTrainingWizard';
+import EvaluationWizard from '../components/EvaluationWizard';
 import { ChartDataPoint, TrainingConfig } from '../types';
 import {
     CheckpointInfo,
@@ -57,6 +59,8 @@ export default function TrainingPage() {
     const [metadataModal, setMetadataModal] = useState<MetadataModalState | null>(null);
     const [isNewWizardOpen, setIsNewWizardOpen] = useState(false);
     const [isResumeWizardOpen, setIsResumeWizardOpen] = useState(false);
+    // Track which checkpoint is being evaluated (if any)
+    const [evalCheckpoint, setEvalCheckpoint] = useState<CheckpointInfo | null>(null);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
     const lastLoggedEpochRef = useRef<number | null>(null);
     const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
@@ -254,6 +258,7 @@ export default function TrainingPage() {
         resetLogTracking();
 
         const config: StartTrainingConfig = {
+            dataset_name: selectedDataset?.name ?? '',
             epochs: state.config.epochs,
             batch_size: state.config.batchSize,
             num_encoders: state.config.numEncoders,
@@ -568,6 +573,14 @@ export default function TrainingPage() {
                                             <button
                                                 type="button"
                                                 className="icon-button"
+                                                title="Evaluate checkpoint"
+                                                onClick={() => setEvalCheckpoint(checkpoint)}
+                                            >
+                                                <Activity size={15} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="icon-button"
                                                 title="Show metadata"
                                                 onClick={() => handleShowCheckpointMetadata(checkpoint)}
                                             >
@@ -652,6 +665,15 @@ export default function TrainingPage() {
             />
 
             <MetadataModal state={metadataModal} onClose={() => setMetadataModal(null)} />
+
+            {/* Evaluation Wizard */}
+            {evalCheckpoint && (
+                <EvaluationWizard
+                    isOpen={!!evalCheckpoint}
+                    onClose={() => setEvalCheckpoint(null)}
+                    checkpointName={evalCheckpoint.name}
+                />
+            )}
         </div>
     );
 }
