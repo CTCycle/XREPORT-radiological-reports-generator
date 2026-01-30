@@ -7,7 +7,6 @@ from keras.config import floatx
 from keras.saving import register_keras_serializable
 
 
-# [POSITIONAL EMBEDDING]
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
@@ -34,14 +33,12 @@ class PositionalEmbedding(layers.Layer):
         )
         self.embedding_scale = ops.sqrt(ops.cast(self.embedding_dims, floatx()))
 
-    # build method for the custom layer
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         self.token_embeddings.build(input_shape)
         self.position_embeddings.build((input_shape[-1],))
         super(PositionalEmbedding, self).build(input_shape)
 
-    # implement positional embedding through call method
     # -------------------------------------------------------------------------
     def call(self, inputs: Any) -> Any:
         length = ops.shape(inputs)[-1]
@@ -59,14 +56,12 @@ class PositionalEmbedding(layers.Layer):
 
         return full_embedding
 
-    # compute the mask for padded sequences
     # -------------------------------------------------------------------------
     def compute_mask(self, inputs: Any, previous_mask=None) -> Any:
         mask = ops.not_equal(inputs, 0)
 
         return mask
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(PositionalEmbedding, self).get_config()
@@ -80,7 +75,6 @@ class PositionalEmbedding(layers.Layer):
         )
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(
@@ -89,7 +83,6 @@ class PositionalEmbedding(layers.Layer):
         return cls(**config)
 
 
-# [ADD NORM LAYER]
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
@@ -105,7 +98,6 @@ class AddNorm(layers.Layer):
     def build(self, input_shape: Any) -> None:
         super(AddNorm, self).build(input_shape)
 
-    # implement transformer encoder through call method
     # -------------------------------------------------------------------------
     def call(self, inputs: Any) -> Any:
         x1, x2 = inputs
@@ -114,21 +106,18 @@ class AddNorm(layers.Layer):
 
         return x_norm
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(AddNorm, self).get_config()
         config.update({"epsilon": self.epsilon})
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
 
-# [FEED FORWARD]
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
@@ -152,7 +141,6 @@ class FeedForward(layers.Layer):
     def build(self, input_shape: Any) -> None:
         super(FeedForward, self).build(input_shape)
 
-    # implement transformer encoder through call method
     # -------------------------------------------------------------------------
     def call(self, x: Any, training: bool | None = None) -> Any:
         x = self.dense1(x)
@@ -160,7 +148,6 @@ class FeedForward(layers.Layer):
         output = self.dropout(x, training=training)
         return output
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(FeedForward, self).get_config()
@@ -173,14 +160,12 @@ class FeedForward(layers.Layer):
         )
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
 
-# [CLASSIFIER]
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
@@ -202,7 +187,6 @@ class SoftMaxClassifier(layers.Layer):
     def build(self, input_shape: Any) -> None:
         super(SoftMaxClassifier, self).build(input_shape)
 
-    # implement transformer encoder through call method
     # -------------------------------------------------------------------------
     def call(self, x: Any, training: bool | None = None) -> Any:
         from keras import activations
@@ -215,7 +199,6 @@ class SoftMaxClassifier(layers.Layer):
 
         return output
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(SoftMaxClassifier, self).get_config()
@@ -228,7 +211,6 @@ class SoftMaxClassifier(layers.Layer):
         )
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(
@@ -237,7 +219,6 @@ class SoftMaxClassifier(layers.Layer):
         return cls(**config)
 
 
-# [TRANSFORMER ENCODER]
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(layers.Layer):
@@ -263,7 +244,6 @@ class TransformerEncoder(layers.Layer):
     def build(self, input_shape: Any) -> None:
         super(TransformerEncoder, self).build(input_shape)
 
-    # implement transformer encoder through call method
     # -------------------------------------------------------------------------
     def call(
         self, inputs: Any, mask: Any | None = None, training: bool | None = None
@@ -291,7 +271,6 @@ class TransformerEncoder(layers.Layer):
     def get_attention_scores(self) -> dict[str, Any]:
         return {}
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(TransformerEncoder, self).get_config()
@@ -304,7 +283,6 @@ class TransformerEncoder(layers.Layer):
         )
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(
@@ -313,7 +291,6 @@ class TransformerEncoder(layers.Layer):
         return cls(**config)
 
 
-# [TRANSFORMER DECODER]
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")
 class TransformerDecoder(layers.Layer):
@@ -349,7 +326,6 @@ class TransformerDecoder(layers.Layer):
     def build(self, input_shape: Any) -> None:
         super(TransformerDecoder, self).build(input_shape)
 
-    # implement transformer decoder through call method
     # -------------------------------------------------------------------------
     def call(
         self,
@@ -403,7 +379,6 @@ class TransformerDecoder(layers.Layer):
     def get_attention_scores(self) -> dict[str, Any]:
         return {}
 
-    # generate causal attention mask
     # -------------------------------------------------------------------------
     def get_causal_attention_mask(self, inputs: Any) -> Any:
         batch_size, sequence_length = ops.shape(inputs)[0], ops.shape(inputs)[1]
@@ -415,7 +390,6 @@ class TransformerDecoder(layers.Layer):
 
         return batch_mask
 
-    # serialize layer for saving
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(TransformerDecoder, self).get_config()
@@ -428,7 +402,6 @@ class TransformerDecoder(layers.Layer):
         )
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(

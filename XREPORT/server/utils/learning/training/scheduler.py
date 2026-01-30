@@ -8,7 +8,6 @@ from keras.optimizers.schedules import LearningRateSchedule
 from keras.saving import register_keras_serializable
 
 
-# [LEARNING RATE SCHEDULER]
 ###############################################################################
 @register_keras_serializable(package="WarmUpLRScheduler")
 class WarmUpLRScheduler(LearningRateSchedule):
@@ -19,7 +18,6 @@ class WarmUpLRScheduler(LearningRateSchedule):
         self.post_warmup_LR = post_warmup_LR
         self.warmup_steps = warmup_steps
 
-    # implement encoder through call method
     # -------------------------------------------------------------------------
     def __call__(self, step: int | float) -> float | Any:
         global_step = cast(step, floatx())
@@ -34,7 +32,6 @@ class WarmUpLRScheduler(LearningRateSchedule):
         # Use keras.ops.cond to select the appropriate phase
         return cond(global_step < warmup_steps, lambda: warmup_LR, lambda: decayed_LR)
 
-    # custom configuration
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = {
@@ -44,7 +41,6 @@ class WarmUpLRScheduler(LearningRateSchedule):
 
         return config
 
-    # deserialization method
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(

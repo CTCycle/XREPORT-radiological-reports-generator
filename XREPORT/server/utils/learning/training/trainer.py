@@ -7,6 +7,7 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from XREPORT.server.utils.logger import logger
+from XREPORT.server.utils.learning.device import DeviceConfig, DeviceDataLoader
 from XREPORT.server.utils.learning.callbacks import (
     TrainingInterruptCallback,
     initialize_training_callbacks,
@@ -22,6 +23,13 @@ class ModelTrainer:
         set_random_seed(training_seed)
         self.configuration = configuration
         self.metadata = metadata
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def to_generator(loader: Any) -> Any:
+        while True:
+            for batch in loader:
+                yield batch
 
     # -------------------------------------------------------------------------
     def train_model(
@@ -46,12 +54,17 @@ class ModelTrainer:
         )
 
         logger.info(f"Starting training for {total_epochs} epochs")
-        
-        # Run model fit
+
+        device = DeviceConfig(self.configuration).set_device()
+        train_data = DeviceDataLoader(train_data, device)
+        validation_data = DeviceDataLoader(validation_data, device)
+
         session = model.fit(
-            train_data,
+            self.to_generator(train_data),
+            steps_per_epoch=len(train_data),
             epochs=total_epochs,
-            validation_data=validation_data,
+            validation_data=self.to_generator(validation_data),
+            validation_steps=len(validation_data),
             callbacks=callbacks_list,
         )
 
@@ -87,17 +100,21 @@ class ModelTrainer:
         )
 
         logger.info(f"Resuming training from epoch {from_epoch} to {total_epochs}")
-        
-        # Run model fit
+
+        device = DeviceConfig(self.configuration).set_device()
+        train_data = DeviceDataLoader(train_data, device)
+        validation_data = DeviceDataLoader(validation_data, device)
+
         new_session = model.fit(
-            train_data,
+            self.to_generator(train_data),
+            steps_per_epoch=len(train_data),
             epochs=total_epochs,
-            validation_data=validation_data,
+            validation_data=self.to_generator(validation_data),
+            validation_steps=len(validation_data),
             callbacks=callbacks_list,
             initial_epoch=from_epoch,
         )
 
-        # Update history with new scores
         if session and "history" in session:
             session_keys = session["history"].keys()
             new_history = {
