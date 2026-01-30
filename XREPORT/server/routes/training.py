@@ -391,7 +391,7 @@ class TrainingEndpoint:
             val_accuracy=self.training_state.state["val_accuracy"],
             progress_percent=self.training_state.state["progress_percent"],
             elapsed_seconds=self.training_state.state["elapsed_seconds"],
-            poll_interval=server_settings.training.update_frequency_seconds,
+            poll_interval=server_settings.training.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
@@ -415,7 +415,7 @@ class TrainingEndpoint:
         configuration["prefetch_factor"] = server_settings.training.prefetch_factor
         configuration["pin_memory"] = server_settings.training.pin_memory
         configuration["persistent_workers"] = server_settings.training.persistent_workers
-        configuration["update_frequency_seconds"] = server_settings.training.update_frequency_seconds
+        configuration["polling_interval"] = server_settings.training.polling_interval
         
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:
@@ -468,7 +468,7 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Training job started",
-            poll_interval=server_settings.training.update_frequency_seconds,
+            poll_interval=server_settings.training.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
@@ -556,7 +556,7 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Training resumed from epoch {from_epoch}",
-            poll_interval=server_settings.training.update_frequency_seconds,
+            poll_interval=server_settings.training.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
