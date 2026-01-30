@@ -51,34 +51,6 @@ const METRICS_CATALOG: MetricCatalogItem[] = [
 
 // --- Sub-components ---
 
-// Step 1: Metrics Selection
-const MetricsSelectionStep: React.FC<{
-    selectedMetrics: Set<string>;
-    onToggleMetric: (id: string) => void;
-}> = ({ selectedMetrics, onToggleMetric }) => {
-    return (
-        <div className="metrics-step">
-            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Select Evaluation Metrics</h3>
-            <div className="metrics-grid">
-                {METRICS_CATALOG.map((metric) => {
-                    const isSelected = selectedMetrics.has(metric.id);
-                    return (
-                        <div
-                            key={metric.id}
-                            className={`metric-card ${isSelected ? 'selected' : ''}`}
-                            onClick={() => onToggleMetric(metric.id)}
-                        >
-                            <div className="metric-icon">{metric.icon}</div>
-                            <div className="metric-check"><Check size={20} strokeWidth={3} /></div>
-                            <h3>{metric.title}</h3>
-                            <p>{metric.description}</p>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
 
 // Step 2: Configuration
 const MetricConfigStep: React.FC<{
@@ -92,7 +64,7 @@ const MetricConfigStep: React.FC<{
     return (
         <div className="config-container">
             <div className="config-header">
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: '#3b82f6' }}>
+                <div className="config-header-icon">
                     {metric.icon}
                 </div>
                 <h3>Configure {metric.title}</h3>
@@ -101,13 +73,13 @@ const MetricConfigStep: React.FC<{
 
             <div className="config-form">
                 {/* Visual Separator */}
-                <div style={{ marginBottom: '2rem', borderBottom: '1px solid #333' }}></div>
+                <div className="wizard-separator"></div>
 
                 {/* Common: Data Fraction */}
                 <div className="form-group">
                     <label>
                         Data Fraction
-                        <span style={{ float: 'right', color: '#888', fontWeight: 'normal' }}>
+                        <span className="fraction-value">
                             {Math.round((config.dataFraction || 0) * 100)}%
                         </span>
                     </label>
@@ -136,8 +108,7 @@ const MetricConfigStep: React.FC<{
                         <div className="range-control">
                             <input
                                 type="number"
-                                className="range-value"
-                                style={{ textAlign: 'left', width: '100%' }}
+                                className="range-value-input"
                                 min="1"
                                 max="1000"
                                 value={config.numSamples || 10}
@@ -163,16 +134,16 @@ const SummaryStep: React.FC<{
 }> = ({ checkpointName, configs, metricsOrder }) => {
     return (
         <div className="summary-container">
-            <h3 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Review & Confirm</h3>
+            <h3 className="wizard-step-title-text">Review & Confirm</h3>
 
             <div className="summary-card">
                 <div className="summary-row">
                     <span className="summary-label">Checkpoint</span>
-                    <span className="summary-value" style={{ color: '#3b82f6' }}>{checkpointName}</span>
+                    <span className="summary-checkpoint-value">{checkpointName}</span>
                 </div>
             </div>
 
-            <h4 style={{ marginBottom: '1rem', color: '#aaa' }}>Selected Metrics Configuration</h4>
+            <h4 className="config-section-title">Selected Metrics Configuration</h4>
 
             {metricsOrder.map(metricId => {
                 const metric = METRICS_CATALOG.find(m => m.id === metricId);
@@ -180,19 +151,19 @@ const SummaryStep: React.FC<{
                 if (!metric || !config) return null;
 
                 return (
-                    <div key={metricId} className="summary-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div key={metricId} className="summary-card compact">
+                        <div className="summary-metric-header">
                             {metric.icon}
-                            <span style={{ fontWeight: 500, color: '#fff' }}>{metric.title}</span>
+                            <span>{metric.title}</span>
                         </div>
                         <div className="config-summary-list">
                             <div className="config-item">
-                                <span style={{ color: '#888' }}>Data Fraction</span>
+                                <span className="item-label">Data Fraction</span>
                                 <span>{Math.round(config.dataFraction * 100)}%</span>
                             </div>
                             {metricId === 'bleu_score' && (
                                 <div className="config-item">
-                                    <span style={{ color: '#888' }}>Samples</span>
+                                    <span className="item-label">Samples</span>
                                     <span>{config.numSamples}</span>
                                 </div>
                             )}
@@ -210,7 +181,7 @@ const SummaryStep: React.FC<{
 export default function EvaluationWizard({ isOpen, onClose, checkpointName }: EvaluationWizardProps) {
     // State
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
-    const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+    const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
     const [metricConfigs, setMetricConfigs] = useState<Record<string, any>>({});
 
     // Reset state when opening/closing (optional, but good for wizards)
@@ -226,7 +197,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
     // Sort selected metrics based on CATALOG order for deterministic flow
     const orderedSelectedMetrics = useMemo(() => {
         return METRICS_CATALOG
-            .filter(m => selectedMetrics.has(m.id))
+            .filter(m => selectedMetrics.includes(m.id))
             .map(m => m.id);
     }, [selectedMetrics]);
 
@@ -241,12 +212,12 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
     // --- Handlers ---
 
     const toggleMetric = (id: string) => {
-        const next = new Set(selectedMetrics);
-        if (next.has(id)) {
-            next.delete(id);
-            // Also cleanup config? Maybe keep it cached in case they re-select.
+        const next = [...selectedMetrics];
+        const index = next.indexOf(id);
+        if (index > -1) {
+            next.splice(index, 1);
         } else {
-            next.add(id);
+            next.push(id);
             // Initialize default config if not present
             if (!metricConfigs[id]) {
                 const metric = METRICS_CATALOG.find(m => m.id === id);
@@ -301,8 +272,8 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
     if (!isOpen) return null;
 
     return (
-        <div className="wizard-overlay">
-            <div className="wizard-container">
+        <div className="wizard-overlay" onClick={onClose}>
+            <div className="wizard-container" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="wizard-header">
                     <h2>
@@ -310,8 +281,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
                         Evaluation Wizard
                     </h2>
                     <button
-                        className="btn-wizard btn-wizard-secondary"
-                        style={{ border: 'none', padding: '0.5rem' }}
+                        className="btn-wizard-close"
                         onClick={onClose}
                     >
                         <X size={20} />
@@ -326,18 +296,36 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
                             <div
                                 key={idx}
                                 className={`step-indicator ${idx === currentStepIndex ? 'active' :
-                                        idx < currentStepIndex ? 'completed' : ''
+                                    idx < currentStepIndex ? 'completed' : ''
                                     }`}
                             />
                         ))}
                     </div>
 
                     {/* Step Body */}
+                    {/* Step Body */}
                     {isFirstStep && (
-                        <MetricsSelectionStep
-                            selectedMetrics={selectedMetrics}
-                            onToggleMetric={toggleMetric}
-                        />
+                        <div className="metrics-step">
+                            <h3 className="wizard-step-title-text">Select Evaluation Metrics</h3>
+                            <div className="metrics-grid">
+                                {METRICS_CATALOG.map((metric) => {
+                                    const isSelected = selectedMetrics.includes(metric.id);
+                                    return (
+                                        <button
+                                            key={metric.id}
+                                            type="button"
+                                            className={`metric-card ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => toggleMetric(metric.id)}
+                                        >
+                                            <div className="metric-icon">{metric.icon}</div>
+                                            <div className="metric-check"><Check size={20} strokeWidth={3} /></div>
+                                            <h3>{metric.title}</h3>
+                                            <p>{metric.description}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
 
                     {currentMetricIdForConfig && (
@@ -380,7 +368,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
                         <button
                             className="btn-wizard btn-wizard-primary"
                             onClick={handleNext}
-                            disabled={isFirstStep && selectedMetrics.size === 0}
+                            disabled={isFirstStep && selectedMetrics.length === 0}
                         >
                             Next
                             <ArrowRight size={16} />
