@@ -416,6 +416,7 @@ export async function cancelPreparationJob(
 // ============================================================================
 
 export interface StartTrainingConfig {
+    dataset_name: string;
     epochs: number;
     batch_size: number;
     num_encoders: number;

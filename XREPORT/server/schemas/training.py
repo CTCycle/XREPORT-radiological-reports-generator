@@ -54,6 +54,11 @@ class BrowseResponse(BaseModel):
 
 
 class StartTrainingRequest(BaseModel):
+    dataset_name: str | None = Field(
+        None,
+        min_length=1,
+        description="Processed dataset name to use for training (defaults to latest if omitted)",
+    )
     epochs: int = Field(10, ge=1, le=1000, description="Number of training epochs")
     batch_size: int = Field(32, ge=1, le=256, description="Batch size for training")
     num_encoders: int = Field(4, ge=1, le=12, description="Number of encoder layers")

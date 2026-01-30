@@ -32,6 +32,8 @@ class BeitXRayImageEncoder(layers.Layer):
 
         # Wrap with TorchModuleWrapper for Keras gradient tracking
         self.model = TorchModuleWrapper(beit_model)
+        if self.freeze_layers is True:
+            self.model.trainable = False
         self.dense = layers.Dense(self.embedding_dims)
 
     # build method for the custom layer
