@@ -573,14 +573,6 @@ export default function TrainingPage() {
                                             <button
                                                 type="button"
                                                 className="icon-button"
-                                                title="Evaluate checkpoint"
-                                                onClick={() => setEvalCheckpoint(checkpoint)}
-                                            >
-                                                <Activity size={15} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="icon-button"
                                                 title="Show metadata"
                                                 onClick={() => handleShowCheckpointMetadata(checkpoint)}
                                             >
@@ -608,9 +600,9 @@ export default function TrainingPage() {
                             <div className="panel-card-header">
                                 <div className="panel-card-title-row">
                                     <RotateCcw size={18} />
-                                    <h4>Resume Session</h4>
+                                    <h4>Checkpoint Actions</h4>
                                 </div>
-                                <p>Continue training with a previous checkpoint.</p>
+                                <p>Resume training or evaluate the performance of the selected checkpoint.</p>
                             </div>
                             <div className="panel-card-summary">
                                 <span>Selected Checkpoint</span>
@@ -618,18 +610,35 @@ export default function TrainingPage() {
                                 <span>Epochs</span>
                                 <strong>{selectedCheckpointInfo ? selectedCheckpointInfo.epochs : 'N/A'}</strong>
                             </div>
-                            <button
-                                className="btn btn-primary"
-                                type="button"
-                                onClick={() => {
-                                    setResumeTrainingError(null);
-                                    setIsResumeWizardOpen(true);
-                                }}
-                                disabled={!state.selectedCheckpoint}
-                            >
-                                <RotateCcw size={16} />
-                                Resume Training
-                            </button>
+                            <div className="panel-card-actions">
+                                <button
+                                    className="btn btn-primary"
+                                    type="button"
+                                    onClick={() => {
+                                        setResumeTrainingError(null);
+                                        setIsResumeWizardOpen(true);
+                                    }}
+                                    disabled={!state.selectedCheckpoint}
+                                    style={{ flex: 1 }}
+                                >
+                                    <RotateCcw size={16} />
+                                    Resume Training
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    type="button"
+                                    onClick={() => {
+                                        if (state.selectedCheckpoint && selectedCheckpointInfo) {
+                                            setEvalCheckpoint(selectedCheckpointInfo);
+                                        }
+                                    }}
+                                    disabled={!state.selectedCheckpoint}
+                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                >
+                                    <Activity size={16} />
+                                    Evaluate Model
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
