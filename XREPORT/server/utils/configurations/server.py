@@ -67,6 +67,7 @@ class TrainingSettings:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
+    update_frequency_seconds: float
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -157,6 +158,7 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
         prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
         pin_memory=coerce_bool(payload.get("pin_memory"), False),
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
+        update_frequency_seconds=coerce_float(payload.get("update_frequency_seconds"), 1.0),
     )
 
 # -----------------------------------------------------------------------------
