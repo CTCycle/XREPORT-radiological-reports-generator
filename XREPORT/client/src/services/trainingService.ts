@@ -99,6 +99,7 @@ export interface JobStartResponse {
     job_type: string;
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     message: string;
+    poll_interval?: number;
 }
 
 export interface JobStatusResponse {
@@ -458,6 +459,7 @@ export interface TrainingStatusResponse {
     val_accuracy: number;
     progress_percent: number;
     elapsed_seconds: number;
+    poll_interval?: number;
 }
 
 /**

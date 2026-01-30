@@ -172,10 +172,9 @@ def monitor_training_process(
     stop_requested_at: float | None = None
 
     while worker.is_alive():
-        if job_manager.should_stop(job_id):
-            if not worker.is_interrupted():
-                worker.stop()
-                stop_requested_at = time.monotonic()
+        if job_manager.should_stop(job_id) and not worker.is_interrupted():
+            worker.stop()
+            stop_requested_at = time.monotonic()
         if stop_requested_at is not None:
             elapsed = time.monotonic() - stop_requested_at
             if elapsed >= stop_timeout_seconds:
@@ -265,6 +264,8 @@ def run_resume_training_job(
 class TrainingEndpoint:    
 
     JOB_TYPE = "training"
+    CHECKPOINT_EMPTY_MESSAGE = "Checkpoint name cannot be empty"
+    NO_TRAINING_DATA_MESSAGE = "No training data found. Please process a dataset first."
 
     def __init__(
         self,
@@ -277,7 +278,7 @@ class TrainingEndpoint:
         self.training_state = training_state
 
     # -----------------------------------------------------------------------------
-    async def get_checkpoints(self) -> CheckpointsResponse:
+    def get_checkpoints(self) -> CheckpointsResponse:
         """Get list of available checkpoints (JSON config only, no model loading)."""
         modser = ModelSerializer()
         checkpoint_names = modser.scan_checkpoints_folder()
@@ -300,13 +301,13 @@ class TrainingEndpoint:
         
         return CheckpointsResponse(checkpoints=checkpoints)
 
-    # -----------------------------------------------------------------------------
-    async def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
+    # -------------------------------------------------------------------------
+    def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
         checkpoint = checkpoint.strip()
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Checkpoint name cannot be empty",
+                detail=self.CHECKPOINT_EMPTY_MESSAGE,
             )
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
@@ -333,12 +334,12 @@ class TrainingEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
+    def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
         checkpoint = checkpoint.strip()
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Checkpoint name cannot be empty",
+                detail=self.CHECKPOINT_EMPTY_MESSAGE,
             )
 
         if self.training_state.state.get("is_training"):
@@ -378,7 +379,7 @@ class TrainingEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_training_status(self) -> TrainingStatusResponse:
+    def get_training_status(self) -> TrainingStatusResponse:
         return TrainingStatusResponse(
             job_id=self.training_state.current_job_id,
             is_training=self.training_state.state["is_training"],
@@ -390,10 +391,11 @@ class TrainingEndpoint:
             val_accuracy=self.training_state.state["val_accuracy"],
             progress_percent=self.training_state.state["progress_percent"],
             elapsed_seconds=self.training_state.state["elapsed_seconds"],
+            poll_interval=server_settings.training.update_frequency_seconds,
         )
 
     # -----------------------------------------------------------------------------
-    async def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
+    def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -413,17 +415,18 @@ class TrainingEndpoint:
         configuration["prefetch_factor"] = server_settings.training.prefetch_factor
         configuration["pin_memory"] = server_settings.training.pin_memory
         configuration["persistent_workers"] = server_settings.training.persistent_workers
+        configuration["update_frequency_seconds"] = server_settings.training.update_frequency_seconds
         
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No training data found. Please process a dataset first.",
+                detail=self.NO_TRAINING_DATA_MESSAGE,
             )
         if serializer.count_rows(TRAINING_DATASET_TABLE) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No training data found. Please process a dataset first.",
+                detail=self.NO_TRAINING_DATA_MESSAGE,
             )
         
         # Start background job
@@ -465,10 +468,11 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Training job started",
+            poll_interval=server_settings.training.update_frequency_seconds,
         )
 
     # -----------------------------------------------------------------------------
-    async def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
+    def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -483,14 +487,14 @@ class TrainingEndpoint:
         if not stored_metadata:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No training data found. Please process a dataset first.",
+                detail=self.NO_TRAINING_DATA_MESSAGE,
             )
 
         checkpoint = request.checkpoint.strip()
         if not checkpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Checkpoint name cannot be empty",
+                detail=self.CHECKPOINT_EMPTY_MESSAGE,
             )
 
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
@@ -552,10 +556,11 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Training resumed from epoch {from_epoch}",
+            poll_interval=server_settings.training.update_frequency_seconds,
         )
 
     # -----------------------------------------------------------------------------
-    async def get_training_job_status(self, job_id: str) -> JobStatusResponse:
+    def get_training_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -565,7 +570,7 @@ class TrainingEndpoint:
         return JobStatusResponse(**job_status)
 
     # -----------------------------------------------------------------------------
-    async def cancel_training_job(self, job_id: str) -> JobCancelResponse:
+    def cancel_training_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
             raise HTTPException(
@@ -588,7 +593,7 @@ class TrainingEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def stop_training(self) -> TrainingStatusResponse:
+    def stop_training(self) -> TrainingStatusResponse:
         """Legacy stop endpoint - maintained for backward compatibility."""
         if not self.training_state.state["is_training"]:
             raise HTTPException(

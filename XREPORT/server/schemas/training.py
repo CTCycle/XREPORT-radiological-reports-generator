@@ -102,6 +102,7 @@ class TrainingStatusResponse(BaseModel):
     val_accuracy: float = 0.0
     progress_percent: int = 0
     elapsed_seconds: int = 0
+    poll_interval: float = 1.0
 
 
 class ProcessDatasetRequest(BaseModel):
