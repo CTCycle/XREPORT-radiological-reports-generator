@@ -29,7 +29,6 @@
     "prefetch_factor": 1,
     "pin_memory": true,
     "persistent_workers": false,
-    "update_frequency_seconds": 1,
-    "plot_update_batch_interval": 10
+    "polling_interval": 1
   }
 }
