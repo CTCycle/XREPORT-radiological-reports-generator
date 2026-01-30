@@ -8,7 +8,6 @@ from keras.losses import Loss, SparseCategoricalCrossentropy
 from keras.metrics import Metric
 
 
-# [LOSS FUNCTION]
 ###############################################################################
 class MaskedSparseCategoricalCrossentropy(Loss):
     def __init__(
@@ -19,16 +18,6 @@ class MaskedSparseCategoricalCrossentropy(Loss):
 
     # -------------------------------------------------------------------------
     def call(self, y_true: Any, y_pred: Any) -> Any:
-        """
-        Compute sparse categorical cross-entropy ignoring padded positions.
-
-        Keyword arguments:
-            y_true: Ground truth tensor with token ids.
-            y_pred: Model predictions with probabilities per token.
-
-        Return value:
-            Masked loss value averaged over non-padding tokens.
-        """
         loss = self.loss(y_true, y_pred)
         mask = ops.not_equal(y_true, 0)
         mask = ops.cast(mask, dtype=loss.dtype)
@@ -49,7 +38,6 @@ class MaskedSparseCategoricalCrossentropy(Loss):
         return cls(**config)
 
 
-# [METRICS]
 ###############################################################################
 class MaskedAccuracy(Metric):
     def __init__(self, name: str = "MaskedAccuracy", **kwargs) -> None:
@@ -61,25 +49,11 @@ class MaskedAccuracy(Metric):
     def update_state(
         self, y_true: Any, y_pred: Any, sample_weight: Any | None = None
     ) -> None:
-        """
-        Update cumulative accuracy considering only non-padding positions.
-
-        Keyword arguments:
-            y_true: Ground truth tensor with token ids.
-            y_pred: Model predictions with probabilities per token.
-            sample_weight: Optional tensor with per-sample weights.
-
-        Return value:
-            None.
-        """
         y_true = ops.cast(y_true, dtype=floatx())
         y_pred_argmax = ops.cast(ops.argmax(y_pred, axis=2), dtype=floatx())
         accuracy = ops.equal(y_true, y_pred_argmax)
-        # Create a mask to ignore padding (assuming padding value is 0)
         mask = ops.not_equal(y_true, 0)
-        # Apply the mask to the accuracy
         accuracy = ops.logical_and(mask, accuracy)
-        # Cast the boolean values to float32
         accuracy = ops.cast(accuracy, dtype=floatx())
         mask = ops.cast(mask, dtype=floatx())
 
@@ -88,34 +62,15 @@ class MaskedAccuracy(Metric):
             accuracy = ops.multiply(accuracy, sample_weight)
             mask = ops.multiply(mask, sample_weight)
 
-        # Update the state variables
         self.total.assign_add(ops.sum(accuracy))
         self.count.assign_add(ops.sum(mask))
 
     # -------------------------------------------------------------------------
     def result(self) -> Any:
-        """
-        Compute the mean accuracy accumulated across updates.
-
-        Keyword arguments:
-            None.
-
-        Return value:
-            Masked accuracy scalar.
-        """
         return self.total / (self.count + backend.epsilon())
 
     # -------------------------------------------------------------------------
     def reset_states(self) -> None:
-        """
-        Reset metric state variables to restart accumulation.
-
-        Keyword arguments:
-            None.
-
-        Return value:
-            None.
-        """
         self.total.assign(0)
         self.count.assign(0)
 
