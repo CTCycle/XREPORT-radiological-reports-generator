@@ -417,13 +417,18 @@ class TrainingEndpoint:
         configuration["persistent_workers"] = server_settings.training.persistent_workers
         configuration["polling_interval"] = server_settings.training.polling_interval
         
-        stored_metadata = serializer.load_training_data(only_metadata=True)
+        dataset_name = configuration.get("dataset_name")
+        stored_metadata = serializer.load_training_data(
+            only_metadata=True,
+            dataset_name=dataset_name,
+        )
         if not stored_metadata:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
-        if serializer.count_rows(TRAINING_DATASET_TABLE) == 0:
+        train_data, validation_data, _ = serializer.load_training_data(dataset_name=dataset_name)
+        if train_data.empty and validation_data.empty:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=self.NO_TRAINING_DATA_MESSAGE,
