@@ -157,7 +157,7 @@ export default function TrainingPage() {
         }
     }, [appendLogLine, setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
 
-    const startPolling = useCallback((jobId: string) => {
+    const startPolling = useCallback((jobId: string, intervalSeconds: number = 2.0) => {
         stopPolling();
         pollerRef.current = pollJobStatus(
             getTrainingJobStatus,
@@ -168,7 +168,7 @@ export default function TrainingPage() {
                 console.error('Training poll error:', pollError);
                 stopPolling();
             },
-            2000
+            intervalSeconds * 1000
         );
     }, [applyJobStatus, stopPolling]);
 
@@ -227,7 +227,7 @@ export default function TrainingPage() {
                 }));
             }
             if (result?.is_training && result.job_id) {
-                startPolling(result.job_id);
+                startPolling(result.job_id, result.poll_interval);
             }
         };
         checkTrainingStatus();
@@ -286,7 +286,7 @@ export default function TrainingPage() {
         if (startResult) {
             setIsNewWizardOpen(false);
             appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
-            startPolling(startResult.job_id);
+            startPolling(startResult.job_id, startResult.poll_interval);
         }
     };
 
@@ -311,7 +311,7 @@ export default function TrainingPage() {
         if (startResult) {
             setIsResumeWizardOpen(false);
             appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
-            startPolling(startResult.job_id);
+            startPolling(startResult.job_id, startResult.poll_interval);
         }
     };
 
