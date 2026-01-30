@@ -106,7 +106,9 @@ class TrainingProgressCallback(Callback):
         progress_callback: Callable[[dict[str, Any]], Any] | None,
         total_epochs: int,
         from_epoch: int = 0,
-        update_interval: float = 1.0,
+        total_epochs: int,
+        from_epoch: int = 0,
+        polling_interval: float = 1.0,
     ) -> None:
         super().__init__()
         self.progress_callback = progress_callback
@@ -114,7 +116,7 @@ class TrainingProgressCallback(Callback):
         self.from_epoch = from_epoch
         self.start_time = time.time()
         self.last_update_time = 0.0
-        self.update_interval = update_interval
+        self.polling_interval = polling_interval
         self.current_epoch_index = 0
         # Store last known validation metrics (from previous epoch end)
         self.last_val_loss = 0.0
@@ -129,7 +131,7 @@ class TrainingProgressCallback(Callback):
         current_time = time.time()
         
         # Throttle updates based on configured interval
-        if current_time - self.last_update_time < self.update_interval:
+        if current_time - self.last_update_time < self.polling_interval:
             return
         
         self.last_update_time = current_time
@@ -213,8 +215,10 @@ class RealTimeMetricsCallback(Callback):
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
         self.progress_callback = progress_callback
         
-        self.update_frequency = configuration.get("update_frequency_seconds", 1.0)
-        self.batch_interval = configuration.get("plot_update_batch_interval", 10)
+        self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
+        self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
+        self.progress_callback = progress_callback
+        
         self.last_update_time = time.time()
         
         # Track cumulative batch index for X-axis
@@ -402,10 +406,10 @@ def initialize_training_callbacks(
     callbacks_list: list[Any] = []
 
     # WebSocket progress callback
-    update_frequency = configuration.get("update_frequency_seconds", 1.0)
+    polling_interval = configuration.get("polling_interval", 1.0)
     callbacks_list.append(
         TrainingProgressCallback(
-            progress_callback, total_epochs, from_epoch, update_frequency
+            progress_callback, total_epochs, from_epoch, polling_interval
         )
     )
 
