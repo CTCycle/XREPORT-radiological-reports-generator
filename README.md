@@ -89,21 +89,25 @@ npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
 The application workflow is divided into four main areas:
 
 **Dataset Management**
+
 The **Dataset** page allows you to prepare your data. It features a refined configuration panel for setting preprocessing parameters and an "Available Datasets" browser to view and select local datasets. Use this section to validate image-report pairs before training.
 
 ![Dataset page](assets/figures/dataset_page.png)
 
 **Training Dashboard**
+
 The **Training** page provides a real-time view of model performance. The dashboard layout features consolidated, single-row score panels for immediate visibility of key metrics (Loss, Reward). You can start, pause, and configure training runs, with live plotting synchronized to the backend.
 
 ![Training page](assets/figures/training_page.png)
 
 **Validation & Inference**
+
 The **Inference** page handles model evaluation. It includes a **Checkpoint Evaluation Wizard** with an optimized layout for assessing saved model checkpoints. Users can generate reports from new X-ray images and review the model's output quality.
 
 ![inference_page](assets/figures/inference_page.png)
 
 **Database Browser**
+
 The **Database** page lets you inspect stored history, including past training sessions and data uploads, providing full visibility into the system's state.
 
 ![Database browser](assets/figures/database_browser.png)

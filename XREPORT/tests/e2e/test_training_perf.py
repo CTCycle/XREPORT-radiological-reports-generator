@@ -27,7 +27,7 @@ from XREPORT.server.utils.constants import (
     TRAINING_DATASET_TABLE,
 )
 from XREPORT.server.utils.jobs import job_manager
-from XREPORT.server.utils.repository.serializer import DataSerializer
+from XREPORT.server.repositories.serializer import DataSerializer
 from XREPORT.server.database.database import database
 
 
@@ -469,7 +469,10 @@ def should_use_gpu() -> bool:
 ###############################################################################
 def is_gpu_requested() -> bool:
     config = load_perf_config()
-    return bool(get_env_bool("PERF_TEST_USE_GPU", False) or get_config_value(config, "use_gpu", False))
+    return bool(
+        get_env_bool("PERF_TEST_USE_GPU", False)
+        or get_config_value(config, "use_gpu", False)
+    )
 
 
 ###############################################################################
@@ -541,7 +544,9 @@ def start_training_job(request: StartTrainingRequest) -> str:
 
 ###############################################################################
 @pytest.mark.parametrize("scenario", get_scenario_matrix())
-def test_training_pipeline_performance_matrix(tmp_path, scenario: dict[str, Any]) -> None:
+def test_training_pipeline_performance_matrix(
+    tmp_path, scenario: dict[str, Any]
+) -> None:
     ensure_offline_mode()
 
     if not is_encoder_cached():
@@ -620,7 +625,11 @@ def test_training_pipeline_performance_matrix(tmp_path, scenario: dict[str, Any]
 
             if worker_pid is None:
                 worker = training_state.worker
-                if worker is not None and worker.process is not None and worker.process.pid:
+                if (
+                    worker is not None
+                    and worker.process is not None
+                    and worker.process.pid
+                ):
                     worker_pid = int(worker.process.pid)
                     baseline_rss_bytes = sample_process_rss_bytes(worker_pid)
 
@@ -803,7 +812,11 @@ def test_training_pipeline_longer_run(tmp_path, scenario: dict[str, Any]) -> Non
 
             if worker_pid is None:
                 worker = training_state.worker
-                if worker is not None and worker.process is not None and worker.process.pid:
+                if (
+                    worker is not None
+                    and worker.process is not None
+                    and worker.process.pid
+                ):
                     worker_pid = int(worker.process.pid)
                     baseline_rss_bytes = sample_process_rss_bytes(worker_pid)
 

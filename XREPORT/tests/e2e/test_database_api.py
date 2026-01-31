@@ -2,6 +2,7 @@
 E2E tests for Database Browser API endpoints.
 Tests: /data/browser/tables, /data/browser/config, /data/browser/data/{table_name}
 """
+
 from playwright.sync_api import APIRequestContext
 
 
@@ -12,11 +13,11 @@ class TestDatabaseBrowserEndpoints:
         """GET /data/browser/tables should return a list of tables with display names."""
         response = api_context.get("/data/browser/tables")
         assert response.ok, f"Expected 200, got {response.status}"
-        
+
         data = response.json()
         assert "tables" in data, "Response should have 'tables' key"
         assert isinstance(data["tables"], list), "'tables' should be a list"
-        
+
         # Each table should have name and display_name
         for table in data["tables"]:
             assert "table_name" in table
@@ -26,10 +27,10 @@ class TestDatabaseBrowserEndpoints:
         """GET /data/browser/tables should include XREPORT database tables."""
         response = api_context.get("/data/browser/tables")
         assert response.ok
-        
+
         data = response.json()
         table_names = [t["table_name"] for t in data["tables"]]
-        
+
         # Check for at least one expected XREPORT table
         # At minimum, some system tables should exist
         # Note: Tables may not exist if database is empty, so we just check the response format
@@ -39,7 +40,7 @@ class TestDatabaseBrowserEndpoints:
         """GET /data/browser/config should return browse batch size configuration."""
         response = api_context.get("/data/browser/config")
         assert response.ok, f"Expected 200, got {response.status}"
-        
+
         data = response.json()
         assert "browse_batch_size" in data
         assert isinstance(data["browse_batch_size"], int)
@@ -51,16 +52,16 @@ class TestDatabaseBrowserEndpoints:
         tables_response = api_context.get("/data/browser/tables")
         if not tables_response.ok:
             return  # Skip if can't get tables
-        
+
         tables = tables_response.json().get("tables", [])
         if not tables:
             return  # Skip if no tables exist
-        
+
         # Try to query the first available table
         table_name = tables[0]["table_name"]
         response = api_context.get(f"/data/browser/data/{table_name}")
         assert response.ok, f"Expected 200, got {response.status}"
-        
+
         data = response.json()
         assert "table_name" in data
         assert "display_name" in data
@@ -79,27 +80,29 @@ class TestDatabaseBrowserEndpoints:
         tables_response = api_context.get("/data/browser/tables")
         if not tables_response.ok:
             return
-        
+
         tables = tables_response.json().get("tables", [])
         if not tables:
             return
-        
+
         table_name = tables[0]["table_name"]
-        
+
         # Request with specific limit and offset
         response = api_context.get(f"/data/browser/data/{table_name}?limit=10&offset=0")
         assert response.ok
-        
+
         data = response.json()
         # Data length should be at most the limit
         assert len(data["data"]) <= 10
         assert data["row_count"] == len(data["data"])
 
-    def test_get_table_data_invalid_table_returns_404(self, api_context: APIRequestContext):
+    def test_get_table_data_invalid_table_returns_404(
+        self, api_context: APIRequestContext
+    ):
         """GET /data/browser/data/{invalid} should return 404."""
         response = api_context.get("/data/browser/data/NON_EXISTENT_TABLE_XYZ")
         assert response.status == 404
-        
+
         data = response.json()
         assert "detail" in data
 
@@ -112,11 +115,11 @@ class TestDatabaseBrowserEdgeCases:
         tables_response = api_context.get("/data/browser/tables")
         if not tables_response.ok:
             return
-        
+
         tables = tables_response.json().get("tables", [])
         if not tables:
             return
-        
+
         table_name = tables[0]["table_name"]
         response = api_context.get(f"/data/browser/data/{table_name}?offset=0")
         assert response.ok
@@ -126,15 +129,15 @@ class TestDatabaseBrowserEdgeCases:
         tables_response = api_context.get("/data/browser/tables")
         if not tables_response.ok:
             return
-        
+
         tables = tables_response.json().get("tables", [])
         if not tables:
             return
-        
+
         table_name = tables[0]["table_name"]
         response = api_context.get(f"/data/browser/data/{table_name}?offset=999999")
         assert response.ok
-        
+
         data = response.json()
         # With a very large offset, data should be empty
         assert data["data"] == []

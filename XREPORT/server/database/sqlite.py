@@ -10,7 +10,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.utils.configurations import DatabaseSettings
+from XREPORT.server.configurations import DatabaseSettings
 from XREPORT.server.utils.constants import DATA_PATH, DATABASE_FILENAME
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.schema import Base
@@ -28,7 +28,7 @@ class SQLiteRepository:
         self.Session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
         if self.db_path is not None and not os.path.exists(self.db_path):
-            Base.metadata.create_all(self.engine)   
+            Base.metadata.create_all(self.engine)
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:

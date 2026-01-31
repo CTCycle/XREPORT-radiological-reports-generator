@@ -20,7 +20,6 @@ class WorkerInterrupted(RuntimeError):
     pass
 
 
-
 ###############################################################################
 class TrainingInterruptCallback(Callback):
     def __init__(
@@ -127,26 +126,28 @@ class TrainingProgressCallback(Callback):
     # -------------------------------------------------------------------------
     def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
         current_time = time.time()
-        
+
         # Throttle updates based on configured interval
         if current_time - self.last_update_time < self.polling_interval:
             return
-        
+
         self.last_update_time = current_time
         logs = logs or {}
-        
+
         # Calculate progress based on current epoch and batch position
-        steps_per_epoch = self.params.get('steps', 1)
+        steps_per_epoch = self.params.get("steps", 1)
         epoch_progress = (batch + 1) / steps_per_epoch
         total_epochs_to_run = max(1, self.total_epochs - self.from_epoch)
         completed_epochs = self.current_epoch_index - self.from_epoch
-        progress_percent = int(100 * (completed_epochs + epoch_progress) / total_epochs_to_run)
+        progress_percent = int(
+            100 * (completed_epochs + epoch_progress) / total_epochs_to_run
+        )
         elapsed_time = current_time - self.start_time
-        
+
         # Get training metrics from batch logs (val_* not available during batch)
         train_loss = float(logs.get("loss", 0))
         train_accuracy = float(logs.get("MaskedAccuracy", logs.get("accuracy", 0)))
-        
+
         message = {
             "type": "training_update",
             "epoch": self.current_epoch_index + 1,
@@ -165,15 +166,17 @@ class TrainingProgressCallback(Callback):
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
         logs = logs or {}
-        
+
         # Store validation metrics for next epoch's batch updates
         self.last_val_loss = float(logs.get("val_loss", 0))
-        self.last_val_accuracy = float(logs.get("val_MaskedAccuracy", logs.get("val_accuracy", 0)))
-        
+        self.last_val_accuracy = float(
+            logs.get("val_MaskedAccuracy", logs.get("val_accuracy", 0))
+        )
+
         # Always send update at epoch end
         current_time = time.time()
         self.last_update_time = current_time
-        
+
         processed_epochs = epoch - self.from_epoch + 1
         additional_epochs = max(1, self.total_epochs - self.from_epoch)
         progress_percent = int(100 * processed_epochs / additional_epochs)
@@ -208,35 +211,34 @@ class RealTimeMetricsCallback(Callback):
         self.configuration = configuration
         self.plot_path = os.path.join(checkpoint_path, "plots")
         os.makedirs(self.plot_path, exist_ok=True)
-        
+
         self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
         self.progress_callback = progress_callback
-        
+
         self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
         self.progress_callback = progress_callback
-        
+
         self.last_update_time = time.time()
-        
+
         # Track cumulative batch index for X-axis
         self.global_batch_index = 0
         self.current_epoch_index = 0
-        
+
         # Store batch-level data for plotting
         self.batch_history: list[dict[str, Any]] = []
-        
+
         # Track epoch boundary batch indices for vertical separator lines
         self.epoch_boundaries: list[int] = []
-        
+
         # Store last validation metrics for display during training batches
         self.last_val_loss = 0.0
         self.last_val_accuracy = 0.0
-        
+
         # Track available metrics from batch logs (for chart rendering before epoch ends)
         self.available_batch_metrics: set[str] = set()
 
-        
         # Restore past history if available
         if past_logs and "history" in past_logs:
             for metric, values in past_logs["history"].items():
@@ -244,7 +246,7 @@ class RealTimeMetricsCallback(Callback):
             self.history["epochs"] = past_logs.get(
                 "epochs", len(next(iter(past_logs["history"].values())))
             )
-            
+
             # Reconstruct batch history from epoch history for continuity
             # Use epoch index as batch index for resumed sessions (approximate)
             epochs_count = self.history["epochs"]
@@ -274,18 +276,20 @@ class RealTimeMetricsCallback(Callback):
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
         logs = logs or {}
-        
+
         # Store validation metrics for next epoch's batch updates
         self.last_val_loss = float(logs.get("val_loss", 0))
-        self.last_val_accuracy = float(logs.get("val_MaskedAccuracy", logs.get("val_accuracy", 0)))
-        
+        self.last_val_accuracy = float(
+            logs.get("val_MaskedAccuracy", logs.get("val_accuracy", 0))
+        )
+
         # Update canonical history
         for key, value in logs.items():
             if key not in self.history["history"]:
                 self.history["history"][key] = []
             self.history["history"][key].append(float(value))
         self.history["epochs"] = epoch + 1
-        
+
         self.global_batch_index = epoch + 1
         self.epoch_boundaries.append(self.global_batch_index)
 
@@ -294,7 +298,7 @@ class RealTimeMetricsCallback(Callback):
             point[key] = float(value)
             self.available_batch_metrics.add(key)
         self.batch_history.append(point)
-        
+
         self.plot_training_history(save_png=False)
         self.send_plot_update(full_sync=False)
 
@@ -337,19 +341,19 @@ class RealTimeMetricsCallback(Callback):
             ax.legend(loc="best", fontsize=10)
 
         fig.tight_layout()
-        
+
         # Save JPEG for intermediate updates
         buffer = BytesIO()
         fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=150)
         plot_data = buffer.getvalue()
         with open(fig_path, "wb") as target:
             target.write(plot_data)
-        
+
         # Save final PNG at end of training
         if save_png:
             png_path = os.path.join(self.plot_path, "training_history.png")
             fig.savefig(png_path, bbox_inches="tight", format="png", dpi=200)
-        
+
         plt.close(fig)
 
     # -------------------------------------------------------------------------
@@ -363,13 +367,15 @@ class RealTimeMetricsCallback(Callback):
         # Combine metrics from epoch history and batch logs
         all_metrics = set(self.history["history"].keys()) | self.available_batch_metrics
         if full_sync:
-            self.progress_callback({
-                "type": "training_plot",
-                "chart_data": self.batch_history,
-                "metrics": list(all_metrics),
-                "epochs": self.history["epochs"],
-                "epoch_boundaries": self.epoch_boundaries,
-            })
+            self.progress_callback(
+                {
+                    "type": "training_plot",
+                    "chart_data": self.batch_history,
+                    "metrics": list(all_metrics),
+                    "epochs": self.history["epochs"],
+                    "epoch_boundaries": self.epoch_boundaries,
+                }
+            )
             return
 
         latest_point = self.batch_history[-1]
@@ -382,7 +388,6 @@ class RealTimeMetricsCallback(Callback):
         if self.epoch_boundaries:
             payload["epoch_boundary"] = self.epoch_boundaries[-1]
         self.progress_callback(payload)
-
 
 
 ###############################################################################
@@ -429,7 +434,6 @@ def initialize_training_callbacks(
                 progress_callback=progress_callback,
             )
         )
-
 
     # Checkpoint saving callback
     if configuration.get("save_checkpoints", False):
