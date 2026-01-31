@@ -1,8 +1,7 @@
-import { useRef, DragEvent, ChangeEvent, useEffect, useCallback } from 'react';
+import { useRef, DragEvent, ChangeEvent, useEffect } from 'react';
 import {
     ImagePlus, ChevronLeft, ChevronRight, Trash2, FileText,
-    Sparkles, ArrowRight, Copy, Check, Loader2, Settings2,
-    Activity, Target, BarChart3, AlertCircle
+    Sparkles, ArrowRight, Copy, Check, Loader2
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
@@ -10,10 +9,7 @@ import { GenerationMode } from '../types';
 import {
     getInferenceCheckpoints,
     generateReports,
-    connectInferenceWebSocket,
-    disconnectInferenceWebSocket,
-    InferenceStreamMessage,
-    evaluateCheckpoint
+    getInferenceJobStatus
 } from '../services/inferenceService';
 
 const MAX_IMAGES = 16;
@@ -33,19 +29,10 @@ export default function InferencePage() {
         setIsLoadingCheckpoints,
         setReports,
         setStreamingTokens,
-        appendStreamingToken,
         setCurrentStreamingIndex,
-        // Validation hooks
-        setValidationMetric,
-        setNumBleuSamples,
-        setIsEvaluating,
-        setEvaluationResults,
-        setEvaluationError
     } = useInferencePageState();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const wsRef = useRef<WebSocket | null>(null);
-
     // Fetch checkpoints on mount
     useEffect(() => {
         const fetchCheckpoints = async () => {
@@ -64,51 +51,6 @@ export default function InferencePage() {
         };
         fetchCheckpoints();
     }, []);
-
-    // Handle WebSocket messages
-    const handleWebSocketMessage = useCallback((message: InferenceStreamMessage) => {
-        console.log('WebSocket message received:', message.type, message);
-        if (message.type === 'token') {
-            // Append token for streaming display
-            appendStreamingToken(message.token ?? '');
-        } else if (message.type === 'start') {
-            console.log('Generation started via WebSocket');
-            setStreamingTokens('');
-            setCurrentStreamingIndex(0);
-        } else if (message.type === 'complete' && message.reports) {
-            console.log('Generation complete via WebSocket');
-            // Store all reports by index
-            const reportsByIndex: Record<number, string> = {};
-            Object.values(message.reports).forEach((report, idx) => {
-                reportsByIndex[idx] = report;
-            });
-            setReports(reportsByIndex);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-            // Set the generated report for the current index
-            if (reportsByIndex[state.currentIndex]) {
-                setGeneratedReport(reportsByIndex[state.currentIndex]);
-            }
-        } else if (message.type === 'error') {
-            console.error('Generation error:', message.message);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-        }
-    }, [state.currentIndex, appendStreamingToken, setStreamingTokens, setCurrentStreamingIndex, setReports, setIsGenerating, setGeneratedReport]);
-
-    // Connect WebSocket on mount (like training dashboard)
-    useEffect(() => {
-        wsRef.current = connectInferenceWebSocket(
-            handleWebSocketMessage,
-            () => console.log('Inference WebSocket error'),
-            () => console.log('Inference WebSocket closed')
-        );
-
-        return () => {
-            disconnectInferenceWebSocket(wsRef.current);
-            wsRef.current = null;
-        };
-    }, [handleWebSocketMessage]);
 
     // Handle file selection
     const handleFileSelect = (files: FileList | null) => {
@@ -191,34 +133,64 @@ export default function InferencePage() {
         setStreamingTokens('');
         setReports({});
         setGeneratedReport('');
-        setCurrentStreamingIndex(0);
+        setCurrentStreamingIndex(-1);
 
-        // Call generate endpoint
-        const { result, error } = await generateReports(
+        // Call generate endpoint - now returns job_id
+        const { result: jobResult, error: startError } = await generateReports(
             state.images,
             state.selectedCheckpoint,
             state.generationMode
         );
 
-        if (error) {
-            console.error('Generation failed:', error);
+        if (startError || !jobResult) {
+            console.error('Generation failed:', startError);
             setIsGenerating(false);
-        } else if (result && result.success && result.reports) {
-            // Use the HTTP response to set reports
-            const reportsByIndex: Record<number, string> = {};
-            Object.values(result.reports).forEach((report, idx) => {
-                reportsByIndex[idx] = report;
-            });
-            setReports(reportsByIndex);
-            setIsGenerating(false);
-            setCurrentStreamingIndex(-1);
-            // Set the generated report for the current index
-            if (reportsByIndex[state.currentIndex] !== undefined) {
-                setGeneratedReport(reportsByIndex[state.currentIndex]);
-            }
-        } else {
-            setIsGenerating(false);
+            return;
         }
+
+        // Poll for job completion
+        const pollInterval = 2000;
+        const poll = async () => {
+            const { result: status, error: pollError } = await getInferenceJobStatus(jobResult.job_id);
+
+            if (pollError) {
+                console.error('Poll error:', pollError);
+                setIsGenerating(false);
+                return;
+            }
+
+            if (!status) {
+                setIsGenerating(false);
+                return;
+            }
+
+            if (status.result) {
+                const reports = (status.result as Record<string, unknown>).reports as Record<string, string> | undefined;
+                if (reports) {
+                    const reportsByIndex: Record<number, string> = {};
+                    Object.values(reports).forEach((report, idx) => {
+                        reportsByIndex[idx] = report as string;
+                    });
+                    setReports(reportsByIndex);
+                    if (reportsByIndex[state.currentIndex] !== undefined) {
+                        setGeneratedReport(reportsByIndex[state.currentIndex]);
+                    }
+                }
+            }
+
+            if (status.status === 'completed') {
+                setIsGenerating(false);
+            } else if (status.status === 'failed') {
+                console.error('Generation failed:', status.error);
+                setIsGenerating(false);
+            } else if (status.status === 'cancelled') {
+                setIsGenerating(false);
+            } else {
+                // Still running, poll again
+                setTimeout(poll, pollInterval);
+            }
+        };
+        poll();
     };
 
     // Copy report to clipboard
@@ -232,53 +204,6 @@ export default function InferencePage() {
         } catch (err) {
             console.error('Failed to copy:', err);
         }
-    };
-
-    // Handle checkpoint evaluation
-    const handleEvaluateCheckpoint = async () => {
-        if (!state.selectedCheckpoint) return;
-
-        const selectedMetrics: string[] = [];
-        if (state.validationMetrics.evaluationReport) {
-            selectedMetrics.push('evaluation_report');
-        }
-        if (state.validationMetrics.bleuScore) {
-            selectedMetrics.push('bleu_score');
-        }
-
-        if (selectedMetrics.length === 0) {
-            setEvaluationError('Please select at least one metric to evaluate');
-            return;
-        }
-
-        setIsEvaluating(true);
-        setEvaluationError(null);
-        setEvaluationResults(null);
-
-        const { result, error } = await evaluateCheckpoint(
-            state.selectedCheckpoint,
-            selectedMetrics,
-            state.numBleuSamples
-        );
-
-        if (error) {
-            console.error('Evaluation failed:', error);
-            setEvaluationError(error);
-            setIsEvaluating(false);
-            return;
-        }
-
-        if (result && result.success && result.results) {
-            setEvaluationResults({
-                loss: result.results.loss,
-                accuracy: result.results.accuracy,
-                bleuScore: result.results.bleu_score,
-            });
-        } else {
-            setEvaluationError(result?.message || 'Evaluation failed');
-        }
-
-        setIsEvaluating(false);
     };
 
     // Get current image URL
@@ -296,44 +221,11 @@ export default function InferencePage() {
             {/* Control Panel */}
             <div className="inference-header">
                 <h1>Inference</h1>
-                <p>Generate radiological reports from X-ray scans using AI</p>
-            </div>
-
-            <div className="inference-control-panel">
-                <div className="control-panel-content">
-                    <div className="control-panel-item">
-                        <Settings2 size={16} />
-                        <span className="control-label">Settings</span>
-                    </div>
-                    <div className="control-panel-item">
-                        <label htmlFor="checkpoint-select">Checkpoint:</label>
-                        <select
-                            id="checkpoint-select"
-                            value={state.selectedCheckpoint}
-                            onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                            disabled={state.isLoadingCheckpoints || state.isGenerating}
-                        >
-                            {state.checkpoints.length === 0 && (
-                                <option value="">No checkpoints available</option>
-                            )}
-                            {state.checkpoints.map((cp) => (
-                                <option key={cp} value={cp}>{cp}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="control-panel-item">
-                        <label htmlFor="mode-select">Mode:</label>
-                        <select
-                            id="mode-select"
-                            value={state.generationMode}
-                            onChange={(e) => setGenerationMode(e.target.value as GenerationMode)}
-                            disabled={state.isGenerating}
-                        >
-                            <option value="greedy_search">Greedy Search</option>
-                            <option value="beam_search">Beam Search</option>
-                        </select>
-                    </div>
-                </div>
+                <p>
+                    Generate detailed radiological reports from X-ray scans using advanced AI.
+                    Simply upload your medical images, verify the selected model checkpoint in the settings bar,
+                    and click 'Generate Report' to obtain a structured analysis of the findings.
+                </p>
             </div>
 
             <div className="inference-main">
@@ -437,6 +329,36 @@ export default function InferencePage() {
                             </div>
                         )}
                     </div>
+                    <div className="panel-footer">
+                        <div className="panel-control-item">
+                            <label htmlFor="checkpoint-select">Checkpoint:</label>
+                            <select
+                                id="checkpoint-select"
+                                value={state.selectedCheckpoint}
+                                onChange={(e) => setSelectedCheckpoint(e.target.value)}
+                                disabled={state.isLoadingCheckpoints || state.isGenerating}
+                            >
+                                {state.checkpoints.length === 0 && (
+                                    <option value="">No checkpoints</option>
+                                )}
+                                {state.checkpoints.map((cp) => (
+                                    <option key={cp} value={cp}>{cp}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="panel-control-item">
+                            <label htmlFor="mode-select">Mode:</label>
+                            <select
+                                id="mode-select"
+                                value={state.generationMode}
+                                onChange={(e) => setGenerationMode(e.target.value as GenerationMode)}
+                                disabled={state.isGenerating}
+                            >
+                                <option value="greedy_search">Greedy</option>
+                                <option value="beam_search">Beam</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Center Column - Flow Connector */}
@@ -525,152 +447,6 @@ export default function InferencePage() {
                 </div>
             </div>
 
-            {/* Validation Section */}
-            <div className="validation-section">
-
-                <div className="validation-panel">
-                    <div className="panel-header">
-                        <Activity size={18} />
-                        <h2>Model Validation</h2>
-                    </div>
-                    <div className="validation-panel-content">
-                        {/* Metrics Selection */}
-                        <div className="metrics-selection">
-                            <h3>Select Metrics</h3>
-                            <div className="metric-toggles">
-                                <div className="metric-toggle-row">
-                                    <div className="metric-info">
-                                        <Target size={16} />
-                                        <span className="metric-name">Evaluation Report</span>
-                                        <span className="metric-hint">(Loss & Accuracy)</span>
-                                    </div>
-                                    <label className="toggle-switch">
-                                        <input
-                                            type="checkbox"
-                                            checked={state.validationMetrics.evaluationReport}
-                                            onChange={(e) => setValidationMetric('evaluationReport', e.target.checked)}
-                                            disabled={state.isEvaluating}
-                                        />
-                                        <span className="toggle-slider"></span>
-                                    </label>
-                                </div>
-                                <div className="metric-toggle-row">
-                                    <div className="metric-info">
-                                        <BarChart3 size={16} />
-                                        <span className="metric-name">BLEU Score</span>
-                                        <span className="metric-hint">(Text quality)</span>
-                                    </div>
-                                    <label className="toggle-switch">
-                                        <input
-                                            type="checkbox"
-                                            checked={state.validationMetrics.bleuScore}
-                                            onChange={(e) => setValidationMetric('bleuScore', e.target.checked)}
-                                            disabled={state.isEvaluating}
-                                        />
-                                        <span className="toggle-slider"></span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* BLEU Sample Size */}
-                            {state.validationMetrics.bleuScore && (
-                                <div className="bleu-samples-config">
-                                    <label>
-                                        Samples for BLEU:
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            max={100}
-                                            value={state.numBleuSamples}
-                                            onChange={(e) => setNumBleuSamples(parseInt(e.target.value) || 10)}
-                                            disabled={state.isEvaluating}
-                                        />
-                                    </label>
-                                </div>
-                            )}
-
-                            <button
-                                className={`btn-evaluate ${state.isEvaluating ? 'evaluating' : ''}`}
-                                onClick={handleEvaluateCheckpoint}
-                                disabled={!state.selectedCheckpoint || state.isEvaluating}
-                            >
-                                {state.isEvaluating ? (
-                                    <>
-                                        <Loader2 className="loading-spinner" size={18} />
-                                        Evaluating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Activity size={18} />
-                                        Evaluate Checkpoint
-                                    </>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* Results Dashboard */}
-                        <div className="validation-dashboard">
-                            <h3>Results</h3>
-
-                            {state.evaluationError && (
-                                <div className="evaluation-error">
-                                    <AlertCircle size={16} />
-                                    {state.evaluationError}
-                                </div>
-                            )}
-
-                            {state.evaluationResults ? (
-                                <div className="metric-cards">
-                                    {state.evaluationResults.loss !== undefined && (
-                                        <div className="metric-card">
-                                            <div className="metric-icon">
-                                                <Target size={20} />
-                                            </div>
-                                            <div className="metric-data">
-                                                <span className="metric-label">Loss</span>
-                                                <span className="metric-value">
-                                                    {state.evaluationResults.loss.toFixed(4)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {state.evaluationResults.accuracy !== undefined && (
-                                        <div className="metric-card">
-                                            <div className="metric-icon accuracy">
-                                                <BarChart3 size={20} />
-                                            </div>
-                                            <div className="metric-data">
-                                                <span className="metric-label">Accuracy</span>
-                                                <span className="metric-value">
-                                                    {(state.evaluationResults.accuracy * 100).toFixed(2)}%
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {state.evaluationResults.bleuScore !== undefined && (
-                                        <div className="metric-card">
-                                            <div className="metric-icon bleu">
-                                                <Sparkles size={20} />
-                                            </div>
-                                            <div className="metric-data">
-                                                <span className="metric-label">BLEU Score</span>
-                                                <span className="metric-value">
-                                                    {state.evaluationResults.bleuScore.toFixed(4)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="dashboard-empty">
-                                    <Activity size={24} />
-                                    <p>Select metrics and click "Evaluate Checkpoint" to see results</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }

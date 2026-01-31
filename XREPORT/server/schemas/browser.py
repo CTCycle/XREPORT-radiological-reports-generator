@@ -20,10 +20,12 @@ class TableListResponse(BaseModel):
 class TableDataResponse(BaseModel):
     table_name: str = Field(..., min_length=1)
     display_name: str = Field(..., min_length=1)
+    total_rows: int = Field(..., ge=0)
     row_count: int = Field(..., ge=0)
     column_count: int = Field(..., ge=0)
     columns: list[str]
     data: list[dict[str, Any]]
+    status: str = "success"
 
 
 ###############################################################################
