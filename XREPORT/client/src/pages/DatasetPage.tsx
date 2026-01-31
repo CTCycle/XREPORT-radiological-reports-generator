@@ -670,6 +670,9 @@ export default function DatasetPage() {
                                             <RefreshCw size={16} />
                                         </button>
                                     </div>
+                                    <p className="dataset-table-hint">
+                                        Lists all datasets currently stored in the database. Select one to configure and build.
+                                    </p>
                                     <div className="dataset-table">
                                         <div className="dataset-table-header">
                                             <span style={{ textAlign: 'center' }}>Actions</span>
