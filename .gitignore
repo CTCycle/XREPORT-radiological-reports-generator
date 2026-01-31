@@ -1,5 +1,5 @@
 # Project-specific generated/runtime artifacts
-docs/**
+assets/docs/**
 XREPORT/resources/models/**
 XREPORT/resources/checkpoints/**
 XREPORT/resources/database/**
@@ -11,14 +11,8 @@ XREPORT/client/dist-ssr/
 XREPORT/client/package-lock.json
 XREPORT/client/logs/
 XREPORT/resources/tokenizers/**
-
-# Environment files (keep templates)
-XREPORT/settings/.env
-XREPORT/client/.env
 XREPORT/client/*.local
-!.env.example
-!.env.sample
-!XREPORT/resources/templates/.env
+
 
 # Python
 __pycache__/
@@ -58,10 +52,9 @@ Thumbs.db
 *.sqlite*
 *.exe
 *.gz
-*.env
 
 !.gitkeep
-!XREPORT/settings/server_configurations.json
+
 
 
 

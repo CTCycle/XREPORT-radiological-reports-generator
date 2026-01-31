@@ -10,10 +10,12 @@ export interface TableListResponse {
 export interface TableDataResponse {
     table_name: string;
     display_name: string;
+    total_rows: number;
     row_count: number;
     column_count: number;
     columns: string[];
     data: Record<string, unknown>[];
+    status: string;
 }
 
 export interface BrowseConfig {

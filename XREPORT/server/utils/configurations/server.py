@@ -8,9 +8,10 @@ from XREPORT.server.utils.configurations.base import (
     load_configuration_data    
 )
 
-from XREPORT.server.utils.constants import SERVER_CONFIGURATION_FILE
+from XREPORT.server.utils.constants import CONFIGURATION_FILE
 
 from XREPORT.server.utils.types import (
+    coerce_bool,
     coerce_float,
     coerce_int,
     coerce_str,
@@ -61,6 +62,12 @@ class GlobalSettings:
 class TrainingSettings:
     use_jit: bool
     jit_backend: str
+    use_mixed_precision: bool
+    dataloader_workers: int
+    prefetch_factor: int
+    pin_memory: bool
+    persistent_workers: bool
+    polling_interval: float
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
@@ -146,6 +153,12 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
     return TrainingSettings(
         use_jit=bool(payload.get("use_jit", True)),
         jit_backend=jit_backend,
+        use_mixed_precision=bool(payload.get("use_mixed_precision", False)),
+        dataloader_workers=coerce_int(payload.get("dataloader_workers"), 0, minimum=0),
+        prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
+        pin_memory=coerce_bool(payload.get("pin_memory"), False),
+        persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
+        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 # -----------------------------------------------------------------------------
@@ -169,7 +182,7 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
 # [SERVER CONFIGURATION LOADER]
 ###############################################################################
 def get_server_settings(config_path: str | None = None) -> ServerSettings:
-    path = config_path or SERVER_CONFIGURATION_FILE
+    path = config_path or CONFIGURATION_FILE
     payload = load_configuration_data(path)
     
     return build_server_settings(payload)

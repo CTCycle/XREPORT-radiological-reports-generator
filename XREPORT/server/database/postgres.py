@@ -71,7 +71,20 @@ class PostgresRepository:
                     break
             if not unique_cols:
                 raise ValueError(f"No unique constraint found for {table_cls.__name__}")
-            records = df.to_dict(orient="records")
+            normalized = df
+            string_cols = [
+                col
+                for col in normalized.columns
+                if pd.api.types.is_string_dtype(normalized[col].dtype)
+            ]
+            if string_cols:
+                normalized = normalized.copy()
+                normalized[string_cols] = normalized[string_cols].astype(object)
+                normalized[string_cols] = normalized[string_cols].where(
+                    normalized[string_cols].notna(),
+                    None,
+                )
+            records = normalized.to_dict(orient="records")
             for i in range(0, len(records), self.insert_batch_size):
                 batch = records[i : i + self.insert_batch_size]
                 if not batch:
@@ -102,6 +115,7 @@ class PostgresRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        """Overwrite table contents before inserting new rows."""
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             if inspector.has_table(table_name):

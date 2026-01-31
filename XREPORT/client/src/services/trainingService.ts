@@ -50,9 +50,71 @@ export interface DatasetStatusResponse {
     message: string;
 }
 
+export interface DatasetInfo {
+    name: string;
+    folder_path: string;
+    row_count: number;
+    has_validation_report: boolean;
+}
+
+export interface ProcessingMetadataResponse {
+    dataset_name: string;
+    metadata: Record<string, unknown>;
+}
+
+export interface CheckpointMetadataResponse {
+    checkpoint: string;
+    configuration: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+    session: Record<string, unknown>;
+}
+
+export interface DeleteResponse {
+    success: boolean;
+    message: string;
+}
+
 export interface DatasetNamesResponse {
-    dataset_names: string[];
+    datasets: DatasetInfo[];
     count: number;
+}
+
+export interface ImageCountResponse {
+    dataset_name: string;
+    count: number;
+}
+
+export interface ImageMetadataResponse {
+    dataset_name: string;
+    index: number;
+    image_name: string;
+    caption: string;
+    valid_path: boolean;
+    path: string;
+}
+
+
+export interface JobStartResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    message: string;
+    poll_interval?: number;
+}
+
+export interface JobStatusResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress: number;
+    result: Record<string, unknown> | null;
+    error: string | null;
+}
+
+export interface JobCancelResponse {
+    job_id: string;
+    success: boolean;
+    message: string;
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -92,6 +154,66 @@ export async function getDatasetNames(): Promise<{ result: DatasetNamesResponse 
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<DatasetNamesResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get list of distinct processed dataset names available for training
+ */
+export async function getProcessedDatasetNames(): Promise<{ result: DatasetNamesResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/preparation/dataset/processed/names');
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DatasetNamesResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get processing metadata for a dataset
+ */
+export async function getProcessingMetadata(
+    datasetName: string
+): Promise<{ result: ProcessingMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/metadata/${encodeURIComponent(datasetName)}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ProcessingMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Delete a dataset and related metadata
+ */
+export async function deleteDataset(
+    datasetName: string
+): Promise<{ result: DeleteResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DeleteResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -205,6 +327,8 @@ export async function browseDirectory(
 // ============================================================================
 
 export interface ProcessDatasetRequest {
+    dataset_name: string;
+    custom_name?: string;
     sample_size: number;
     validation_size: number;
     tokenizer: string;
@@ -222,10 +346,11 @@ export interface ProcessDatasetResponse {
 
 /**
  * Process the loaded dataset (sanitize, tokenize, split)
+ * Returns a job_id for polling status
  */
 export async function processDataset(
     config: ProcessDatasetRequest
-): Promise<{ result: ProcessDatasetResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/preparation/dataset/process', {
             method: 'POST',
@@ -236,7 +361,49 @@ export async function processDataset(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<ProcessDatasetResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get preparation job status
+ */
+export async function getPreparationJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Cancel a preparation job
+ */
+export async function cancelPreparationJob(
+    jobId: string
+): Promise<{ result: JobCancelResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobCancelResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -249,9 +416,9 @@ export async function processDataset(
 // ============================================================================
 
 export interface StartTrainingConfig {
+    dataset_name: string;
     epochs: number;
     batch_size: number;
-    training_seed: number;
     num_encoders: number;
     num_decoders: number;
     embedding_dims: number;
@@ -262,8 +429,7 @@ export interface StartTrainingConfig {
     shuffle_with_buffer: boolean;
     shuffle_size: number;
     save_checkpoints: boolean;
-    use_tensorboard: boolean;
-    use_mixed_precision: boolean;
+    checkpoint_id?: string;
     use_device_GPU: boolean;
     device_ID: number;
     plot_training_metrics: boolean;
@@ -284,6 +450,7 @@ export interface CheckpointsResponse {
 }
 
 export interface TrainingStatusResponse {
+    job_id?: string | null;
     is_training: boolean;
     current_epoch: number;
     total_epochs: number;
@@ -293,6 +460,7 @@ export interface TrainingStatusResponse {
     val_accuracy: number;
     progress_percent: number;
     elapsed_seconds: number;
+    poll_interval?: number;
 }
 
 /**
@@ -306,6 +474,48 @@ export async function getCheckpoints(): Promise<{ result: CheckpointsResponse | 
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
         const payload = await readJson<CheckpointsResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get checkpoint metadata without loading the model
+ */
+export async function getCheckpointMetadata(
+    checkpoint: string
+): Promise<{ result: CheckpointMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/checkpoints/${encodeURIComponent(checkpoint)}/metadata`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<CheckpointMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Delete a checkpoint
+ */
+export async function deleteCheckpoint(
+    checkpoint: string
+): Promise<{ result: DeleteResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/checkpoints/${encodeURIComponent(checkpoint)}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<DeleteResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -333,10 +543,11 @@ export async function getTrainingStatus(): Promise<{ result: TrainingStatusRespo
 
 /**
  * Start a new training session
+ * Returns a job_id for polling status
  */
 export async function startTraining(
     config: StartTrainingConfig
-): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/training/start', {
             method: 'POST',
@@ -347,7 +558,7 @@ export async function startTraining(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<TrainingStatusResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -357,11 +568,12 @@ export async function startTraining(
 
 /**
  * Resume training from a checkpoint
+ * Returns a job_id for polling status
  */
 export async function resumeTraining(
     checkpoint: string,
     additionalEpochs: number
-): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/training/resume', {
             method: 'POST',
@@ -375,7 +587,7 @@ export async function resumeTraining(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<TrainingStatusResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -384,7 +596,49 @@ export async function resumeTraining(
 }
 
 /**
- * Stop current training session
+ * Get training job status
+ */
+export async function getTrainingJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Cancel a training job
+ */
+export async function cancelTrainingJob(
+    jobId: string
+): Promise<{ result: JobCancelResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/training/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobCancelResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Stop current training session (legacy endpoint)
  */
 export async function stopTraining(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
     try {
@@ -403,3 +657,105 @@ export async function stopTraining(): Promise<{ result: TrainingStatusResponse |
     }
 }
 
+// ============================================================================
+// Image Viewer API
+// ============================================================================
+
+export async function getDatasetImageCount(
+    datasetName: string
+): Promise<{ result: ImageCountResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/count`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ImageCountResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+export async function getDatasetImageMetadata(
+    datasetName: string,
+    index: number
+): Promise<{ result: ImageMetadataResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ImageMetadataResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+export function getDatasetImageContentUrl(datasetName: string, index: number): string {
+    return `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}/content`;
+}
+
+// ============================================================================
+// Job Polling Helpers
+// ============================================================================
+
+/**
+ * Poll a job until it completes, fails, or is cancelled
+ * Returns a cleanup function to stop polling
+ */
+export function pollJobStatus(
+    getStatusFn: (jobId: string) => Promise<{ result: JobStatusResponse | null; error: string | null }>,
+    jobId: string,
+    onUpdate: (status: JobStatusResponse) => void,
+    onComplete: (status: JobStatusResponse) => void,
+    onError: (error: string) => void,
+    intervalMs: number = 2000
+): { stop: () => void } {
+    let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+        if (stopped) return;
+
+        const { result, error } = await getStatusFn(jobId);
+
+        if (stopped) return;
+
+        if (error) {
+            onError(error);
+            return;
+        }
+
+        if (!result) {
+            onError('No result returned');
+            return;
+        }
+
+        onUpdate(result);
+
+        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
+            onComplete(result);
+            return;
+        }
+
+        // Schedule next poll
+        timeoutId = setTimeout(poll, intervalMs);
+    };
+
+    // Start polling
+    poll();
+
+    return {
+        stop: () => {
+            stopped = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        },
+    };
+}
