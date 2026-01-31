@@ -8,10 +8,15 @@ from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from XREPORT.server.database.database import XREPORTDatabase, database
-from XREPORT.server.schemas.browser import BrowseConfigResponse, TableDataResponse, TableInfo, TableListResponse
-from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
+from XREPORT.server.schemas.browser import (
+    BrowseConfigResponse,
+    TableDataResponse,
+    TableInfo,
+    TableListResponse,
+)
+from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.repository.serializer import DataSerializer
+from XREPORT.server.repositories.serializer import DataSerializer
 
 
 # -----------------------------------------------------------------------------
@@ -46,7 +51,9 @@ class BrowserEndpoint:
                 detail=f"Database connection error: {exc}",
             ) from exc
         tables = [
-            TableInfo(table_name=table_name, display_name=build_display_name(table_name))
+            TableInfo(
+                table_name=table_name, display_name=build_display_name(table_name)
+            )
             for table_name in table_names
         ]
         return TableListResponse(tables=tables)

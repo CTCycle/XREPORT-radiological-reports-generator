@@ -2,6 +2,7 @@
 Pytest configuration for XREPORT E2E tests.
 Provides fixtures for Playwright page objects and API client.
 """
+
 import os
 
 import pytest

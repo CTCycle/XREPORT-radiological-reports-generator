@@ -34,9 +34,9 @@ from XREPORT.server.schemas.jobs import (
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
+from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
-from XREPORT.server.utils.repository.serializer import DataSerializer
+from XREPORT.server.repositories.serializer import DataSerializer
 from XREPORT.server.utils.constants import (
     RADIOGRAPHY_TABLE,
     TRAINING_DATASET_TABLE,
@@ -45,24 +45,25 @@ from XREPORT.server.utils.constants import (
     IMAGE_STATISTICS_TABLE,
     TEXT_STATISTICS_TABLE,
 )
-from XREPORT.server.utils.learning.processing import (
+from XREPORT.server.services.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
 
+
 # -----------------------------------------------------------------------------
 def scan_image_folder(folder_path: str) -> list[str]:
     if not os.path.isdir(folder_path):
         return []
-    
+
     image_paths = []
     for root, _, files in os.walk(folder_path):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in VALID_IMAGE_EXTENSIONS:
                 image_paths.append(os.path.join(root, file))
-    
+
     return image_paths
 
 
@@ -99,46 +100,51 @@ def run_process_dataset_job(
     """Blocking dataset processing function that runs in background thread."""
     # Use the global job_manager imported at top level
     jm = job_manager
-    
+
     serializer = DataSerializer()
     source_dataset_name = configuration.get("dataset_name")
     custom_name = configuration.get("custom_name")
-    
+
     # Load source dataset from RADIOGRAPHY_DATA
     dataset = serializer.load_source_dataset(
         sample_size=configuration["sample_size"],
         seed=configuration["seed"],
         dataset_name=source_dataset_name,
     )
-    
+
     if dataset.empty:
         if source_dataset_name:
-            raise RuntimeError(f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again.")
-        raise RuntimeError("No data found in RADIOGRAPHY_DATA table. Please load a dataset first.")
+            raise RuntimeError(
+                f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again."
+            )
+        raise RuntimeError(
+            "No data found in RADIOGRAPHY_DATA table. Please load a dataset first."
+        )
         return {}
-    
+
     # Generate dataset name logic
     if custom_name and custom_name.strip():
         dataset_name = custom_name.strip()
     else:
         # Auto-generate name: SourceName_YYYYMMDD_HHMMSS
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         dataset_name = f"{source_dataset_name}_{timestamp}"
-    
+
     # Update configuration for saving
     configuration["dataset_name"] = dataset_name
     configuration["source_dataset"] = source_dataset_name
-    
+
     # Step 1: Sanitize text corpus
     sanitizer = TextSanitizer(configuration)
     processed_data = sanitizer.sanitize_text(dataset)
     logger.info("Text sanitization completed")
-    
+
     jm.update_progress(job_id, 30.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Step 2: Tokenize text using Hugging Face tokenizer
     try:
         tokenization = TokenizerHandler(configuration)
@@ -149,27 +155,29 @@ def run_process_dataset_job(
     except Exception as e:
         logger.exception("Failed to tokenize text")
         raise RuntimeError(f"Tokenization failed: {str(e)}") from e
-    
+
     jm.update_progress(job_id, 60.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Step 3: Drop raw text column (keep only tokens)
     processed_data = processed_data.drop(columns=["text"])
-    
+
     # Step 4: Split into train and validation sets
     splitter = TrainValidationSplit(configuration, processed_data)
     training_data = splitter.split_train_and_validation()
-    
+
     train_samples = len(training_data[training_data["split"] == "train"])
     validation_samples = len(training_data[training_data["split"] == "validation"])
-    
-    logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
-    
+
+    logger.info(
+        f"Split complete: {train_samples} train, {validation_samples} validation samples"
+    )
+
     jm.update_progress(job_id, 80.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Step 5: Save processed data and metadata to database
     try:
         metadata_for_hash = {
@@ -184,8 +192,10 @@ def run_process_dataset_job(
             "source_dataset": source_dataset_name,
         }
         hashcode = serializer.generate_hashcode(metadata_for_hash)
-        
-        serializer.save_training_data(configuration, training_data, vocabulary_size, hashcode)
+
+        serializer.save_training_data(
+            configuration, training_data, vocabulary_size, hashcode
+        )
         logger.info(f"Preprocessed data saved to database with hash: {hashcode}")
     except RuntimeError as e:
         # Schema mismatch or other runtime errors - use the clean message directly
@@ -194,9 +204,9 @@ def run_process_dataset_job(
     except Exception as e:
         logger.exception("Failed to save training data")
         raise RuntimeError(f"Failed to save training data: {str(e)}") from e
-    
+
     jm.update_progress(job_id, 100.0)
-    
+
     return {
         "total_samples": len(training_data),
         "train_samples": train_samples,
@@ -233,7 +243,9 @@ class PreparationEndpoint:
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
-            message=f"Found {row_count} records in RADIOGRAPHY_DATA" if row_count > 0 else "No data found in RADIOGRAPHY_DATA table",
+            message=f"Found {row_count} records in RADIOGRAPHY_DATA"
+            if row_count > 0
+            else "No data found in RADIOGRAPHY_DATA table",
         )
 
     # -----------------------------------------------------------------------------
@@ -245,10 +257,12 @@ class PreparationEndpoint:
             if inspector.has_table(VALIDATION_REPORTS_TABLE):
                 reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
                 if not reports.empty and "dataset_name" in reports.columns:
-                    report_names = set(reports["dataset_name"].dropna().astype(str).tolist())
+                    report_names = set(
+                        reports["dataset_name"].dropna().astype(str).tolist()
+                    )
             # Get dataset name, folder path (dirname of first path), and row count per dataset
             result = conn.execute(
-                sqlalchemy.text('''
+                sqlalchemy.text("""
                     SELECT 
                         dataset_name,
                         MIN(path) as sample_path,
@@ -256,7 +270,7 @@ class PreparationEndpoint:
                     FROM "RADIOGRAPHY_DATA"
                     GROUP BY dataset_name
                     ORDER BY dataset_name
-                ''')
+                """)
             )
             datasets = []
             for row in result.fetchall():
@@ -265,13 +279,15 @@ class PreparationEndpoint:
                 row_count = row[2]
                 # Extract folder path from the sample path
                 folder_path = os.path.dirname(sample_path) if sample_path else ""
-                datasets.append(DatasetInfo(
-                    name=name,
-                    folder_path=folder_path,
-                    row_count=row_count,
-                    has_validation_report=name in report_names,
-                ))
-        
+                datasets.append(
+                    DatasetInfo(
+                        name=name,
+                        folder_path=folder_path,
+                        row_count=row_count,
+                        has_validation_report=name in report_names,
+                    )
+                )
+
         return DatasetNamesResponse(
             datasets=datasets,
             count=len(datasets),
@@ -288,44 +304,50 @@ class PreparationEndpoint:
             # Get dataset name and row count from TRAINING_DATASET table
             # Group by dataset_name
             result = conn.execute(
-                sqlalchemy.text('''
+                sqlalchemy.text("""
                     SELECT 
                         dataset_name,
                         COUNT(*) as row_count
                     FROM "TRAINING_DATASET"
                     GROUP BY dataset_name
                     ORDER BY dataset_name
-                ''')
+                """)
             )
-            
+
             datasets = []
             for row in result.fetchall():
                 name = row[0]
                 row_count = row[1]
-                
+
                 # Check for validation report to flag it
                 has_report = False
                 if inspector.has_table(VALIDATION_REPORTS_TABLE):
                     report_result = conn.execute(
-                        sqlalchemy.text('SELECT 1 FROM "VALIDATION_REPORTS" WHERE dataset_name = :name'),
-                        {"name": name}
+                        sqlalchemy.text(
+                            'SELECT 1 FROM "VALIDATION_REPORTS" WHERE dataset_name = :name'
+                        ),
+                        {"name": name},
                     )
                     has_report = report_result.fetchone() is not None
 
-                datasets.append(DatasetInfo(
-                    name=name,
-                    folder_path="processed",  # Placeholder indicating processed data
-                    row_count=row_count,
-                    has_validation_report=has_report,
-                ))
-        
+                datasets.append(
+                    DatasetInfo(
+                        name=name,
+                        folder_path="processed",  # Placeholder indicating processed data
+                        row_count=row_count,
+                        has_validation_report=has_report,
+                    )
+                )
+
         return DatasetNamesResponse(
             datasets=datasets,
             count=len(datasets),
         )
 
     # -----------------------------------------------------------------------------
-    async def get_processing_metadata(self, dataset_name: str) -> ProcessingMetadataResponse:
+    async def get_processing_metadata(
+        self, dataset_name: str
+    ) -> ProcessingMetadataResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise HTTPException(
@@ -371,28 +393,36 @@ class PreparationEndpoint:
 
         with self.database.backend.engine.begin() as conn:
             inspector = sqlalchemy.inspect(conn)
-            
+
             deleted_anything = False
-            
+
             # 1. Try deleting from TRAINING_DATASET (Processed datasets)
             if inspector.has_table(TRAINING_DATASET_TABLE):
                 result = conn.execute(
-                    sqlalchemy.text('DELETE FROM "TRAINING_DATASET" WHERE dataset_name = :dataset_name'),
-                    {"dataset_name": dataset_name}
+                    sqlalchemy.text(
+                        'DELETE FROM "TRAINING_DATASET" WHERE dataset_name = :dataset_name'
+                    ),
+                    {"dataset_name": dataset_name},
                 )
                 if result.rowcount > 0:
                     deleted_anything = True
-                    logger.info(f"Deleted {result.rowcount} rows from TRAINING_DATASET for {dataset_name}")
+                    logger.info(
+                        f"Deleted {result.rowcount} rows from TRAINING_DATASET for {dataset_name}"
+                    )
 
             # 2. Try deleting from RADIOGRAPHY_DATA (Source datasets)
             if inspector.has_table(RADIOGRAPHY_TABLE):
                 result = conn.execute(
-                    sqlalchemy.text('DELETE FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'),
-                    {"dataset_name": dataset_name}
+                    sqlalchemy.text(
+                        'DELETE FROM "RADIOGRAPHY_DATA" WHERE dataset_name = :dataset_name'
+                    ),
+                    {"dataset_name": dataset_name},
                 )
                 if result.rowcount > 0:
                     deleted_anything = True
-                    logger.info(f"Deleted {result.rowcount} rows from RADIOGRAPHY_DATA for {dataset_name}")
+                    logger.info(
+                        f"Deleted {result.rowcount} rows from RADIOGRAPHY_DATA for {dataset_name}"
+                    )
 
             # 3. Clean up metadata tables for this dataset name
             cleanup_tables = [
@@ -404,44 +434,50 @@ class PreparationEndpoint:
             for table_name in cleanup_tables:
                 if inspector.has_table(table_name):
                     result = conn.execute(
-                        sqlalchemy.text(f'DELETE FROM "{table_name}" WHERE dataset_name = :dataset_name'),
-                        {"dataset_name": dataset_name}
+                        sqlalchemy.text(
+                            f'DELETE FROM "{table_name}" WHERE dataset_name = :dataset_name'
+                        ),
+                        {"dataset_name": dataset_name},
                     )
                     if result.rowcount > 0:
-                        logger.info(f"Deleted metadata from {table_name} for {dataset_name}")
+                        logger.info(
+                            f"Deleted metadata from {table_name} for {dataset_name}"
+                        )
 
             if not deleted_anything:
-                 # Check if it existed in metadata only (edge case)
-                 # If we didn't delete from data tables, maybe we deleted from metadata tables?
-                 # Since we didn't track rowcount for metadata tables in `deleted_anything` flag (for strict ness),
-                 # check if it was truly not found at all.
-                 
-                 # Strictly speaking, if we found nothing in DATA tables, we can consider it "not found" 
-                 # or "metadata only delete". Let's assume if the user asked to delete, and we found NOTHING, return 404.
-                 # But if we found metadata, it's a valid delete of a corrupted dataset.
-                 
-                 # Let's simplify: If we didn't delete from data tables, check if we should return 404.
-                 # Actually, the user just wants it GONE. If it's already gone, success? Or 404?
-                 # Standard REST implies 404 if resource doesn't exist.
-                 
-                 # Let's check simply if we deleted from ANY table?
-                 # The previous logic counted only RADIOGRAPHY_DATA. 
-                 # Let's count if we deleted from TRAINING_DATASET as well.
-                 
-                 pass # Logic handled by `deleted_anything` flag above. 
+                # Check if it existed in metadata only (edge case)
+                # If we didn't delete from data tables, maybe we deleted from metadata tables?
+                # Since we didn't track rowcount for metadata tables in `deleted_anything` flag (for strict ness),
+                # check if it was truly not found at all.
+
+                # Strictly speaking, if we found nothing in DATA tables, we can consider it "not found"
+                # or "metadata only delete". Let's assume if the user asked to delete, and we found NOTHING, return 404.
+                # But if we found metadata, it's a valid delete of a corrupted dataset.
+
+                # Let's simplify: If we didn't delete from data tables, check if we should return 404.
+                # Actually, the user just wants it GONE. If it's already gone, success? Or 404?
+                # Standard REST implies 404 if resource doesn't exist.
+
+                # Let's check simply if we deleted from ANY table?
+                # The previous logic counted only RADIOGRAPHY_DATA.
+                # Let's count if we deleted from TRAINING_DATASET as well.
+
+                pass  # Logic handled by `deleted_anything` flag above.
 
             if not deleted_anything:
-                 # Double check if it exists in metadata at least, to avoid 404ing on a "metadata-only" ghost
-                 found_in_metadata = False
-                 if inspector.has_table(PROCESSING_METADATA_TABLE):
-                     check = conn.execute(
-                        sqlalchemy.text(f'SELECT 1 FROM "{PROCESSING_METADATA_TABLE}" WHERE dataset_name = :dataset_name'),
-                        {"dataset_name": dataset_name}
-                     )
-                     if check.fetchone():
-                         found_in_metadata = True
+                # Double check if it exists in metadata at least, to avoid 404ing on a "metadata-only" ghost
+                found_in_metadata = False
+                if inspector.has_table(PROCESSING_METADATA_TABLE):
+                    check = conn.execute(
+                        sqlalchemy.text(
+                            f'SELECT 1 FROM "{PROCESSING_METADATA_TABLE}" WHERE dataset_name = :dataset_name'
+                        ),
+                        {"dataset_name": dataset_name},
+                    )
+                    if check.fetchone():
+                        found_in_metadata = True
 
-                 if not found_in_metadata:
+                if not found_in_metadata:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"Dataset not found: {dataset_name}",
@@ -455,7 +491,7 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     async def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
         folder_path = request.folder_path.strip()
-        
+
         if not folder_path:
             return ImagePathResponse(
                 valid=False,
@@ -463,7 +499,7 @@ class PreparationEndpoint:
                 image_count=0,
                 message="Folder path cannot be empty",
             )
-        
+
         if not os.path.exists(folder_path):
             return ImagePathResponse(
                 valid=False,
@@ -471,7 +507,7 @@ class PreparationEndpoint:
                 image_count=0,
                 message=f"Path does not exist: {folder_path}",
             )
-        
+
         if not os.path.isdir(folder_path):
             return ImagePathResponse(
                 valid=False,
@@ -479,10 +515,10 @@ class PreparationEndpoint:
                 image_count=0,
                 message=f"Path is not a directory: {folder_path}",
             )
-        
+
         image_paths = scan_image_folder(folder_path)
         image_count = len(image_paths)
-        
+
         if image_count == 0:
             return ImagePathResponse(
                 valid=False,
@@ -490,9 +526,9 @@ class PreparationEndpoint:
                 image_count=0,
                 message=f"No valid images found in: {folder_path}",
             )
-        
+
         logger.info(f"Validated image folder: {folder_path} with {image_count} images")
-        
+
         return ImagePathResponse(
             valid=True,
             folder_path=folder_path,
@@ -505,14 +541,14 @@ class PreparationEndpoint:
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self.server_settings.global_settings.seed
-        
+
         # Validate folder path
         if not os.path.isdir(folder_path):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid image folder path: {folder_path}",
             )
-        
+
         # Scan for images
         image_paths = scan_image_folder(folder_path)
         if not image_paths:
@@ -520,30 +556,30 @@ class PreparationEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"No valid images found in: {folder_path}",
             )
-        
+
         # Check if we have an uploaded dataset
         if self.upload_state.is_empty():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
             )
-        
+
         # Get the most recently uploaded dataset
         _, dataset_info = self.upload_state.get_latest()
         df: pd.DataFrame = dataset_info["dataframe"].copy()
         dataset_name: str = dataset_info["dataset_name"]
-        
+
         # Apply sample size if needed
         if sample_size < 1.0:
             df = df.sample(frac=sample_size, random_state=seed)
-        
+
         # Build image name to path mapping
         images_mapping = {}
         for path in image_paths:
             basename = os.path.basename(path)
             name_no_ext = os.path.splitext(basename)[0]
             images_mapping[name_no_ext] = path
-        
+
         # Try to match images with dataset records
         # Look for 'image' column in dataset
         image_column = None
@@ -551,7 +587,7 @@ class PreparationEndpoint:
             if col.lower() in {"image", "filename", "file", "img", "image_name"}:
                 image_column = col
                 break
-        
+
         if image_column is None:
             # Just return stats without matching
             logger.warning("No image column found in dataset for matching")
@@ -562,14 +598,18 @@ class PreparationEndpoint:
                 unmatched_records=len(df),
                 message=f"Loaded {len(image_paths)} images and {len(df)} records. No image column found for matching.",
             )
-        
+
         # Match records to image paths
-        df["_path"] = df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
+        df["_path"] = (
+            df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
+        )
         matched = df.dropna(subset=["_path"])
         unmatched = len(df) - len(matched)
-        
-        logger.info(f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records")
-        
+
+        logger.info(
+            f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records"
+        )
+
         # Persist matched data to database with dataset_name, id, and path
         if not matched.empty:
             try:
@@ -582,17 +622,19 @@ class PreparationEndpoint:
                 # Reorder columns to match schema: dataset_name, id, image, text, path
                 db_df = db_df[["dataset_name", "id", "image", "text", "path"]]
                 serializer.upsert_source_dataset(db_df)
-                logger.info(f"Upserted {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
+                logger.info(
+                    f"Upserted {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})"
+                )
             except Exception as e:
                 logger.exception("Failed to save data to database")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to save data to database: {str(e)}",
                 ) from e
-        
+
         # Clear temporary storage after loading
         self.upload_state.clear()
-        
+
         return LoadDatasetResponse(
             success=True,
             total_images=len(image_paths),
@@ -609,7 +651,7 @@ class PreparationEndpoint:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Dataset processing is already in progress",
             )
-        
+
         configuration = request.model_dump()
         configuration["seed"] = self.server_settings.global_settings.seed
         dataset_name = configuration.get("dataset_name", "").strip()
@@ -618,7 +660,7 @@ class PreparationEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Dataset name cannot be empty",
             )
-        
+
         # Quick validation - check if source data exists
         serializer = DataSerializer()
         dataset = serializer.load_source_dataset(
@@ -631,7 +673,7 @@ class PreparationEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Dataset not found: {dataset_name}",
             )
-        
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="dataset_processing",
@@ -647,7 +689,7 @@ class PreparationEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to initialize dataset processing job",
             )
-        
+
         return JobStartResponse(
             job_id=job_id,
             job_type=job_status["job_type"],
@@ -673,9 +715,9 @@ class PreparationEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job not found: {job_id}",
             )
-        
+
         success = self.job_manager.cancel_job(job_id)
-        
+
         return JobCancelResponse(
             job_id=job_id,
             success=success,
@@ -685,10 +727,12 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     async def browse_directory(
         self,
-        path: str = Query("", description="Directory path to browse. Empty returns drives.")
+        path: str = Query(
+            "", description="Directory path to browse. Empty returns drives."
+        ),
     ) -> BrowseResponse:
         """Browse directories on the server filesystem."""
-        
+
         # If no path provided or path is empty, return drives (Windows)
         if not path or path.strip() == "":
             drives = get_windows_drives()
@@ -701,50 +745,52 @@ class PreparationEndpoint:
                 ],
                 drives=drives,
             )
-        
+
         path = path.strip()
-        
+
         # Validate path exists
         if not os.path.exists(path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Path not found: {path}",
             )
-        
+
         if not os.path.isdir(path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Path is not a directory: {path}",
             )
-        
+
         # Get parent path
         parent_path = os.path.dirname(path)
         if parent_path == path:  # At drive root
             parent_path = ""  # Return to drives list
-        
+
         # List directory contents
         items: list[DirectoryItem] = []
         try:
             for item_name in sorted(os.listdir(path)):
                 item_path = os.path.join(path, item_name)
                 is_dir = os.path.isdir(item_path)
-                
+
                 # Only include directories (not files) for navigation
                 if is_dir:
                     image_count = count_images_in_folder(item_path)
-                    items.append(DirectoryItem(
-                        name=item_name,
-                        path=item_path,
-                        is_dir=True,
-                        image_count=image_count,
-                    ))
+                    items.append(
+                        DirectoryItem(
+                            name=item_name,
+                            path=item_path,
+                            is_dir=True,
+                            image_count=image_count,
+                        )
+                    )
         except PermissionError:
             logger.warning(f"Permission denied accessing: {path}")
             logger.warning(f"Error accessing {path}: {e}")
-        
+
         # Also count images in current folder
         current_image_count = count_images_in_folder(path)
-        
+
         return BrowseResponse(
             current_path=path,
             parent_path=parent_path if parent_path else None,
@@ -764,14 +810,16 @@ class PreparationEndpoint:
                 {"dataset_name": dataset_name},
             )
             count = result.scalar() or 0
-        
+
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_metadata(self, dataset_name: str, index: int) -> ImageMetadataResponse:
+    async def get_dataset_image_metadata(
+        self, dataset_name: str, index: int
+    ) -> ImageMetadataResponse:
         """Get metadata for a specific image by 1-based index (id)."""
         dataset_name = dataset_name.strip()
-        
+
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
                 sqlalchemy.text(
@@ -780,20 +828,20 @@ class PreparationEndpoint:
                 {"dataset_name": dataset_name, "id": index},
             )
             row = result.fetchone()
-            
+
             if not row:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Image index {index} not found in dataset {dataset_name}",
                 )
-            
+
             image_name = row[0]
             caption = row[1] or ""
             path = row[2] or ""
-            
+
             # Check if file exists
             valid_path = os.path.exists(path) if path else False
-            
+
             return ImageMetadataResponse(
                 dataset_name=dataset_name,
                 index=index,
@@ -807,7 +855,7 @@ class PreparationEndpoint:
     async def get_dataset_image_content(self, dataset_name: str, index: int):
         """Serve the image file content."""
         dataset_name = dataset_name.strip()
-        
+
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
                 sqlalchemy.text(
@@ -816,22 +864,22 @@ class PreparationEndpoint:
                 {"dataset_name": dataset_name, "id": index},
             )
             row = result.fetchone()
-            
+
             if not row:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Image index {index} not found in dataset {dataset_name}",
                 )
-            
+
             path = row[0]
-            
+
             if not path or not os.path.exists(path):
                 # Elegant warning message as requested
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Source file not found at {path}",
                 )
-                
+
             return FileResponse(path)
 
     # -----------------------------------------------------------------------------

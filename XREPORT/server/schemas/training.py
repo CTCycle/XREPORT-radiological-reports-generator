@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 
 
 class ImagePathRequest(BaseModel):
-    folder_path: str = Field(..., description="Server-side folder path containing images")
+    folder_path: str = Field(
+        ..., description="Server-side folder path containing images"
+    )
 
 
 class ImagePathResponse(BaseModel):
@@ -27,8 +29,12 @@ class DatasetUploadResponse(BaseModel):
 
 
 class LoadDatasetRequest(BaseModel):
-    image_folder_path: str = Field(..., description="Folder path containing X-ray images")
-    sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
+    image_folder_path: str = Field(
+        ..., description="Folder path containing X-ray images"
+    )
+    sample_size: float = Field(
+        1.0, ge=0.01, le=1.0, description="Fraction of data to use"
+    )
 
 
 class LoadDatasetResponse(BaseModel):
@@ -64,25 +70,33 @@ class StartTrainingRequest(BaseModel):
     num_encoders: int = Field(4, ge=1, le=12, description="Number of encoder layers")
     num_decoders: int = Field(4, ge=1, le=12, description="Number of decoder layers")
     embedding_dims: int = Field(256, ge=64, le=1024, description="Embedding dimensions")
-    attention_heads: int = Field(8, ge=1, le=16, description="Number of attention heads")
+    attention_heads: int = Field(
+        8, ge=1, le=16, description="Number of attention heads"
+    )
     train_temp: float = Field(1.0, ge=0.1, le=2.0, description="Training temperature")
     freeze_img_encoder: bool = Field(False, description="Freeze image encoder weights")
     use_img_augmentation: bool = Field(False, description="Enable image augmentation")
     shuffle_with_buffer: bool = Field(True, description="Enable shuffle with buffer")
     shuffle_size: int = Field(1024, ge=1, description="Shuffle buffer size")
     save_checkpoints: bool = Field(True, description="Save checkpoints during training")
-    checkpoint_id: str | None = Field(None, description="Optional custom identifier for the checkpoint")
+    checkpoint_id: str | None = Field(
+        None, description="Optional custom identifier for the checkpoint"
+    )
     use_device_GPU: bool = Field(True, description="Use GPU for training")
     device_ID: int = Field(0, ge=0, description="GPU device ID")
     plot_training_metrics: bool = Field(True, description="Generate training plots")
     use_scheduler: bool = Field(False, description="Use learning rate scheduler")
-    target_LR: float = Field(0.0001, ge=0.000001, le=0.1, description="Target learning rate")
+    target_LR: float = Field(
+        0.0001, ge=0.000001, le=0.1, description="Target learning rate"
+    )
     warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
 
 
 class ResumeTrainingRequest(BaseModel):
     checkpoint: str = Field(..., description="Checkpoint name to resume from")
-    additional_epochs: int = Field(10, ge=1, le=1000, description="Additional epochs to train")
+    additional_epochs: int = Field(
+        10, ge=1, le=1000, description="Additional epochs to train"
+    )
 
 
 class CheckpointInfo(BaseModel):
@@ -112,11 +126,19 @@ class TrainingStatusResponse(BaseModel):
 
 class ProcessDatasetRequest(BaseModel):
     dataset_name: str = Field(..., min_length=1, description="Dataset name to process")
-    custom_name: str | None = Field(None, description="Optional custom name for the processed dataset")
-    sample_size: float = Field(1.0, ge=0.01, le=1.0, description="Fraction of data to use")
-    validation_size: float = Field(0.2, ge=0.05, le=0.5, description="Fraction of data for validation")
+    custom_name: str | None = Field(
+        None, description="Optional custom name for the processed dataset"
+    )
+    sample_size: float = Field(
+        1.0, ge=0.01, le=1.0, description="Fraction of data to use"
+    )
+    validation_size: float = Field(
+        0.2, ge=0.05, le=0.5, description="Fraction of data for validation"
+    )
     tokenizer: str = Field("bert-base-uncased", description="Hugging Face tokenizer ID")
-    max_report_size: int = Field(200, ge=50, le=1000, description="Maximum token length for reports")
+    max_report_size: int = Field(
+        200, ge=50, le=1000, description="Maximum token length for reports"
+    )
 
 
 class ProcessDatasetResponse(BaseModel):
@@ -134,7 +156,7 @@ class DatasetStatusResponse(BaseModel):
     message: str
 
 
-class DatasetInfo(BaseModel):    
+class DatasetInfo(BaseModel):
     name: str
     folder_path: str
     row_count: int
@@ -175,4 +197,3 @@ class ImageMetadataResponse(BaseModel):
     caption: str
     valid_path: bool
     path: str
-

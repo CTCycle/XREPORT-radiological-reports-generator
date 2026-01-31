@@ -6,19 +6,19 @@ from pydantic import BaseModel, ConfigDict
 ###############################################################################
 class ValidationRequest(BaseModel):
     """Request model for dataset validation."""
-    
+
     dataset_name: str
     metrics: list[str]
     sample_size: float = 1.0
     seed: int | None = None
-    
+
     model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
 class PixelDistribution(BaseModel):
     """Model for pixel intensity distribution."""
-    
+
     bins: list[int]
     counts: list[int]
 
@@ -26,7 +26,7 @@ class PixelDistribution(BaseModel):
 ###############################################################################
 class ImageStatistics(BaseModel):
     """Model for image statistics."""
-    
+
     count: int
     mean_height: float
     mean_width: float
@@ -39,7 +39,7 @@ class ImageStatistics(BaseModel):
 ###############################################################################
 class TextStatistics(BaseModel):
     """Model for text statistics."""
-    
+
     count: int
     total_words: int
     unique_words: int
@@ -51,7 +51,7 @@ class TextStatistics(BaseModel):
 ###############################################################################
 class ValidationResponse(BaseModel):
     """Response model for dataset validation."""
-    
+
     success: bool
     message: str
     pixel_distribution: PixelDistribution | None = None
@@ -76,18 +76,18 @@ class ValidationReportResponse(BaseModel):
 ###############################################################################
 class CheckpointEvaluationRequest(BaseModel):
     """Request model for checkpoint evaluation."""
-    
+
     checkpoint: str
     metrics: list[str]  # ["evaluation_report", "bleu_score"]
     num_samples: int = 10  # Number of samples for BLEU calculation
-    
+
     model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
 class CheckpointEvaluationResults(BaseModel):
     """Evaluation metric results."""
-    
+
     loss: float | None = None
     accuracy: float | None = None
     bleu_score: float | None = None
@@ -96,8 +96,7 @@ class CheckpointEvaluationResults(BaseModel):
 ###############################################################################
 class CheckpointEvaluationResponse(BaseModel):
     """Response model for checkpoint evaluation."""
-    
+
     success: bool
     message: str
     results: CheckpointEvaluationResults | None = None
-
