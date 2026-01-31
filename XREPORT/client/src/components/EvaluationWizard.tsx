@@ -44,7 +44,6 @@ const METRICS_CATALOG: MetricCatalogItem[] = [
         icon: <BarChart3 size={24} />,
         defaultConfig: {
             dataFraction: 0.1, // Default to smaller subset for expensive BLEU
-            numSamples: 10,    // Specific to BLEU logic in current backend
         }
     }
 ];
@@ -101,26 +100,7 @@ const MetricConfigStep: React.FC<{
                     </p>
                 </div>
 
-                {/* Specific: BLEU Samples (Only show if BLEU) */}
-                {metric.id === 'bleu_score' && (
-                    <div className="form-group">
-                        <label>Max Samples (Legacy)</label>
-                        <div className="range-control">
-                            <input
-                                type="number"
-                                className="range-value-input"
-                                min="1"
-                                max="1000"
-                                value={config.numSamples || 10}
-                                onChange={(e) => onUpdateConfig('numSamples', parseInt(e.target.value) || 1)}
-                            />
-                        </div>
-                        <p className="param-description">
-                            Maximum number of samples to generate reports for.
-                            Used alongside data fraction (backend uses the smaller of the two limits).
-                        </p>
-                    </div>
-                )}
+
             </div>
         </div>
     );
@@ -161,12 +141,7 @@ const SummaryStep: React.FC<{
                                 <span className="item-label">Data Fraction</span>
                                 <span>{Math.round(config.dataFraction * 100)}%</span>
                             </div>
-                            {metricId === 'bleu_score' && (
-                                <div className="config-item">
-                                    <span className="item-label">Samples</span>
-                                    <span>{config.numSamples}</span>
-                                </div>
-                            )}
+
                         </div>
                     </div>
                 );
@@ -272,8 +247,8 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
     if (!isOpen) return null;
 
     return (
-        <div className="wizard-overlay" onClick={onClose}>
-            <div className="wizard-container" onClick={(e) => e.stopPropagation()}>
+        <div className="wizard-overlay">
+            <div className="wizard-container">
                 {/* Header */}
                 <div className="wizard-header">
                     <h2>
