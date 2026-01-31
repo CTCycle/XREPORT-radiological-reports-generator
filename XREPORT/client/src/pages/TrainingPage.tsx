@@ -1,77 +1,266 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Play, Settings, Activity, Cpu, ChevronDown, RotateCcw
+    Info,
+    Play,
+    RefreshCw,
+    RotateCcw,
+    Trash2,
+    Activity,
 } from 'lucide-react';
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
 import TrainingDashboard from '../components/TrainingDashboard';
+import MetadataModal, {
+    MetadataModalState,
+    PROCESSING_METADATA_ORDER,
+    buildEntries,
+    parseMetadataError,
+} from '../components/MetadataModal';
+import NewTrainingWizard from '../components/NewTrainingWizard';
+import ResumeTrainingWizard from '../components/ResumeTrainingWizard';
+import EvaluationWizard from '../components/EvaluationWizard';
+import { ChartDataPoint, TrainingConfig } from '../types';
 import {
-    startTraining,
-    resumeTraining,
-    stopTraining,
-    getCheckpoints,
-    getTrainingStatus,
     CheckpointInfo,
+    DatasetInfo,
+    JobStatusResponse,
     StartTrainingConfig,
+    deleteCheckpoint,
+    deleteDataset,
+    getCheckpointMetadata,
+    getCheckpoints,
+    getProcessingMetadata,
+    getProcessedDatasetNames,
+    getTrainingJobStatus,
+    getTrainingStatus,
+    pollJobStatus,
+    resumeTraining,
+    startTraining,
+    stopTraining,
 } from '../services/trainingService';
-
 export default function TrainingPage() {
     const {
         state,
         updateConfig,
-        setNewSessionExpanded,
-        setResumeSessionExpanded,
         setSelectedCheckpoint,
         setAdditionalEpochs,
         setDashboardState,
-        setShouldConnectWs,
         setChartData,
         setAvailableMetrics,
-        setEpochBoundaries
+        setEpochBoundaries,
     } = useTrainingPageState();
 
     const [checkpoints, setCheckpoints] = useState<CheckpointInfo[]>([]);
+    const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
+    const [selectedDataset, setSelectedDataset] = useState<DatasetInfo | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [newTrainingError, setNewTrainingError] = useState<string | null>(null);
+    const [resumeTrainingError, setResumeTrainingError] = useState<string | null>(null);
+    const [metadataModal, setMetadataModal] = useState<MetadataModalState | null>(null);
+    const [isNewWizardOpen, setIsNewWizardOpen] = useState(false);
+    const [isResumeWizardOpen, setIsResumeWizardOpen] = useState(false);
+    // Track which checkpoint is being evaluated (if any)
+    const [evalCheckpoint, setEvalCheckpoint] = useState<CheckpointInfo | null>(null);
+    const pollerRef = useRef<{ stop: () => void } | null>(null);
+    const lastLoggedEpochRef = useRef<number | null>(null);
+    const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
 
-    // Check if training is in progress on mount and auto-connect WebSocket if so
+    const stopPolling = useCallback(() => {
+        if (pollerRef.current) {
+            pollerRef.current.stop();
+            pollerRef.current = null;
+        }
+    }, []);
+
+    const appendLogLine = useCallback((line: string) => {
+        setDashboardState((prev) => {
+            const next = [...prev.logEntries, line];
+            return { ...prev, logEntries: next.slice(-200) };
+        });
+    }, [setDashboardState]);
+
+    const resetLogTracking = useCallback(() => {
+        lastLoggedEpochRef.current = null;
+        lastStatusRef.current = null;
+        setDashboardState((prev) => ({ ...prev, logEntries: [] }));
+    }, [setDashboardState]);
+
+    const applyJobStatus = useCallback((status: JobStatusResponse | null) => {
+        if (!status) return;
+
+        const result = (status.result ?? {}) as Record<string, unknown>;
+        const currentEpoch = typeof result.current_epoch === 'number' ? result.current_epoch : undefined;
+        const totalEpochs = typeof result.total_epochs === 'number' ? result.total_epochs : undefined;
+        const loss = typeof result.loss === 'number' ? result.loss : undefined;
+        const valLoss = typeof result.val_loss === 'number' ? result.val_loss : undefined;
+        const accuracy = typeof result.accuracy === 'number' ? result.accuracy : undefined;
+        const valAccuracy = typeof result.val_accuracy === 'number' ? result.val_accuracy : undefined;
+        const progressPercent = typeof result.progress_percent === 'number' ? result.progress_percent : status.progress;
+        const elapsedSeconds = typeof result.elapsed_seconds === 'number' ? result.elapsed_seconds : undefined;
+
+        const formatMetric = (value: number | undefined, decimals: number) => (
+            typeof value === 'number' ? value.toFixed(decimals) : '--'
+        );
+        const formatAccuracy = (value: number | undefined) => (
+            typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '--'
+        );
+
+        setDashboardState((prev) => ({
+            ...prev,
+            isTraining: status.status === 'running' || status.status === 'pending',
+            currentEpoch: currentEpoch ?? prev.currentEpoch,
+            totalEpochs: totalEpochs ?? prev.totalEpochs,
+            loss: loss ?? prev.loss,
+            valLoss: valLoss ?? prev.valLoss,
+            accuracy: accuracy ?? prev.accuracy,
+            valAccuracy: valAccuracy ?? prev.valAccuracy,
+            progressPercent: progressPercent ?? prev.progressPercent,
+            elapsedSeconds: elapsedSeconds ?? prev.elapsedSeconds,
+        }));
+
+        if (status.status !== lastStatusRef.current) {
+            if (status.status === 'pending') {
+                appendLogLine('Training job queued.');
+            }
+            if (status.status === 'running') {
+                appendLogLine('Training job started.');
+            }
+            if (status.status === 'completed') {
+                appendLogLine('Training completed successfully.');
+            }
+            if (status.status === 'cancelled') {
+                appendLogLine('Training cancelled.');
+            }
+            if (status.status === 'failed') {
+                appendLogLine(`Training failed: ${status.error ?? 'Unknown error'}`);
+            }
+            lastStatusRef.current = status.status;
+        }
+
+        if (typeof currentEpoch === 'number' && currentEpoch > 0 && currentEpoch !== lastLoggedEpochRef.current) {
+            const epochLabel = `Epoch ${currentEpoch}/${totalEpochs ?? '--'}`;
+            const line = [
+                epochLabel,
+                `loss ${formatMetric(loss, 4)}`,
+                `val_loss ${formatMetric(valLoss, 4)}`,
+                `acc ${formatAccuracy(accuracy)}`,
+                `val_acc ${formatAccuracy(valAccuracy)}`,
+            ].join(' | ');
+            appendLogLine(line);
+            lastLoggedEpochRef.current = currentEpoch;
+        }
+
+        if (Array.isArray(result.chart_data)) {
+            setChartData(result.chart_data as ChartDataPoint[]);
+        }
+        if (Array.isArray(result.available_metrics)) {
+            setAvailableMetrics(result.available_metrics as string[]);
+        }
+        if (Array.isArray(result.epoch_boundaries)) {
+            setEpochBoundaries(result.epoch_boundaries as number[]);
+        }
+    }, [appendLogLine, setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
+
+    const startPolling = useCallback((jobId: string, intervalSeconds: number = 2.0) => {
+        stopPolling();
+        pollerRef.current = pollJobStatus(
+            getTrainingJobStatus,
+            jobId,
+            (status) => applyJobStatus(status),
+            (status) => applyJobStatus(status),
+            (pollError) => {
+                console.error('Training poll error:', pollError);
+                stopPolling();
+            },
+            intervalSeconds * 1000
+        );
+    }, [applyJobStatus, stopPolling]);
+
+    const fetchDatasets = useCallback(async () => {
+        const { result, error } = await getProcessedDatasetNames();
+        if (error) {
+            console.error('Failed to fetch datasets:', error);
+            return;
+        }
+        if (result) {
+            setDatasets(result.datasets);
+            setSelectedDataset((prev) => {
+                if (result.datasets.length === 0) return null;
+                if (prev && result.datasets.some((ds) => ds.name === prev.name)) {
+                    return result.datasets.find((ds) => ds.name === prev.name) || result.datasets[0];
+                }
+                return result.datasets[0];
+            });
+        }
+    }, []);
+
+    const fetchCheckpoints = useCallback(async () => {
+        const { result, error: fetchError } = await getCheckpoints();
+        if (fetchError) {
+            console.error('Failed to fetch checkpoints:', fetchError);
+            return;
+        }
+        if (result) {
+            setCheckpoints(result.checkpoints);
+            if (result.checkpoints.length > 0) {
+                const exists = result.checkpoints.some((cp) => cp.name === state.selectedCheckpoint);
+                if (!exists) {
+                    setSelectedCheckpoint(result.checkpoints[0].name);
+                }
+            } else {
+                setSelectedCheckpoint('');
+            }
+        }
+    }, [setSelectedCheckpoint, state.selectedCheckpoint]);
+
     useEffect(() => {
         const checkTrainingStatus = async () => {
             const { result } = await getTrainingStatus();
-            if (result?.is_training) {
-                setShouldConnectWs(true);
+            if (result) {
+                setDashboardState((prev) => ({
+                    ...prev,
+                    isTraining: result.is_training,
+                    currentEpoch: result.current_epoch,
+                    totalEpochs: result.total_epochs,
+                    loss: result.loss,
+                    valLoss: result.val_loss,
+                    accuracy: result.accuracy,
+                    valAccuracy: result.val_accuracy,
+                    progressPercent: result.progress_percent,
+                    elapsedSeconds: result.elapsed_seconds,
+                }));
+            }
+            if (result?.is_training && result.job_id) {
+                startPolling(result.job_id, result.poll_interval);
             }
         };
         checkTrainingStatus();
-    }, []);
-
-    // Fetch checkpoints on mount
+        return () => {
+            stopPolling();
+        };
+    }, [setDashboardState, startPolling, stopPolling]);
 
     useEffect(() => {
-        const fetchCheckpoints = async () => {
-            const { result, error: fetchError } = await getCheckpoints();
-            if (result) {
-                setCheckpoints(result.checkpoints);
-            } else if (fetchError) {
-                console.error('Failed to fetch checkpoints:', fetchError);
-            }
-        };
+        fetchDatasets();
         fetchCheckpoints();
-    }, []);
+    }, [fetchCheckpoints, fetchDatasets]);
 
-    const handleConfigChange = (key: string, value: number | boolean) => {
-        updateConfig(key as keyof typeof state.config, value);
+    const handleConfigChange = (key: keyof TrainingConfig, value: TrainingConfig[keyof TrainingConfig]) => {
+        updateConfig(key, value);
     };
 
-    const handleStartTraining = async () => {
+    const handleStartTraining = async (checkpointName: string) => {
         setIsLoading(true);
-        setError(null);
-        setShouldConnectWs(true); // Connect WebSocket when training starts
+        setNewTrainingError(null);
+        setChartData([]);
+        setAvailableMetrics([]);
+        setEpochBoundaries([]);
+        resetLogTracking();
 
         const config: StartTrainingConfig = {
+            dataset_name: selectedDataset?.name ?? '',
             epochs: state.config.epochs,
             batch_size: state.config.batchSize,
-            training_seed: state.config.trainSeed,
             num_encoders: state.config.numEncoders,
             num_decoders: state.config.numDecoders,
             embedding_dims: state.config.embeddingDims,
@@ -82,22 +271,27 @@ export default function TrainingPage() {
             shuffle_with_buffer: state.config.shuffleWithBuffer,
             shuffle_size: state.config.shuffleBufferSize,
             save_checkpoints: state.config.saveCheckpoints,
-            use_tensorboard: state.config.runTensorboard,
-            use_mixed_precision: state.config.mixedPrecision,
-            use_device_GPU: true,
-            device_ID: 0,
+            checkpoint_id: checkpointName,
+            use_device_GPU: state.config.useGpu,
+            device_ID: state.config.gpuId,
             plot_training_metrics: state.config.realTimePlot,
             use_scheduler: state.config.useScheduler,
             target_LR: state.config.targetLR,
             warmup_steps: state.config.warmupSteps,
         };
 
-        const { error: trainError } = await startTraining(config);
+        const { result: startResult, error: trainError } = await startTraining(config);
         setIsLoading(false);
 
         if (trainError) {
-            setError(trainError);
+            setNewTrainingError(trainError);
             console.error('Training failed:', trainError);
+            return;
+        }
+        if (startResult) {
+            setIsNewWizardOpen(false);
+            appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
+            startPolling(startResult.job_id, startResult.poll_interval);
         }
     };
 
@@ -105,27 +299,129 @@ export default function TrainingPage() {
         if (!state.selectedCheckpoint) return;
 
         setIsLoading(true);
-        setError(null);
-        setShouldConnectWs(true); // Connect WebSocket when resume starts
+        setResumeTrainingError(null);
+        resetLogTracking();
 
-        const { error: resumeError } = await resumeTraining(
+        const { result: startResult, error: resumeError } = await resumeTraining(
             state.selectedCheckpoint,
             state.additionalEpochs
         );
         setIsLoading(false);
 
         if (resumeError) {
-            setError(resumeError);
+            setResumeTrainingError(resumeError);
             console.error('Resume training failed:', resumeError);
+            return;
+        }
+        if (startResult) {
+            setIsResumeWizardOpen(false);
+            appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
+            startPolling(startResult.job_id, startResult.poll_interval);
         }
     };
 
     const handleStopTraining = async () => {
+        appendLogLine('Stop requested. Finishing current batch and shutting down training.');
         const { error: stopError } = await stopTraining();
         if (stopError) {
             console.error('Stop training failed:', stopError);
         }
     };
+
+    const handleShowDatasetMetadata = async (dataset: DatasetInfo) => {
+        setMetadataModal({
+            title: 'Dataset Processing Metadata',
+            subtitle: dataset.name,
+        });
+
+        const { result, error } = await getProcessingMetadata(dataset.name);
+        if (error || !result) {
+            const parsedError = error ? parseMetadataError(error) : null;
+            const friendlyError = parsedError?.includes('No processing metadata found')
+                ? `No processing metadata found for "${dataset.name}". Run "Build Dataset" on the Dataset page to generate it.`
+                : parsedError || 'No metadata found';
+            setMetadataModal({
+                title: 'Dataset Processing Metadata',
+                subtitle: dataset.name,
+                error: friendlyError,
+            });
+            return;
+        }
+
+        const metadata = {
+            dataset_name: result.dataset_name,
+            ...result.metadata,
+        };
+        setMetadataModal({
+            title: 'Dataset Processing Metadata',
+            subtitle: result.dataset_name,
+            sections: [
+                {
+                    title: 'Processing Parameters',
+                    entries: buildEntries(metadata, PROCESSING_METADATA_ORDER),
+                },
+            ],
+        });
+    };
+
+    const handleShowCheckpointMetadata = async (checkpoint: CheckpointInfo) => {
+        setMetadataModal({
+            title: 'Checkpoint Metadata',
+            subtitle: checkpoint.name,
+        });
+
+        const { result, error } = await getCheckpointMetadata(checkpoint.name);
+        if (error || !result) {
+            const parsedError = error ? parseMetadataError(error) : null;
+            setMetadataModal({
+                title: 'Checkpoint Metadata',
+                subtitle: checkpoint.name,
+                error: parsedError || 'No metadata found',
+            });
+            return;
+        }
+
+        setMetadataModal({
+            title: 'Checkpoint Metadata',
+            subtitle: result.checkpoint,
+            sections: [
+                { title: 'Training Configuration', entries: buildEntries(result.configuration) },
+                { title: 'Dataset Metadata', entries: buildEntries(result.metadata) },
+                { title: 'Session Summary', entries: buildEntries(result.session) },
+            ],
+        });
+    };
+
+    const handleDeleteDataset = async (dataset: DatasetInfo) => {
+        const confirmed = window.confirm(`Delete dataset "${dataset.name}"? This cannot be undone.`);
+        if (!confirmed) return;
+
+        const { error } = await deleteDataset(dataset.name);
+        if (error) {
+            console.error('Failed to delete dataset:', error);
+            return;
+        }
+
+        await fetchDatasets();
+    };
+
+    const handleDeleteCheckpoint = async (checkpoint: CheckpointInfo) => {
+        const confirmed = window.confirm(`Delete checkpoint "${checkpoint.name}"? This cannot be undone.`);
+        if (!confirmed) return;
+
+        const { error } = await deleteCheckpoint(checkpoint.name);
+        if (error) {
+            console.error('Failed to delete checkpoint:', error);
+            return;
+        }
+
+        await fetchCheckpoints();
+    };
+
+    const selectedCheckpointInfo = useMemo(
+        () => checkpoints.find((cp) => cp.name === state.selectedCheckpoint) || null,
+        [checkpoints, state.selectedCheckpoint]
+    );
 
     return (
         <div className="training-container">
@@ -134,334 +430,213 @@ export default function TrainingPage() {
                 <p>Configure and monitor your training sessions</p>
             </div>
 
-            <div className="layout-rows">
-                {/* Row 3: Training Session Accordions */}
-                <div className="accordion-row">
-                    {/* New Training Session Accordion */}
-                    <div className="accordion">
-                        <div
-                            className="accordion-header"
-                            onClick={() => setNewSessionExpanded(!state.newSessionExpanded)}
-                        >
-                            <div className="accordion-header-left">
-                                <Play size={18} />
-                                <span className="">New Training Session</span>
+            <div className="training-panels">
+                <div className="training-panel">
+                    <div className="panel-left">
+                        <div className="panel-header">
+                            <div>
+                                <h3>New Training Session</h3>
+                                <p>Select a processed dataset to configure your next run.</p>
                             </div>
-                            <ChevronDown
-                                size={20}
-                                className={`accordion-chevron ${state.newSessionExpanded ? 'expanded' : ''}`}
-                            />
+                            <button
+                                className="panel-refresh"
+                                onClick={fetchDatasets}
+                                type="button"
+                                aria-label="Refresh datasets"
+                            >
+                                <RefreshCw size={16} />
+                            </button>
                         </div>
-                        {state.newSessionExpanded && <div className="accordion-divider" />}
-                        <div className={`accordion-content ${state.newSessionExpanded ? 'expanded' : ''}`}>
-                            <div className="accordion-content-inner">
-                                <div className="row-training-controls">
-                                    {/* Left Column: Model Architecture */}
-                                    <div className="section-column">
-                                        <div className="section">
-                                            <div className="section-title">
-                                                <Cpu size={18} />
-                                                <span>Model Architecture</span>
-                                            </div>
-                                            <div className="inputs-grid config-group-spacing">
-                                                <div className="form-group">
-                                                    <label className="form-label">Encoders</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.numEncoders}
-                                                        onChange={(e) => handleConfigChange('numEncoders', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Decoders</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.numDecoders}
-                                                        onChange={(e) => handleConfigChange('numDecoders', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Embedding Dims</label>
-                                                    <input
-                                                        type="number"
-                                                        step="8"
-                                                        className="form-input"
-                                                        value={state.config.embeddingDims}
-                                                        onChange={(e) => handleConfigChange('embeddingDims', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Attention Heads</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.attnHeads}
-                                                        onChange={(e) => handleConfigChange('attnHeads', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Temperature</label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.05"
-                                                        className="form-input"
-                                                        value={state.config.trainTemp}
-                                                        onChange={(e) => handleConfigChange('trainTemp', parseFloat(e.target.value))}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="toggles-grid">
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.freezeImgEncoder}
-                                                            onChange={(e) => handleConfigChange('freezeImgEncoder', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Freeze Encoder</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
 
-                                    {/* Right Column: Dataset Config */}
-                                    <div className="section-column">
-                                        <div className="section">
-                                            <div className="section-title">
-                                                <Settings size={18} />
-                                                <span>Dataset Config</span>
-                                            </div>
-                                            <div className="toggles-grid config-group-spacing">
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.useImgAugment}
-                                                            onChange={(e) => handleConfigChange('useImgAugment', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Image Augmentation</span>
-                                                    </label>
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-checkbox">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={state.config.shuffleWithBuffer}
-                                                            onChange={(e) => handleConfigChange('shuffleWithBuffer', e.target.checked)}
-                                                        />
-                                                        <div className="checkbox-visual" />
-                                                        <span className="checkbox-label">Shuffle Buffered</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            {state.config.shuffleWithBuffer && (
-                                                <div className="inputs-grid">
-                                                    <div className="form-group">
-                                                        <label className="form-label">Buffer Size</label>
-                                                        <input
-                                                            type="number"
-                                                            step="10"
-                                                            className="form-input"
-                                                            value={state.config.shuffleBufferSize}
-                                                            onChange={(e) => handleConfigChange('shuffleBufferSize', parseInt(e.target.value))}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
+                        <div className="panel-list">
+                            {datasets.length === 0 && (
+                                <div className="panel-empty">No datasets available yet.</div>
+                            )}
+                            {datasets.map((dataset) => {
+                                const isSelected = selectedDataset?.name === dataset.name;
+                                return (
+                                    <div
+                                        key={dataset.name}
+                                        className={`panel-row ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => setSelectedDataset(dataset)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                setSelectedDataset(dataset);
+                                            }
+                                        }}
+                                    >
+                                        <div className="panel-row-main">
+                                            <span className="panel-row-title">{dataset.name}</span>
+                                            <span className="panel-row-count">{dataset.row_count.toLocaleString()} rows</span>
+                                        </div>
+                                        <div className="panel-row-actions" onClick={(event) => event.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                className="icon-button"
+                                                title="Show metadata"
+                                                onClick={() => handleShowDatasetMetadata(dataset)}
+                                            >
+                                                <Info size={15} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="icon-button danger"
+                                                title="Delete dataset"
+                                                onClick={() => handleDeleteDataset(dataset)}
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
                                         </div>
                                     </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+
+
+                    <div className="panel-right">
+                        <div className="panel-card">
+                            <div className="panel-card-header">
+                                <div className="panel-card-title-row">
+                                    <Play size={18} />
+                                    <h4>Initialize Training</h4>
                                 </div>
-
-                                {/* Full Width Row: Training Parameters */}
-                                <div style={{ marginTop: '1rem' }}>
-                                    <div className="section">
-                                        <div className="section-title">
-                                            <Activity size={18} />
-                                            <span>Training Parameters</span>
-                                        </div>
-                                        <div className="inputs-grid config-group-spacing">
-                                            <div className="form-group">
-                                                <label className="form-label">Epochs</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    value={state.config.epochs}
-                                                    onChange={(e) => handleConfigChange('epochs', parseInt(e.target.value))}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Batch Size</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    value={state.config.batchSize}
-                                                    onChange={(e) => handleConfigChange('batchSize', parseInt(e.target.value))}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Training Seed</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    value={state.config.trainSeed}
-                                                    onChange={(e) => handleConfigChange('trainSeed', parseInt(e.target.value))}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="toggles-grid">
-                                            <div className="form-group">
-                                                <label className="form-checkbox">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={state.config.saveCheckpoints}
-                                                        onChange={(e) => handleConfigChange('saveCheckpoints', e.target.checked)}
-                                                    />
-                                                    <div className="checkbox-visual" />
-                                                    <span className="checkbox-label">Save Checkpoints</span>
-                                                </label>
-                                            </div>
-
-                                            <div className="form-group">
-                                                <label className="form-checkbox">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={state.config.runTensorboard}
-                                                        onChange={(e) => handleConfigChange('runTensorboard', e.target.checked)}
-                                                    />
-                                                    <div className="checkbox-visual" />
-                                                    <span className="checkbox-label">Tensorboard</span>
-                                                </label>
-                                            </div>
-
-                                            <div className="form-group">
-                                                <label className="form-checkbox">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={state.config.mixedPrecision}
-                                                        onChange={(e) => handleConfigChange('mixedPrecision', e.target.checked)}
-                                                    />
-                                                    <div className="checkbox-visual" />
-                                                    <span className="checkbox-label">Mixed Precision</span>
-                                                </label>
-                                            </div>
-
-                                            <div className="form-group">
-                                                <label className="form-checkbox">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={state.config.useScheduler}
-                                                        onChange={(e) => handleConfigChange('useScheduler', e.target.checked)}
-                                                    />
-                                                    <div className="checkbox-visual" />
-                                                    <span className="checkbox-label">LR Scheduler</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                        {/* Scheduler configuration row */}
-                                        {state.config.useScheduler && (
-                                            <div className="scheduler-config-row">
-                                                <div className="form-group">
-                                                    <label className="form-label">Target Learning Rate</label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.0001"
-                                                        className="form-input"
-                                                        value={state.config.targetLR}
-                                                        onChange={(e) => handleConfigChange('targetLR', parseFloat(e.target.value))}
-                                                    />
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">Warmup Steps</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-input"
-                                                        value={state.config.warmupSteps}
-                                                        onChange={(e) => handleConfigChange('warmupSteps', parseInt(e.target.value))}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                <p>Launch the configuration wizard to set up your training run.</p>
                             </div>
-
-                            {/* Actions Bar inside accordion */}
-                            <div className="actions-bar" style={{ marginTop: '1rem' }}>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={handleStartTraining}
-                                    disabled={isLoading}
-                                >
-                                    <Play size={16} />
-                                    {isLoading ? 'Starting...' : 'Start Training'}
-                                </button>
-                                {error && (
-                                    <span style={{ color: '#ef4444', marginLeft: '1rem', fontSize: '0.85rem' }}>
-                                        {error}
-                                    </span>
-                                )}
+                            <div className="panel-card-summary">
+                                <span>Selected Dataset</span>
+                                <strong>{selectedDataset?.name || 'None selected'}</strong>
+                                <span>Samples</span>
+                                <strong>{selectedDataset ? selectedDataset.row_count.toLocaleString() : 'N/A'}</strong>
                             </div>
+                            <button
+                                className="btn btn-primary"
+                                type="button"
+                                onClick={() => {
+                                    setNewTrainingError(null);
+                                    setIsNewWizardOpen(true);
+                                }}
+                                disabled={!selectedDataset}
+                            >
+                                <Play size={16} />
+                                Configure Training
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Resume Training Session Accordion */}
-                <div className="accordion">
-                    <div
-                        className="accordion-header"
-                        onClick={() => setResumeSessionExpanded(!state.resumeSessionExpanded)}
-                    >
-                        <div className="accordion-header-left">
-                            <RotateCcw size={18} />
-                            <span>Resume Training Session</span>
+                <div className="training-panel">
+                    <div className="panel-left">
+                        <div className="panel-header">
+                            <div>
+                                <h3>Resume Training</h3>
+                                <p>Pick a checkpoint to continue training from a saved state.</p>
+                            </div>
+                            <button
+                                className="panel-refresh"
+                                onClick={fetchCheckpoints}
+                                type="button"
+                                aria-label="Refresh checkpoints"
+                            >
+                                <RefreshCw size={16} />
+                            </button>
                         </div>
-                        <ChevronDown
-                            size={20}
-                            className={`accordion-chevron ${state.resumeSessionExpanded ? 'expanded' : ''}`}
-                        />
-                    </div>
-                    {state.resumeSessionExpanded && <div className="accordion-divider" />}
-                    <div className={`accordion-content ${state.resumeSessionExpanded ? 'expanded' : ''}`}>
-                        <div className="accordion-content-inner">
-                            <div className="resume-session-grid">
-                                <div className="form-group">
-                                    <label className="form-label">Select Checkpoint</label>
-                                    <select
-                                        className="form-select"
-                                        value={state.selectedCheckpoint}
-                                        onChange={(e) => setSelectedCheckpoint(e.target.value)}
+                        <div className="panel-list">
+                            {checkpoints.length === 0 && (
+                                <div className="panel-empty">No checkpoints available yet.</div>
+                            )}
+                            {checkpoints.map((checkpoint) => {
+                                const isSelected = state.selectedCheckpoint === checkpoint.name;
+                                return (
+                                    <div
+                                        key={checkpoint.name}
+                                        className={`panel-row ${isSelected ? 'selected' : ''}`}
+                                        onClick={() => setSelectedCheckpoint(checkpoint.name)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                setSelectedCheckpoint(checkpoint.name);
+                                            }
+                                        }}
                                     >
-                                        <option value="">-- Select a checkpoint --</option>
-                                        {checkpoints.map((cp) => (
-                                            <option key={cp.name} value={cp.name}>
-                                                {cp.name} - Epoch {cp.epochs} - Loss: {cp.loss.toFixed(4)}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <div className="panel-row-main">
+                                            <span className="panel-row-title">{checkpoint.name}</span>
+                                            <span className="panel-row-meta">
+                                                {checkpoint.epochs} epochs · loss {checkpoint.loss.toFixed(4)}
+                                            </span>
+                                        </div>
+                                        <div className="panel-row-actions" onClick={(event) => event.stopPropagation()}>
+                                            <button
+                                                type="button"
+                                                className="icon-button"
+                                                title="Show metadata"
+                                                onClick={() => handleShowCheckpointMetadata(checkpoint)}
+                                            >
+                                                <Info size={15} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="icon-button danger"
+                                                title="Delete checkpoint"
+                                                onClick={() => handleDeleteCheckpoint(checkpoint)}
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+
+
+                    <div className="panel-right">
+                        <div className="panel-card">
+                            <div className="panel-card-header">
+                                <div className="panel-card-title-row">
+                                    <RotateCcw size={18} />
+                                    <h4>Checkpoint Actions</h4>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">Additional Epochs</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={state.additionalEpochs}
-                                        onChange={(e) => setAdditionalEpochs(parseInt(e.target.value))}
-                                        min={1}
-                                    />
-                                </div>
+                                <p>Resume training or evaluate the performance of the selected checkpoint.</p>
+                            </div>
+                            <div className="panel-card-summary">
+                                <span>Selected Checkpoint</span>
+                                <strong>{state.selectedCheckpoint || 'None selected'}</strong>
+                                <span>Epochs</span>
+                                <strong>{selectedCheckpointInfo ? selectedCheckpointInfo.epochs : 'N/A'}</strong>
+                            </div>
+                            <div className="panel-card-actions">
                                 <button
                                     className="btn btn-primary"
-                                    disabled={!state.selectedCheckpoint || isLoading}
-                                    onClick={handleResumeTraining}
+                                    type="button"
+                                    onClick={() => {
+                                        setResumeTrainingError(null);
+                                        setIsResumeWizardOpen(true);
+                                    }}
+                                    disabled={!state.selectedCheckpoint}
+                                    style={{ flex: 1 }}
                                 >
                                     <RotateCcw size={16} />
-                                    {isLoading ? 'Resuming...' : 'Resume Training'}
+                                    Resume Training
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    type="button"
+                                    onClick={() => {
+                                        if (state.selectedCheckpoint && selectedCheckpointInfo) {
+                                            setEvalCheckpoint(selectedCheckpointInfo);
+                                        }
+                                    }}
+                                    disabled={!state.selectedCheckpoint}
+                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                >
+                                    <Activity size={16} />
+                                    Evaluate Model
                                 </button>
                             </div>
                         </div>
@@ -469,16 +644,45 @@ export default function TrainingPage() {
                 </div>
             </div>
 
-            {/* Training Dashboard */}
             <TrainingDashboard
                 onStopTraining={handleStopTraining}
-                shouldConnect={state.dashboardState.shouldConnectWs}
                 dashboardState={state.dashboardState}
-                onDashboardStateChange={setDashboardState}
-                onChartDataChange={setChartData}
-                onAvailableMetricsChange={setAvailableMetrics}
-                onEpochBoundariesChange={setEpochBoundaries}
             />
+
+            <NewTrainingWizard
+                isOpen={isNewWizardOpen}
+                config={state.config}
+                onConfigChange={handleConfigChange}
+                onClose={() => setIsNewWizardOpen(false)}
+                onConfirm={handleStartTraining}
+                isLoading={isLoading}
+                selectedDatasetLabel={selectedDataset?.name ?? ''}
+                error={newTrainingError}
+            />
+
+            <ResumeTrainingWizard
+                isOpen={isResumeWizardOpen}
+                checkpoints={checkpoints}
+                selectedCheckpoint={state.selectedCheckpoint}
+                onCheckpointChange={setSelectedCheckpoint}
+                additionalEpochs={state.additionalEpochs}
+                onAdditionalEpochsChange={setAdditionalEpochs}
+                onClose={() => setIsResumeWizardOpen(false)}
+                onConfirm={handleResumeTraining}
+                isLoading={isLoading}
+                error={resumeTrainingError}
+            />
+
+            <MetadataModal state={metadataModal} onClose={() => setMetadataModal(null)} />
+
+            {/* Evaluation Wizard */}
+            {evalCheckpoint && (
+                <EvaluationWizard
+                    isOpen={!!evalCheckpoint}
+                    onClose={() => setEvalCheckpoint(null)}
+                    checkpointName={evalCheckpoint.name}
+                />
+            )}
         </div>
     );
 }

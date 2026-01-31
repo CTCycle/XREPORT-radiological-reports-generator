@@ -80,55 +80,203 @@
     gap: 1rem;
 }
 
-/* Shared Dataset Selector Bar */
-.dataset-selector-bar {
+/* Dataset Table Styles */
+.dataset-table-container {
+    margin-bottom: 1rem;
+}
+
+.dataset-table-header-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.dataset-table-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.dataset-table-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem 0;
+    font-style: italic;
+}
+
+.dataset-table {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    margin-bottom: 1rem;
+    overflow: hidden;
 }
 
-.dataset-selector-bar .form-select {
-    max-width: 400px;
-}
-
-/* Two-Column Layout for Processing & Evaluation */
-.processing-evaluation-columns {
+.dataset-table-header {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 150px 1.5fr 2fr 100px;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    align-items: center;
 }
 
-.processing-column,
-.evaluation-column {
+.dataset-table-body {
+    max-height: 240px;
+    /* ~8 rows */
+    overflow-y: auto;
+}
+
+.dataset-table-row {
+    display: grid;
+    grid-template-columns: 150px 1.5fr 2fr 100px;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.dataset-table-row:last-child {
+    border-bottom: none;
+}
+
+.dataset-table-row:hover {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.dataset-table-row.selected {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--accent-color);
+    padding-left: calc(0.75rem - 3px);
+}
+
+.dataset-table-row .dataset-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dataset-table-row .dataset-path {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dataset-table-row .dataset-rows {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.dataset-table-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+
+/* Processing & Evaluation Content Wrappers */
+.processing-content,
+.evaluation-content {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    gap: 0.75rem;
 }
 
-.processing-column .btn,
-.evaluation-column .btn {
-    margin-top: auto;
+/* Adjust config grid for full width */
+.config-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 0.5rem;
 }
 
-.subsection-header {
+/* Dataset Processing Split View */
+.dataset-processing-split {
+    display: flex;
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+.dataset-grid-section {
+    flex: 1;
+    /* Takes available space, usually around 60-70% */
+    min-width: 0;
+    /* Prevents overflow */
+}
+
+.processing-config-section {
+    width: 320px;
+    /* Fixed width for config panel */
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.vertical-separator {
+    width: 1px;
+    background-color: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+/* Config Grid - Vertical Layout for Side Panel */
+.config-grid-compact-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Remove card styling from form groups in config panel */
+.config-grid-compact-vertical .form-group {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    gap: 0;
+}
+
+.config-grid-compact-vertical .form-label {
+    font-size: 0.8rem;
+    line-height: 1.1;
+    margin-bottom: 0.35rem;
+}
+
+.config-panel-title {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-secondary);
+    margin: 0;
     margin-bottom: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.5px;
 }
 
-.config-grid-compact {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+.processing-actions {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
 }
 
 /* Upload Section Styles */
@@ -169,6 +317,14 @@
     color: var(--text-primary);
     font-weight: 600;
     font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.upload-hint {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-style: italic;
+    margin-bottom: 0.15rem;
 }
 
 .upload-subtext {
@@ -229,6 +385,40 @@
     align-items: center;
     gap: 0.75rem;
     margin-top: 0.25rem;
+}
+
+.dataset-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-icon-small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-icon-small:hover {
+    color: var(--text-primary);
+    background: var(--input-bg);
+    border-color: var(--border-color);
+}
+
+.btn-icon-small:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: transparent;
 }
 
 /* Load dataset section */
@@ -406,21 +596,8 @@ input[type="checkbox"] {
 
 /* Responsive */
 @media (max-width: 1024px) {
-    .row-processing-analysis {
-        grid-template-columns: 1fr;
-    }
-
-    .processing-evaluation-columns {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .config-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
     .config-grid-compact {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .upload-row-content {
