@@ -23,14 +23,14 @@ from XREPORT.server.schemas.jobs import (
     JobCancelResponse,
 )
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serializer import (
     DataSerializer,
     ModelSerializer,
     CHECKPOINT_PATH,
 )
 from XREPORT.server.configurations.server import server_settings
-from XREPORT.server.database.database import database
+from XREPORT.server.repositories.database import database
 from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
 from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
 from XREPORT.server.learning.training.worker import (
