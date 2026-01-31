@@ -237,7 +237,7 @@
 .config-grid-compact-vertical {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 1.25rem;
     margin-bottom: 0.5rem;
 }
 
@@ -249,11 +249,13 @@
     margin: 0;
     box-shadow: none;
     border-radius: 0;
-    gap: 0.1rem;
+    gap: 0;
 }
 
 .config-grid-compact-vertical .form-label {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
+    line-height: 1.1;
+    margin-bottom: 0.15rem;
 }
 
 .config-panel-title {
