@@ -50,9 +50,11 @@ class UploadEndpoint:
         self.upload_state = upload_state
 
     # -----------------------------------------------------------------------------
-    async def upload_dataset(self, file: UploadFile = File(...)) -> DatasetUploadResponse:
+    async def upload_dataset(
+        self, file: UploadFile = File(...)
+    ) -> DatasetUploadResponse:
         """Upload a CSV or Excel file containing dataset records.
-        
+
         The dataset name is extracted from the filename (without extension).
         The uploaded data is stored in temporary storage for later processing.
         """
@@ -61,38 +63,43 @@ class UploadEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No file provided",
             )
-        
+
         filename = file.filename
         ext = os.path.splitext(filename)[1].lower()
-        
+
         if ext not in {".csv", ".xlsx"}:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid file type: {ext}. Only .csv and .xlsx files are allowed",
             )
-        
+
         # Extract dataset name from filename (without extension)
         dataset_name = os.path.splitext(filename)[0]
-        
+
         try:
             contents = await file.read()
-            
+
             if ext == ".csv":
                 # Use sep=None to auto-detect delimiter (handles both comma and semicolon)
-                df = pd.read_csv(io.BytesIO(contents), sep=None, engine='python')
+                df = pd.read_csv(io.BytesIO(contents), sep=None, engine="python")
             else:  # .xlsx
                 df = pd.read_excel(io.BytesIO(contents))
-            
+
             # Store in temporary storage with unique key
             storage_key = f"dataset_{filename}"
-            self.upload_state.store(storage_key, {
-                "dataframe": df,
-                "filename": filename,
-                "dataset_name": dataset_name,
-            })
-            
-            logger.info(f"Dataset uploaded: {filename} (name: {dataset_name}) with {len(df)} rows, {len(df.columns)} columns")
-            
+            self.upload_state.store(
+                storage_key,
+                {
+                    "dataframe": df,
+                    "filename": filename,
+                    "dataset_name": dataset_name,
+                },
+            )
+
+            logger.info(
+                f"Dataset uploaded: {filename} (name: {dataset_name}) with {len(df)} rows, {len(df.columns)} columns"
+            )
+
             return DatasetUploadResponse(
                 success=True,
                 filename=filename,
@@ -102,7 +109,7 @@ class UploadEndpoint:
                 columns=list(df.columns),
                 message=f"Successfully parsed {filename}",
             )
-            
+
         except Exception as e:
             logger.exception(f"Failed to parse dataset file: {filename}")
             raise HTTPException(

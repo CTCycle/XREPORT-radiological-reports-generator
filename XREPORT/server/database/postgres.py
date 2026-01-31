@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.utils.configurations import DatabaseSettings
+from XREPORT.server.configurations import DatabaseSettings
 from XREPORT.server.database.schema import Base
 from XREPORT.server.database.utils import normalize_postgres_engine
 from XREPORT.server.utils.logger import logger
@@ -22,9 +22,7 @@ class PostgresRepository:
         if not settings.host:
             raise ValueError("Database host must be provided for external database.")
         if not settings.database_name:
-            raise ValueError(
-                "Database name must be provided for external database."
-            )
+            raise ValueError("Database name must be provided for external database.")
         if not settings.username:
             raise ValueError(
                 "Database username must be provided for external database."

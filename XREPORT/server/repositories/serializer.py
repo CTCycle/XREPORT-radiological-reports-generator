@@ -30,12 +30,12 @@ from XREPORT.server.utils.constants import (
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.database import database
 from XREPORT.server.database.sqlite import SQLiteRepository
-from XREPORT.server.utils.learning.training.metrics import (
+from XREPORT.server.learning.training.metrics import (
     MaskedSparseCategoricalCrossentropy,
     MaskedAccuracy,
 )
-from XREPORT.server.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.server.utils.learning.training.layers import (
+from XREPORT.server.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.server.learning.training.layers import (
     PositionalEmbedding,
     AddNorm,
     FeedForward,
@@ -43,7 +43,7 @@ from XREPORT.server.utils.learning.training.layers import (
     TransformerEncoder,
     TransformerDecoder,
 )
-from XREPORT.server.utils.learning.training.encoder import BeitXRayImageEncoder
+from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
@@ -61,7 +61,7 @@ class DataSerializer:
         """Generate a deterministic hash for the dataset processing configuration."""
         if not metadata:
             return ""
-        
+
         payload = {
             "dataset_name": metadata.get("dataset_name"),
             "sample_size": metadata.get("sample_size"),
@@ -71,7 +71,7 @@ class DataSerializer:
             "max_report_size": metadata.get("max_report_size"),
             "tokenizer": metadata.get("tokenizer"),
         }
-        
+
         serialized = json.dumps(payload, sort_keys=True)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
@@ -101,12 +101,16 @@ class DataSerializer:
     def _serialize_json_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
             return df
-            
+
         df_copy = df.copy()
         for col in df_copy.columns:
             # Check first non-null value
-            first_valid = df_copy[col].dropna().iloc[0] if not df_copy[col].dropna().empty else None
-            
+            first_valid = (
+                df_copy[col].dropna().iloc[0]
+                if not df_copy[col].dropna().empty
+                else None
+            )
+
             if isinstance(first_valid, (list, dict)):
                 df_copy[col] = df_copy[col].apply(
                     lambda x: json.dumps(x) if isinstance(x, (list, dict)) else x
@@ -164,7 +168,7 @@ class DataSerializer:
             self.validate_required_columns(
                 dataset, required_columns, table_name, "save"
             )
-        
+
         dataset_to_save = self._serialize_json_columns(dataset)
         database.save_into_database(dataset_to_save, table_name)
 
@@ -242,19 +246,23 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def validate_img_paths(self, dataset: pd.DataFrame) -> pd.DataFrame:
         if "path" not in dataset.columns:
-            logger.error("Dataset missing 'path' column - images were not stored with paths")
+            logger.error(
+                "Dataset missing 'path' column - images were not stored with paths"
+            )
             return pd.DataFrame()
-        
+
         # Check which paths actually exist
-        valid_mask = dataset["path"].apply(lambda p: os.path.isfile(p) if pd.notna(p) else False)
+        valid_mask = dataset["path"].apply(
+            lambda p: os.path.isfile(p) if pd.notna(p) else False
+        )
         clean_dataset = dataset[valid_mask].reset_index(drop=True)
         dropped = len(dataset) - len(clean_dataset)
-        
+
         if len(clean_dataset) > 0:
             logger.info(f"Validated image paths: {len(clean_dataset)} valid records")
         if dropped > 0:
             logger.warning(f"{dropped} records have missing or invalid image paths")
-        
+
         return clean_dataset
 
     # -------------------------------------------------------------------------
@@ -314,7 +322,7 @@ class DataSerializer:
             latest_metadata = filtered_meta.iloc[-1].to_dict()
         else:
             latest_metadata = metadata_df.iloc[-1].to_dict()
-            
+
         latest_metadata.pop("id", None)
 
         if only_metadata:
@@ -323,11 +331,13 @@ class DataSerializer:
         training_data = self.load_table(TRAINING_DATASET_TABLE)
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
-        
+
         if "dataset_name" in training_data.columns:
             target_name = dataset_name or latest_metadata.get("dataset_name")
             if target_name:
-                training_data = training_data[training_data["dataset_name"] == target_name]
+                training_data = training_data[
+                    training_data["dataset_name"] == target_name
+                ]
 
         train_data = training_data[training_data["split"] == "train"].copy()
         val_data = training_data[training_data["split"] == "validation"].copy()
@@ -361,17 +371,25 @@ class DataSerializer:
             "prepare",
         )
 
-        db_columns = ["dataset_name", "hashcode", "id", "image", "tokens", "split", "path"]
-        
+        db_columns = [
+            "dataset_name",
+            "hashcode",
+            "id",
+            "image",
+            "tokens",
+            "split",
+            "path",
+        ]
+
         # Ensure path column exists
         if "path" not in training_data.columns:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
-            
+
         dataset_name = configuration.get("dataset_name", "default")
         training_data["dataset_name"] = dataset_name
         training_data["hashcode"] = hashcode
-            
+
         training_data_filtered = training_data[db_columns].copy()
 
         required_columns = TABLE_REQUIRED_COLUMNS.get(TRAINING_DATASET_TABLE, [])
@@ -379,7 +397,7 @@ class DataSerializer:
             self.validate_required_columns(
                 training_data_filtered, required_columns, TRAINING_DATASET_TABLE, "save"
             )
-        
+
         try:
             # Use upsert instead of save_table to allow multiple datasets to coexist
             self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
@@ -392,7 +410,7 @@ class DataSerializer:
                     "(resources/database/XREPORT.db) and restart the server to reinitialize."
                 ) from e
             raise
-        
+
         # Save metadata to database table
         metadata = {
             "dataset_name": configuration.get("dataset_name", "default"),
@@ -406,19 +424,31 @@ class DataSerializer:
             "hashcode": hashcode,
             "source_dataset": configuration.get("source_dataset", None),
         }
-        
+
         metadata_df = pd.DataFrame([metadata])
         try:
             self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
         except OperationalError as e:
             error_msg = str(e)
-            if "no column named" in error_msg or "has no column" in error_msg or "source_dataset" in error_msg:
-                logger.warning("Schema mismatch detected. Attempting to migrate PROCESSING_METADATA table...")
+            if (
+                "no column named" in error_msg
+                or "has no column" in error_msg
+                or "source_dataset" in error_msg
+            ):
+                logger.warning(
+                    "Schema mismatch detected. Attempting to migrate PROCESSING_METADATA table..."
+                )
                 try:
                     with database.backend.engine.connect() as conn:
-                        conn.execute(sqlalchemy.text('ALTER TABLE "PROCESSING_METADATA" ADD COLUMN source_dataset VARCHAR'))
+                        conn.execute(
+                            sqlalchemy.text(
+                                'ALTER TABLE "PROCESSING_METADATA" ADD COLUMN source_dataset VARCHAR'
+                            )
+                        )
                         conn.commit()
-                    logger.info("Successfully added 'source_dataset' column to PROCESSING_METADATA.")
+                    logger.info(
+                        "Successfully added 'source_dataset' column to PROCESSING_METADATA."
+                    )
                     # Retry save
                     self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
                 except Exception as migration_error:
@@ -498,22 +528,12 @@ class DataSerializer:
             return None
         row = filtered.iloc[-1]
 
-        metrics = DataSerializer._parse_json(
-            row.get("metrics"), default=[]
-        )
-        text_statistics = DataSerializer._parse_json(
-            row.get("text_statistics")
-        )
-        image_statistics = DataSerializer._parse_json(
-            row.get("image_statistics")
-        )
-        pixel_distribution = DataSerializer._parse_json(
-            row.get("pixel_distribution")
-        )
-        artifacts = DataSerializer._parse_json(
-            row.get("artifacts")
-        )
-        
+        metrics = DataSerializer._parse_json(row.get("metrics"), default=[])
+        text_statistics = DataSerializer._parse_json(row.get("text_statistics"))
+        image_statistics = DataSerializer._parse_json(row.get("image_statistics"))
+        pixel_distribution = DataSerializer._parse_json(row.get("pixel_distribution"))
+        artifacts = DataSerializer._parse_json(row.get("artifacts"))
+
         return {
             "dataset_name": dataset_name,
             "date": row.get("date") if "date" in row else None,
@@ -547,14 +567,15 @@ class ModelSerializer:
         if name:
             # Sanitize name: remove non-alphanumeric except underscore and hyphen
             import re
-            sanitized_name = re.sub(r'[^a-zA-Z0-9_\-]', '', name)
+
+            sanitized_name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
             if not sanitized_name:
                 today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
                 sanitized_name = f"{self.model_name}_{today_datetime}"
         else:
             today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
             sanitized_name = f"{self.model_name}_{today_datetime}"
-            
+
         checkpoint_path = os.path.join(CHECKPOINT_PATH, sanitized_name)
         os.makedirs(checkpoint_path, exist_ok=True)
         os.makedirs(os.path.join(checkpoint_path, "configuration"), exist_ok=True)
@@ -581,7 +602,7 @@ class ModelSerializer:
         config_path = os.path.join(path, "configuration", "configuration.json")
         metadata_path = os.path.join(path, "configuration", "metadata.json")
         history_path = os.path.join(path, "configuration", "session_history.json")
-        
+
         with open(config_path, "w") as f:
             json.dump(configuration, f)
         with open(metadata_path, "w") as f:
@@ -631,10 +652,10 @@ class ModelSerializer:
         self, checkpoint: str, custom_objects: dict[str, Any] | None = None
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load checkpoint model and configuration for resume training or inference."""
-        
+
         checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
-        
+
         default_custom_objects = {
             # Loss and metrics
             "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
@@ -651,7 +672,7 @@ class ModelSerializer:
         }
         if custom_objects:
             default_custom_objects.update(custom_objects)
-        
+
         model = load_model(model_path, custom_objects=default_custom_objects)
         configuration, metadata, session = self.load_training_configuration(
             checkpoint_path

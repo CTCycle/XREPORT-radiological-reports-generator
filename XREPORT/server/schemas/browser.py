@@ -31,4 +31,3 @@ class TableDataResponse(BaseModel):
 ###############################################################################
 class BrowseConfigResponse(BaseModel):
     browse_batch_size: int = Field(..., ge=1, le=1000)
-

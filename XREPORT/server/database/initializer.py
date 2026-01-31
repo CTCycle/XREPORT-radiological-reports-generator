@@ -5,7 +5,7 @@ import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from XREPORT.server.utils.configurations import DatabaseSettings, server_settings
+from XREPORT.server.configurations import DatabaseSettings, server_settings
 from XREPORT.server.database.postgres import PostgresRepository
 from XREPORT.server.database.schema import Base
 from XREPORT.server.database.sqlite import SQLiteRepository
@@ -51,12 +51,13 @@ def clone_settings_with_database(
         ssl_ca=settings.ssl_ca,
         connect_timeout=settings.connect_timeout,
         insert_batch_size=settings.insert_batch_size,
+        browse_batch_size=settings.browse_batch_size,
     )
 
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)\
+    repository = SQLiteRepository(settings)
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 
@@ -110,7 +111,12 @@ def run_database_initialization() -> None:
         return
 
     engine_name = normalize_postgres_engine(settings.engine).lower()
-    if engine_name not in {"postgres", "postgresql", "postgresql+psycopg", "postgresql+psycopg2"}:
+    if engine_name not in {
+        "postgres",
+        "postgresql",
+        "postgresql+psycopg",
+        "postgresql+psycopg2",
+    }:
         raise ValueError(f"Unsupported database engine: {settings.engine}")
 
     ensure_postgres_database(settings)

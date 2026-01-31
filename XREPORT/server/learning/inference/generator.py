@@ -9,8 +9,8 @@ from keras import Model, ops
 from keras.utils import set_random_seed
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.learning.processing import TokenizerHandler
+from XREPORT.server.learning.training.dataloader import XRAYDataLoader
+from XREPORT.server.services.processing import TokenizerHandler
 
 
 ###############################################################################
@@ -84,9 +84,7 @@ class TextGenerator:
             tokenizer_config["pad_token"],
         ]
 
-        text_tokens = [
-            token for token in token_sequence if token not in special_tokens
-        ]
+        text_tokens = [token for token in token_sequence if token not in special_tokens]
         processed_text = self.merge_tokens(text_tokens)
 
         return processed_text
@@ -105,8 +103,7 @@ class TextGenerator:
 
         logger.info(f"Generating report for image {os.path.basename(image_path)}")
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
-        image = dataloader.processor.load_image(image_path, as_array=True)
-        image = dataloader.processor.image_normalization(image)
+        image = dataloader.prepare_inference_image(image_path)
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
 
@@ -153,8 +150,7 @@ class TextGenerator:
 
         logger.info(f"Generating report for image {os.path.basename(image_path)}")
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
-        image = dataloader.processor.load_image(image_path, as_array=True)
-        image = dataloader.processor.image_normalization(image)
+        image = dataloader.prepare_inference_image(image_path)
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
 
@@ -176,7 +172,9 @@ class TextGenerator:
 
                 predictions = self.model.predict([image, seq_input], verbose=0)
                 # Convert to numpy to handle CUDA tensors
-                next_token_logits = ops.convert_to_numpy(predictions[0, len(seq) - 1, :])
+                next_token_logits = ops.convert_to_numpy(
+                    predictions[0, len(seq) - 1, :]
+                )
 
                 log_probs = np.log(np.clip(next_token_logits, 1e-12, 1.0))
                 top_indices = np.argsort(log_probs)[-beam_width:][::-1]
