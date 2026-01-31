@@ -6,10 +6,10 @@ import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.database.postgres import PostgresRepository
-from XREPORT.server.database.schema import Base
-from XREPORT.server.database.sqlite import SQLiteRepository
-from XREPORT.server.database.utils import normalize_postgres_engine
+from XREPORT.server.repositories.postgres import PostgresRepository
+from XREPORT.server.repositories.schema import Base
+from XREPORT.server.repositories.sqlite import SQLiteRepository
+from XREPORT.server.repositories.utils import normalize_postgres_engine
 from XREPORT.server.utils.logger import logger
 
 

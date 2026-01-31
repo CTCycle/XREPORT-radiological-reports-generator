@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -19,7 +21,8 @@ from XREPORT.server.schemas.jobs import (
 from XREPORT.server.utils.constants import RESOURCES_PATH, CHECKPOINT_PATH
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
-from XREPORT.server.utils.jobs import JobManager, job_manager
+from XREPORT.server.learning.training.dataloader import XRAYDataLoader
+from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serializer import ModelSerializer
 
 
@@ -71,35 +74,54 @@ def run_inference_job(
     tokenizer, tokenizer_config = tokenizers_info
     vocabulary = tokenizer.get_vocab()
 
-    generator_fn = generator.generator_methods.get(generation_mode)
+    generator_fn = generator.generator_image_methods.get(generation_mode)
     if generator_fn is None:
         raise RuntimeError(f"Unknown generation mode: {generation_mode}")
 
     reports_by_filename: dict[str, str] = {}
     total_images = max(1, len(image_paths))
 
-    for idx, path in enumerate(image_paths):
+    data = pd.DataFrame({"path": image_paths})
+    dataloader = XRAYDataLoader(model_metadata, shuffle=False)
+    inference_loader = dataloader.build_inference_dataloader(data)
+
+    image_index = 0
+    for batch in inference_loader:
         if job_manager.should_stop(job_id):
             break
 
-        report = generator_fn(
-            tokenizer_config,
-            vocabulary,
-            path,
-            stream_callback=None,
-        )
-        reports_by_filename[os.path.basename(path)] = report
-        progress = ((idx + 1) / total_images) * 100.0
-        job_manager.update_progress(job_id, progress)
-        job_manager.update_result(
-            job_id,
-            {
-                "reports": dict(reports_by_filename),
-                "count": len(reports_by_filename),
-                "processed_images": idx + 1,
-                "total_images": total_images,
-            },
-        )
+        if image_index >= len(image_paths):
+            break
+
+        if not isinstance(batch, np.ndarray):
+            batch = batch.detach().cpu().numpy()
+
+        for item in batch:
+            if job_manager.should_stop(job_id):
+                break
+            if image_index >= len(image_paths):
+                break
+
+            path = image_paths[image_index]
+            report = generator_fn(
+                tokenizer_config,
+                vocabulary,
+                item,
+                stream_callback=None,
+            )
+            reports_by_filename[os.path.basename(path)] = report
+            image_index += 1
+            progress = (image_index / total_images) * 100.0
+            job_manager.update_progress(job_id, progress)
+            job_manager.update_result(
+                job_id,
+                {
+                    "reports": dict(reports_by_filename),
+                    "count": len(reports_by_filename),
+                    "processed_images": image_index,
+                    "total_images": total_images,
+                },
+            )
 
     # Clean up temp files
     for path in image_paths:

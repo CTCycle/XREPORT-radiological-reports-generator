@@ -28,8 +28,8 @@ from XREPORT.server.utils.constants import (
     TABLE_MERGE_KEYS,
 )
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.database.database import database
-from XREPORT.server.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database import database
+from XREPORT.server.repositories.sqlite import SQLiteRepository
 from XREPORT.server.learning.training.metrics import (
     MaskedSparseCategoricalCrossentropy,
     MaskedAccuracy,

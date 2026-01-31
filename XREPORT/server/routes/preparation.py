@@ -8,7 +8,7 @@ import sqlalchemy
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
-from XREPORT.server.database.database import XREPORTDatabase, database
+from XREPORT.server.repositories.database import XREPORTDatabase, database
 from XREPORT.server.schemas.training import (
     BrowseResponse,
     DatasetInfo,
@@ -33,7 +33,7 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.repositories.serializer import DataSerializer
