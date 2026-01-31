@@ -25,6 +25,7 @@ export interface TextStatistics {
 }
 
 export interface ValidationRequest {
+    dataset_name: string;
     metrics: string[];
     sample_size?: number;
     seed?: number;
@@ -38,6 +39,43 @@ export interface ValidationResponse {
     text_statistics?: TextStatistics;
 }
 
+export interface ValidationReport {
+    dataset_name: string;
+    date?: string | null;
+    sample_size?: number | null;
+    metrics: string[];
+    pixel_distribution?: PixelDistribution;
+    image_statistics?: ImageStatistics;
+    text_statistics?: TextStatistics;
+    artifacts?: Record<string, { mime_type: string; data: string }> | null;
+}
+
+// ============================================================================
+// Job API Types
+// ============================================================================
+
+export interface JobStartResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    message: string;
+}
+
+export interface JobStatusResponse {
+    job_id: string;
+    job_type: string;
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress: number;
+    result: Record<string, unknown> | null;
+    error: string | null;
+}
+
+export interface JobCancelResponse {
+    job_id: string;
+    success: boolean;
+    message: string;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
@@ -48,10 +86,11 @@ async function readJson<T>(response: Response): Promise<T> {
 
 /**
  * Run validation analytics on the current dataset
+ * Returns a job_id for polling status
  */
 export async function runValidation(
     request: ValidationRequest
-): Promise<{ result: ValidationResponse | null; error: string | null }> {
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const response = await fetch('/api/validation/run', {
             method: 'POST',
@@ -62,10 +101,127 @@ export async function runValidation(
             const body = await response.text();
             return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
         }
-        const payload = await readJson<ValidationResponse>(response);
+        const payload = await readJson<JobStartResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
     }
+}
+
+/**
+ * Get a persisted validation report for a dataset
+ */
+export async function getValidationReport(
+    datasetName: string
+): Promise<{ result: ValidationReport | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/validation/reports/${encodeURIComponent(datasetName)}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<ValidationReport>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Get validation job status
+ */
+export async function getValidationJobStatus(
+    jobId: string
+): Promise<{ result: JobStatusResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/validation/jobs/${jobId}`);
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobStatusResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Cancel a validation job
+ */
+export async function cancelValidationJob(
+    jobId: string
+): Promise<{ result: JobCancelResponse | null; error: string | null }> {
+    try {
+        const response = await fetch(`/api/validation/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<JobCancelResponse>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Poll validation job until it completes, fails, or is cancelled
+ * Returns a cleanup function to stop polling
+ */
+export function pollValidationJobStatus(
+    jobId: string,
+    onUpdate: (status: JobStatusResponse) => void,
+    onComplete: (status: JobStatusResponse) => void,
+    onError: (error: string) => void,
+    intervalMs: number = 2000
+): { stop: () => void } {
+    let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+        if (stopped) return;
+
+        const { result, error } = await getValidationJobStatus(jobId);
+
+        if (stopped) return;
+
+        if (error) {
+            onError(error);
+            return;
+        }
+
+        if (!result) {
+            onError('No result returned');
+            return;
+        }
+
+        onUpdate(result);
+
+        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
+            onComplete(result);
+            return;
+        }
+
+        // Schedule next poll
+        timeoutId = setTimeout(poll, intervalMs);
+    };
+
+    // Start polling
+    poll();
+
+    return {
+        stop: () => {
+            stopped = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        },
+    };
 }

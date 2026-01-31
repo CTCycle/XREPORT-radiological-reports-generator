@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class ValidationRequest(BaseModel):
     """Request model for dataset validation."""
     
+    dataset_name: str
     metrics: list[str]
     sample_size: float = 1.0
     seed: int | None = None
@@ -56,6 +57,20 @@ class ValidationResponse(BaseModel):
     pixel_distribution: PixelDistribution | None = None
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
+
+
+###############################################################################
+class ValidationReportResponse(BaseModel):
+    """Response model for a persisted validation report."""
+
+    dataset_name: str
+    date: str | None = None
+    sample_size: float | None = None
+    metrics: list[str] = []
+    pixel_distribution: PixelDistribution | None = None
+    image_statistics: ImageStatistics | None = None
+    text_statistics: TextStatistics | None = None
+    artifacts: dict[str, dict[str, str]] | None = None
 
 
 ###############################################################################

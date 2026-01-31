@@ -4,22 +4,22 @@ import json
 import time
 
 from XREPORT.server.database.initializer import initialize_database
-from XREPORT.server.utils.constants import SERVER_CONFIGURATION_FILE
+from XREPORT.server.utils.constants import CONFIGURATION_FILE
 from XREPORT.server.utils.logger import logger
 
 
 # -----------------------------------------------------------------------------
 def load_database_config() -> dict[str, object]:
     try:
-        with open(SERVER_CONFIGURATION_FILE, "r", encoding="utf-8") as file:
+        with open(CONFIGURATION_FILE, "r", encoding="utf-8") as file:
             data = json.load(file)
     except FileNotFoundError:
-        logger.warning("Server configuration not found at %s", SERVER_CONFIGURATION_FILE)
+        logger.warning("Server configuration not found at %s", CONFIGURATION_FILE)
         return {}
     except (OSError, json.JSONDecodeError) as exc:
         logger.warning(
             "Unable to read database configuration at %s: %s",
-            SERVER_CONFIGURATION_FILE,
+            CONFIGURATION_FILE,
             exc,
         )
         return {}

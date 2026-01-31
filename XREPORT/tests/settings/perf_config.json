@@ -1,0 +1,20 @@
+{
+  "enable_long_runs": true,
+  "use_gpu": true,
+  "gpu_device_id": 0,
+  "runtime_limit_seconds": 240,
+  "memory_limit_mb": 4096,
+  "memory_growth_limit_mb": 2048,
+  "memory_growth_margin_mb": 128,
+  "perf_epochs": 1,
+  "perf_scenarios": [],
+  "long_epochs": 2,
+  "long_runtime_limit_seconds": 900,
+  "long_memory_limit_mb": 6144,
+  "long_memory_growth_limit_mb": 3072,
+  "long_samples_small": 100,
+  "long_batch_small": 2,
+  "long_samples_large": 500,
+  "long_batch_large": 10,
+  "long_scenarios": []
+}
