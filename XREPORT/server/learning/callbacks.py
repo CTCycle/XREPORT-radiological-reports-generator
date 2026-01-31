@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.jobs import job_manager
+from XREPORT.server.services.jobs import job_manager
 
 
 ###############################################################################
