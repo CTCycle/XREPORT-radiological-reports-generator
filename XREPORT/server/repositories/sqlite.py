@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from XREPORT.server.configurations import DatabaseSettings
 from XREPORT.server.utils.constants import DATA_PATH, DATABASE_FILENAME
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.database.schema import Base
+from XREPORT.server.repositories.schema import Base
 
 
 # [SQLITE DATABASE]

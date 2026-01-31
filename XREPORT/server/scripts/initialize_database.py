@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import time
 
-from XREPORT.server.database.initializer import initialize_database
+from XREPORT.server.repositories.initializer import initialize_database
 from XREPORT.server.utils.constants import CONFIGURATION_FILE
 from XREPORT.server.utils.logger import logger
 

@@ -11,8 +11,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from XREPORT.server.configurations import DatabaseSettings
-from XREPORT.server.database.schema import Base
-from XREPORT.server.database.utils import normalize_postgres_engine
+from XREPORT.server.repositories.schema import Base
+from XREPORT.server.repositories.utils import normalize_postgres_engine
 from XREPORT.server.utils.logger import logger
 
 

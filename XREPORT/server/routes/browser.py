@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from XREPORT.server.database.database import XREPORTDatabase, database
+from XREPORT.server.repositories.database import XREPORTDatabase, database
 from XREPORT.server.schemas.browser import (
     BrowseConfigResponse,
     TableDataResponse,

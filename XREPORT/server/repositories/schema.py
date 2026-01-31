@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 
-from XREPORT.server.database.types import IntSequence, JSONSequence
+from XREPORT.server.repositories.types import IntSequence, JSONSequence
 
 Base = declarative_base()
 

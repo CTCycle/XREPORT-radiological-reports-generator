@@ -26,9 +26,9 @@ from XREPORT.server.utils.constants import (
     PROCESSING_METADATA_TABLE,
     TRAINING_DATASET_TABLE,
 )
-from XREPORT.server.utils.jobs import job_manager
+from XREPORT.server.services.jobs import job_manager
 from XREPORT.server.repositories.serializer import DataSerializer
-from XREPORT.server.database.database import database
+from XREPORT.server.repositories.database import database
 
 
 ###############################################################################

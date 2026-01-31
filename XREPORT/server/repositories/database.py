@@ -8,8 +8,8 @@ from sqlalchemy.orm import declarative_base
 
 from XREPORT.server.configurations import DatabaseSettings, server_settings
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.database.postgres import PostgresRepository
-from XREPORT.server.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.postgres import PostgresRepository
+from XREPORT.server.repositories.sqlite import SQLiteRepository
 
 Base = declarative_base()
 

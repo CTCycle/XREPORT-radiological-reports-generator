@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
+import pandas as pd
 from keras import Model, ops
 from keras.utils import set_random_seed
 
@@ -31,6 +32,10 @@ class TextGenerator:
         self.generator_methods = {
             "greedy_search": self.generate_with_greedy_search,
             "beam_search": self.generate_with_beam_search,
+        }
+        self.generator_image_methods = {
+            "greedy_search": self.generate_with_greedy_search_from_image,
+            "beam_search": self.generate_with_beam_search_from_image,
         }
 
     # -------------------------------------------------------------------------
@@ -90,20 +95,17 @@ class TextGenerator:
         return processed_text
 
     # -------------------------------------------------------------------------
-    def generate_with_greedy_search(
+    def generate_with_greedy_search_from_image(
         self,
         tokenizer_config: dict[str, Any],
         vocabulary: dict[str, int],
-        image_path: str,
+        image: np.ndarray,
         stream_callback: Callable[[str, int, int], None] | None = None,
     ) -> str:
         start_token_idx = tokenizer_config["start_token_idx"]
         end_token = tokenizer_config["end_token"]
         index_lookup = {v: k for k, v in vocabulary.items()}
 
-        logger.info(f"Generating report for image {os.path.basename(image_path)}")
-        dataloader = XRAYDataLoader(self.configuration, shuffle=False)
-        image = dataloader.prepare_inference_image(image_path)
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
 
@@ -134,11 +136,34 @@ class TextGenerator:
         return report
 
     # -------------------------------------------------------------------------
-    def generate_with_beam_search(
+    def generate_with_greedy_search(
         self,
         tokenizer_config: dict[str, Any],
         vocabulary: dict[str, int],
         image_path: str,
+        stream_callback: Callable[[str, int, int], None] | None = None,
+    ) -> str:
+        start_token_idx = tokenizer_config["start_token_idx"]
+        end_token = tokenizer_config["end_token"]
+        index_lookup = {v: k for k, v in vocabulary.items()}
+
+        logger.info(f"Generating report for image {os.path.basename(image_path)}")
+        dataloader = XRAYDataLoader(self.configuration, shuffle=False)
+        image = dataloader.prepare_inference_image(image_path)
+
+        return self.generate_with_greedy_search_from_image(
+            tokenizer_config,
+            vocabulary,
+            image,
+            stream_callback=stream_callback,
+        )
+
+    # -------------------------------------------------------------------------
+    def generate_with_beam_search_from_image(
+        self,
+        tokenizer_config: dict[str, Any],
+        vocabulary: dict[str, int],
+        image: np.ndarray,
         beam_width: int = 3,
         length_penalty: float = 0.6,
         stream_callback: Callable[[str, int, int], None] | None = None,
@@ -148,9 +173,6 @@ class TextGenerator:
         end_token = tokenizer_config["end_token"]
         index_lookup = {v: k for k, v in vocabulary.items()}
 
-        logger.info(f"Generating report for image {os.path.basename(image_path)}")
-        dataloader = XRAYDataLoader(self.configuration, shuffle=False)
-        image = dataloader.prepare_inference_image(image_path)
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
 
@@ -184,7 +206,6 @@ class TextGenerator:
                     new_score = score + log_probs[token_idx]
                     all_candidates.append((new_seq, new_score))
 
-            # Apply length normalization and select top beams
             def normalized_score(candidate: tuple[list[int], float]) -> float:
                 seq, score = candidate
                 return score / (len(seq) ** length_penalty)
@@ -218,6 +239,34 @@ class TextGenerator:
         return report
 
     # -------------------------------------------------------------------------
+    def generate_with_beam_search(
+        self,
+        tokenizer_config: dict[str, Any],
+        vocabulary: dict[str, int],
+        image_path: str,
+        beam_width: int = 3,
+        length_penalty: float = 0.6,
+        stream_callback: Callable[[str, int, int], None] | None = None,
+    ) -> str:
+        start_token_idx = tokenizer_config["start_token_idx"]
+        end_token_idx = tokenizer_config["end_token_idx"]
+        end_token = tokenizer_config["end_token"]
+        index_lookup = {v: k for k, v in vocabulary.items()}
+
+        logger.info(f"Generating report for image {os.path.basename(image_path)}")
+        dataloader = XRAYDataLoader(self.configuration, shuffle=False)
+        image = dataloader.prepare_inference_image(image_path)
+
+        return self.generate_with_beam_search_from_image(
+            tokenizer_config,
+            vocabulary,
+            image,
+            beam_width=beam_width,
+            length_penalty=length_penalty,
+            stream_callback=stream_callback,
+        )
+
+    # -------------------------------------------------------------------------
     def generate_radiological_reports(
         self,
         images_path: list[str],
@@ -237,6 +286,39 @@ class TextGenerator:
         if generator_fn is None:
             logger.error(f"Unknown generation method: {method}")
             return None
+
+        image_generator_fn = self.generator_image_methods.get(method)
+        if image_generator_fn is None:
+            logger.error(f"Unknown generation method: {method}")
+            return None
+
+        if stream_callback is None and len(images_path) > 1:
+            data = pd.DataFrame({"path": images_path})
+            dataloader = XRAYDataLoader(self.configuration, shuffle=False)
+            inference_loader = dataloader.build_inference_dataloader(data)
+
+            image_index = 0
+            for batch in inference_loader:
+                if image_index >= len(images_path):
+                    break
+
+                if not isinstance(batch, np.ndarray):
+                    batch = batch.detach().cpu().numpy()
+
+                for item in batch:
+                    if image_index >= len(images_path):
+                        break
+
+                    report = image_generator_fn(
+                        tokenizer_config,
+                        vocabulary,
+                        item,
+                        stream_callback=None,
+                    )
+                    reports[images_path[image_index]] = report
+                    image_index += 1
+
+            return reports
 
         for idx, path in enumerate(images_path):
             # Create per-image stream callback wrapper
