@@ -6,7 +6,7 @@ from typing import Any, Protocol
 import pandas as pd
 from sqlalchemy.orm import declarative_base
 
-from XREPORT.server.utils.configurations import DatabaseSettings, server_settings
+from XREPORT.server.configurations import DatabaseSettings, server_settings
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.database.postgres import PostgresRepository
 from XREPORT.server.database.sqlite import SQLiteRepository
@@ -16,8 +16,8 @@ Base = declarative_base()
 
 ###############################################################################
 class DatabaseBackend(Protocol):
-    db_path: str | None  
-    engine: Any    
+    db_path: str | None
+    engine: Any
 
     # -------------------------------------------------------------------------
     def load_from_database(self, table_name: str) -> pd.DataFrame: ...
@@ -29,13 +29,15 @@ class DatabaseBackend(Protocol):
 
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int: ...
-   
+
 
 BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
+
 
 # -----------------------------------------------------------------------------
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return SQLiteRepository(settings)
+
 
 # -----------------------------------------------------------------------------
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
@@ -64,7 +66,7 @@ class XREPORTDatabase:
             raise ValueError(f"Unsupported database engine: {backend_name}")
         factory = BACKEND_FACTORIES[normalized_name]
         return factory(self.settings)
-    
+
     # -------------------------------------------------------------------------
     @property
     def db_path(self) -> str | None:

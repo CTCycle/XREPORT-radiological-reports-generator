@@ -27,10 +27,6 @@ CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 BASE_URL = "/base/tags"
 
 
-
-
-
-
 # [TRAINING CONSTANTS]
 ###############################################################################
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
@@ -49,7 +45,15 @@ VALIDATION_REPORTS_TABLE = "VALIDATION_REPORTS"
 
 TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     RADIOGRAPHY_TABLE: ["dataset_name", "id", "image", "text", "path"],
-    TRAINING_DATASET_TABLE: ["dataset_name", "hashcode", "id", "image", "tokens", "split", "path"],
+    TRAINING_DATASET_TABLE: [
+        "dataset_name",
+        "hashcode",
+        "id",
+        "image",
+        "tokens",
+        "split",
+        "path",
+    ],
     PROCESSING_METADATA_TABLE: [
         "dataset_name",
         "date",
@@ -99,5 +103,3 @@ TABLE_MERGE_KEYS: dict[str, list[str]] = {
     CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
     VALIDATION_REPORTS_TABLE: ["dataset_name"],
 }
-
-

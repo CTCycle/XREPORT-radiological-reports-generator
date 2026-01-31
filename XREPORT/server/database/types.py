@@ -34,4 +34,5 @@ class IntSequence(JSONSequence):
     Specialized JSONSequence for integer lists.
     Functionally identical to JSONSequence but serves as semantic documentation.
     """
+
     pass

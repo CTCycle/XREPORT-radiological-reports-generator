@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 import multiprocessing
+from multiprocessing.context import BaseProcess
 import os
 import queue
 import signal
@@ -12,15 +13,15 @@ import time
 import pandas as pd
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.learning.callbacks import (
+from XREPORT.server.learning.callbacks import (
     TrainingInterruptCallback,
     WorkerInterrupted,
 )
-from XREPORT.server.utils.learning.device import DeviceConfig
-from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.learning.training.model import build_xreport_model
-from XREPORT.server.utils.learning.training.trainer import ModelTrainer
-from XREPORT.server.utils.repository.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.learning.device import DeviceConfig
+from XREPORT.server.learning.training.dataloader import XRAYDataLoader
+from XREPORT.server.learning.training.model import build_xreport_model
+from XREPORT.server.learning.training.trainer import ModelTrainer
+from XREPORT.server.repository.serializer import DataSerializer, ModelSerializer
 
 
 ###############################################################################
@@ -78,7 +79,7 @@ class ProcessWorker:
         self.progress_queue = self.ctx.Queue(maxsize=progress_queue_size)
         self.result_queue = self.ctx.Queue(maxsize=result_queue_size)
         self.stop_event = self.ctx.Event()
-        self.process: multiprocessing.Process | None = None
+        self.process: BaseProcess | None = None
 
     # -------------------------------------------------------------------------
     def start(
@@ -177,7 +178,7 @@ class ProcessWorker:
         )
 
     # -------------------------------------------------------------------------
-    def terminate_process_tree(self, process: multiprocessing.Process) -> None:
+    def terminate_process_tree(self, process: BaseProcess) -> None:
         pid = process.pid
         if pid is None:
             return
@@ -304,9 +305,9 @@ def run_training_process(
         )
 
         logger.info("Building model data loaders")
-        train_loader = XRAYDataLoader(configuration, shuffle=True).build_training_dataloader(
-            train_data
-        )
+        train_loader = XRAYDataLoader(
+            configuration, shuffle=True
+        ).build_training_dataloader(train_data)
         validation_loader = XRAYDataLoader(
             configuration, shuffle=False
         ).build_training_dataloader(validation_data)
@@ -346,7 +347,9 @@ def run_training_process(
                 "result": {
                     "epochs": history.get("epochs", 0),
                     "final_loss": history.get("history", {}).get("loss", [0])[-1],
-                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[
+                        -1
+                    ],
                     "checkpoint_path": checkpoint_path,
                 }
             }
@@ -393,9 +396,9 @@ def run_resume_training_process(
         device.set_device()
 
         logger.info("Building model data loaders")
-        train_loader = XRAYDataLoader(train_config, shuffle=True).build_training_dataloader(
-            train_data
-        )
+        train_loader = XRAYDataLoader(
+            train_config, shuffle=True
+        ).build_training_dataloader(train_data)
         validation_loader = XRAYDataLoader(
             train_config, shuffle=False
         ).build_training_dataloader(validation_data)
@@ -431,7 +434,9 @@ def run_resume_training_process(
                 "result": {
                     "epochs": history.get("epochs", 0),
                     "final_loss": history.get("history", {}).get("loss", [0])[-1],
-                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[-1],
+                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[
+                        -1
+                    ],
                     "checkpoint_path": checkpoint_path,
                 }
             }

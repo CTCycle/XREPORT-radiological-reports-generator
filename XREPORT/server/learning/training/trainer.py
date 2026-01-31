@@ -7,8 +7,8 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.learning.device import DeviceConfig, DeviceDataLoader
-from XREPORT.server.utils.learning.callbacks import (
+from XREPORT.server.learning.device import DeviceConfig, DeviceDataLoader
+from XREPORT.server.learning.callbacks import (
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )
@@ -43,7 +43,7 @@ class ModelTrainer:
         worker: Any | None = None,
     ) -> tuple[Model, dict[str, Any]]:
         total_epochs = self.configuration.get("epochs", 10)
-        
+
         callbacks_list = initialize_training_callbacks(
             self.configuration,
             checkpoint_path,
@@ -88,7 +88,7 @@ class ModelTrainer:
         session = session or {}
         from_epoch = session.get("epochs", 0)
         total_epochs = from_epoch + additional_epochs
-        
+
         callbacks_list = initialize_training_callbacks(
             self.configuration,
             checkpoint_path,

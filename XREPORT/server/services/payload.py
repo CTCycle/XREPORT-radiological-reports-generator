@@ -13,15 +13,12 @@ def sanitize_field(value: str | None) -> str | None:
     stripped = value.strip()
     return stripped or None
 
+
 #
 
 
 ##############################################################################
-def sanitize_payload(
-    *,
-    this: str
-) -> dict[str, Any]:    
-
+def sanitize_payload(*, this: str) -> dict[str, Any]:
     payload: dict[str, Any] = {"this": this}
 
     return payload

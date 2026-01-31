@@ -20,11 +20,11 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.services.validation import DatasetValidator
-from XREPORT.server.utils.repository.serializer import DataSerializer, ModelSerializer
-from XREPORT.server.utils.configurations.server import ServerSettings, server_settings
-from XREPORT.server.utils.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.utils.services.evaluation import CheckpointEvaluator
+from XREPORT.server.services.validation import DatasetValidator
+from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.configurations.server import ServerSettings, server_settings
+from XREPORT.server.learning.training.dataloader import XRAYDataLoader
+from XREPORT.server.services.evaluation import CheckpointEvaluator
 
 
 # -----------------------------------------------------------------------------
@@ -49,30 +49,30 @@ def run_validation_job(
     """Blocking validation function that runs in background thread."""
     # Use global job_manager imported at top level
     jm = job_manager
-    
+
     serializer = DataSerializer()
-    
+
     sample_size = request_data.get("sample_size", 1.0)
     # Access server_settings carefully if inside thread, but here we pass request_data.
     # We should have passed the seed in request_data from the caller.
     seed = request_data.get("seed", 42)
     metrics = request_data.get("metrics", [])
     dataset_name = request_data.get("dataset_name")
-    
+
     # Log validation configuration
     sample_pct = sample_size * 100
     logger.info(f"Starting dataset validation with {sample_pct:.1f}% sample size")
-    
+
     jm.update_progress(job_id, 5.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     dataset = serializer.load_source_dataset(
         sample_size=sample_size,
         seed=seed,
         dataset_name=dataset_name,
     )
-    
+
     if dataset.empty:
         return {
             "success": False,
@@ -82,33 +82,33 @@ def run_validation_job(
                 else "No data found in the database to validate."
             ),
         }
-    
+
     logger.info(f"Loaded {len(dataset)} records for validation")
     jm.update_progress(job_id, 15.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Ensure dataset_name is set for downstream persistence
     if not dataset_name:
         if "dataset_name" in dataset.columns and not dataset.empty:
             dataset_name = dataset["dataset_name"].iloc[0]
         else:
             dataset_name = "default"
-        
+
     # Validate that stored image paths exist
     dataset = serializer.validate_img_paths(dataset)
-    
+
     if dataset.empty:
         return {
             "success": False,
             "message": "No valid image paths found in the dataset.",
         }
-    
+
     logger.info(f"Starting analysis on {len(dataset)} validated records")
     jm.update_progress(job_id, 20.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     validator = DatasetValidator(dataset, dataset_name=dataset_name)
     result: dict[str, Any] = {
         "success": True,
@@ -117,12 +117,12 @@ def run_validation_job(
         "sample_size": sample_size,
         "metrics": metrics,
     }
-    
+
     logger.info(f"Metrics to compute: {', '.join(metrics)}")
-    
+
     progress_per_metric = 25.0
     current_progress = 20.0
-    
+
     if "text_statistics" in metrics:
         if jm.should_stop(job_id):
             return {}
@@ -136,21 +136,29 @@ def run_validation_job(
             "min_words_per_report": text_stats.min_words_per_report,
             "max_words_per_report": text_stats.max_words_per_report,
         }
-        logger.info(f"[1/3] Text statistics complete: {text_stats.total_words} total words, {text_stats.unique_words} unique")
-        
+        logger.info(
+            f"[1/3] Text statistics complete: {text_stats.total_words} total words, {text_stats.unique_words} unique"
+        )
+
         # Persist per-record text statistics
         if not text_records_df.empty:
             serializer.save_text_statistics(text_records_df)
-            logger.info(f"Saved {len(text_records_df)} text statistics records to database")
-        
+            logger.info(
+                f"Saved {len(text_records_df)} text statistics records to database"
+            )
+
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
-        
+
     if "image_statistics" in metrics:
         if jm.should_stop(job_id):
             return {}
-        logger.info(f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)...")
-        progress_range = ProgressRange(job_id, current_progress, current_progress + progress_per_metric)
+        logger.info(
+            f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)..."
+        )
+        progress_range = ProgressRange(
+            job_id, current_progress, current_progress + progress_per_metric
+        )
         image_stats, image_records_df = validator.calculate_image_statistics(
             progress_callback=progress_range.update,
         )
@@ -163,21 +171,29 @@ def run_validation_job(
             "mean_noise_std": image_stats.mean_noise_std,
             "mean_noise_ratio": image_stats.mean_noise_ratio,
         }
-        logger.info(f"[2/3] Image statistics complete: analyzed {image_stats.count} images")
-        
+        logger.info(
+            f"[2/3] Image statistics complete: analyzed {image_stats.count} images"
+        )
+
         # Persist per-record image statistics
         if not image_records_df.empty:
             serializer.save_images_statistics(image_records_df)
-            logger.info(f"Saved {len(image_records_df)} image statistics records to database")
-        
+            logger.info(
+                f"Saved {len(image_records_df)} image statistics records to database"
+            )
+
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
-        
+
     if "pixels_distribution" in metrics:
         if jm.should_stop(job_id):
             return {}
-        logger.info(f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images...")
-        progress_range = ProgressRange(job_id, current_progress, current_progress + progress_per_metric)
+        logger.info(
+            f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images..."
+        )
+        progress_range = ProgressRange(
+            job_id, current_progress, current_progress + progress_per_metric
+        )
         pixel_dist = validator.calculate_pixel_distribution(
             progress_callback=progress_range.update,
         )
@@ -186,10 +202,10 @@ def run_validation_job(
             "counts": pixel_dist.counts,
         }
         logger.info("[3/3] Pixel distribution complete")
-        
+
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
-    
+
     logger.info("Dataset validation completed successfully")
     jm.update_progress(job_id, 100.0)
 
@@ -204,7 +220,7 @@ def run_validation_job(
         "artifacts": None,
     }
     serializer.save_validation_report(report_payload)
-    
+
     return result
 
 
@@ -216,93 +232,94 @@ def run_checkpoint_evaluation_job(
     """Blocking checkpoint evaluation function that runs in background thread."""
     # Use global job_manager imported at top level
     jm = job_manager
-    
+
     checkpoint = request_data.get("checkpoint", "")
     metrics = request_data.get("metrics", [])
     num_samples = request_data.get("num_samples", 10)
-    
+
     logger.info(f"Starting checkpoint evaluation: {checkpoint}")
     logger.info(f"Metrics: {metrics}, Samples: {num_samples}")
-    
+
     jm.update_progress(job_id, 10.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Load the model checkpoint
     model_serializer = ModelSerializer()
     try:
-        model, train_config, model_metadata, _, _ = model_serializer.load_checkpoint(checkpoint)
+        model, train_config, model_metadata, _, _ = model_serializer.load_checkpoint(
+            checkpoint
+        )
     except FileNotFoundError:
         return {
             "success": False,
             "message": f"Checkpoint not found: {checkpoint}",
             "results": None,
         }
-    
+
     model.summary(expand_nested=True)
     jm.update_progress(job_id, 30.0)
     if jm.should_stop(job_id):
         return {}
-    
+
     # Initialize evaluator
     evaluator = CheckpointEvaluator(model, train_config, model_metadata)
     results: dict[str, Any] = {}
-    
+
     # Run evaluation_report metric (requires validation dataset)
     if "evaluation_report" in metrics:
         if jm.should_stop(job_id):
             return {}
         logger.info("Running evaluation report (loss and accuracy)...")
-        
+
         # Load validation data
         data_serializer = DataSerializer()
         _, validation_data, _ = data_serializer.load_training_data()
-        
+
         if validation_data.empty:
             logger.warning("No validation data available for evaluation report")
         else:
             # Validate image paths
             validation_data = data_serializer.validate_img_paths(validation_data)
-            
+
             if not validation_data.empty:
                 # Build validation dataset
                 loader = XRAYDataLoader(train_config)
                 validation_dataset = loader.build_training_dataloader(validation_data)
-                
+
                 # Run evaluation
                 eval_results = evaluator.evaluate_model(validation_dataset)
                 results["loss"] = eval_results.get("loss")
                 results["accuracy"] = eval_results.get("accuracy")
-        
+
         jm.update_progress(job_id, 60.0)
-    
+
     # Run BLEU score metric
     if "bleu_score" in metrics:
         if jm.should_stop(job_id):
             return {}
         logger.info(f"Calculating BLEU score with {num_samples} samples...")
-        
+
         # Load validation data with text for BLEU comparison
         data_serializer = DataSerializer()
         _, validation_data, _ = data_serializer.load_training_data()
-        
+
         if validation_data.empty:
             logger.warning("No validation data available for BLEU calculation")
         else:
             # Validate image paths
             validation_data = data_serializer.validate_img_paths(validation_data)
-            
+
             if not validation_data.empty:
                 bleu = evaluator.calculate_bleu_score(
-                    validation_data, 
-                    num_samples=num_samples
+                    validation_data, num_samples=num_samples
                 )
                 results["bleu_score"] = bleu
-        
+
         jm.update_progress(job_id, 90.0)
-    
+
     jm.update_progress(job_id, 100.0)
-    
+
     return {
         "success": True,
         "message": f"Evaluation completed for {checkpoint}",
@@ -335,12 +352,12 @@ class ValidationEndpoint:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Validation is already in progress",
             )
-        
+
         # Prepare request data with default seed if not provided
         request_data = request.model_dump()
         if not request_data.get("seed"):
             request_data["seed"] = self.server_settings.global_settings.seed
-            
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="validation",
@@ -356,7 +373,7 @@ class ValidationEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to initialize validation job",
             )
-        
+
         return JobStartResponse(
             job_id=job_id,
             job_type=job_status["job_type"],
@@ -388,7 +405,7 @@ class ValidationEndpoint:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Checkpoint evaluation is already in progress",
             )
-        
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="checkpoint_evaluation",
@@ -404,7 +421,7 @@ class ValidationEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to initialize checkpoint evaluation job",
             )
-        
+
         return JobStartResponse(
             job_id=job_id,
             job_type=job_status["job_type"],
@@ -430,9 +447,9 @@ class ValidationEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job not found: {job_id}",
             )
-        
+
         success = self.job_manager.cancel_job(job_id)
-        
+
         return JobCancelResponse(
             job_id=job_id,
             success=success,

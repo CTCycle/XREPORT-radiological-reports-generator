@@ -6,18 +6,18 @@ from keras import Model, layers, optimizers
 from torch import compile as torch_compile
 
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.learning.training.encoder import BeitXRayImageEncoder
-from XREPORT.server.utils.learning.training.layers import (
+from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
+from XREPORT.server.learning.training.layers import (
     PositionalEmbedding,
     SoftMaxClassifier,
     TransformerDecoder,
     TransformerEncoder,
 )
-from XREPORT.server.utils.learning.training.metrics import (
+from XREPORT.server.learning.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from XREPORT.server.utils.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.server.learning.training.scheduler import WarmUpLRScheduler
 
 
 ###############################################################################
@@ -68,7 +68,7 @@ class XREPORTModel:
             "target_LR", self.configuration.get("post_warmup_LR", 0.0001)
         )
         lr_schedule: float | WarmUpLRScheduler = target_lr
-        
+
         if self.configuration.get("use_scheduler", False):
             warmup_steps = self.configuration.get("warmup_steps", 100)
             lr_schedule = WarmUpLRScheduler(target_lr, warmup_steps)
@@ -80,7 +80,7 @@ class XREPORTModel:
 
         if model_summary:
             model.summary(expand_nested=True)
-            
+
         if self.jit_compile:
             logger.info(f"JIT compiling model with backend: {self.jit_backend}")
             model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
@@ -120,9 +120,9 @@ def build_xreport_model(
     logger.info(f"  Attention heads: {configuration.get('attention_heads', 8)}")
     logger.info(f"  Encoders: {configuration.get('num_encoders', 4)}")
     logger.info(f"  Decoders: {configuration.get('num_decoders', 4)}")
-    
+
     captioner = XREPORTModel(metadata, configuration)
     model = captioner.get_model(model_summary=True)
-    
+
     logger.info("Model built successfully")
     return model

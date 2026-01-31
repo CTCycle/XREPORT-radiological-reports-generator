@@ -24,16 +24,16 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.repository.serializer import (
+from XREPORT.server.repositories.serializer import (
     DataSerializer,
     ModelSerializer,
     CHECKPOINT_PATH,
 )
-from XREPORT.server.utils.configurations.server import server_settings
+from XREPORT.server.configurations.server import server_settings
 from XREPORT.server.database.database import database
 from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
 from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
-from XREPORT.server.utils.learning.training.worker import (
+from XREPORT.server.learning.training.worker import (
     ProcessWorker,
     run_resume_training_process,
     run_training_process,
@@ -65,16 +65,18 @@ class TrainingState:
     # -----------------------------------------------------------------------------
     def update_metrics(self, message: dict[str, Any]) -> None:
         """Update state from a training callback message."""
-        self.state.update({
-            "current_epoch": message.get("epoch", 0),
-            "total_epochs": message.get("total_epochs", 0),
-            "loss": message.get("loss", 0.0),
-            "val_loss": message.get("val_loss", 0.0),
-            "accuracy": message.get("accuracy", 0.0),
-            "val_accuracy": message.get("val_accuracy", 0.0),
-            "progress_percent": message.get("progress_percent", 0),
-            "elapsed_seconds": message.get("elapsed_seconds", 0),
-        })
+        self.state.update(
+            {
+                "current_epoch": message.get("epoch", 0),
+                "total_epochs": message.get("total_epochs", 0),
+                "loss": message.get("loss", 0.0),
+                "val_loss": message.get("val_loss", 0.0),
+                "accuracy": message.get("accuracy", 0.0),
+                "val_accuracy": message.get("val_accuracy", 0.0),
+                "progress_percent": message.get("progress_percent", 0),
+                "elapsed_seconds": message.get("elapsed_seconds", 0),
+            }
+        )
         if message.get("type") == "training_plot":
             chart_data = message.get("chart_data")
             chart_point = message.get("chart_point")
@@ -191,9 +193,7 @@ def monitor_training_process(
     result_payload = worker.read_result()
     if result_payload is None:
         if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
-            raise RuntimeError(
-                f"Training process exited with code {worker.exitcode}"
-            )
+            raise RuntimeError(f"Training process exited with code {worker.exitcode}")
         return {}
     if "error" in result_payload and result_payload["error"]:
         raise RuntimeError(str(result_payload["error"]))
@@ -261,8 +261,7 @@ def run_resume_training_job(
 
 
 ###############################################################################
-class TrainingEndpoint:    
-
+class TrainingEndpoint:
     JOB_TYPE = "training"
     CHECKPOINT_EMPTY_MESSAGE = "Checkpoint name cannot be empty"
     NO_TRAINING_DATA_MESSAGE = "No training data found. Please process a dataset first."
@@ -282,23 +281,31 @@ class TrainingEndpoint:
         """Get list of available checkpoints (JSON config only, no model loading)."""
         modser = ModelSerializer()
         checkpoint_names = modser.scan_checkpoints_folder()
-        
+
         checkpoints = []
         for name in checkpoint_names:
             try:
                 # Only load JSON configuration files, NOT the model
                 checkpoint_path = os.path.join(CHECKPOINT_PATH, name)
                 _, _, session = modser.load_training_configuration(checkpoint_path)
-                checkpoints.append(CheckpointInfo(
-                    name=name,
-                    epochs=session.get("epochs", 0),
-                    loss=session.get("history", {}).get("loss", [0])[-1] if session.get("history") else 0.0,
-                    val_loss=session.get("history", {}).get("val_loss", [0])[-1] if session.get("history") else 0.0,
-                ))
+                checkpoints.append(
+                    CheckpointInfo(
+                        name=name,
+                        epochs=session.get("epochs", 0),
+                        loss=session.get("history", {}).get("loss", [0])[-1]
+                        if session.get("history")
+                        else 0.0,
+                        val_loss=session.get("history", {}).get("val_loss", [0])[-1]
+                        if session.get("history")
+                        else 0.0,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Failed to load checkpoint config {name}: {e}")
-                checkpoints.append(CheckpointInfo(name=name, epochs=0, loss=0.0, val_loss=0.0))
-        
+                checkpoints.append(
+                    CheckpointInfo(name=name, epochs=0, loss=0.0, val_loss=0.0)
+                )
+
         return CheckpointsResponse(checkpoints=checkpoints)
 
     # -------------------------------------------------------------------------
@@ -319,7 +326,9 @@ class TrainingEndpoint:
 
         try:
             modser = ModelSerializer()
-            configuration, metadata, session = modser.load_training_configuration(checkpoint_path)
+            configuration, metadata, session = modser.load_training_configuration(
+                checkpoint_path
+            )
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -401,22 +410,28 @@ class TrainingEndpoint:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Training is already in progress",
             )
-        
+
         serializer = DataSerializer()
-        
+
         # Build configuration from request
         configuration = request.model_dump()
         configuration.pop("sample_size", None)
-        
+
         # Inject configurations from configurations.json
-        configuration["use_mixed_precision"] = server_settings.training.use_mixed_precision
+        configuration["use_mixed_precision"] = (
+            server_settings.training.use_mixed_precision
+        )
         configuration["training_seed"] = server_settings.global_settings.seed
-        configuration["dataloader_workers"] = server_settings.training.dataloader_workers
+        configuration["dataloader_workers"] = (
+            server_settings.training.dataloader_workers
+        )
         configuration["prefetch_factor"] = server_settings.training.prefetch_factor
         configuration["pin_memory"] = server_settings.training.pin_memory
-        configuration["persistent_workers"] = server_settings.training.persistent_workers
+        configuration["persistent_workers"] = (
+            server_settings.training.persistent_workers
+        )
         configuration["polling_interval"] = server_settings.training.polling_interval
-        
+
         dataset_name = configuration.get("dataset_name")
         stored_metadata = serializer.load_training_data(
             only_metadata=True,
@@ -427,13 +442,15 @@ class TrainingEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
-        train_data, validation_data, _ = serializer.load_training_data(dataset_name=dataset_name)
+        train_data, validation_data, _ = serializer.load_training_data(
+            dataset_name=dataset_name
+        )
         if train_data.empty and validation_data.empty:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
-        
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="training",
@@ -442,8 +459,10 @@ class TrainingEndpoint:
                 "configuration": configuration,
             },
         )
-        
-        self.training_state.reset_for_new_session(configuration.get("epochs", 10), job_id)
+
+        self.training_state.reset_for_new_session(
+            configuration.get("epochs", 10), job_id
+        )
         self.job_manager.update_result(
             job_id,
             {
@@ -467,7 +486,7 @@ class TrainingEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to initialize training job",
             )
-        
+
         return JobStartResponse(
             job_id=job_id,
             job_type=job_status["job_type"],
@@ -483,11 +502,11 @@ class TrainingEndpoint:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Training is already in progress",
             )
-        
+
         # Initialize serializers
         serializer = DataSerializer()
         modser = ModelSerializer()
-        
+
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:
             raise HTTPException(
@@ -518,7 +537,7 @@ class TrainingEndpoint:
             ) from exc
 
         from_epoch = session.get("epochs", 0)
-        
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="training",
@@ -528,9 +547,11 @@ class TrainingEndpoint:
                 "additional_epochs": request.additional_epochs,
             },
         )
-        
+
         # Update training state
-        self.training_state.reset_for_new_session(from_epoch + request.additional_epochs, job_id)
+        self.training_state.reset_for_new_session(
+            from_epoch + request.additional_epochs, job_id
+        )
         self.training_state.state["current_epoch"] = from_epoch
         self.job_manager.update_result(
             job_id,
@@ -555,7 +576,7 @@ class TrainingEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to initialize training resume job",
             )
-        
+
         return JobStartResponse(
             job_id=job_id,
             job_type=job_status["job_type"],
@@ -582,15 +603,15 @@ class TrainingEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job not found: {job_id}",
             )
-        
+
         if self.training_state.worker is not None:
             self.training_state.worker.stop()
-        
+
         success = self.job_manager.cancel_job(job_id)
-        
+
         if success:
             logger.info("Training stop requested for job %s", job_id)
-        
+
         return JobCancelResponse(
             job_id=job_id,
             success=success,
@@ -605,15 +626,15 @@ class TrainingEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No training is currently in progress",
             )
-        
+
         if self.training_state.worker is not None:
             self.training_state.worker.stop()
             logger.info("Training stop requested")
-        
+
         # Also cancel via job manager if we have a job_id
         if self.training_state.current_job_id:
             self.job_manager.cancel_job(self.training_state.current_job_id)
-        
+
         return TrainingStatusResponse(
             job_id=self.training_state.current_job_id,
             is_training=self.training_state.state["is_training"],

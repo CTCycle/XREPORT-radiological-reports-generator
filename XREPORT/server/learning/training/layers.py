@@ -190,7 +190,7 @@ class SoftMaxClassifier(layers.Layer):
     # -------------------------------------------------------------------------
     def call(self, x: Any, training: bool | None = None) -> Any:
         from keras import activations
-        
+
         layer = self.dense1(x)
         layer = activations.relu(layer)
         layer = self.dense2(layer)

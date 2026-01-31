@@ -1,32 +1,32 @@
 from __future__ import annotations
 
-from XREPORT.server.utils.learning.device import DeviceConfig
-from XREPORT.server.utils.learning.processing import (
+from XREPORT.server.learning.device import DeviceConfig
+from XREPORT.server.services.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
-from XREPORT.server.utils.learning.training.dataloader import (
+from XREPORT.server.learning.training.dataloader import (
     XRAYDataLoader,
     XRAYDataset,
 )
-from XREPORT.server.utils.learning.callbacks import (
+from XREPORT.server.learning.callbacks import (
     TrainingProgressCallback,
     RealTimeMetricsCallback,
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )
-from XREPORT.server.utils.learning.training.trainer import ModelTrainer
-from XREPORT.server.utils.learning.training.model import (
+from XREPORT.server.learning.training.trainer import ModelTrainer
+from XREPORT.server.learning.training.model import (
     XREPORTModel,
     build_xreport_model,
 )
-from XREPORT.server.utils.learning.training.metrics import (
+from XREPORT.server.learning.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from XREPORT.server.utils.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.server.utils.learning.training.layers import (
+from XREPORT.server.learning.training.scheduler import WarmUpLRScheduler
+from XREPORT.server.learning.training.layers import (
     AddNorm,
     FeedForward,
     PositionalEmbedding,
@@ -34,7 +34,7 @@ from XREPORT.server.utils.learning.training.layers import (
     TransformerDecoder,
     TransformerEncoder,
 )
-from XREPORT.server.utils.learning.training.encoder import BeitXRayImageEncoder
+from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
 
 __all__ = [
     "DeviceConfig",

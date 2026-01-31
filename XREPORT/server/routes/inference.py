@@ -18,9 +18,9 @@ from XREPORT.server.schemas.jobs import (
 )
 from XREPORT.server.utils.constants import RESOURCES_PATH, CHECKPOINT_PATH
 from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.learning.inference import TextGenerator
+from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.utils.jobs import JobManager, job_manager
-from XREPORT.server.utils.repository.serializer import ModelSerializer
+from XREPORT.server.repositories.serializer import ModelSerializer
 
 
 # Inference temp folder for uploaded images
@@ -50,13 +50,15 @@ def run_inference_job(
     # Load model checkpoint
     logger.info(f"Loading checkpoint: {checkpoint}")
     serializer = ModelSerializer()
-    
+
     try:
-        model, train_config, model_metadata, _, _ = serializer.load_checkpoint(checkpoint)
+        model, train_config, model_metadata, _, _ = serializer.load_checkpoint(
+            checkpoint
+        )
     except Exception as e:
         logger.error(f"Checkpoint load failed for {checkpoint}: {e}")
         raise RuntimeError(f"Checkpoint not found: {checkpoint}") from e
-    
+
     model.summary(expand_nested=True)
     max_report_size = model_metadata.get("max_report_size", 200)
 
@@ -262,9 +264,9 @@ class InferenceEndpoint:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Job not found: {job_id}",
             )
-        
+
         success = self.job_manager.cancel_job(job_id)
-        
+
         return JobCancelResponse(
             job_id=job_id,
             success=success,
