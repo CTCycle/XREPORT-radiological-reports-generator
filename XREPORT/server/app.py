@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 from XREPORT.server.utils.variables import env_variables  # noqa: F401
 
