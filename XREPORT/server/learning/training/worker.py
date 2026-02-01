@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 import multiprocessing
-from multiprocessing.context import BaseProcess
+
 import os
 import queue
 import signal
@@ -22,6 +22,16 @@ from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.learning.training.model import build_xreport_model
 from XREPORT.server.learning.training.trainer import ModelTrainer
 from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
+
+
+###############################################################################
+class ProcessLike(Protocol):
+    pid: int | None
+    exitcode: int | None
+
+    def is_alive(self) -> bool: ...
+
+    def join(self, timeout: float | None = None) -> None: ...
 
 
 ###############################################################################
@@ -79,7 +89,7 @@ class ProcessWorker:
         self.progress_queue = self.ctx.Queue(maxsize=progress_queue_size)
         self.result_queue = self.ctx.Queue(maxsize=result_queue_size)
         self.stop_event = self.ctx.Event()
-        self.process: BaseProcess | None = None
+        self.process: ProcessLike | None = None
 
     # -------------------------------------------------------------------------
     def start(
@@ -178,7 +188,7 @@ class ProcessWorker:
         )
 
     # -------------------------------------------------------------------------
-    def terminate_process_tree(self, process: BaseProcess) -> None:
+    def terminate_process_tree(self, process: ProcessLike) -> None:
         pid = process.pid
         if pid is None:
             return
