@@ -21,7 +21,7 @@ from XREPORT.server.learning.device import DeviceConfig
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.learning.training.model import build_xreport_model
 from XREPORT.server.learning.training.trainer import ModelTrainer
-from XREPORT.server.repository.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
 
 
 ###############################################################################
