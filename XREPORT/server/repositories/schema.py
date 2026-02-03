@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 
-from XREPORT.server.repositories.types import IntSequence, JSONSequence
+from XREPORT.server.repositories.types import JSONSequence
 
 Base = declarative_base()
 
@@ -23,7 +23,7 @@ class RadiographyData(Base):
     id = Column(Integer, primary_key=True)
     image = Column(String)
     text = Column(String)
-    path = Column(String)  # Full path to image file
+    path = Column(String)  
     __table_args__ = (UniqueConstraint("dataset_name", "id"),)
 
 
@@ -37,9 +37,9 @@ class TrainingData(Base):
     id = Column(Integer, primary_key=True)
     image = Column(String)
     text = Column(String)
-    tokens = Column(IntSequence)
+    tokens = Column(JSONSequence)
     split = Column(String)
-    path = Column(String)  # Full image path for training
+    path = Column(String)  
     __table_args__ = (UniqueConstraint("dataset_name", "hashcode", "id"),)
 
 
