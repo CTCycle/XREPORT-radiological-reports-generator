@@ -23,5 +23,5 @@ def load_configuration_data(path: str) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Unable to load configuration from {path}") from exc
     if not isinstance(data, dict):
-        raise RuntimeError("Configuration root must be a JSON object.")
+        raise RuntimeError("Configuration must be a JSON object.")
     return data
