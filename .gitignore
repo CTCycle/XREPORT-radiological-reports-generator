@@ -45,6 +45,9 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
+# Agents
+.agent/**
+
 # Misc
 *.lock
 *.log
