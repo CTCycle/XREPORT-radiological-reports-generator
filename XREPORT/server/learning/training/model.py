@@ -106,6 +106,13 @@ class XREPORTModel:
 
         model = Model(inputs=[self.img_input, self.seq_input], outputs=output)
         model = self.compile_model(model, model_summary=model_summary)
+        if not model.built:
+            model.build(
+                [
+                    (None, *self.img_shape),
+                    (None, self.sequence_length),
+                ]
+            )
 
         return model
 
