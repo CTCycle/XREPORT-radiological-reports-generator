@@ -10,7 +10,7 @@ from playwright.sync_api import Page
 
 # Base URLs - configured via environment variables when running tests
 UI_HOST = os.environ.get("UI_HOST", "127.0.0.1")
-UI_PORT = os.environ.get("UI_PORT", "7861")
+UI_PORT = os.environ.get("UI_PORT", "5173")
 FASTAPI_HOST = os.environ.get("FASTAPI_HOST", "127.0.0.1")
 FASTAPI_PORT = os.environ.get("FASTAPI_PORT", "8000")
 

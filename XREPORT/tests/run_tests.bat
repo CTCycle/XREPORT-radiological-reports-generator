@@ -24,16 +24,26 @@ set "NPM_CMD=%NODEJS_DIR%\\npm.cmd"
 set "FRONTEND_DIR=%XREPORT_DIR%\\client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\\dist"
 set "DOTENV=%XREPORT_DIR%\\settings\\.env"
+set "FASTAPI_HOST=127.0.0.1"
+set "FASTAPI_PORT=8000"
+set "UI_HOST=127.0.0.1"
+set "UI_PORT=5173"
 set "OPTIONAL_DEPENDENCIES=false"
 set "PERF_TEST_CONFIG_PATH=%SCRIPT_DIR%settings\\perf_config.json"
 
-REM Load OPTIONAL_DEPENDENCIES from .env if present
+REM Load env overrides from settings/.env if present
 if exist "%DOTENV%" (
     for /f "usebackq tokens=* delims=" %%A in ("%DOTENV%") do (
         set "line=%%A"
         if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
             for /f "tokens=1* delims==" %%K in ("!line!") do (
-                if /i "%%K"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=%%L"
+                set "k=%%K"
+                set "v=%%L"
+                if defined v (
+                    if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
+                    if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
+                )
+                set "!k!=!v!"
             )
         )
     )
@@ -90,10 +100,10 @@ REM Check if servers are already running
 set "BACKEND_RUNNING=0"
 set "FRONTEND_RUNNING=0"
 
-curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs >nul 2>&1
 if %ERRORLEVEL% equ 0 set "BACKEND_RUNNING=1"
 
-curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 http://!UI_HOST!:!UI_PORT! >nul 2>&1
 if %ERRORLEVEL% equ 0 set "FRONTEND_RUNNING=1"
 
 REM Start servers if not running
@@ -102,7 +112,7 @@ set "STARTED_FRONTEND=0"
 
 if "%BACKEND_RUNNING%"=="0" (
     echo [INFO] Starting backend server...
-    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" -m uvicorn XREPORT.server.app:app --host !FASTAPI_HOST! --port !FASTAPI_PORT!
     set "STARTED_BACKEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -133,7 +143,7 @@ if "%FRONTEND_RUNNING%"=="0" (
     )
 
     echo [INFO] Starting frontend server...
-    start "" /B /D "%FRONTEND_DIR%" "%NPM_RUN%" run preview -- --host 127.0.0.1 --port 7861 --strictPort
+    start "" /B /D "%FRONTEND_DIR%" "%NPM_RUN%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -147,14 +157,14 @@ if %ATTEMPTS% geq 30 (
     goto cleanup
 )
 
-curl -s --max-time 2 http://127.0.0.1:8000/docs >nul 2>&1
+curl -s --max-time 2 http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
     goto wait_loop
 )
 
-curl -s --max-time 2 http://127.0.0.1:7861 >nul 2>&1
+curl -s --max-time 2 http://!UI_HOST!:!UI_PORT! >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     set /a ATTEMPTS+=1
     timeout /t 1 /nobreak >nul
@@ -196,14 +206,14 @@ echo.
 REM Cleanup: Stop servers we started
 if "%STARTED_BACKEND%"=="1" (
     echo [INFO] Stopping backend server...
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :!FASTAPI_PORT! ^| findstr LISTENING') do (
         taskkill /F /PID %%a >nul 2>&1
     )
 )
 
 if "%STARTED_FRONTEND%"=="1" (
     echo [INFO] Stopping frontend server...
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :7861 ^| findstr LISTENING') do (
+    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :!UI_PORT! ^| findstr LISTENING') do (
         taskkill /F /PID %%a >nul 2>&1
     )
 )

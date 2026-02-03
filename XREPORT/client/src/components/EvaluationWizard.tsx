@@ -6,8 +6,7 @@ import {
     Check,
     BarChart3,
     Target,
-    Activity,
-    SlidersHorizontal
+    Activity
 } from 'lucide-react';
 import './EvaluationWizard.css';
 
