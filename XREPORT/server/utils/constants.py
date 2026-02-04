@@ -42,6 +42,7 @@ TEXT_STATISTICS_TABLE = "TEXT_STATISTICS"
 IMAGE_STATISTICS_TABLE = "IMAGE_STATISTICS"
 CHECKPOINTS_SUMMARY_TABLE = "CHECKPOINTS_SUMMARY"
 VALIDATION_REPORTS_TABLE = "VALIDATION_REPORTS"
+CHECKPOINT_EVALUATION_REPORTS_TABLE = "CHECKPOINT_EVALUATION_REPORTS"
 
 TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     RADIOGRAPHY_TABLE: ["dataset_name", "id", "image", "text", "path"],
@@ -91,6 +92,13 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "pixel_distribution",
         "artifacts",
     ],
+    CHECKPOINT_EVALUATION_REPORTS_TABLE: [
+        "checkpoint",
+        "date",
+        "metrics",
+        "metric_configs",
+        "results",
+    ],
 }
 
 TABLE_MERGE_KEYS: dict[str, list[str]] = {
@@ -102,4 +110,5 @@ TABLE_MERGE_KEYS: dict[str, list[str]] = {
     IMAGE_STATISTICS_TABLE: ["dataset_name", "name"],
     CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
     VALIDATION_REPORTS_TABLE: ["dataset_name"],
+    CHECKPOINT_EVALUATION_REPORTS_TABLE: ["checkpoint"],
 }
