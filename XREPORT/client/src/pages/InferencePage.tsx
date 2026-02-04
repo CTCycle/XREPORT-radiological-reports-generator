@@ -18,7 +18,6 @@ export default function InferencePage() {
     const {
         state,
         setImages,
-        appendImages,
         setCurrentIndex,
         setGeneratedReport,
         setIsGenerating,
@@ -70,12 +69,12 @@ export default function InferencePage() {
         const limitedImages = imageFiles.slice(0, availableSlots);
 
         if (limitedImages.length > 0) {
-            if (state.images.length > 0) {
-                appendImages(limitedImages);
-            } else {
-                setImages(limitedImages);
-            }
-            if (state.images.length === 0) {
+            const hasExistingImages = state.images.length > 0;
+            const nextImages = hasExistingImages
+                ? [...state.images, ...limitedImages]
+                : limitedImages;
+            setImages(nextImages);
+            if (!hasExistingImages) {
                 setCurrentIndex(0);
             }
             setGeneratedReport('');
@@ -126,6 +125,28 @@ export default function InferencePage() {
         const newIndex = Math.min(state.images.length - 1, state.currentIndex + 1);
         goToIndex(newIndex);
     };
+
+    const reportForIndex = state.reports[state.currentIndex];
+
+    useEffect(() => {
+        if (state.isGenerating && state.currentStreamingIndex === state.currentIndex) {
+            return;
+        }
+        if (reportForIndex !== undefined && reportForIndex !== state.generatedReport) {
+            setGeneratedReport(reportForIndex);
+            return;
+        }
+        if (reportForIndex === undefined && state.generatedReport) {
+            setGeneratedReport('');
+        }
+    }, [
+        reportForIndex,
+        state.currentIndex,
+        state.currentStreamingIndex,
+        state.generatedReport,
+        state.isGenerating,
+        setGeneratedReport,
+    ]);
 
     // Clear images
     const handleClearImages = () => {
@@ -293,7 +314,7 @@ export default function InferencePage() {
     // Determine what to display in report panel
     const displayContent = state.isGenerating && state.currentStreamingIndex === state.currentIndex
         ? state.streamingTokens
-        : state.generatedReport || state.reports[state.currentIndex] || '';
+        : reportForIndex ?? state.generatedReport ?? '';
 
     return (
         <div className="inference-container">
