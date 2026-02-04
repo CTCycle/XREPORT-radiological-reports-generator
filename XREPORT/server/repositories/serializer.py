@@ -356,6 +356,17 @@ class DataSerializer:
         return train_data, val_data, latest_metadata
 
     # -------------------------------------------------------------------------
+    def _next_processing_metadata_id(self) -> int:
+        metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
+        if metadata_df.empty or "id" not in metadata_df.columns:
+            return 1
+        max_id = metadata_df["id"].dropna().max()
+        try:
+            return int(max_id) + 1
+        except (TypeError, ValueError):
+            return 1
+
+    # -------------------------------------------------------------------------
     def save_training_data(
         self,
         configuration: dict[str, Any],
@@ -414,7 +425,9 @@ class DataSerializer:
             raise
 
         # Save metadata to database table
+        metadata_id = self._next_processing_metadata_id()
         metadata = {
+            "id": metadata_id,
             "dataset_name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
             "seed": configuration.get("seed", 42),
@@ -423,7 +436,7 @@ class DataSerializer:
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
-            "hashcode": hashcode,
+            "hashcode": hashcode,            
             "source_dataset": configuration.get("source_dataset", None),
         }
 
