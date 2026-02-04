@@ -3,7 +3,30 @@ E2E tests for Training API endpoints.
 Tests: /training/checkpoints, /training/status, /training/start, /training/stop
 """
 
+import os
+import shutil
+import uuid
+
 from playwright.sync_api import APIRequestContext
+
+
+def get_checkpoints_root() -> str:
+    return os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "resources", "checkpoints")
+    )
+
+
+def create_checkpoint_fixture(name: str) -> str:
+    checkpoints_root = get_checkpoints_root()
+    checkpoint_dir = os.path.join(checkpoints_root, name)
+    os.makedirs(os.path.join(checkpoint_dir, "nested"), exist_ok=True)
+
+    with open(os.path.join(checkpoint_dir, "saved_model.keras"), "w") as file:
+        file.write("placeholder")
+    with open(os.path.join(checkpoint_dir, "nested", "artifact.txt"), "w") as file:
+        file.write("nested placeholder")
+
+    return checkpoint_dir
 
 
 class TestTrainingEndpoints:
@@ -62,6 +85,66 @@ class TestTrainingEndpoints:
 
         data = response.json()
         assert "detail" in data
+
+    def test_delete_checkpoint_removes_directory(
+        self, api_context: APIRequestContext
+    ):
+        """DELETE /training/checkpoints/{checkpoint} should remove the entire folder."""
+        status_response = api_context.get("/training/status")
+        if status_response.ok and status_response.json().get("is_training"):
+            return
+
+        checkpoint_name = f"e2e_delete_{uuid.uuid4().hex}"
+        checkpoint_dir = create_checkpoint_fixture(checkpoint_name)
+
+        try:
+            response = api_context.delete(
+                f"/training/checkpoints/{checkpoint_name}"
+            )
+            assert response.ok, f"Expected 200, got {response.status}"
+            assert not os.path.exists(checkpoint_dir)
+        finally:
+            shutil.rmtree(checkpoint_dir, ignore_errors=True)
+
+    def test_delete_checkpoint_rejects_path_traversal(
+        self, api_context: APIRequestContext
+    ):
+        """DELETE /training/checkpoints/{checkpoint} should reject traversal attempts."""
+        status_response = api_context.get("/training/status")
+        if status_response.ok and status_response.json().get("is_training"):
+            return
+
+        response = api_context.delete(
+            "/training/checkpoints/%2e%2e%2f%2e%2e%2f"
+        )
+        assert response.status == 400
+        data = response.json()
+        assert "detail" in data
+
+    def test_delete_checkpoint_is_idempotent(
+        self, api_context: APIRequestContext
+    ):
+        """Repeated DELETE should return a consistent 404 after removal."""
+        status_response = api_context.get("/training/status")
+        if status_response.ok and status_response.json().get("is_training"):
+            return
+
+        checkpoint_name = f"e2e_delete_repeat_{uuid.uuid4().hex}"
+        checkpoint_dir = create_checkpoint_fixture(checkpoint_name)
+
+        try:
+            first_response = api_context.delete(
+                f"/training/checkpoints/{checkpoint_name}"
+            )
+            assert first_response.ok, f"Expected 200, got {first_response.status}"
+
+            second_response = api_context.delete(
+                f"/training/checkpoints/{checkpoint_name}"
+            )
+            assert second_response.status == 404
+            assert not os.path.exists(checkpoint_dir)
+        finally:
+            shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
 
 class TestTrainingStartValidation:

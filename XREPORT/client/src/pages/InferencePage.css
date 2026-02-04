@@ -533,9 +533,37 @@
     width: 100%;
 }
 
+.inference-panel .report-header {
+    border-bottom: none;
+    padding: 0;
+}
+
+.report-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .report-actions {
     display: flex;
     gap: 0.5rem;
+}
+
+.report-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.report-index {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 64px;
+    text-align: center;
+}
+
+.report-nav-btn {
+    padding: 0.35rem;
 }
 
 /* Loading Spinner */
