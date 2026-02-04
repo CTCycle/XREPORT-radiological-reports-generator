@@ -57,6 +57,8 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     ],
     PROCESSING_METADATA_TABLE: [
         "dataset_name",
+        "hashcode",
+        "id",
         "date",
         "seed",
         "sample_size",
@@ -103,8 +105,8 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
 
 TABLE_MERGE_KEYS: dict[str, list[str]] = {
     RADIOGRAPHY_TABLE: ["dataset_name", "id"],
-    TRAINING_DATASET_TABLE: ["dataset_name", "hashcode", "id"],
-    PROCESSING_METADATA_TABLE: ["dataset_name"],
+    TRAINING_DATASET_TABLE: ["hashcode", "id"],
+    PROCESSING_METADATA_TABLE: ["hashcode", "id"],
     GENERATED_REPORTS_TABLE: ["image", "checkpoint"],
     TEXT_STATISTICS_TABLE: ["dataset_name", "name"],
     IMAGE_STATISTICS_TABLE: ["dataset_name", "name"],

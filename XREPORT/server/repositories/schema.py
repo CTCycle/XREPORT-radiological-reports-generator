@@ -32,15 +32,16 @@ class TrainingData(Base):
     """Processed training dataset with tokenized text and train/val split."""
 
     __tablename__ = "TRAINING_DATASET"
-    id = Column(Integer, primary_key=True)
-    hashcode = Column(String, primary_key=True) 
+    pk_id = Column(Integer, primary_key=True, autoincrement=True)
+    hashcode = Column(String, nullable=False)
+    id = Column(Integer, nullable=False)
     dataset_name = Column(String)       
     image = Column(String)
     text = Column(String)
     tokens = Column(JSONSequence)
     split = Column(String)
     path = Column(String)  
-    __table_args__ = (UniqueConstraint("id", "hashcode"),)
+    __table_args__ = (UniqueConstraint("hashcode", "id"),)
 
 
 ###############################################################################
@@ -48,7 +49,9 @@ class ProcessingMetadata(Base):
     """Metadata for dataset preprocessing operations."""
 
     __tablename__ = "PROCESSING_METADATA"
-    hashcode = Column(String, primary_key=True)
+    pk_id = Column(Integer, primary_key=True, autoincrement=True)
+    hashcode = Column(String, nullable=False)
+    id = Column(Integer, nullable=False)
     dataset_name = Column(String)
     date = Column(String)
     seed = Column(Integer)
@@ -59,7 +62,7 @@ class ProcessingMetadata(Base):
     max_report_size = Column(Integer)
     tokenizer = Column(String)    
     source_dataset = Column(String)
-    __table_args__ = (UniqueConstraint("hashcode"),)
+    __table_args__ = (UniqueConstraint("hashcode", "id"),)
 
 
 ###############################################################################
