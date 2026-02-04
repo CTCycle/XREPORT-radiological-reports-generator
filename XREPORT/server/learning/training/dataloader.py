@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from typing import Any
 
 import numpy as np
@@ -22,10 +23,15 @@ class XRAYDataset(Dataset):
         target_transform: Any = None,
     ) -> None:
         self.paths = data["path"].to_numpy(dtype="object", copy=False)
-        self.tokens = data["tokens"].to_numpy(dtype="object", copy=False)
         self.training = training
         self.transform = image_transform
         self.target_transform = target_transform
+        self.tokens: np.ndarray | None = None
+
+        if self.training:
+            if "tokens" not in data.columns:
+                raise ValueError("Training dataset missing tokens column")
+            self.tokens = data["tokens"].to_numpy(dtype="object", copy=False)
 
     # -------------------------------------------------------------------------
     def __len__(self) -> int:
@@ -107,6 +113,16 @@ class XRAYDataLoader:
         inference_transforms = self._get_transforms(training=False)
 
         with Image.open(image_path) as img:
+            image = img.convert("RGB")
+            image_tensor = inference_transforms(image)
+
+        return image_tensor.detach().cpu().numpy()
+
+    # -------------------------------------------------------------------------
+    def prepare_inference_image_bytes(self, image_bytes: bytes) -> np.ndarray:
+        inference_transforms = self._get_transforms(training=False)
+
+        with Image.open(io.BytesIO(image_bytes)) as img:
             image = img.convert("RGB")
             image_tensor = inference_transforms(image)
 
