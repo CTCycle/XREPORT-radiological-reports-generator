@@ -172,6 +172,8 @@ export interface CheckpointEvaluationRequest {
     checkpoint: string;
     metrics: string[];
     num_samples: number;
+    metric_configs?: Record<string, { data_fraction?: number; num_samples?: number }>;
+    seed?: number;
 }
 
 export interface CheckpointEvaluationResults {
@@ -186,6 +188,14 @@ export interface CheckpointEvaluationResponse {
     results?: CheckpointEvaluationResults;
 }
 
+export interface CheckpointEvaluationReport {
+    checkpoint: string;
+    date?: string | null;
+    metrics: string[];
+    metric_configs: Record<string, { data_fraction?: number; num_samples?: number }>;
+    results?: CheckpointEvaluationResults;
+}
+
 /**
  * Evaluate a checkpoint using selected metrics
  * Returns a job_id for polling status
@@ -193,13 +203,17 @@ export interface CheckpointEvaluationResponse {
 export async function evaluateCheckpoint(
     checkpoint: string,
     metrics: string[],
-    numSamples: number = 10
+    numSamples: number = 10,
+    metricConfigs?: Record<string, { data_fraction?: number; num_samples?: number }>,
+    seed?: number
 ): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const request: CheckpointEvaluationRequest = {
             checkpoint,
             metrics,
             num_samples: numSamples,
+            metric_configs: metricConfigs,
+            seed,
         };
 
         const response = await fetch('/api/validation/checkpoint', {
@@ -245,6 +259,81 @@ export async function getCheckpointEvaluationJobStatus(
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
     }
+}
+
+/**
+ * Get a persisted checkpoint evaluation report
+ */
+export async function getCheckpointEvaluationReport(
+    checkpoint: string
+): Promise<{ result: CheckpointEvaluationReport | null; error: string | null }> {
+    try {
+        const response = await fetch(
+            `/api/validation/checkpoint/reports/${encodeURIComponent(checkpoint)}`
+        );
+        if (!response.ok) {
+            const body = await response.text();
+            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
+        }
+        const payload = await readJson<CheckpointEvaluationReport>(response);
+        return { result: payload, error: null };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { result: null, error: message };
+    }
+}
+
+/**
+ * Poll checkpoint evaluation job until it completes, fails, or is cancelled
+ * Returns a cleanup function to stop polling
+ */
+export function pollCheckpointEvaluationJobStatus(
+    jobId: string,
+    onUpdate: (status: JobStatusResponse) => void,
+    onComplete: (status: JobStatusResponse) => void,
+    onError: (error: string) => void,
+    intervalMs: number = 2000
+): { stop: () => void } {
+    let stopped = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+        if (stopped) return;
+
+        const { result, error } = await getCheckpointEvaluationJobStatus(jobId);
+
+        if (stopped) return;
+
+        if (error) {
+            onError(error);
+            return;
+        }
+
+        if (!result) {
+            onError('No result returned');
+            return;
+        }
+
+        onUpdate(result);
+
+        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
+            onComplete(result);
+            return;
+        }
+
+        timeoutId = setTimeout(poll, intervalMs);
+    };
+
+    poll();
+
+    return {
+        stop: () => {
+            stopped = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        },
+    };
 }
 
 // ============================================================================

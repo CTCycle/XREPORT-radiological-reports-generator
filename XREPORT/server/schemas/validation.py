@@ -80,6 +80,8 @@ class CheckpointEvaluationRequest(BaseModel):
     checkpoint: str
     metrics: list[str]  # ["evaluation_report", "bleu_score"]
     num_samples: int = 10  # Number of samples for BLEU calculation
+    metric_configs: dict[str, dict[str, float | int]] | None = None
+    seed: int | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -99,4 +101,15 @@ class CheckpointEvaluationResponse(BaseModel):
 
     success: bool
     message: str
+    results: CheckpointEvaluationResults | None = None
+
+
+###############################################################################
+class CheckpointEvaluationReportResponse(BaseModel):
+    """Response model for a persisted checkpoint evaluation report."""
+
+    checkpoint: str
+    date: str | None = None
+    metrics: list[str] = []
+    metric_configs: dict[str, dict[str, float | int]] = {}
     results: CheckpointEvaluationResults | None = None
