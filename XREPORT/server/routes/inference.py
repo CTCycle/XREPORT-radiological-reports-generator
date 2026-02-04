@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+import threading
+import uuid
+from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
-import pandas as pd
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -18,7 +19,7 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.constants import RESOURCES_PATH, CHECKPOINT_PATH
+from XREPORT.server.utils.constants import CHECKPOINT_PATH
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
@@ -26,8 +27,73 @@ from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serializer import ModelSerializer
 
 
-# Inference temp folder for uploaded images
-INFERENCE_TEMP_PATH = os.path.join(RESOURCES_PATH, "inference_temp")
+MAX_INFERENCE_IMAGES = 16
+MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/bmp",
+    "image/webp",
+    "image/tiff",
+}
+ALLOWED_IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".bmp",
+    ".webp",
+    ".tif",
+    ".tiff",
+}
+
+
+###############################################################################
+@dataclass(frozen=True)
+class InferenceImage:
+    filename: str
+    content_type: str
+    data: bytes
+    size_bytes: int
+
+
+###############################################################################
+class InferenceImageStore:
+    def __init__(self) -> None:
+        self.storage: dict[str, list[InferenceImage]] = {}
+        self.job_links: dict[str, str] = {}
+        self.lock = threading.Lock()
+
+    # -------------------------------------------------------------------------
+    def store(self, request_id: str, images: list[InferenceImage]) -> None:
+        with self.lock:
+            self.storage[request_id] = images
+
+    # -------------------------------------------------------------------------
+    def get(self, request_id: str) -> list[InferenceImage] | None:
+        with self.lock:
+            return self.storage.get(request_id)
+
+    # -------------------------------------------------------------------------
+    def remove_request(self, request_id: str) -> None:
+        with self.lock:
+            self.storage.pop(request_id, None)
+
+    # -------------------------------------------------------------------------
+    def link_job(self, job_id: str, request_id: str) -> None:
+        with self.lock:
+            self.job_links[job_id] = request_id
+
+    # -------------------------------------------------------------------------
+    def remove_job(self, job_id: str) -> None:
+        with self.lock:
+            request_id = self.job_links.pop(job_id, None)
+            if request_id is None:
+                return
+            self.storage.pop(request_id, None)
+
+
+inference_image_store = InferenceImageStore()
 
 
 # -----------------------------------------------------------------------------
@@ -46,10 +112,19 @@ def error_response(status_code: int, message: str) -> JSONResponse:
 def run_inference_job(
     checkpoint: str,
     generation_mode: str,
-    image_paths: list[str],
+    request_id: str,
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking inference function that runs in background thread."""
+    if job_manager.should_stop(job_id):
+        inference_image_store.remove_job(job_id)
+        return {}
+
+    stored_images = inference_image_store.get(request_id)
+    if stored_images is None or len(stored_images) == 0:
+        logger.error("Inference job %s has no images to process", job_id)
+        raise RuntimeError("No images available for inference job")
+
     # Load model checkpoint
     logger.info(f"Loading checkpoint: {checkpoint}")
     serializer = ModelSerializer()
@@ -79,38 +154,27 @@ def run_inference_job(
         raise RuntimeError(f"Unknown generation mode: {generation_mode}")
 
     reports_by_filename: dict[str, str] = {}
-    total_images = max(1, len(image_paths))
-
-    data = pd.DataFrame({"path": image_paths})
+    total_images = len(stored_images)
     dataloader = XRAYDataLoader(model_metadata, shuffle=False)
-    inference_loader = dataloader.build_inference_dataloader(data)
 
-    image_index = 0
-    for batch in inference_loader:
-        if job_manager.should_stop(job_id):
-            break
-
-        if image_index >= len(image_paths):
-            break
-
-        if not isinstance(batch, np.ndarray):
-            batch = batch.detach().cpu().numpy()
-
-        for item in batch:
+    try:
+        for image_index, stored_image in enumerate(stored_images, start=1):
             if job_manager.should_stop(job_id):
                 break
-            if image_index >= len(image_paths):
-                break
 
-            path = image_paths[image_index]
+            try:
+                image = dataloader.prepare_inference_image_bytes(stored_image.data)
+            except Exception as e:
+                logger.error("Inference job %s failed to decode image", job_id)
+                raise RuntimeError("Failed to decode inference image") from e
+
             report = generator_fn(
                 tokenizer_config,
                 vocabulary,
-                item,
+                image,
                 stream_callback=None,
             )
-            reports_by_filename[os.path.basename(path)] = report
-            image_index += 1
+            reports_by_filename[stored_image.filename] = report
             progress = (image_index / total_images) * 100.0
             job_manager.update_progress(job_id, progress)
             job_manager.update_result(
@@ -122,14 +186,8 @@ def run_inference_job(
                     "total_images": total_images,
                 },
             )
-
-    # Clean up temp files
-    for path in image_paths:
-        try:
-            if os.path.exists(path):
-                os.remove(path)
-        except Exception:
-            pass
+    finally:
+        inference_image_store.remove_job(job_id)
 
     return {
         "reports": reports_by_filename,
@@ -187,10 +245,10 @@ class InferenceEndpoint:
                 detail="No images provided",
             )
 
-        if len(images) > 16:
+        if len(images) > MAX_INFERENCE_IMAGES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 16 images allowed",
+                detail=f"Maximum {MAX_INFERENCE_IMAGES} images allowed",
             )
 
         allowed_modes = {"greedy_search", "beam_search"}
@@ -214,20 +272,67 @@ class InferenceEndpoint:
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
-        # Create temp directory for uploaded images
-        os.makedirs(INFERENCE_TEMP_PATH, exist_ok=True)
-
-        image_paths: list[str] = []
+        request_id = uuid.uuid4().hex[:12]
+        total_bytes = 0
+        stored_images: list[InferenceImage] = []
         try:
-            # Save uploaded images to temp location
             for img in images:
                 if img.filename is None:
-                    continue
-                temp_path = os.path.join(INFERENCE_TEMP_PATH, img.filename)
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Image upload missing filename",
+                    )
+
+                content_type = img.content_type or ""
+                extension = os.path.splitext(img.filename)[1].lower()
+                if (
+                    content_type not in ALLOWED_IMAGE_TYPES
+                    and extension not in ALLOWED_IMAGE_EXTENSIONS
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Unsupported image type: {content_type or extension}",
+                    )
+
                 content = await img.read()
-                with open(temp_path, "wb") as f:
-                    f.write(content)
-                image_paths.append(temp_path)
+                if len(content) == 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Empty image payload: {img.filename}",
+                    )
+
+                total_bytes += len(content)
+                if total_bytes > MAX_TOTAL_IMAGE_BYTES:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=(
+                            "Total image payload exceeds "
+                            f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
+                        ),
+                    )
+
+                stored_images.append(
+                    InferenceImage(
+                        filename=img.filename,
+                        content_type=content_type,
+                        data=content,
+                        size_bytes=len(content),
+                    )
+                )
+
+            if not stored_images:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No valid images provided",
+                )
+
+            inference_image_store.store(request_id, stored_images)
+            logger.info(
+                "Staged inference images request %s with %d images (%d bytes)",
+                request_id,
+                len(stored_images),
+                total_bytes,
+            )
 
             # Start background job
             job_id = self.job_manager.start_job(
@@ -236,10 +341,11 @@ class InferenceEndpoint:
                 kwargs={
                     "checkpoint": checkpoint,
                     "generation_mode": generation_mode,
-                    "image_paths": image_paths,
+                    "request_id": request_id,
                 },
             )
 
+            inference_image_store.link_job(job_id, request_id)
             job_status = self.job_manager.get_job_status(job_id)
             if job_status is None:
                 raise HTTPException(
@@ -251,17 +357,14 @@ class InferenceEndpoint:
                 job_id=job_id,
                 job_type=job_status["job_type"],
                 status=job_status["status"],
-                message=f"Inference job started for {len(image_paths)} images",
+                message=f"Inference job started for {len(stored_images)} images",
             )
 
+        except HTTPException:
+            inference_image_store.remove_request(request_id)
+            raise
         except Exception as e:
-            # Clean up on error
-            for path in image_paths:
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except Exception:
-                    pass
+            inference_image_store.remove_request(request_id)
             logger.error(f"Error starting inference job: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -288,6 +391,8 @@ class InferenceEndpoint:
             )
 
         success = self.job_manager.cancel_job(job_id)
+        if success:
+            inference_image_store.remove_job(job_id)
 
         return JobCancelResponse(
             job_id=job_id,
