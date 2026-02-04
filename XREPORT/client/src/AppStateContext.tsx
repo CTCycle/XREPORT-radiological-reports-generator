@@ -381,6 +381,14 @@ export function useInferencePageState() {
         setInferencePageState(prev => ({ ...prev, images }));
     }, [setInferencePageState]);
 
+    const appendImages = useCallback((images: File[]) => {
+        if (images.length === 0) return;
+        setInferencePageState(prev => ({
+            ...prev,
+            images: [...prev.images, ...images]
+        }));
+    }, [setInferencePageState]);
+
     const setCurrentIndex = useCallback((index: number) => {
         setInferencePageState(prev => ({ ...prev, currentIndex: index }));
     }, [setInferencePageState]);
@@ -497,6 +505,7 @@ export function useInferencePageState() {
     return {
         state: inferencePageState,
         setImages,
+        appendImages,
         setCurrentIndex,
         setGeneratedReport,
         setIsGenerating,

@@ -154,6 +154,8 @@ def run_inference_job(
         raise RuntimeError(f"Unknown generation mode: {generation_mode}")
 
     reports_by_filename: dict[str, str] = {}
+    reports_ordered: list[str] = []
+    report_filenames: list[str] = []
     total_images = len(stored_images)
     dataloader = XRAYDataLoader(model_metadata, shuffle=False)
 
@@ -175,12 +177,16 @@ def run_inference_job(
                 stream_callback=None,
             )
             reports_by_filename[stored_image.filename] = report
+            reports_ordered.append(report)
+            report_filenames.append(stored_image.filename)
             progress = (image_index / total_images) * 100.0
             job_manager.update_progress(job_id, progress)
             job_manager.update_result(
                 job_id,
                 {
                     "reports": dict(reports_by_filename),
+                    "reports_ordered": list(reports_ordered),
+                    "report_filenames": list(report_filenames),
                     "count": len(reports_by_filename),
                     "processed_images": image_index,
                     "total_images": total_images,
@@ -191,6 +197,8 @@ def run_inference_job(
 
     return {
         "reports": reports_by_filename,
+        "reports_ordered": reports_ordered,
+        "report_filenames": report_filenames,
         "count": len(reports_by_filename),
     }
 
