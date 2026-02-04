@@ -2,10 +2,10 @@
   "fastapi": {
     "title": "XREPORT Backend",
     "description": "FastAPI backend",
-    "version": "0.1.0"
+    "version": "1.0.0"
   },
   "database": {
-    "embedded_database": true,
+    "embedded_database": false,
     "engine": "postgres",
     "host": "localhost",
     "port": 5432,
