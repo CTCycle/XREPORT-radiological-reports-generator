@@ -18,6 +18,7 @@ import { TableInfo } from './services/databaseBrowser';
 // Default States
 // ============================================================================
 const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
+    datasetName: '',
     sampleSize: 1.0,
     validationSize: 0.2,
     maxReportSize: 200,
@@ -44,7 +45,7 @@ const DEFAULT_DATASET_STATE: DatasetPageState = {
     processingResult: null,
     dbStatus: null,
     datasetNames: null,
-    selectedDataset: '',
+    selectedDatasets: [],
     isValidating: false,
     validationResult: null,
     validationError: null
@@ -62,11 +63,8 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     shuffleBufferSize: 256,
     epochs: 100,
     batchSize: 32,
-    trainSeed: 42,
     saveCheckpoints: true,
     checkpointFreq: 1,
-    mixedPrecision: false,
-    runTensorboard: false,
     useScheduler: false,
     targetLR: 0.001,
     warmupSteps: 1000,
@@ -88,7 +86,7 @@ const DEFAULT_DASHBOARD_STATE: TrainingDashboardState = {
     chartData: [],
     availableMetrics: [],
     epochBoundaries: [],
-    shouldConnectWs: false
+    logEntries: []
 };
 
 const DEFAULT_TRAINING_STATE: TrainingPageState = {
@@ -131,6 +129,7 @@ const DEFAULT_DATABASE_BROWSER_STATE: DatabaseBrowserPageState = {
     selectedTable: '',
     rows: [],
     columns: [],
+    totalRows: 0,
     rowCount: 0,
     columnCount: 0,
     displayName: '',
@@ -267,8 +266,8 @@ export function useDatasetPageState() {
         setDatasetPageState(prev => ({ ...prev, datasetNames: names }));
     }, [setDatasetPageState]);
 
-    const setSelectedDataset = useCallback((dataset: string) => {
-        setDatasetPageState(prev => ({ ...prev, selectedDataset: dataset }));
+    const setSelectedDatasets = useCallback((datasets: string[]) => {
+        setDatasetPageState(prev => ({ ...prev, selectedDatasets: datasets }));
     }, [setDatasetPageState]);
 
     const setIsValidating = useCallback((validating: boolean) => {
@@ -299,7 +298,7 @@ export function useDatasetPageState() {
         setProcessingResult,
         setDbStatus,
         setDatasetNames,
-        setSelectedDataset,
+        setSelectedDatasets,
         setIsValidating,
         setValidationResult,
         setValidationError
@@ -340,13 +339,6 @@ export function useTrainingPageState() {
         }));
     }, [setTrainingPageState]);
 
-    const setShouldConnectWs = useCallback((shouldConnect: boolean) => {
-        setTrainingPageState(prev => ({
-            ...prev,
-            dashboardState: { ...prev.dashboardState, shouldConnectWs: shouldConnect }
-        }));
-    }, [setTrainingPageState]);
-
     const setChartData = useCallback((chartData: ChartDataPoint[]) => {
         setTrainingPageState(prev => ({
             ...prev,
@@ -376,7 +368,6 @@ export function useTrainingPageState() {
         setSelectedCheckpoint,
         setAdditionalEpochs,
         setDashboardState,
-        setShouldConnectWs,
         setChartData,
         setAvailableMetrics,
         setEpochBoundaries
@@ -388,6 +379,14 @@ export function useInferencePageState() {
 
     const setImages = useCallback((images: File[]) => {
         setInferencePageState(prev => ({ ...prev, images }));
+    }, [setInferencePageState]);
+
+    const appendImages = useCallback((images: File[]) => {
+        if (images.length === 0) return;
+        setInferencePageState(prev => ({
+            ...prev,
+            images: [...prev.images, ...images]
+        }));
     }, [setInferencePageState]);
 
     const setCurrentIndex = useCallback((index: number) => {
@@ -506,6 +505,7 @@ export function useInferencePageState() {
     return {
         state: inferencePageState,
         setImages,
+        appendImages,
         setCurrentIndex,
         setGeneratedReport,
         setIsGenerating,

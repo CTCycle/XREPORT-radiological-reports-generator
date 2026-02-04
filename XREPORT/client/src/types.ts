@@ -6,6 +6,7 @@ import { TableInfo } from './services/databaseBrowser';
 // Dataset Page State
 // ============================================================================
 export interface DatasetProcessingConfig {
+    datasetName?: string;
     sampleSize: number;
     validationSize: number;
     maxReportSize: number;
@@ -32,7 +33,7 @@ export interface DatasetPageState {
     processingResult: ProcessDatasetResponse | null;
     dbStatus: DatasetStatusResponse | null;
     datasetNames: DatasetNamesResponse | null;
-    selectedDataset: string;
+    selectedDatasets: string[];
     // Validation state
     isValidating: boolean;
     validationResult: ValidationResponse | null;
@@ -54,11 +55,8 @@ export interface TrainingConfig {
     shuffleBufferSize: number;
     epochs: number;
     batchSize: number;
-    trainSeed: number;
     saveCheckpoints: boolean;
     checkpointFreq: number;
-    mixedPrecision: boolean;
-    runTensorboard: boolean;
     useScheduler: boolean;
     targetLR: number;
     warmupSteps: number;
@@ -89,7 +87,7 @@ export interface TrainingDashboardState {
     chartData: ChartDataPoint[];
     availableMetrics: string[];
     epochBoundaries: number[];
-    shouldConnectWs: boolean;
+    logEntries: string[];
 }
 
 export interface TrainingPageState {
@@ -145,6 +143,7 @@ export interface DatabaseBrowserPageState {
     selectedTable: string;
     rows: Record<string, unknown>[];
     columns: string[];
+    totalRows: number;
     rowCount: number;
     columnCount: number;
     displayName: string;

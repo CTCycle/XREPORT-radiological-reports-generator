@@ -1,0 +1,34 @@
+{
+  "fastapi": {
+    "title": "XREPORT Backend",
+    "description": "FastAPI backend",
+    "version": "0.1.0"
+  },
+  "database": {
+    "embedded_database": true,
+    "engine": "postgres",
+    "host": "localhost",
+    "port": 5432,
+    "database_name": "XREPORT",
+    "username": "postgres",
+    "password": "admin",
+    "ssl": false,
+    "ssl_ca": null,
+    "connect_timeout": 30,
+    "insert_batch_size": 1000,
+    "browse_batch_size": 200
+  },
+  "global": {
+    "seed": 42
+  },
+  "training": {
+    "use_jit": false,
+    "jit_backend": "inductor",
+    "use_mixed_precision": false,
+    "dataloader_workers": 0,
+    "prefetch_factor": 1,
+    "pin_memory": true,
+    "persistent_workers": false,
+    "polling_interval": 1
+  }
+}
