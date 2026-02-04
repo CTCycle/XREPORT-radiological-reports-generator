@@ -18,6 +18,7 @@ export default function InferencePage() {
     const {
         state,
         setImages,
+        appendImages,
         setCurrentIndex,
         setGeneratedReport,
         setIsGenerating,
@@ -69,10 +70,11 @@ export default function InferencePage() {
         const limitedImages = imageFiles.slice(0, availableSlots);
 
         if (limitedImages.length > 0) {
-            const nextImages = state.images.length > 0
-                ? [...state.images, ...limitedImages]
-                : limitedImages;
-            setImages(nextImages);
+            if (state.images.length > 0) {
+                appendImages(limitedImages);
+            } else {
+                setImages(limitedImages);
+            }
             if (state.images.length === 0) {
                 setCurrentIndex(0);
             }
@@ -109,26 +111,20 @@ export default function InferencePage() {
     };
 
     // Navigation with synchronized report display
+    const goToIndex = (newIndex: number) => {
+        setCurrentIndex(newIndex);
+        const reportForIndex = state.reports[newIndex];
+        setGeneratedReport(reportForIndex ?? '');
+    };
+
     const goToPrevious = () => {
         const newIndex = Math.max(0, state.currentIndex - 1);
-        setCurrentIndex(newIndex);
-        // Update displayed report for new index
-        if (state.reports[newIndex]) {
-            setGeneratedReport(state.reports[newIndex]);
-        } else {
-            setGeneratedReport('');
-        }
+        goToIndex(newIndex);
     };
 
     const goToNext = () => {
         const newIndex = Math.min(state.images.length - 1, state.currentIndex + 1);
-        setCurrentIndex(newIndex);
-        // Update displayed report for new index
-        if (state.reports[newIndex]) {
-            setGeneratedReport(state.reports[newIndex]);
-        } else {
-            setGeneratedReport('');
-        }
+        goToIndex(newIndex);
     };
 
     // Clear images
@@ -216,12 +212,44 @@ export default function InferencePage() {
             }
 
             if (status.result) {
-                const reports = (status.result as Record<string, unknown>).reports as Record<string, string> | undefined;
-                if (reports) {
-                    const reportsByIndex: Record<number, string> = {};
-                    Object.values(reports).forEach((report, idx) => {
-                        reportsByIndex[idx] = report as string;
+                const resultPayload = status.result as Record<string, unknown>;
+                const reports = resultPayload.reports as Record<string, string> | undefined;
+                const reportsOrdered = resultPayload.reports_ordered as string[] | undefined;
+                const reportFilenames = resultPayload.report_filenames as string[] | undefined;
+
+                const reportsByIndex: Record<number, string> = {};
+
+                if (reportsOrdered && reportsOrdered.length > 0) {
+                    reportsOrdered.forEach((report, idx) => {
+                        if (report) {
+                            reportsByIndex[idx] = report;
+                        }
                     });
+                } else if (reports) {
+                    if (reportFilenames && reportFilenames.length > 0) {
+                        reportFilenames.forEach((filename, idx) => {
+                            const report = reports[filename];
+                            if (report !== undefined) {
+                                reportsByIndex[idx] = report;
+                            }
+                        });
+                    } else {
+                        state.images.forEach((image, idx) => {
+                            const report = reports[image.name];
+                            if (report !== undefined) {
+                                reportsByIndex[idx] = report;
+                            }
+                        });
+                    }
+
+                    if (Object.keys(reportsByIndex).length === 0) {
+                        Object.values(reports).forEach((report, idx) => {
+                            reportsByIndex[idx] = report;
+                        });
+                    }
+                }
+
+                if (Object.keys(reportsByIndex).length > 0) {
                     setReports(reportsByIndex);
                     if (reportsByIndex[state.currentIndex] !== undefined) {
                         setGeneratedReport(reportsByIndex[state.currentIndex]);
@@ -467,18 +495,43 @@ export default function InferencePage() {
                                     </span>
                                 )}
                             </div>
-                            {displayContent && (
-                                <div className="report-actions">
-                                    <button
-                                        className="btn-icon"
-                                        onClick={copyReport}
-                                        title="Copy to clipboard"
-                                        disabled={state.isGenerating}
-                                    >
-                                        {state.isCopied ? <Check /> : <Copy />}
-                                    </button>
-                                </div>
-                            )}
+                            <div className="report-header-actions">
+                                {state.images.length > 1 && (
+                                    <div className="report-nav">
+                                        <button
+                                            className="btn-icon report-nav-btn"
+                                            onClick={goToPrevious}
+                                            title="Previous report"
+                                            disabled={state.currentIndex === 0}
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span className="report-index">
+                                            {state.currentIndex + 1} / {state.images.length}
+                                        </span>
+                                        <button
+                                            className="btn-icon report-nav-btn"
+                                            onClick={goToNext}
+                                            title="Next report"
+                                            disabled={state.currentIndex === state.images.length - 1}
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+                                )}
+                                {displayContent && (
+                                    <div className="report-actions">
+                                        <button
+                                            className="btn-icon"
+                                            onClick={copyReport}
+                                            title="Copy to clipboard"
+                                            disabled={state.isGenerating}
+                                        >
+                                            {state.isCopied ? <Check /> : <Copy />}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="panel-content">

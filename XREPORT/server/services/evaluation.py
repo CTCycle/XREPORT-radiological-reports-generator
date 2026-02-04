@@ -53,6 +53,45 @@ class CheckpointEvaluator:
             raise
 
     # -------------------------------------------------------------------------
+    def normalize_report_text(
+        self,
+        value: Any,
+        image_path: str,
+        label: str,
+    ) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized if normalized else None
+        if isinstance(value, bytes):
+            normalized = value.decode("utf-8", errors="ignore").strip()
+            return normalized if normalized else None
+        if isinstance(value, (float, np.floating)):
+            if np.isnan(value):
+                return None
+            logger.warning(
+                "Skipping %s report for %s: expected string, got float",
+                label,
+                image_path,
+            )
+            return None
+        if isinstance(value, (int, np.integer)):
+            logger.warning(
+                "Skipping %s report for %s: expected string, got int",
+                label,
+                image_path,
+            )
+            return None
+        logger.warning(
+            "Skipping %s report for %s: expected string, got %s",
+            label,
+            image_path,
+            type(value).__name__,
+        )
+        return None
+
+    # -------------------------------------------------------------------------
     def calculate_bleu_score(
         self,
         validation_data: pd.DataFrame,
@@ -73,6 +112,12 @@ class CheckpointEvaluator:
 
         if validation_data.empty:
             logger.warning("No validation data provided for BLEU calculation")
+            return 0.0
+        if (
+            "path" not in validation_data.columns
+            or "text" not in validation_data.columns
+        ):
+            logger.warning("Validation data missing required columns for BLEU scoring")
             return 0.0
 
         # Initialize text generator
@@ -101,9 +146,20 @@ class CheckpointEvaluator:
 
         for image_path in sampled_images:
             if image_path in generated_reports and image_path in true_reports:
-                # Tokenize using simple split
-                ref_tokens = true_reports[image_path].lower().split()
-                cand_tokens = generated_reports[image_path].lower().split()
+                reference = self.normalize_report_text(
+                    true_reports[image_path],
+                    image_path,
+                    "reference",
+                )
+                candidate = self.normalize_report_text(
+                    generated_reports[image_path],
+                    image_path,
+                    "candidate",
+                )
+                if reference is None or candidate is None:
+                    continue
+                ref_tokens = reference.lower().split()
+                cand_tokens = candidate.lower().split()
                 references.append([ref_tokens])
                 hypotheses.append(cand_tokens)
 
