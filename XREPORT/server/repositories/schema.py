@@ -23,7 +23,7 @@ class RadiographyData(Base):
     id = Column(Integer, primary_key=True)
     image = Column(String)
     text = Column(String)
-    path = Column(String)  
+    path = Column(String)
     __table_args__ = (UniqueConstraint("dataset_name", "id"),)
 
 
@@ -154,3 +154,16 @@ class ValidationReport(Base):
     pixel_distribution = Column(JSONSequence)  # JSON payload
     artifacts = Column(JSONSequence)  # JSON payload (base64-encoded assets)
     __table_args__ = (UniqueConstraint("dataset_name"),)
+
+
+###############################################################################
+class CheckpointEvaluationReport(Base):
+    """Aggregated evaluation report payloads for checkpoints."""
+
+    __tablename__ = "CHECKPOINT_EVALUATION_REPORTS"
+    checkpoint = Column(String, primary_key=True)
+    date = Column(String)
+    metrics = Column(JSONSequence)  # JSON list of metrics
+    metric_configs = Column(JSONSequence)  # JSON payload
+    results = Column(JSONSequence)  # JSON payload
+    __table_args__ = (UniqueConstraint("checkpoint"),)

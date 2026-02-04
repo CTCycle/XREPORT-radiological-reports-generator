@@ -16,6 +16,10 @@ export interface EvaluationWizardProps {
     isOpen: boolean;
     onClose: () => void;
     checkpointName: string;
+    onConfirm: (payload: {
+        metrics: string[];
+        metricConfigs: Record<string, { dataFraction: number }>;
+    }) => void;
 }
 
 interface MetricCatalogItem {
@@ -152,7 +156,7 @@ const SummaryStep: React.FC<{
 
 // --- Main Wizard Component ---
 
-export default function EvaluationWizard({ isOpen, onClose, checkpointName }: EvaluationWizardProps) {
+export default function EvaluationWizard({ isOpen, onClose, checkpointName, onConfirm }: EvaluationWizardProps) {
     // State
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
@@ -225,20 +229,18 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
     };
 
     const handleConfirm = () => {
-        // SCENARIO: Stub execution
-        const payload = {
-            checkpoint: checkpointName,
+        const configs = orderedSelectedMetrics.reduce((acc, id) => {
+            const config = metricConfigs[id] || {};
+            acc[id] = {
+                dataFraction: typeof config.dataFraction === 'number' ? config.dataFraction : 1.0,
+            };
+            return acc;
+        }, {} as Record<string, { dataFraction: number }>);
+
+        onConfirm({
             metrics: orderedSelectedMetrics,
-            configurations: orderedSelectedMetrics.reduce((acc, id) => ({
-                ...acc,
-                [id]: metricConfigs[id]
-            }), {})
-        };
-
-        console.log('[EvaluationWizard] CONFIRM ACTION', payload);
-        alert(`Evaluation Request Logged to Console!\n\nMetrics: ${orderedSelectedMetrics.join(', ')}`);
-
-        onClose();
+            metricConfigs: configs,
+        });
     };
 
     // --- Render ---
@@ -334,6 +336,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName }: Ev
                         <button
                             className="btn-wizard btn-wizard-primary"
                             onClick={handleConfirm}
+                            disabled={orderedSelectedMetrics.length === 0}
                         >
                             <Check size={16} />
                             Start Evaluation

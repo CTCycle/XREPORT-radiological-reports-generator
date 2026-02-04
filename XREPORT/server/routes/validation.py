@@ -12,6 +12,7 @@ from XREPORT.server.schemas.validation import (
     CheckpointEvaluationRequest,
     CheckpointEvaluationResponse,
     CheckpointEvaluationResults,
+    CheckpointEvaluationReportResponse,
 )
 from XREPORT.server.schemas.jobs import (
     JobStartResponse,
@@ -236,6 +237,10 @@ def run_checkpoint_evaluation_job(
     checkpoint = request_data.get("checkpoint", "")
     metrics = request_data.get("metrics", [])
     num_samples = request_data.get("num_samples", 10)
+    metric_configs = request_data.get("metric_configs") or {}
+    if not isinstance(metric_configs, dict):
+        metric_configs = {}
+    seed = request_data.get("seed", 42)
 
     logger.info(f"Starting checkpoint evaluation: {checkpoint}")
     logger.info(f"Metrics: {metrics}, Samples: {num_samples}")
@@ -265,6 +270,27 @@ def run_checkpoint_evaluation_job(
     # Initialize evaluator
     evaluator = CheckpointEvaluator(model, train_config, model_metadata)
     results: dict[str, Any] = {}
+    resolved_metric_configs: dict[str, dict[str, float | int]] = {}
+
+    def resolve_fraction(
+        config: dict[str, Any] | None,
+        default_fraction: float = 1.0,
+    ) -> float:
+        if not isinstance(config, dict):
+            return default_fraction
+        fraction = config.get("data_fraction", default_fraction)
+        if not isinstance(fraction, (int, float)):
+            return default_fraction
+        return float(min(1.0, max(0.01, fraction)))
+
+    validation_data = None
+    if "evaluation_report" in metrics or "bleu_score" in metrics:
+        data_serializer = DataSerializer()
+        _, validation_data, _ = data_serializer.load_training_data()
+        if validation_data.empty:
+            logger.warning("No validation data available for checkpoint evaluation")
+        else:
+            validation_data = data_serializer.validate_img_paths(validation_data)
 
     # Run evaluation_report metric (requires validation dataset)
     if "evaluation_report" in metrics:
@@ -272,22 +298,26 @@ def run_checkpoint_evaluation_job(
             return {}
         logger.info("Running evaluation report (loss and accuracy)...")
 
-        # Load validation data
-        data_serializer = DataSerializer()
-        _, validation_data, _ = data_serializer.load_training_data()
-
-        if validation_data.empty:
+        if validation_data is None or validation_data.empty:
             logger.warning("No validation data available for evaluation report")
         else:
-            # Validate image paths
-            validation_data = data_serializer.validate_img_paths(validation_data)
+            evaluation_config = metric_configs.get("evaluation_report")
+            evaluation_fraction = resolve_fraction(evaluation_config, default_fraction=1.0)
+            resolved_metric_configs["evaluation_report"] = {
+                "data_fraction": evaluation_fraction,
+            }
 
-            if not validation_data.empty:
-                # Build validation dataset
+            eval_data = validation_data
+            if evaluation_fraction < 1.0:
+                eval_data = validation_data.sample(
+                    frac=evaluation_fraction,
+                    random_state=seed,
+                )
+
+            if not eval_data.empty:
                 loader = XRAYDataLoader(train_config)
-                validation_dataset = loader.build_training_dataloader(validation_data)
+                validation_dataset = loader.build_training_dataloader(eval_data)
 
-                # Run evaluation
                 eval_results = evaluator.evaluate_model(validation_dataset)
                 results["loss"] = eval_results.get("loss")
                 results["accuracy"] = eval_results.get("accuracy")
@@ -300,25 +330,44 @@ def run_checkpoint_evaluation_job(
             return {}
         logger.info(f"Calculating BLEU score with {num_samples} samples...")
 
-        # Load validation data with text for BLEU comparison
-        data_serializer = DataSerializer()
-        _, validation_data, _ = data_serializer.load_training_data()
-
-        if validation_data.empty:
+        if validation_data is None or validation_data.empty:
             logger.warning("No validation data available for BLEU calculation")
         else:
-            # Validate image paths
-            validation_data = data_serializer.validate_img_paths(validation_data)
-
             if not validation_data.empty:
+                bleu_config = metric_configs.get("bleu_score")
+                bleu_fraction = resolve_fraction(bleu_config, default_fraction=1.0)
+                if bleu_config is None:
+                    bleu_fraction = 1.0
+                bleu_samples = max(1, int(num_samples))
+                if bleu_fraction < 1.0:
+                    bleu_samples = max(1, int(len(validation_data) * bleu_fraction))
+
+                resolved_metric_configs["bleu_score"] = {
+                    "data_fraction": bleu_fraction,
+                    "num_samples": bleu_samples,
+                }
+
                 bleu = evaluator.calculate_bleu_score(
-                    validation_data, num_samples=num_samples
+                    validation_data, num_samples=bleu_samples
                 )
                 results["bleu_score"] = bleu
 
         jm.update_progress(job_id, 90.0)
 
     jm.update_progress(job_id, 100.0)
+
+    report_payload = {
+        "checkpoint": checkpoint,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "metrics": metrics,
+        "metric_configs": resolved_metric_configs,
+        "results": results,
+    }
+    try:
+        serializer = DataSerializer()
+        serializer.save_checkpoint_evaluation_report(report_payload)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to save checkpoint evaluation report: %s", exc)
 
     return {
         "success": True,
@@ -393,6 +442,19 @@ class ValidationEndpoint:
                 detail=f"No validation report found for dataset: {dataset_name}",
             )
         return ValidationReportResponse(**report)
+
+    # -------------------------------------------------------------------------
+    async def get_checkpoint_evaluation_report(
+        self, checkpoint: str
+    ) -> CheckpointEvaluationReportResponse:
+        serializer = DataSerializer()
+        report = serializer.get_checkpoint_evaluation_report(checkpoint)
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No evaluation report found for checkpoint: {checkpoint}",
+            )
+        return CheckpointEvaluationReportResponse(**report)
 
     # -----------------------------------------------------------------------------
     async def evaluate_checkpoint(
@@ -472,6 +534,13 @@ class ValidationEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/checkpoint/reports/{checkpoint}",
+            self.get_checkpoint_evaluation_report,
+            methods=["GET"],
+            response_model=CheckpointEvaluationReportResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/reports/{dataset_name}",

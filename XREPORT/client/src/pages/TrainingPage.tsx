@@ -6,6 +6,7 @@ import {
     RotateCcw,
     Trash2,
     Activity,
+    BarChart2,
 } from 'lucide-react';
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
@@ -19,6 +20,7 @@ import MetadataModal, {
 import NewTrainingWizard from '../components/NewTrainingWizard';
 import ResumeTrainingWizard from '../components/ResumeTrainingWizard';
 import EvaluationWizard from '../components/EvaluationWizard';
+import CheckpointEvaluationReportModal from '../components/CheckpointEvaluationReportModal';
 import { ChartDataPoint, TrainingConfig } from '../types';
 import {
     CheckpointInfo,
@@ -38,6 +40,46 @@ import {
     startTraining,
     stopTraining,
 } from '../services/trainingService';
+import {
+    CheckpointEvaluationReport,
+    evaluateCheckpoint,
+    getCheckpointEvaluationReport,
+    pollCheckpointEvaluationJobStatus,
+} from '../services/inferenceService';
+
+const EVALUATION_JOB_STORAGE_KEY = 'xreport.checkpoint_evaluation.jobs';
+
+type StoredEvaluationJob = {
+    jobId: string;
+    metrics: string[];
+    metricConfigs: Record<string, { dataFraction: number }>;
+    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+    progress?: number;
+};
+
+function loadStoredEvaluationJobs(): Record<string, StoredEvaluationJob> {
+    try {
+        const raw = localStorage.getItem(EVALUATION_JOB_STORAGE_KEY);
+        if (!raw) {
+            return {};
+        }
+        const parsed = JSON.parse(raw) as Record<string, StoredEvaluationJob>;
+        if (!parsed || typeof parsed !== 'object') {
+            return {};
+        }
+        return parsed;
+    } catch {
+        return {};
+    }
+}
+
+function persistStoredEvaluationJobs(jobs: Record<string, StoredEvaluationJob>) {
+    try {
+        localStorage.setItem(EVALUATION_JOB_STORAGE_KEY, JSON.stringify(jobs));
+    } catch {
+        // Ignore storage errors (private mode or quota limits)
+    }
+}
 export default function TrainingPage() {
     const {
         state,
@@ -59,8 +101,20 @@ export default function TrainingPage() {
     const [metadataModal, setMetadataModal] = useState<MetadataModalState | null>(null);
     const [isNewWizardOpen, setIsNewWizardOpen] = useState(false);
     const [isResumeWizardOpen, setIsResumeWizardOpen] = useState(false);
-    // Track which checkpoint is being evaluated (if any)
-    const [evalCheckpoint, setEvalCheckpoint] = useState<CheckpointInfo | null>(null);
+    const [evaluationCheckpoint, setEvaluationCheckpoint] = useState<CheckpointInfo | null>(null);
+    const [evaluationWizardOpen, setEvaluationWizardOpen] = useState(false);
+    const [evaluationReportOpen, setEvaluationReportOpen] = useState(false);
+    const [evaluationReportCheckpoint, setEvaluationReportCheckpoint] = useState<CheckpointInfo | null>(null);
+    const [evaluationReportLoading, setEvaluationReportLoading] = useState(false);
+    const [evaluationReportError, setEvaluationReportError] = useState<string | null>(null);
+    const [evaluationReportResult, setEvaluationReportResult] = useState<CheckpointEvaluationReport | null>(null);
+    const [evaluationReportProgress, setEvaluationReportProgress] = useState<number | null>(null);
+    const [evaluationReportStatus, setEvaluationReportStatus] = useState<
+        'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null
+    >(null);
+    const [evaluationJobs, setEvaluationJobs] = useState<Record<string, StoredEvaluationJob>>({});
+    const evaluationPollers = useRef<Record<string, { stop: () => void }>>({});
+    const reportCheckpointRef = useRef<string | null>(null);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
     const lastLoggedEpochRef = useRef<number | null>(null);
     const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
@@ -71,6 +125,134 @@ export default function TrainingPage() {
             pollerRef.current = null;
         }
     }, []);
+
+    useEffect(() => {
+        reportCheckpointRef.current = evaluationReportCheckpoint?.name ?? null;
+    }, [evaluationReportCheckpoint]);
+
+    const updateEvaluationJobs = useCallback((
+        updater: (prev: Record<string, StoredEvaluationJob>) => Record<string, StoredEvaluationJob>
+    ) => {
+        setEvaluationJobs(prev => {
+            const next = updater(prev);
+            persistStoredEvaluationJobs(next);
+            return next;
+        });
+    }, []);
+
+    const removeEvaluationJob = useCallback((checkpoint: string) => {
+        updateEvaluationJobs(prev => {
+            if (!prev[checkpoint]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[checkpoint];
+            return next;
+        });
+    }, [updateEvaluationJobs]);
+
+    const stopEvaluationPolling = useCallback((jobId: string) => {
+        const poller = evaluationPollers.current[jobId];
+        if (poller) {
+            poller.stop();
+            delete evaluationPollers.current[jobId];
+        }
+    }, []);
+
+    const startEvaluationPolling = useCallback((
+        checkpoint: string,
+        jobId: string,
+        jobMeta: StoredEvaluationJob
+    ) => {
+        if (evaluationPollers.current[jobId]) {
+            return;
+        }
+
+        const poller = pollCheckpointEvaluationJobStatus(
+            jobId,
+            (status) => {
+                updateEvaluationJobs(prev => {
+                    const current = prev[checkpoint] ?? jobMeta;
+                    return {
+                        ...prev,
+                        [checkpoint]: {
+                            ...current,
+                            status: status.status,
+                            progress: status.progress,
+                        },
+                    };
+                });
+
+                if (reportCheckpointRef.current === checkpoint) {
+                    setEvaluationReportProgress(status.progress);
+                    setEvaluationReportStatus(status.status);
+                    setEvaluationReportLoading(status.status === 'running' || status.status === 'pending');
+                }
+            },
+            (status) => {
+                stopEvaluationPolling(jobId);
+                removeEvaluationJob(checkpoint);
+
+                if (reportCheckpointRef.current === checkpoint) {
+                    setEvaluationReportStatus(status.status);
+                    setEvaluationReportProgress(status.progress ?? 100);
+                    setEvaluationReportLoading(false);
+                }
+
+                if (status.status === 'completed') {
+                    void (async () => {
+                        const { result, error } = await getCheckpointEvaluationReport(checkpoint);
+                        if (reportCheckpointRef.current !== checkpoint) {
+                            return;
+                        }
+                        if (error || !result) {
+                            const jobResults = (status.result as Record<string, unknown> | null) ?? {};
+                            const metricsResult = (jobResults.results as Record<string, unknown> | null) ?? {};
+                            setEvaluationReportResult({
+                                checkpoint,
+                                metrics: jobMeta.metrics,
+                                metric_configs: Object.fromEntries(
+                                    Object.entries(jobMeta.metricConfigs).map(([key, value]) => [
+                                        key,
+                                        { data_fraction: value.dataFraction },
+                                    ])
+                                ),
+                                results: {
+                                    loss: metricsResult.loss as number | undefined,
+                                    accuracy: metricsResult.accuracy as number | undefined,
+                                    bleu_score: metricsResult.bleu_score as number | undefined,
+                                },
+                            });
+                            setEvaluationReportError(error || 'Failed to load evaluation report');
+                        } else {
+                            setEvaluationReportResult(result);
+                            setEvaluationReportError(null);
+                        }
+                    })();
+                } else if (status.status === 'failed') {
+                    if (reportCheckpointRef.current === checkpoint) {
+                        setEvaluationReportError(status.error || 'Evaluation failed');
+                    }
+                } else if (status.status === 'cancelled') {
+                    if (reportCheckpointRef.current === checkpoint) {
+                        setEvaluationReportError('Evaluation was cancelled');
+                    }
+                }
+            },
+            (error) => {
+                stopEvaluationPolling(jobId);
+                removeEvaluationJob(checkpoint);
+                if (reportCheckpointRef.current === checkpoint) {
+                    setEvaluationReportLoading(false);
+                    setEvaluationReportStatus('failed');
+                    setEvaluationReportError(error);
+                }
+            },
+            2000
+        );
+
+        evaluationPollers.current[jobId] = poller;
+    }, [removeEvaluationJob, stopEvaluationPolling, updateEvaluationJobs]);
 
     const appendLogLine = useCallback((line: string) => {
         setDashboardState((prev) => {
@@ -241,6 +423,25 @@ export default function TrainingPage() {
     }, [setDashboardState, startPolling, stopPolling]);
 
     useEffect(() => {
+        const storedJobs = loadStoredEvaluationJobs();
+        const entries = Object.entries(storedJobs);
+        if (entries.length === 0) {
+            return;
+        }
+        setEvaluationJobs(storedJobs);
+        entries.forEach(([checkpoint, job]) => {
+            startEvaluationPolling(checkpoint, job.jobId, job);
+        });
+    }, [startEvaluationPolling]);
+
+    useEffect(() => {
+        return () => {
+            Object.values(evaluationPollers.current).forEach(poller => poller.stop());
+            evaluationPollers.current = {};
+        };
+    }, []);
+
+    useEffect(() => {
         fetchDatasets();
         fetchCheckpoints();
     }, [fetchCheckpoints, fetchDatasets]);
@@ -318,6 +519,108 @@ export default function TrainingPage() {
             appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
             startPolling(startResult.job_id, startResult.poll_interval);
         }
+    };
+
+    const handleEvaluationConfirm = async (payload: {
+        metrics: string[];
+        metricConfigs: Record<string, { dataFraction: number }>;
+    }) => {
+        if (!evaluationCheckpoint) {
+            return;
+        }
+
+        const checkpointName = evaluationCheckpoint.name;
+        const metricConfigsForApi = Object.fromEntries(
+            Object.entries(payload.metricConfigs).map(([key, value]) => [
+                key,
+                { data_fraction: value.dataFraction },
+            ])
+        );
+        setEvaluationWizardOpen(false);
+        setEvaluationCheckpoint(null);
+        setEvaluationReportCheckpoint(evaluationCheckpoint);
+        setEvaluationReportResult({
+            checkpoint: checkpointName,
+            metrics: payload.metrics,
+            metric_configs: metricConfigsForApi,
+        });
+        setEvaluationReportError(null);
+        setEvaluationReportProgress(0);
+        setEvaluationReportStatus('pending');
+        setEvaluationReportLoading(true);
+        setEvaluationReportOpen(true);
+
+        const { result: jobResult, error: startError } = await evaluateCheckpoint(
+            checkpointName,
+            payload.metrics,
+            10,
+            metricConfigsForApi,
+            42
+        );
+
+        if (startError || !jobResult) {
+            setEvaluationReportLoading(false);
+            setEvaluationReportError(startError || 'Failed to start evaluation job');
+            return;
+        }
+
+        const jobMeta: StoredEvaluationJob = {
+            jobId: jobResult.job_id,
+            metrics: payload.metrics,
+            metricConfigs: payload.metricConfigs,
+            status: jobResult.status,
+            progress: 0,
+        };
+
+        updateEvaluationJobs(prev => ({
+            ...prev,
+            [checkpointName]: jobMeta,
+        }));
+        setEvaluationReportProgress(0);
+        setEvaluationReportStatus(jobResult.status);
+        setEvaluationReportLoading(true);
+        startEvaluationPolling(checkpointName, jobResult.job_id, jobMeta);
+    };
+
+    const handleVisualizeEvaluationReport = async (checkpoint: CheckpointInfo) => {
+        setEvaluationReportCheckpoint(checkpoint);
+        setEvaluationReportResult(null);
+        setEvaluationReportError(null);
+        setEvaluationReportProgress(null);
+        setEvaluationReportStatus(null);
+        setEvaluationReportLoading(true);
+        setEvaluationReportOpen(true);
+
+        const activeJob = evaluationJobs[checkpoint.name];
+        if (activeJob && activeJob.status !== 'completed' && activeJob.status !== 'failed' && activeJob.status !== 'cancelled') {
+            setEvaluationReportResult({
+                checkpoint: checkpoint.name,
+                metrics: activeJob.metrics,
+                metric_configs: Object.fromEntries(
+                    Object.entries(activeJob.metricConfigs).map(([key, value]) => [
+                        key,
+                        { data_fraction: value.dataFraction },
+                    ])
+                ),
+            });
+            setEvaluationReportProgress(activeJob.progress ?? 0);
+            setEvaluationReportStatus(activeJob.status ?? 'running');
+            setEvaluationReportLoading(activeJob.status === 'running' || activeJob.status === 'pending');
+            startEvaluationPolling(checkpoint.name, activeJob.jobId, activeJob);
+            return;
+        }
+
+        const { result, error } = await getCheckpointEvaluationReport(checkpoint.name);
+        if (error || !result) {
+            setEvaluationReportLoading(false);
+            setEvaluationReportError(error || 'Failed to load evaluation report');
+            return;
+        }
+
+        setEvaluationReportResult(result);
+        setEvaluationReportProgress(100);
+        setEvaluationReportStatus('completed');
+        setEvaluationReportLoading(false);
     };
 
     const handleStopTraining = async () => {
@@ -580,6 +883,14 @@ export default function TrainingPage() {
                                             </button>
                                             <button
                                                 type="button"
+                                                className="icon-button"
+                                                title="View evaluation report"
+                                                onClick={() => handleVisualizeEvaluationReport(checkpoint)}
+                                            >
+                                                <BarChart2 size={15} />
+                                            </button>
+                                            <button
+                                                type="button"
                                                 className="icon-button danger"
                                                 title="Delete checkpoint"
                                                 onClick={() => handleDeleteCheckpoint(checkpoint)}
@@ -629,7 +940,8 @@ export default function TrainingPage() {
                                     type="button"
                                     onClick={() => {
                                         if (state.selectedCheckpoint && selectedCheckpointInfo) {
-                                            setEvalCheckpoint(selectedCheckpointInfo);
+                                            setEvaluationCheckpoint(selectedCheckpointInfo);
+                                            setEvaluationWizardOpen(true);
                                         }
                                     }}
                                     disabled={!state.selectedCheckpoint}
@@ -675,14 +987,29 @@ export default function TrainingPage() {
 
             <MetadataModal state={metadataModal} onClose={() => setMetadataModal(null)} />
 
-            {/* Evaluation Wizard */}
-            {evalCheckpoint && (
-                <EvaluationWizard
-                    isOpen={!!evalCheckpoint}
-                    onClose={() => setEvalCheckpoint(null)}
-                    checkpointName={evalCheckpoint.name}
-                />
-            )}
+            <EvaluationWizard
+                isOpen={evaluationWizardOpen}
+                onClose={() => {
+                    setEvaluationWizardOpen(false);
+                    setEvaluationCheckpoint(null);
+                }}
+                checkpointName={evaluationCheckpoint?.name ?? ''}
+                onConfirm={handleEvaluationConfirm}
+            />
+
+            <CheckpointEvaluationReportModal
+                isOpen={evaluationReportOpen}
+                checkpointName={evaluationReportCheckpoint?.name ?? null}
+                isLoading={evaluationReportLoading}
+                report={evaluationReportResult}
+                error={evaluationReportError}
+                progress={evaluationReportProgress}
+                status={evaluationReportStatus}
+                onClose={() => {
+                    setEvaluationReportOpen(false);
+                    setEvaluationReportCheckpoint(null);
+                }}
+            />
         </div>
     );
 }

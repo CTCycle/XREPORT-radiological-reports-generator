@@ -24,11 +24,13 @@ from XREPORT.server.utils.constants import (
     IMAGE_STATISTICS_TABLE,
     CHECKPOINTS_SUMMARY_TABLE,
     VALIDATION_REPORTS_TABLE,
+    CHECKPOINT_EVALUATION_REPORTS_TABLE,
     TABLE_REQUIRED_COLUMNS,
     TABLE_MERGE_KEYS,
 )
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.repositories.database import database
+from XREPORT.server.repositories.schema import Base
 from XREPORT.server.repositories.sqlite import SQLiteRepository
 from XREPORT.server.learning.training.metrics import (
     MaskedSparseCategoricalCrossentropy,
@@ -555,6 +557,79 @@ class DataSerializer:
             if reports.empty or "dataset_name" not in reports.columns:
                 return False
             return bool((reports["dataset_name"] == dataset_name).any())
+
+    # -------------------------------------------------------------------------
+    def save_checkpoint_evaluation_report(self, report: dict[str, Any]) -> None:
+        checkpoint = str(report.get("checkpoint") or "").strip()
+        if not checkpoint:
+            raise ValueError("Checkpoint evaluation report requires a checkpoint name")
+
+        with database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
+                Base.metadata.create_all(database.backend.engine)
+
+        should_serialize_json = isinstance(database.backend, SQLiteRepository)
+        metrics = report.get("metrics") or []
+        metric_configs = report.get("metric_configs")
+        results = report.get("results")
+
+        if should_serialize_json:
+            if isinstance(metrics, (list, dict)):
+                metrics = json.dumps(metrics)
+            if isinstance(metric_configs, (list, dict)):
+                metric_configs = json.dumps(metric_configs)
+            if isinstance(results, (list, dict)):
+                results = json.dumps(results)
+
+        record = {
+            "checkpoint": checkpoint,
+            "date": report.get("date"),
+            "metrics": metrics,
+            "metric_configs": metric_configs,
+            "results": results,
+        }
+        report_df = pd.DataFrame([record])
+        self.upsert_table(report_df, CHECKPOINT_EVALUATION_REPORTS_TABLE)
+
+    # -------------------------------------------------------------------------
+    def get_checkpoint_evaluation_report(
+        self, checkpoint: str
+    ) -> dict[str, Any] | None:
+        with database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
+                return None
+            reports = pd.read_sql_table(CHECKPOINT_EVALUATION_REPORTS_TABLE, conn)
+            if reports.empty:
+                return None
+        filtered = reports[reports["checkpoint"] == checkpoint]
+        if filtered.empty:
+            return None
+        row = filtered.iloc[-1]
+
+        metrics = DataSerializer._parse_json(row.get("metrics"), default=[])
+        metric_configs = DataSerializer._parse_json(row.get("metric_configs"), default={})
+        results = DataSerializer._parse_json(row.get("results"), default={})
+
+        return {
+            "checkpoint": checkpoint,
+            "date": row.get("date") if "date" in row else None,
+            "metrics": metrics if isinstance(metrics, list) else [],
+            "metric_configs": metric_configs if isinstance(metric_configs, dict) else {},
+            "results": results if isinstance(results, dict) else {},
+        }
+
+    # -------------------------------------------------------------------------
+    def checkpoint_evaluation_report_exists(self, checkpoint: str) -> bool:
+        with database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
+                return False
+            reports = pd.read_sql_table(CHECKPOINT_EVALUATION_REPORTS_TABLE, conn)
+            if reports.empty or "checkpoint" not in reports.columns:
+                return False
+            return bool((reports["checkpoint"] == checkpoint).any())
 
 
 ###############################################################################
