@@ -40,6 +40,37 @@ from XREPORT.server.learning.training.worker import (
 )
 
 
+def resolve_checkpoint_path(checkpoint: str) -> str:
+    if os.path.isabs(checkpoint):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkpoint path must be relative to the checkpoints directory",
+        )
+    drive = os.path.splitdrive(checkpoint)[0]
+    if drive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkpoint path must not include a drive letter",
+        )
+    if os.path.sep in checkpoint or (os.path.altsep and os.path.altsep in checkpoint):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkpoint name must not contain path separators",
+        )
+
+    base_path = os.path.realpath(CHECKPOINT_PATH)
+    target_path = os.path.realpath(os.path.join(base_path, checkpoint))
+
+    if os.path.commonpath([base_path, target_path]) != base_path:
+        logger.warning("Rejected checkpoint deletion outside base path: %s", target_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Checkpoint path is outside the checkpoints directory",
+        )
+
+    return target_path
+
+
 ###############################################################################
 class TrainingState:
     """Encapsulates all training session state."""
@@ -357,7 +388,7 @@ class TrainingEndpoint:
                 detail="Cannot delete checkpoints while training is active",
             )
 
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        checkpoint_path = resolve_checkpoint_path(checkpoint)
         if not os.path.isdir(checkpoint_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

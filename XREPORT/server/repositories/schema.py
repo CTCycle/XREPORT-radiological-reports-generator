@@ -18,9 +18,9 @@ Base = declarative_base()
 class RadiographyData(Base):
     """Raw radiography images and their associated text reports."""
 
-    __tablename__ = "RADIOGRAPHY_DATA"
-    dataset_name = Column(String, primary_key=True)
+    __tablename__ = "RADIOGRAPHY_DATA"    
     id = Column(Integer, primary_key=True)
+    dataset_name = Column(String, primary_key=True)
     image = Column(String)
     text = Column(String)
     path = Column(String)
@@ -32,15 +32,15 @@ class TrainingData(Base):
     """Processed training dataset with tokenized text and train/val split."""
 
     __tablename__ = "TRAINING_DATASET"
-    dataset_name = Column(String, primary_key=True)
-    hashcode = Column(String, primary_key=True)
     id = Column(Integer, primary_key=True)
+    hashcode = Column(String, primary_key=True) 
+    dataset_name = Column(String)       
     image = Column(String)
     text = Column(String)
     tokens = Column(JSONSequence)
     split = Column(String)
     path = Column(String)  
-    __table_args__ = (UniqueConstraint("dataset_name", "hashcode", "id"),)
+    __table_args__ = (UniqueConstraint("id", "hashcode"),)
 
 
 ###############################################################################
@@ -48,7 +48,8 @@ class ProcessingMetadata(Base):
     """Metadata for dataset preprocessing operations."""
 
     __tablename__ = "PROCESSING_METADATA"
-    dataset_name = Column(String, primary_key=True)
+    hashcode = Column(String, primary_key=True)
+    dataset_name = Column(String)
     date = Column(String)
     seed = Column(Integer)
     sample_size = Column(Float)
@@ -56,10 +57,9 @@ class ProcessingMetadata(Base):
     split_seed = Column(Integer)
     vocabulary_size = Column(Integer)
     max_report_size = Column(Integer)
-    tokenizer = Column(String)
-    hashcode = Column(String)
+    tokenizer = Column(String)    
     source_dataset = Column(String)
-    __table_args__ = (UniqueConstraint("dataset_name"),)
+    __table_args__ = (UniqueConstraint("hashcode"),)
 
 
 ###############################################################################
