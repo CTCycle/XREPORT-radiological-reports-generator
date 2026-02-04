@@ -1,6 +1,6 @@
 import { useRef, DragEvent, ChangeEvent, useEffect } from 'react';
 import {
-    ImagePlus, ChevronLeft, ChevronRight, Trash2, FileText,
+    ImagePlus, ChevronLeft, ChevronRight, Trash, Trash2, FileText,
     Sparkles, ArrowRight, Copy, Check, Loader2
 } from 'lucide-react';
 import './InferencePage.css';
@@ -60,15 +60,29 @@ export default function InferencePage() {
             file.type.startsWith('image/')
         );
 
-        // Enforce max 16 images
-        const limitedImages = imageFiles.slice(0, MAX_IMAGES);
+        if (imageFiles.length === 0) return;
+
+        const availableSlots = MAX_IMAGES - state.images.length;
+        if (availableSlots <= 0) return;
+
+        // Enforce max 16 images, append when possible
+        const limitedImages = imageFiles.slice(0, availableSlots);
 
         if (limitedImages.length > 0) {
-            setImages(limitedImages);
-            setCurrentIndex(0);
+            const nextImages = state.images.length > 0
+                ? [...state.images, ...limitedImages]
+                : limitedImages;
+            setImages(nextImages);
+            if (state.images.length === 0) {
+                setCurrentIndex(0);
+            }
             setGeneratedReport('');
             setReports({});
             setStreamingTokens('');
+            setCurrentStreamingIndex(-1);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
@@ -122,6 +136,43 @@ export default function InferencePage() {
         clearImages();
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
+        }
+    };
+
+    const handleRemoveCurrentImage = () => {
+        if (state.images.length === 0) return;
+
+        const removeIndex = state.currentIndex;
+        const nextImages = state.images.filter((_, idx) => idx !== removeIndex);
+        const nextReports: Record<number, string> = {};
+
+        Object.entries(state.reports).forEach(([key, value]) => {
+            const index = Number(key);
+            if (Number.isNaN(index)) return;
+            if (index < removeIndex) {
+                nextReports[index] = value;
+            } else if (index > removeIndex) {
+                nextReports[index - 1] = value;
+            }
+        });
+
+        setImages(nextImages);
+        setReports(nextReports);
+        setStreamingTokens('');
+        setCurrentStreamingIndex(-1);
+
+        if (nextImages.length === 0) {
+            setCurrentIndex(0);
+            setGeneratedReport('');
+            return;
+        }
+
+        const nextIndex = Math.min(removeIndex, nextImages.length - 1);
+        setCurrentIndex(nextIndex);
+        if (nextReports[nextIndex]) {
+            setGeneratedReport(nextReports[nextIndex]);
+        } else {
+            setGeneratedReport('');
         }
     };
 
@@ -311,8 +362,17 @@ export default function InferencePage() {
                                     </button>
                                     <button
                                         className="btn-icon"
+                                        onClick={handleRemoveCurrentImage}
+                                        title="Remove current image"
+                                        disabled={state.images.length === 0 || state.isGenerating}
+                                    >
+                                        <Trash />
+                                    </button>
+                                    <button
+                                        className="btn-icon"
                                         onClick={handleClearImages}
                                         title="Clear all images"
+                                        disabled={state.images.length === 0 || state.isGenerating}
                                     >
                                         <Trash2 />
                                     </button>
