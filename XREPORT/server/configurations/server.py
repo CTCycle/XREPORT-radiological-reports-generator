@@ -19,14 +19,6 @@ from XREPORT.server.utils.types import (
 # [SERVER SETTINGS]
 ###############################################################################
 @dataclass(frozen=True)
-class FastAPISettings:
-    title: str
-    description: str
-    version: str
-
-
-# -----------------------------------------------------------------------------
-@dataclass(frozen=True)
 class DatabaseSettings:
     embedded_database: bool
     engine: str | None
@@ -64,7 +56,6 @@ class TrainingSettings:
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ServerSettings:
-    fastapi: FastAPISettings
     database: DatabaseSettings
     global_settings: GlobalSettings
     training: TrainingSettings
@@ -72,16 +63,6 @@ class ServerSettings:
 
 # [BUILDER FUNCTIONS]
 ###############################################################################
-def build_fastapi_settings(data: dict[str, Any]) -> FastAPISettings:
-    payload = ensure_mapping(data)
-    return FastAPISettings(
-        title=coerce_str(payload.get("title"), "XREPORT Backend"),
-        version=coerce_str(payload.get("version"), "0.1.0"),
-        description=coerce_str(payload.get("description"), "FastAPI backend"),
-    )
-
-
-# -----------------------------------------------------------------------------
 def build_global_settings(data: dict[str, Any]) -> GlobalSettings:
     payload = ensure_mapping(data)
     return GlobalSettings(
@@ -156,13 +137,11 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
 # -----------------------------------------------------------------------------
 def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
-    fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
     global_payload = ensure_mapping(payload.get("global"))
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
-        fastapi=build_fastapi_settings(fastapi_payload),
         database=build_database_settings(database_payload),
         global_settings=build_global_settings(global_payload),
         training=build_training_settings(training_payload),

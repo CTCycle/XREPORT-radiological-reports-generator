@@ -22,6 +22,12 @@ DATABASE_FILENAME = "sqlite.db"
 ###############################################################################
 CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
 
+# [FASTAPI METADATA]
+###############################################################################
+FASTAPI_TITLE = "XREPORT Backend"
+FASTAPI_DESCRIPTION = "FastAPI backend"
+FASTAPI_VERSION = "1.0.0"
+
 # [ENDPOINS]
 ###############################################################################
 BASE_URL = "/base/tags"
