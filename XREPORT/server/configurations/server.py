@@ -42,6 +42,12 @@ class GlobalSettings:
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
+class JobsSettings:
+    polling_interval: float
+
+
+# -----------------------------------------------------------------------------
+@dataclass(frozen=True)
 class TrainingSettings:
     use_jit: bool
     jit_backend: str
@@ -50,7 +56,6 @@ class TrainingSettings:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
-    polling_interval: float
 
 
 # -----------------------------------------------------------------------------
@@ -58,6 +63,7 @@ class TrainingSettings:
 class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
+    jobs: JobsSettings
     training: TrainingSettings
 
 
@@ -67,6 +73,14 @@ def build_global_settings(data: dict[str, Any]) -> GlobalSettings:
     payload = ensure_mapping(data)
     return GlobalSettings(
         seed=coerce_int(payload.get("seed"), 42),
+    )
+
+
+# -----------------------------------------------------------------------------
+def build_jobs_settings(data: dict[str, Any]) -> JobsSettings:
+    payload = ensure_mapping(data)
+    return JobsSettings(
+        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 
@@ -130,7 +144,6 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
         prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
         pin_memory=coerce_bool(payload.get("pin_memory"), False),
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
-        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 
@@ -139,11 +152,13 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
     database_payload = ensure_mapping(payload.get("database"))
     global_payload = ensure_mapping(payload.get("global"))
+    jobs_payload = ensure_mapping(payload.get("jobs"))
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
         database=build_database_settings(database_payload),
         global_settings=build_global_settings(global_payload),
+        jobs=build_jobs_settings(jobs_payload),
         training=build_training_settings(training_payload),
     )
 
