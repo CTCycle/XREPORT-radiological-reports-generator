@@ -14,7 +14,7 @@ echo.
 
 REM Store the script directory
 set "SCRIPT_DIR=%~dp0"
-set "PROJECT_ROOT=%SCRIPT_DIR%..\\.."
+set "PROJECT_ROOT=%SCRIPT_DIR%.."
 set "XREPORT_DIR=%PROJECT_ROOT%\\XREPORT"
 set "PYTHON_EXE=%PROJECT_ROOT%\\XREPORT\\resources\\runtimes\\python\\python.exe"
 set "VENV_PYTHON=%PROJECT_ROOT%\\.venv\\Scripts\\python.exe"
@@ -189,7 +189,7 @@ echo ============================================================
 echo.
 
 cd /d "%PROJECT_ROOT%"
-"%PYTHON_CMD%" -m pytest "%XREPORT_DIR%\\tests" -v --tb=short %*
+"%PYTHON_CMD%" -m pytest "%PROJECT_ROOT%\\tests" -v --tb=short %*
 set "TEST_RESULT=%ERRORLEVEL%"
 
 echo.
