@@ -12,6 +12,7 @@ import time
 
 import pandas as pd
 
+from XREPORT.server.configurations.server import server_settings
 from XREPORT.server.utils.logger import logger
 from XREPORT.server.learning.callbacks import (
     TrainingInterruptCallback,
@@ -301,6 +302,8 @@ def run_training_process(
                 "sets contain data."
             )
 
+        configuration["polling_interval"] = server_settings.jobs.polling_interval
+
         if stop_event.is_set():
             result_queue.put({"result": {}})
             return
@@ -385,6 +388,7 @@ def run_resume_training_process(
             modser.load_checkpoint(checkpoint)
         )
         train_config["additional_epochs"] = additional_epochs
+        train_config["polling_interval"] = server_settings.jobs.polling_interval
 
         validate_paths = bool(train_config.get("validate_paths_on_train", False))
         train_data, validation_data = load_resume_training_data(

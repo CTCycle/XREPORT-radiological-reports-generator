@@ -15,8 +15,6 @@ MODELS_PATH = join(RESOURCES_PATH, "models")
 ENCODERS_PATH = join(MODELS_PATH, "XRAYEncoder")
 TOKENIZERS_PATH = join(MODELS_PATH, "tokenizers")
 CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")
-
-
 DATABASE_FILENAME = "sqlite.db"
 
 ###############################################################################
