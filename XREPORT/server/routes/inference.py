@@ -25,6 +25,7 @@ from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serializer import ModelSerializer
+from XREPORT.server.configurations.server import server_settings
 
 
 MAX_INFERENCE_IMAGES = 16
@@ -366,6 +367,7 @@ class InferenceEndpoint:
                 job_type=job_status["job_type"],
                 status=job_status["status"],
                 message=f"Inference job started for {len(stored_images)} images",
+                poll_interval=server_settings.jobs.polling_interval,
             )
 
         except HTTPException:

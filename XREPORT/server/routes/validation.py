@@ -428,6 +428,7 @@ class ValidationEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Validation job started",
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -489,6 +490,7 @@ class ValidationEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Checkpoint evaluation job started for {request.checkpoint}",
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
