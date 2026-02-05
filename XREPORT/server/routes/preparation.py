@@ -695,6 +695,7 @@ class PreparationEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
