@@ -8,7 +8,7 @@ from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
 from torch.utils.data import DataLoader
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
 
 
