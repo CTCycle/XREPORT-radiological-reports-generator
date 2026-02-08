@@ -21,9 +21,7 @@ class TestCheckpointEvaluationReports:
             return
 
         checkpoint_name = checkpoints[0]["name"]
-        response = api_context.get(
-            f"/validation/checkpoint/reports/{checkpoint_name}"
-        )
+        response = api_context.get(f"/validation/checkpoint/reports/{checkpoint_name}")
 
         assert response.status in [200, 404]
 

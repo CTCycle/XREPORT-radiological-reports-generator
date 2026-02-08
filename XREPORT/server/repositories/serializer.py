@@ -13,7 +13,6 @@ import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
 from XREPORT.server.common.constants import (
-    RESOURCES_PATH,
     CHECKPOINT_PATH,
     VALID_IMAGE_EXTENSIONS,
     RADIOGRAPHY_TABLE,
@@ -248,7 +247,9 @@ class DataSerializer:
 
         meta_current.pop("id", None)
         meta_target.pop("id", None)
-        keys_to_compare = [k for k in set(meta_current) | set(meta_target) if k != "date"]
+        keys_to_compare = [
+            k for k in set(meta_current) | set(meta_target) if k != "date"
+        ]
         differences = {
             k: (meta_current[k], meta_target[k])
             for k in keys_to_compare
@@ -632,14 +633,18 @@ class DataSerializer:
         row = filtered.iloc[-1]
 
         metrics = DataSerializer._parse_json(row.get("metrics"), default=[])
-        metric_configs = DataSerializer._parse_json(row.get("metric_configs"), default={})
+        metric_configs = DataSerializer._parse_json(
+            row.get("metric_configs"), default={}
+        )
         results = DataSerializer._parse_json(row.get("results"), default={})
 
         return {
             "checkpoint": checkpoint,
             "date": row.get("date") if "date" in row else None,
             "metrics": metrics if isinstance(metrics, list) else [],
-            "metric_configs": metric_configs if isinstance(metric_configs, dict) else {},
+            "metric_configs": metric_configs
+            if isinstance(metric_configs, dict)
+            else {},
             "results": results if isinstance(results, dict) else {},
         }
 

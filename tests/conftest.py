@@ -6,7 +6,6 @@ Provides fixtures for Playwright page objects and API client.
 import os
 
 import pytest
-from playwright.sync_api import Page
 
 # Base URLs - configured via environment variables when running tests
 UI_HOST = os.environ.get("UI_HOST", "127.0.0.1")
