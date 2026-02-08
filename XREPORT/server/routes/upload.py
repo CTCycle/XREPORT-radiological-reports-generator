@@ -8,7 +8,7 @@ import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from XREPORT.server.schemas.training import DatasetUploadResponse
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 
 
 ###############################################################################

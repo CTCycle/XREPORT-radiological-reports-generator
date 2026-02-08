@@ -6,7 +6,7 @@ from typing import Any
 from keras import Model
 from keras.utils import set_random_seed
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.device import DeviceConfig, DeviceDataLoader
 from XREPORT.server.learning.callbacks import (
     TrainingInterruptCallback,

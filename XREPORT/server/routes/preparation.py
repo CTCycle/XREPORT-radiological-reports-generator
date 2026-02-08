@@ -31,13 +31,13 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.repositories.serializer import DataSerializer
-from XREPORT.server.utils.constants import (
+from XREPORT.server.common.constants import (
     RADIOGRAPHY_TABLE,
     TRAINING_DATASET_TABLE,
     VALIDATION_REPORTS_TABLE,
