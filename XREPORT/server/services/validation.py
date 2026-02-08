@@ -13,7 +13,7 @@ from XREPORT.server.schemas.validation import (
     PixelDistribution,
     TextStatistics,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 
 
 ###############################################################################

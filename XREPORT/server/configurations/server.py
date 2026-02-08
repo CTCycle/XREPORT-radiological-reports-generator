@@ -5,9 +5,9 @@ from typing import Any
 
 from XREPORT.server.configurations.base import ensure_mapping, load_configuration_data
 
-from XREPORT.server.utils.constants import CONFIGURATION_FILE
+from XREPORT.server.common.constants import CONFIGURATION_FILE
 
-from XREPORT.server.utils.types import (
+from XREPORT.server.common.utils.types import (
     coerce_bool,
     coerce_float,
     coerce_int,

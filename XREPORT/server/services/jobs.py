@@ -9,7 +9,7 @@ from typing import Any
 
 from collections.abc import Callable
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 
 ###############################################################################
 @dataclass
