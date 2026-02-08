@@ -8,14 +8,13 @@ ROOT_DIR = abspath(join(__file__, "../../../.."))
 PROJECT_DIR = join(ROOT_DIR, "XREPORT")
 SETTING_PATH = join(PROJECT_DIR, "settings")
 RESOURCES_PATH = join(PROJECT_DIR, "resources")
-DATA_PATH = join(RESOURCES_PATH, "database")
 LOGS_PATH = join(RESOURCES_PATH, "logs")
 ENV_FILE_PATH = join(SETTING_PATH, ".env")
 MODELS_PATH = join(RESOURCES_PATH, "models")
 ENCODERS_PATH = join(MODELS_PATH, "XRAYEncoder")
 TOKENIZERS_PATH = join(MODELS_PATH, "tokenizers")
 CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")
-DATABASE_FILENAME = "sqlite.db"
+DATABASE_FILENAME = "database.db"
 
 ###############################################################################
 CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
@@ -38,31 +37,29 @@ VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
 # [DATABASE TABLES]
 ###############################################################################
-RADIOGRAPHY_TABLE = "RADIOGRAPHY_DATA"
-TRAINING_DATASET_TABLE = "TRAINING_DATASET"
-PROCESSING_METADATA_TABLE = "PROCESSING_METADATA"
-GENERATED_REPORTS_TABLE = "GENERATED_REPORTS"
-TEXT_STATISTICS_TABLE = "TEXT_STATISTICS"
-IMAGE_STATISTICS_TABLE = "IMAGE_STATISTICS"
-CHECKPOINTS_SUMMARY_TABLE = "CHECKPOINTS_SUMMARY"
-VALIDATION_REPORTS_TABLE = "VALIDATION_REPORTS"
-CHECKPOINT_EVALUATION_REPORTS_TABLE = "CHECKPOINT_EVALUATION_REPORTS"
+RADIOGRAPHY_TABLE = "radiography_data"
+TRAINING_DATASET_TABLE = "training_dataset"
+PROCESSING_METADATA_TABLE = "processing_metadata"
+GENERATED_REPORTS_TABLE = "generated_reports"
+TEXT_STATISTICS_TABLE = "text_statistics"
+IMAGE_STATISTICS_TABLE = "image_statistics"
+VALIDATION_REPORTS_TABLE = "validation_reports"
+CHECKPOINT_EVALUATION_REPORTS_TABLE = "checkpoint_evaluation_reports"
 
 TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
-    RADIOGRAPHY_TABLE: ["dataset_name", "id", "image", "text", "path"],
+    RADIOGRAPHY_TABLE: ["name", "image", "text", "path"],
     TRAINING_DATASET_TABLE: [
-        "dataset_name",
+        "name",
         "hashcode",
-        "id",
         "image",
         "tokens",
         "split",
         "path",
     ],
     PROCESSING_METADATA_TABLE: [
-        "dataset_name",
+        "name",
         "hashcode",
-        "id",
+        "source_dataset",
         "date",
         "seed",
         "sample_size",
@@ -72,7 +69,7 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "tokenizer",
     ],
     GENERATED_REPORTS_TABLE: ["image", "report", "checkpoint"],
-    TEXT_STATISTICS_TABLE: ["dataset_name", "name", "words_count"],
+    TEXT_STATISTICS_TABLE: ["name", "words_count"],
     IMAGE_STATISTICS_TABLE: [
         "dataset_name",
         "name",
@@ -87,9 +84,8 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "noise_std",
         "noise_ratio",
     ],
-    CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
     VALIDATION_REPORTS_TABLE: [
-        "dataset_name",
+        "name",
         "date",
         "sample_size",
         "metrics",
@@ -108,13 +104,12 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
 }
 
 TABLE_MERGE_KEYS: dict[str, list[str]] = {
-    RADIOGRAPHY_TABLE: ["dataset_name", "id"],
-    TRAINING_DATASET_TABLE: ["hashcode", "id"],
-    PROCESSING_METADATA_TABLE: ["hashcode", "id"],
+    RADIOGRAPHY_TABLE: ["name", "image"],
+    TRAINING_DATASET_TABLE: ["name", "hashcode", "image", "split"],
+    PROCESSING_METADATA_TABLE: ["hashcode"],
     GENERATED_REPORTS_TABLE: ["image", "checkpoint"],
-    TEXT_STATISTICS_TABLE: ["dataset_name", "name"],
+    TEXT_STATISTICS_TABLE: ["name"],
     IMAGE_STATISTICS_TABLE: ["dataset_name", "name"],
-    CHECKPOINTS_SUMMARY_TABLE: ["checkpoint"],
-    VALIDATION_REPORTS_TABLE: ["dataset_name"],
+    VALIDATION_REPORTS_TABLE: ["name"],
     CHECKPOINT_EVALUATION_REPORTS_TABLE: ["checkpoint"],
 }
