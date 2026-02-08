@@ -11,7 +11,7 @@ import keras
 import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import job_manager
 
 

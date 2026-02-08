@@ -3,12 +3,12 @@ from __future__ import annotations
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from XREPORT.server.utils.variables import env_variables  # noqa: F401
+from XREPORT.server.common.utils.variables import env_variables  # noqa: F401
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-from XREPORT.server.utils.constants import (
+from XREPORT.server.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,

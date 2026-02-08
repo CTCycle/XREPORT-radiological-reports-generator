@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from XREPORT.server.utils.constants import LOGS_PATH
+from XREPORT.server.common.constants import LOGS_PATH
 
 # Generate timestamp for the log filename
 ###############################################################################

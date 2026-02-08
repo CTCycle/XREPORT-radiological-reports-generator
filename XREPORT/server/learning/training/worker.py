@@ -13,7 +13,7 @@ import time
 import pandas as pd
 
 from XREPORT.server.configurations.server import server_settings
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.callbacks import (
     TrainingInterruptCallback,
     WorkerInterrupted,

@@ -19,8 +19,8 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.constants import CHECKPOINT_PATH
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.constants import CHECKPOINT_PATH
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.jobs import JobManager, job_manager

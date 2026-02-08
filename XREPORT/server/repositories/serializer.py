@@ -12,7 +12,7 @@ import hashlib
 import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
-from XREPORT.server.utils.constants import (
+from XREPORT.server.common.constants import (
     RESOURCES_PATH,
     CHECKPOINT_PATH,
     VALID_IMAGE_EXTENSIONS,
@@ -27,7 +27,7 @@ from XREPORT.server.utils.constants import (
     TABLE_REQUIRED_COLUMNS,
     TABLE_MERGE_KEYS,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.repositories.database import database
 from XREPORT.server.repositories.schema import Base
 from XREPORT.server.repositories.sqlite import SQLiteRepository

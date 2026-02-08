@@ -15,7 +15,7 @@ from XREPORT.server.schemas.browser import (
     TableListResponse,
 )
 from XREPORT.server.configurations.server import ServerSettings, server_settings
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.repositories.serializer import DataSerializer
 
 

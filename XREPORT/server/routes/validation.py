@@ -19,7 +19,7 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.services.validation import DatasetValidator
 from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
