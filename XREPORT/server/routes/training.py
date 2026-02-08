@@ -6,7 +6,6 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-import sqlalchemy
 
 from XREPORT.server.schemas.training import (
     CheckpointInfo,
@@ -30,9 +29,6 @@ from XREPORT.server.repositories.serializer import (
     CHECKPOINT_PATH,
 )
 from XREPORT.server.configurations.server import server_settings
-from XREPORT.server.repositories.database import database
-from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
-from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
 from XREPORT.server.learning.training.worker import (
     ProcessWorker,
     run_resume_training_process,
@@ -402,16 +398,6 @@ class TrainingEndpoint:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete checkpoint: {exc}",
             ) from exc
-
-        with database.backend.engine.begin() as conn:
-            inspector = sqlalchemy.inspect(conn)
-            if inspector.has_table(CHECKPOINTS_SUMMARY_TABLE):
-                conn.execute(
-                    sqlalchemy.text(
-                        'DELETE FROM "CHECKPOINTS_SUMMARY" WHERE checkpoint = :checkpoint'
-                    ),
-                    {"checkpoint": checkpoint},
-                )
 
         return DeleteResponse(
             success=True,
