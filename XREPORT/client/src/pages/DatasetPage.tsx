@@ -34,6 +34,7 @@ type StoredValidationJob = {
     jobId: string;
     metrics: ValidationMetric[];
     sampleSize: number;
+    pollIntervalMs?: number;
     status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     progress?: number;
 };
@@ -144,6 +145,7 @@ export default function DatasetPage() {
             return;
         }
 
+        const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
         const poller = pollValidationJobStatus(
             jobId,
             (status) => {
@@ -212,7 +214,7 @@ export default function DatasetPage() {
                     setReportError(error);
                 }
             },
-            2000
+            pollIntervalMs
         );
 
         validationPollers.current[jobId] = poller;
@@ -299,7 +301,7 @@ export default function DatasetPage() {
         }
 
         // Poll for job completion
-        const pollInterval = 2000;
+        const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
         const poll = async () => {
             const { result: status, error: pollError } = await getPreparationJobStatus(jobResult.job_id);
 
@@ -437,6 +439,7 @@ export default function DatasetPage() {
             jobId: jobResult.job_id,
             metrics: config.metrics,
             sampleSize: config.sampleFraction,
+            pollIntervalMs: (jobResult.poll_interval ?? 2) * 1000,
             status: jobResult.status,
             progress: 0,
         };

@@ -217,7 +217,7 @@ export default function InferencePage() {
         }
 
         // Poll for job completion
-        const pollInterval = 2000;
+        const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
         const poll = async () => {
             const { result: status, error: pollError } = await getInferenceJobStatus(jobResult.job_id);
 

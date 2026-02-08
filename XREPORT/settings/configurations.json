@@ -1,11 +1,6 @@
 {
-  "fastapi": {
-    "title": "XREPORT Backend",
-    "description": "FastAPI backend",
-    "version": "0.1.0"
-  },
   "database": {
-    "embedded_database": true,
+    "embedded_database": false,
     "engine": "postgres",
     "host": "localhost",
     "port": 5432,
@@ -21,6 +16,9 @@
   "global": {
     "seed": 42
   },
+  "jobs": {
+    "polling_interval": 1
+  },
   "training": {
     "use_jit": false,
     "jit_backend": "inductor",
@@ -28,7 +26,6 @@
     "dataloader_workers": 0,
     "prefetch_factor": 1,
     "pin_memory": true,
-    "persistent_workers": false,
-    "polling_interval": 1
+    "persistent_workers": false
   }
 }

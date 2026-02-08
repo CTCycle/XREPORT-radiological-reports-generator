@@ -19,7 +19,7 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.services.validation import DatasetValidator
 from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
@@ -91,7 +91,9 @@ def run_validation_job(
 
     # Ensure dataset_name is set for downstream persistence
     if not dataset_name:
-        if "dataset_name" in dataset.columns and not dataset.empty:
+        if "name" in dataset.columns and not dataset.empty:
+            dataset_name = dataset["name"].iloc[0]
+        elif "dataset_name" in dataset.columns and not dataset.empty:
             dataset_name = dataset["dataset_name"].iloc[0]
         else:
             dataset_name = "default"
@@ -428,6 +430,7 @@ class ValidationEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Validation job started",
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -489,6 +492,7 @@ class ValidationEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Checkpoint evaluation job started for {request.checkpoint}",
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------

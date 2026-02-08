@@ -5,9 +5,9 @@ from typing import Any
 
 from XREPORT.server.configurations.base import ensure_mapping, load_configuration_data
 
-from XREPORT.server.utils.constants import CONFIGURATION_FILE
+from XREPORT.server.common.constants import CONFIGURATION_FILE
 
-from XREPORT.server.utils.types import (
+from XREPORT.server.common.utils.types import (
     coerce_bool,
     coerce_float,
     coerce_int,
@@ -18,14 +18,6 @@ from XREPORT.server.utils.types import (
 
 # [SERVER SETTINGS]
 ###############################################################################
-@dataclass(frozen=True)
-class FastAPISettings:
-    title: str
-    description: str
-    version: str
-
-
-# -----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class DatabaseSettings:
     embedded_database: bool
@@ -50,6 +42,12 @@ class GlobalSettings:
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
+class JobsSettings:
+    polling_interval: float
+
+
+# -----------------------------------------------------------------------------
+@dataclass(frozen=True)
 class TrainingSettings:
     use_jit: bool
     jit_backend: str
@@ -58,34 +56,31 @@ class TrainingSettings:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
-    polling_interval: float
 
 
 # -----------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ServerSettings:
-    fastapi: FastAPISettings
     database: DatabaseSettings
     global_settings: GlobalSettings
+    jobs: JobsSettings
     training: TrainingSettings
 
 
 # [BUILDER FUNCTIONS]
 ###############################################################################
-def build_fastapi_settings(data: dict[str, Any]) -> FastAPISettings:
-    payload = ensure_mapping(data)
-    return FastAPISettings(
-        title=coerce_str(payload.get("title"), "XREPORT Backend"),
-        version=coerce_str(payload.get("version"), "0.1.0"),
-        description=coerce_str(payload.get("description"), "FastAPI backend"),
-    )
-
-
-# -----------------------------------------------------------------------------
 def build_global_settings(data: dict[str, Any]) -> GlobalSettings:
     payload = ensure_mapping(data)
     return GlobalSettings(
         seed=coerce_int(payload.get("seed"), 42),
+    )
+
+
+# -----------------------------------------------------------------------------
+def build_jobs_settings(data: dict[str, Any]) -> JobsSettings:
+    payload = ensure_mapping(data)
+    return JobsSettings(
+        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 
@@ -149,22 +144,21 @@ def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
         prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
         pin_memory=coerce_bool(payload.get("pin_memory"), False),
         persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
-        polling_interval=coerce_float(payload.get("polling_interval"), 1.0),
     )
 
 
 # -----------------------------------------------------------------------------
 def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
-    fastapi_payload = ensure_mapping(payload.get("fastapi"))
     database_payload = ensure_mapping(payload.get("database"))
     global_payload = ensure_mapping(payload.get("global"))
+    jobs_payload = ensure_mapping(payload.get("jobs"))
     training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
-        fastapi=build_fastapi_settings(fastapi_payload),
         database=build_database_settings(database_payload),
         global_settings=build_global_settings(global_payload),
+        jobs=build_jobs_settings(jobs_payload),
         training=build_training_settings(training_payload),
     )
 

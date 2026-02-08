@@ -7,7 +7,7 @@ import pandas as pd
 from sqlalchemy.orm import declarative_base
 
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.repositories.postgres import PostgresRepository
 from XREPORT.server.repositories.sqlite import SQLiteRepository
 

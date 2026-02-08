@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -51,6 +51,9 @@ class XRAYDataset(Dataset):
 
         if not self.training:
             return image  # type: ignore
+
+        if self.tokens is None:
+            raise RuntimeError("Tokens not initialized during training")
 
         token_array = np.asarray(self.tokens[index], dtype=np.int64)
         input_text = torch.from_numpy(token_array[:-1])
@@ -114,7 +117,7 @@ class XRAYDataLoader:
 
         with Image.open(image_path) as img:
             image = img.convert("RGB")
-            image_tensor = inference_transforms(image)
+            image_tensor = cast(torch.Tensor, inference_transforms(image))
 
         return image_tensor.detach().cpu().numpy()
 
@@ -124,7 +127,7 @@ class XRAYDataLoader:
 
         with Image.open(io.BytesIO(image_bytes)) as img:
             image = img.convert("RGB")
-            image_tensor = inference_transforms(image)
+            image_tensor = cast(torch.Tensor, inference_transforms(image))
 
         return image_tensor.detach().cpu().numpy()
 

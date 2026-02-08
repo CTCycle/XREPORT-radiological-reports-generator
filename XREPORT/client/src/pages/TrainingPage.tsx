@@ -53,6 +53,7 @@ type StoredEvaluationJob = {
     jobId: string;
     metrics: string[];
     metricConfigs: Record<string, { dataFraction: number }>;
+    pollIntervalMs?: number;
     status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     progress?: number;
 };
@@ -168,6 +169,7 @@ export default function TrainingPage() {
             return;
         }
 
+        const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
         const poller = pollCheckpointEvaluationJobStatus(
             jobId,
             (status) => {
@@ -248,7 +250,7 @@ export default function TrainingPage() {
                     setEvaluationReportError(error);
                 }
             },
-            2000
+            pollIntervalMs
         );
 
         evaluationPollers.current[jobId] = poller;
@@ -568,6 +570,7 @@ export default function TrainingPage() {
             jobId: jobResult.job_id,
             metrics: payload.metrics,
             metricConfigs: payload.metricConfigs,
+            pollIntervalMs: (jobResult.poll_interval ?? 2) * 1000,
             status: jobResult.status,
             progress: 0,
         };

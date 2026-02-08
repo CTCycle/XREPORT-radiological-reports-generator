@@ -6,8 +6,8 @@ from typing import Any
 import pandas as pd
 from transformers import AutoTokenizer
 
-from XREPORT.server.utils.constants import RESOURCES_PATH
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.constants import RESOURCES_PATH
+from XREPORT.server.common.utils.logger import logger
 
 TOKENIZERS_PATH = os.path.join(RESOURCES_PATH, "tokenizers")
 
