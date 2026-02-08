@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 from XREPORT.server.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class JobState:

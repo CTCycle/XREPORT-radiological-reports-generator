@@ -4,12 +4,10 @@ import numpy as np
 import pandas as pd
 import cv2
 import torch
-from torch.utils.data import DataLoader
 
 # Add project root to path
 sys.path.append(r"g:\Projects\Repository\XREPORT Radiological Reports")
 
-from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 
 
 def verify_loader():
@@ -43,8 +41,6 @@ def verify_loader():
 
     # Let's mock the imported module before importing dataloader? Too late, already imported.
     # We can patch the class in the module.
-    from XREPORT.server.learning.validation import validation_wizard
-    from XREPORT.server.services.processing import TokenizerHandler
 
     # Simple mock for TokenizerHandler
     class MockHandler:
