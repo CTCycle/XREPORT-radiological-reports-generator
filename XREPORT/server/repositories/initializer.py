@@ -10,7 +10,7 @@ from XREPORT.server.repositories.postgres import PostgresRepository
 from XREPORT.server.repositories.schema import Base
 from XREPORT.server.repositories.sqlite import SQLiteRepository
 from XREPORT.server.repositories.utils import normalize_postgres_engine
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 
 
 ###############################################################################

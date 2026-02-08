@@ -13,7 +13,7 @@ from XREPORT.server.schemas.validation import (
     PixelDistribution,
     TextStatistics,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 
 
 ###############################################################################
@@ -28,9 +28,9 @@ class DatasetValidator:
     def calculate_text_statistics(self) -> tuple[TextStatistics, pd.DataFrame]:
         """Calculate statistics for the text corpus.
 
-        Returns tuple of (aggregate stats for dashboard, per-record DataFrame for DB).
+        Returns tuple of (aggregate stats for dashboard, DB DataFrame payload).
         """
-        empty_df = pd.DataFrame(columns=["dataset_name", "name", "words_count"])
+        empty_df = pd.DataFrame(columns=["name", "words_count"])
 
         if "text" not in self.dataset.columns or self.dataset.empty:
             return TextStatistics(
@@ -42,38 +42,22 @@ class DatasetValidator:
                 max_words_per_report=0,
             ), empty_df
 
-        # Get record identifiers (use 'image' column as name if available)
-        if "image" in self.dataset.columns:
-            names = self.dataset["image"].astype(str).tolist()
-        else:
-            names = [f"record_{i}" for i in range(len(self.dataset))]
-
         texts = self.dataset["text"].astype(str).tolist()
         word_counts = []
         all_words: set[str] = set()
         total_word_count = 0
 
-        # Per-record data for database
-        records: list[dict] = []
-
-        for idx, text in enumerate(texts):
+        for text in texts:
             words = text.split()
             count = len(words)
             word_counts.append(count)
             total_word_count += count
             all_words.update(words)
 
-            # Build per-record entry
-            records.append(
-                {
-                    "dataset_name": self.dataset_name,
-                    "name": names[idx],
-                    "words_count": count,
-                }
-            )
-
         word_counts_np = np.array(word_counts)
-        per_record_df = pd.DataFrame(records)
+        per_record_df = pd.DataFrame(
+            [{"name": self.dataset_name, "words_count": total_word_count}]
+        )
 
         aggregate_stats = TextStatistics(
             count=len(texts),

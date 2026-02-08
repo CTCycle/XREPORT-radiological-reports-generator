@@ -12,7 +12,7 @@ import hashlib
 import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
-from XREPORT.server.utils.constants import (
+from XREPORT.server.common.constants import (
     RESOURCES_PATH,
     CHECKPOINT_PATH,
     VALID_IMAGE_EXTENSIONS,
@@ -22,13 +22,12 @@ from XREPORT.server.utils.constants import (
     GENERATED_REPORTS_TABLE,
     TEXT_STATISTICS_TABLE,
     IMAGE_STATISTICS_TABLE,
-    CHECKPOINTS_SUMMARY_TABLE,
     VALIDATION_REPORTS_TABLE,
     CHECKPOINT_EVALUATION_REPORTS_TABLE,
     TABLE_REQUIRED_COLUMNS,
     TABLE_MERGE_KEYS,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.repositories.database import database
 from XREPORT.server.repositories.schema import Base
 from XREPORT.server.repositories.sqlite import SQLiteRepository
@@ -65,7 +64,7 @@ class DataSerializer:
             return ""
 
         payload = {
-            "dataset_name": metadata.get("dataset_name"),
+            "name": metadata.get("name") or metadata.get("dataset_name"),
             "sample_size": metadata.get("sample_size"),
             "validation_size": metadata.get("validation_size"),
             "seed": metadata.get("seed"),
@@ -234,13 +233,26 @@ class DataSerializer:
     def validate_metadata(
         self, metadata: dict[str, Any] | Any, target_metadata: dict[str, Any] | Any
     ) -> bool:
-        keys_to_compare = [k for k in metadata if k != "date"]
-        meta_current = {k: metadata.get(k) for k in keys_to_compare}
-        meta_target = {k: target_metadata.get(k) for k in keys_to_compare}
+        meta_current = dict(metadata or {})
+        meta_target = dict(target_metadata or {})
+
+        if "name" in meta_current and "dataset_name" not in meta_current:
+            meta_current["dataset_name"] = meta_current["name"]
+        if "dataset_name" in meta_current and "name" not in meta_current:
+            meta_current["name"] = meta_current["dataset_name"]
+
+        if "name" in meta_target and "dataset_name" not in meta_target:
+            meta_target["dataset_name"] = meta_target["name"]
+        if "dataset_name" in meta_target and "name" not in meta_target:
+            meta_target["name"] = meta_target["dataset_name"]
+
+        meta_current.pop("id", None)
+        meta_target.pop("id", None)
+        keys_to_compare = [k for k in set(meta_current) | set(meta_target) if k != "date"]
         differences = {
             k: (meta_current[k], meta_target[k])
             for k in keys_to_compare
-            if meta_current[k] != meta_target[k]
+            if meta_current.get(k) != meta_target.get(k)
         }
 
         return False if differences else True
@@ -294,8 +306,11 @@ class DataSerializer:
         dataset_name: str | None = None,
     ) -> pd.DataFrame:
         dataset = self.load_table(RADIOGRAPHY_TABLE)
-        if dataset_name and "dataset_name" in dataset.columns:
-            dataset = dataset[dataset["dataset_name"] == dataset_name]
+        if dataset_name:
+            if "name" in dataset.columns:
+                dataset = dataset[dataset["name"] == dataset_name]
+            elif "dataset_name" in dataset.columns:
+                dataset = dataset[dataset["dataset_name"] == dataset_name]
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=seed)
 
@@ -315,7 +330,12 @@ class DataSerializer:
             return pd.DataFrame(), pd.DataFrame(), {}
 
         if dataset_name:
-            filtered_meta = metadata_df[metadata_df["dataset_name"] == dataset_name]
+            if "name" in metadata_df.columns:
+                filtered_meta = metadata_df[metadata_df["name"] == dataset_name]
+            elif "dataset_name" in metadata_df.columns:
+                filtered_meta = metadata_df[metadata_df["dataset_name"] == dataset_name]
+            else:
+                filtered_meta = metadata_df
             if filtered_meta.empty:
                 logger.warning(f"No metadata found for dataset: {dataset_name}")
                 if only_metadata:
@@ -325,8 +345,6 @@ class DataSerializer:
         else:
             latest_metadata = metadata_df.iloc[-1].to_dict()
 
-        latest_metadata.pop("id", None)
-
         if only_metadata:
             return latest_metadata
 
@@ -334,7 +352,11 @@ class DataSerializer:
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
-        if "dataset_name" in training_data.columns:
+        if "name" in training_data.columns:
+            target_name = dataset_name or latest_metadata.get("name")
+            if target_name:
+                training_data = training_data[training_data["name"] == target_name]
+        elif "dataset_name" in training_data.columns:
             target_name = dataset_name or latest_metadata.get("dataset_name")
             if target_name:
                 training_data = training_data[
@@ -356,17 +378,6 @@ class DataSerializer:
         return train_data, val_data, latest_metadata
 
     # -------------------------------------------------------------------------
-    def _next_processing_metadata_id(self) -> int:
-        metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
-        if metadata_df.empty or "id" not in metadata_df.columns:
-            return 1
-        max_id = metadata_df["id"].dropna().max()
-        try:
-            return int(max_id) + 1
-        except (TypeError, ValueError):
-            return 1
-
-    # -------------------------------------------------------------------------
     def save_training_data(
         self,
         configuration: dict[str, Any],
@@ -385,9 +396,8 @@ class DataSerializer:
         )
 
         db_columns = [
-            "dataset_name",
+            "name",
             "hashcode",
-            "id",
             "image",
             "tokens",
             "split",
@@ -400,7 +410,7 @@ class DataSerializer:
             training_data["path"] = None
 
         dataset_name = configuration.get("dataset_name", "default")
-        training_data["dataset_name"] = dataset_name
+        training_data["name"] = dataset_name
         training_data["hashcode"] = hashcode
 
         training_data_filtered = training_data[db_columns].copy()
@@ -425,10 +435,8 @@ class DataSerializer:
             raise
 
         # Save metadata to database table
-        metadata_id = self._next_processing_metadata_id()
         metadata = {
-            "id": metadata_id,
-            "dataset_name": configuration.get("dataset_name", "default"),
+            "name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
             "seed": configuration.get("seed", 42),
             "sample_size": configuration.get("sample_size", 1.0),
@@ -436,7 +444,7 @@ class DataSerializer:
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
-            "hashcode": hashcode,            
+            "hashcode": hashcode,
             "source_dataset": configuration.get("source_dataset", None),
         }
 
@@ -457,7 +465,7 @@ class DataSerializer:
                     with database.backend.engine.connect() as conn:
                         conn.execute(
                             sqlalchemy.text(
-                                'ALTER TABLE "PROCESSING_METADATA" ADD COLUMN source_dataset VARCHAR'
+                                f'ALTER TABLE "{PROCESSING_METADATA_TABLE}" ADD COLUMN source_dataset VARCHAR'
                             )
                         )
                         conn.commit()
@@ -493,10 +501,6 @@ class DataSerializer:
         self.upsert_table(data, IMAGE_STATISTICS_TABLE)
 
     # -------------------------------------------------------------------------
-    def save_checkpoints_summary(self, data: pd.DataFrame) -> None:
-        self.upsert_table(data, CHECKPOINTS_SUMMARY_TABLE)
-
-    # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "default")
         should_serialize_json = isinstance(database.backend, SQLiteRepository)
@@ -517,7 +521,7 @@ class DataSerializer:
             if isinstance(artifacts, (list, dict)):
                 artifacts = json.dumps(artifacts)
         record = {
-            "dataset_name": dataset_name,
+            "name": dataset_name,
             "date": report.get("date"),
             "sample_size": report.get("sample_size"),
             "metrics": metrics,
@@ -538,9 +542,13 @@ class DataSerializer:
             reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
             if reports.empty:
                 return None
-        filtered = reports[reports["dataset_name"] == dataset_name]
+        if "name" not in reports.columns:
+            return None
+        filtered = reports[reports["name"] == dataset_name]
         if filtered.empty:
             return None
+        if "id" in filtered.columns:
+            filtered = filtered.sort_values(by="id")
         row = filtered.iloc[-1]
 
         metrics = DataSerializer._parse_json(row.get("metrics"), default=[])
@@ -550,7 +558,7 @@ class DataSerializer:
         artifacts = DataSerializer._parse_json(row.get("artifacts"))
 
         return {
-            "dataset_name": dataset_name,
+            "dataset_name": row.get("name") if "name" in row else dataset_name,
             "date": row.get("date") if "date" in row else None,
             "sample_size": row.get("sample_size"),
             "metrics": metrics if isinstance(metrics, list) else [],
@@ -567,9 +575,9 @@ class DataSerializer:
             if not inspector.has_table(VALIDATION_REPORTS_TABLE):
                 return False
             reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
-            if reports.empty or "dataset_name" not in reports.columns:
+            if reports.empty or "name" not in reports.columns:
                 return False
-            return bool((reports["dataset_name"] == dataset_name).any())
+            return bool((reports["name"] == dataset_name).any())
 
     # -------------------------------------------------------------------------
     def save_checkpoint_evaluation_report(self, report: dict[str, Any]) -> None:
@@ -619,6 +627,8 @@ class DataSerializer:
         filtered = reports[reports["checkpoint"] == checkpoint]
         if filtered.empty:
             return None
+        if "id" in filtered.columns:
+            filtered = filtered.sort_values(by="id")
         row = filtered.iloc[-1]
 
         metrics = DataSerializer._parse_json(row.get("metrics"), default=[])

@@ -5,7 +5,7 @@ from typing import Any
 from keras import Model, layers, optimizers
 from torch import compile as torch_compile
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
 from XREPORT.server.learning.training.layers import (
     PositionalEmbedding,
