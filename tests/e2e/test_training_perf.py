@@ -215,12 +215,14 @@ def write_training_data(
     )
     serializer = DataSerializer()
     dataset_copy = dataset.copy()
-    dataset_copy["dataset_name"] = dataset_name
+    if "id" in dataset_copy.columns:
+        dataset_copy = dataset_copy.drop(columns=["id"])
+    dataset_copy["name"] = dataset_name
     dataset_copy["hashcode"] = hashcode
     serializer.upsert_table(dataset_copy, TRAINING_DATASET_TABLE)
 
     metadata_record = {
-        "dataset_name": dataset_name,
+        "name": dataset_name,
         "date": time.strftime("%Y-%m-%d"),
         "seed": metadata["seed"],
         "sample_size": metadata["sample_size"],
@@ -241,13 +243,13 @@ def cleanup_training_data(dataset_name: str) -> None:
     with database.backend.engine.begin() as conn:
         conn.execute(
             sqlalchemy.text(
-                'DELETE FROM "TRAINING_DATASET" WHERE dataset_name = :dataset_name'
+                f'DELETE FROM "{TRAINING_DATASET_TABLE}" WHERE name = :dataset_name'
             ),
             {"dataset_name": dataset_name},
         )
         conn.execute(
             sqlalchemy.text(
-                'DELETE FROM "PROCESSING_METADATA" WHERE dataset_name = :dataset_name'
+                f'DELETE FROM "{PROCESSING_METADATA_TABLE}" WHERE name = :dataset_name'
             ),
             {"dataset_name": dataset_name},
         )

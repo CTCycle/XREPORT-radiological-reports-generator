@@ -6,7 +6,6 @@ import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-import sqlalchemy
 
 from XREPORT.server.schemas.training import (
     CheckpointInfo,
@@ -22,7 +21,7 @@ from XREPORT.server.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serializer import (
     DataSerializer,
@@ -30,9 +29,6 @@ from XREPORT.server.repositories.serializer import (
     CHECKPOINT_PATH,
 )
 from XREPORT.server.configurations.server import server_settings
-from XREPORT.server.repositories.database import database
-from XREPORT.server.utils.constants import CHECKPOINTS_SUMMARY_TABLE
-from XREPORT.server.utils.constants import TRAINING_DATASET_TABLE
 from XREPORT.server.learning.training.worker import (
     ProcessWorker,
     run_resume_training_process,
@@ -403,16 +399,6 @@ class TrainingEndpoint:
                 detail=f"Failed to delete checkpoint: {exc}",
             ) from exc
 
-        with database.backend.engine.begin() as conn:
-            inspector = sqlalchemy.inspect(conn)
-            if inspector.has_table(CHECKPOINTS_SUMMARY_TABLE):
-                conn.execute(
-                    sqlalchemy.text(
-                        'DELETE FROM "CHECKPOINTS_SUMMARY" WHERE checkpoint = :checkpoint'
-                    ),
-                    {"checkpoint": checkpoint},
-                )
-
         return DeleteResponse(
             success=True,
             message=f"Deleted checkpoint {checkpoint}",
@@ -431,7 +417,7 @@ class TrainingEndpoint:
             val_accuracy=self.training_state.state["val_accuracy"],
             progress_percent=self.training_state.state["progress_percent"],
             elapsed_seconds=self.training_state.state["elapsed_seconds"],
-            poll_interval=server_settings.training.polling_interval,
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
@@ -461,7 +447,7 @@ class TrainingEndpoint:
         configuration["persistent_workers"] = (
             server_settings.training.persistent_workers
         )
-        configuration["polling_interval"] = server_settings.training.polling_interval
+        configuration["polling_interval"] = server_settings.jobs.polling_interval
 
         dataset_name = configuration.get("dataset_name")
         stored_metadata = serializer.load_training_data(
@@ -523,7 +509,7 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Training job started",
-            poll_interval=server_settings.training.polling_interval,
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
@@ -613,7 +599,7 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Training resumed from epoch {from_epoch}",
-            poll_interval=server_settings.training.polling_interval,
+            poll_interval=server_settings.jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------

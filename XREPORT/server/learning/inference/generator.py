@@ -9,7 +9,7 @@ import pandas as pd
 from keras import Model, ops
 from keras.utils import set_random_seed
 
-from XREPORT.server.utils.logger import logger
+from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.processing import TokenizerHandler
 
