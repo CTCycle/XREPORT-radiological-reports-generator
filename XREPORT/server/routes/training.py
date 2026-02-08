@@ -58,7 +58,9 @@ def resolve_checkpoint_path(checkpoint: str) -> str:
     target_path = os.path.realpath(os.path.join(base_path, checkpoint))
 
     if os.path.commonpath([base_path, target_path]) != base_path:
-        logger.warning("Rejected checkpoint deletion outside base path: %s", target_path)
+        logger.warning(
+            "Rejected checkpoint deletion outside base path: %s", target_path
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Checkpoint path is outside the checkpoints directory",
