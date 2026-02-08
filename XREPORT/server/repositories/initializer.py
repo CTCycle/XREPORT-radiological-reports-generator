@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
