@@ -91,7 +91,9 @@ def run_validation_job(
 
     # Ensure dataset_name is set for downstream persistence
     if not dataset_name:
-        if "dataset_name" in dataset.columns and not dataset.empty:
+        if "name" in dataset.columns and not dataset.empty:
+            dataset_name = dataset["name"].iloc[0]
+        elif "dataset_name" in dataset.columns and not dataset.empty:
             dataset_name = dataset["dataset_name"].iloc[0]
         else:
             dataset_name = "default"
