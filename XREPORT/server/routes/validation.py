@@ -7,11 +7,8 @@ from fastapi import APIRouter, HTTPException, status
 
 from XREPORT.server.schemas.validation import (
     ValidationRequest,
-    ValidationResponse,
     ValidationReportResponse,
     CheckpointEvaluationRequest,
-    CheckpointEvaluationResponse,
-    CheckpointEvaluationResults,
     CheckpointEvaluationReportResponse,
 )
 from XREPORT.server.schemas.jobs import (
@@ -304,7 +301,9 @@ def run_checkpoint_evaluation_job(
             logger.warning("No validation data available for evaluation report")
         else:
             evaluation_config = metric_configs.get("evaluation_report")
-            evaluation_fraction = resolve_fraction(evaluation_config, default_fraction=1.0)
+            evaluation_fraction = resolve_fraction(
+                evaluation_config, default_fraction=1.0
+            )
             resolved_metric_configs["evaluation_report"] = {
                 "data_fraction": evaluation_fraction,
             }
