@@ -86,9 +86,7 @@ class TestTrainingEndpoints:
         data = response.json()
         assert "detail" in data
 
-    def test_delete_checkpoint_removes_directory(
-        self, api_context: APIRequestContext
-    ):
+    def test_delete_checkpoint_removes_directory(self, api_context: APIRequestContext):
         """DELETE /training/checkpoints/{checkpoint} should remove the entire folder."""
         status_response = api_context.get("/training/status")
         if status_response.ok and status_response.json().get("is_training"):
@@ -98,9 +96,7 @@ class TestTrainingEndpoints:
         checkpoint_dir = create_checkpoint_fixture(checkpoint_name)
 
         try:
-            response = api_context.delete(
-                f"/training/checkpoints/{checkpoint_name}"
-            )
+            response = api_context.delete(f"/training/checkpoints/{checkpoint_name}")
             assert response.ok, f"Expected 200, got {response.status}"
             assert not os.path.exists(checkpoint_dir)
         finally:
@@ -114,16 +110,12 @@ class TestTrainingEndpoints:
         if status_response.ok and status_response.json().get("is_training"):
             return
 
-        response = api_context.delete(
-            "/training/checkpoints/%2e%2e%2f%2e%2e%2f"
-        )
+        response = api_context.delete("/training/checkpoints/%2e%2e%2f%2e%2e%2f")
         assert response.status == 400
         data = response.json()
         assert "detail" in data
 
-    def test_delete_checkpoint_is_idempotent(
-        self, api_context: APIRequestContext
-    ):
+    def test_delete_checkpoint_is_idempotent(self, api_context: APIRequestContext):
         """Repeated DELETE should return a consistent 404 after removal."""
         status_response = api_context.get("/training/status")
         if status_response.ok and status_response.json().get("is_training"):
@@ -152,7 +144,7 @@ class TestTrainingStartValidation:
 
     def test_start_training_requires_valid_request(
         self, api_context: APIRequestContext
-    ):
+    ) -> None:
         """POST /training/start should validate request body."""
         status_response = api_context.get("/training/status")
         if status_response.ok and status_response.json().get("is_training"):

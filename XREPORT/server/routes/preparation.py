@@ -22,7 +22,6 @@ from XREPORT.server.schemas.training import (
     ProcessingMetadataResponse,
     DeleteResponse,
     ProcessDatasetRequest,
-    ProcessDatasetResponse,
     ImageCountResponse,
     ImageMetadataResponse,
 )
@@ -257,9 +256,7 @@ class PreparationEndpoint:
             if inspector.has_table(VALIDATION_REPORTS_TABLE):
                 reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
                 if not reports.empty and "name" in reports.columns:
-                    report_names = set(
-                        reports["name"].dropna().astype(str).tolist()
-                    )
+                    report_names = set(reports["name"].dropna().astype(str).tolist())
             # Get dataset name, folder path (dirname of first path), and row count per dataset
             result = conn.execute(
                 sqlalchemy.text(
