@@ -21,6 +21,16 @@ UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
 
 
 # -----------------------------------------------------------------------------
+def normalize_postgres_engine(engine: str | None) -> str:
+    if not engine:
+        return "postgresql+psycopg"
+    lowered = engine.lower()
+    if lowered in {"postgres", "postgresql"}:
+        return "postgresql+psycopg"
+    return engine
+
+
+# -----------------------------------------------------------------------------
 def resolve_conflict_columns(
     table_name: str,
     payload_columns: list[str],

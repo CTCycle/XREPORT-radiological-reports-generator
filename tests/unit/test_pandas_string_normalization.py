@@ -11,8 +11,8 @@ def load_normalize_string_columns():
         "XREPORT",
         "server",
         "repositories",
-        "queries",
-        "common.py",
+        "database",
+        "utils.py",
     )
     spec = importlib.util.spec_from_file_location("xreport_query_common", module_path)
     if spec is None or spec.loader is None:

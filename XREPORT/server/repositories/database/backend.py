@@ -7,8 +7,8 @@ import pandas as pd
 
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.repositories.queries.postgres import PostgresRepository
-from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database.postgres import PostgresRepository
+from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 
 
 ###############################################################################
@@ -17,7 +17,12 @@ class DatabaseBackend(Protocol):
     engine: Any
 
     # -------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame: ...
+    def load_from_database(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame: ...
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
@@ -70,8 +75,13 @@ class XREPORTDatabase:
         return getattr(self.backend, "db_path", None)
 
     # -------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame:
-        return self.backend.load_from_database(table_name)
+    def load_from_database(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
+        return self.backend.load_from_database(table_name, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:

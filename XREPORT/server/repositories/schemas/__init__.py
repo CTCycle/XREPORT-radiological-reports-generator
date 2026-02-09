@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from XREPORT.server.repositories.database.base import Base
 from XREPORT.server.repositories.schemas.models import (
+    Base,
     CheckpointEvaluationReport,
     GeneratedReport,
     ImageStatistics,
