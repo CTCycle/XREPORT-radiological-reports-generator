@@ -103,13 +103,3 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     ],
 }
 
-TABLE_MERGE_KEYS: dict[str, list[str]] = {
-    RADIOGRAPHY_TABLE: ["name", "image"],
-    TRAINING_DATASET_TABLE: ["name", "hashcode", "image", "split"],
-    PROCESSING_METADATA_TABLE: ["hashcode"],
-    GENERATED_REPORTS_TABLE: ["image", "checkpoint"],
-    TEXT_STATISTICS_TABLE: ["name"],
-    IMAGE_STATISTICS_TABLE: ["dataset_name", "name"],
-    VALIDATION_REPORTS_TABLE: ["name"],
-    CHECKPOINT_EVALUATION_REPORTS_TABLE: ["checkpoint"],
-}

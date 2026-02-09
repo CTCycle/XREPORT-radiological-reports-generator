@@ -8,7 +8,6 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy.exc import OperationalError
 
 from XREPORT.server.common.constants import (
     CHECKPOINT_EVALUATION_REPORTS_TABLE,
@@ -16,7 +15,6 @@ from XREPORT.server.common.constants import (
     IMAGE_STATISTICS_TABLE,
     PROCESSING_METADATA_TABLE,
     RADIOGRAPHY_TABLE,
-    TABLE_MERGE_KEYS,
     TABLE_REQUIRED_COLUMNS,
     TEXT_STATISTICS_TABLE,
     TRAINING_DATASET_TABLE,
@@ -155,37 +153,6 @@ class DataSerializer:
         database.save_into_database(dataset_to_save, table_name)
 
     # -------------------------------------------------------------------------
-    def merge_table(
-        self,
-        dataset: pd.DataFrame,
-        table_name: str,
-        merge_keys: list[str],
-    ) -> None:
-        if dataset.empty:
-            logger.debug("Skipping merge for %s: dataset is empty", table_name)
-            return
-        required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
-        if required_columns:
-            self.validate_required_columns(
-                dataset, required_columns, table_name, "merge"
-            )
-        missing_merge_keys = [key for key in merge_keys if key not in dataset.columns]
-        if missing_merge_keys:
-            raise ValueError(
-                f"Missing merge keys for {table_name}: {', '.join(missing_merge_keys)}"
-            )
-
-        existing = self.load_table(table_name)
-        if existing.empty:
-            merged = dataset.copy()
-        else:
-            merged = pd.concat([existing, dataset], ignore_index=True)
-            merged = merged.drop_duplicates(subset=merge_keys, keep="last")
-
-        merged_to_save = self._serialize_json_columns(merged)
-        database.save_into_database(merged_to_save, table_name)
-
-    # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
         if dataset.empty:
             logger.debug("Skipping upsert for %s: dataset is empty", table_name)
@@ -195,20 +162,8 @@ class DataSerializer:
             self.validate_required_columns(
                 dataset, required_columns, table_name, "upsert"
             )
-        try:
-            dataset_to_save = self._serialize_json_columns(dataset)
-            database.upsert_into_database(dataset_to_save, table_name)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "Upsert failed for %s, falling back to merge/save: %s",
-                table_name,
-                exc,
-            )
-            merge_keys = TABLE_MERGE_KEYS.get(table_name, [])
-            if merge_keys:
-                self.merge_table(dataset, table_name, merge_keys)
-            else:
-                self.save_table(dataset, table_name)
+        dataset_to_save = self._serialize_json_columns(dataset)
+        database.upsert_into_database(dataset_to_save, table_name)
 
     # -------------------------------------------------------------------------
     def validate_metadata(
@@ -381,6 +336,7 @@ class DataSerializer:
             "name",
             "hashcode",
             "image",
+            "text",
             "tokens",
             "split",
             "path",
@@ -389,10 +345,16 @@ class DataSerializer:
         if "path" not in training_data.columns:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
+        if "text" not in training_data.columns:
+            logger.warning(
+                "Training data missing 'text' column - using empty text values"
+            )
+            training_data["text"] = ""
 
         dataset_name = configuration.get("dataset_name", "default")
         training_data["name"] = dataset_name
         training_data["hashcode"] = hashcode
+        training_data["text"] = training_data["text"].fillna("").astype(str)
 
         training_data_filtered = training_data[db_columns].copy()
 
@@ -402,17 +364,7 @@ class DataSerializer:
                 training_data_filtered, required_columns, TRAINING_DATASET_TABLE, "save"
             )
 
-        try:
-            self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
-        except OperationalError as e:
-            error_msg = str(e)
-            if "no column named" in error_msg or "has no column" in error_msg:
-                raise RuntimeError(
-                    "Database schema mismatch detected. The database table structure "
-                    "does not match the expected schema. Please delete the database file "
-                    "(resources/database/XREPORT.db) and restart the server to reinitialize."
-                ) from e
-            raise
+        self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
 
         metadata = {
             "name": configuration.get("dataset_name", "default"),
@@ -428,38 +380,7 @@ class DataSerializer:
         }
 
         metadata_df = pd.DataFrame([metadata])
-        try:
-            self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
-        except OperationalError as e:
-            error_msg = str(e)
-            if (
-                "no column named" in error_msg
-                or "has no column" in error_msg
-                or "source_dataset" in error_msg
-            ):
-                logger.warning(
-                    "Schema mismatch detected. Attempting to migrate PROCESSING_METADATA table..."
-                )
-                try:
-                    with database.backend.engine.connect() as conn:
-                        conn.execute(
-                            sqlalchemy.text(
-                                f'ALTER TABLE "{PROCESSING_METADATA_TABLE}" ADD COLUMN source_dataset VARCHAR'
-                            )
-                        )
-                        conn.commit()
-                    logger.info(
-                        "Successfully added 'source_dataset' column to PROCESSING_METADATA."
-                    )
-                    self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
-                except Exception as migration_error:
-                    logger.error(f"Migration failed: {migration_error}")
-                    raise RuntimeError(
-                        "Database schema mismatch for PROCESSING_METADATA table and migration failed. "
-                        "Please delete the database file and restart to reinitialize."
-                    ) from e
-            else:
-                raise
+        self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
 
     # -------------------------------------------------------------------------
     def upsert_source_dataset(self, dataset: pd.DataFrame) -> None:
