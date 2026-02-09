@@ -9,12 +9,12 @@ from typing import Any
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
 from fastapi.responses import JSONResponse
 
-from XREPORT.server.schemas.inference import (
+from XREPORT.server.entities.inference import (
     CheckpointInfo,
     CheckpointsResponse,
     GenerationResponse,
 )
-from XREPORT.server.schemas.jobs import (
+from XREPORT.server.entities.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,

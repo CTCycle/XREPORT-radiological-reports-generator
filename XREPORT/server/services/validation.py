@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from XREPORT.server.schemas.validation import (
+from XREPORT.server.entities.validation import (
     ImageStatistics,
     PixelDistribution,
     TextStatistics,
