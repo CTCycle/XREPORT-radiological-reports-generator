@@ -16,7 +16,7 @@ from XREPORT.server.entities.browser import (
 )
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.repositories.serializer import DataSerializer
+from XREPORT.server.repositories.serialization.data import DataSerializer
 
 
 # -----------------------------------------------------------------------------

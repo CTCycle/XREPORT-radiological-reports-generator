@@ -10,10 +10,10 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.configurations import DatabaseSettings
-from XREPORT.server.common.constants import RESOURCES_PATH, DATABASE_FILENAME
+from XREPORT.server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.repositories.schema import Base
+from XREPORT.server.configurations import DatabaseSettings
+from XREPORT.server.repositories.schemas import Base
 
 
 # [SQLITE DATABASE]
