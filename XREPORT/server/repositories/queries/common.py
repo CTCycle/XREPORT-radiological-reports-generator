@@ -36,18 +36,26 @@ def resolve_conflict_columns(
 
 # -----------------------------------------------------------------------------
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
+    def is_string_object_column(series: pd.Series) -> bool:
+        if not pd.api.types.is_object_dtype(series):
+            return False
+        non_null = series.dropna()
+        if non_null.empty:
+            return False
+        return bool(non_null.map(lambda value: isinstance(value, str)).all())
+
     string_columns = [
         column
         for column in df.columns
-        if pd.api.types.is_string_dtype(df[column].dtype)
+        if pd.api.types.is_string_dtype(df[column])
+        or is_string_object_column(df[column])
     ]
     if not string_columns:
         return df
     normalized = df.copy()
-    normalized[string_columns] = normalized[string_columns].astype(object)
-    normalized[string_columns] = normalized[string_columns].apply(
-        lambda column: column.map(lambda value: None if pd.isna(value) else value)
-    )
+    for column in string_columns:
+        object_series = normalized[column].astype(object)
+        normalized[column] = object_series.where(object_series.notna(), None)
     return normalized
 
 
