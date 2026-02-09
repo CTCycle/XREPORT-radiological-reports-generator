@@ -8,7 +8,7 @@ from sqlalchemy import MetaData, Table, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from XREPORT.server.repositories.database import XREPORTDatabase, database
-from XREPORT.server.schemas.browser import (
+from XREPORT.server.entities.browser import (
     BrowseConfigResponse,
     TableDataResponse,
     TableInfo,

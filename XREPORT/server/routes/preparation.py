@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from XREPORT.server.repositories.database import XREPORTDatabase, database
-from XREPORT.server.schemas.training import (
+from XREPORT.server.entities.training import (
     BrowseResponse,
     DatasetInfo,
     DatasetNamesResponse,
@@ -25,7 +25,7 @@ from XREPORT.server.schemas.training import (
     ImageCountResponse,
     ImageMetadataResponse,
 )
-from XREPORT.server.schemas.jobs import (
+from XREPORT.server.entities.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
