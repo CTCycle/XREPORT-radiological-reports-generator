@@ -1,18 +1,38 @@
 from __future__ import annotations
 
+import urllib.parse
+
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.repositories.database.config import (
-    build_postgres_connect_args,
-    build_postgres_url,
-    normalize_postgres_engine,
-)
-from XREPORT.server.repositories.queries.postgres import PostgresRepository
-from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database.postgres import PostgresRepository
+from XREPORT.server.repositories.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database.utils import normalize_postgres_engine
 from XREPORT.server.repositories.schemas import Base
+
+
+# -----------------------------------------------------------------------------
+def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
+    connect_args: dict[str, str | int] = {"connect_timeout": settings.connect_timeout}
+    if settings.ssl:
+        connect_args["sslmode"] = "require"
+        if settings.ssl_ca:
+            connect_args["sslrootcert"] = settings.ssl_ca
+    return connect_args
+
+
+# -----------------------------------------------------------------------------
+def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
+    port = settings.port or 5432
+    engine_name = normalize_postgres_engine(settings.engine)
+    safe_username = urllib.parse.quote_plus(settings.username or "")
+    safe_password = urllib.parse.quote_plus(settings.password or "")
+    return (
+        f"{engine_name}://{safe_username}:{safe_password}"
+        f"@{settings.host}:{port}/{database_name}"
+    )
 
 
 # -----------------------------------------------------------------------------

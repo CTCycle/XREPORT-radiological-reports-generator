@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any
 
@@ -34,8 +35,6 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def create_checkpoint_folder(self, name: str | None = None) -> str:
         if name:
-            import re
-
             sanitized_name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
             if not sanitized_name:
                 today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
