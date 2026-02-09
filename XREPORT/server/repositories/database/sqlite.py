@@ -10,13 +10,10 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.common.constants import (
-    DATABASE_FILENAME,
-    RESOURCES_PATH,
-)
+from XREPORT.server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.configurations import DatabaseSettings
-from XREPORT.server.repositories.queries.common import (
+from XREPORT.server.repositories.database.utils import (
     normalize_string_columns,
     resolve_conflict_columns,
     validate_unique_key_values,
@@ -24,7 +21,6 @@ from XREPORT.server.repositories.queries.common import (
 from XREPORT.server.repositories.schemas import Base
 
 
-# [SQLITE DATABASE]
 ###############################################################################
 class SQLiteRepository:
     def __init__(self, settings: DatabaseSettings) -> None:
@@ -87,18 +83,26 @@ class SQLiteRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame:
+    def load_from_database(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
                 logger.warning("Table %s does not exist", table_name)
                 return pd.DataFrame()
             data = pd.read_sql_table(table_name, conn)
-        return data
+        if offset:
+            data = data.iloc[offset:]
+        if limit is not None:
+            data = data.head(limit)
+        return data.reset_index(drop=True)
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        """Overwrite table contents before inserting new rows."""
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             if inspector.has_table(table_name):

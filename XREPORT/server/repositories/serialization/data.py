@@ -22,8 +22,9 @@ from XREPORT.server.common.constants import (
     VALIDATION_REPORTS_TABLE,
 )
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.repositories.database import database
-from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.queries.data import DataRepositoryQueries
+from XREPORT.server.repositories.queries.training import TrainingRepositoryQueries
 from XREPORT.server.repositories.schemas import Base
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
@@ -31,7 +32,15 @@ VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
 ###############################################################################
 class DataSerializer:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        queries: DataRepositoryQueries | None = None,
+        training_queries: TrainingRepositoryQueries | None = None,
+    ) -> None:
+        self.queries = queries or DataRepositoryQueries()
+        self.training_queries = training_queries or TrainingRepositoryQueries(
+            self.queries.database
+        )
         self.img_shape = (224, 224)
         self.num_channels = 3
         self.valid_extensions = VALID_EXTENSIONS
@@ -44,7 +53,7 @@ class DataSerializer:
             return ""
 
         payload = {
-            "name": metadata.get("name") or metadata.get("dataset_name"),
+            "dataset_name": metadata.get("dataset_name"),
             "sample_size": metadata.get("sample_size"),
             "validation_size": metadata.get("validation_size"),
             "seed": metadata.get("seed"),
@@ -123,20 +132,11 @@ class DataSerializer:
         if offset is not None and offset < 0:
             raise ValueError("offset must be >= 0")
 
-        dataset = database.load_from_database(table_name)
-        if dataset.empty:
-            return dataset
-
-        if offset:
-            dataset = dataset.iloc[offset:]
-        if limit is not None:
-            dataset = dataset.head(limit)
-
-        return dataset.reset_index(drop=True)
+        return self.queries.load_table(table_name, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
-        return database.count_rows(table_name)
+        return self.queries.count_rows(table_name)
 
     # -------------------------------------------------------------------------
     def save_table(self, dataset: pd.DataFrame, table_name: str) -> None:
@@ -150,7 +150,7 @@ class DataSerializer:
             )
 
         dataset_to_save = self._serialize_json_columns(dataset)
-        database.save_into_database(dataset_to_save, table_name)
+        self.queries.save_table(dataset_to_save, table_name)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
@@ -163,7 +163,7 @@ class DataSerializer:
                 dataset, required_columns, table_name, "upsert"
             )
         dataset_to_save = self._serialize_json_columns(dataset)
-        database.upsert_into_database(dataset_to_save, table_name)
+        self.queries.upsert_table(dataset_to_save, table_name)
 
     # -------------------------------------------------------------------------
     def validate_metadata(
@@ -171,16 +171,6 @@ class DataSerializer:
     ) -> bool:
         meta_current = dict(metadata or {})
         meta_target = dict(target_metadata or {})
-
-        if "name" in meta_current and "dataset_name" not in meta_current:
-            meta_current["dataset_name"] = meta_current["name"]
-        if "dataset_name" in meta_current and "name" not in meta_current:
-            meta_current["name"] = meta_current["dataset_name"]
-
-        if "name" in meta_target and "dataset_name" not in meta_target:
-            meta_target["dataset_name"] = meta_target["name"]
-        if "dataset_name" in meta_target and "name" not in meta_target:
-            meta_target["name"] = meta_target["dataset_name"]
 
         meta_current.pop("id", None)
         meta_target.pop("id", None)
@@ -244,10 +234,7 @@ class DataSerializer:
     ) -> pd.DataFrame:
         dataset = self.load_table(RADIOGRAPHY_TABLE)
         if dataset_name:
-            if "name" in dataset.columns:
-                dataset = dataset[dataset["name"] == dataset_name]
-            elif "dataset_name" in dataset.columns:
-                dataset = dataset[dataset["dataset_name"] == dataset_name]
+            dataset = dataset[dataset["name"] == dataset_name]
         if sample_size < 1.0:
             dataset = dataset.sample(frac=sample_size, random_state=seed)
 
@@ -259,7 +246,7 @@ class DataSerializer:
         only_metadata: bool = False,
         dataset_name: str | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame, dict] | dict:
-        metadata_df = self.load_table(PROCESSING_METADATA_TABLE)
+        metadata_df = self.training_queries.load_training_metadata()
         if metadata_df.empty:
             logger.warning("No processing metadata found in database")
             if only_metadata:
@@ -267,12 +254,7 @@ class DataSerializer:
             return pd.DataFrame(), pd.DataFrame(), {}
 
         if dataset_name:
-            if "name" in metadata_df.columns:
-                filtered_meta = metadata_df[metadata_df["name"] == dataset_name]
-            elif "dataset_name" in metadata_df.columns:
-                filtered_meta = metadata_df[metadata_df["dataset_name"] == dataset_name]
-            else:
-                filtered_meta = metadata_df
+            filtered_meta = metadata_df[metadata_df["name"] == dataset_name]
             if filtered_meta.empty:
                 logger.warning(f"No metadata found for dataset: {dataset_name}")
                 if only_metadata:
@@ -285,20 +267,13 @@ class DataSerializer:
         if only_metadata:
             return latest_metadata
 
-        training_data = self.load_table(TRAINING_DATASET_TABLE)
+        training_data = self.training_queries.load_training_dataset()
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), latest_metadata
 
-        if "name" in training_data.columns:
-            target_name = dataset_name or latest_metadata.get("name")
-            if target_name:
-                training_data = training_data[training_data["name"] == target_name]
-        elif "dataset_name" in training_data.columns:
-            target_name = dataset_name or latest_metadata.get("dataset_name")
-            if target_name:
-                training_data = training_data[
-                    training_data["dataset_name"] == target_name
-                ]
+        target_name = dataset_name or latest_metadata.get("name")
+        if target_name:
+            training_data = training_data[training_data["name"] == target_name]
 
         train_data = training_data[training_data["split"] == "train"].copy()
         val_data = training_data[training_data["split"] == "validation"].copy()
@@ -324,13 +299,22 @@ class DataSerializer:
     ) -> None:
         if training_data.empty:
             raise ValueError("Training dataset is empty; nothing to save.")
+        if not hashcode:
+            raise ValueError("Training dataset hashcode is required.")
 
         self.validate_required_columns(
             training_data,
-            ["image", "tokens", "split"],
+            ["image", "text", "tokens", "split", "path"],
             TRAINING_DATASET_TABLE,
             "prepare",
         )
+
+        dataset_name = str(configuration.get("dataset_name", "")).strip()
+        if not dataset_name:
+            raise ValueError("Training configuration must include a dataset_name.")
+        source_dataset = str(configuration.get("source_dataset", "")).strip()
+        if not source_dataset:
+            raise ValueError("Training configuration must include a source_dataset.")
 
         db_columns = [
             "name",
@@ -341,17 +325,6 @@ class DataSerializer:
             "split",
             "path",
         ]
-
-        if "path" not in training_data.columns:
-            logger.warning("Training data missing 'path' column - adding empty paths")
-            training_data["path"] = None
-        if "text" not in training_data.columns:
-            logger.warning(
-                "Training data missing 'text' column - using empty text values"
-            )
-            training_data["text"] = ""
-
-        dataset_name = configuration.get("dataset_name", "default")
         training_data["name"] = dataset_name
         training_data["hashcode"] = hashcode
         training_data["text"] = training_data["text"].fillna("").astype(str)
@@ -364,10 +337,11 @@ class DataSerializer:
                 training_data_filtered, required_columns, TRAINING_DATASET_TABLE, "save"
             )
 
-        self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
+        serialized_training_data = self._serialize_json_columns(training_data_filtered)
+        self.training_queries.upsert_training_dataset(serialized_training_data)
 
         metadata = {
-            "name": configuration.get("dataset_name", "default"),
+            "name": dataset_name,
             "date": datetime.now().strftime("%Y-%m-%d"),
             "seed": configuration.get("seed", 42),
             "sample_size": configuration.get("sample_size", 1.0),
@@ -376,11 +350,12 @@ class DataSerializer:
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
             "hashcode": hashcode,
-            "source_dataset": configuration.get("source_dataset", None),
+            "source_dataset": source_dataset,
         }
 
         metadata_df = pd.DataFrame([metadata])
-        self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
+        serialized_metadata = self._serialize_json_columns(metadata_df)
+        self.training_queries.save_training_metadata(serialized_metadata)
 
     # -------------------------------------------------------------------------
     def upsert_source_dataset(self, dataset: pd.DataFrame) -> None:
@@ -402,7 +377,7 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "default")
-        should_serialize_json = isinstance(database.backend, SQLiteRepository)
+        should_serialize_json = isinstance(self.queries.backend, SQLiteRepository)
         metrics = report.get("metrics") or []
         text_statistics = report.get("text_statistics")
         image_statistics = report.get("image_statistics")
@@ -434,15 +409,13 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def get_validation_report(self, dataset_name: str) -> dict[str, Any] | None:
-        with database.backend.engine.connect() as conn:
+        with self.queries.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
             if not inspector.has_table(VALIDATION_REPORTS_TABLE):
                 return None
             reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
             if reports.empty:
                 return None
-        if "name" not in reports.columns:
-            return None
         filtered = reports[reports["name"] == dataset_name]
         if filtered.empty:
             return None
@@ -457,7 +430,7 @@ class DataSerializer:
         artifacts = DataSerializer._parse_json(row.get("artifacts"))
 
         return {
-            "dataset_name": row.get("name") if "name" in row else dataset_name,
+            "dataset_name": row["name"],
             "date": row.get("date") if "date" in row else None,
             "sample_size": row.get("sample_size"),
             "metrics": metrics if isinstance(metrics, list) else [],
@@ -469,12 +442,12 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def validation_report_exists(self, dataset_name: str) -> bool:
-        with database.backend.engine.connect() as conn:
+        with self.queries.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
             if not inspector.has_table(VALIDATION_REPORTS_TABLE):
                 return False
             reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
-            if reports.empty or "name" not in reports.columns:
+            if reports.empty:
                 return False
             return bool((reports["name"] == dataset_name).any())
 
@@ -484,12 +457,12 @@ class DataSerializer:
         if not checkpoint:
             raise ValueError("Checkpoint evaluation report requires a checkpoint name")
 
-        with database.backend.engine.connect() as conn:
+        with self.queries.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
             if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
-                Base.metadata.create_all(database.backend.engine)
+                Base.metadata.create_all(self.queries.backend.engine)
 
-        should_serialize_json = isinstance(database.backend, SQLiteRepository)
+        should_serialize_json = isinstance(self.queries.backend, SQLiteRepository)
         metrics = report.get("metrics") or []
         metric_configs = report.get("metric_configs")
         results = report.get("results")
@@ -516,7 +489,7 @@ class DataSerializer:
     def get_checkpoint_evaluation_report(
         self, checkpoint: str
     ) -> dict[str, Any] | None:
-        with database.backend.engine.connect() as conn:
+        with self.queries.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
             if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
                 return None
@@ -548,11 +521,11 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def checkpoint_evaluation_report_exists(self, checkpoint: str) -> bool:
-        with database.backend.engine.connect() as conn:
+        with self.queries.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
             if not inspector.has_table(CHECKPOINT_EVALUATION_REPORTS_TABLE):
                 return False
             reports = pd.read_sql_table(CHECKPOINT_EVALUATION_REPORTS_TABLE, conn)
-            if reports.empty or "checkpoint" not in reports.columns:
+            if reports.empty:
                 return False
             return bool((reports["checkpoint"] == checkpoint).any())

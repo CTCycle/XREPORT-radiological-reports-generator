@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from XREPORT.server.repositories.queries.postgres import PostgresRepository
-from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
+from XREPORT.server.repositories.queries.data import DataRepositoryQueries
+from XREPORT.server.repositories.queries.training import TrainingRepositoryQueries
 
-__all__ = ["SQLiteRepository", "PostgresRepository"]
+__all__ = ["DataRepositoryQueries", "TrainingRepositoryQueries"]
