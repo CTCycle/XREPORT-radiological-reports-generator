@@ -24,7 +24,7 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.jobs import JobManager, job_manager
-from XREPORT.server.repositories.serializer import ModelSerializer
+from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.configurations.server import server_settings
 
 
