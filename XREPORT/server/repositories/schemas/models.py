@@ -12,11 +12,18 @@ class RadiographyData(Base):
 
     __tablename__ = "radiography_data"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-    image = Column(String)
-    text = Column(String)
+    name = Column(String, nullable=False)
+    image = Column(String, nullable=False)
+    text = Column(String, nullable=False)
     path = Column(String)
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "name",
+            "image",
+            "text",
+            name="uq_radiography_data_name_image_text",
+        ),
+    )
 
 
 ###############################################################################
@@ -27,12 +34,19 @@ class TrainingData(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     hashcode = Column(String, nullable=False)
     name = Column(String)
-    image = Column(String)
-    text = Column(String)
+    image = Column(String, nullable=False)
+    text = Column(String, nullable=False)
     tokens = Column(JSONSequence)
     split = Column(String)
     path = Column(String)
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "hashcode",
+            "image",
+            "text",
+            name="uq_training_dataset_hashcode_image_text",
+        ),
+    )
 
 
 ###############################################################################

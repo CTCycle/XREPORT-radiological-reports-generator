@@ -159,9 +159,7 @@ def run_process_dataset_job(
     if jm.should_stop(job_id):
         return {}
 
-    # Step 3: Drop raw text column (keep only tokens)
-    processed_data = processed_data.drop(columns=["text"])
-
+    # Step 3: Keep sanitized text so training upserts can use deterministic keys.
     # Step 4: Split into train and validation sets
     splitter = TrainValidationSplit(configuration, processed_data)
     training_data = splitter.split_train_and_validation()
