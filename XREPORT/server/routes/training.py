@@ -23,11 +23,9 @@ from XREPORT.server.entities.jobs import (
 )
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
-from XREPORT.server.repositories.serializer import (
-    DataSerializer,
-    ModelSerializer,
-    CHECKPOINT_PATH,
-)
+from XREPORT.server.repositories.serialization.data import DataSerializer
+from XREPORT.server.repositories.serialization.model import ModelSerializer
+from XREPORT.server.common.constants import CHECKPOINT_PATH
 from XREPORT.server.configurations.server import server_settings
 from XREPORT.server.learning.training.worker import (
     ProcessWorker,

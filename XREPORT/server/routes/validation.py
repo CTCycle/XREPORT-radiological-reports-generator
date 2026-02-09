@@ -19,7 +19,8 @@ from XREPORT.server.entities.jobs import (
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.services.validation import DatasetValidator
-from XREPORT.server.repositories.serializer import DataSerializer, ModelSerializer
+from XREPORT.server.repositories.serialization.data import DataSerializer
+from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.evaluation import CheckpointEvaluator
