@@ -6,7 +6,7 @@ import unittest
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from XREPORT.server.repositories.serializer import DataSerializer
+from XREPORT.server.repositories.serialization.data import DataSerializer
 
 
 class TestDataSerializer(unittest.TestCase):

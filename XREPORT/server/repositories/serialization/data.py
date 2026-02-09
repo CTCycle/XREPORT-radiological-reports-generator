@@ -1,49 +1,32 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from keras import Model
-from keras.models import load_model
-import hashlib
 import sqlalchemy
 from sqlalchemy.exc import OperationalError
 
 from XREPORT.server.common.constants import (
-    CHECKPOINT_PATH,
-    VALID_IMAGE_EXTENSIONS,
-    RADIOGRAPHY_TABLE,
-    TRAINING_DATASET_TABLE,
-    PROCESSING_METADATA_TABLE,
-    GENERATED_REPORTS_TABLE,
-    TEXT_STATISTICS_TABLE,
-    IMAGE_STATISTICS_TABLE,
-    VALIDATION_REPORTS_TABLE,
     CHECKPOINT_EVALUATION_REPORTS_TABLE,
-    TABLE_REQUIRED_COLUMNS,
+    GENERATED_REPORTS_TABLE,
+    IMAGE_STATISTICS_TABLE,
+    PROCESSING_METADATA_TABLE,
+    RADIOGRAPHY_TABLE,
     TABLE_MERGE_KEYS,
+    TABLE_REQUIRED_COLUMNS,
+    TEXT_STATISTICS_TABLE,
+    TRAINING_DATASET_TABLE,
+    VALID_IMAGE_EXTENSIONS,
+    VALIDATION_REPORTS_TABLE,
 )
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.repositories.database import database
-from XREPORT.server.repositories.schema import Base
-from XREPORT.server.repositories.sqlite import SQLiteRepository
-from XREPORT.server.learning.training.metrics import (
-    MaskedSparseCategoricalCrossentropy,
-    MaskedAccuracy,
-)
-from XREPORT.server.learning.training.scheduler import WarmUpLRScheduler
-from XREPORT.server.learning.training.layers import (
-    PositionalEmbedding,
-    AddNorm,
-    FeedForward,
-    SoftMaxClassifier,
-    TransformerEncoder,
-    TransformerDecoder,
-)
-from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
+from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
+from XREPORT.server.repositories.schemas import Base
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
@@ -104,7 +87,6 @@ class DataSerializer:
 
         df_copy = df.copy()
         for col in df_copy.columns:
-            # Check first non-null value
             first_valid = (
                 df_copy[col].dropna().iloc[0]
                 if not df_copy[col].dropna().empty
@@ -266,7 +248,6 @@ class DataSerializer:
             )
             return pd.DataFrame()
 
-        # Check which paths actually exist
         valid_mask = dataset["path"].apply(
             lambda p: os.path.isfile(p) if pd.notna(p) else False
         )
@@ -405,7 +386,6 @@ class DataSerializer:
             "path",
         ]
 
-        # Ensure path column exists
         if "path" not in training_data.columns:
             logger.warning("Training data missing 'path' column - adding empty paths")
             training_data["path"] = None
@@ -423,7 +403,6 @@ class DataSerializer:
             )
 
         try:
-            # Use upsert instead of save_table to allow multiple datasets to coexist
             self.upsert_table(training_data_filtered, TRAINING_DATASET_TABLE)
         except OperationalError as e:
             error_msg = str(e)
@@ -435,7 +414,6 @@ class DataSerializer:
                 ) from e
             raise
 
-        # Save metadata to database table
         metadata = {
             "name": configuration.get("dataset_name", "default"),
             "date": datetime.now().strftime("%Y-%m-%d"),
@@ -473,7 +451,6 @@ class DataSerializer:
                     logger.info(
                         "Successfully added 'source_dataset' column to PROCESSING_METADATA."
                     )
-                    # Retry save
                     self.save_table(metadata_df, PROCESSING_METADATA_TABLE)
                 except Exception as migration_error:
                     logger.error(f"Migration failed: {migration_error}")
@@ -658,127 +635,3 @@ class DataSerializer:
             if reports.empty or "checkpoint" not in reports.columns:
                 return False
             return bool((reports["checkpoint"] == checkpoint).any())
-
-
-###############################################################################
-class ModelSerializer:
-    def __init__(self) -> None:
-        self.model_name = "XREPORT"
-
-    # -------------------------------------------------------------------------
-    def create_checkpoint_folder(self, name: str | None = None) -> str:
-        if name:
-            # Sanitize name: remove non-alphanumeric except underscore and hyphen
-            import re
-
-            sanitized_name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-            if not sanitized_name:
-                today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-                sanitized_name = f"{self.model_name}_{today_datetime}"
-        else:
-            today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-            sanitized_name = f"{self.model_name}_{today_datetime}"
-
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, sanitized_name)
-        os.makedirs(checkpoint_path, exist_ok=True)
-        os.makedirs(os.path.join(checkpoint_path, "configuration"), exist_ok=True)
-        logger.debug(f"Created checkpoint folder at {checkpoint_path}")
-
-        return checkpoint_path
-
-    # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model: Model, path: str) -> None:
-        model_files_path = os.path.join(path, "saved_model.keras")
-        model.save(model_files_path)
-        logger.info(
-            f"Training session is over. Model {os.path.basename(path)} has been saved"
-        )
-
-    # -------------------------------------------------------------------------
-    def save_training_configuration(
-        self,
-        path: str,
-        history: dict[str, Any],
-        configuration: dict[str, Any],
-        metadata: dict[str, Any],
-    ) -> None:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        history_path = os.path.join(path, "configuration", "session_history.json")
-
-        with open(config_path, "w") as f:
-            json.dump(configuration, f)
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f)
-        with open(history_path, "w") as f:
-            json.dump(history, f)
-
-        logger.debug(
-            f"Model configuration, session history and metadata saved for {os.path.basename(path)}"
-        )
-
-    # -------------------------------------------------------------------------
-    def load_training_configuration(self, path: str) -> tuple[dict, dict, dict]:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        with open(config_path) as f:
-            configuration = json.load(f)
-
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        with open(metadata_path) as f:
-            metadata = json.load(f)
-
-        history_path = os.path.join(path, "configuration", "session_history.json")
-        with open(history_path) as f:
-            history = json.load(f)
-
-        return configuration, metadata, history
-
-    # -------------------------------------------------------------------------
-    def scan_checkpoints_folder(self) -> list[str]:
-        if not os.path.exists(CHECKPOINT_PATH):
-            return []
-
-        model_folders = []
-        for entry in os.scandir(CHECKPOINT_PATH):
-            if entry.is_dir():
-                has_keras = any(
-                    f.name.endswith(".keras") and f.is_file()
-                    for f in os.scandir(entry.path)
-                )
-                if has_keras:
-                    model_folders.append(entry.name)
-
-        return model_folders
-
-    # -------------------------------------------------------------------------
-    def load_checkpoint(
-        self, checkpoint: str, custom_objects: dict[str, Any] | None = None
-    ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
-        """Load checkpoint model and configuration for resume training or inference."""
-
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
-        model_path = os.path.join(checkpoint_path, "saved_model.keras")
-
-        default_custom_objects = {
-            # Loss and metrics
-            "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
-            "MaskedAccuracy": MaskedAccuracy,
-            "LRScheduler": WarmUpLRScheduler,
-            # Custom layers
-            "PositionalEmbedding": PositionalEmbedding,
-            "AddNorm": AddNorm,
-            "FeedForward": FeedForward,
-            "SoftMaxClassifier": SoftMaxClassifier,
-            "TransformerEncoder": TransformerEncoder,
-            "TransformerDecoder": TransformerDecoder,
-            "BeitXRayImageEncoder": BeitXRayImageEncoder,
-        }
-        if custom_objects:
-            default_custom_objects.update(custom_objects)
-
-        model = load_model(model_path, custom_objects=default_custom_objects)
-        configuration, metadata, session = self.load_training_configuration(
-            checkpoint_path
-        )
-
-        return model, configuration, metadata, session, checkpoint_path

@@ -4,14 +4,11 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 import pandas as pd
-from sqlalchemy.orm import declarative_base
 
-from XREPORT.server.configurations import DatabaseSettings, server_settings
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.repositories.postgres import PostgresRepository
-from XREPORT.server.repositories.sqlite import SQLiteRepository
-
-Base = declarative_base()
+from XREPORT.server.configurations import DatabaseSettings, server_settings
+from XREPORT.server.repositories.queries.postgres import PostgresRepository
+from XREPORT.server.repositories.queries.sqlite import SQLiteRepository
 
 
 ###############################################################################
@@ -89,3 +86,12 @@ class XREPORTDatabase:
 
 
 database = XREPORTDatabase()
+
+
+__all__ = [
+    "DatabaseBackend",
+    "XREPORTDatabase",
+    "database",
+    "build_postgres_backend",
+    "build_sqlite_backend",
+]

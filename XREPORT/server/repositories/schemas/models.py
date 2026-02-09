@@ -1,17 +1,9 @@
 from __future__ import annotations
 
-from sqlalchemy import (
-    Column,
-    Float,
-    Integer,
-    String,
-    UniqueConstraint,
-)
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Float, Integer, String, UniqueConstraint
 
-from XREPORT.server.repositories.types import JSONSequence
-
-Base = declarative_base()
+from XREPORT.server.repositories.database.base import Base
+from XREPORT.server.repositories.schemas.types import JSONSequence
 
 
 ###############################################################################

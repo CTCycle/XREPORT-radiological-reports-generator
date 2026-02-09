@@ -35,7 +35,7 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
-from XREPORT.server.repositories.serializer import DataSerializer
+from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
     RADIOGRAPHY_TABLE,
     TRAINING_DATASET_TABLE,
