@@ -11,7 +11,6 @@ class ValidationRequest(BaseModel):
     metrics: list[str]
     sample_size: float = 1.0
     seed: int | None = None
-
     model_config = ConfigDict(extra="forbid")
 
 
