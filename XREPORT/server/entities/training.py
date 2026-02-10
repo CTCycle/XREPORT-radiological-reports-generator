@@ -4,20 +4,20 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
+###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(
         ..., description="Server-side folder path containing images"
     )
 
-
+###############################################################################
 class ImagePathResponse(BaseModel):
     valid: bool
     folder_path: str
     image_count: int
     message: str
 
-
+###############################################################################
 class DatasetUploadResponse(BaseModel):
     success: bool
     filename: str
@@ -27,7 +27,7 @@ class DatasetUploadResponse(BaseModel):
     columns: list[str]
     message: str
 
-
+###############################################################################
 class LoadDatasetRequest(BaseModel):
     image_folder_path: str = Field(
         ..., description="Folder path containing X-ray images"
@@ -36,7 +36,7 @@ class LoadDatasetRequest(BaseModel):
         1.0, ge=0.01, le=1.0, description="Fraction of data to use"
     )
 
-
+###############################################################################
 class LoadDatasetResponse(BaseModel):
     success: bool
     total_images: int
@@ -44,21 +44,23 @@ class LoadDatasetResponse(BaseModel):
     unmatched_records: int
     message: str
 
-
+###############################################################################
 class DirectoryItem(BaseModel):
     name: str
     path: str
     is_dir: bool
-    image_count: int = 0  # Only for directories, count of image files
+    image_count: int = 0  
 
 
+###############################################################################
 class BrowseResponse(BaseModel):
     current_path: str
     parent_path: str | None
     items: list[DirectoryItem]
-    drives: list[str] = []  # Windows drives like C:, D:
+    drives: list[str] = []  
+    
 
-
+###############################################################################
 class StartTrainingRequest(BaseModel):
     dataset_name: str | None = Field(
         None,
@@ -92,6 +94,7 @@ class StartTrainingRequest(BaseModel):
     warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
 
 
+###############################################################################
 class ResumeTrainingRequest(BaseModel):
     checkpoint: str = Field(..., description="Checkpoint name to resume from")
     additional_epochs: int = Field(
@@ -99,6 +102,7 @@ class ResumeTrainingRequest(BaseModel):
     )
 
 
+###############################################################################
 class CheckpointInfo(BaseModel):
     name: str
     epochs: int = 0
@@ -106,10 +110,12 @@ class CheckpointInfo(BaseModel):
     val_loss: float = 0.0
 
 
+###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointInfo]
 
 
+###############################################################################
 class TrainingStatusResponse(BaseModel):
     job_id: str | None = None
     is_training: bool
