@@ -268,7 +268,7 @@ if not exist "%FRONTEND_DIST%" (
 )
 
 REM ============================================================================
-REM Wait for backend to allow it to initialize
+REM Wait for backend
 REM ============================================================================
 echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
 for /L %%i in (1,1,20) do (
