@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from XREPORT.server.schemas.validation import (
+from XREPORT.server.entities.validation import (
     ImageStatistics,
     PixelDistribution,
     TextStatistics,
@@ -83,6 +83,7 @@ class DatasetValidator:
         """
         empty_df = pd.DataFrame(
             columns=[
+                "record_id",
                 "dataset_name",
                 "name",
                 "height",
@@ -114,6 +115,10 @@ class DatasetValidator:
             names = self.dataset["image"].astype(str).tolist()
         else:
             names = [f"record_{i}" for i in range(len(self.dataset))]
+        if "record_id" in self.dataset.columns:
+            record_ids = pd.to_numeric(self.dataset["record_id"], errors="coerce").tolist()
+        else:
+            record_ids = [None for _ in range(len(self.dataset))]
 
         image_paths = self.dataset["path"].tolist()
 
@@ -166,6 +171,7 @@ class DatasetValidator:
             # Build per-record entry
             records.append(
                 {
+                    "record_id": record_ids[idx],
                     "dataset_name": self.dataset_name,
                     "name": names[idx],
                     "height": h,

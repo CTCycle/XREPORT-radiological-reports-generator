@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from XREPORT.server.schemas.training import (
+from XREPORT.server.entities.training import (
     CheckpointInfo,
     CheckpointsResponse,
     CheckpointMetadataResponse,
@@ -16,18 +16,16 @@ from XREPORT.server.schemas.training import (
     ResumeTrainingRequest,
     TrainingStatusResponse,
 )
-from XREPORT.server.schemas.jobs import (
+from XREPORT.server.entities.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
 )
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
-from XREPORT.server.repositories.serializer import (
-    DataSerializer,
-    ModelSerializer,
-    CHECKPOINT_PATH,
-)
+from XREPORT.server.repositories.serialization.data import DataSerializer
+from XREPORT.server.repositories.serialization.model import ModelSerializer
+from XREPORT.server.common.constants import CHECKPOINT_PATH
 from XREPORT.server.configurations.server import server_settings
 from XREPORT.server.learning.training.worker import (
     ProcessWorker,

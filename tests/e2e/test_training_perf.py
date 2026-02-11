@@ -27,7 +27,7 @@ from XREPORT.server.utils.constants import (
     TRAINING_DATASET_TABLE,
 )
 from XREPORT.server.services.jobs import job_manager
-from XREPORT.server.repositories.serializer import DataSerializer
+from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.database import database
 
 

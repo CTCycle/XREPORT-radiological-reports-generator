@@ -10,7 +10,7 @@ The system is architected as:
 
 This tool aims to accelerate the reporting workflow for radiologists by providing high-quality, editable drafts.
 
-> **Work in Progress**: This project is under active development. Features and layouts may evolve.
+> **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
 
 ---
 
@@ -106,13 +106,7 @@ The **Inference** page handles model evaluation. It includes a **Checkpoint Eval
 
 ![inference_page](assets/figures/inference_page.png)
 
-**Database Browser**
-
-The **Database** page lets you inspect stored history, including past training sessions and data uploads, providing full visibility into the system's state.
-
-![Database browser](assets/figures/database_browser.png)
-
-## 5. Setup and Maintenance
+ ## 5. Setup and Maintenance
 
 Use `XREPORT/setup_and_maintenance.bat` (Windows) to manage the installation.
 

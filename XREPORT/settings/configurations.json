@@ -10,8 +10,7 @@
     "ssl": false,
     "ssl_ca": null,
     "connect_timeout": 30,
-    "insert_batch_size": 1000,
-    "browse_batch_size": 200
+    "insert_batch_size": 1000
   },
   "global": {
     "seed": 42
