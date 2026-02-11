@@ -28,10 +28,22 @@ class TrainValidationSplit:
         dataframe = self.dataframe.sample(frac=1.0, random_state=self.seed).reset_index(
             drop=True
         )
-        dataframe.loc[: self.train_samples - 1, "split"] = "train"
-        dataframe.loc[
-            self.train_samples : self.train_samples + self.val_samples - 1, "split"
-        ] = "validation"
+        total_samples = len(dataframe)
+        if total_samples == 0:
+            dataframe["split"] = pd.Series(dtype="string")
+            return dataframe
+
+        validation_size = float(self.validation_size)
+        validation_size = min(max(validation_size, 0.0), 1.0)
+        validation_samples = int(total_samples * validation_size)
+        validation_samples = min(max(validation_samples, 0), total_samples)
+
+        self.val_samples = validation_samples
+        self.train_samples = total_samples - validation_samples
+
+        dataframe["split"] = "train"
+        if validation_samples > 0:
+            dataframe.loc[: validation_samples - 1, "split"] = "validation"
 
         return dataframe
 
