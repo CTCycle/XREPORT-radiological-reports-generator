@@ -5,18 +5,28 @@ from typing import Any
 import pandas as pd
 
 from XREPORT.server.common.constants import (
-    IMAGE_STATISTICS_TABLE,
-    PROCESSING_METADATA_TABLE,
-    RADIOGRAPHY_TABLE,
-    TRAINING_DATASET_TABLE,
+    CHECKPOINTS_TABLE,
+    DATASETS_TABLE,
+    DATASET_RECORDS_TABLE,
+    INFERENCE_REPORTS_TABLE,
+    INFERENCE_RUNS_TABLE,
+    TRAINING_SAMPLES_TABLE,
+    VALIDATION_IMAGE_STATS_TABLE,
+    VALIDATION_PIXEL_DISTRIBUTION_TABLE,
+    VALIDATION_TEXT_SUMMARY_TABLE,
 )
 
 
 UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
-    RADIOGRAPHY_TABLE: ("name", "image", "text"),
-    TRAINING_DATASET_TABLE: ("hashcode", "image", "text"),
-    PROCESSING_METADATA_TABLE: ("hashcode",),
-    IMAGE_STATISTICS_TABLE: ("dataset_name", "name"),
+    DATASETS_TABLE: ("name",),
+    DATASET_RECORDS_TABLE: ("dataset_id", "image_name", "report_text"),
+    TRAINING_SAMPLES_TABLE: ("processing_run_id", "record_id"),
+    VALIDATION_TEXT_SUMMARY_TABLE: ("validation_run_id",),
+    VALIDATION_IMAGE_STATS_TABLE: ("validation_run_id", "record_id"),
+    VALIDATION_PIXEL_DISTRIBUTION_TABLE: ("validation_run_id", "bin"),
+    CHECKPOINTS_TABLE: ("name",),
+    INFERENCE_RUNS_TABLE: ("request_id",),
+    INFERENCE_REPORTS_TABLE: ("inference_run_id", "input_image_name"),
 }
 
 
