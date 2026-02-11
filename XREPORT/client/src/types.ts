@@ -1,6 +1,5 @@
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
 import { ValidationResponse } from './services/validationService';
-import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
 // Dataset Page State
@@ -135,24 +134,3 @@ export interface InferencePageState {
     evaluationError: string | null;
 }
 
-// ============================================================================
-// Database Browser Page State
-// ============================================================================
-export interface DatabaseBrowserPageState {
-    tables: TableInfo[];
-    selectedTable: string;
-    rows: Record<string, unknown>[];
-    columns: string[];
-    totalRows: number;
-    rowCount: number;
-    columnCount: number;
-    displayName: string;
-    limit: number;
-    offset: number;
-    loading: boolean;
-    loadingMore: boolean;
-    hasMore: boolean;
-    error: string | null;
-    tablesLoaded: boolean;
-    dataLoaded: boolean;
-}

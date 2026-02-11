@@ -7,12 +7,10 @@ import {
     TrainingDashboardState,
     ChartDataPoint,
     InferencePageState,
-    GenerationMode,
-    DatabaseBrowserPageState
+    GenerationMode
 } from './types';
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
 import { ValidationResponse } from './services/validationService';
-import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
 // Default States
@@ -122,27 +120,6 @@ const DEFAULT_INFERENCE_STATE: InferencePageState = {
     evaluationError: null
 };
 
-const DEFAULT_BATCH_SIZE = 200;
-
-const DEFAULT_DATABASE_BROWSER_STATE: DatabaseBrowserPageState = {
-    tables: [],
-    selectedTable: '',
-    rows: [],
-    columns: [],
-    totalRows: 0,
-    rowCount: 0,
-    columnCount: 0,
-    displayName: '',
-    limit: DEFAULT_BATCH_SIZE,
-    offset: 0,
-    loading: false,
-    loadingMore: false,
-    hasMore: true,
-    error: null,
-    tablesLoaded: false,
-    dataLoaded: false
-};
-
 // ============================================================================
 // Context Types
 // ============================================================================
@@ -158,10 +135,6 @@ interface AppStateContextType {
     // Inference Page
     inferencePageState: InferencePageState;
     setInferencePageState: (state: InferencePageState | ((prev: InferencePageState) => InferencePageState)) => void;
-
-    // Database Browser Page
-    databaseBrowserPageState: DatabaseBrowserPageState;
-    setDatabaseBrowserPageState: (state: DatabaseBrowserPageState | ((prev: DatabaseBrowserPageState) => DatabaseBrowserPageState)) => void;
 }
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
@@ -173,7 +146,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const [datasetPageState, setDatasetPageState] = useState<DatasetPageState>(DEFAULT_DATASET_STATE);
     const [trainingPageState, setTrainingPageState] = useState<TrainingPageState>(DEFAULT_TRAINING_STATE);
     const [inferencePageState, setInferencePageState] = useState<InferencePageState>(DEFAULT_INFERENCE_STATE);
-    const [databaseBrowserPageState, setDatabaseBrowserPageState] = useState<DatabaseBrowserPageState>(DEFAULT_DATABASE_BROWSER_STATE);
 
     return (
         <AppStateContext.Provider
@@ -183,9 +155,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                 trainingPageState,
                 setTrainingPageState,
                 inferencePageState,
-                setInferencePageState,
-                databaseBrowserPageState,
-                setDatabaseBrowserPageState
+                setInferencePageState
             }}
         >
             {children}
@@ -526,42 +496,5 @@ export function useInferencePageState() {
         setIsEvaluating,
         setEvaluationResults,
         setEvaluationError
-    };
-}
-
-export function useDatabaseBrowserState() {
-    const { databaseBrowserPageState, setDatabaseBrowserPageState } = useAppState();
-
-    const setState = useCallback((updater: Partial<DatabaseBrowserPageState> | ((prev: DatabaseBrowserPageState) => DatabaseBrowserPageState)) => {
-        if (typeof updater === 'function') {
-            setDatabaseBrowserPageState(updater);
-        } else {
-            setDatabaseBrowserPageState(prev => ({ ...prev, ...updater }));
-        }
-    }, [setDatabaseBrowserPageState]);
-
-    const setTables = useCallback((tables: TableInfo[]) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, tables }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setSelectedTable = useCallback((table: string) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, selectedTable: table }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setLoading = useCallback((loading: boolean) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, loading }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setError = useCallback((error: string | null) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, error }));
-    }, [setDatabaseBrowserPageState]);
-
-    return {
-        state: databaseBrowserPageState,
-        setState,
-        setTables,
-        setSelectedTable,
-        setLoading,
-        setError
     };
 }
