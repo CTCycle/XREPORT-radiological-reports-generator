@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy.types import TypeDecorator, JSON
+from sqlalchemy.types import JSON, TypeDecorator
 
 
 ###############################################################################

@@ -5,15 +5,20 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import UniqueConstraint, inspect
+from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.configurations import DatabaseSettings
-from XREPORT.server.repositories.schema import Base
-from XREPORT.server.repositories.utils import normalize_postgres_engine
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.configurations import DatabaseSettings
+from XREPORT.server.repositories.database.utils import (
+    normalize_postgres_engine,
+    normalize_string_columns,
+    resolve_conflict_columns,
+    validate_unique_key_values,
+)
+from XREPORT.server.repositories.schemas import Base
 
 
 ###############################################################################
@@ -47,8 +52,9 @@ class PostgresRepository:
             connect_args=connect_args,
             pool_pre_ping=True,
         )
-        self.Session = sessionmaker(bind=self.engine, future=True)
+        self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
+        Base.metadata.create_all(self.engine)
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:
@@ -60,60 +66,66 @@ class PostgresRepository:
     # -------------------------------------------------------------------------
     def upsert_dataframe(self, df: pd.DataFrame, table_cls) -> None:
         table = table_cls.__table__
-        session = self.Session()
+        table_name = str(getattr(table, "name", ""))
+        session = self.session()
         try:
-            unique_cols = []
-            for uc in table.constraints:
-                if isinstance(uc, UniqueConstraint):
-                    unique_cols = uc.columns.keys()
-                    break
-            if not unique_cols:
-                raise ValueError(f"No unique constraint found for {table_cls.__name__}")
-            normalized = df
-            string_cols = [
-                col
-                for col in normalized.columns
-                if pd.api.types.is_string_dtype(normalized[col].dtype)
-            ]
-            if string_cols:
-                normalized = normalized.copy()
-                normalized[string_cols] = normalized[string_cols].astype(object)
-                normalized[string_cols] = normalized[string_cols].where(
-                    normalized[string_cols].notna(),
-                    None,
+            payload_columns = [str(column) for column in df.columns]
+            unique_cols, missing_cols = resolve_conflict_columns(
+                table_name, payload_columns
+            )
+            if missing_cols:
+                raise ValueError(
+                    f"Missing conflict columns for {table_name}: "
+                    f"{', '.join(missing_cols)}"
                 )
+            normalized = normalize_string_columns(df)
             records = normalized.to_dict(orient="records")
+            validate_unique_key_values(records, unique_cols, table_name)
             for i in range(0, len(records), self.insert_batch_size):
                 batch = records[i : i + self.insert_batch_size]
                 if not batch:
                     continue
                 stmt = insert(table).values(batch)
-                update_cols = {
-                    col: getattr(stmt.excluded, col)  # type: ignore[attr-defined]
-                    for col in batch[0]
-                    if col not in unique_cols
-                }
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=unique_cols, set_=update_cols
-                )
+                if unique_cols:
+                    update_cols = {
+                        col: getattr(stmt.excluded, col)  # type: ignore[attr-defined]
+                        for col in batch[0]
+                        if col not in unique_cols
+                    }
+                    if update_cols:
+                        stmt = stmt.on_conflict_do_update(
+                            index_elements=unique_cols, set_=update_cols
+                        )
+                    else:
+                        stmt = stmt.on_conflict_do_nothing(
+                            index_elements=unique_cols
+                        )
                 session.execute(stmt)
                 session.commit()
         finally:
             session.close()
 
     # -------------------------------------------------------------------------
-    def load_from_database(self, table_name: str) -> pd.DataFrame:
+    def load_from_database(
+        self,
+        table_name: str,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> pd.DataFrame:
         with self.engine.connect() as conn:
             inspector = inspect(conn)
             if not inspector.has_table(table_name):
                 logger.warning("Table %s does not exist", table_name)
                 return pd.DataFrame()
             data = pd.read_sql_table(table_name, conn)
-        return data
+        if offset:
+            data = data.iloc[offset:]
+        if limit is not None:
+            data = data.head(limit)
+        return data.reset_index(drop=True)
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        """Overwrite table contents before inserting new rows."""
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             if inspector.has_table(table_name):
