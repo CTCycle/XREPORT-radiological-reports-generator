@@ -51,7 +51,6 @@ def clone_settings_with_database(
         ssl_ca=settings.ssl_ca,
         connect_timeout=settings.connect_timeout,
         insert_batch_size=settings.insert_batch_size,
-        browse_batch_size=settings.browse_batch_size,
     )
 
 
