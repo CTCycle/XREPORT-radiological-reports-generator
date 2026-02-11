@@ -14,7 +14,6 @@ from XREPORT.server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from XREPORT.server.routes.browser import router as browser_router
 from XREPORT.server.routes.upload import router as upload_router
 from XREPORT.server.routes.preparation import router as preparation_router
 from XREPORT.server.routes.training import router as training_router
@@ -28,7 +27,6 @@ app = FastAPI(
     description=FASTAPI_DESCRIPTION,
 )
 
-app.include_router(browser_router)
 app.include_router(upload_router)
 app.include_router(preparation_router)
 app.include_router(training_router)
