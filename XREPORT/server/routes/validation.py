@@ -123,12 +123,13 @@ def run_validation_job(
 
     progress_per_metric = 25.0
     current_progress = 20.0
+    image_records: list[dict[str, Any]] = []
 
     if "text_statistics" in metrics:
         if jm.should_stop(job_id):
             return {}
         logger.info(f"[1/3] Calculating text statistics for {len(dataset)} reports...")
-        text_stats, text_records_df = validator.calculate_text_statistics()
+        text_stats, _text_records_df = validator.calculate_text_statistics()
         result["text_statistics"] = {
             "count": text_stats.count,
             "total_words": text_stats.total_words,
@@ -140,13 +141,6 @@ def run_validation_job(
         logger.info(
             f"[1/3] Text statistics complete: {text_stats.total_words} total words, {text_stats.unique_words} unique"
         )
-
-        # Persist per-record text statistics
-        if not text_records_df.empty:
-            serializer.save_text_statistics(text_records_df)
-            logger.info(
-                f"Saved {len(text_records_df)} text statistics records to database"
-            )
 
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
@@ -175,13 +169,8 @@ def run_validation_job(
         logger.info(
             f"[2/3] Image statistics complete: analyzed {image_stats.count} images"
         )
-
-        # Persist per-record image statistics
         if not image_records_df.empty:
-            serializer.save_images_statistics(image_records_df)
-            logger.info(
-                f"Saved {len(image_records_df)} image statistics records to database"
-            )
+            image_records = image_records_df.to_dict(orient="records")
 
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
@@ -219,6 +208,7 @@ def run_validation_job(
         "image_statistics": result.get("image_statistics"),
         "pixel_distribution": result.get("pixel_distribution"),
         "artifacts": None,
+        "image_records": image_records,
     }
     serializer.save_validation_report(report_payload)
 
