@@ -37,42 +37,64 @@ VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
 
 # [DATABASE TABLES]
 ###############################################################################
-RADIOGRAPHY_TABLE = "radiography_data"
-TRAINING_DATASET_TABLE = "training_dataset"
-PROCESSING_METADATA_TABLE = "processing_metadata"
-GENERATED_REPORTS_TABLE = "generated_reports"
-TEXT_STATISTICS_TABLE = "text_statistics"
-IMAGE_STATISTICS_TABLE = "image_statistics"
-VALIDATION_REPORTS_TABLE = "validation_reports"
-CHECKPOINT_EVALUATION_REPORTS_TABLE = "checkpoint_evaluation_reports"
+DATASETS_TABLE = "datasets"
+DATASET_RECORDS_TABLE = "dataset_records"
+PROCESSING_RUNS_TABLE = "processing_runs"
+TRAINING_SAMPLES_TABLE = "training_samples"
+VALIDATION_RUNS_TABLE = "validation_runs"
+VALIDATION_TEXT_SUMMARY_TABLE = "validation_text_summary"
+VALIDATION_IMAGE_STATS_TABLE = "validation_image_stats"
+VALIDATION_PIXEL_DISTRIBUTION_TABLE = "validation_pixel_distribution"
+CHECKPOINTS_TABLE = "checkpoints"
+CHECKPOINT_EVALUATIONS_TABLE = "checkpoint_evaluations"
+INFERENCE_RUNS_TABLE = "inference_runs"
+INFERENCE_REPORTS_TABLE = "inference_reports"
 
 TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
-    RADIOGRAPHY_TABLE: ["name", "image", "text", "path"],
-    TRAINING_DATASET_TABLE: [
-        "name",
-        "hashcode",
-        "image",
-        "tokens",
-        "split",
-        "path",
+    DATASETS_TABLE: ["name", "created_at"],
+    DATASET_RECORDS_TABLE: [
+        "dataset_id",
+        "image_name",
+        "report_text",
+        "image_path",
+        "row_order",
     ],
-    PROCESSING_METADATA_TABLE: [
-        "name",
-        "hashcode",
-        "source_dataset",
-        "date",
+    PROCESSING_RUNS_TABLE: [
+        "dataset_id",
+        "config_hash",
+        "executed_at",
         "seed",
         "sample_size",
         "validation_size",
+        "split_seed",
         "vocabulary_size",
         "max_report_size",
         "tokenizer",
     ],
-    GENERATED_REPORTS_TABLE: ["image", "report", "checkpoint"],
-    TEXT_STATISTICS_TABLE: ["name", "words_count"],
-    IMAGE_STATISTICS_TABLE: [
-        "dataset_name",
-        "name",
+    TRAINING_SAMPLES_TABLE: [
+        "processing_run_id",
+        "record_id",
+        "split",
+        "tokens_json",
+    ],
+    VALIDATION_RUNS_TABLE: [
+        "dataset_id",
+        "executed_at",
+        "sample_size",
+        "metrics_json",
+    ],
+    VALIDATION_TEXT_SUMMARY_TABLE: [
+        "validation_run_id",
+        "count",
+        "total_words",
+        "unique_words",
+        "avg_words_per_report",
+        "min_words_per_report",
+        "max_words_per_report",
+    ],
+    VALIDATION_IMAGE_STATS_TABLE: [
+        "validation_run_id",
+        "record_id",
         "height",
         "width",
         "mean",
@@ -84,22 +106,32 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "noise_std",
         "noise_ratio",
     ],
-    VALIDATION_REPORTS_TABLE: [
-        "name",
-        "date",
-        "sample_size",
-        "metrics",
-        "text_statistics",
-        "image_statistics",
-        "pixel_distribution",
-        "artifacts",
+    VALIDATION_PIXEL_DISTRIBUTION_TABLE: [
+        "validation_run_id",
+        "bin",
+        "count",
     ],
-    CHECKPOINT_EVALUATION_REPORTS_TABLE: [
-        "checkpoint",
-        "date",
-        "metrics",
-        "metric_configs",
-        "results",
+    CHECKPOINTS_TABLE: [
+        "name",
+        "path",
+        "created_at",
+    ],
+    CHECKPOINT_EVALUATIONS_TABLE: [
+        "checkpoint_id",
+        "executed_at",
+        "metrics_json",
+        "metric_configs_json",
+        "results_json",
+    ],
+    INFERENCE_RUNS_TABLE: [
+        "checkpoint_id",
+        "generation_mode",
+        "executed_at",
+    ],
+    INFERENCE_REPORTS_TABLE: [
+        "inference_run_id",
+        "input_image_name",
+        "generated_report",
     ],
 }
 

@@ -24,6 +24,7 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.configurations.server import server_settings
 
@@ -195,6 +196,23 @@ def run_inference_job(
             )
     finally:
         inference_image_store.remove_job(job_id)
+
+    try:
+        serializer = DataSerializer()
+        serializer.save_generated_reports(
+            [
+                {
+                    "image": filename,
+                    "report": report,
+                    "checkpoint": checkpoint,
+                }
+                for filename, report in reports_by_filename.items()
+            ],
+            generation_mode=generation_mode,
+            request_id=request_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to persist generated reports for %s: %s", job_id, exc)
 
     return {
         "reports": reports_by_filename,

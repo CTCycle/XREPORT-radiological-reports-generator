@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import inspect
+from sqlalchemy import event, inspect
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -29,9 +29,19 @@ class SQLiteRepository:
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
         )
+        event.listen(self.engine, "connect", self._enable_foreign_keys)
         self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
         Base.metadata.create_all(self.engine)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+        finally:
+            cursor.close()
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:

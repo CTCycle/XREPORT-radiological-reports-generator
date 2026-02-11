@@ -37,12 +37,11 @@ from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
-    RADIOGRAPHY_TABLE,
-    TRAINING_DATASET_TABLE,
-    VALIDATION_REPORTS_TABLE,
-    PROCESSING_METADATA_TABLE,
-    IMAGE_STATISTICS_TABLE,
-    TEXT_STATISTICS_TABLE,
+    DATASETS_TABLE,
+    DATASET_RECORDS_TABLE,
+    PROCESSING_RUNS_TABLE,
+    TRAINING_SAMPLES_TABLE,
+    VALIDATION_RUNS_TABLE,
 )
 from XREPORT.server.services.processing import (
     TextSanitizer,
@@ -117,7 +116,7 @@ def run_process_dataset_job(
                 f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again."
             )
         raise RuntimeError(
-            f"No data found in {RADIOGRAPHY_TABLE} table. Please load a dataset first."
+            f"No data found in {DATASET_RECORDS_TABLE} table. Please load a dataset first."
         )
         return {}
 
@@ -236,36 +235,38 @@ class PreparationEndpoint:
     async def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
         serializer = DataSerializer()
-        row_count = serializer.count_rows(RADIOGRAPHY_TABLE)
+        row_count = serializer.count_rows(DATASET_RECORDS_TABLE)
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
-            message=f"Found {row_count} records in {RADIOGRAPHY_TABLE}"
+            message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
             if row_count > 0
-            else f"No data found in {RADIOGRAPHY_TABLE} table",
+            else f"No data found in {DATASET_RECORDS_TABLE} table",
         )
 
     # -----------------------------------------------------------------------------
     async def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
-            inspector = sqlalchemy.inspect(conn)
-            report_names = set()
-            if inspector.has_table(VALIDATION_REPORTS_TABLE):
-                reports = pd.read_sql_table(VALIDATION_REPORTS_TABLE, conn)
-                if not reports.empty and "name" in reports.columns:
-                    report_names = set(reports["name"].dropna().astype(str).tolist())
-            # Get dataset name, folder path (dirname of first path), and row count per dataset
             result = conn.execute(
                 sqlalchemy.text(
                     f"""
                     SELECT
-                        name,
-                        MIN(path) as sample_path,
-                        COUNT(*) as row_count
-                    FROM "{RADIOGRAPHY_TABLE}"
-                    GROUP BY name
-                    ORDER BY name
+                        d.name,
+                        MIN(r.image_path) AS sample_path,
+                        COUNT(r.record_id) AS row_count,
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM "{VALIDATION_RUNS_TABLE}" vr
+                                WHERE vr.dataset_id = d.dataset_id
+                            ) THEN TRUE
+                            ELSE FALSE
+                        END AS has_validation_report
+                    FROM "{DATASETS_TABLE}" d
+                    JOIN "{DATASET_RECORDS_TABLE}" r ON r.dataset_id = d.dataset_id
+                    GROUP BY d.dataset_id, d.name
+                    ORDER BY d.name
                 """
                 )
             )
@@ -274,6 +275,7 @@ class PreparationEndpoint:
                 name = row[0]
                 sample_path = row[1] or ""
                 row_count = row[2]
+                has_validation_report = bool(row[3])
                 # Extract folder path from the sample path
                 folder_path = os.path.dirname(sample_path) if sample_path else ""
                 datasets.append(
@@ -281,7 +283,7 @@ class PreparationEndpoint:
                         name=name,
                         folder_path=folder_path,
                         row_count=row_count,
-                        has_validation_report=name in report_names,
+                        has_validation_report=has_validation_report,
                     )
                 )
 
@@ -295,19 +297,35 @@ class PreparationEndpoint:
         """Get list of processed datasets available for training."""
         with self.database.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
-            if not inspector.has_table(TRAINING_DATASET_TABLE):
+            if not inspector.has_table(TRAINING_SAMPLES_TABLE):
                 return DatasetNamesResponse(datasets=[], count=0)
 
-            # Get dataset name and row count from training dataset table.
             result = conn.execute(
                 sqlalchemy.text(
                     f"""
+                    WITH latest_runs AS (
+                        SELECT
+                            dataset_id,
+                            MAX(processing_run_id) AS processing_run_id
+                        FROM "{PROCESSING_RUNS_TABLE}"
+                        GROUP BY dataset_id
+                    )
                     SELECT
-                        name,
-                        COUNT(*) as row_count
-                    FROM "{TRAINING_DATASET_TABLE}"
-                    GROUP BY name
-                    ORDER BY name
+                        d.name,
+                        COUNT(ts.training_sample_id) AS row_count,
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM "{VALIDATION_RUNS_TABLE}" vr
+                                WHERE vr.dataset_id = d.dataset_id
+                            ) THEN TRUE
+                            ELSE FALSE
+                        END AS has_validation_report
+                    FROM latest_runs lr
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = lr.dataset_id
+                    LEFT JOIN "{TRAINING_SAMPLES_TABLE}" ts ON ts.processing_run_id = lr.processing_run_id
+                    GROUP BY d.dataset_id, d.name
+                    ORDER BY d.name
                 """
                 )
             )
@@ -316,17 +334,7 @@ class PreparationEndpoint:
             for row in result.fetchall():
                 name = row[0]
                 row_count = row[1]
-
-                # Check for validation report to flag it
-                has_report = False
-                if inspector.has_table(VALIDATION_REPORTS_TABLE):
-                    report_result = conn.execute(
-                        sqlalchemy.text(
-                            f'SELECT 1 FROM "{VALIDATION_REPORTS_TABLE}" WHERE name = :name'
-                        ),
-                        {"name": name},
-                    )
-                    has_report = report_result.fetchone() is not None
+                has_report = bool(row[2])
 
                 datasets.append(
                     DatasetInfo(
@@ -354,26 +362,21 @@ class PreparationEndpoint:
             )
 
         serializer = DataSerializer()
-        metadata_df = serializer.load_table(PROCESSING_METADATA_TABLE)
-        if metadata_df.empty:
+        latest_metadata = serializer.load_training_data(
+            only_metadata=True,
+            dataset_name=dataset_name,
+        )
+        if not latest_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No processing metadata found",
             )
 
-        if "name" in metadata_df.columns:
-            filtered = metadata_df[metadata_df["name"] == dataset_name]
-        else:
-            filtered = metadata_df
-
-        if filtered.empty:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No processing metadata found for dataset: {dataset_name}",
-            )
-
-        metadata = filtered.iloc[-1].to_dict()
+        metadata = dict(latest_metadata)
         metadata_name = str(metadata.pop("name", "") or dataset_name)
+        metadata.pop("dataset_id", None)
+        metadata.pop("source_dataset_id", None)
+        metadata.pop("processing_run_id", None)
 
         return ProcessingMetadataResponse(
             dataset_name=metadata_name,
@@ -390,101 +393,17 @@ class PreparationEndpoint:
             )
 
         with self.database.backend.engine.begin() as conn:
-            inspector = sqlalchemy.inspect(conn)
-
-            deleted_anything = False
-
-            # 1. Try deleting from TRAINING_DATASET (Processed datasets)
-            if inspector.has_table(TRAINING_DATASET_TABLE):
-                result = conn.execute(
-                    sqlalchemy.text(
-                        f'DELETE FROM "{TRAINING_DATASET_TABLE}" WHERE name = :dataset_name'
-                    ),
-                    {"dataset_name": dataset_name},
+            result = conn.execute(
+                sqlalchemy.text(
+                    f'DELETE FROM "{DATASETS_TABLE}" WHERE name = :dataset_name'
+                ),
+                {"dataset_name": dataset_name},
+            )
+            if result.rowcount <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Dataset not found: {dataset_name}",
                 )
-                if result.rowcount > 0:
-                    deleted_anything = True
-                    logger.info(
-                        f"Deleted {result.rowcount} rows from {TRAINING_DATASET_TABLE} for {dataset_name}"
-                    )
-
-            # 2. Try deleting from RADIOGRAPHY_DATA (Source datasets)
-            if inspector.has_table(RADIOGRAPHY_TABLE):
-                result = conn.execute(
-                    sqlalchemy.text(
-                        f'DELETE FROM "{RADIOGRAPHY_TABLE}" WHERE name = :dataset_name'
-                    ),
-                    {"dataset_name": dataset_name},
-                )
-                if result.rowcount > 0:
-                    deleted_anything = True
-                    logger.info(
-                        f"Deleted {result.rowcount} rows from {RADIOGRAPHY_TABLE} for {dataset_name}"
-                    )
-
-            # 3. Clean up metadata tables for this dataset name
-            cleanup_tables = [
-                PROCESSING_METADATA_TABLE,
-                VALIDATION_REPORTS_TABLE,
-                IMAGE_STATISTICS_TABLE,
-                TEXT_STATISTICS_TABLE,
-            ]
-            for table_name in cleanup_tables:
-                if inspector.has_table(table_name):
-                    column_name = (
-                        "dataset_name"
-                        if table_name == IMAGE_STATISTICS_TABLE
-                        else "name"
-                    )
-                    result = conn.execute(
-                        sqlalchemy.text(
-                            f'DELETE FROM "{table_name}" WHERE {column_name} = :dataset_name'
-                        ),
-                        {"dataset_name": dataset_name},
-                    )
-                    if result.rowcount > 0:
-                        logger.info(
-                            f"Deleted metadata from {table_name} for {dataset_name}"
-                        )
-
-            if not deleted_anything:
-                # Check if it existed in metadata only (edge case)
-                # If we didn't delete from data tables, maybe we deleted from metadata tables?
-                # Since we didn't track rowcount for metadata tables in `deleted_anything` flag (for strict ness),
-                # check if it was truly not found at all.
-
-                # Strictly speaking, if we found nothing in DATA tables, we can consider it "not found"
-                # or "metadata only delete". Let's assume if the user asked to delete, and we found NOTHING, return 404.
-                # But if we found metadata, it's a valid delete of a corrupted dataset.
-
-                # Let's simplify: If we didn't delete from data tables, check if we should return 404.
-                # Actually, the user just wants it GONE. If it's already gone, success? Or 404?
-                # Standard REST implies 404 if resource doesn't exist.
-
-                # Let's check simply if we deleted from ANY table?
-                # The previous logic counted only RADIOGRAPHY_DATA.
-                # Let's count if we deleted from TRAINING_DATASET as well.
-
-                pass  # Logic handled by `deleted_anything` flag above.
-
-            if not deleted_anything:
-                # Double check if it exists in metadata at least, to avoid 404ing on a "metadata-only" ghost
-                found_in_metadata = False
-                if inspector.has_table(PROCESSING_METADATA_TABLE):
-                    check = conn.execute(
-                        sqlalchemy.text(
-                            f'SELECT 1 FROM "{PROCESSING_METADATA_TABLE}" WHERE name = :dataset_name'
-                        ),
-                        {"dataset_name": dataset_name},
-                    )
-                    if check.fetchone():
-                        found_in_metadata = True
-
-                if not found_in_metadata:
-                    raise HTTPException(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"Dataset not found: {dataset_name}",
-                    )
 
         return DeleteResponse(
             success=True,
@@ -619,12 +538,27 @@ class PreparationEndpoint:
                 serializer = DataSerializer()
                 # Prepare data for database.
                 db_df = matched[[image_column, "text", "_path"]].copy()
-                db_df = db_df.rename(columns={image_column: "image", "_path": "path"})
-                db_df["name"] = dataset_name
-                db_df = db_df[["name", "image", "text", "path"]]
+                db_df = db_df.rename(
+                    columns={
+                        image_column: "image_name",
+                        "text": "report_text",
+                        "_path": "image_path",
+                    }
+                )
+                db_df["dataset_name"] = dataset_name
+                db_df["row_order"] = range(1, len(db_df) + 1)
+                db_df = db_df[
+                    [
+                        "dataset_name",
+                        "image_name",
+                        "report_text",
+                        "image_path",
+                        "row_order",
+                    ]
+                ]
                 serializer.upsert_source_dataset(db_df)
                 logger.info(
-                    f"Upserted {len(db_df)} records to {RADIOGRAPHY_TABLE} table (dataset: {dataset_name})"
+                    f"Upserted {len(db_df)} records to {DATASET_RECORDS_TABLE} table (dataset: {dataset_name})"
                 )
             except Exception as e:
                 logger.exception("Failed to save data to database")
@@ -807,7 +741,12 @@ class PreparationEndpoint:
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
                 sqlalchemy.text(
-                    f'SELECT COUNT(*) FROM "{RADIOGRAPHY_TABLE}" WHERE name = :dataset_name'
+                    f'''
+                    SELECT COUNT(*)
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    '''
                 ),
                 {"dataset_name": dataset_name},
             )
@@ -831,10 +770,11 @@ class PreparationEndpoint:
             result = conn.execute(
                 sqlalchemy.text(
                     f'''
-                    SELECT image, text, path
-                    FROM "{RADIOGRAPHY_TABLE}"
-                    WHERE name = :dataset_name
-                    ORDER BY id
+                    SELECT r.image_name, r.report_text, r.image_path
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    ORDER BY r.row_order, r.record_id
                     LIMIT 1 OFFSET :offset
                     '''
                 ),
@@ -878,10 +818,11 @@ class PreparationEndpoint:
             result = conn.execute(
                 sqlalchemy.text(
                     f'''
-                    SELECT path
-                    FROM "{RADIOGRAPHY_TABLE}"
-                    WHERE name = :dataset_name
-                    ORDER BY id
+                    SELECT r.image_path
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    ORDER BY r.row_order, r.record_id
                     LIMIT 1 OFFSET :offset
                     '''
                 ),
