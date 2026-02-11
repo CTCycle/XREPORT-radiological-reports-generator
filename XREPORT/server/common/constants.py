@@ -134,4 +134,3 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "generated_report",
     ],
 }
-

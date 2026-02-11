@@ -97,9 +97,7 @@ class PostgresRepository:
                             index_elements=unique_cols, set_=update_cols
                         )
                     else:
-                        stmt = stmt.on_conflict_do_nothing(
-                            index_elements=unique_cols
-                        )
+                        stmt = stmt.on_conflict_do_nothing(index_elements=unique_cols)
                 session.execute(stmt)
                 session.commit()
         finally:
