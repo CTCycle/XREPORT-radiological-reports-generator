@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import urllib.parse
+
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.repositories.postgres import PostgresRepository
-from XREPORT.server.repositories.schema import Base
-from XREPORT.server.repositories.sqlite import SQLiteRepository
-from XREPORT.server.repositories.utils import normalize_postgres_engine
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.configurations import DatabaseSettings, server_settings
+from XREPORT.server.repositories.database.postgres import PostgresRepository
+from XREPORT.server.repositories.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.database.utils import normalize_postgres_engine
+from XREPORT.server.repositories.schemas import Base
 
 
-###############################################################################
+# -----------------------------------------------------------------------------
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {"connect_timeout": settings.connect_timeout}
     if settings.ssl:
@@ -50,7 +51,6 @@ def clone_settings_with_database(
         ssl_ca=settings.ssl_ca,
         connect_timeout=settings.connect_timeout,
         insert_batch_size=settings.insert_batch_size,
-        browse_batch_size=settings.browse_batch_size,
     )
 
 
