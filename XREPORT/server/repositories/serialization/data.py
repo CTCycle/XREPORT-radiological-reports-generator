@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import hashlib
@@ -272,7 +271,9 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def validate_img_paths(self, dataset: pd.DataFrame) -> pd.DataFrame:
         if "path" not in dataset.columns:
-            logger.error("Dataset missing 'path' column - images were not stored with paths")
+            logger.error(
+                "Dataset missing 'path' column - images were not stored with paths"
+            )
             return pd.DataFrame()
 
         valid_mask = dataset["path"].apply(
@@ -598,7 +599,9 @@ class DataSerializer:
         dataset_payload = dataset.copy()
         dataset_payload["dataset_name"] = dataset_payload["dataset_name"].astype(str)
         dataset_payload["image_name"] = dataset_payload["image_name"].astype(str)
-        dataset_payload["report_text"] = dataset_payload["report_text"].fillna("").astype(str)
+        dataset_payload["report_text"] = (
+            dataset_payload["report_text"].fillna("").astype(str)
+        )
         dataset_payload["image_path"] = dataset_payload["image_path"].astype(str)
 
         batches: list[pd.DataFrame] = []
@@ -1024,7 +1027,9 @@ class DataSerializer:
             "checkpoint": checkpoint_name,
             "date": self._format_datetime(row[0]),
             "metrics": metrics if isinstance(metrics, list) else [],
-            "metric_configs": metric_configs if isinstance(metric_configs, dict) else {},
+            "metric_configs": metric_configs
+            if isinstance(metric_configs, dict)
+            else {},
             "results": results if isinstance(results, dict) else {},
         }
 

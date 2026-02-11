@@ -4,11 +4,13 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+
 ###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(
         ..., description="Server-side folder path containing images"
     )
+
 
 ###############################################################################
 class ImagePathResponse(BaseModel):
@@ -16,6 +18,7 @@ class ImagePathResponse(BaseModel):
     folder_path: str
     image_count: int
     message: str
+
 
 ###############################################################################
 class DatasetUploadResponse(BaseModel):
@@ -27,6 +30,7 @@ class DatasetUploadResponse(BaseModel):
     columns: list[str]
     message: str
 
+
 ###############################################################################
 class LoadDatasetRequest(BaseModel):
     image_folder_path: str = Field(
@@ -36,6 +40,7 @@ class LoadDatasetRequest(BaseModel):
         1.0, ge=0.01, le=1.0, description="Fraction of data to use"
     )
 
+
 ###############################################################################
 class LoadDatasetResponse(BaseModel):
     success: bool
@@ -44,12 +49,13 @@ class LoadDatasetResponse(BaseModel):
     unmatched_records: int
     message: str
 
+
 ###############################################################################
 class DirectoryItem(BaseModel):
     name: str
     path: str
     is_dir: bool
-    image_count: int = 0  
+    image_count: int = 0
 
 
 ###############################################################################
@@ -57,8 +63,8 @@ class BrowseResponse(BaseModel):
     current_path: str
     parent_path: str | None
     items: list[DirectoryItem]
-    drives: list[str] = []  
-    
+    drives: list[str] = []
+
 
 ###############################################################################
 class StartTrainingRequest(BaseModel):

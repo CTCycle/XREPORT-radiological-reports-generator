@@ -32,9 +32,7 @@ class Dataset(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
-    __table_args__ = (
-        UniqueConstraint("name", name="uq_datasets_name"),
-    )
+    __table_args__ = (UniqueConstraint("name", name="uq_datasets_name"),)
 
 
 ###############################################################################
