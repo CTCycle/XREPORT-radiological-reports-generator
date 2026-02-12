@@ -26,7 +26,7 @@ set "venv_dir=%root_folder%.venv"
 set "client_dir=%project_folder%client"
 set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
-set "scripts_dir=%server_dir%\scripts"
+set "scripts_dir=%project_folder%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
 
 
