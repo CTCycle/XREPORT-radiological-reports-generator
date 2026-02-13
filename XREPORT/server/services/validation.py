@@ -116,7 +116,9 @@ class DatasetValidator:
         else:
             names = [f"record_{i}" for i in range(len(self.dataset))]
         if "record_id" in self.dataset.columns:
-            record_ids = pd.to_numeric(self.dataset["record_id"], errors="coerce").tolist()
+            record_ids = pd.to_numeric(
+                self.dataset["record_id"], errors="coerce"
+            ).tolist()
         else:
             record_ids = [None for _ in range(len(self.dataset))]
 

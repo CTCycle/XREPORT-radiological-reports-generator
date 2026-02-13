@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import threading
 import uuid
-from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
@@ -13,6 +12,7 @@ from XREPORT.server.entities.inference import (
     CheckpointInfo,
     CheckpointsResponse,
     GenerationResponse,
+    InferenceImage,
 )
 from XREPORT.server.entities.jobs import (
     JobStartResponse,
@@ -48,16 +48,6 @@ ALLOWED_IMAGE_EXTENSIONS = {
     ".tif",
     ".tiff",
 }
-
-
-###############################################################################
-@dataclass(frozen=True)
-class InferenceImage:
-    filename: str
-    content_type: str
-    data: bytes
-    size_bytes: int
-
 
 ###############################################################################
 class InferenceImageStore:

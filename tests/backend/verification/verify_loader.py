@@ -9,7 +9,6 @@ import torch
 sys.path.append(r"g:\Projects\Repository\XREPORT Radiological Reports")
 
 
-
 def verify_loader():
     print("Verifying DataLoader...")
 

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from XREPORT.server.common.constants import PROCESSING_RUNS_TABLE, TRAINING_SAMPLES_TABLE
+from XREPORT.server.common.constants import (
+    PROCESSING_RUNS_TABLE,
+    TRAINING_SAMPLES_TABLE,
+)
 from XREPORT.server.repositories.database.backend import XREPORTDatabase, database
 
 

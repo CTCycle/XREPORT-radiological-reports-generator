@@ -36,9 +36,7 @@ def test_normalize_string_columns_handles_pandas_string_dtype() -> None:
 
 
 def test_normalize_string_columns_handles_object_string_column() -> None:
-    dataframe = pd.DataFrame(
-        {"name": pd.Series(["alpha", pd.NA], dtype=object)}
-    )
+    dataframe = pd.DataFrame({"name": pd.Series(["alpha", pd.NA], dtype=object)})
 
     normalized = normalize_string_columns(dataframe)
 
@@ -48,9 +46,7 @@ def test_normalize_string_columns_handles_object_string_column() -> None:
 
 
 def test_normalize_string_columns_ignores_mixed_object_column() -> None:
-    dataframe = pd.DataFrame(
-        {"payload": pd.Series(["alpha", pd.NA, 3], dtype=object)}
-    )
+    dataframe = pd.DataFrame({"payload": pd.Series(["alpha", pd.NA, 3], dtype=object)})
 
     normalized = normalize_string_columns(dataframe)
 
