@@ -5,23 +5,22 @@ import urllib.parse
 import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 
-from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 from XREPORT.server.repositories.database.utils import normalize_postgres_engine
-from XREPORT.server.repositories.schemas import Base
+from XREPORT.server.common.utils.logger import logger
 
-
-# -----------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
-    connect_args: dict[str, str | int] = {"connect_timeout": settings.connect_timeout}
+    connect_args: dict[str, str | int] = {
+        "connect_timeout": settings.connect_timeout,
+        "client_encoding": "utf8",
+    }
     if settings.ssl:
         connect_args["sslmode"] = "require"
         if settings.ssl_ca:
             connect_args["sslrootcert"] = settings.ssl_ca
     return connect_args
-
 
 # -----------------------------------------------------------------------------
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
@@ -32,25 +31,6 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     return (
         f"{engine_name}://{safe_username}:{safe_password}"
         f"@{settings.host}:{port}/{database_name}"
-    )
-
-
-# -----------------------------------------------------------------------------
-def clone_settings_with_database(
-    settings: DatabaseSettings, database_name: str
-) -> DatabaseSettings:
-    return DatabaseSettings(
-        embedded_database=False,
-        engine=settings.engine,
-        host=settings.host,
-        port=settings.port,
-        database_name=database_name,
-        username=settings.username,
-        password=settings.password,
-        ssl=settings.ssl,
-        ssl_ca=settings.ssl_ca,
-        connect_timeout=settings.connect_timeout,
-        insert_batch_size=settings.insert_batch_size,
     )
 
 
@@ -91,13 +71,14 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
         if exists:
             logger.info("PostgreSQL database %s already exists", target_database)
         else:
-            conn.execute(sqlalchemy.text(f'CREATE DATABASE "{safe_database}"'))
+            conn.execute(
+                sqlalchemy.text(
+                    f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\''
+                )
+            )
             logger.info("Created PostgreSQL database %s", target_database)
-
-    normalized_settings = clone_settings_with_database(settings, target_database)
-    repository = PostgresRepository(normalized_settings)
-    Base.metadata.create_all(repository.engine)
-    logger.info("Ensured PostgreSQL tables exist in %s", target_database)
+    
+    logger.info("Reset and initialized PostgreSQL tables in %s", target_database)
 
     return target_database
 
