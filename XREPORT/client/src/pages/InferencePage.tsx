@@ -9,7 +9,7 @@ import { GenerationMode } from '../types';
 import {
     getInferenceCheckpoints,
     generateReports,
-    getInferenceJobStatus
+    pollInferenceJobStatus
 } from '../services/inferenceService';
 
 const MAX_IMAGES = 16;
@@ -218,26 +218,17 @@ export default function InferencePage() {
 
         // Poll for job completion
         const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        const poll = async () => {
-            const { result: status, error: pollError } = await getInferenceJobStatus(jobResult.job_id);
+        pollInferenceJobStatus(
+            jobResult.job_id,
+            (status) => {
+                if (!status.result) {
+                    return;
+                }
 
-            if (pollError) {
-                console.error('Poll error:', pollError);
-                setIsGenerating(false);
-                return;
-            }
-
-            if (!status) {
-                setIsGenerating(false);
-                return;
-            }
-
-            if (status.result) {
                 const resultPayload = status.result as Record<string, unknown>;
                 const reports = resultPayload.reports as Record<string, string> | undefined;
                 const reportsOrdered = resultPayload.reports_ordered as string[] | undefined;
                 const reportFilenames = resultPayload.report_filenames as string[] | undefined;
-
                 const reportsByIndex: Record<number, string> = {};
 
                 if (reportsOrdered && reportsOrdered.length > 0) {
@@ -276,21 +267,19 @@ export default function InferencePage() {
                         setGeneratedReport(reportsByIndex[state.currentIndex]);
                     }
                 }
-            }
-
-            if (status.status === 'completed') {
+            },
+            (status) => {
+                if (status.status === 'failed') {
+                    console.error('Generation failed:', status.error);
+                }
                 setIsGenerating(false);
-            } else if (status.status === 'failed') {
-                console.error('Generation failed:', status.error);
+            },
+            (pollError) => {
+                console.error('Poll error:', pollError);
                 setIsGenerating(false);
-            } else if (status.status === 'cancelled') {
-                setIsGenerating(false);
-            } else {
-                // Still running, poll again
-                setTimeout(poll, pollInterval);
-            }
-        };
-        poll();
+            },
+            pollInterval
+        );
     };
 
     // Copy report to clipboard

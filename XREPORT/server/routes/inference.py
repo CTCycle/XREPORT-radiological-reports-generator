@@ -6,12 +6,10 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
-from fastapi.responses import JSONResponse
 
 from XREPORT.server.entities.inference import (
     CheckpointInfo,
     CheckpointsResponse,
-    GenerationResponse,
     InferenceImage,
 )
 from XREPORT.server.entities.jobs import (
@@ -89,18 +87,6 @@ inference_image_store = InferenceImageStore()
 
 
 # -----------------------------------------------------------------------------
-def error_response(status_code: int, message: str) -> JSONResponse:
-    return JSONResponse(
-        status_code=status_code,
-        content=GenerationResponse(
-            success=False,
-            message=message,
-            reports=None,
-        ).model_dump(),
-    )
-
-
-# -----------------------------------------------------------------------------
 def run_inference_job(
     checkpoint: str,
     generation_mode: str,
@@ -122,7 +108,7 @@ def run_inference_job(
     serializer = ModelSerializer()
 
     try:
-        model, train_config, model_metadata, _, _ = serializer.load_checkpoint(
+        model, _, model_metadata, _, _ = serializer.load_checkpoint(
             checkpoint
         )
     except Exception as e:
@@ -353,7 +339,7 @@ class InferenceEndpoint:
 
             # Start background job
             job_id = self.job_manager.start_job(
-                job_type="inference",
+                job_type=self.JOB_TYPE,
                 runner=run_inference_job,
                 kwargs={
                     "checkpoint": checkpoint,

@@ -2,14 +2,31 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Settings } from 'lucide-react';
 import ValidationDashboard from '../components/ValidationDashboard';
-import { runValidation, getValidationJobStatus } from '../services/validationService';
+import { runValidation, getValidationJobStatus, ValidationResponse } from '../services/validationService';
 import './DatasetPage.css'; // Reusing styles for now
+
+type ValidationConfig = {
+    evalSampleSize: number;
+    imgStats: boolean;
+    textStats: boolean;
+    pixDist: boolean;
+};
+
+function asValidationResponse(result: Record<string, unknown>): ValidationResponse {
+    return {
+        success: (result.success as boolean) ?? true,
+        message: (result.message as string) ?? 'Validation completed',
+        pixel_distribution: result.pixel_distribution as ValidationResponse['pixel_distribution'],
+        image_statistics: result.image_statistics as ValidationResponse['image_statistics'],
+        text_statistics: result.text_statistics as ValidationResponse['text_statistics'],
+    };
+}
 
 export default function DatasetValidationPage() {
     const { datasetName } = useParams<{ datasetName: string }>();
     const navigate = useNavigate();
 
-    const [config, setConfig] = useState({
+    const [config, setConfig] = useState<ValidationConfig>({
         evalSampleSize: 0.2, // Default 20%
         imgStats: true,
         textStats: true,
@@ -18,10 +35,9 @@ export default function DatasetValidationPage() {
 
     const [isValidating, setIsValidating] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
-    // Reuse the same validation result structure as before
-    const [validationResult, setValidationResult] = useState<any | null>(null);
+    const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
 
-    const handleConfigChange = (key: string, value: any) => {
+    const handleConfigChange = <K extends keyof ValidationConfig>(key: K, value: ValidationConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
@@ -71,14 +87,7 @@ export default function DatasetValidationPage() {
 
             if (status.status === 'completed' && status.result) {
                 setIsValidating(false);
-                const res = status.result as Record<string, unknown>;
-                setValidationResult({
-                    success: res.success as boolean ?? true,
-                    message: res.message as string ?? 'Validation completed',
-                    pixel_distribution: res.pixel_distribution,
-                    image_statistics: res.image_statistics,
-                    text_statistics: res.text_statistics,
-                });
+                setValidationResult(asValidationResponse(status.result));
             } else if (status.status === 'failed') {
                 setIsValidating(false);
                 setValidationError(status.error || 'Validation failed');
@@ -95,7 +104,7 @@ export default function DatasetValidationPage() {
     return (
         <div className="dataset-container">
             <div className="header">
-                <button className="btn-icon-text" onClick={() => navigate('/dataset')} style={{ marginBottom: '1rem', border: 'none', background: 'none', padding: 0, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                <button className="btn-icon-text validation-back-button" onClick={() => navigate('/dataset')}>
                     <ArrowLeft size={20} />
                     <span>Back to Datasets</span>
                 </button>
@@ -109,9 +118,9 @@ export default function DatasetValidationPage() {
                     <span>Configuration</span>
                 </div>
 
-                <div className="validation-config-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                        <div className="form-group" style={{ minWidth: '200px' }}>
+                <div className="validation-config-panel validation-config-layout">
+                    <div className="validation-config-row">
+                        <div className="form-group validation-config-min-width">
                             <label className="form-label">Evaluation Sample Size (0-1)</label>
                             <input
                                 type="number"
@@ -124,7 +133,7 @@ export default function DatasetValidationPage() {
                             />
                         </div>
 
-                        <div className="eval-checkboxes" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                        <div className="eval-checkboxes validation-checkboxes-row">
                             <label className="form-checkbox">
                                 <input
                                     type="checkbox"
@@ -157,10 +166,9 @@ export default function DatasetValidationPage() {
 
                     <div className="form-actions">
                         <button
-                            className="btn btn-primary"
+                            className="btn btn-primary validation-run-button"
                             onClick={handleRunValidation}
                             disabled={isValidating}
-                            style={{ alignSelf: 'flex-start' }}
                         >
                             {isValidating ? (
                                 <>Running Validation...</>
@@ -174,7 +182,7 @@ export default function DatasetValidationPage() {
 
             {/* Validation Results */}
             {(isValidating || validationResult || validationError) && (
-                <div style={{ marginTop: '2rem' }}>
+                <div className="validation-results-spacing">
                     <ValidationDashboard
                         isLoading={isValidating}
                         validationResult={validationResult}

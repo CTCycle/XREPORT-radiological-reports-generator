@@ -11,12 +11,6 @@ export interface CheckpointsResponse {
     message: string;
 }
 
-export interface GenerationResponse {
-    success: boolean;
-    message: string;
-    reports: Record<string, string> | null;
-}
-
 export type GenerationMode = 'greedy_search' | 'beam_search';
 
 // ============================================================================
@@ -45,6 +39,10 @@ export interface JobCancelResponse {
     success: boolean;
     message: string;
 }
+
+type JobStatusFetcher = (
+    jobId: string
+) => Promise<{ result: JobStatusResponse | null; error: string | null }>;
 
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
@@ -295,13 +293,31 @@ export function pollCheckpointEvaluationJobStatus(
     onError: (error: string) => void,
     intervalMs: number = 2000
 ): { stop: () => void } {
+    return pollJobStatus(
+        jobId,
+        getCheckpointEvaluationJobStatus,
+        onUpdate,
+        onComplete,
+        onError,
+        intervalMs
+    );
+}
+
+function pollJobStatus(
+    jobId: string,
+    fetchStatus: JobStatusFetcher,
+    onUpdate: (status: JobStatusResponse) => void,
+    onComplete: (status: JobStatusResponse) => void,
+    onError: (error: string) => void,
+    intervalMs: number = 2000
+): { stop: () => void } {
     let stopped = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const poll = async () => {
         if (stopped) return;
 
-        const { result, error } = await getCheckpointEvaluationJobStatus(jobId);
+        const { result, error } = await fetchStatus(jobId);
 
         if (stopped) return;
 
@@ -352,46 +368,5 @@ export function pollInferenceJobStatus(
     onError: (error: string) => void,
     intervalMs: number = 2000
 ): { stop: () => void } {
-    let stopped = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const poll = async () => {
-        if (stopped) return;
-
-        const { result, error } = await getInferenceJobStatus(jobId);
-
-        if (stopped) return;
-
-        if (error) {
-            onError(error);
-            return;
-        }
-
-        if (!result) {
-            onError('No result returned');
-            return;
-        }
-
-        onUpdate(result);
-
-        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
-            onComplete(result);
-            return;
-        }
-
-        // Schedule next poll
-        timeoutId = setTimeout(poll, intervalMs);
-    };
-
-    // Start polling
-    poll();
-
-    return {
-        stop: () => {
-            stopped = true;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        },
-    };
+    return pollJobStatus(jobId, getInferenceJobStatus, onUpdate, onComplete, onError, intervalMs);
 }
