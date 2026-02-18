@@ -1,0 +1,13 @@
+.main-layout {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.main-layout-content {
+    flex: 1;
+    overflow: auto;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
