@@ -205,6 +205,10 @@
     font-size: 0.9rem;
 }
 
+.validation-dashboard .idle-message.error {
+    color: #ef4444;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .validation-dashboard .stats-grid {
