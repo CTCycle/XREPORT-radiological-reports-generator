@@ -594,6 +594,47 @@ input[type="checkbox"] {
     grid-column: 1 / -1;
 }
 
+/* Dataset Validation Page */
+.validation-back-button {
+    margin-bottom: 1rem;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.validation-config-layout {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.validation-config-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.validation-config-min-width {
+    min-width: 200px;
+}
+
+.validation-checkboxes-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.validation-run-button {
+    align-self: flex-start;
+}
+
+.validation-results-spacing {
+    margin-top: 2rem;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
     .config-grid-compact {

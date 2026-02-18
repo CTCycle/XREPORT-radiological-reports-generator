@@ -22,6 +22,7 @@ import ResumeTrainingWizard from '../components/ResumeTrainingWizard';
 import EvaluationWizard from '../components/EvaluationWizard';
 import CheckpointEvaluationReportModal from '../components/CheckpointEvaluationReportModal';
 import { ChartDataPoint, TrainingConfig } from '../types';
+import { usePersistedRecord } from '../hooks/usePersistedRecord';
 import {
     CheckpointInfo,
     DatasetInfo,
@@ -58,29 +59,39 @@ type StoredEvaluationJob = {
     progress?: number;
 };
 
-function loadStoredEvaluationJobs(): Record<string, StoredEvaluationJob> {
-    try {
-        const raw = localStorage.getItem(EVALUATION_JOB_STORAGE_KEY);
-        if (!raw) {
-            return {};
-        }
-        const parsed = JSON.parse(raw) as Record<string, StoredEvaluationJob>;
-        if (!parsed || typeof parsed !== 'object') {
-            return {};
-        }
-        return parsed;
-    } catch {
-        return {};
-    }
+function toApiMetricConfigs(metricConfigs: Record<string, { dataFraction: number }>) {
+    return Object.fromEntries(
+        Object.entries(metricConfigs).map(([key, value]) => [
+            key,
+            { data_fraction: value.dataFraction },
+        ])
+    );
 }
 
-function persistStoredEvaluationJobs(jobs: Record<string, StoredEvaluationJob>) {
-    try {
-        localStorage.setItem(EVALUATION_JOB_STORAGE_KEY, JSON.stringify(jobs));
-    } catch {
-        // Ignore storage errors (private mode or quota limits)
-    }
+function toCheckpointEvaluationResults(statusResult: Record<string, unknown> | null) {
+    const jobResults = statusResult ?? {};
+    const metricsResult = (jobResults.results as Record<string, unknown> | null) ?? {};
+    return {
+        loss: metricsResult.loss as number | undefined,
+        accuracy: metricsResult.accuracy as number | undefined,
+        bleu_score: metricsResult.bleu_score as number | undefined,
+    };
 }
+
+function toCheckpointEvaluationReport(
+    checkpoint: string,
+    metrics: string[],
+    metricConfigs: Record<string, { dataFraction: number }>,
+    statusResult: Record<string, unknown> | null
+): CheckpointEvaluationReport {
+    return {
+        checkpoint,
+        metrics,
+        metric_configs: toApiMetricConfigs(metricConfigs),
+        results: toCheckpointEvaluationResults(statusResult),
+    };
+}
+
 export default function TrainingPage() {
     const {
         state,
@@ -113,8 +124,9 @@ export default function TrainingPage() {
     const [evaluationReportStatus, setEvaluationReportStatus] = useState<
         'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null
     >(null);
-    const [evaluationJobs, setEvaluationJobs] = useState<Record<string, StoredEvaluationJob>>({});
+    const [evaluationJobs, setEvaluationJobs] = usePersistedRecord<StoredEvaluationJob>(EVALUATION_JOB_STORAGE_KEY);
     const evaluationPollers = useRef<Record<string, { stop: () => void }>>({});
+    const restoredEvaluationJobs = useRef(false);
     const reportCheckpointRef = useRef<string | null>(null);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
     const lastLoggedEpochRef = useRef<number | null>(null);
@@ -134,12 +146,8 @@ export default function TrainingPage() {
     const updateEvaluationJobs = useCallback((
         updater: (prev: Record<string, StoredEvaluationJob>) => Record<string, StoredEvaluationJob>
     ) => {
-        setEvaluationJobs(prev => {
-            const next = updater(prev);
-            persistStoredEvaluationJobs(next);
-            return next;
-        });
-    }, []);
+        setEvaluationJobs(prev => updater(prev));
+    }, [setEvaluationJobs]);
 
     const removeEvaluationJob = useCallback((checkpoint: string) => {
         updateEvaluationJobs(prev => {
@@ -208,23 +216,14 @@ export default function TrainingPage() {
                             return;
                         }
                         if (error || !result) {
-                            const jobResults = (status.result as Record<string, unknown> | null) ?? {};
-                            const metricsResult = (jobResults.results as Record<string, unknown> | null) ?? {};
-                            setEvaluationReportResult({
-                                checkpoint,
-                                metrics: jobMeta.metrics,
-                                metric_configs: Object.fromEntries(
-                                    Object.entries(jobMeta.metricConfigs).map(([key, value]) => [
-                                        key,
-                                        { data_fraction: value.dataFraction },
-                                    ])
-                                ),
-                                results: {
-                                    loss: metricsResult.loss as number | undefined,
-                                    accuracy: metricsResult.accuracy as number | undefined,
-                                    bleu_score: metricsResult.bleu_score as number | undefined,
-                                },
-                            });
+                            setEvaluationReportResult(
+                                toCheckpointEvaluationReport(
+                                    checkpoint,
+                                    jobMeta.metrics,
+                                    jobMeta.metricConfigs,
+                                    status.result as Record<string, unknown> | null
+                                )
+                            );
                             setEvaluationReportError(error || 'Failed to load evaluation report');
                         } else {
                             setEvaluationReportResult(result);
@@ -425,16 +424,19 @@ export default function TrainingPage() {
     }, [setDashboardState, startPolling, stopPolling]);
 
     useEffect(() => {
-        const storedJobs = loadStoredEvaluationJobs();
-        const entries = Object.entries(storedJobs);
+        if (restoredEvaluationJobs.current) {
+            return;
+        }
+        restoredEvaluationJobs.current = true;
+
+        const entries = Object.entries(evaluationJobs);
         if (entries.length === 0) {
             return;
         }
-        setEvaluationJobs(storedJobs);
         entries.forEach(([checkpoint, job]) => {
             startEvaluationPolling(checkpoint, job.jobId, job);
         });
-    }, [startEvaluationPolling]);
+    }, [evaluationJobs, startEvaluationPolling]);
 
     useEffect(() => {
         return () => {
@@ -532,12 +534,7 @@ export default function TrainingPage() {
         }
 
         const checkpointName = evaluationCheckpoint.name;
-        const metricConfigsForApi = Object.fromEntries(
-            Object.entries(payload.metricConfigs).map(([key, value]) => [
-                key,
-                { data_fraction: value.dataFraction },
-            ])
-        );
+        const metricConfigsForApi = toApiMetricConfigs(payload.metricConfigs);
         setEvaluationWizardOpen(false);
         setEvaluationCheckpoint(null);
         setEvaluationReportCheckpoint(evaluationCheckpoint);
@@ -599,12 +596,7 @@ export default function TrainingPage() {
             setEvaluationReportResult({
                 checkpoint: checkpoint.name,
                 metrics: activeJob.metrics,
-                metric_configs: Object.fromEntries(
-                    Object.entries(activeJob.metricConfigs).map(([key, value]) => [
-                        key,
-                        { data_fraction: value.dataFraction },
-                    ])
-                ),
+                metric_configs: toApiMetricConfigs(activeJob.metricConfigs),
             });
             setEvaluationReportProgress(activeJob.progress ?? 0);
             setEvaluationReportStatus(activeJob.status ?? 'running');

@@ -22,12 +22,18 @@ export interface EvaluationWizardProps {
     }) => void;
 }
 
+type MetricConfig = {
+    dataFraction: number;
+};
+
+type MetricConfigs = Record<string, MetricConfig>;
+
 interface MetricCatalogItem {
     id: string;
     title: string;
     description: string;
     icon: React.ReactNode;
-    defaultConfig?: Record<string, any>;
+    defaultConfig?: MetricConfig;
 }
 
 const METRICS_CATALOG: MetricCatalogItem[] = [
@@ -57,8 +63,8 @@ const METRICS_CATALOG: MetricCatalogItem[] = [
 // Step 2: Configuration
 const MetricConfigStep: React.FC<{
     metricId: string;
-    config: Record<string, any>;
-    onUpdateConfig: (key: string, value: any) => void;
+    config: MetricConfig;
+    onUpdateConfig: (key: keyof MetricConfig, value: number) => void;
 }> = ({ metricId, config, onUpdateConfig }) => {
     const metric = METRICS_CATALOG.find(m => m.id === metricId);
     if (!metric) return null;
@@ -112,7 +118,7 @@ const MetricConfigStep: React.FC<{
 // Step 3: Summary
 const SummaryStep: React.FC<{
     checkpointName: string;
-    configs: Record<string, any>;
+    configs: MetricConfigs;
     metricsOrder: string[]; // Order of metrics to display
 }> = ({ checkpointName, configs, metricsOrder }) => {
     return (
@@ -160,7 +166,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
     // State
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
-    const [metricConfigs, setMetricConfigs] = useState<Record<string, any>>({});
+    const [metricConfigs, setMetricConfigs] = useState<MetricConfigs>({});
 
     // Reset state when opening/closing (optional, but good for wizards)
     // For now we just rely on parent unmounting or key changes if needed, 
@@ -201,14 +207,14 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                 const metric = METRICS_CATALOG.find(m => m.id === id);
                 setMetricConfigs(prev => ({
                     ...prev,
-                    [id]: { ...(metric?.defaultConfig || {}) }
+                    [id]: { dataFraction: metric?.defaultConfig?.dataFraction ?? 1.0 }
                 }));
             }
         }
         setSelectedMetrics(next);
     };
 
-    const updateConfig = (metricId: string, key: string, value: any) => {
+    const updateConfig = (metricId: string, key: keyof MetricConfig, value: number) => {
         setMetricConfigs(prev => ({
             ...prev,
             [metricId]: {
@@ -230,9 +236,9 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
 
     const handleConfirm = () => {
         const configs = orderedSelectedMetrics.reduce((acc, id) => {
-            const config = metricConfigs[id] || {};
+            const config = metricConfigs[id];
             acc[id] = {
-                dataFraction: typeof config.dataFraction === 'number' ? config.dataFraction : 1.0,
+                dataFraction: typeof config?.dataFraction === 'number' ? config.dataFraction : 1.0,
             };
             return acc;
         }, {} as Record<string, { dataFraction: number }>);
@@ -307,7 +313,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                     {currentMetricIdForConfig && (
                         <MetricConfigStep
                             metricId={currentMetricIdForConfig}
-                            config={metricConfigs[currentMetricIdForConfig] || {}}
+                            config={metricConfigs[currentMetricIdForConfig] || { dataFraction: 0.1 }}
                             onUpdateConfig={(key, val) => updateConfig(currentMetricIdForConfig, key, val)}
                         />
                     )}
