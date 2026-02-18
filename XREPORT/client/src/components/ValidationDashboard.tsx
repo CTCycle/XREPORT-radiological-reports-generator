@@ -15,6 +15,7 @@ import {
     ImageStatistics,
     TextStatistics,
 } from '../services/validationService';
+import JobProgress from './shared/JobProgress';
 
 interface ValidationDashboardProps {
     isLoading: boolean;
@@ -163,12 +164,8 @@ export default function ValidationDashboard({
         validationResult.image_statistics ||
         validationResult.pixel_distribution
     );
-    const progressValue = Number.isFinite(progress ?? NaN)
-        ? Math.min(100, Math.max(0, progress ?? 0))
-        : 0;
     const isRunning = status === 'running' || status === 'pending';
     const showProgress = isLoading || isRunning;
-    const statusLabel = status ? status.replace(/_/g, ' ') : 'running';
 
     return (
         <div className="validation-dashboard">
@@ -197,17 +194,7 @@ export default function ValidationDashboard({
                 )}
             </div>
 
-            {showProgress && (
-                <div className="validation-progress">
-                    <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${progressValue}%` }}></div>
-                    </div>
-                    <div className="progress-meta">
-                        <span>{progressValue.toFixed(0)}%</span>
-                        <span className="progress-status">{statusLabel}</span>
-                    </div>
-                </div>
-            )}
+            <JobProgress show={showProgress} progress={progress} status={status} />
 
             {isLoading ? (
                 <div className="loading-container">
@@ -215,7 +202,7 @@ export default function ValidationDashboard({
                     <span className="loading-text">Running validation analytics...</span>
                 </div>
             ) : error ? (
-                <div className="idle-message" style={{ color: '#ef4444' }}>
+                <div className="idle-message error">
                     {error}
                 </div>
             ) : hasResults ? (

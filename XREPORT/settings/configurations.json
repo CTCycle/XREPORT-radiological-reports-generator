@@ -1,6 +1,6 @@
 {
   "database": {
-    "embedded_database": false,
+    "embedded_database": true,
     "engine": "postgres",
     "host": "localhost",
     "port": 5432,
