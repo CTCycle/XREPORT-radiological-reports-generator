@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
 from XREPORT.server.configurations import DatabaseSettings, server_settings
-from XREPORT.server.repositories.database import PostgresRepository
+from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 from XREPORT.server.repositories.database.utils import normalize_postgres_engine
 from XREPORT.server.common.utils.logger import logger

@@ -13,6 +13,8 @@ import {
     getDatasetNames,
     getPreparationJobStatus,
     DatasetInfo,
+    ProcessDatasetResponse,
+    deleteDataset,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -26,7 +28,7 @@ import {
     ValidationResponse,
 } from '../services/validationService';
 import ImageViewerModal from '../components/ImageViewerModal';
-import { deleteDataset } from '../services/trainingService';
+import { usePersistedRecord } from '../hooks/usePersistedRecord';
 
 const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
 
@@ -39,28 +41,25 @@ type StoredValidationJob = {
     progress?: number;
 };
 
-function loadStoredValidationJobs(): Record<string, StoredValidationJob> {
-    try {
-        const raw = localStorage.getItem(VALIDATION_JOB_STORAGE_KEY);
-        if (!raw) {
-            return {};
-        }
-        const parsed = JSON.parse(raw) as Record<string, StoredValidationJob>;
-        if (!parsed || typeof parsed !== 'object') {
-            return {};
-        }
-        return parsed;
-    } catch {
-        return {};
-    }
+function asValidationResponse(result: Record<string, unknown>): ValidationResponse {
+    return {
+        success: (result.success as boolean) ?? true,
+        message: (result.message as string) ?? 'Validation completed',
+        pixel_distribution: result.pixel_distribution as ValidationResponse['pixel_distribution'],
+        image_statistics: result.image_statistics as ValidationResponse['image_statistics'],
+        text_statistics: result.text_statistics as ValidationResponse['text_statistics'],
+    };
 }
 
-function persistStoredValidationJobs(jobs: Record<string, StoredValidationJob>) {
-    try {
-        localStorage.setItem(VALIDATION_JOB_STORAGE_KEY, JSON.stringify(jobs));
-    } catch {
-        // Ignore storage errors (private mode or quota limits)
-    }
+function asProcessDatasetResponse(result: Record<string, unknown>): ProcessDatasetResponse {
+    return {
+        success: true,
+        total_samples: (result.total_samples as number) ?? 0,
+        train_samples: (result.train_samples as number) ?? 0,
+        validation_samples: (result.validation_samples as number) ?? 0,
+        vocabulary_size: (result.vocabulary_size as number) ?? 0,
+        message: 'Dataset processed successfully',
+    };
 }
 
 export default function DatasetPage() {
@@ -80,8 +79,9 @@ export default function DatasetPage() {
         sampleSize?: number | null;
         metrics?: string[];
     } | null>(null);
-    const [validationJobs, setValidationJobs] = useState<Record<string, StoredValidationJob>>({});
+    const [validationJobs, setValidationJobs] = usePersistedRecord<StoredValidationJob>(VALIDATION_JOB_STORAGE_KEY);
     const validationPollers = useRef<Record<string, { stop: () => void }>>({});
+    const restoredValidationJobs = useRef(false);
     const reportDatasetRef = useRef<string | null>(null);
 
     // Image Viewer State
@@ -114,11 +114,7 @@ export default function DatasetPage() {
     const updateValidationJobs = (
         updater: (prev: Record<string, StoredValidationJob>) => Record<string, StoredValidationJob>
     ) => {
-        setValidationJobs(prev => {
-            const next = updater(prev);
-            persistStoredValidationJobs(next);
-            return next;
-        });
+        setValidationJobs(prev => updater(prev));
     };
 
     const removeValidationJob = (datasetName: string) => {
@@ -178,15 +174,8 @@ export default function DatasetPage() {
                 }
 
                 if (status.status === 'completed' && status.result) {
-                    const res = status.result as Record<string, unknown>;
                     if (reportDatasetRef.current === datasetName) {
-                        setReportResult({
-                            success: (res.success as boolean) ?? true,
-                            message: (res.message as string) ?? 'Validation completed',
-                            pixel_distribution: res.pixel_distribution as ValidationResponse['pixel_distribution'],
-                            image_statistics: res.image_statistics as ValidationResponse['image_statistics'],
-                            text_statistics: res.text_statistics as ValidationResponse['text_statistics'],
-                        });
+                        setReportResult(asValidationResponse(status.result));
                         setReportError(null);
                     }
                     void (async () => {
@@ -242,16 +231,19 @@ export default function DatasetPage() {
     }, [setDbStatus, setDatasetNames, setSelectedDatasets, state.selectedDatasets]);
 
     useEffect(() => {
-        const storedJobs = loadStoredValidationJobs();
-        const entries = Object.entries(storedJobs);
+        if (restoredValidationJobs.current) {
+            return;
+        }
+        restoredValidationJobs.current = true;
+
+        const entries = Object.entries(validationJobs);
         if (entries.length === 0) {
             return;
         }
-        setValidationJobs(storedJobs);
         entries.forEach(([datasetName, job]) => {
             startValidationPolling(datasetName, job.jobId, job);
         });
-    }, []);
+    }, [validationJobs]);
 
     useEffect(() => {
         return () => {
@@ -265,8 +257,11 @@ export default function DatasetPage() {
     // Determine if data is available for processing
     const hasDataForProcessing = state.loadResult?.success || (state.dbStatus?.has_data && state.selectedDatasets.length > 0);
 
-    const handleConfigChange = (key: string, value: number | string | boolean) => {
-        updateConfig(key as keyof typeof state.config, value);
+    const handleConfigChange = <K extends keyof typeof state.config>(
+        key: K,
+        value: (typeof state.config)[K]
+    ) => {
+        updateConfig(key, value);
     };
 
     const handleBuildDataset = async () => {
@@ -319,14 +314,7 @@ export default function DatasetPage() {
 
             if (status.status === 'completed' && status.result) {
                 setIsProcessing(false);
-                setProcessingResult({
-                    success: true,
-                    total_samples: (status.result as Record<string, number>).total_samples ?? 0,
-                    train_samples: (status.result as Record<string, number>).train_samples ?? 0,
-                    validation_samples: (status.result as Record<string, number>).validation_samples ?? 0,
-                    vocabulary_size: (status.result as Record<string, number>).vocabulary_size ?? 0,
-                    message: 'Dataset processed successfully',
-                });
+                setProcessingResult(asProcessDatasetResponse(status.result));
             } else if (status.status === 'failed') {
                 setIsProcessing(false);
                 setUploadError(status.error || 'Processing failed');
