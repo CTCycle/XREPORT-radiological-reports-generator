@@ -1,6 +1,7 @@
 import { BarChart2, Loader, CheckCircle, AlertCircle } from 'lucide-react';
 import './ValidationDashboard.css';
 import { CheckpointEvaluationResults } from '../services/inferenceService';
+import JobProgress from './shared/JobProgress';
 
 interface CheckpointEvaluationDashboardProps {
     isLoading: boolean;
@@ -26,12 +27,8 @@ export default function CheckpointEvaluationDashboard({
         typeof results.accuracy === 'number' ||
         typeof results.bleu_score === 'number'
     );
-    const progressValue = Number.isFinite(progress ?? NaN)
-        ? Math.min(100, Math.max(0, progress ?? 0))
-        : 0;
     const isRunning = status === 'running' || status === 'pending';
     const showProgress = isLoading || isRunning;
-    const statusLabel = status ? status.replace(/_/g, ' ') : 'running';
 
     return (
         <div className="validation-dashboard">
@@ -60,17 +57,7 @@ export default function CheckpointEvaluationDashboard({
                 )}
             </div>
 
-            {showProgress && (
-                <div className="validation-progress">
-                    <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${progressValue}%` }}></div>
-                    </div>
-                    <div className="progress-meta">
-                        <span>{progressValue.toFixed(0)}%</span>
-                        <span className="progress-status">{statusLabel}</span>
-                    </div>
-                </div>
-            )}
+            <JobProgress show={showProgress} progress={progress} status={status} />
 
             {isLoading ? (
                 <div className="loading-container">
@@ -78,7 +65,7 @@ export default function CheckpointEvaluationDashboard({
                     <span className="loading-text">Running checkpoint evaluation...</span>
                 </div>
             ) : error ? (
-                <div className="idle-message" style={{ color: '#ef4444' }}>
+                <div className="idle-message error">
                     {error}
                 </div>
             ) : hasResults ? (
