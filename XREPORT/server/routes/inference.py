@@ -104,7 +104,6 @@ def run_inference_job(
         raise RuntimeError("No images available for inference job")
 
     # Load model checkpoint
-    logger.info(f"Loading checkpoint: {checkpoint}")
     serializer = ModelSerializer()
 
     try:
@@ -372,15 +371,9 @@ class InferenceEndpoint:
 
         request_id = uuid.uuid4().hex[:12]
         try:
-            stored_images, total_bytes = await self.read_inference_images(images)
+            stored_images, _ = await self.read_inference_images(images)
 
             inference_image_store.store(request_id, stored_images)
-            logger.info(
-                "Staged inference images request %s with %d images (%d bytes)",
-                request_id,
-                len(stored_images),
-                total_bytes,
-            )
 
             # Start background job
             job_id = self.job_manager.start_job(
