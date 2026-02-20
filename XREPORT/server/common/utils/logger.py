@@ -8,6 +8,26 @@ from typing import Any
 
 from XREPORT.server.common.constants import LOGS_PATH
 
+
+###############################################################################
+class IgnoreJobPollingAccessLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name != "uvicorn.access":
+            return True
+
+        args = record.args
+        if not isinstance(args, tuple) or len(args) < 3:
+            return True
+
+        method = str(args[1]).upper()
+        path = str(args[2])
+
+        if method == "GET" and "/jobs/" in path:
+            return False
+
+        return True
+
+
 # Generate timestamp for the log filename
 ###############################################################################
 os.makedirs(LOGS_PATH, exist_ok=True)
@@ -19,6 +39,11 @@ log_filename = os.path.join(LOGS_PATH, f"XREPORT_{current_timestamp}.log")
 LOG_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "ignore_job_polling_access": {
+            "()": "XREPORT.server.common.utils.logger.IgnoreJobPollingAccessLogFilter",
+        },
+    },
     "formatters": {
         "default": {
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -46,6 +71,7 @@ LOG_CONFIG: dict[str, Any] = {
         "uvicorn.access": {
             "level": "INFO",
             "handlers": ["console", "file"],
+            "filters": ["ignore_job_polling_access"],
             "propagate": False,
         },
         "matplotlib": {
