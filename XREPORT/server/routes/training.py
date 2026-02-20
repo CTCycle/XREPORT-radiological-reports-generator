@@ -72,10 +72,16 @@ class TrainingState:
     """Encapsulates all training session state."""
 
     def __init__(self) -> None:
-        self.state: dict[str, Any] = {
-            "is_training": False,
+        self.state = self.build_state(is_training=False, total_epochs=0)
+        self.worker: ProcessWorker | None = None
+        self.current_job_id: str | None = None
+
+    # -----------------------------------------------------------------------------
+    def build_state(self, is_training: bool, total_epochs: int) -> dict[str, Any]:
+        return {
+            "is_training": is_training,
             "current_epoch": 0,
-            "total_epochs": 0,
+            "total_epochs": total_epochs,
             "loss": 0.0,
             "val_loss": 0.0,
             "accuracy": 0.0,
@@ -86,8 +92,22 @@ class TrainingState:
             "epoch_boundaries": [],
             "available_metrics": [],
         }
-        self.worker: ProcessWorker | None = None
-        self.current_job_id: str | None = None
+
+    # -----------------------------------------------------------------------------
+    def result_payload(self) -> dict[str, Any]:
+        return {
+            "current_epoch": self.state["current_epoch"],
+            "total_epochs": self.state["total_epochs"],
+            "loss": self.state["loss"],
+            "val_loss": self.state["val_loss"],
+            "accuracy": self.state["accuracy"],
+            "val_accuracy": self.state["val_accuracy"],
+            "progress_percent": self.state["progress_percent"],
+            "elapsed_seconds": self.state["elapsed_seconds"],
+            "chart_data": list(self.state["chart_data"]),
+            "epoch_boundaries": list(self.state["epoch_boundaries"]),
+            "available_metrics": list(self.state["available_metrics"]),
+        }
 
     # -----------------------------------------------------------------------------
     def update_metrics(self, message: dict[str, Any]) -> None:
@@ -124,18 +144,7 @@ class TrainingState:
     # -----------------------------------------------------------------------------
     def reset_for_new_session(self, total_epochs: int, job_id: str) -> None:
         """Reset state for a new training session."""
-        self.state["is_training"] = True
-        self.state["current_epoch"] = 0
-        self.state["total_epochs"] = total_epochs
-        self.state["loss"] = 0.0
-        self.state["val_loss"] = 0.0
-        self.state["accuracy"] = 0.0
-        self.state["val_accuracy"] = 0.0
-        self.state["progress_percent"] = 0
-        self.state["elapsed_seconds"] = 0
-        self.state["chart_data"] = []
-        self.state["epoch_boundaries"] = []
-        self.state["available_metrics"] = []
+        self.state = self.build_state(is_training=True, total_epochs=total_epochs)
         self.current_job_id = job_id
 
     # -----------------------------------------------------------------------------
@@ -304,6 +313,54 @@ class TrainingEndpoint:
         self.training_state = training_state
 
     # -----------------------------------------------------------------------------
+    def apply_runtime_training_configuration(
+        self, configuration: dict[str, Any]
+    ) -> None:
+        configuration["use_mixed_precision"] = (
+            server_settings.training.use_mixed_precision
+        )
+        configuration["training_seed"] = server_settings.global_settings.seed
+        configuration["dataloader_workers"] = (
+            server_settings.training.dataloader_workers
+        )
+        configuration["prefetch_factor"] = server_settings.training.prefetch_factor
+        configuration["pin_memory"] = server_settings.training.pin_memory
+        configuration["persistent_workers"] = (
+            server_settings.training.persistent_workers
+        )
+        configuration["polling_interval"] = server_settings.jobs.polling_interval
+
+    # -----------------------------------------------------------------------------
+    def initialize_training_state(
+        self, job_id: str, total_epochs: int, current_epoch: int = 0
+    ) -> None:
+        self.training_state.reset_for_new_session(total_epochs, job_id)
+        self.training_state.state["current_epoch"] = current_epoch
+        self.job_manager.update_result(job_id, self.training_state.result_payload())
+
+    # -----------------------------------------------------------------------------
+    def build_job_start_response(
+        self,
+        job_id: str,
+        message: str,
+        initialization_error: str,
+    ) -> JobStartResponse:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=initialization_error,
+            )
+
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
+            message=message,
+            poll_interval=server_settings.jobs.polling_interval,
+        )
+
+    # -----------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         """Get list of available checkpoints (JSON config only, no model loading)."""
         modser = ModelSerializer()
@@ -434,20 +491,7 @@ class TrainingEndpoint:
         configuration = request.model_dump()
         configuration.pop("sample_size", None)
 
-        # Inject configurations from configurations.json
-        configuration["use_mixed_precision"] = (
-            server_settings.training.use_mixed_precision
-        )
-        configuration["training_seed"] = server_settings.global_settings.seed
-        configuration["dataloader_workers"] = (
-            server_settings.training.dataloader_workers
-        )
-        configuration["prefetch_factor"] = server_settings.training.prefetch_factor
-        configuration["pin_memory"] = server_settings.training.pin_memory
-        configuration["persistent_workers"] = (
-            server_settings.training.persistent_workers
-        )
-        configuration["polling_interval"] = server_settings.jobs.polling_interval
+        self.apply_runtime_training_configuration(configuration)
 
         dataset_name = configuration.get("dataset_name")
         stored_metadata = serializer.load_training_data(
@@ -477,39 +521,15 @@ class TrainingEndpoint:
             },
         )
 
-        self.training_state.reset_for_new_session(
-            configuration.get("epochs", 10), job_id
-        )
-        self.job_manager.update_result(
-            job_id,
-            {
-                "current_epoch": self.training_state.state["current_epoch"],
-                "total_epochs": self.training_state.state["total_epochs"],
-                "loss": self.training_state.state["loss"],
-                "val_loss": self.training_state.state["val_loss"],
-                "accuracy": self.training_state.state["accuracy"],
-                "val_accuracy": self.training_state.state["val_accuracy"],
-                "progress_percent": self.training_state.state["progress_percent"],
-                "elapsed_seconds": self.training_state.state["elapsed_seconds"],
-                "chart_data": self.training_state.state["chart_data"],
-                "epoch_boundaries": self.training_state.state["epoch_boundaries"],
-                "available_metrics": self.training_state.state["available_metrics"],
-            },
-        )
-
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to initialize training job",
-            )
-
-        return JobStartResponse(
+        self.initialize_training_state(
             job_id=job_id,
-            job_type=job_status["job_type"],
-            status=job_status["status"],
+            total_epochs=configuration.get("epochs", 10),
+        )
+
+        return self.build_job_start_response(
+            job_id=job_id,
             message="Training job started",
-            poll_interval=server_settings.jobs.polling_interval,
+            initialization_error="Failed to initialize training job",
         )
 
     # -----------------------------------------------------------------------------
@@ -565,41 +585,16 @@ class TrainingEndpoint:
             },
         )
 
-        # Update training state
-        self.training_state.reset_for_new_session(
-            from_epoch + request.additional_epochs, job_id
-        )
-        self.training_state.state["current_epoch"] = from_epoch
-        self.job_manager.update_result(
-            job_id,
-            {
-                "current_epoch": self.training_state.state["current_epoch"],
-                "total_epochs": self.training_state.state["total_epochs"],
-                "loss": self.training_state.state["loss"],
-                "val_loss": self.training_state.state["val_loss"],
-                "accuracy": self.training_state.state["accuracy"],
-                "val_accuracy": self.training_state.state["val_accuracy"],
-                "progress_percent": self.training_state.state["progress_percent"],
-                "elapsed_seconds": self.training_state.state["elapsed_seconds"],
-                "chart_data": self.training_state.state["chart_data"],
-                "epoch_boundaries": self.training_state.state["epoch_boundaries"],
-                "available_metrics": self.training_state.state["available_metrics"],
-            },
-        )
-
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to initialize training resume job",
-            )
-
-        return JobStartResponse(
+        self.initialize_training_state(
             job_id=job_id,
-            job_type=job_status["job_type"],
-            status=job_status["status"],
+            total_epochs=from_epoch + request.additional_epochs,
+            current_epoch=from_epoch,
+        )
+
+        return self.build_job_start_response(
+            job_id=job_id,
             message=f"Training resumed from epoch {from_epoch}",
-            poll_interval=server_settings.jobs.polling_interval,
+            initialization_error="Failed to initialize training resume job",
         )
 
     # -----------------------------------------------------------------------------
