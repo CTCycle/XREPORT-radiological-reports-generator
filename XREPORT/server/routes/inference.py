@@ -213,35 +213,32 @@ class InferenceEndpoint:
         self.job_manager = job_manager
 
     # -----------------------------------------------------------------------------
-    def get_checkpoints(self) -> CheckpointsResponse:
-        try:
-            serializer = ModelSerializer()
-            checkpoint_names = serializer.scan_checkpoints_folder()
-
-            checkpoints = [
-                CheckpointInfo(name=name, created=None) for name in checkpoint_names
-            ]
-
-            return CheckpointsResponse(
-                checkpoints=checkpoints,
-                success=True,
-                message=f"Found {len(checkpoints)} checkpoints",
+    def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job not found: {job_id}",
             )
-        except Exception as e:
-            logger.error(f"Error fetching checkpoints: {e}")
-            return CheckpointsResponse(
-                checkpoints=[],
-                success=False,
-                message=str(e),
-            )
+        return job_status
 
     # -----------------------------------------------------------------------------
-    async def generate_reports(
+    def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=detail,
+            )
+        return job_status
+
+    # -----------------------------------------------------------------------------
+    def validate_generation_request(
         self,
-        checkpoint: str = Form(...),
-        generation_mode: str = Form(...),
-        images: list[UploadFile] = File(...),
-    ) -> JobStartResponse:
+        checkpoint: str,
+        generation_mode: str,
+        images: list[UploadFile],
+    ) -> str:
         if len(images) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -275,59 +272,107 @@ class InferenceEndpoint:
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
-        request_id = uuid.uuid4().hex[:12]
+        return checkpoint
+
+    # -----------------------------------------------------------------------------
+    async def read_inference_images(
+        self,
+        images: list[UploadFile],
+    ) -> tuple[list[InferenceImage], int]:
         total_bytes = 0
         stored_images: list[InferenceImage] = []
-        try:
-            for img in images:
-                if img.filename is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Image upload missing filename",
-                    )
 
-                content_type = img.content_type or ""
-                extension = os.path.splitext(img.filename)[1].lower()
-                if (
-                    content_type not in ALLOWED_IMAGE_TYPES
-                    and extension not in ALLOWED_IMAGE_EXTENSIONS
-                ):
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Unsupported image type: {content_type or extension}",
-                    )
-
-                content = await img.read()
-                if len(content) == 0:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Empty image payload: {img.filename}",
-                    )
-
-                total_bytes += len(content)
-                if total_bytes > MAX_TOTAL_IMAGE_BYTES:
-                    raise HTTPException(
-                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail=(
-                            "Total image payload exceeds "
-                            f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
-                        ),
-                    )
-
-                stored_images.append(
-                    InferenceImage(
-                        filename=img.filename,
-                        content_type=content_type,
-                        data=content,
-                        size_bytes=len(content),
-                    )
-                )
-
-            if not stored_images:
+        for img in images:
+            if img.filename is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No valid images provided",
+                    detail="Image upload missing filename",
                 )
+
+            content_type = img.content_type or ""
+            extension = os.path.splitext(img.filename)[1].lower()
+            if (
+                content_type not in ALLOWED_IMAGE_TYPES
+                and extension not in ALLOWED_IMAGE_EXTENSIONS
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unsupported image type: {content_type or extension}",
+                )
+
+            content = await img.read()
+            if len(content) == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Empty image payload: {img.filename}",
+                )
+
+            total_bytes += len(content)
+            if total_bytes > MAX_TOTAL_IMAGE_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=(
+                        "Total image payload exceeds "
+                        f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
+                    ),
+                )
+
+            stored_images.append(
+                InferenceImage(
+                    filename=img.filename,
+                    content_type=content_type,
+                    data=content,
+                    size_bytes=len(content),
+                )
+            )
+
+        if not stored_images:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid images provided",
+            )
+
+        return stored_images, total_bytes
+
+    # -----------------------------------------------------------------------------
+    def get_checkpoints(self) -> CheckpointsResponse:
+        try:
+            serializer = ModelSerializer()
+            checkpoint_names = serializer.scan_checkpoints_folder()
+
+            checkpoints = [
+                CheckpointInfo(name=name, created=None) for name in checkpoint_names
+            ]
+
+            return CheckpointsResponse(
+                checkpoints=checkpoints,
+                success=True,
+                message=f"Found {len(checkpoints)} checkpoints",
+            )
+        except Exception as e:
+            logger.error(f"Error fetching checkpoints: {e}")
+            return CheckpointsResponse(
+                checkpoints=[],
+                success=False,
+                message=str(e),
+            )
+
+    # -----------------------------------------------------------------------------
+    async def generate_reports(
+        self,
+        checkpoint: str = Form(...),
+        generation_mode: str = Form(...),
+        images: list[UploadFile] = File(...),
+    ) -> JobStartResponse:
+        checkpoint = self.validate_generation_request(
+            checkpoint=checkpoint,
+            generation_mode=generation_mode,
+            images=images,
+        )
+
+        request_id = uuid.uuid4().hex[:12]
+        try:
+            stored_images, total_bytes = await self.read_inference_images(images)
 
             inference_image_store.store(request_id, stored_images)
             logger.info(
@@ -349,12 +394,10 @@ class InferenceEndpoint:
             )
 
             inference_image_store.link_job(job_id, request_id)
-            job_status = self.job_manager.get_job_status(job_id)
-            if job_status is None:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to initialize inference job",
-                )
+            job_status = self.get_job_status_or_500(
+                job_id=job_id,
+                detail="Failed to initialize inference job",
+            )
 
             return JobStartResponse(
                 job_id=job_id,
@@ -377,22 +420,12 @@ class InferenceEndpoint:
 
     # -----------------------------------------------------------------------------
     async def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job not found: {job_id}",
-            )
+        job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
     # -----------------------------------------------------------------------------
     async def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job not found: {job_id}",
-            )
+        self.get_job_status_or_404(job_id)
 
         success = self.job_manager.cancel_job(job_id)
         if success:
