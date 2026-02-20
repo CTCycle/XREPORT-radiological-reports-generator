@@ -50,6 +50,8 @@ from XREPORT.server.services.processing import (
     TrainValidationSplit,
 )
 
+DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
+
 
 # -----------------------------------------------------------------------------
 def scan_image_folder(folder_path: str) -> list[str]:
@@ -87,7 +89,7 @@ def count_images_in_folder(folder_path: str) -> int:
             if ext in VALID_IMAGE_EXTENSIONS:
                 count += 1
         return count
-    except (PermissionError, OSError):
+    except OSError:
         return 0
 
 
@@ -98,8 +100,14 @@ def run_process_dataset_job(
 ) -> dict[str, Any]:
     """Blocking dataset processing function that runs in background thread."""
     serializer = DataSerializer()
-    source_dataset_name = configuration.get("dataset_name")
-    custom_name = configuration.get("custom_name")
+    source_dataset_name_raw = configuration.get("dataset_name")
+    source_dataset_name = (
+        str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""
+    )
+    if not source_dataset_name:
+        raise RuntimeError(DATASET_NAME_EMPTY_ERROR)
+    custom_name_raw = configuration.get("custom_name")
+    custom_name = str(custom_name_raw) if custom_name_raw is not None else None
 
     # Load source dataset from radiography table.
     dataset = serializer.load_source_dataset(
@@ -286,7 +294,7 @@ class PreparationEndpoint:
         return job_status
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_status(self) -> DatasetStatusResponse:
+    def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
         serializer = DataSerializer()
         row_count = serializer.count_rows(DATASET_RECORDS_TABLE)
@@ -299,7 +307,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_names(self) -> DatasetNamesResponse:
+    def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
@@ -347,7 +355,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_processed_dataset_names(self) -> DatasetNamesResponse:
+    def get_processed_dataset_names(self) -> DatasetNamesResponse:
         """Get list of processed datasets available for training."""
         with self.database.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
@@ -405,14 +413,14 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_processing_metadata(
+    def get_processing_metadata(
         self, dataset_name: str
     ) -> ProcessingMetadataResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         serializer = DataSerializer()
@@ -420,7 +428,7 @@ class PreparationEndpoint:
             only_metadata=True,
             dataset_name=dataset_name,
         )
-        if not latest_metadata:
+        if not isinstance(latest_metadata, dict) or not latest_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No processing metadata found",
@@ -438,12 +446,12 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def delete_dataset(self, dataset_name: str) -> DeleteResponse:
+    def delete_dataset(self, dataset_name: str) -> DeleteResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         with self.database.backend.engine.begin() as conn:
@@ -465,7 +473,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
+    def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
         folder_path = request.folder_path.strip()
 
         if not folder_path:
@@ -513,7 +521,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
+    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self.server_settings.global_settings.seed
@@ -541,7 +549,14 @@ class PreparationEndpoint:
             )
 
         # Get the most recently uploaded dataset
-        _, dataset_info = self.upload_state.get_latest()
+        latest_upload = self.upload_state.get_latest()
+        if latest_upload is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
+            )
+
+        _, dataset_info = latest_upload
         df: pd.DataFrame = dataset_info["dataframe"].copy()
         dataset_name: str = dataset_info["dataset_name"]
 
@@ -607,7 +622,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
+    def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
         if self.job_manager.is_job_running("dataset_processing"):
             raise HTTPException(
@@ -621,7 +636,7 @@ class PreparationEndpoint:
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         # Quick validation - check if source data exists
@@ -662,12 +677,12 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
+    def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
     # -----------------------------------------------------------------------------
-    async def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
+    def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
         self.get_job_status_or_404(job_id)
 
         success = self.job_manager.cancel_job(job_id)
@@ -679,7 +694,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def browse_directory(
+    def browse_directory(
         self,
         path: str = Query(
             "", description="Directory path to browse. Empty returns drives."
@@ -749,7 +764,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
+    def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         """Get total number of images in a dataset."""
         dataset_name = dataset_name.strip()
         with self.database.backend.engine.connect() as conn:
@@ -769,7 +784,7 @@ class PreparationEndpoint:
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_metadata(
+    def get_dataset_image_metadata(
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
         """Get metadata for a specific image by 1-based index (id)."""
@@ -819,7 +834,7 @@ class PreparationEndpoint:
             )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_content(self, dataset_name: str, index: int):
+    def get_dataset_image_content(self, dataset_name: str, index: int):
         """Serve the image file content."""
         dataset_name = dataset_name.strip()
         if index < 1:
