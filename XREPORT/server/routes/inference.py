@@ -419,12 +419,12 @@ class InferenceEndpoint:
             ) from e
 
     # -----------------------------------------------------------------------------
-    async def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
+    def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
     # -----------------------------------------------------------------------------
-    async def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
+    def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
         self.get_job_status_or_404(job_id)
 
         success = self.job_manager.cancel_job(job_id)
