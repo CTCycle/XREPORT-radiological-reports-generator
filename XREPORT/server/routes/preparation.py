@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -49,6 +50,8 @@ from XREPORT.server.services.processing import (
     TrainValidationSplit,
 )
 
+DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
+
 
 # -----------------------------------------------------------------------------
 def scan_image_folder(folder_path: str) -> list[str]:
@@ -86,7 +89,7 @@ def count_images_in_folder(folder_path: str) -> int:
             if ext in VALID_IMAGE_EXTENSIONS:
                 count += 1
         return count
-    except (PermissionError, OSError):
+    except OSError:
         return 0
 
 
@@ -96,12 +99,15 @@ def run_process_dataset_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking dataset processing function that runs in background thread."""
-    # Use the global job_manager imported at top level
-    jm = job_manager
-
     serializer = DataSerializer()
-    source_dataset_name = configuration.get("dataset_name")
-    custom_name = configuration.get("custom_name")
+    source_dataset_name_raw = configuration.get("dataset_name")
+    source_dataset_name = (
+        str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""
+    )
+    if not source_dataset_name:
+        raise RuntimeError(DATASET_NAME_EMPTY_ERROR)
+    custom_name_raw = configuration.get("custom_name")
+    custom_name = str(custom_name_raw) if custom_name_raw is not None else None
 
     # Load source dataset from radiography table.
     dataset = serializer.load_source_dataset(
@@ -118,17 +124,8 @@ def run_process_dataset_job(
         raise RuntimeError(
             f"No data found in {DATASET_RECORDS_TABLE} table. Please load a dataset first."
         )
-        return {}
 
-    # Generate dataset name logic
-    if custom_name and custom_name.strip():
-        dataset_name = custom_name.strip()
-    else:
-        # Auto-generate name: SourceName_YYYYMMDD_HHMMSS
-        from datetime import datetime
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        dataset_name = f"{source_dataset_name}_{timestamp}"
+    dataset_name = resolve_processed_dataset_name(source_dataset_name, custom_name)
 
     # Update configuration for saving
     configuration["dataset_name"] = dataset_name
@@ -139,8 +136,8 @@ def run_process_dataset_job(
     processed_data = sanitizer.sanitize_text(dataset)
     logger.info("Text sanitization completed")
 
-    jm.update_progress(job_id, 30.0)
-    if jm.should_stop(job_id):
+    job_manager.update_progress(job_id, 30.0)
+    if job_manager.should_stop(job_id):
         return {}
 
     # Step 2: Tokenize text using Hugging Face tokenizer
@@ -154,8 +151,8 @@ def run_process_dataset_job(
         logger.exception("Failed to tokenize text")
         raise RuntimeError(f"Tokenization failed: {str(e)}") from e
 
-    jm.update_progress(job_id, 60.0)
-    if jm.should_stop(job_id):
+    job_manager.update_progress(job_id, 60.0)
+    if job_manager.should_stop(job_id):
         return {}
 
     # Step 3: Keep sanitized text so training upserts can use deterministic keys.
@@ -170,8 +167,8 @@ def run_process_dataset_job(
         f"Split complete: {train_samples} train, {validation_samples} validation samples"
     )
 
-    jm.update_progress(job_id, 80.0)
-    if jm.should_stop(job_id):
+    job_manager.update_progress(job_id, 80.0)
+    if job_manager.should_stop(job_id):
         return {}
 
     # Step 5: Save processed data and metadata to database
@@ -201,7 +198,7 @@ def run_process_dataset_job(
         logger.exception("Failed to save training data")
         raise RuntimeError(f"Failed to save training data: {str(e)}") from e
 
-    jm.update_progress(job_id, 100.0)
+    job_manager.update_progress(job_id, 100.0)
 
     return {
         "total_samples": len(training_data),
@@ -209,6 +206,17 @@ def run_process_dataset_job(
         "validation_samples": validation_samples,
         "vocabulary_size": vocabulary_size,
     }
+
+
+# -----------------------------------------------------------------------------
+def resolve_processed_dataset_name(
+    source_dataset_name: str,
+    custom_name: str | None,
+) -> str:
+    if custom_name and custom_name.strip():
+        return custom_name.strip()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{source_dataset_name}_{timestamp}"
 
 
 ###############################################################################
@@ -232,7 +240,61 @@ class PreparationEndpoint:
         self.server_settings = server_settings
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_status(self) -> DatasetStatusResponse:
+    def get_image_column_name(self, columns: list[str]) -> str | None:
+        candidate_names = {"image", "filename", "file", "img", "image_name"}
+        for column in columns:
+            if column.lower() in candidate_names:
+                return column
+        return None
+
+    # -----------------------------------------------------------------------------
+    def build_images_mapping(self, image_paths: list[str]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
+        for path in image_paths:
+            basename = os.path.basename(path)
+            name_no_ext = os.path.splitext(basename)[0]
+            mapping[name_no_ext] = path
+        return mapping
+
+    # -----------------------------------------------------------------------------
+    def prepare_dataset_records_dataframe(
+        self,
+        matched: pd.DataFrame,
+        image_column: str,
+        dataset_name: str,
+    ) -> pd.DataFrame:
+        db_df = matched[[image_column, "text", "_path"]].copy()
+        db_df = db_df.rename(
+            columns={
+                image_column: "image_name",
+                "text": "report_text",
+                "_path": "image_path",
+            }
+        )
+        db_df["dataset_name"] = dataset_name
+        db_df["row_order"] = range(1, len(db_df) + 1)
+        return db_df[
+            [
+                "dataset_name",
+                "image_name",
+                "report_text",
+                "image_path",
+                "row_order",
+            ]
+        ]
+
+    # -----------------------------------------------------------------------------
+    def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job not found: {job_id}",
+            )
+        return job_status
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
         serializer = DataSerializer()
         row_count = serializer.count_rows(DATASET_RECORDS_TABLE)
@@ -245,7 +307,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_names(self) -> DatasetNamesResponse:
+    def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
@@ -293,7 +355,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_processed_dataset_names(self) -> DatasetNamesResponse:
+    def get_processed_dataset_names(self) -> DatasetNamesResponse:
         """Get list of processed datasets available for training."""
         with self.database.backend.engine.connect() as conn:
             inspector = sqlalchemy.inspect(conn)
@@ -351,14 +413,14 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_processing_metadata(
+    def get_processing_metadata(
         self, dataset_name: str
     ) -> ProcessingMetadataResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         serializer = DataSerializer()
@@ -366,7 +428,7 @@ class PreparationEndpoint:
             only_metadata=True,
             dataset_name=dataset_name,
         )
-        if not latest_metadata:
+        if not isinstance(latest_metadata, dict) or not latest_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No processing metadata found",
@@ -384,12 +446,12 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def delete_dataset(self, dataset_name: str) -> DeleteResponse:
+    def delete_dataset(self, dataset_name: str) -> DeleteResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         with self.database.backend.engine.begin() as conn:
@@ -411,7 +473,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
+    def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
         folder_path = request.folder_path.strip()
 
         if not folder_path:
@@ -459,7 +521,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
+    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self.server_settings.global_settings.seed
@@ -487,7 +549,14 @@ class PreparationEndpoint:
             )
 
         # Get the most recently uploaded dataset
-        _, dataset_info = self.upload_state.get_latest()
+        latest_upload = self.upload_state.get_latest()
+        if latest_upload is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
+            )
+
+        _, dataset_info = latest_upload
         df: pd.DataFrame = dataset_info["dataframe"].copy()
         dataset_name: str = dataset_info["dataset_name"]
 
@@ -495,20 +564,9 @@ class PreparationEndpoint:
         if sample_size < 1.0:
             df = df.sample(frac=sample_size, random_state=seed)
 
-        # Build image name to path mapping
-        images_mapping = {}
-        for path in image_paths:
-            basename = os.path.basename(path)
-            name_no_ext = os.path.splitext(basename)[0]
-            images_mapping[name_no_ext] = path
+        images_mapping = self.build_images_mapping(image_paths)
 
-        # Try to match images with dataset records
-        # Look for 'image' column in dataset
-        image_column = None
-        for col in df.columns:
-            if col.lower() in {"image", "filename", "file", "img", "image_name"}:
-                image_column = col
-                break
+        image_column = self.get_image_column_name(list(df.columns))
 
         if image_column is None:
             # Just return stats without matching
@@ -536,26 +594,11 @@ class PreparationEndpoint:
         if not matched.empty:
             try:
                 serializer = DataSerializer()
-                # Prepare data for database.
-                db_df = matched[[image_column, "text", "_path"]].copy()
-                db_df = db_df.rename(
-                    columns={
-                        image_column: "image_name",
-                        "text": "report_text",
-                        "_path": "image_path",
-                    }
+                db_df = self.prepare_dataset_records_dataframe(
+                    matched=matched,
+                    image_column=image_column,
+                    dataset_name=dataset_name,
                 )
-                db_df["dataset_name"] = dataset_name
-                db_df["row_order"] = range(1, len(db_df) + 1)
-                db_df = db_df[
-                    [
-                        "dataset_name",
-                        "image_name",
-                        "report_text",
-                        "image_path",
-                        "row_order",
-                    ]
-                ]
                 serializer.upsert_source_dataset(db_df)
                 logger.info(
                     f"Upserted {len(db_df)} records to {DATASET_RECORDS_TABLE} table (dataset: {dataset_name})"
@@ -579,7 +622,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
+    def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
         if self.job_manager.is_job_running("dataset_processing"):
             raise HTTPException(
@@ -593,7 +636,7 @@ class PreparationEndpoint:
         if not dataset_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dataset name cannot be empty",
+                detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         # Quick validation - check if source data exists
@@ -611,7 +654,7 @@ class PreparationEndpoint:
 
         # Start background job
         job_id = self.job_manager.start_job(
-            job_type="dataset_processing",
+            job_type=self.JOB_TYPE,
             runner=run_process_dataset_job,
             kwargs={
                 "configuration": configuration,
@@ -634,23 +677,13 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job not found: {job_id}",
-            )
+    def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
+        job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
     # -----------------------------------------------------------------------------
-    async def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Job not found: {job_id}",
-            )
+    def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
+        self.get_job_status_or_404(job_id)
 
         success = self.job_manager.cancel_job(job_id)
 
@@ -661,7 +694,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def browse_directory(
+    def browse_directory(
         self,
         path: str = Query(
             "", description="Directory path to browse. Empty returns drives."
@@ -720,12 +753,8 @@ class PreparationEndpoint:
                             image_count=image_count,
                         )
                     )
-        except PermissionError:
-            logger.warning(f"Permission denied accessing: {path}")
-            logger.warning(f"Error accessing {path}: {e}")
-
-        # Also count images in current folder
-        current_image_count = count_images_in_folder(path)
+        except PermissionError as exc:
+            logger.warning("Permission denied accessing %s: %s", path, exc)
 
         return BrowseResponse(
             current_path=path,
@@ -735,7 +764,7 @@ class PreparationEndpoint:
         )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
+    def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         """Get total number of images in a dataset."""
         dataset_name = dataset_name.strip()
         with self.database.backend.engine.connect() as conn:
@@ -755,7 +784,7 @@ class PreparationEndpoint:
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_metadata(
+    def get_dataset_image_metadata(
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
         """Get metadata for a specific image by 1-based index (id)."""
@@ -805,7 +834,7 @@ class PreparationEndpoint:
             )
 
     # -----------------------------------------------------------------------------
-    async def get_dataset_image_content(self, dataset_name: str, index: int):
+    def get_dataset_image_content(self, dataset_name: str, index: int):
         """Serve the image file content."""
         dataset_name = dataset_name.strip()
         if index < 1:
