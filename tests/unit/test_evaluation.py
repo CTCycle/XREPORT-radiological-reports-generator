@@ -1,8 +1,10 @@
+import os
+
 import numpy as np
 import pandas as pd
 import pytest
 
-pytest.importorskip("tensorflow")
+os.environ.setdefault("KERAS_BACKEND", "torch")
 
 from XREPORT.server.services import evaluation as evaluation_service
 

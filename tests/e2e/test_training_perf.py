@@ -18,6 +18,14 @@ from PIL import Image
 import pytest
 import sqlalchemy
 
+os.environ.setdefault("KERAS_BACKEND", "torch")
+if os.environ.get("RUN_PERF_TESTS", "0") != "1":
+    pytest.skip(
+        "Performance tests are excluded from default runs. "
+        "Set RUN_PERF_TESTS=1 to enable.",
+        allow_module_level=True,
+    )
+
 from XREPORT.server.routes.training import training_endpoint, training_state
 from XREPORT.server.schemas.training import StartTrainingRequest
 from XREPORT.server.utils.constants import (

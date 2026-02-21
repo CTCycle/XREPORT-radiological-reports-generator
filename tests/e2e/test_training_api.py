@@ -7,6 +7,7 @@ import os
 import shutil
 import uuid
 
+import pytest
 from playwright.sync_api import APIRequestContext
 
 
@@ -76,12 +77,12 @@ class TestTrainingEndpoints:
         """POST /training/stop should return error if no training is active."""
         # First verify no training is running
         status_response = api_context.get("/training/status")
+        assert status_response.ok
         if status_response.ok and status_response.json().get("is_training"):
             return  # Skip if training is actually running
 
         response = api_context.post("/training/stop")
-        # When no training is running, expect 400 or 409
-        assert response.status in [400, 409]
+        assert response.status == 400
 
         data = response.json()
         assert "detail" in data
@@ -147,6 +148,7 @@ class TestTrainingStartValidation:
     ) -> None:
         """POST /training/start should validate request body."""
         status_response = api_context.get("/training/status")
+        assert status_response.ok
         if status_response.ok and status_response.json().get("is_training"):
             return  # Skip if training is already running
 
@@ -160,18 +162,18 @@ class TestTrainingStartValidation:
         """POST /training/start should return 409 if training is already in progress."""
         # Check if training is already running
         status_response = api_context.get("/training/status")
+        assert status_response.ok
         status_data = status_response.json()
 
         if status_data.get("is_training"):
             # Attempt to start again
             response = api_context.post(
                 "/training/start",
-                data={
-                    "dataset_name": "test",
-                    "epochs": 1,
-                },
+                data={"dataset_name": "test", "epochs": 1},
             )
             assert response.status == 409
+            return
+        pytest.skip("Training is not running; 409 path not applicable")
 
 
 class TestTrainingResumeEndpoint:
@@ -182,14 +184,14 @@ class TestTrainingResumeEndpoint:
         # Empty request should fail
         response = api_context.post("/training/resume", data={})
 
-        # Should fail validation
-        assert response.status in [400, 422]
+        assert response.status == 422
 
     def test_resume_with_invalid_checkpoint_returns_error(
         self, api_context: APIRequestContext
     ):
         """POST /training/resume with invalid checkpoint should fail."""
         status_response = api_context.get("/training/status")
+        assert status_response.ok
         if status_response.ok and status_response.json().get("is_training"):
             return  # Skip if training is already running
 
@@ -198,5 +200,4 @@ class TestTrainingResumeEndpoint:
             data={"checkpoint": "non_existent_checkpoint_xyz", "additional_epochs": 1},
         )
 
-        # Should return 404 or 400
-        assert response.status in [400, 404, 422]
+        assert response.status in [400, 404]

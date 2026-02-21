@@ -3,6 +3,7 @@ E2E tests for Inference API endpoints.
 Tests: /inference/checkpoints, /inference/generate
 """
 
+import pytest
 from playwright.sync_api import APIRequestContext
 
 
@@ -29,7 +30,7 @@ class TestInferenceEndpoints:
             "/inference/generate",
             multipart={
                 "checkpoint": "test_checkpoint",
-                "generation_mode": "greedy",
+                "generation_mode": "greedy_search",
             },
         )
         # Missing required images field
@@ -128,9 +129,8 @@ class TestInferenceEndpoints:
             },
         )
 
-        # Should fail because checkpoint doesn't exist
-        # Could be 400, 404, or 500 depending on when validation occurs
-        assert response.status in [400, 404, 500]
+        assert response.status == 404
+        assert "detail" in response.json()
 
 
 class TestInferenceGenerationModes:
@@ -140,12 +140,11 @@ class TestInferenceGenerationModes:
         """POST /inference/generate should accept 'greedy' generation mode."""
         # Get checkpoints first
         checkpoints_response = api_context.get("/inference/checkpoints")
-        if not checkpoints_response.ok:
-            return
+        assert checkpoints_response.ok
 
         checkpoints = checkpoints_response.json().get("checkpoints", [])
         if not checkpoints:
-            return  # Skip if no checkpoints available
+            pytest.skip("No checkpoints available in test environment")
 
         checkpoint_name = checkpoints[0]["name"]
 
@@ -156,7 +155,7 @@ class TestInferenceGenerationModes:
             "/inference/generate",
             multipart={
                 "checkpoint": checkpoint_name,
-                "generation_mode": "greedy",
+                "generation_mode": "greedy_search",
                 "images": {
                     "name": "test.png",
                     "mimeType": "image/png",
@@ -165,19 +164,16 @@ class TestInferenceGenerationModes:
             },
         )
 
-        # Either succeeds or fails gracefully
-        # Actual generation may fail due to model loading issues in test env
-        assert response.status in [200, 400, 500]
+        assert response.status == 202
 
     def test_generate_accepts_beam_mode(self, api_context: APIRequestContext):
         """POST /inference/generate should accept 'beam' generation mode."""
         checkpoints_response = api_context.get("/inference/checkpoints")
-        if not checkpoints_response.ok:
-            return
+        assert checkpoints_response.ok
 
         checkpoints = checkpoints_response.json().get("checkpoints", [])
         if not checkpoints:
-            return
+            pytest.skip("No checkpoints available in test environment")
 
         checkpoint_name = checkpoints[0]["name"]
         png_data = self._create_minimal_png()
@@ -186,7 +182,7 @@ class TestInferenceGenerationModes:
             "/inference/generate",
             multipart={
                 "checkpoint": checkpoint_name,
-                "generation_mode": "beam",
+                "generation_mode": "beam_search",
                 "images": {
                     "name": "test.png",
                     "mimeType": "image/png",
@@ -195,7 +191,34 @@ class TestInferenceGenerationModes:
             },
         )
 
-        assert response.status in [200, 400, 500]
+        assert response.status == 202
+
+    def test_generate_rejects_invalid_mode(self, api_context: APIRequestContext):
+        checkpoints_response = api_context.get("/inference/checkpoints")
+        assert checkpoints_response.ok
+
+        checkpoints = checkpoints_response.json().get("checkpoints", [])
+        if not checkpoints:
+            pytest.skip("No checkpoints available in test environment")
+
+        checkpoint_name = checkpoints[0]["name"]
+        png_data = self._create_minimal_png()
+
+        response = api_context.post(
+            "/inference/generate",
+            multipart={
+                "checkpoint": checkpoint_name,
+                "generation_mode": "invalid_mode",
+                "images": {
+                    "name": "test.png",
+                    "mimeType": "image/png",
+                    "buffer": png_data,
+                },
+            },
+        )
+
+        assert response.status == 400
+        assert "detail" in response.json()
 
     def _create_minimal_png(self) -> bytes:
         """Create a minimal valid 1x1 white PNG image."""
