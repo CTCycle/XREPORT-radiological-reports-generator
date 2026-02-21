@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from XREPORT.server.configurations.base import ensure_mapping, load_configuration_data
@@ -41,7 +42,17 @@ def build_jobs_settings(data: dict[str, Any]) -> JobsSettings:
 
 # -----------------------------------------------------------------------------
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
-    embedded = bool(payload.get("embedded_database", True))
+    database_payload = ensure_mapping(payload)
+    payload_embedded = coerce_bool(database_payload.get("embedded_database"), True)
+    embedded_value = os.getenv("DB_EMBEDDED") if "DB_EMBEDDED" in os.environ else None
+    embedded = coerce_bool(embedded_value, payload_embedded)
+
+    insert_batch_size = coerce_int(
+        os.getenv("DB_INSERT_BATCH_SIZE"),
+        1000,
+        minimum=1,
+    )
+
     if embedded:
         # External fields are ignored entirely when embedded DB is active
         return DatabaseSettings(
@@ -55,26 +66,35 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
             ssl=False,
             ssl_ca=None,
             connect_timeout=10,
-            insert_batch_size=coerce_int(
-                payload.get("insert_batch_size"), 1000, minimum=1
-            ),
+            insert_batch_size=insert_batch_size,
         )
 
     # External DB mode
-    engine_value = coerce_str_or_none(payload.get("engine")) or "postgres"
+    engine_value = coerce_str_or_none(os.getenv("DB_ENGINE")) or "postgres"
     normalized_engine = engine_value.lower() if engine_value else None
+    ssl = coerce_bool(os.getenv("DB_SSL"), False)
+
     return DatabaseSettings(
         embedded_database=False,
         engine=normalized_engine,
-        host=coerce_str_or_none(payload.get("host")),
-        port=coerce_int(payload.get("port"), 5432, minimum=1, maximum=65535),
-        database_name=coerce_str_or_none(payload.get("database_name")),
-        username=coerce_str_or_none(payload.get("username")),
-        password=coerce_str_or_none(payload.get("password")),
-        ssl=bool(payload.get("ssl", False)),
-        ssl_ca=coerce_str_or_none(payload.get("ssl_ca")),
-        connect_timeout=coerce_int(payload.get("connect_timeout"), 10, minimum=1),
-        insert_batch_size=coerce_int(payload.get("insert_batch_size"), 1000, minimum=1),
+        host=coerce_str_or_none(os.getenv("DB_HOST")),
+        port=coerce_int(
+            os.getenv("DB_PORT"),
+            5432,
+            minimum=1,
+            maximum=65535,
+        ),
+        database_name=coerce_str_or_none(os.getenv("DB_NAME")),
+        username=coerce_str_or_none(os.getenv("DB_USER")),
+        password=coerce_str_or_none(os.getenv("DB_PASSWORD")),
+        ssl=ssl,
+        ssl_ca=coerce_str_or_none(os.getenv("DB_SSL_CA")),
+        connect_timeout=coerce_int(
+            os.getenv("DB_CONNECT_TIMEOUT"),
+            10,
+            minimum=1,
+        ),
+        insert_batch_size=insert_batch_size,
     )
 
 

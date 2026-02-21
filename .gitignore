@@ -8,7 +8,6 @@ XREPORT/resources/logs/**
 XREPORT/client/node_modules/
 XREPORT/client/dist/
 XREPORT/client/dist-ssr/
-XREPORT/client/package-lock.json
 XREPORT/client/logs/
 XREPORT/resources/tokenizers/**
 XREPORT/client/*.local
