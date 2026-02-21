@@ -98,7 +98,7 @@ class TokenizerHandler:
 
         tokens = self.tokenizer(
             text,
-            padding=True,
+            padding="max_length",
             truncation=True,
             max_length=true_report_size,
             return_tensors="pt",

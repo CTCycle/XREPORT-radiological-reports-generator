@@ -72,10 +72,11 @@ class TrainingInterruptCallback(Callback):
         if self.worker is None:
             return
         try:
-            if self.worker.is_interrupted():
-                raise WorkerInterrupted("Training interrupted")
+            is_interrupted = self.worker.is_interrupted()
         except Exception:  # noqa: BLE001
             return
+        if is_interrupted:
+            raise WorkerInterrupted("Training interrupted")
 
     # -------------------------------------------------------------------------
     def on_train_begin(self, logs: dict | None = None) -> None:

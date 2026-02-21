@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -68,6 +69,17 @@ class DataSerializer:
             return default
         if isinstance(value, (dict, list)):
             return value
+        if isinstance(value, str):
+            payload = value.strip()
+            if not payload:
+                return default
+            try:
+                decoded = json.loads(payload)
+            except json.JSONDecodeError:
+                return default
+            if isinstance(decoded, (dict, list)):
+                return decoded
+            return default
         return default
 
     # -------------------------------------------------------------------------

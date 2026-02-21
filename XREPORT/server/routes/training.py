@@ -210,12 +210,19 @@ def monitor_training_process(
     stop_requested_at: float | None = None
 
     while worker.is_alive():
-        if job_manager.should_stop(job_id) and not worker.is_interrupted():
-            worker.stop()
-            stop_requested_at = time.monotonic()
+        if job_manager.should_stop(job_id):
+            if stop_requested_at is None:
+                stop_requested_at = time.monotonic()
+            if not worker.is_interrupted():
+                worker.stop()
         if stop_requested_at is not None:
             elapsed = time.monotonic() - stop_requested_at
             if elapsed >= stop_timeout_seconds:
+                logger.warning(
+                    "Training job %s did not stop within %.2fs, forcing termination",
+                    job_id,
+                    stop_timeout_seconds,
+                )
                 worker.terminate()
                 break
         message = worker.poll(timeout=0.25)
