@@ -12,6 +12,10 @@ This tool aims to accelerate the reporting workflow for radiologists by providin
 
 > **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
 
+Runtime is dual-mode:
+- **Local mode (default)**: no Docker required, launched by `XREPORT/start_on_windows.bat`.
+- **Cloud mode**: Dockerized backend + frontend with same-origin `/api` proxying.
+
 ---
 
 ## 2. Model and Dataset (Optional)
@@ -38,6 +42,8 @@ The launcher performs the following:
 
 **Note**: The first run will take time to download runtimes and compile dependencies. Subsequent runs check for updates and launch immediately. This setup is portable and does not modify your system registry.
 
+This is the default developer workflow.
+
 ### 3.2 macOS / Linux (Manual Setup)
 
 **Prerequisites**:
@@ -56,9 +62,22 @@ The launcher performs the following:
 3. **Frontend Setup**:
    ```bash
    cd XREPORT/client
-   npm install
+   npm ci
    npm run build
    ```
+
+### 3.3 Cloud Mode (Docker)
+
+1. Select cloud profile:
+   ```bat
+   copy /Y XREPORT\settings\.env.cloud.example XREPORT\settings\.env
+   ```
+2. Build and start:
+   ```bat
+   docker compose --env-file XREPORT/settings/.env up --build -d
+   ```
+3. Open frontend: `http://127.0.0.1:<UI_PORT>`
+4. API docs through same origin proxy: `http://127.0.0.1:<UI_PORT>/api/docs`
 
 ---
 
@@ -68,8 +87,8 @@ The launcher performs the following:
 
 Launch the application by double-clicking `XREPORT/start_on_windows.bat`.
 
-- **Web UI**: Opens automatically at `http://127.0.0.1:7861`.
-- **Backend**: Runs on `http://127.0.0.1:8000`.
+- **Web UI**: Opens automatically at `http://<UI_HOST>:<UI_PORT>` from `XREPORT/settings/.env`.
+- **Backend**: Runs on `http://<FASTAPI_HOST>:<FASTAPI_PORT>` from `XREPORT/settings/.env`.
 
 ### 4.2 macOS / Linux
 
@@ -84,7 +103,20 @@ cd XREPORT/client
 npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
 ```
 
-### 4.3 Using the Application
+### 4.3 Mode Switching
+
+The active runtime file is always `XREPORT/settings/.env`.
+
+- Local defaults:
+  ```bat
+  copy /Y XREPORT\settings\.env.local.example XREPORT\settings\.env
+  ```
+- Cloud defaults:
+  ```bat
+  copy /Y XREPORT\settings\.env.cloud.example XREPORT\settings\.env
+  ```
+
+### 4.4 Using the Application
 
 The application workflow is divided into four main areas:
 
@@ -131,8 +163,13 @@ The `XREPORT/resources` directory contains project assets and artifacts:
 
 Configurations are split between environment variables and JSON settings.
 
-- **Environment**: Defined in `XREPORT/settings/.env`.
-- **Backend/Training**: Defined in `XREPORT/settings/configurations.json`.
+- **Active environment profile**: `XREPORT/settings/.env`
+- **Profile templates**:
+  - `XREPORT/settings/.env.local.example`
+  - `XREPORT/settings/.env.cloud.example`
+- **Backend/Training JSON defaults (non-runtime)**: `XREPORT/settings/configurations.json`
+
+For packaging/runtime details see `docs/PACKAGING_AND_RUNTIME_MODES.md`.
 
 ## 8. License
 
