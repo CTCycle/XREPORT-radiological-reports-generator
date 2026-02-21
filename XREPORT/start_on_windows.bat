@@ -168,12 +168,13 @@ if exist "%DOTENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%DOTENV%") do (
     set "line=%%L"
     if not "!line!"=="" if "!line:~0,1!" NEQ "#" if "!line:~0,1!" NEQ ";" (
-      for /f "tokens=1* delims==" %%K in ("!line!") do (
-        set "k=%%K"
-        set "v=%%L"
+      for /f "tokens=1,* delims==" %%A in ("!line!") do (
+        set "k=%%A"
+        set "v=%%B"
         if defined v (
-          if "!v:~0,1!"=="\"" set "v=!v:~1,-1!"
-          if "!v:~0,1!"=="'" set "v=!v:~1,-1!"
+          for /f "tokens=* delims= " %%Q in ("!v!") do set "v=%%Q"
+          set "v=!v:"=!"
+          if "!v:~0,1!"=="'" if "!v:~-1!"=="'" set "v=!v:~1,-1!"
         )
         set "!k!=!v!"
       )

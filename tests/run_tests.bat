@@ -40,8 +40,9 @@ if exist "%DOTENV%" (
                 set "key=%%K"
                 set "value=%%L"
                 if defined value (
-                    if "!value:~0,1!"=="\"" set "value=!value:~1,-1!"
-                    if "!value:~0,1!"=="'" set "value=!value:~1,-1!"
+                    for /f "tokens=* delims= " %%Q in ("!value!") do set "value=%%Q"
+                    set "value=!value:"=!"
+                    if "!value:~0,1!"=="'" if "!value:~-1!"=="'" set "value=!value:~1,-1!"
                 )
                 if /i "!key!"=="OPTIONAL_DEPENDENCIES" set "OPTIONAL_DEPENDENCIES=!value!"
                 if /i "!key!"=="FASTAPI_HOST" set "FASTAPI_HOST=!value!"
