@@ -40,6 +40,7 @@ set "pyproject=%root_folder%pyproject.toml"
 set "UVICORN_MODULE=XREPORT.server.app:app"
 set "FRONTEND_DIR=%project_folder%client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
+set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
 
 set "DOTENV=%settings_dir%\.env"
 set "TMPDL=%TEMP%\app_dl.ps1"
@@ -244,11 +245,15 @@ start "" /b "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MO
 if not exist "%FRONTEND_DIR%\node_modules" (
   echo [STEP] Installing frontend dependencies...
   pushd "%FRONTEND_DIR%" >nul
-  call "%NPM_CMD%" install
+  if exist "%FRONTEND_LOCKFILE%" (
+    call "%NPM_CMD%" ci
+  ) else (
+    call "%NPM_CMD%" install
+  )
   set "npm_ec=!ERRORLEVEL!"
   popd >nul
   if not "!npm_ec!"=="0" (
-    echo [FATAL] npm install failed with code !npm_ec!.
+    echo [FATAL] Frontend dependency install failed with code !npm_ec!.
     goto error
   )
 )
