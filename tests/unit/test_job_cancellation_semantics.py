@@ -30,7 +30,14 @@ def test_cancel_running_job_marks_stop_requested_only() -> None:
         internal_state = manager.jobs[job_id]
         assert internal_state.stop_requested is True
     release.set()
-    time.sleep(0.05)
+    thread = manager.threads.get(job_id)
+    if thread is not None:
+        thread.join(timeout=1.0)
+    time.sleep(0.01)
+
+    final_status = manager.get_job_status(job_id)
+    assert final_status is not None
+    assert final_status["status"] == "cancelled"
 
 
 # -----------------------------------------------------------------------------
