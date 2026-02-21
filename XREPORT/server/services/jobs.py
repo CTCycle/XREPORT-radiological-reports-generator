@@ -69,8 +69,18 @@ class JobManager:
             return False
         if state.status not in ("pending", "running"):
             return False
-        state.update(stop_requested=True, status="cancelled", completed_at=monotonic())
-        logger.info("Cancelled job %s", job_id)
+
+        if state.status == "pending":
+            state.update(
+                stop_requested=True,
+                status="cancelled",
+                completed_at=monotonic(),
+            )
+            logger.info("Cancelled pending job %s", job_id)
+            return True
+
+        state.update(stop_requested=True)
+        logger.info("Cancellation requested for job %s", job_id)
         return True
 
     # -------------------------------------------------------------------------

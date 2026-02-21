@@ -56,6 +56,10 @@ class XRAYDataset(Dataset):
             raise RuntimeError("Tokens not initialized during training")
 
         token_array = np.asarray(self.tokens[index], dtype=np.int64)
+        if token_array.ndim != 1 or token_array.size < 2:
+            raise ValueError(
+                f"Invalid token sequence at index {index}: expected at least 2 token IDs, got shape {token_array.shape}"
+            )
         input_text = torch.from_numpy(token_array[:-1])
         output_text = torch.from_numpy(token_array[1:])
 
