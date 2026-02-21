@@ -79,12 +79,14 @@ class TestDatasetUploadEndpoint:
             },
         )
 
-        if response.ok:
-            data = response.json()
-            assert data["dataset_name"] == "my_custom_dataset"
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["dataset_name"] == "my_custom_dataset"
 
-    def test_upload_xlsx_succeeds(self, api_context: APIRequestContext):
-        """POST /upload/dataset should accept XLSX files."""
+    def test_upload_invalid_xlsx_payload_returns_400(
+        self, api_context: APIRequestContext
+    ):
+        """POST /upload/dataset with invalid XLSX bytes should return 400."""
         # Note: Creating a real XLSX in tests is complex
         # This test verifies the endpoint accepts the format
         # but will fail parsing with invalid content
@@ -100,6 +102,7 @@ class TestDatasetUploadEndpoint:
         )
         # Expect 400 because it's not a valid XLSX
         assert response.status == 400
+        assert "detail" in response.json()
 
     def test_upload_empty_csv_returns_400(self, api_context: APIRequestContext):
         """POST /upload/dataset with empty content should return 400."""
@@ -115,6 +118,7 @@ class TestDatasetUploadEndpoint:
         )
         # Empty file should fail parsing
         assert response.status == 400
+        assert "detail" in response.json()
 
 
 class TestDatasetUploadEdgeCases:
@@ -136,11 +140,10 @@ class TestDatasetUploadEdgeCases:
             },
         )
 
-        # Should succeed - pandas can auto-detect separator
-        if response.ok:
-            data = response.json()
-            assert data["row_count"] == 2
-            assert "id" in data["columns"]
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["row_count"] == 2
+        assert "id" in data["columns"]
 
     def test_upload_csv_with_special_characters(self, api_context: APIRequestContext):
         """POST /upload/dataset should handle special characters in content."""
@@ -159,5 +162,6 @@ class TestDatasetUploadEdgeCases:
             },
         )
 
-        # Should handle UTF-8 content
-        assert response.status in [200, 400]
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["row_count"] == 2

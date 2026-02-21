@@ -25,7 +25,6 @@ class TestHomePage:
 
         # Check for main navigation links (icon-only sidebar uses title attributes)
         expect(page.locator('a[title="Dataset"]')).to_be_visible()
-        expect(page.locator('a[title="Database"]')).to_be_visible()
         expect(page.locator('a[title="Training"]')).to_be_visible()
         expect(page.locator('a[title="Inference"]')).to_be_visible()
 
@@ -44,14 +43,18 @@ class TestHomePage:
 class TestNavigationFlow:
     """Tests for navigating between different pages."""
 
-    def test_navigate_to_database_page(self, page: Page, base_url: str):
-        """Should be able to navigate to the Database page."""
+    def test_navigate_to_dataset_page(self, page: Page, base_url: str):
+        """Should remain on the Dataset page from homepage navigation."""
         page.goto(base_url)
-        page.locator('a[title="Database"]').click()
+        page.locator('a[title="Dataset"]').click()
         page.wait_for_load_state("networkidle")
 
-        expect(page).to_have_url(re.compile(".*database", re.IGNORECASE))
-        expect(page.locator("h1, h2, h3").filter(has_text="Database")).to_be_visible()
+        expect(page).to_have_url(re.compile(".*dataset", re.IGNORECASE))
+        expect(
+            page.locator("h1").filter(
+                has_text=re.compile("Dataset Management", re.IGNORECASE)
+            )
+        ).to_be_visible()
 
     def test_navigate_to_training_page(self, page: Page, base_url: str):
         """Should be able to navigate to the Training page."""
@@ -76,25 +79,19 @@ class TestNavigationFlow:
         expect(page.locator("h1, h2, h3").filter(has_text="Inference")).to_be_visible()
 
 
-class TestDatabasePage:
-    """Tests for the Database browser page."""
+class TestDatasetPage:
+    """Tests for the Dataset page."""
 
-    def test_database_page_shows_table_list(self, page: Page, base_url: str):
-        """The Database page should display a list of tables."""
-        page.goto(f"{base_url}/database")
+    def test_dataset_page_loads(self, page: Page, base_url: str):
+        """The Dataset page should display the dataset management heading."""
+        page.goto(f"{base_url}/dataset")
         page.wait_for_load_state("networkidle")
 
-        expect(page.get_by_text("Select Table", exact=False)).to_be_visible()
-
-    def test_database_page_allows_table_selection(self, page: Page, base_url: str):
-        """Should be able to select a table from the list."""
-        page.goto(f"{base_url}/database")
-        page.wait_for_load_state("networkidle")
-
-        # Find a table item and click it
-        # This might be specific to implementation, using a generic selector for now
-        # expect(page.locator(".table-item").first).to_be_visible()
-        pass
+        expect(
+            page.locator("h1").filter(
+                has_text=re.compile("Dataset Management", re.IGNORECASE)
+            )
+        ).to_be_visible()
 
 
 class TestTrainingPage:
