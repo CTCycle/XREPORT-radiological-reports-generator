@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-os.environ.setdefault("KERAS_BACKEND", "torch")
+os.environ["KERAS_BACKEND"] = "torch"
 
 from XREPORT.server.services import evaluation as evaluation_service
 
