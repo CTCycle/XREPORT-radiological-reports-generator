@@ -67,6 +67,13 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     targetLR: 0.001,
     warmupSteps: 1000,
     realTimePlot: true,
+    dataloaderWorkers: 0,
+    prefetchFactor: 1,
+    pinMemory: true,
+    persistentWorkers: false,
+    useMixedPrecision: false,
+    jitCompile: false,
+    jitBackend: 'inductor',
     useGpu: true,
     gpuId: 0
 };

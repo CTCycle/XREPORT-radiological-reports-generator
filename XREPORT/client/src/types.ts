@@ -60,6 +60,13 @@ export interface TrainingConfig {
     targetLR: number;
     warmupSteps: number;
     realTimePlot: boolean;
+    dataloaderWorkers: number;
+    prefetchFactor: number;
+    pinMemory: boolean;
+    persistentWorkers: boolean;
+    useMixedPrecision: boolean;
+    jitCompile: boolean;
+    jitBackend: string;
     useGpu: boolean;
     gpuId: number;
 }

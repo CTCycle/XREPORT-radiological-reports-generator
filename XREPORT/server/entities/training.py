@@ -92,6 +92,21 @@ class StartTrainingRequest(BaseModel):
     )
     use_device_GPU: bool = Field(True, description="Use GPU for training")
     device_ID: int = Field(0, ge=0, description="GPU device ID")
+    jit_compile: bool = Field(False, description="Enable torch compile mode")
+    jit_backend: str = Field("inductor", description="Torch compile backend")
+    use_mixed_precision: bool = Field(
+        False, description="Enable mixed precision policy for GPU training"
+    )
+    dataloader_workers: int = Field(
+        0, ge=0, le=32, description="DataLoader worker processes"
+    )
+    prefetch_factor: int = Field(
+        1, ge=1, le=8, description="DataLoader prefetch factor"
+    )
+    pin_memory: bool = Field(True, description="Enable DataLoader pinned memory")
+    persistent_workers: bool = Field(
+        False, description="Keep DataLoader workers persistent across epochs"
+    )
     plot_training_metrics: bool = Field(True, description="Generate training plots")
     use_scheduler: bool = Field(False, description="Use learning rate scheduler")
     target_LR: float = Field(
@@ -136,6 +151,7 @@ class TrainingStatusResponse(BaseModel):
     poll_interval: float = 1.0
 
 
+###############################################################################
 class ProcessDatasetRequest(BaseModel):
     dataset_name: str = Field(..., min_length=1, description="Dataset name to process")
     custom_name: str | None = Field(
@@ -153,6 +169,7 @@ class ProcessDatasetRequest(BaseModel):
     )
 
 
+###############################################################################
 class ProcessDatasetResponse(BaseModel):
     success: bool
     total_samples: int
@@ -162,12 +179,14 @@ class ProcessDatasetResponse(BaseModel):
     message: str
 
 
+###############################################################################
 class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
     message: str
 
 
+###############################################################################
 class DatasetInfo(BaseModel):
     name: str
     folder_path: str
@@ -175,16 +194,19 @@ class DatasetInfo(BaseModel):
     has_validation_report: bool = False
 
 
+###############################################################################
 class DatasetNamesResponse(BaseModel):
     datasets: list[DatasetInfo]
     count: int
 
 
+###############################################################################
 class ProcessingMetadataResponse(BaseModel):
     dataset_name: str
     metadata: dict[str, Any]
 
 
+###############################################################################
 class CheckpointMetadataResponse(BaseModel):
     checkpoint: str
     configuration: dict[str, Any]
@@ -192,16 +214,19 @@ class CheckpointMetadataResponse(BaseModel):
     session: dict[str, Any]
 
 
+###############################################################################
 class DeleteResponse(BaseModel):
     success: bool
     message: str
 
 
+###############################################################################
 class ImageCountResponse(BaseModel):
     dataset_name: str
     count: int
 
 
+###############################################################################
 class ImageMetadataResponse(BaseModel):
     dataset_name: str
     index: int
