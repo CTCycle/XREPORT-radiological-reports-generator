@@ -148,15 +148,14 @@ export default function TrainingDashboard({
                             style={{ width: `${metrics.progressPercent}%` }}
                         />
                     </div>
-                    {metrics.isTraining && (
-                        <button
-                            className="btn-stop"
-                            onClick={handleStopTraining}
-                        >
-                            <Square size={16} />
-                            Stop Training
-                        </button>
-                    )}
+                    <button
+                        className="btn-stop"
+                        onClick={handleStopTraining}
+                        disabled={!metrics.isTraining}
+                    >
+                        <Square size={16} />
+                        Stop Training
+                    </button>
                 </div>
             </div>
 
