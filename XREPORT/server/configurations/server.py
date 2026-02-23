@@ -9,7 +9,6 @@ from XREPORT.server.entities.settings import (
     GlobalSettings,
     JobsSettings,
     ServerSettings,
-    TrainingSettings,
 )
 
 from XREPORT.server.common.constants import CONFIGURATION_FILE
@@ -18,7 +17,6 @@ from XREPORT.server.common.utils.types import (
     coerce_bool,
     coerce_float,
     coerce_int,
-    coerce_str,
     coerce_str_or_none,
 )
 
@@ -99,36 +97,16 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
 
 
 # -----------------------------------------------------------------------------
-def build_training_settings(data: dict[str, Any]) -> TrainingSettings:
-    payload = ensure_mapping(data)
-    jit_backend = coerce_str(payload.get("jit_backend"), "inductor")
-    valid_backends = ["inductor", "eager", "aot_eager", "nvprims_nvfuser"]
-    if jit_backend not in valid_backends:
-        jit_backend = "inductor"
-    return TrainingSettings(
-        use_jit=bool(payload.get("use_jit", True)),
-        jit_backend=jit_backend,
-        use_mixed_precision=bool(payload.get("use_mixed_precision", False)),
-        dataloader_workers=coerce_int(payload.get("dataloader_workers"), 0, minimum=0),
-        prefetch_factor=coerce_int(payload.get("prefetch_factor"), 1, minimum=1),
-        pin_memory=coerce_bool(payload.get("pin_memory"), False),
-        persistent_workers=coerce_bool(payload.get("persistent_workers"), False),
-    )
-
-
-# -----------------------------------------------------------------------------
 def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
     database_payload = ensure_mapping(payload.get("database"))
     global_payload = ensure_mapping(payload.get("global"))
     jobs_payload = ensure_mapping(payload.get("jobs"))
-    training_payload = ensure_mapping(payload.get("training"))
 
     return ServerSettings(
         database=build_database_settings(database_payload),
         global_settings=build_global_settings(global_payload),
         jobs=build_jobs_settings(jobs_payload),
-        training=build_training_settings(training_payload),
     )
 
 
