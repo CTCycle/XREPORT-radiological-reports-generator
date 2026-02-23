@@ -19,34 +19,21 @@ class DatabaseSettings:
     insert_batch_size: int
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
 
 
-# -----------------------------------------------------------------------------
-@dataclass(frozen=True)
-class TrainingSettings:
-    use_jit: bool
-    jit_backend: str
-    use_mixed_precision: bool
-    dataloader_workers: int
-    prefetch_factor: int
-    pin_memory: bool
-    persistent_workers: bool
-
-
-# -----------------------------------------------------------------------------
+###############################################################################
 @dataclass(frozen=True)
 class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
     jobs: JobsSettings
-    training: TrainingSettings

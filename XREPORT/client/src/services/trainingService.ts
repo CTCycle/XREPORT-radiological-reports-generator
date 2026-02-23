@@ -432,6 +432,13 @@ export interface StartTrainingConfig {
     checkpoint_id?: string;
     use_device_GPU: boolean;
     device_ID: number;
+    jit_compile: boolean;
+    jit_backend: string;
+    use_mixed_precision: boolean;
+    dataloader_workers: number;
+    prefetch_factor: number;
+    pin_memory: boolean;
+    persistent_workers: boolean;
     plot_training_metrics: boolean;
     use_scheduler: boolean;
     target_LR: number;
