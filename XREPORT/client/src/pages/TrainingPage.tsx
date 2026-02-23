@@ -28,6 +28,7 @@ import {
     DatasetInfo,
     JobStatusResponse,
     StartTrainingConfig,
+    TrainingStatusResponse,
     deleteCheckpoint,
     deleteDataset,
     getCheckpointMetadata,
@@ -129,8 +130,10 @@ export default function TrainingPage() {
     const restoredEvaluationJobs = useRef(false);
     const reportCheckpointRef = useRef<string | null>(null);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
+    const statusPollerRef = useRef<{ stop: () => void } | null>(null);
     const lastLoggedEpochRef = useRef<number | null>(null);
     const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
+    const stopRequestedRef = useRef(false);
 
     const stopPolling = useCallback(() => {
         if (pollerRef.current) {
@@ -138,6 +141,93 @@ export default function TrainingPage() {
             pollerRef.current = null;
         }
     }, []);
+
+    const stopStatusPolling = useCallback(() => {
+        if (statusPollerRef.current) {
+            statusPollerRef.current.stop();
+            statusPollerRef.current = null;
+        }
+    }, []);
+
+    const applyTrainingStatusSnapshot = useCallback((status: TrainingStatusResponse) => {
+        setDashboardState((prev) => ({
+            ...prev,
+            isTraining: status.is_training,
+            currentEpoch: status.current_epoch,
+            totalEpochs: status.total_epochs,
+            loss: status.loss,
+            valLoss: status.val_loss,
+            accuracy: status.accuracy,
+            valAccuracy: status.val_accuracy,
+            progressPercent: status.progress_percent,
+            elapsedSeconds: status.elapsed_seconds,
+        }));
+    }, [setDashboardState]);
+
+    const startStatusPolling = useCallback((intervalSeconds: number = 2.0) => {
+        stopStatusPolling();
+        let stopped = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let nextIntervalMs = Math.max(250, intervalSeconds * 1000);
+
+        const stop = () => {
+            stopped = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            if (statusPollerRef.current?.stop === stop) {
+                statusPollerRef.current = null;
+            }
+        };
+
+        const poll = async () => {
+            if (stopped) return;
+
+            const { result, error } = await getTrainingStatus();
+            if (stopped) return;
+
+            if (error) {
+                console.error('Training status poll error:', error);
+                timeoutId = setTimeout(poll, nextIntervalMs);
+                return;
+            }
+
+            if (!result) {
+                timeoutId = setTimeout(poll, nextIntervalMs);
+                return;
+            }
+
+            applyTrainingStatusSnapshot(result);
+            if (typeof result.poll_interval === 'number' && result.poll_interval > 0) {
+                nextIntervalMs = Math.max(250, result.poll_interval * 1000);
+            }
+
+            if (!result.is_training) {
+                if (
+                    stopRequestedRef.current
+                    && lastStatusRef.current !== 'cancelled'
+                    && lastStatusRef.current !== 'completed'
+                    && lastStatusRef.current !== 'failed'
+                ) {
+                    setDashboardState((prev) => {
+                        const next = [...prev.logEntries, 'Training cancelled.'];
+                        return { ...prev, logEntries: next.slice(-200) };
+                    });
+                    lastStatusRef.current = 'cancelled';
+                }
+                stopRequestedRef.current = false;
+                stopPolling();
+                stop();
+                return;
+            }
+
+            timeoutId = setTimeout(poll, nextIntervalMs);
+        };
+
+        statusPollerRef.current = { stop };
+        void poll();
+    }, [applyTrainingStatusSnapshot, setDashboardState, stopPolling, stopStatusPolling]);
 
     useEffect(() => {
         reportCheckpointRef.current = evaluationReportCheckpoint?.name ?? null;
@@ -265,6 +355,7 @@ export default function TrainingPage() {
     const resetLogTracking = useCallback(() => {
         lastLoggedEpochRef.current = null;
         lastStatusRef.current = null;
+        stopRequestedRef.current = false;
         setDashboardState((prev) => ({ ...prev, logEntries: [] }));
     }, [setDashboardState]);
 
@@ -316,6 +407,13 @@ export default function TrainingPage() {
             }
             if (status.status === 'failed') {
                 appendLogLine(`Training failed: ${status.error ?? 'Unknown error'}`);
+            }
+            if (
+                status.status === 'cancelled'
+                || status.status === 'completed'
+                || status.status === 'failed'
+            ) {
+                stopRequestedRef.current = false;
             }
             lastStatusRef.current = status.status;
         }
@@ -400,28 +498,19 @@ export default function TrainingPage() {
         const checkTrainingStatus = async () => {
             const { result } = await getTrainingStatus();
             if (result) {
-                setDashboardState((prev) => ({
-                    ...prev,
-                    isTraining: result.is_training,
-                    currentEpoch: result.current_epoch,
-                    totalEpochs: result.total_epochs,
-                    loss: result.loss,
-                    valLoss: result.val_loss,
-                    accuracy: result.accuracy,
-                    valAccuracy: result.val_accuracy,
-                    progressPercent: result.progress_percent,
-                    elapsedSeconds: result.elapsed_seconds,
-                }));
+                applyTrainingStatusSnapshot(result);
             }
             if (result?.is_training && result.job_id) {
                 startPolling(result.job_id, result.poll_interval);
+                startStatusPolling(result.poll_interval);
             }
         };
         checkTrainingStatus();
         return () => {
             stopPolling();
+            stopStatusPolling();
         };
-    }, [setDashboardState, startPolling, stopPolling]);
+    }, [applyTrainingStatusSnapshot, startPolling, startStatusPolling, stopPolling, stopStatusPolling]);
 
     useEffect(() => {
         if (restoredEvaluationJobs.current) {
@@ -497,6 +586,7 @@ export default function TrainingPage() {
             setIsNewWizardOpen(false);
             appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
             startPolling(startResult.job_id, startResult.poll_interval);
+            startStatusPolling(startResult.poll_interval);
         }
     };
 
@@ -522,6 +612,7 @@ export default function TrainingPage() {
             setIsResumeWizardOpen(false);
             appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
             startPolling(startResult.job_id, startResult.poll_interval);
+            startStatusPolling(startResult.poll_interval);
         }
     };
 
@@ -619,10 +710,14 @@ export default function TrainingPage() {
     };
 
     const handleStopTraining = async () => {
-        appendLogLine('Stop requested. Finishing current batch and shutting down training.');
+        if (!stopRequestedRef.current) {
+            appendLogLine('Stop requested. Finishing current batch and shutting down training.');
+        }
+        stopRequestedRef.current = true;
         const { error: stopError } = await stopTraining();
         if (stopError) {
             console.error('Stop training failed:', stopError);
+            stopRequestedRef.current = false;
         }
     };
 
