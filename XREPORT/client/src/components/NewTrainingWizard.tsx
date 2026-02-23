@@ -5,6 +5,7 @@ import {
     ChevronRight,
     Cpu,
     Info,
+    Monitor,
     Play,
     Settings,
     X,
@@ -34,7 +35,8 @@ export default function NewTrainingWizard({
     selectedDatasetLabel,
     error,
 }: NewTrainingWizardProps) {
-    const steps = ['Model', 'Dataset', 'Training', 'Summary'];
+    const steps = ['Model', 'Dataset', 'Training', 'Device', 'Summary'];
+    const jitBackendOptions = ['inductor', 'eager', 'aot_eager', 'nvprims_nvfuser'];
     const [currentPage, setCurrentPage] = useState(0);
     const [checkpointName, setCheckpointName] = useState('');
 
@@ -243,7 +245,7 @@ export default function NewTrainingWizard({
                                 </div>
                             </div>
 
-                            <div style={{ margin: '1.5rem 0 1rem', borderTop: '1px solid var(--border-color)' }}></div>
+                            <div className="wizard-separator" />
 
                             <div className="wizard-2col-panel">
                                 <div className="wizard-col">
@@ -289,6 +291,133 @@ export default function NewTrainingWizard({
                     {currentPage === 3 && (
                         <div className="wizard-page">
                             <div className="wizard-section-title">
+                                <Monitor size={16} />
+                                <span>Device Configuration</span>
+                            </div>
+                            <div className="wizard-2col-panel">
+                                <div className="wizard-col">
+                                    <div className="form-group">
+                                        <label className="form-label">Dataloader Workers</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="form-input"
+                                            value={config.dataloaderWorkers}
+                                            onChange={(e) => onConfigChange('dataloaderWorkers', parseInt(e.target.value, 10))}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Prefetch Factor</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            className="form-input"
+                                            value={config.prefetchFactor}
+                                            onChange={(e) => onConfigChange('prefetchFactor', parseInt(e.target.value, 10))}
+                                            disabled={config.dataloaderWorkers === 0}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.pinMemory}
+                                                onChange={(e) => onConfigChange('pinMemory', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Pin Memory</span>
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.persistentWorkers}
+                                                onChange={(e) => onConfigChange('persistentWorkers', e.target.checked)}
+                                                disabled={config.dataloaderWorkers === 0}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Persistent Workers</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="wizard-col">
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.useGpu}
+                                                onChange={(e) => onConfigChange('useGpu', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Enable GPU</span>
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Device</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            className="form-input"
+                                            value={config.gpuId}
+                                            onChange={(e) => onConfigChange('gpuId', parseInt(e.target.value, 10))}
+                                            disabled={!config.useGpu}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.jitCompile}
+                                                onChange={(e) => onConfigChange('jitCompile', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Enable Torch Compile</span>
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Backend</label>
+                                        <select
+                                            className="form-select"
+                                            value={config.jitBackend}
+                                            onChange={(e) => onConfigChange('jitBackend', e.target.value)}
+                                            disabled={!config.jitCompile}
+                                        >
+                                            {jitBackendOptions.map((backend) => (
+                                                <option key={backend} value={backend}>{backend}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.useMixedPrecision}
+                                                onChange={(e) => onConfigChange('useMixedPrecision', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Enable Mixed Precision</span>
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={config.realTimePlot}
+                                                onChange={(e) => onConfigChange('realTimePlot', e.target.checked)}
+                                            />
+                                            <div className="checkbox-visual" />
+                                            <span className="checkbox-label">Plot Training Metrics</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {currentPage === 4 && (
+                        <div className="wizard-page">
+                            <div className="wizard-section-title">
                                 <Info size={16} />
                                 <span>Training Summary</span>
                             </div>
@@ -327,6 +456,13 @@ export default function NewTrainingWizard({
                                         <div className="summary-item"><label>Shuffle:</label> <span>{config.shuffleWithBuffer ? `Yes (${config.shuffleBufferSize})` : 'No'}</span></div>
                                         <div className="summary-item"><label>Checkpoints:</label> <span>{config.saveCheckpoints ? 'Yes' : 'No'}</span></div>
                                         <div className="summary-item"><label>Freeze:</label> <span>{config.freezeImgEncoder ? 'Yes' : 'No'}</span></div>
+                                        <div className="summary-item"><label>GPU:</label> <span>{config.useGpu ? `cuda:${config.gpuId}` : 'CPU'}</span></div>
+                                        <div className="summary-item"><label>Workers:</label> <span>{config.dataloaderWorkers}</span></div>
+                                        <div className="summary-item"><label>Prefetch:</label> <span>{config.dataloaderWorkers > 0 ? config.prefetchFactor : 'N/A'}</span></div>
+                                        <div className="summary-item"><label>Pin Memory:</label> <span>{config.pinMemory ? 'Yes' : 'No'}</span></div>
+                                        <div className="summary-item"><label>Persistent:</label> <span>{config.persistentWorkers ? 'Yes' : 'No'}</span></div>
+                                        <div className="summary-item"><label>Mixed Precision:</label> <span>{config.useMixedPrecision ? 'Yes' : 'No'}</span></div>
+                                        <div className="summary-item"><label>Torch Compile:</label> <span>{config.jitCompile ? `Yes (${config.jitBackend})` : 'No'}</span></div>
                                     </div>
                                 </div>
                             </div>

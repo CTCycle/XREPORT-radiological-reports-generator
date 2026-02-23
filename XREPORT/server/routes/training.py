@@ -34,6 +34,7 @@ from XREPORT.server.learning.training.worker import (
 )
 
 
+# -----------------------------------------------------------------------------
 def resolve_checkpoint_path(checkpoint: str) -> str:
     if os.path.isabs(checkpoint):
         raise HTTPException(
@@ -323,18 +324,7 @@ class TrainingEndpoint:
     def apply_runtime_training_configuration(
         self, configuration: dict[str, Any]
     ) -> None:
-        configuration["use_mixed_precision"] = (
-            server_settings.training.use_mixed_precision
-        )
         configuration["training_seed"] = server_settings.global_settings.seed
-        configuration["dataloader_workers"] = (
-            server_settings.training.dataloader_workers
-        )
-        configuration["prefetch_factor"] = server_settings.training.prefetch_factor
-        configuration["pin_memory"] = server_settings.training.pin_memory
-        configuration["persistent_workers"] = (
-            server_settings.training.persistent_workers
-        )
         configuration["polling_interval"] = server_settings.jobs.polling_interval
 
     # -----------------------------------------------------------------------------
