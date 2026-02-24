@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import {
     DatasetPageState,
     DatasetProcessingConfig,
@@ -17,7 +17,7 @@ import { ValidationResponse } from './services/validationService';
 // ============================================================================
 const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
     datasetName: '',
-    sampleSize: 1.0,
+    sampleSize: 1,
     validationSize: 0.2,
     maxReportSize: 200,
     tokenizer: 'distilbert-base-uncased',
@@ -55,7 +55,7 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     embeddingDims: 768,
     attnHeads: 8,
     freezeImgEncoder: true,
-    trainTemp: 1.0,
+    trainTemp: 1,
     useImgAugment: false,
     shuffleWithBuffer: true,
     shuffleBufferSize: 256,
@@ -145,26 +145,33 @@ interface AppStateContextType {
 }
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
+type AppStateProviderProps = Readonly<{ children: ReactNode }>;
 
 // ============================================================================
 // Provider Component
 // ============================================================================
-export function AppStateProvider({ children }: { children: ReactNode }) {
+export function AppStateProvider({ children }: AppStateProviderProps) {
     const [datasetPageState, setDatasetPageState] = useState<DatasetPageState>(DEFAULT_DATASET_STATE);
     const [trainingPageState, setTrainingPageState] = useState<TrainingPageState>(DEFAULT_TRAINING_STATE);
     const [inferencePageState, setInferencePageState] = useState<InferencePageState>(DEFAULT_INFERENCE_STATE);
+    const value = useMemo(
+        () => ({
+            datasetPageState,
+            setDatasetPageState,
+            trainingPageState,
+            setTrainingPageState,
+            inferencePageState,
+            setInferencePageState,
+        }),
+        [
+            datasetPageState,
+            trainingPageState,
+            inferencePageState,
+        ]
+    );
 
     return (
-        <AppStateContext.Provider
-            value={{
-                datasetPageState,
-                setDatasetPageState,
-                trainingPageState,
-                setTrainingPageState,
-                inferencePageState,
-                setInferencePageState
-            }}
-        >
+        <AppStateContext.Provider value={value}>
             {children}
         </AppStateContext.Provider>
     );
@@ -436,12 +443,11 @@ export function useInferencePageState() {
                 // Subword: append without space, removing ## prefix
                 newTokens = newTokens + token.slice(2);
             } else {
-                // Regular token: add space before (unless first token or after newline)
-                if (newTokens.length > 0 && !newTokens.endsWith('\n') && !newTokens.endsWith(' ')) {
-                    newTokens = newTokens + ' ' + token;
-                } else {
-                    newTokens = newTokens + token;
-                }
+                const needsSpace = newTokens.length > 0
+                    && !newTokens.endsWith('\n')
+                    && !newTokens.endsWith(' ');
+                // Regular token: add space before unless at start/newline/already spaced
+                newTokens = needsSpace ? `${newTokens} ${token}` : newTokens + token;
             }
 
             return {

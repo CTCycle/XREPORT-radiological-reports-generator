@@ -60,6 +60,20 @@ type StoredEvaluationJob = {
     progress?: number;
 };
 
+type ParsedTrainingJobResult = {
+    currentEpoch?: number;
+    totalEpochs?: number;
+    loss?: number;
+    valLoss?: number;
+    accuracy?: number;
+    valAccuracy?: number;
+    progressPercent?: number;
+    elapsedSeconds?: number;
+    chartData?: ChartDataPoint[];
+    availableMetrics?: string[];
+    epochBoundaries?: number[];
+};
+
 function toApiMetricConfigs(metricConfigs: Record<string, { dataFraction: number }>) {
     return Object.fromEntries(
         Object.entries(metricConfigs).map(([key, value]) => [
@@ -91,6 +105,93 @@ function toCheckpointEvaluationReport(
         metric_configs: toApiMetricConfigs(metricConfigs),
         results: toCheckpointEvaluationResults(statusResult),
     };
+}
+
+function readNumber(value: unknown): number | undefined {
+    return typeof value === 'number' ? value : undefined;
+}
+
+function readStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+        return undefined;
+    }
+    return value;
+}
+
+function readNumberArray(value: unknown): number[] | undefined {
+    if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'number')) {
+        return undefined;
+    }
+    return value;
+}
+
+function readChartDataArray(value: unknown): ChartDataPoint[] | undefined {
+    if (!Array.isArray(value)) {
+        return undefined;
+    }
+    return value as ChartDataPoint[];
+}
+
+function parseTrainingJobResult(
+    result: Record<string, unknown>,
+    fallbackProgress?: number
+): ParsedTrainingJobResult {
+    const parsed: ParsedTrainingJobResult = {
+        currentEpoch: readNumber(result.current_epoch),
+        totalEpochs: readNumber(result.total_epochs),
+        loss: readNumber(result.loss),
+        valLoss: readNumber(result.val_loss),
+        accuracy: readNumber(result.accuracy),
+        valAccuracy: readNumber(result.val_accuracy),
+        progressPercent: readNumber(result.progress_percent) ?? fallbackProgress,
+        elapsedSeconds: readNumber(result.elapsed_seconds),
+    };
+
+    const chartData = readChartDataArray(result.chart_data);
+    if (chartData) {
+        parsed.chartData = chartData;
+    }
+
+    const availableMetrics = readStringArray(result.available_metrics);
+    if (availableMetrics) {
+        parsed.availableMetrics = availableMetrics;
+    }
+
+    const epochBoundaries = readNumberArray(result.epoch_boundaries);
+    if (epochBoundaries) {
+        parsed.epochBoundaries = epochBoundaries;
+    }
+
+    return parsed;
+}
+
+function getStatusMessage(status: JobStatusResponse): string | null {
+    switch (status.status) {
+        case 'pending':
+            return 'Training job queued.';
+        case 'running':
+            return 'Training job started.';
+        case 'completed':
+            return 'Training completed successfully.';
+        case 'cancelled':
+            return 'Training cancelled.';
+        case 'failed':
+            return `Training failed: ${status.error ?? 'Unknown error'}`;
+        default:
+            return null;
+    }
+}
+
+function isTerminalTrainingStatus(status: JobStatusResponse['status']): boolean {
+    return status === 'cancelled' || status === 'completed' || status === 'failed';
+}
+
+function formatMetric(value: number | undefined, decimals: number): string {
+    return typeof value === 'number' ? value.toFixed(decimals) : '--';
+}
+
+function formatAccuracy(value: number | undefined): string {
+    return typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '--';
 }
 
 export default function TrainingPage() {
@@ -164,7 +265,7 @@ export default function TrainingPage() {
         }));
     }, [setDashboardState]);
 
-    const startStatusPolling = useCallback((intervalSeconds: number = 2.0) => {
+    const startStatusPolling = useCallback((intervalSeconds: number = 2) => {
         stopStatusPolling();
         let stopped = false;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -311,7 +412,7 @@ export default function TrainingPage() {
                                     checkpoint,
                                     jobMeta.metrics,
                                     jobMeta.metricConfigs,
-                                    status.result as Record<string, unknown> | null
+                                    status.result
                                 )
                             );
                             setEvaluationReportError(error || 'Failed to load evaluation report');
@@ -359,25 +460,69 @@ export default function TrainingPage() {
         setDashboardState((prev) => ({ ...prev, logEntries: [] }));
     }, [setDashboardState]);
 
+    const handleStatusTransition = useCallback((status: JobStatusResponse) => {
+        if (status.status === lastStatusRef.current) {
+            return;
+        }
+
+        const statusMessage = getStatusMessage(status);
+        if (statusMessage) {
+            appendLogLine(statusMessage);
+        }
+
+        if (isTerminalTrainingStatus(status.status)) {
+            stopRequestedRef.current = false;
+        }
+
+        lastStatusRef.current = status.status;
+    }, [appendLogLine]);
+
+    const logEpochMetricsIfNeeded = useCallback((
+        currentEpoch: number | undefined,
+        totalEpochs: number | undefined,
+        loss: number | undefined,
+        valLoss: number | undefined,
+        accuracy: number | undefined,
+        valAccuracy: number | undefined,
+    ) => {
+        if (typeof currentEpoch !== 'number' || currentEpoch <= 0) {
+            return;
+        }
+        if (currentEpoch === lastLoggedEpochRef.current) {
+            return;
+        }
+
+        const epochLabel = `Epoch ${currentEpoch}/${totalEpochs ?? '--'}`;
+        const line = [
+            epochLabel,
+            `loss ${formatMetric(loss, 4)}`,
+            `val_loss ${formatMetric(valLoss, 4)}`,
+            `acc ${formatAccuracy(accuracy)}`,
+            `val_acc ${formatAccuracy(valAccuracy)}`,
+        ].join(' | ');
+
+        appendLogLine(line);
+        lastLoggedEpochRef.current = currentEpoch;
+    }, [appendLogLine]);
+
     const applyJobStatus = useCallback((status: JobStatusResponse | null) => {
         if (!status) return;
 
-        const result = (status.result ?? {}) as Record<string, unknown>;
-        const currentEpoch = typeof result.current_epoch === 'number' ? result.current_epoch : undefined;
-        const totalEpochs = typeof result.total_epochs === 'number' ? result.total_epochs : undefined;
-        const loss = typeof result.loss === 'number' ? result.loss : undefined;
-        const valLoss = typeof result.val_loss === 'number' ? result.val_loss : undefined;
-        const accuracy = typeof result.accuracy === 'number' ? result.accuracy : undefined;
-        const valAccuracy = typeof result.val_accuracy === 'number' ? result.val_accuracy : undefined;
-        const progressPercent = typeof result.progress_percent === 'number' ? result.progress_percent : status.progress;
-        const elapsedSeconds = typeof result.elapsed_seconds === 'number' ? result.elapsed_seconds : undefined;
-
-        const formatMetric = (value: number | undefined, decimals: number) => (
-            typeof value === 'number' ? value.toFixed(decimals) : '--'
-        );
-        const formatAccuracy = (value: number | undefined) => (
-            typeof value === 'number' ? `${(value * 100).toFixed(2)}%` : '--'
-        );
+        const result = status.result ?? {};
+        const parsedResult = parseTrainingJobResult(result, status.progress);
+        const {
+            currentEpoch,
+            totalEpochs,
+            loss,
+            valLoss,
+            accuracy,
+            valAccuracy,
+            progressPercent,
+            elapsedSeconds,
+            chartData,
+            availableMetrics,
+            epochBoundaries,
+        } = parsedResult;
 
         setDashboardState((prev) => ({
             ...prev,
@@ -392,57 +537,35 @@ export default function TrainingPage() {
             elapsedSeconds: elapsedSeconds ?? prev.elapsedSeconds,
         }));
 
-        if (status.status !== lastStatusRef.current) {
-            if (status.status === 'pending') {
-                appendLogLine('Training job queued.');
-            }
-            if (status.status === 'running') {
-                appendLogLine('Training job started.');
-            }
-            if (status.status === 'completed') {
-                appendLogLine('Training completed successfully.');
-            }
-            if (status.status === 'cancelled') {
-                appendLogLine('Training cancelled.');
-            }
-            if (status.status === 'failed') {
-                appendLogLine(`Training failed: ${status.error ?? 'Unknown error'}`);
-            }
-            if (
-                status.status === 'cancelled'
-                || status.status === 'completed'
-                || status.status === 'failed'
-            ) {
-                stopRequestedRef.current = false;
-            }
-            lastStatusRef.current = status.status;
-        }
+        handleStatusTransition(status);
+        logEpochMetricsIfNeeded(
+            currentEpoch,
+            totalEpochs,
+            loss,
+            valLoss,
+            accuracy,
+            valAccuracy,
+        );
 
-        if (typeof currentEpoch === 'number' && currentEpoch > 0 && currentEpoch !== lastLoggedEpochRef.current) {
-            const epochLabel = `Epoch ${currentEpoch}/${totalEpochs ?? '--'}`;
-            const line = [
-                epochLabel,
-                `loss ${formatMetric(loss, 4)}`,
-                `val_loss ${formatMetric(valLoss, 4)}`,
-                `acc ${formatAccuracy(accuracy)}`,
-                `val_acc ${formatAccuracy(valAccuracy)}`,
-            ].join(' | ');
-            appendLogLine(line);
-            lastLoggedEpochRef.current = currentEpoch;
+        if (chartData) {
+            setChartData(chartData);
         }
+        if (availableMetrics) {
+            setAvailableMetrics(availableMetrics);
+        }
+        if (epochBoundaries) {
+            setEpochBoundaries(epochBoundaries);
+        }
+    }, [
+        handleStatusTransition,
+        logEpochMetricsIfNeeded,
+        setAvailableMetrics,
+        setChartData,
+        setDashboardState,
+        setEpochBoundaries,
+    ]);
 
-        if (Array.isArray(result.chart_data)) {
-            setChartData(result.chart_data as ChartDataPoint[]);
-        }
-        if (Array.isArray(result.available_metrics)) {
-            setAvailableMetrics(result.available_metrics as string[]);
-        }
-        if (Array.isArray(result.epoch_boundaries)) {
-            setEpochBoundaries(result.epoch_boundaries as number[]);
-        }
-    }, [appendLogLine, setAvailableMetrics, setChartData, setDashboardState, setEpochBoundaries]);
-
-    const startPolling = useCallback((jobId: string, intervalSeconds: number = 2.0) => {
+    const startPolling = useCallback((jobId: string, intervalSeconds: number = 2) => {
         stopPolling();
         pollerRef.current = pollJobStatus(
             getTrainingJobStatus,
@@ -793,7 +916,7 @@ export default function TrainingPage() {
     };
 
     const handleDeleteDataset = async (dataset: DatasetInfo) => {
-        const confirmed = window.confirm(`Delete dataset "${dataset.name}"? This cannot be undone.`);
+        const confirmed = globalThis.confirm(`Delete dataset "${dataset.name}"? This cannot be undone.`);
         if (!confirmed) return;
 
         const { error } = await deleteDataset(dataset.name);
@@ -806,7 +929,7 @@ export default function TrainingPage() {
     };
 
     const handleDeleteCheckpoint = async (checkpoint: CheckpointInfo) => {
-        const confirmed = window.confirm(`Delete checkpoint "${checkpoint.name}"? This cannot be undone.`);
+        const confirmed = globalThis.confirm(`Delete checkpoint "${checkpoint.name}"? This cannot be undone.`);
         if (!confirmed) return;
 
         const { error } = await deleteCheckpoint(checkpoint.name);
@@ -858,20 +981,17 @@ export default function TrainingPage() {
                                     <div
                                         key={dataset.name}
                                         className={`panel-row ${isSelected ? 'selected' : ''}`}
-                                        onClick={() => setSelectedDataset(dataset)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                setSelectedDataset(dataset);
-                                            }
-                                        }}
                                     >
-                                        <div className="panel-row-main">
+                                        <button
+                                            type="button"
+                                            className="panel-row-main panel-row-main-button"
+                                            aria-pressed={isSelected}
+                                            onClick={() => setSelectedDataset(dataset)}
+                                        >
                                             <span className="panel-row-title">{dataset.name}</span>
                                             <span className="panel-row-count">{dataset.row_count.toLocaleString()} rows</span>
-                                        </div>
-                                        <div className="panel-row-actions" onClick={(event) => event.stopPropagation()}>
+                                        </button>
+                                        <div className="panel-row-actions">
                                             <button
                                                 type="button"
                                                 className="icon-button"
@@ -954,22 +1074,19 @@ export default function TrainingPage() {
                                     <div
                                         key={checkpoint.name}
                                         className={`panel-row ${isSelected ? 'selected' : ''}`}
-                                        onClick={() => setSelectedCheckpoint(checkpoint.name)}
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                setSelectedCheckpoint(checkpoint.name);
-                                            }
-                                        }}
                                     >
-                                        <div className="panel-row-main">
+                                        <button
+                                            type="button"
+                                            className="panel-row-main panel-row-main-button"
+                                            aria-pressed={isSelected}
+                                            onClick={() => setSelectedCheckpoint(checkpoint.name)}
+                                        >
                                             <span className="panel-row-title">{checkpoint.name}</span>
                                             <span className="panel-row-meta">
                                                 {checkpoint.epochs} epochs · loss {checkpoint.loss.toFixed(4)}
                                             </span>
-                                        </div>
-                                        <div className="panel-row-actions" onClick={(event) => event.stopPropagation()}>
+                                        </button>
+                                        <div className="panel-row-actions">
                                             <button
                                                 type="button"
                                                 className="icon-button"
