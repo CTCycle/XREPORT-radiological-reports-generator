@@ -203,6 +203,64 @@ def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
 
 
 # -----------------------------------------------------------------------------
+def request_worker_stop_if_needed(
+    job_id: str,
+    worker: ProcessWorker,
+    stop_requested_at: float | None,
+) -> float | None:
+    if not job_manager.should_stop(job_id):
+        return stop_requested_at
+
+    if stop_requested_at is None:
+        stop_requested_at = time.monotonic()
+
+    if not worker.is_interrupted():
+        worker.stop()
+
+    return stop_requested_at
+
+
+# -----------------------------------------------------------------------------
+def enforce_worker_stop_timeout(
+    job_id: str,
+    worker: ProcessWorker,
+    stop_requested_at: float | None,
+    stop_timeout_seconds: float,
+) -> bool:
+    if stop_requested_at is None:
+        return False
+
+    elapsed = time.monotonic() - stop_requested_at
+    if elapsed < stop_timeout_seconds:
+        return False
+
+    logger.warning(
+        "Training job %s did not stop within %.2fs, forcing termination",
+        job_id,
+        stop_timeout_seconds,
+    )
+    worker.terminate()
+    return True
+
+
+# -----------------------------------------------------------------------------
+def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
+    result_payload = worker.read_result()
+    if result_payload is None:
+        if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+            raise RuntimeError(f"Training process exited with code {worker.exitcode}")
+        return {}
+
+    if "error" in result_payload and result_payload["error"]:
+        raise RuntimeError(str(result_payload["error"]))
+
+    if "result" in result_payload:
+        return result_payload["result"] or {}
+
+    return {}
+
+
+# -----------------------------------------------------------------------------
 def monitor_training_process(
     job_id: str,
     worker: ProcessWorker,
@@ -211,21 +269,19 @@ def monitor_training_process(
     stop_requested_at: float | None = None
 
     while worker.is_alive():
-        if job_manager.should_stop(job_id):
-            if stop_requested_at is None:
-                stop_requested_at = time.monotonic()
-            if not worker.is_interrupted():
-                worker.stop()
-        if stop_requested_at is not None:
-            elapsed = time.monotonic() - stop_requested_at
-            if elapsed >= stop_timeout_seconds:
-                logger.warning(
-                    "Training job %s did not stop within %.2fs, forcing termination",
-                    job_id,
-                    stop_timeout_seconds,
-                )
-                worker.terminate()
-                break
+        stop_requested_at = request_worker_stop_if_needed(
+            job_id=job_id,
+            worker=worker,
+            stop_requested_at=stop_requested_at,
+        )
+        if enforce_worker_stop_timeout(
+            job_id=job_id,
+            worker=worker,
+            stop_requested_at=stop_requested_at,
+            stop_timeout_seconds=stop_timeout_seconds,
+        ):
+            break
+
         message = worker.poll(timeout=0.25)
         if message is not None:
             handle_training_progress(job_id, message)
@@ -234,16 +290,7 @@ def monitor_training_process(
     worker.join(timeout=5)
     drain_worker_progress(job_id, worker)
 
-    result_payload = worker.read_result()
-    if result_payload is None:
-        if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
-            raise RuntimeError(f"Training process exited with code {worker.exitcode}")
-        return {}
-    if "error" in result_payload and result_payload["error"]:
-        raise RuntimeError(str(result_payload["error"]))
-    if "result" in result_payload:
-        return result_payload["result"] or {}
-    return {}
+    return read_worker_result(job_id=job_id, worker=worker)
 
 
 # -----------------------------------------------------------------------------

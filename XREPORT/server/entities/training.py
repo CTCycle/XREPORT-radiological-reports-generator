@@ -61,7 +61,7 @@ class DirectoryItem(BaseModel):
 ###############################################################################
 class BrowseResponse(BaseModel):
     current_path: str
-    parent_path: str | None
+    parent_path: str | None = None
     items: list[DirectoryItem]
     drives: list[str] = []
 
