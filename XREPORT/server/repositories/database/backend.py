@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from typing import Any, Protocol
 
 import pandas as pd
 
+from XREPORT.server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.configurations import DatabaseSettings, server_settings
 from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
+from XREPORT.server.repositories.schemas import Base
 
 
 ###############################################################################
@@ -66,8 +69,20 @@ class XREPORTDatabase:
         logger.info("Initializing %s database backend", backend_name)
         if normalized_name not in BACKEND_FACTORIES:
             raise ValueError(f"Unsupported database engine: {backend_name}")
+        sqlite_db_path: str | None = None
+        sqlite_database_exists = True
+        if normalized_name == "sqlite":
+            sqlite_db_path = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
+            sqlite_database_exists = os.path.exists(sqlite_db_path)
         factory = BACKEND_FACTORIES[normalized_name]
-        return factory(self.settings)
+        backend = factory(self.settings)
+        if normalized_name == "sqlite" and not sqlite_database_exists:
+            logger.info(
+                "SQLite database file missing at startup (%s). Initializing tables.",
+                sqlite_db_path,
+            )
+            Base.metadata.create_all(backend.engine)
+        return backend
 
     # -------------------------------------------------------------------------
     @property
