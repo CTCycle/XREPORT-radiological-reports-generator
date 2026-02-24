@@ -134,7 +134,7 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label" style={{ visibility: 'hidden' }}>Encoders</label>
+                                        <label className="form-label form-label-placeholder">Encoders</label>
                                         <label className="form-checkbox">
                                             <input
                                                 type="checkbox"
@@ -173,9 +173,9 @@ export default function NewTrainingWizard({
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label" style={{ opacity: 0 }}>Shuffle</label>
-                                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                            <label className="form-checkbox" style={{ marginBottom: 0 }}>
+                                        <label className="form-label form-label-transparent">Shuffle</label>
+                                        <div className="wizard-inline-row">
+                                            <label className="form-checkbox form-checkbox-no-margin">
                                                 <input
                                                     type="checkbox"
                                                     checked={config.shuffleWithBuffer}
@@ -188,9 +188,8 @@ export default function NewTrainingWizard({
                                                 <input
                                                     type="number"
                                                     step="10"
-                                                    className="form-input"
+                                                    className="form-input shuffle-buffer-input"
                                                     placeholder="Buffer"
-                                                    style={{ width: '80px' }}
                                                     value={config.shuffleBufferSize}
                                                     onChange={(e) => onConfigChange('shuffleBufferSize', parseInt(e.target.value, 10))}
                                                 />
@@ -231,7 +230,7 @@ export default function NewTrainingWizard({
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label" style={{ visibility: 'hidden' }}>Save Checkpoints</label>
+                                        <label className="form-label form-label-placeholder">Save Checkpoints</label>
                                         <label className="form-checkbox">
                                             <input
                                                 type="checkbox"

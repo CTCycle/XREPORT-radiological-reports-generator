@@ -90,6 +90,18 @@
     gap: 0.75rem;
     cursor: pointer;
     user-select: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    appearance: none;
+}
+
+.config-option:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: 999px;
 }
 
 .toggle-switch {
