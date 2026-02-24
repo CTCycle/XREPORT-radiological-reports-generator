@@ -127,6 +127,14 @@
     align-items: center;
 }
 
+.dataset-table-col-actions {
+    text-align: center;
+}
+
+.dataset-table-col-rows {
+    text-align: right;
+}
+
 .dataset-table-body {
     max-height: 240px;
     /* ~8 rows */
@@ -144,6 +152,11 @@
     transition: background 0.15s;
     border-bottom: 1px solid var(--border-color);
     align-items: center;
+}
+
+.dataset-table-row:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .dataset-table-row:last-child {
@@ -300,6 +313,16 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    width: 100%;
+    border-style: dashed;
+    font: inherit;
+    border-width: 2px;
+    appearance: none;
+}
+
+.upload-card:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .upload-card:hover {
@@ -408,6 +431,10 @@
     transition: all 0.15s;
 }
 
+.dataset-refresh-button {
+    margin-left: auto;
+}
+
 .btn-icon-small:hover {
     color: var(--text-primary);
     background: var(--input-bg);
@@ -506,6 +533,7 @@
     border-radius: 6px;
     border: 1px solid var(--border-color);
     min-width: 0;
+    position: relative;
 }
 
 .form-checkbox:hover {
@@ -555,7 +583,15 @@ input[type="checkbox"]:checked+.checkbox-visual::after {
 }
 
 input[type="checkbox"] {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* Actions Bar */
@@ -648,5 +684,14 @@ input[type="checkbox"] {
 
     .dataset-selector-bar {
         flex-wrap: wrap;
+    }
+
+    .dataset-table {
+        overflow-x: auto;
+    }
+
+    .dataset-table-header,
+    .dataset-table-row {
+        min-width: 620px;
     }
 }

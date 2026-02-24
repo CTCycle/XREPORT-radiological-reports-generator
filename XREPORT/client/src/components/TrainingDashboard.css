@@ -107,7 +107,7 @@
 
 .metric-label {
     color: var(--text-secondary);
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 0.1rem;
@@ -115,6 +115,11 @@
     align-items: center;
     gap: 3px;
     white-space: nowrap;
+}
+
+.metric-label-icon {
+    display: inline;
+    margin-right: 4px;
 }
 
 .metric-value {
@@ -210,8 +215,8 @@
 }
 
 @media (max-width: 768px) {
-    .metrics-grid {
-        flex-wrap: nowrap;
+    .dashboard-metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .progress-bar-row {
@@ -228,6 +233,12 @@
 @media (max-width: 960px) {
     .training-charts-container {
         flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-metrics-grid {
+        grid-template-columns: 1fr;
     }
 }
 
