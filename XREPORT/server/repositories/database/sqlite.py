@@ -32,7 +32,6 @@ class SQLiteRepository:
         event.listen(self.engine, "connect", self._enable_foreign_keys)
         self.session = sessionmaker(bind=self.engine, future=True)
         self.insert_batch_size = settings.insert_batch_size
-        Base.metadata.create_all(self.engine)
 
     # -------------------------------------------------------------------------
     @staticmethod
