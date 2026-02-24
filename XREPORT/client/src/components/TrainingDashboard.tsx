@@ -94,7 +94,7 @@ export default function TrainingDashboard({
                 </div>
                 <div className="dashboard-metric-card">
                     <div className="metric-label">
-                        <TrendingDown size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <TrendingDown size={14} className="metric-label-icon" />
                         Train Loss
                     </div>
                     <div className="metric-value loss">
@@ -103,7 +103,7 @@ export default function TrainingDashboard({
                 </div>
                 <div className="dashboard-metric-card">
                     <div className="metric-label">
-                        <TrendingDown size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <TrendingDown size={14} className="metric-label-icon" />
                         Val Loss
                     </div>
                     <div className="metric-value loss">
@@ -112,7 +112,7 @@ export default function TrainingDashboard({
                 </div>
                 <div className="dashboard-metric-card">
                     <div className="metric-label">
-                        <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <Target size={14} className="metric-label-icon" />
                         Train Acc
                     </div>
                     <div className="metric-value accuracy">
@@ -121,7 +121,7 @@ export default function TrainingDashboard({
                 </div>
                 <div className="dashboard-metric-card">
                     <div className="metric-label">
-                        <Target size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <Target size={14} className="metric-label-icon" />
                         Val Acc
                     </div>
                     <div className="metric-value accuracy">
@@ -133,11 +133,11 @@ export default function TrainingDashboard({
             <div className="progress-section">
                 <div className="progress-header">
                     <span className="progress-label">
-                        <Percent size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <Percent size={14} className="metric-label-icon" />
                         Progress: {metrics.progressPercent}%
                     </span>
                     <span className="progress-time">
-                        <Clock size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <Clock size={14} className="metric-label-icon" />
                         {formatTime(metrics.elapsedSeconds)}
                     </span>
                 </div>

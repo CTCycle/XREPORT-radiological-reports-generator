@@ -10,7 +10,7 @@ const navItems = [
 
 export default function Sidebar() {
     return (
-        <div className="sidebar">
+        <nav className="sidebar" aria-label="Primary navigation">
             {navItems.map((item) => (
                 <NavLink
                     key={item.path}
@@ -24,6 +24,6 @@ export default function Sidebar() {
                     </span>
                 </NavLink>
             ))}
-        </div>
+        </nav>
     );
 }
