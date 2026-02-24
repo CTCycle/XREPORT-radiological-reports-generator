@@ -4,9 +4,9 @@ import { browseDirectory, BrowseResponse, DirectoryItem } from '../services/trai
 import './FolderBrowser.css';
 
 interface FolderBrowserProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSelect: (path: string, imageCount: number) => void;
+    readonly isOpen: boolean;
+    readonly onClose: () => void;
+    readonly onSelect: (path: string, imageCount: number) => void;
 }
 
 export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrowserProps) {
@@ -68,8 +68,14 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
     if (!isOpen) return null;
 
     return (
-        <div className="folder-browser-overlay" onClick={onClose}>
-            <div className="folder-browser-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="folder-browser-overlay" role="presentation">
+            <button
+                type="button"
+                className="folder-browser-backdrop"
+                onClick={onClose}
+                aria-label="Close folder browser"
+            />
+            <div className="folder-browser-modal" role="dialog" aria-modal="true" aria-label="Select image folder">
                 <div className="folder-browser-header">
                     <h3>Select Image Folder</h3>
                     <button type="button" className="close-btn" onClick={onClose} aria-label="Close folder browser">

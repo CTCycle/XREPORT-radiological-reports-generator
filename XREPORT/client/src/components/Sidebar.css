@@ -35,12 +35,12 @@
 
 .sidebar-link:hover {
     color: #f8fafc;
-    background-color: rgba(148, 163, 184, 0.18);
+    background-color: #334155;
 }
 
 .sidebar-link.active {
     color: #f8fafc;
-    background-color: rgba(59, 130, 246, 0.25);
+    background-color: #1d4ed8;
 }
 
 .sidebar-link:focus-visible {

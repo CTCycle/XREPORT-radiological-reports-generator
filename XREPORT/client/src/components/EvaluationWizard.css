@@ -441,8 +441,8 @@
 }
 
 .btn-wizard-primary:disabled {
-  background-color: #cbd5e1;
-  color: #94a3b8;
+  background-color: #e2e8f0;
+  color: #475569;
   cursor: not-allowed;
   box-shadow: none;
 }
