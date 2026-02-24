@@ -1137,20 +1137,19 @@ export default function TrainingPage() {
                             </div>
                             <div className="panel-card-actions">
                                 <button
-                                    className="btn btn-primary"
+                                    className="btn btn-primary panel-card-action-btn"
                                     type="button"
                                     onClick={() => {
                                         setResumeTrainingError(null);
                                         setIsResumeWizardOpen(true);
                                     }}
                                     disabled={!state.selectedCheckpoint}
-                                    style={{ flex: 1 }}
                                 >
                                     <RotateCcw size={16} />
                                     Resume Training
                                 </button>
                                 <button
-                                    className="btn btn-secondary"
+                                    className="btn btn-secondary panel-card-action-btn panel-card-action-btn-center"
                                     type="button"
                                     onClick={() => {
                                         if (state.selectedCheckpoint && selectedCheckpointInfo) {
@@ -1159,7 +1158,6 @@ export default function TrainingPage() {
                                         }
                                     }}
                                     disabled={!state.selectedCheckpoint}
-                                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                                 >
                                     <Activity size={16} />
                                     Evaluate Model

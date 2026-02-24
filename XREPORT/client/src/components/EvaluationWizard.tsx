@@ -92,7 +92,7 @@ const MetricConfigStep: React.FC<{
                         </span>
                     </label>
                     <div className="range-control">
-                        <span style={{ fontSize: '0.8rem', color: '#888' }}>0%</span>
+                        <span className="range-end-label">0%</span>
                         <input
                             type="range"
                             min="0.01"
@@ -101,7 +101,7 @@ const MetricConfigStep: React.FC<{
                             value={config.dataFraction || 0.1}
                             onChange={(e) => onUpdateConfig('dataFraction', parseFloat(e.target.value))}
                         />
-                        <span style={{ fontSize: '0.8rem', color: '#888' }}>100%</span>
+                        <span className="range-end-label">100%</span>
                     </div>
                     <p className="param-description">
                         Percentage of the validation dataset to use for this evaluation.
@@ -263,8 +263,10 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                         Evaluation Wizard
                     </h2>
                     <button
+                        type="button"
                         className="btn-wizard-close"
                         onClick={onClose}
+                        aria-label="Close evaluation wizard"
                     >
                         <X size={20} />
                     </button>
@@ -330,6 +332,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                 {/* Footer Controls */}
                 <div className="wizard-footer">
                     <button
+                        type="button"
                         className="btn-wizard btn-wizard-secondary"
                         onClick={handleBack}
                         disabled={isFirstStep}
@@ -340,6 +343,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
 
                     {isLastStep ? (
                         <button
+                            type="button"
                             className="btn-wizard btn-wizard-primary"
                             onClick={handleConfirm}
                             disabled={orderedSelectedMetrics.length === 0}
@@ -349,6 +353,7 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                         </button>
                     ) : (
                         <button
+                            type="button"
                             className="btn-wizard btn-wizard-primary"
                             onClick={handleNext}
                             disabled={isFirstStep && selectedMetrics.length === 0}

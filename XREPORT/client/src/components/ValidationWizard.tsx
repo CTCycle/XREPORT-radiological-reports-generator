@@ -86,18 +86,23 @@ export default function ValidationWizard({
                         <h3>Validation Wizard</h3>
                         <p className="wizard-subtitle">Dataset: <strong>{datasetLabel}</strong></p>
                     </div>
-                    <button className="wizard-close" onClick={onClose} aria-label="Close validation wizard">
+                    <button type="button" className="wizard-close" onClick={onClose} aria-label="Close validation wizard">
                         <X size={18} />
                     </button>
                 </div>
 
                 <div className="wizard-config-bar">
-                    <div className="config-option" onClick={() => setValidateFullDataset(!validateFullDataset)}>
+                    <button
+                        type="button"
+                        className="config-option"
+                        aria-pressed={validateFullDataset}
+                        onClick={() => setValidateFullDataset(!validateFullDataset)}
+                    >
                         <div className={`toggle-switch ${validateFullDataset ? 'checked' : ''}`}>
                             <div className="toggle-slider"></div>
                         </div>
                         <span className="toggle-label">Validate full dataset</span>
-                    </div>
+                    </button>
 
                     <div className={`config-input-group ${validateFullDataset ? 'disabled' : ''}`}>
                         <span>Fraction:</span>
@@ -140,10 +145,11 @@ export default function ValidationWizard({
 
                 <div className="wizard-footer">
                     <div className="wizard-footer-actions">
-                        <button className="btn btn-secondary" onClick={onClose}>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
                         <button
+                            type="button"
                             className="btn btn-primary"
                             onClick={handleConfirm}
                             disabled={selectedMetrics.length === 0}

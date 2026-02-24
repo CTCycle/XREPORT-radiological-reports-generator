@@ -1,4 +1,4 @@
-import { useRef, DragEvent, ChangeEvent, useEffect } from 'react';
+import { useRef, DragEvent, ChangeEvent, useEffect, useMemo } from 'react';
 import {
     ImagePlus, ChevronLeft, ChevronRight, Trash, Trash2, FileText,
     Sparkles, ArrowRight, Copy, Check, Loader2
@@ -296,9 +296,21 @@ export default function InferencePage() {
     };
 
     // Get current image URL
-    const currentImageUrl = state.images.length > 0
-        ? URL.createObjectURL(state.images[state.currentIndex])
-        : null;
+    const currentImage = state.images[state.currentIndex] ?? null;
+    const currentImageUrl = useMemo(() => {
+        if (!currentImage) {
+            return null;
+        }
+        return URL.createObjectURL(currentImage);
+    }, [currentImage]);
+
+    useEffect(() => {
+        return () => {
+            if (currentImageUrl) {
+                URL.revokeObjectURL(currentImageUrl);
+            }
+        };
+    }, [currentImageUrl]);
 
     // Determine what to display in report panel
     const displayContent = state.isGenerating && state.currentStreamingIndex === state.currentIndex
@@ -353,7 +365,7 @@ export default function InferencePage() {
                                     accept="image/*"
                                     multiple
                                     onChange={handleInputChange}
-                                    style={{ display: 'none' }}
+                                    className="visually-hidden-input"
                                 />
                             </div>
                         ) : (
@@ -369,16 +381,20 @@ export default function InferencePage() {
                                     {state.images.length > 1 && (
                                         <>
                                             <button
+                                                type="button"
                                                 className="nav-arrow prev"
                                                 onClick={goToPrevious}
                                                 disabled={state.currentIndex === 0}
+                                                aria-label="Previous image"
                                             >
                                                 <ChevronLeft size={20} />
                                             </button>
                                             <button
+                                                type="button"
                                                 className="nav-arrow next"
                                                 onClick={goToNext}
                                                 disabled={state.currentIndex === state.images.length - 1}
+                                                aria-label="Next image"
                                             >
                                                 <ChevronRight size={20} />
                                             </button>
@@ -391,24 +407,30 @@ export default function InferencePage() {
 
                                 <div className="image-controls">
                                     <button
+                                        type="button"
                                         className="btn-icon"
                                         onClick={openFileDialog}
+                                        aria-label="Add more images"
                                         title="Add more images"
                                         disabled={state.images.length >= MAX_IMAGES}
                                     >
                                         <ImagePlus />
                                     </button>
                                     <button
+                                        type="button"
                                         className="btn-icon"
                                         onClick={handleRemoveCurrentImage}
+                                        aria-label="Remove current image"
                                         title="Remove current image"
                                         disabled={state.images.length === 0 || state.isGenerating}
                                     >
                                         <Trash />
                                     </button>
                                     <button
+                                        type="button"
                                         className="btn-icon"
                                         onClick={handleClearImages}
+                                        aria-label="Clear all images"
                                         title="Clear all images"
                                         disabled={state.images.length === 0 || state.isGenerating}
                                     >
@@ -422,7 +444,7 @@ export default function InferencePage() {
                                     accept="image/*"
                                     multiple
                                     onChange={handleInputChange}
-                                    style={{ display: 'none' }}
+                                    className="visually-hidden-input"
                                 />
                             </div>
                         )}
@@ -469,6 +491,7 @@ export default function InferencePage() {
                         </div>
 
                         <button
+                            type="button"
                             className={`btn-generate ${state.isGenerating ? 'generating' : ''}`}
                             onClick={handleGenerateReport}
                             disabled={state.images.length === 0 || state.isGenerating || !state.selectedCheckpoint}
@@ -495,7 +518,7 @@ export default function InferencePage() {
                 <div className="inference-panel">
                     <div className="panel-header">
                         <div className="report-header">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="report-header-title">
                                 <FileText size={18} />
                                 <h2>Generated Report</h2>
                                 {state.isGenerating && state.currentStreamingIndex === state.currentIndex && (
@@ -509,8 +532,10 @@ export default function InferencePage() {
                                 {state.images.length > 1 && (
                                     <div className="report-nav">
                                         <button
+                                            type="button"
                                             className="btn-icon report-nav-btn"
                                             onClick={goToPrevious}
+                                            aria-label="Previous report"
                                             title="Previous report"
                                             disabled={state.currentIndex === 0}
                                         >
@@ -520,8 +545,10 @@ export default function InferencePage() {
                                             {state.currentIndex + 1} / {state.images.length}
                                         </span>
                                         <button
+                                            type="button"
                                             className="btn-icon report-nav-btn"
                                             onClick={goToNext}
+                                            aria-label="Next report"
                                             title="Next report"
                                             disabled={state.currentIndex === state.images.length - 1}
                                         >
@@ -532,8 +559,10 @@ export default function InferencePage() {
                                 {displayContent && (
                                     <div className="report-actions">
                                         <button
+                                            type="button"
                                             className="btn-icon"
                                             onClick={copyReport}
+                                            aria-label="Copy report to clipboard"
                                             title="Copy to clipboard"
                                             disabled={state.isGenerating}
                                         >

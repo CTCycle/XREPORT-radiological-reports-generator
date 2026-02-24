@@ -570,7 +570,11 @@ export default function DatasetPage() {
                         <div className="upload-row-content">
                             <div className="upload-grid">
                                 {/* Image Folder Picker */}
-                                <div className="upload-card" onClick={() => setFolderBrowserOpen(true)}>
+                                <button
+                                    type="button"
+                                    className="upload-card"
+                                    onClick={() => setFolderBrowserOpen(true)}
+                                >
                                     <FolderUp className="upload-icon" />
                                     <div className="upload-text">Upload Image Folder</div>
                                     <div className="upload-hint">DICOM, PNG, JPG</div>
@@ -586,10 +590,14 @@ export default function DatasetPage() {
                                             )}
                                         </div>
                                     )}
-                                </div>
+                                </button>
 
                                 {/* Dataset File Upload */}
-                                <div className="upload-card" onClick={handleFileUpload}>
+                                <button
+                                    type="button"
+                                    className="upload-card"
+                                    onClick={handleFileUpload}
+                                >
                                     <FileSpreadsheet className="upload-icon" />
                                     <div className="upload-text">Upload Data File</div>
                                     <div className="upload-hint">Reports & Metadata</div>
@@ -601,7 +609,7 @@ export default function DatasetPage() {
                                             <CheckCircle size={14} /> {state.datasetUpload.row_count} rows, {state.datasetUpload.column_count} cols
                                         </div>
                                     )}
-                                </div>
+                                </button>
                             </div>
 
                             <div className="load-dataset-section">
@@ -649,8 +657,7 @@ export default function DatasetPage() {
                                     <div className="dataset-table-header-row">
                                         <span className="dataset-table-title">Available Datasets</span>
                                         <button
-                                            className="btn-icon-small"
-                                            style={{ marginLeft: 'auto' }}
+                                            className="btn-icon-small dataset-refresh-button"
                                             onClick={async (e) => {
                                                 e.preventDefault();
                                                 const { result } = await getDatasetNames();
@@ -666,10 +673,10 @@ export default function DatasetPage() {
                                     </p>
                                     <div className="dataset-table">
                                         <div className="dataset-table-header">
-                                            <span style={{ textAlign: 'center' }}>Actions</span>
+                                            <span className="dataset-table-col-actions">Actions</span>
                                             <span>Name</span>
                                             <span>Source</span>
-                                            <span style={{ textAlign: 'right' }}>Rows</span>
+                                            <span className="dataset-table-col-rows">Rows</span>
                                         </div>
                                         <div className="dataset-table-body">
                                             {!hasDatasets && (
@@ -691,6 +698,9 @@ export default function DatasetPage() {
                                                     <div
                                                         key={dataset.name}
                                                         className={`dataset-table-row ${isSelected ? 'selected' : ''}`}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-pressed={isSelected}
                                                         onClick={() => {
                                                             // Prevent row selection when clicking the validation icon if it propagates
                                                             let newSelection: string[];
@@ -700,6 +710,22 @@ export default function DatasetPage() {
                                                                 newSelection = currentSelection.filter(n => n !== dataset.name);
                                                             } else {
                                                                 // Select (append)
+                                                                newSelection = [...currentSelection, dataset.name];
+                                                            }
+                                                            if (setSelectedDatasets) {
+                                                                setSelectedDatasets(newSelection);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key !== 'Enter' && event.key !== ' ') {
+                                                                return;
+                                                            }
+                                                            event.preventDefault();
+                                                            let newSelection: string[];
+                                                            const currentSelection = state.selectedDatasets || [];
+                                                            if (isSelected) {
+                                                                newSelection = currentSelection.filter(n => n !== dataset.name);
+                                                            } else {
                                                                 newSelection = [...currentSelection, dataset.name];
                                                             }
                                                             if (setSelectedDatasets) {

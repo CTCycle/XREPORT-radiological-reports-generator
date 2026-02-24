@@ -163,6 +163,11 @@
     letter-spacing: 0.5px;
 }
 
+.validation-dashboard .chart-title-icon {
+    display: inline;
+    margin-right: 8px;
+}
+
 /* Loading State */
 .validation-dashboard .loading-container {
     display: flex;

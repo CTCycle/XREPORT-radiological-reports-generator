@@ -37,9 +37,9 @@ function PixelDistributionChart({ data }: { data: PixelDistribution }) {
     }
 
     return (
-        <div className="chart-section">
+            <div className="chart-section">
             <div className="chart-title">
-                <BarChart2 size={16} style={{ display: 'inline', marginRight: '8px' }} />
+                <BarChart2 size={16} className="chart-title-icon" />
                 Pixel Intensity Distribution
             </div>
             <ResponsiveContainer width="100%" height={250}>

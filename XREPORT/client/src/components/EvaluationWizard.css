@@ -270,6 +270,11 @@
   gap: 1.25rem;
 }
 
+.range-end-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
 .range-control input[type="range"] {
   flex: 1;
   height: 6px;
