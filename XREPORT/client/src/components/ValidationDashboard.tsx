@@ -15,11 +15,14 @@ import {
     ImageStatistics,
     TextStatistics,
 } from '../services/validationService';
+import JobProgress from './shared/JobProgress';
 
 interface ValidationDashboardProps {
     isLoading: boolean;
     validationResult: ValidationResponse | null;
     error: string | null;
+    progress?: number | null;
+    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
 }
 
 function PixelDistributionChart({ data }: { data: PixelDistribution }) {
@@ -34,9 +37,9 @@ function PixelDistributionChart({ data }: { data: PixelDistribution }) {
     }
 
     return (
-        <div className="chart-section">
+            <div className="chart-section">
             <div className="chart-title">
-                <BarChart2 size={16} style={{ display: 'inline', marginRight: '8px' }} />
+                <BarChart2 size={16} className="chart-title-icon" />
                 Pixel Intensity Distribution
             </div>
             <ResponsiveContainer width="100%" height={250}>
@@ -153,12 +156,16 @@ export default function ValidationDashboard({
     isLoading,
     validationResult,
     error,
+    progress,
+    status,
 }: ValidationDashboardProps) {
     const hasResults = validationResult?.success && (
         validationResult.text_statistics ||
         validationResult.image_statistics ||
         validationResult.pixel_distribution
     );
+    const isRunning = status === 'running' || status === 'pending';
+    const showProgress = isLoading || isRunning;
 
     return (
         <div className="validation-dashboard">
@@ -173,6 +180,12 @@ export default function ValidationDashboard({
                         Complete
                     </div>
                 )}
+                {isRunning && !hasResults && (
+                    <div className="dashboard-status running">
+                        <Loader size={14} className="spin" />
+                        Running
+                    </div>
+                )}
                 {error && (
                     <div className="dashboard-status error">
                         <AlertCircle size={14} />
@@ -181,13 +194,15 @@ export default function ValidationDashboard({
                 )}
             </div>
 
+            <JobProgress show={showProgress} progress={progress} status={status} />
+
             {isLoading ? (
                 <div className="loading-container">
                     <Loader size={32} className="spin" />
                     <span className="loading-text">Running validation analytics...</span>
                 </div>
             ) : error ? (
-                <div className="idle-message" style={{ color: '#ef4444' }}>
+                <div className="idle-message error">
                     {error}
                 </div>
             ) : hasResults ? (

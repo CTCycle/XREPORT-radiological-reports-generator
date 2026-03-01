@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
+from typing import Any
 
 import pandas as pd
+import sqlalchemy
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import FileResponse
 
-from XREPORT.server.schemas.training import (
+from XREPORT.server.repositories.database import XREPORTDatabase, database
+from XREPORT.server.entities.training import (
     BrowseResponse,
+    DatasetInfo,
     DatasetNamesResponse,
     DatasetStatusResponse,
     DirectoryItem,
@@ -14,329 +20,55 @@ from XREPORT.server.schemas.training import (
     ImagePathResponse,
     LoadDatasetRequest,
     LoadDatasetResponse,
+    ProcessingMetadataResponse,
+    DeleteResponse,
     ProcessDatasetRequest,
-    ProcessDatasetResponse,
+    ImageCountResponse,
+    ImageMetadataResponse,
 )
-from XREPORT.server.database.database import database
-from XREPORT.server.routes.upload import temp_dataset_storage
-from XREPORT.server.utils.constants import VALID_IMAGE_EXTENSIONS
-from XREPORT.server.utils.logger import logger
-from XREPORT.server.utils.configurations.server import server_settings
-
-
-router = APIRouter(prefix="/preparation", tags=["preparation"])
-
-
-###############################################################################
-@router.get(
-    "/dataset/status",
-    response_model=DatasetStatusResponse,
-    status_code=status.HTTP_200_OK,
+from XREPORT.server.entities.jobs import (
+    JobStartResponse,
+    JobStatusResponse,
+    JobCancelResponse,
 )
-async def get_dataset_status() -> DatasetStatusResponse:
-    """Check if dataset is available in the database for processing."""
-    row_count = database.count_rows("RADIOGRAPHY_DATA")
-    return DatasetStatusResponse(
-        has_data=row_count > 0,
-        row_count=row_count,
-        message=f"Found {row_count} records in RADIOGRAPHY_DATA" if row_count > 0 else "No data found in RADIOGRAPHY_DATA table",
-    )
-
-
-###############################################################################
-@router.get(
-    "/dataset/names",
-    response_model=DatasetNamesResponse,
-    status_code=status.HTTP_200_OK,
+from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
+from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.configurations.server import ServerSettings, server_settings
+from XREPORT.server.routes.upload import UploadState, upload_state
+from XREPORT.server.repositories.serialization.data import DataSerializer
+from XREPORT.server.common.constants import (
+    DATASETS_TABLE,
+    DATASET_RECORDS_TABLE,
+    PROCESSING_RUNS_TABLE,
+    TRAINING_SAMPLES_TABLE,
+    VALIDATION_RUNS_TABLE,
 )
-async def get_dataset_names() -> DatasetNamesResponse:
-    """Get list of distinct dataset names available in the database."""
-    import sqlalchemy
-    
-    with database.backend.engine.connect() as conn:
-        result = conn.execute(
-            sqlalchemy.text('SELECT DISTINCT dataset_name FROM "RADIOGRAPHY_DATA" ORDER BY dataset_name')
-        )
-        dataset_names = [row[0] for row in result.fetchall()]
-    
-    return DatasetNamesResponse(
-        dataset_names=dataset_names,
-        count=len(dataset_names),
-    )
+from XREPORT.server.services.processing import (
+    TextSanitizer,
+    TokenizerHandler,
+    TrainValidationSplit,
+)
+
+DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 
 
 # -----------------------------------------------------------------------------
 def scan_image_folder(folder_path: str) -> list[str]:
     if not os.path.isdir(folder_path):
         return []
-    
+
     image_paths = []
     for root, _, files in os.walk(folder_path):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in VALID_IMAGE_EXTENSIONS:
                 image_paths.append(os.path.join(root, file))
-    
+
     return image_paths
 
 
-###############################################################################
-@router.post(
-    "/images/validate",
-    response_model=ImagePathResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def validate_image_path(request: ImagePathRequest) -> ImagePathResponse:
-    folder_path = request.folder_path.strip()
-    
-    if not folder_path:
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message="Folder path cannot be empty",
-        )
-    
-    if not os.path.exists(folder_path):
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"Path does not exist: {folder_path}",
-        )
-    
-    if not os.path.isdir(folder_path):
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"Path is not a directory: {folder_path}",
-        )
-    
-    image_paths = scan_image_folder(folder_path)
-    image_count = len(image_paths)
-    
-    if image_count == 0:
-        return ImagePathResponse(
-            valid=False,
-            folder_path=folder_path,
-            image_count=0,
-            message=f"No valid images found in: {folder_path}",
-        )
-    
-    logger.info(f"Validated image folder: {folder_path} with {image_count} images")
-    
-    return ImagePathResponse(
-        valid=True,
-        folder_path=folder_path,
-        image_count=image_count,
-        message=f"Found {image_count} valid images",
-    )
-
-
-
-
-
-###############################################################################
-@router.post(
-    "/dataset/load",
-    response_model=LoadDatasetResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def load_dataset(request: LoadDatasetRequest) -> LoadDatasetResponse:
-    folder_path = request.image_folder_path.strip()
-    sample_size = request.sample_size
-    seed = server_settings.global_settings.seed
-    
-    # Validate folder path
-    if not os.path.isdir(folder_path):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid image folder path: {folder_path}",
-        )
-    
-    # Scan for images
-    image_paths = scan_image_folder(folder_path)
-    if not image_paths:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No valid images found in: {folder_path}",
-        )
-    
-    # Check if we have an uploaded dataset
-    if not temp_dataset_storage:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
-        )
-    
-    # Get the most recently uploaded dataset
-    latest_key = list(temp_dataset_storage.keys())[-1]
-    dataset_info = temp_dataset_storage[latest_key]
-    df: pd.DataFrame = dataset_info["dataframe"].copy()
-    dataset_name: str = dataset_info["dataset_name"]
-    
-    # Apply sample size if needed
-    if sample_size < 1.0:
-        df = df.sample(frac=sample_size, random_state=seed)
-    
-    # Build image name to path mapping
-    images_mapping = {}
-    for path in image_paths:
-        basename = os.path.basename(path)
-        name_no_ext = os.path.splitext(basename)[0]
-        images_mapping[name_no_ext] = path
-    
-    # Try to match images with dataset records
-    # Look for 'image' column in dataset
-    image_column = None
-    for col in df.columns:
-        if col.lower() in {"image", "filename", "file", "img", "image_name"}:
-            image_column = col
-            break
-    
-    if image_column is None:
-        # Just return stats without matching
-        logger.warning("No image column found in dataset for matching")
-        return LoadDatasetResponse(
-            success=True,
-            total_images=len(image_paths),
-            matched_records=0,
-            unmatched_records=len(df),
-            message=f"Loaded {len(image_paths)} images and {len(df)} records. No image column found for matching.",
-        )
-    
-    # Match records to image paths
-    df["_path"] = df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
-    matched = df.dropna(subset=["_path"])
-    unmatched = len(df) - len(matched)
-    
-    logger.info(f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records")
-    
-    # Persist matched data to database with dataset_name, id, and path
-    if not matched.empty:
-        try:
-            # Prepare data for database - include dataset_name, id, and path
-            db_df = matched[[image_column, "text", "_path"]].copy()
-            db_df = db_df.rename(columns={image_column: "image", "_path": "path"})
-            db_df["dataset_name"] = dataset_name
-            db_df["id"] = range(1, len(db_df) + 1)  # Incremental ID per dataset
-            # Reorder columns to match schema: dataset_name, id, image, text, path
-            db_df = db_df[["dataset_name", "id", "image", "text", "path"]]
-            database.save_into_database(db_df, "RADIOGRAPHY_DATA")
-            logger.info(f"Saved {len(db_df)} records to RADIOGRAPHY_DATA table (dataset: {dataset_name})")
-        except Exception as e:
-            logger.exception("Failed to save data to database")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to save data to database: {str(e)}",
-            ) from e
-    
-    # Clear temporary storage after loading
-    temp_dataset_storage.clear()
-    
-    return LoadDatasetResponse(
-        success=True,
-        total_images=len(image_paths),
-        matched_records=len(matched),
-        unmatched_records=unmatched,
-        message=f"Successfully loaded dataset with {len(matched)} matched records",
-    )
-
-
-###############################################################################
-@router.post(
-    "/dataset/process",
-    response_model=ProcessDatasetResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def process_dataset(request: ProcessDatasetRequest) -> ProcessDatasetResponse:
-    """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
-    from XREPORT.server.utils.services.training.serializer import DataSerializer
-    from XREPORT.server.utils.services.training.processing import (
-        TextSanitizer,
-        TokenizerHandler,
-        TrainValidationSplit,
-    )
-    
-    serializer = DataSerializer()
-    configuration = request.model_dump()
-    configuration["seed"] = server_settings.global_settings.seed
-    
-    # Load source dataset from RADIOGRAPHY_DATA
-    dataset = serializer.load_source_dataset(
-        sample_size=request.sample_size,
-        seed=server_settings.global_settings.seed,
-    )
-    
-    if dataset.empty:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No data found in RADIOGRAPHY_DATA table. Please load a dataset first.",
-        )
-    
-    logger.info(f"Processing dataset with {len(dataset)} samples")
-    
-    # Step 1: Sanitize text corpus
-    sanitizer = TextSanitizer(configuration)
-    processed_data = sanitizer.sanitize_text(dataset)
-    logger.info("Text sanitization completed")
-    
-    # Step 2: Tokenize text using Hugging Face tokenizer
-    try:
-        tokenization = TokenizerHandler(configuration)
-        logger.info(f"Tokenizing text using {tokenization.tokenizer_id} tokenizer")
-        processed_data = tokenization.tokenize_text_corpus(processed_data)
-        vocabulary_size = tokenization.vocabulary_size
-        logger.info(f"Vocabulary size: {vocabulary_size} tokens")
-    except Exception as e:
-        logger.exception("Failed to tokenize text")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tokenization failed: {str(e)}",
-        ) from e
-    
-    # Step 3: Drop raw text column (keep only tokens)
-    processed_data = processed_data.drop(columns=["text"])
-    
-    # Step 4: Split into train and validation sets
-    splitter = TrainValidationSplit(configuration, processed_data)
-    training_data = splitter.split_train_and_validation()
-    
-    train_samples = len(training_data[training_data["split"] == "train"])
-    validation_samples = len(training_data[training_data["split"] == "validation"])
-    
-    logger.info(f"Split complete: {train_samples} train, {validation_samples} validation samples")
-    
-    # Step 5: Save processed data and metadata to database
-    try:
-        serializer.save_training_data(configuration, training_data, vocabulary_size)
-        logger.info("Preprocessed data saved to database")
-    except RuntimeError as e:
-        # Schema mismatch or other runtime errors - use the clean message directly
-        logger.error(f"Database error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e),
-        ) from e
-    except Exception as e:
-        logger.exception("Failed to save training data")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save training data: {str(e)}",
-        ) from e
-    
-    return ProcessDatasetResponse(
-        success=True,
-        total_samples=len(training_data),
-        train_samples=train_samples,
-        validation_samples=validation_samples,
-        vocabulary_size=vocabulary_size,
-        message=f"Successfully processed {len(training_data)} samples",
-    )
-
-
-###############################################################################
+# -----------------------------------------------------------------------------
 def get_windows_drives() -> list[str]:
     """Get list of available Windows drives."""
     drives = []
@@ -347,6 +79,7 @@ def get_windows_drives() -> list[str]:
     return drives
 
 
+# -----------------------------------------------------------------------------
 def count_images_in_folder(folder_path: str) -> int:
     """Quick count of image files in a folder (non-recursive for speed)."""
     try:
@@ -356,81 +89,903 @@ def count_images_in_folder(folder_path: str) -> int:
             if ext in VALID_IMAGE_EXTENSIONS:
                 count += 1
         return count
-    except (PermissionError, OSError):
+    except OSError:
         return 0
 
 
-###############################################################################
-@router.get(
-    "/browse",
-    response_model=BrowseResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def browse_directory(
-    path: str = Query("", description="Directory path to browse. Empty returns drives.")
-) -> BrowseResponse:
-    """Browse directories on the server filesystem."""
-    
-    # If no path provided or path is empty, return drives (Windows)
-    if not path or path.strip() == "":
-        drives = get_windows_drives()
-        return BrowseResponse(
-            current_path="",
-            parent_path=None,
-            items=[
-                DirectoryItem(name=d, path=d, is_dir=True, image_count=0)
-                for d in drives
-            ],
-            drives=drives,
-        )
-    
-    path = path.strip()
-    
-    # Validate path exists
-    if not os.path.exists(path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Path not found: {path}",
-        )
-    
-    if not os.path.isdir(path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Path is not a directory: {path}",
-        )
-    
-    # Get parent path
-    parent_path = os.path.dirname(path)
-    if parent_path == path:  # At drive root
-        parent_path = ""  # Return to drives list
-    
-    # List directory contents
-    items: list[DirectoryItem] = []
-    try:
-        for item_name in sorted(os.listdir(path)):
-            item_path = os.path.join(path, item_name)
-            is_dir = os.path.isdir(item_path)
-            
-            # Only include directories (not files) for navigation
-            if is_dir:
-                image_count = count_images_in_folder(item_path)
-                items.append(DirectoryItem(
-                    name=item_name,
-                    path=item_path,
-                    is_dir=True,
-                    image_count=image_count,
-                ))
-    except PermissionError:
-        logger.warning(f"Permission denied accessing: {path}")
-    except OSError as e:
-        logger.warning(f"Error accessing {path}: {e}")
-    
-    # Also count images in current folder
-    current_image_count = count_images_in_folder(path)
-    
-    return BrowseResponse(
-        current_path=path,
-        parent_path=parent_path if parent_path else None,
-        items=items,
-        drives=get_windows_drives(),
+# -----------------------------------------------------------------------------
+def run_process_dataset_job(
+    configuration: dict[str, Any],
+    job_id: str,
+) -> dict[str, Any]:
+    """Blocking dataset processing function that runs in background thread."""
+    serializer = DataSerializer()
+    source_dataset_name_raw = configuration.get("dataset_name")
+    source_dataset_name = (
+        str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""
     )
+    if not source_dataset_name:
+        raise RuntimeError(DATASET_NAME_EMPTY_ERROR)
+    custom_name_raw = configuration.get("custom_name")
+    custom_name = str(custom_name_raw) if custom_name_raw is not None else None
+
+    # Load source dataset from radiography table.
+    dataset = serializer.load_source_dataset(
+        sample_size=configuration["sample_size"],
+        seed=configuration["seed"],
+        dataset_name=source_dataset_name,
+    )
+
+    if dataset.empty:
+        if source_dataset_name:
+            raise RuntimeError(
+                f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again."
+            )
+        raise RuntimeError(
+            f"No data found in {DATASET_RECORDS_TABLE} table. Please load a dataset first."
+        )
+
+    dataset_name = resolve_processed_dataset_name(source_dataset_name, custom_name)
+
+    # Update configuration for saving
+    configuration["dataset_name"] = dataset_name
+    configuration["source_dataset"] = source_dataset_name
+
+    # Step 1: Sanitize text corpus
+    sanitizer = TextSanitizer(configuration)
+    processed_data = sanitizer.sanitize_text(dataset)
+    logger.info("Text sanitization completed")
+
+    job_manager.update_progress(job_id, 30.0)
+    if job_manager.should_stop(job_id):
+        return {}
+
+    # Step 2: Tokenize text using Hugging Face tokenizer
+    try:
+        tokenization = TokenizerHandler(configuration)
+        logger.info(f"Tokenizing text using {tokenization.tokenizer_id} tokenizer")
+        processed_data = tokenization.tokenize_text_corpus(processed_data)
+        vocabulary_size = tokenization.vocabulary_size
+        logger.info(f"Vocabulary size: {vocabulary_size} tokens")
+    except Exception as e:
+        logger.exception("Failed to tokenize text")
+        raise RuntimeError(f"Tokenization failed: {str(e)}") from e
+
+    job_manager.update_progress(job_id, 60.0)
+    if job_manager.should_stop(job_id):
+        return {}
+
+    # Step 3: Keep sanitized text so training upserts can use deterministic keys.
+    # Step 4: Split into train and validation sets
+    splitter = TrainValidationSplit(configuration, processed_data)
+    training_data = splitter.split_train_and_validation()
+
+    train_samples = len(training_data[training_data["split"] == "train"])
+    validation_samples = len(training_data[training_data["split"] == "validation"])
+
+    logger.info(
+        f"Split complete: {train_samples} train, {validation_samples} validation samples"
+    )
+
+    job_manager.update_progress(job_id, 80.0)
+    if job_manager.should_stop(job_id):
+        return {}
+
+    # Step 5: Save processed data and metadata to database
+    try:
+        metadata_for_hash = {
+            "dataset_name": dataset_name,
+            "seed": configuration.get("seed", 42),
+            "sample_size": configuration.get("sample_size", 1.0),
+            "validation_size": configuration.get("validation_size", 0.2),
+            "vocabulary_size": vocabulary_size,
+            "max_report_size": configuration.get("max_report_size", 200),
+            "tokenizer": configuration.get("tokenizer", None),
+            # Source dataset is metadata, not processing config, but good to include if it affects reproducibility
+            "source_dataset": source_dataset_name,
+        }
+        hashcode = serializer.generate_hashcode(metadata_for_hash)
+
+        serializer.save_training_data(
+            configuration, training_data, vocabulary_size, hashcode
+        )
+        logger.info(f"Preprocessed data saved to database with hash: {hashcode}")
+    except RuntimeError as e:
+        # Schema mismatch or other runtime errors - use the clean message directly
+        logger.error(f"Database error: {e}")
+        raise
+    except Exception as e:
+        logger.exception("Failed to save training data")
+        raise RuntimeError(f"Failed to save training data: {str(e)}") from e
+
+    job_manager.update_progress(job_id, 100.0)
+
+    return {
+        "total_samples": len(training_data),
+        "train_samples": train_samples,
+        "validation_samples": validation_samples,
+        "vocabulary_size": vocabulary_size,
+    }
+
+
+# -----------------------------------------------------------------------------
+def resolve_processed_dataset_name(
+    source_dataset_name: str,
+    custom_name: str | None,
+) -> str:
+    if custom_name and custom_name.strip():
+        return custom_name.strip()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{source_dataset_name}_{timestamp}"
+
+
+###############################################################################
+class PreparationEndpoint:
+    """Endpoint for dataset preparation and browsing operations."""
+
+    JOB_TYPE = "dataset_processing"
+
+    def __init__(
+        self,
+        router: APIRouter,
+        database: XREPORTDatabase,
+        job_manager: JobManager,
+        upload_state: UploadState,
+        server_settings: ServerSettings,
+    ) -> None:
+        self.router = router
+        self.database = database
+        self.job_manager = job_manager
+        self.upload_state = upload_state
+        self.server_settings = server_settings
+
+    # -----------------------------------------------------------------------------
+    def get_image_column_name(self, columns: list[str]) -> str | None:
+        candidate_names = {"image", "filename", "file", "img", "image_name"}
+        for column in columns:
+            if column.lower() in candidate_names:
+                return column
+        return None
+
+    # -----------------------------------------------------------------------------
+    def build_images_mapping(self, image_paths: list[str]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
+        for path in image_paths:
+            basename = os.path.basename(path)
+            name_no_ext = os.path.splitext(basename)[0]
+            mapping[name_no_ext] = path
+        return mapping
+
+    # -----------------------------------------------------------------------------
+    def prepare_dataset_records_dataframe(
+        self,
+        matched: pd.DataFrame,
+        image_column: str,
+        dataset_name: str,
+    ) -> pd.DataFrame:
+        db_df = matched[[image_column, "text", "_path"]].copy()
+        db_df = db_df.rename(
+            columns={
+                image_column: "image_name",
+                "text": "report_text",
+                "_path": "image_path",
+            }
+        )
+        db_df["dataset_name"] = dataset_name
+        db_df["row_order"] = range(1, len(db_df) + 1)
+        return db_df[
+            [
+                "dataset_name",
+                "image_name",
+                "report_text",
+                "image_path",
+                "row_order",
+            ]
+        ]
+
+    # -----------------------------------------------------------------------------
+    def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Job not found: {job_id}",
+            )
+        return job_status
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_status(self) -> DatasetStatusResponse:
+        """Check if dataset is available in the database for processing."""
+        serializer = DataSerializer()
+        row_count = serializer.count_rows(DATASET_RECORDS_TABLE)
+        return DatasetStatusResponse(
+            has_data=row_count > 0,
+            row_count=row_count,
+            message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
+            if row_count > 0
+            else f"No data found in {DATASET_RECORDS_TABLE} table",
+        )
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_names(self) -> DatasetNamesResponse:
+        """Get list of distinct datasets with metadata (folder path, row count)."""
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    f"""
+                    SELECT
+                        d.name,
+                        MIN(r.image_path) AS sample_path,
+                        COUNT(r.record_id) AS row_count,
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM "{VALIDATION_RUNS_TABLE}" vr
+                                WHERE vr.dataset_id = d.dataset_id
+                            ) THEN TRUE
+                            ELSE FALSE
+                        END AS has_validation_report
+                    FROM "{DATASETS_TABLE}" d
+                    JOIN "{DATASET_RECORDS_TABLE}" r ON r.dataset_id = d.dataset_id
+                    GROUP BY d.dataset_id, d.name
+                    ORDER BY d.name
+                """
+                )
+            )
+            datasets = []
+            for row in result.fetchall():
+                name = row[0]
+                sample_path = row[1] or ""
+                row_count = row[2]
+                has_validation_report = bool(row[3])
+                # Extract folder path from the sample path
+                folder_path = os.path.dirname(sample_path) if sample_path else ""
+                datasets.append(
+                    DatasetInfo(
+                        name=name,
+                        folder_path=folder_path,
+                        row_count=row_count,
+                        has_validation_report=has_validation_report,
+                    )
+                )
+
+        return DatasetNamesResponse(
+            datasets=datasets,
+            count=len(datasets),
+        )
+
+    # -----------------------------------------------------------------------------
+    def get_processed_dataset_names(self) -> DatasetNamesResponse:
+        """Get list of processed datasets available for training."""
+        with self.database.backend.engine.connect() as conn:
+            inspector = sqlalchemy.inspect(conn)
+            if not inspector.has_table(TRAINING_SAMPLES_TABLE):
+                return DatasetNamesResponse(datasets=[], count=0)
+
+            result = conn.execute(
+                sqlalchemy.text(
+                    f"""
+                    WITH latest_runs AS (
+                        SELECT
+                            dataset_id,
+                            MAX(processing_run_id) AS processing_run_id
+                        FROM "{PROCESSING_RUNS_TABLE}"
+                        GROUP BY dataset_id
+                    )
+                    SELECT
+                        d.name,
+                        COUNT(ts.training_sample_id) AS row_count,
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM "{VALIDATION_RUNS_TABLE}" vr
+                                WHERE vr.dataset_id = d.dataset_id
+                            ) THEN TRUE
+                            ELSE FALSE
+                        END AS has_validation_report
+                    FROM latest_runs lr
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = lr.dataset_id
+                    LEFT JOIN "{TRAINING_SAMPLES_TABLE}" ts ON ts.processing_run_id = lr.processing_run_id
+                    GROUP BY d.dataset_id, d.name
+                    ORDER BY d.name
+                """
+                )
+            )
+
+            datasets = []
+            for row in result.fetchall():
+                name = row[0]
+                row_count = row[1]
+                has_report = bool(row[2])
+
+                datasets.append(
+                    DatasetInfo(
+                        name=name,
+                        folder_path="processed",  # Placeholder indicating processed data
+                        row_count=row_count,
+                        has_validation_report=has_report,
+                    )
+                )
+
+        return DatasetNamesResponse(
+            datasets=datasets,
+            count=len(datasets),
+        )
+
+    # -----------------------------------------------------------------------------
+    def get_processing_metadata(
+        self, dataset_name: str
+    ) -> ProcessingMetadataResponse:
+        dataset_name = dataset_name.strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=DATASET_NAME_EMPTY_ERROR,
+            )
+
+        serializer = DataSerializer()
+        latest_metadata = serializer.load_training_data(
+            only_metadata=True,
+            dataset_name=dataset_name,
+        )
+        if not isinstance(latest_metadata, dict) or not latest_metadata:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No processing metadata found",
+            )
+
+        metadata = dict(latest_metadata)
+        metadata_name = str(metadata.pop("name", "") or dataset_name)
+        metadata.pop("dataset_id", None)
+        metadata.pop("source_dataset_id", None)
+        metadata.pop("processing_run_id", None)
+
+        return ProcessingMetadataResponse(
+            dataset_name=metadata_name,
+            metadata=metadata,
+        )
+
+    # -----------------------------------------------------------------------------
+    def delete_dataset(self, dataset_name: str) -> DeleteResponse:
+        dataset_name = dataset_name.strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=DATASET_NAME_EMPTY_ERROR,
+            )
+
+        with self.database.backend.engine.begin() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    f'DELETE FROM "{DATASETS_TABLE}" WHERE name = :dataset_name'
+                ),
+                {"dataset_name": dataset_name},
+            )
+            if result.rowcount <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Dataset not found: {dataset_name}",
+                )
+
+        return DeleteResponse(
+            success=True,
+            message=f"Deleted dataset {dataset_name}",
+        )
+
+    # -----------------------------------------------------------------------------
+    def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
+        folder_path = request.folder_path.strip()
+
+        if not folder_path:
+            return ImagePathResponse(
+                valid=False,
+                folder_path=folder_path,
+                image_count=0,
+                message="Folder path cannot be empty",
+            )
+
+        if not os.path.exists(folder_path):
+            return ImagePathResponse(
+                valid=False,
+                folder_path=folder_path,
+                image_count=0,
+                message=f"Path does not exist: {folder_path}",
+            )
+
+        if not os.path.isdir(folder_path):
+            return ImagePathResponse(
+                valid=False,
+                folder_path=folder_path,
+                image_count=0,
+                message=f"Path is not a directory: {folder_path}",
+            )
+
+        image_paths = scan_image_folder(folder_path)
+        image_count = len(image_paths)
+
+        if image_count == 0:
+            return ImagePathResponse(
+                valid=False,
+                folder_path=folder_path,
+                image_count=0,
+                message=f"No valid images found in: {folder_path}",
+            )
+
+        logger.info(f"Validated image folder: {folder_path} with {image_count} images")
+
+        return ImagePathResponse(
+            valid=True,
+            folder_path=folder_path,
+            image_count=image_count,
+            message=f"Found {image_count} valid images",
+        )
+
+    # -----------------------------------------------------------------------------
+    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
+        folder_path = request.image_folder_path.strip()
+        sample_size = request.sample_size
+        seed = self.server_settings.global_settings.seed
+
+        # Validate folder path
+        if not os.path.isdir(folder_path):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid image folder path: {folder_path}",
+            )
+
+        # Scan for images
+        image_paths = scan_image_folder(folder_path)
+        if not image_paths:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No valid images found in: {folder_path}",
+            )
+
+        # Check if we have an uploaded dataset
+        if self.upload_state.is_empty():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
+            )
+
+        # Get the most recently uploaded dataset
+        latest_upload = self.upload_state.get_latest()
+        if latest_upload is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
+            )
+
+        _, dataset_info = latest_upload
+        df: pd.DataFrame = dataset_info["dataframe"].copy()
+        dataset_name: str = dataset_info["dataset_name"]
+
+        # Apply sample size if needed
+        if sample_size < 1.0:
+            df = df.sample(frac=sample_size, random_state=seed)
+
+        images_mapping = self.build_images_mapping(image_paths)
+
+        image_column = self.get_image_column_name(list(df.columns))
+
+        if image_column is None:
+            # Just return stats without matching
+            logger.warning("No image column found in dataset for matching")
+            return LoadDatasetResponse(
+                success=True,
+                total_images=len(image_paths),
+                matched_records=0,
+                unmatched_records=len(df),
+                message=f"Loaded {len(image_paths)} images and {len(df)} records. No image column found for matching.",
+            )
+
+        # Match records to image paths
+        df["_path"] = (
+            df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
+        )
+        matched = df.dropna(subset=["_path"])
+        unmatched = len(df) - len(matched)
+
+        logger.info(
+            f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records"
+        )
+
+        # Persist matched data to database with name and path.
+        if not matched.empty:
+            try:
+                serializer = DataSerializer()
+                db_df = self.prepare_dataset_records_dataframe(
+                    matched=matched,
+                    image_column=image_column,
+                    dataset_name=dataset_name,
+                )
+                serializer.upsert_source_dataset(db_df)
+                logger.info(
+                    f"Upserted {len(db_df)} records to {DATASET_RECORDS_TABLE} table (dataset: {dataset_name})"
+                )
+            except Exception as e:
+                logger.exception("Failed to save data to database")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to save data to database: {str(e)}",
+                ) from e
+
+        # Clear temporary storage after loading
+        self.upload_state.clear()
+
+        return LoadDatasetResponse(
+            success=True,
+            total_images=len(image_paths),
+            matched_records=len(matched),
+            unmatched_records=unmatched,
+            message=f"Successfully loaded dataset with {len(matched)} matched records",
+        )
+
+    # -----------------------------------------------------------------------------
+    def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
+        """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
+        if self.job_manager.is_job_running("dataset_processing"):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Dataset processing is already in progress",
+            )
+
+        configuration = request.model_dump()
+        configuration["seed"] = self.server_settings.global_settings.seed
+        dataset_name = configuration.get("dataset_name", "").strip()
+        if not dataset_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=DATASET_NAME_EMPTY_ERROR,
+            )
+
+        # Quick validation - check if source data exists
+        serializer = DataSerializer()
+        dataset = serializer.load_source_dataset(
+            sample_size=1.0,
+            seed=configuration["seed"],
+            dataset_name=dataset_name,
+        )
+        if dataset.empty:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset not found: {dataset_name}",
+            )
+
+        # Start background job
+        job_id = self.job_manager.start_job(
+            job_type=self.JOB_TYPE,
+            runner=run_process_dataset_job,
+            kwargs={
+                "configuration": configuration,
+            },
+        )
+
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to initialize dataset processing job",
+            )
+
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
+            message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
+            poll_interval=self.server_settings.jobs.polling_interval,
+        )
+
+    # -----------------------------------------------------------------------------
+    def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
+        job_status = self.get_job_status_or_404(job_id)
+        return JobStatusResponse(**job_status)
+
+    # -----------------------------------------------------------------------------
+    def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
+        self.get_job_status_or_404(job_id)
+
+        success = self.job_manager.cancel_job(job_id)
+
+        return JobCancelResponse(
+            job_id=job_id,
+            success=success,
+            message="Cancellation requested" if success else "Job cannot be cancelled",
+        )
+
+    # -----------------------------------------------------------------------------
+    def browse_directory(
+        self,
+        path: str = Query(
+            "", description="Directory path to browse. Empty returns drives."
+        ),
+    ) -> BrowseResponse:
+        """Browse directories on the server filesystem."""
+
+        # If no path provided or path is empty, return drives (Windows)
+        if not path or path.strip() == "":
+            drives = get_windows_drives()
+            return BrowseResponse(
+                current_path="",
+                parent_path=None,
+                items=[
+                    DirectoryItem(name=d, path=d, is_dir=True, image_count=0)
+                    for d in drives
+                ],
+                drives=drives,
+            )
+
+        path = path.strip()
+
+        # Validate path exists
+        if not os.path.exists(path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Path not found: {path}",
+            )
+
+        if not os.path.isdir(path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Path is not a directory: {path}",
+            )
+
+        # Get parent path
+        parent_path = os.path.dirname(path)
+        if parent_path == path:  # At drive root
+            parent_path = ""  # Return to drives list
+
+        # List directory contents
+        items: list[DirectoryItem] = []
+        try:
+            for item_name in sorted(os.listdir(path)):
+                item_path = os.path.join(path, item_name)
+                is_dir = os.path.isdir(item_path)
+
+                # Only include directories (not files) for navigation
+                if is_dir:
+                    image_count = count_images_in_folder(item_path)
+                    items.append(
+                        DirectoryItem(
+                            name=item_name,
+                            path=item_path,
+                            is_dir=True,
+                            image_count=image_count,
+                        )
+                    )
+        except PermissionError as exc:
+            logger.warning("Permission denied accessing %s: %s", path, exc)
+
+        return BrowseResponse(
+            current_path=path,
+            parent_path=parent_path if parent_path else None,
+            items=items,
+            drives=get_windows_drives(),
+        )
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
+        """Get total number of images in a dataset."""
+        dataset_name = dataset_name.strip()
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    f'''
+                    SELECT COUNT(*)
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    '''
+                ),
+                {"dataset_name": dataset_name},
+            )
+            count = result.scalar() or 0
+
+        return ImageCountResponse(dataset_name=dataset_name, count=count)
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_image_metadata(
+        self, dataset_name: str, index: int
+    ) -> ImageMetadataResponse:
+        """Get metadata for a specific image by 1-based index (id)."""
+        dataset_name = dataset_name.strip()
+        if index < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image index must be >= 1",
+            )
+
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    f'''
+                    SELECT r.image_name, r.report_text, r.image_path
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    ORDER BY r.row_order, r.record_id
+                    LIMIT 1 OFFSET :offset
+                    '''
+                ),
+                {"dataset_name": dataset_name, "offset": index - 1},
+            )
+            row = result.fetchone()
+
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Image index {index} not found in dataset {dataset_name}",
+                )
+
+            image_name = row[0]
+            caption = row[1] or ""
+            path = row[2] or ""
+
+            # Check if file exists
+            valid_path = os.path.exists(path) if path else False
+
+            return ImageMetadataResponse(
+                dataset_name=dataset_name,
+                index=index,
+                image_name=image_name,
+                caption=caption,
+                valid_path=valid_path,
+                path=path,
+            )
+
+    # -----------------------------------------------------------------------------
+    def get_dataset_image_content(self, dataset_name: str, index: int):
+        """Serve the image file content."""
+        dataset_name = dataset_name.strip()
+        if index < 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image index must be >= 1",
+            )
+
+        with self.database.backend.engine.connect() as conn:
+            result = conn.execute(
+                sqlalchemy.text(
+                    f'''
+                    SELECT r.image_path
+                    FROM "{DATASET_RECORDS_TABLE}" r
+                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
+                    WHERE d.name = :dataset_name
+                    ORDER BY r.row_order, r.record_id
+                    LIMIT 1 OFFSET :offset
+                    '''
+                ),
+                {"dataset_name": dataset_name, "offset": index - 1},
+            )
+            row = result.fetchone()
+
+            if not row:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Image index {index} not found in dataset {dataset_name}",
+                )
+
+            path = row[0]
+
+            if not path or not os.path.exists(path):
+                # Elegant warning message as requested
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Source file not found at {path}",
+                )
+
+            return FileResponse(path)
+
+    # -----------------------------------------------------------------------------
+    def add_routes(self) -> None:
+        """Register all preparation-related routes."""
+        self.router.add_api_route(
+            "/dataset/status",
+            self.get_dataset_status,
+            methods=["GET"],
+            response_model=DatasetStatusResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/names",
+            self.get_dataset_names,
+            methods=["GET"],
+            response_model=DatasetNamesResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/processed/names",
+            self.get_processed_dataset_names,
+            methods=["GET"],
+            response_model=DatasetNamesResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/metadata/{dataset_name}",
+            self.get_processing_metadata,
+            methods=["GET"],
+            response_model=ProcessingMetadataResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}",
+            self.delete_dataset,
+            methods=["DELETE"],
+            response_model=DeleteResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/images/validate",
+            self.validate_image_path,
+            methods=["POST"],
+            response_model=ImagePathResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/load",
+            self.load_dataset,
+            methods=["POST"],
+            response_model=LoadDatasetResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/process",
+            self.process_dataset,
+            methods=["POST"],
+            response_model=JobStartResponse,
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/count",
+            self.get_dataset_image_count,
+            methods=["GET"],
+            response_model=ImageCountResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/{index}",
+            self.get_dataset_image_metadata,
+            methods=["GET"],
+            response_model=ImageMetadataResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/dataset/{dataset_name}/images/{index}/content",
+            self.get_dataset_image_content,
+            methods=["GET"],
+            status_code=status.HTTP_200_OK,
+            # FileResponse is not a Pydantic model, so we don't set response_model
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.get_preparation_job_status,
+            methods=["GET"],
+            response_model=JobStatusResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/jobs/{job_id}",
+            self.cancel_preparation_job,
+            methods=["DELETE"],
+            response_model=JobCancelResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/browse",
+            self.browse_directory,
+            methods=["GET"],
+            response_model=BrowseResponse,
+            status_code=status.HTTP_200_OK,
+        )
+
+
+###############################################################################
+router = APIRouter(prefix="/preparation", tags=["preparation"])
+preparation_endpoint = PreparationEndpoint(
+    router=router,
+    database=database,
+    job_manager=job_manager,
+    upload_state=upload_state,
+    server_settings=server_settings,
+)
+preparation_endpoint.add_routes()

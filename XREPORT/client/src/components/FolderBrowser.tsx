@@ -4,9 +4,9 @@ import { browseDirectory, BrowseResponse, DirectoryItem } from '../services/trai
 import './FolderBrowser.css';
 
 interface FolderBrowserProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSelect: (path: string, imageCount: number) => void;
+    readonly isOpen: boolean;
+    readonly onClose: () => void;
+    readonly onSelect: (path: string, imageCount: number) => void;
 }
 
 export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrowserProps) {
@@ -68,11 +68,17 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
     if (!isOpen) return null;
 
     return (
-        <div className="folder-browser-overlay" onClick={onClose}>
-            <div className="folder-browser-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="folder-browser-overlay" role="presentation">
+            <button
+                type="button"
+                className="folder-browser-backdrop"
+                onClick={onClose}
+                aria-label="Close folder browser"
+            />
+            <div className="folder-browser-modal" role="dialog" aria-modal="true" aria-label="Select image folder">
                 <div className="folder-browser-header">
                     <h3>Select Image Folder</h3>
-                    <button className="close-btn" onClick={onClose}>
+                    <button type="button" className="close-btn" onClick={onClose} aria-label="Close folder browser">
                         <X size={20} />
                     </button>
                 </div>
@@ -91,28 +97,30 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
                         <div className="folder-list">
                             {/* Go up button */}
                             {browseData.parent_path !== null && currentPath && (
-                                <div className="folder-item go-up" onClick={handleGoUp}>
+                                <button type="button" className="folder-item go-up" onClick={handleGoUp}>
                                     <ArrowUp size={18} />
                                     <span>..</span>
-                                </div>
+                                </button>
                             )}
 
                             {/* Drives (when at root) */}
                             {!currentPath && browseData.drives.map((drive) => (
-                                <div
+                                <button
                                     key={drive}
+                                    type="button"
                                     className="folder-item drive"
                                     onClick={() => loadDirectory(drive)}
                                 >
                                     <HardDrive size={18} />
                                     <span>{drive}</span>
-                                </div>
+                                </button>
                             ))}
 
                             {/* Directories */}
                             {currentPath && browseData.items.map((item) => (
-                                <div
+                                <button
                                     key={item.path}
+                                    type="button"
                                     className="folder-item"
                                     onClick={() => handleItemClick(item)}
                                 >
@@ -124,7 +132,7 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
                                             {item.image_count}
                                         </span>
                                     )}
-                                </div>
+                                </button>
                             ))}
 
                             {currentPath && browseData.items.length === 0 && (
@@ -144,10 +152,11 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
                         )}
                     </div>
                     <div className="action-buttons">
-                        <button className="btn btn-secondary" onClick={onClose}>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Cancel
                         </button>
                         <button
+                            type="button"
                             className="btn btn-primary"
                             onClick={handleSelect}
                             disabled={!currentPath}
