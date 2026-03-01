@@ -44,7 +44,7 @@ lerna-debug.log*
 Thumbs.db
 
 # Agents
-.agent/**
+.agent/skills/**
 
 # Misc
 *.lock
