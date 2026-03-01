@@ -2,6 +2,7 @@
 E2E tests for Dataset Upload API endpoint.
 Tests: POST /upload/dataset
 """
+
 from playwright.sync_api import APIRequestContext
 
 
@@ -24,11 +25,11 @@ class TestDatasetUploadEndpoint:
                     "mimeType": "text/plain",
                     "buffer": b"some text content",
                 }
-            }
+            },
         )
         # Invalid file type should fail with 400
         assert response.status == 400
-        
+
         data = response.json()
         assert "detail" in data
 
@@ -36,7 +37,7 @@ class TestDatasetUploadEndpoint:
         """POST /upload/dataset with valid CSV should parse successfully."""
         # Create a sample CSV with expected columns (id, image path, report text)
         csv_content = b"id,image,text\n1,img001.png,Normal chest X-ray\n2,img002.png,Mild cardiomegaly"
-        
+
         response = api_context.post(
             "/upload/dataset",
             multipart={
@@ -45,11 +46,11 @@ class TestDatasetUploadEndpoint:
                     "mimeType": "text/csv",
                     "buffer": csv_content,
                 }
-            }
+            },
         )
-        
+
         assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
-        
+
         data = response.json()
         assert data["success"] is True
         assert "filename" in data
@@ -61,10 +62,12 @@ class TestDatasetUploadEndpoint:
         assert "columns" in data
         assert isinstance(data["columns"], list)
 
-    def test_upload_csv_extracts_dataset_name_from_filename(self, api_context: APIRequestContext):
+    def test_upload_csv_extracts_dataset_name_from_filename(
+        self, api_context: APIRequestContext
+    ):
         """POST /upload/dataset should extract dataset name from filename."""
         csv_content = b"col1,col2\nval1,val2"
-        
+
         response = api_context.post(
             "/upload/dataset",
             multipart={
@@ -73,15 +76,17 @@ class TestDatasetUploadEndpoint:
                     "mimeType": "text/csv",
                     "buffer": csv_content,
                 }
-            }
+            },
         )
-        
-        if response.ok:
-            data = response.json()
-            assert data["dataset_name"] == "my_custom_dataset"
 
-    def test_upload_xlsx_succeeds(self, api_context: APIRequestContext):
-        """POST /upload/dataset should accept XLSX files."""
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["dataset_name"] == "my_custom_dataset"
+
+    def test_upload_invalid_xlsx_payload_returns_400(
+        self, api_context: APIRequestContext
+    ):
+        """POST /upload/dataset with invalid XLSX bytes should return 400."""
         # Note: Creating a real XLSX in tests is complex
         # This test verifies the endpoint accepts the format
         # but will fail parsing with invalid content
@@ -93,10 +98,11 @@ class TestDatasetUploadEndpoint:
                     "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     "buffer": b"not a real xlsx",  # Will fail parsing
                 }
-            }
+            },
         )
         # Expect 400 because it's not a valid XLSX
         assert response.status == 400
+        assert "detail" in response.json()
 
     def test_upload_empty_csv_returns_400(self, api_context: APIRequestContext):
         """POST /upload/dataset with empty content should return 400."""
@@ -108,10 +114,11 @@ class TestDatasetUploadEndpoint:
                     "mimeType": "text/csv",
                     "buffer": b"",
                 }
-            }
+            },
         )
         # Empty file should fail parsing
         assert response.status == 400
+        assert "detail" in response.json()
 
 
 class TestDatasetUploadEdgeCases:
@@ -121,7 +128,7 @@ class TestDatasetUploadEdgeCases:
         """POST /upload/dataset should auto-detect semicolon separator."""
         # CSV with semicolon separator (common in European locales)
         csv_content = b"id;image;text\n1;img001.png;Normal findings\n2;img002.png;Abnormal findings"
-        
+
         response = api_context.post(
             "/upload/dataset",
             multipart={
@@ -130,19 +137,20 @@ class TestDatasetUploadEdgeCases:
                     "mimeType": "text/csv",
                     "buffer": csv_content,
                 }
-            }
+            },
         )
-        
-        # Should succeed - pandas can auto-detect separator
-        if response.ok:
-            data = response.json()
-            assert data["row_count"] == 2
-            assert "id" in data["columns"]
+
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["row_count"] == 2
+        assert "id" in data["columns"]
 
     def test_upload_csv_with_special_characters(self, api_context: APIRequestContext):
         """POST /upload/dataset should handle special characters in content."""
-        csv_content = "id,image,text\n1,img001.png,Findings: pneumonia (bilateral)\n2,img002.png,No acute findings – normal".encode('utf-8')
-        
+        csv_content = "id,image,text\n1,img001.png,Findings: pneumonia (bilateral)\n2,img002.png,No acute findings – normal".encode(
+            "utf-8"
+        )
+
         response = api_context.post(
             "/upload/dataset",
             multipart={
@@ -151,8 +159,9 @@ class TestDatasetUploadEdgeCases:
                     "mimeType": "text/csv",
                     "buffer": csv_content,
                 }
-            }
+            },
         )
-        
-        # Should handle UTF-8 content
-        assert response.status in [200, 400]
+
+        assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
+        data = response.json()
+        assert data["row_count"] == 2
