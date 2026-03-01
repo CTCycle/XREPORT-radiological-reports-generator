@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import {
     DatasetPageState,
     DatasetProcessingConfig,
@@ -7,18 +7,17 @@ import {
     TrainingDashboardState,
     ChartDataPoint,
     InferencePageState,
-    GenerationMode,
-    DatabaseBrowserPageState
+    GenerationMode
 } from './types';
 import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
 import { ValidationResponse } from './services/validationService';
-import { TableInfo } from './services/databaseBrowser';
 
 // ============================================================================
 // Default States
 // ============================================================================
 const DEFAULT_DATASET_CONFIG: DatasetProcessingConfig = {
-    sampleSize: 1.0,
+    datasetName: '',
+    sampleSize: 1,
     validationSize: 0.2,
     maxReportSize: 200,
     tokenizer: 'distilbert-base-uncased',
@@ -44,7 +43,7 @@ const DEFAULT_DATASET_STATE: DatasetPageState = {
     processingResult: null,
     dbStatus: null,
     datasetNames: null,
-    selectedDataset: '',
+    selectedDatasets: [],
     isValidating: false,
     validationResult: null,
     validationError: null
@@ -56,21 +55,25 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
     embeddingDims: 768,
     attnHeads: 8,
     freezeImgEncoder: true,
-    trainTemp: 1.0,
+    trainTemp: 1,
     useImgAugment: false,
     shuffleWithBuffer: true,
     shuffleBufferSize: 256,
     epochs: 100,
     batchSize: 32,
-    trainSeed: 42,
     saveCheckpoints: true,
     checkpointFreq: 1,
-    mixedPrecision: false,
-    runTensorboard: false,
     useScheduler: false,
     targetLR: 0.001,
     warmupSteps: 1000,
     realTimePlot: true,
+    dataloaderWorkers: 0,
+    prefetchFactor: 1,
+    pinMemory: true,
+    persistentWorkers: false,
+    useMixedPrecision: false,
+    jitCompile: false,
+    jitBackend: 'inductor',
     useGpu: true,
     gpuId: 0
 };
@@ -88,7 +91,7 @@ const DEFAULT_DASHBOARD_STATE: TrainingDashboardState = {
     chartData: [],
     availableMetrics: [],
     epochBoundaries: [],
-    shouldConnectWs: false
+    logEntries: []
 };
 
 const DEFAULT_TRAINING_STATE: TrainingPageState = {
@@ -124,26 +127,6 @@ const DEFAULT_INFERENCE_STATE: InferencePageState = {
     evaluationError: null
 };
 
-const DEFAULT_BATCH_SIZE = 200;
-
-const DEFAULT_DATABASE_BROWSER_STATE: DatabaseBrowserPageState = {
-    tables: [],
-    selectedTable: '',
-    rows: [],
-    columns: [],
-    rowCount: 0,
-    columnCount: 0,
-    displayName: '',
-    limit: DEFAULT_BATCH_SIZE,
-    offset: 0,
-    loading: false,
-    loadingMore: false,
-    hasMore: true,
-    error: null,
-    tablesLoaded: false,
-    dataLoaded: false
-};
-
 // ============================================================================
 // Context Types
 // ============================================================================
@@ -159,36 +142,36 @@ interface AppStateContextType {
     // Inference Page
     inferencePageState: InferencePageState;
     setInferencePageState: (state: InferencePageState | ((prev: InferencePageState) => InferencePageState)) => void;
-
-    // Database Browser Page
-    databaseBrowserPageState: DatabaseBrowserPageState;
-    setDatabaseBrowserPageState: (state: DatabaseBrowserPageState | ((prev: DatabaseBrowserPageState) => DatabaseBrowserPageState)) => void;
 }
 
 const AppStateContext = createContext<AppStateContextType | null>(null);
+type AppStateProviderProps = Readonly<{ children: ReactNode }>;
 
 // ============================================================================
 // Provider Component
 // ============================================================================
-export function AppStateProvider({ children }: { children: ReactNode }) {
+export function AppStateProvider({ children }: AppStateProviderProps) {
     const [datasetPageState, setDatasetPageState] = useState<DatasetPageState>(DEFAULT_DATASET_STATE);
     const [trainingPageState, setTrainingPageState] = useState<TrainingPageState>(DEFAULT_TRAINING_STATE);
     const [inferencePageState, setInferencePageState] = useState<InferencePageState>(DEFAULT_INFERENCE_STATE);
-    const [databaseBrowserPageState, setDatabaseBrowserPageState] = useState<DatabaseBrowserPageState>(DEFAULT_DATABASE_BROWSER_STATE);
+    const value = useMemo(
+        () => ({
+            datasetPageState,
+            setDatasetPageState,
+            trainingPageState,
+            setTrainingPageState,
+            inferencePageState,
+            setInferencePageState,
+        }),
+        [
+            datasetPageState,
+            trainingPageState,
+            inferencePageState,
+        ]
+    );
 
     return (
-        <AppStateContext.Provider
-            value={{
-                datasetPageState,
-                setDatasetPageState,
-                trainingPageState,
-                setTrainingPageState,
-                inferencePageState,
-                setInferencePageState,
-                databaseBrowserPageState,
-                setDatabaseBrowserPageState
-            }}
-        >
+        <AppStateContext.Provider value={value}>
             {children}
         </AppStateContext.Provider>
     );
@@ -267,8 +250,8 @@ export function useDatasetPageState() {
         setDatasetPageState(prev => ({ ...prev, datasetNames: names }));
     }, [setDatasetPageState]);
 
-    const setSelectedDataset = useCallback((dataset: string) => {
-        setDatasetPageState(prev => ({ ...prev, selectedDataset: dataset }));
+    const setSelectedDatasets = useCallback((datasets: string[]) => {
+        setDatasetPageState(prev => ({ ...prev, selectedDatasets: datasets }));
     }, [setDatasetPageState]);
 
     const setIsValidating = useCallback((validating: boolean) => {
@@ -299,7 +282,7 @@ export function useDatasetPageState() {
         setProcessingResult,
         setDbStatus,
         setDatasetNames,
-        setSelectedDataset,
+        setSelectedDatasets,
         setIsValidating,
         setValidationResult,
         setValidationError
@@ -340,13 +323,6 @@ export function useTrainingPageState() {
         }));
     }, [setTrainingPageState]);
 
-    const setShouldConnectWs = useCallback((shouldConnect: boolean) => {
-        setTrainingPageState(prev => ({
-            ...prev,
-            dashboardState: { ...prev.dashboardState, shouldConnectWs: shouldConnect }
-        }));
-    }, [setTrainingPageState]);
-
     const setChartData = useCallback((chartData: ChartDataPoint[]) => {
         setTrainingPageState(prev => ({
             ...prev,
@@ -376,7 +352,6 @@ export function useTrainingPageState() {
         setSelectedCheckpoint,
         setAdditionalEpochs,
         setDashboardState,
-        setShouldConnectWs,
         setChartData,
         setAvailableMetrics,
         setEpochBoundaries
@@ -388,6 +363,14 @@ export function useInferencePageState() {
 
     const setImages = useCallback((images: File[]) => {
         setInferencePageState(prev => ({ ...prev, images }));
+    }, [setInferencePageState]);
+
+    const appendImages = useCallback((images: File[]) => {
+        if (images.length === 0) return;
+        setInferencePageState(prev => ({
+            ...prev,
+            images: [...prev.images, ...images]
+        }));
     }, [setInferencePageState]);
 
     const setCurrentIndex = useCallback((index: number) => {
@@ -460,12 +443,11 @@ export function useInferencePageState() {
                 // Subword: append without space, removing ## prefix
                 newTokens = newTokens + token.slice(2);
             } else {
-                // Regular token: add space before (unless first token or after newline)
-                if (newTokens.length > 0 && !newTokens.endsWith('\n') && !newTokens.endsWith(' ')) {
-                    newTokens = newTokens + ' ' + token;
-                } else {
-                    newTokens = newTokens + token;
-                }
+                const needsSpace = newTokens.length > 0
+                    && !newTokens.endsWith('\n')
+                    && !newTokens.endsWith(' ');
+                // Regular token: add space before unless at start/newline/already spaced
+                newTokens = needsSpace ? `${newTokens} ${token}` : newTokens + token;
             }
 
             return {
@@ -506,6 +488,7 @@ export function useInferencePageState() {
     return {
         state: inferencePageState,
         setImages,
+        appendImages,
         setCurrentIndex,
         setGeneratedReport,
         setIsGenerating,
@@ -526,42 +509,5 @@ export function useInferencePageState() {
         setIsEvaluating,
         setEvaluationResults,
         setEvaluationError
-    };
-}
-
-export function useDatabaseBrowserState() {
-    const { databaseBrowserPageState, setDatabaseBrowserPageState } = useAppState();
-
-    const setState = useCallback((updater: Partial<DatabaseBrowserPageState> | ((prev: DatabaseBrowserPageState) => DatabaseBrowserPageState)) => {
-        if (typeof updater === 'function') {
-            setDatabaseBrowserPageState(updater);
-        } else {
-            setDatabaseBrowserPageState(prev => ({ ...prev, ...updater }));
-        }
-    }, [setDatabaseBrowserPageState]);
-
-    const setTables = useCallback((tables: TableInfo[]) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, tables }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setSelectedTable = useCallback((table: string) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, selectedTable: table }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setLoading = useCallback((loading: boolean) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, loading }));
-    }, [setDatabaseBrowserPageState]);
-
-    const setError = useCallback((error: string | null) => {
-        setDatabaseBrowserPageState(prev => ({ ...prev, error }));
-    }, [setDatabaseBrowserPageState]);
-
-    return {
-        state: databaseBrowserPageState,
-        setState,
-        setTables,
-        setSelectedTable,
-        setLoading,
-        setError
     };
 }
