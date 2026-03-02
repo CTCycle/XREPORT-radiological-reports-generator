@@ -256,6 +256,7 @@ export default function DatasetPage() {
     const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
     // Determine if data is available for processing
     const hasDataForProcessing = state.loadResult?.success || (state.dbStatus?.has_data && state.selectedDatasets.length > 0);
+    const canBrowseServerFilesystem = state.dbStatus?.allow_server_browse ?? true;
 
     const handleConfigChange = <K extends keyof typeof state.config>(
         key: K,
@@ -574,12 +575,19 @@ export default function DatasetPage() {
                                     type="button"
                                     className="upload-card"
                                     onClick={() => setFolderBrowserOpen(true)}
+                                    disabled={!canBrowseServerFilesystem}
                                 >
                                     <FolderUp className="upload-icon" />
                                     <div className="upload-text">Upload Image Folder</div>
-                                    <div className="upload-hint">DICOM, PNG, JPG</div>
+                                    <div className="upload-hint">
+                                        {canBrowseServerFilesystem
+                                            ? 'DICOM, PNG, JPG'
+                                            : 'Disabled in this deployment mode'}
+                                    </div>
                                     <div className="upload-subtext">
-                                        {state.imageFolderName ? state.imageFolderName : 'Select directory'}
+                                        {state.imageFolderName
+                                            ? state.imageFolderName
+                                            : (canBrowseServerFilesystem ? 'Select directory' : 'Unavailable')}
                                     </div>
                                     {state.imageValidation && (
                                         <div className={`upload-status ${state.imageValidation.valid ? 'success' : 'error'}`}>
@@ -588,6 +596,11 @@ export default function DatasetPage() {
                                             ) : (
                                                 <><AlertCircle size={14} /> {state.imageValidation.message}</>
                                             )}
+                                        </div>
+                                    )}
+                                    {!canBrowseServerFilesystem && (
+                                        <div className="upload-status error">
+                                            <AlertCircle size={14} /> Server filesystem access is disabled
                                         </div>
                                     )}
                                 </button>
