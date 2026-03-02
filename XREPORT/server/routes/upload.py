@@ -9,6 +9,10 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from XREPORT.server.entities.training import DatasetUploadResponse
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import sanitize_dataset_name
+
+
+MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
 
 ###############################################################################
@@ -64,7 +68,12 @@ class UploadEndpoint:
                 detail="No file provided",
             )
 
-        filename = file.filename
+        filename = os.path.basename(file.filename.strip())
+        if not filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file name",
+            )
         ext = os.path.splitext(filename)[1].lower()
 
         if ext not in {".csv", ".xlsx"}:
@@ -73,11 +82,19 @@ class UploadEndpoint:
                 detail=f"Invalid file type: {ext}. Only .csv and .xlsx files are allowed",
             )
 
-        # Extract dataset name from filename (without extension)
-        dataset_name = os.path.splitext(filename)[0]
-
         try:
             contents = await file.read()
+            if len(contents) > MAX_DATASET_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=(
+                        "Dataset payload exceeds "
+                        f"{MAX_DATASET_UPLOAD_BYTES // (1024 * 1024)} MB limit"
+                    ),
+                )
+
+            raw_dataset_name = os.path.splitext(filename)[0]
+            dataset_name = sanitize_dataset_name(raw_dataset_name)
 
             if ext == ".csv":
                 # Use sep=None to auto-detect delimiter (handles both comma and semicolon)
@@ -86,7 +103,7 @@ class UploadEndpoint:
                 df = pd.read_excel(io.BytesIO(contents))
 
             # Store in temporary storage with unique key
-            storage_key = f"dataset_{filename}"
+            storage_key = f"dataset_{dataset_name}"
             self.upload_state.store(
                 storage_key,
                 {
@@ -110,6 +127,8 @@ class UploadEndpoint:
                 message=f"Successfully parsed {filename}",
             )
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.exception(f"Failed to parse dataset file: {filename}")
             raise HTTPException(

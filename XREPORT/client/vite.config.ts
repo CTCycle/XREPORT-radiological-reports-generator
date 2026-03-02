@@ -7,7 +7,12 @@ const normalizeApiBase = (value: string) => {
         return '/api'
     }
 
-    const withLeadingSlash = value.startsWith('/') ? value : `/${value}`
+    const trimmed = value.trim()
+    if (!trimmed || trimmed.includes('://') || trimmed.startsWith('//')) {
+        return '/api'
+    }
+
+    const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
     if (withLeadingSlash.length > 1 && withLeadingSlash.endsWith('/')) {
         return withLeadingSlash.slice(0, -1)
     }

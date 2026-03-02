@@ -17,6 +17,7 @@ from XREPORT.server.entities.jobs import (
     JobCancelResponse,
 )
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import validate_checkpoint_name
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.services.validation import DatasetValidator
 from XREPORT.server.repositories.serialization.data import DataSerializer
@@ -224,7 +225,15 @@ def run_checkpoint_evaluation_job(
     # Use global job_manager imported at top level
     jm = job_manager
 
-    checkpoint = request_data.get("checkpoint", "")
+    raw_checkpoint = request_data.get("checkpoint", "")
+    try:
+        checkpoint = validate_checkpoint_name(str(raw_checkpoint))
+    except ValueError as exc:
+        return {
+            "success": False,
+            "message": str(exc),
+            "results": None,
+        }
     metrics = request_data.get("metrics", [])
     num_samples = request_data.get("num_samples", 10)
     metric_configs = request_data.get("metric_configs") or {}
@@ -440,12 +449,19 @@ class ValidationEndpoint:
     async def get_checkpoint_evaluation_report(
         self, checkpoint: str
     ) -> CheckpointEvaluationReportResponse:
+        try:
+            checkpoint_name = validate_checkpoint_name(checkpoint)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
         serializer = DataSerializer()
-        report = serializer.get_checkpoint_evaluation_report(checkpoint)
+        report = serializer.get_checkpoint_evaluation_report(checkpoint_name)
         if report is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No evaluation report found for checkpoint: {checkpoint}",
+                detail=f"No evaluation report found for checkpoint: {checkpoint_name}",
             )
         return CheckpointEvaluationReportResponse(**report)
 
@@ -461,12 +477,23 @@ class ValidationEndpoint:
                 detail="Checkpoint evaluation is already in progress",
             )
 
+        try:
+            checkpoint_name = validate_checkpoint_name(request.checkpoint)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+
+        request_data = request.model_dump()
+        request_data["checkpoint"] = checkpoint_name
+
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="checkpoint_evaluation",
             runner=run_checkpoint_evaluation_job,
             kwargs={
-                "request_data": request.model_dump(),
+                "request_data": request_data,
             },
         )
 
@@ -481,7 +508,7 @@ class ValidationEndpoint:
             job_id=job_id,
             job_type=job_status["job_type"],
             status=job_status["status"],
-            message=f"Checkpoint evaluation job started for {request.checkpoint}",
+            message=f"Checkpoint evaluation job started for {checkpoint_name}",
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
