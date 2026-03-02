@@ -47,6 +47,7 @@ export interface BrowseResponse {
 export interface DatasetStatusResponse {
     has_data: boolean;
     row_count: number;
+    allow_server_browse: boolean;
     message: string;
 }
 

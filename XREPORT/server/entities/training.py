@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(
-        ..., description="Server-side folder path containing images"
+        ...,
+        min_length=1,
+        max_length=4096,
+        description="Server-side folder path containing images",
     )
+    model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
@@ -34,11 +38,15 @@ class DatasetUploadResponse(BaseModel):
 ###############################################################################
 class LoadDatasetRequest(BaseModel):
     image_folder_path: str = Field(
-        ..., description="Folder path containing X-ray images"
+        ...,
+        min_length=1,
+        max_length=4096,
+        description="Folder path containing X-ray images",
     )
     sample_size: float = Field(
         1.0, ge=0.01, le=1.0, description="Fraction of data to use"
     )
+    model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
@@ -71,6 +79,7 @@ class StartTrainingRequest(BaseModel):
     dataset_name: str | None = Field(
         None,
         min_length=1,
+        max_length=128,
         description="Processed dataset name to use for training (defaults to latest if omitted)",
     )
     epochs: int = Field(10, ge=1, le=1000, description="Number of training epochs")
@@ -88,7 +97,10 @@ class StartTrainingRequest(BaseModel):
     shuffle_size: int = Field(1024, ge=1, description="Shuffle buffer size")
     save_checkpoints: bool = Field(True, description="Save checkpoints during training")
     checkpoint_id: str | None = Field(
-        None, description="Optional custom identifier for the checkpoint"
+        None,
+        min_length=1,
+        max_length=128,
+        description="Optional custom identifier for the checkpoint",
     )
     use_device_GPU: bool = Field(True, description="Use GPU for training")
     device_ID: int = Field(0, ge=0, description="GPU device ID")
@@ -113,14 +125,21 @@ class StartTrainingRequest(BaseModel):
         0.0001, ge=0.000001, le=0.1, description="Target learning rate"
     )
     warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
+    model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
-    checkpoint: str = Field(..., description="Checkpoint name to resume from")
+    checkpoint: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Checkpoint name to resume from",
+    )
     additional_epochs: int = Field(
         10, ge=1, le=1000, description="Additional epochs to train"
     )
+    model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
@@ -153,9 +172,17 @@ class TrainingStatusResponse(BaseModel):
 
 ###############################################################################
 class ProcessDatasetRequest(BaseModel):
-    dataset_name: str = Field(..., min_length=1, description="Dataset name to process")
+    dataset_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Dataset name to process",
+    )
     custom_name: str | None = Field(
-        None, description="Optional custom name for the processed dataset"
+        None,
+        min_length=1,
+        max_length=128,
+        description="Optional custom name for the processed dataset",
     )
     sample_size: float = Field(
         1.0, ge=0.01, le=1.0, description="Fraction of data to use"
@@ -163,10 +190,16 @@ class ProcessDatasetRequest(BaseModel):
     validation_size: float = Field(
         0.2, ge=0.05, le=0.5, description="Fraction of data for validation"
     )
-    tokenizer: str = Field("bert-base-uncased", description="Hugging Face tokenizer ID")
+    tokenizer: str = Field(
+        "bert-base-uncased",
+        min_length=1,
+        max_length=128,
+        description="Hugging Face tokenizer ID",
+    )
     max_report_size: int = Field(
         200, ge=50, le=1000, description="Maximum token length for reports"
     )
+    model_config = ConfigDict(extra="forbid")
 
 
 ###############################################################################
@@ -183,6 +216,7 @@ class ProcessDatasetResponse(BaseModel):
 class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
+    allow_server_browse: bool
     message: str
 
 

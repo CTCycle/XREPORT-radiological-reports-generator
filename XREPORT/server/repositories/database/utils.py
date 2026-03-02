@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -10,6 +11,7 @@ from XREPORT.server.common.constants import (
     DATASET_RECORDS_TABLE,
     INFERENCE_REPORTS_TABLE,
     INFERENCE_RUNS_TABLE,
+    TABLE_REQUIRED_COLUMNS,
     TRAINING_SAMPLES_TABLE,
     VALIDATION_IMAGE_STATS_TABLE,
     VALIDATION_PIXEL_DISTRIBUTION_TABLE,
@@ -28,6 +30,27 @@ UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
     INFERENCE_RUNS_TABLE: ("request_id",),
     INFERENCE_REPORTS_TABLE: ("inference_run_id", "input_image_name"),
 }
+
+SQL_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+ALLOWED_TABLE_NAMES = frozenset(TABLE_REQUIRED_COLUMNS.keys())
+
+
+# -----------------------------------------------------------------------------
+def validate_sql_identifier(identifier: str) -> str:
+    normalized = str(identifier or "").strip()
+    if not normalized:
+        raise ValueError("SQL identifier cannot be empty")
+    if not SQL_IDENTIFIER_PATTERN.fullmatch(normalized):
+        raise ValueError(f"Invalid SQL identifier: {identifier}")
+    return normalized
+
+
+# -----------------------------------------------------------------------------
+def validate_table_name(table_name: str) -> str:
+    normalized = validate_sql_identifier(table_name)
+    if normalized not in ALLOWED_TABLE_NAMES:
+        raise ValueError(f"Unsupported table name: {table_name}")
+    return normalized
 
 
 # -----------------------------------------------------------------------------

@@ -28,6 +28,11 @@ from XREPORT.server.common.constants import (
     VALIDATION_TEXT_SUMMARY_TABLE,
 )
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import validate_checkpoint_name
+from XREPORT.server.repositories.database.utils import (
+    validate_sql_identifier,
+    validate_table_name,
+)
 from XREPORT.server.repositories.queries.data import DataRepositoryQueries
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
@@ -209,9 +214,7 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def _ensure_checkpoint(self, checkpoint: str) -> int:
-        checkpoint_name = str(checkpoint or "").strip()
-        if not checkpoint_name:
-            raise ValueError("Checkpoint name cannot be empty")
+        checkpoint_name = validate_checkpoint_name(checkpoint)
 
         with self.queries.backend.engine.connect() as conn:
             row = conn.execute(
@@ -247,10 +250,12 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def _delete_by_key(self, table_name: str, column_name: str, value: Any) -> None:
+        safe_table_name = validate_table_name(table_name)
+        safe_column_name = validate_sql_identifier(column_name)
         with self.queries.backend.engine.begin() as conn:
             conn.execute(
                 sqlalchemy.text(
-                    f'DELETE FROM "{table_name}" WHERE {column_name} = :value'
+                    f'DELETE FROM "{safe_table_name}" WHERE {safe_column_name} = :value'
                 ),
                 {"value": value},
             )
