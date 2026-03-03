@@ -6,6 +6,7 @@ import {
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
 import { GenerationMode } from '../types';
+import { useManagedPoller } from '../hooks/useManagedPoller';
 import {
     getInferenceCheckpoints,
     generateReports,
@@ -33,6 +34,7 @@ export default function InferencePage() {
     } = useInferencePageState();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { startPolling: startGenerationPolling, stopPolling: stopGenerationPolling } = useManagedPoller();
     // Fetch checkpoints on mount
     useEffect(() => {
         const fetchCheckpoints = async () => {
@@ -216,9 +218,8 @@ export default function InferencePage() {
             return;
         }
 
-        // Poll for job completion
         const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        pollInferenceJobStatus(
+        startGenerationPolling(() => pollInferenceJobStatus(
             jobResult.job_id,
             (status) => {
                 if (!status.result) {
@@ -269,17 +270,19 @@ export default function InferencePage() {
                 }
             },
             (status) => {
+                stopGenerationPolling();
                 if (status.status === 'failed') {
                     console.error('Generation failed:', status.error);
                 }
                 setIsGenerating(false);
             },
             (pollError) => {
+                stopGenerationPolling();
                 console.error('Poll error:', pollError);
                 setIsGenerating(false);
             },
             pollInterval
-        );
+        ));
     };
 
     // Copy report to clipboard

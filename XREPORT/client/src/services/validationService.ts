@@ -1,4 +1,5 @@
 // Validation service API functions
+import { asRecord, readBoolean, readNumber, readNumberArray, readString } from './parseUtils';
 
 export interface PixelDistribution {
     bins: number[];
@@ -48,6 +49,94 @@ export interface ValidationReport {
     image_statistics?: ImageStatistics;
     text_statistics?: TextStatistics;
     artifacts?: Record<string, { mime_type: string; data: string }> | null;
+}
+
+function parsePixelDistribution(value: unknown): PixelDistribution | undefined {
+    const payload = asRecord(value);
+    if (!payload) {
+        return undefined;
+    }
+    const bins = readNumberArray(payload.bins);
+    const counts = readNumberArray(payload.counts);
+    if (!bins || !counts) {
+        return undefined;
+    }
+    return { bins, counts };
+}
+
+function parseImageStatistics(value: unknown): ImageStatistics | undefined {
+    const payload = asRecord(value);
+    if (!payload) {
+        return undefined;
+    }
+    const count = readNumber(payload.count);
+    const mean_height = readNumber(payload.mean_height);
+    const mean_width = readNumber(payload.mean_width);
+    const mean_pixel_value = readNumber(payload.mean_pixel_value);
+    const std_pixel_value = readNumber(payload.std_pixel_value);
+    const mean_noise_std = readNumber(payload.mean_noise_std);
+    const mean_noise_ratio = readNumber(payload.mean_noise_ratio);
+    if (
+        count === undefined ||
+        mean_height === undefined ||
+        mean_width === undefined ||
+        mean_pixel_value === undefined ||
+        std_pixel_value === undefined ||
+        mean_noise_std === undefined ||
+        mean_noise_ratio === undefined
+    ) {
+        return undefined;
+    }
+    return {
+        count,
+        mean_height,
+        mean_width,
+        mean_pixel_value,
+        std_pixel_value,
+        mean_noise_std,
+        mean_noise_ratio,
+    };
+}
+
+function parseTextStatistics(value: unknown): TextStatistics | undefined {
+    const payload = asRecord(value);
+    if (!payload) {
+        return undefined;
+    }
+    const count = readNumber(payload.count);
+    const total_words = readNumber(payload.total_words);
+    const unique_words = readNumber(payload.unique_words);
+    const avg_words_per_report = readNumber(payload.avg_words_per_report);
+    const min_words_per_report = readNumber(payload.min_words_per_report);
+    const max_words_per_report = readNumber(payload.max_words_per_report);
+    if (
+        count === undefined ||
+        total_words === undefined ||
+        unique_words === undefined ||
+        avg_words_per_report === undefined ||
+        min_words_per_report === undefined ||
+        max_words_per_report === undefined
+    ) {
+        return undefined;
+    }
+    return {
+        count,
+        total_words,
+        unique_words,
+        avg_words_per_report,
+        min_words_per_report,
+        max_words_per_report,
+    };
+}
+
+export function parseValidationResponse(result: Record<string, unknown>): ValidationResponse {
+    return {
+        success: readBoolean(result.success) ?? true,
+        message: readString(result.message) ?? 'Validation completed',
+        pixel_distribution: parsePixelDistribution(result.pixel_distribution),
+        image_statistics: parseImageStatistics(result.image_statistics),
+        text_statistics: parseTextStatistics(result.text_statistics),
+    };
 }
 
 // ============================================================================
