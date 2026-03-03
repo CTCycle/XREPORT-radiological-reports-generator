@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Settings } from 'lucide-react';
 import ValidationDashboard from '../components/ValidationDashboard';
-import { runValidation, getValidationJobStatus, ValidationResponse } from '../services/validationService';
+import {
+    runValidation,
+    pollValidationJobStatus,
+    parseValidationResponse,
+    ValidationResponse,
+} from '../services/validationService';
+import { useManagedPoller } from '../hooks/useManagedPoller';
 import './DatasetPage.css'; // Reusing styles for now
 
 type ValidationConfig = {
@@ -11,16 +17,6 @@ type ValidationConfig = {
     textStats: boolean;
     pixDist: boolean;
 };
-
-function asValidationResponse(result: Record<string, unknown>): ValidationResponse {
-    return {
-        success: (result.success as boolean) ?? true,
-        message: (result.message as string) ?? 'Validation completed',
-        pixel_distribution: result.pixel_distribution as ValidationResponse['pixel_distribution'],
-        image_statistics: result.image_statistics as ValidationResponse['image_statistics'],
-        text_statistics: result.text_statistics as ValidationResponse['text_statistics'],
-    };
-}
 
 export default function DatasetValidationPage() {
     const { datasetName } = useParams<{ datasetName: string }>();
@@ -36,6 +32,7 @@ export default function DatasetValidationPage() {
     const [isValidating, setIsValidating] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
+    const { startPolling: startValidationPolling, stopPolling: stopValidationPolling } = useManagedPoller();
 
     const handleConfigChange = <K extends keyof ValidationConfig>(key: K, value: ValidationConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -68,37 +65,34 @@ export default function DatasetValidationPage() {
             return;
         }
 
-        // Poll for job completion
         const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        const poll = async () => {
-            const { result: status, error: pollError } = await getValidationJobStatus(jobResult.job_id);
-
-            if (pollError) {
+        startValidationPolling(() => pollValidationJobStatus(
+            jobResult.job_id,
+            () => {
+                // Progress updates are shown by the dashboard loading state in this page.
+            },
+            (status) => {
+                stopValidationPolling();
+                setIsValidating(false);
+                if (status.status === 'completed' && status.result) {
+                    setValidationResult(parseValidationResponse(status.result));
+                    return;
+                }
+                if (status.status === 'failed') {
+                    setValidationError(status.error || 'Validation failed');
+                    return;
+                }
+                if (status.status === 'cancelled') {
+                    setValidationError('Validation was cancelled');
+                }
+            },
+            (pollError) => {
+                stopValidationPolling();
                 setIsValidating(false);
                 setValidationError(pollError);
-                return;
-            }
-
-            if (!status) {
-                setIsValidating(false);
-                setValidationError('Failed to get job status');
-                return;
-            }
-
-            if (status.status === 'completed' && status.result) {
-                setIsValidating(false);
-                setValidationResult(asValidationResponse(status.result));
-            } else if (status.status === 'failed') {
-                setIsValidating(false);
-                setValidationError(status.error || 'Validation failed');
-            } else if (status.status === 'cancelled') {
-                setIsValidating(false);
-                setValidationError('Validation was cancelled');
-            } else {
-                setTimeout(poll, pollInterval);
-            }
-        };
-        poll();
+            },
+            pollInterval
+        ));
     };
 
     return (
