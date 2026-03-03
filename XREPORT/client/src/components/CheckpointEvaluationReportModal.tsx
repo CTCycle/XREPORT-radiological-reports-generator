@@ -1,6 +1,7 @@
-import { X, Calendar, ListChecks } from 'lucide-react';
+import { Calendar, ListChecks } from 'lucide-react';
 import CheckpointEvaluationDashboard from './CheckpointEvaluationDashboard';
 import { CheckpointEvaluationReport } from '../services/inferenceService';
+import ReportModalLayout from './shared/ReportModalLayout';
 import './ValidationReportModal.css';
 
 interface CheckpointEvaluationReportModalProps {
@@ -47,58 +48,44 @@ export default function CheckpointEvaluationReportModal({
     status,
     onClose,
 }: CheckpointEvaluationReportModalProps) {
-    if (!isOpen) return null;
-
     const metrics = report?.metrics ?? [];
     const metricConfigs = report?.metric_configs ?? {};
     const dateLabel = report?.date ? `Generated: ${report.date}` : 'Generated: N/A';
+    const metricPills = (metrics.length > 0 ? metrics : ['No metrics recorded']).map(metric => (
+        metric === 'No metrics recorded'
+            ? metric
+            : formatMetricLabel(metric, metricConfigs[metric])
+    ));
+    const chips = [
+        {
+            id: 'date',
+            icon: <Calendar size={14} />,
+            text: dateLabel,
+        },
+        {
+            id: 'metrics',
+            icon: <ListChecks size={14} />,
+            text: `${metrics.length} metrics`,
+        },
+    ];
 
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="report-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="report-header">
-                    <div>
-                        <h3>Checkpoint Evaluation Report</h3>
-                        <p className="report-subtitle">
-                            Checkpoint: <strong>{checkpointName || 'Unknown'}</strong>
-                        </p>
-                    </div>
-                    <button className="report-close" onClick={onClose} aria-label="Close evaluation report">
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <div className="report-meta">
-                    <div className="report-chip">
-                        <Calendar size={14} />
-                        <span>{dateLabel}</span>
-                    </div>
-                    <div className="report-chip">
-                        <ListChecks size={14} />
-                        <span>{metrics.length} metrics</span>
-                    </div>
-                </div>
-
-                <div className="report-metrics">
-                    {(metrics.length > 0 ? metrics : ['No metrics recorded']).map(metric => (
-                        <span key={metric} className="report-metric-pill">
-                            {metric === 'No metrics recorded'
-                                ? metric
-                                : formatMetricLabel(metric, metricConfigs[metric])}
-                        </span>
-                    ))}
-                </div>
-
-                <div className="report-body">
-                    <CheckpointEvaluationDashboard
-                        isLoading={isLoading}
-                        results={report?.results ?? null}
-                        error={error}
-                        progress={progress}
-                        status={status}
-                    />
-                </div>
-            </div>
-        </div>
+        <ReportModalLayout
+            isOpen={isOpen}
+            title="Checkpoint Evaluation Report"
+            subtitleLabel="Checkpoint"
+            subtitleValue={checkpointName || 'Unknown'}
+            chips={chips}
+            metrics={metricPills}
+            onClose={onClose}
+        >
+            <CheckpointEvaluationDashboard
+                isLoading={isLoading}
+                results={report?.results ?? null}
+                error={error}
+                progress={progress}
+                status={status}
+            />
+        </ReportModalLayout>
     );
 }

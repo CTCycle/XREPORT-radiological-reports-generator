@@ -1,4 +1,5 @@
 // Training service API functions
+import { readBoolean, readNumber, readString } from './parseUtils';
 
 export interface ImagePathResponse {
     valid: boolean;
@@ -343,6 +344,17 @@ export interface ProcessDatasetResponse {
     validation_samples: number;
     vocabulary_size: number;
     message: string;
+}
+
+export function parseProcessDatasetResponse(result: Record<string, unknown>): ProcessDatasetResponse {
+    return {
+        success: readBoolean(result.success) ?? true,
+        total_samples: readNumber(result.total_samples) ?? 0,
+        train_samples: readNumber(result.train_samples) ?? 0,
+        validation_samples: readNumber(result.validation_samples) ?? 0,
+        vocabulary_size: readNumber(result.vocabulary_size) ?? 0,
+        message: readString(result.message) ?? 'Dataset processed successfully',
+    };
 }
 
 /**
