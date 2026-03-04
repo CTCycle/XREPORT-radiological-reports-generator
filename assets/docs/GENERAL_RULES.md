@@ -13,7 +13,7 @@ Before any task, review the relevant files in `.agent/rules`:
 - `README_WRITING.md`, required README structure and standards
 
 ## SKILLS REFERENCE
-When task-specific reusable workflows or capabilities are needed, check `.agent/skills/` and use the relevant skill guidance.
+When task-specific reusable workflows or capabilities are needed, check skills repository and use the relevant skill guidance.
 
 ## DOCUMENTATION UPDATES
 If changes materially affect behavior, architecture, or usage, update the relevant `.agent/rules` files and notify the user.
