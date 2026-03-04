@@ -125,11 +125,22 @@ function readNumberArray(value: unknown): number[] | undefined {
     return value;
 }
 
+function isChartDataPoint(value: unknown): value is ChartDataPoint {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return false;
+    }
+    const payload = value as Record<string, unknown>;
+    if (typeof payload.batch !== 'number') {
+        return false;
+    }
+    return Object.values(payload).every((entry) => entry === undefined || typeof entry === 'number');
+}
+
 function readChartDataArray(value: unknown): ChartDataPoint[] | undefined {
-    if (!Array.isArray(value)) {
+    if (!Array.isArray(value) || value.some((entry) => !isChartDataPoint(entry))) {
         return undefined;
     }
-    return value as ChartDataPoint[];
+    return value;
 }
 
 function parseTrainingJobResult(

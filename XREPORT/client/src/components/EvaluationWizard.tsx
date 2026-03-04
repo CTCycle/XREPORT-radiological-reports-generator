@@ -8,6 +8,7 @@ import {
     Target,
     Activity
 } from 'lucide-react';
+import { useMetricSelection } from '../hooks/useMetricSelection';
 import './EvaluationWizard.css';
 
 // --- Types & Constants ---
@@ -165,7 +166,7 @@ const SummaryStep: React.FC<{
 export default function EvaluationWizard({ isOpen, onClose, checkpointName, onConfirm }: EvaluationWizardProps) {
     // State
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
-    const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+    const { selectedMetrics, toggleMetric, isSelected } = useMetricSelection<string>();
     const [metricConfigs, setMetricConfigs] = useState<MetricConfigs>({});
 
     // Reset state when opening/closing (optional, but good for wizards)
@@ -195,23 +196,15 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
 
     // --- Handlers ---
 
-    const toggleMetric = (id: string) => {
-        const next = [...selectedMetrics];
-        const index = next.indexOf(id);
-        if (index > -1) {
-            next.splice(index, 1);
-        } else {
-            next.push(id);
-            // Initialize default config if not present
-            if (!metricConfigs[id]) {
-                const metric = METRICS_CATALOG.find(m => m.id === id);
-                setMetricConfigs(prev => ({
-                    ...prev,
-                    [id]: { dataFraction: metric?.defaultConfig?.dataFraction ?? 1.0 }
-                }));
-            }
+    const handleToggleMetric = (id: string) => {
+        if (!isSelected(id) && !metricConfigs[id]) {
+            const metric = METRICS_CATALOG.find(m => m.id === id);
+            setMetricConfigs((prev) => ({
+                ...prev,
+                [id]: { dataFraction: metric?.defaultConfig?.dataFraction ?? 1.0 },
+            }));
         }
-        setSelectedMetrics(next);
+        toggleMetric(id);
     };
 
     const updateConfig = (metricId: string, key: keyof MetricConfig, value: number) => {
@@ -293,13 +286,13 @@ export default function EvaluationWizard({ isOpen, onClose, checkpointName, onCo
                             <h3 className="wizard-step-title-text">Select Evaluation Metrics</h3>
                             <div className="metrics-grid">
                                 {METRICS_CATALOG.map((metric) => {
-                                    const isSelected = selectedMetrics.includes(metric.id);
+                                    const selected = isSelected(metric.id);
                                     return (
                                         <button
                                             key={metric.id}
                                             type="button"
-                                            className={`metric-card ${isSelected ? 'selected' : ''}`}
-                                            onClick={() => toggleMetric(metric.id)}
+                                            className={`metric-card ${selected ? 'selected' : ''}`}
+                                            onClick={() => handleToggleMetric(metric.id)}
                                         >
                                             <div className="metric-icon">{metric.icon}</div>
                                             <div className="metric-check"><Check size={20} strokeWidth={3} /></div>

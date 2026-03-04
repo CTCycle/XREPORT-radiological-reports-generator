@@ -36,6 +36,16 @@ ALLOWED_TABLE_NAMES = frozenset(TABLE_REQUIRED_COLUMNS.keys())
 
 
 # -----------------------------------------------------------------------------
+def is_string_object_column(series: pd.Series) -> bool:
+    if not pd.api.types.is_object_dtype(series):
+        return False
+    non_null = series.dropna()
+    if non_null.empty:
+        return False
+    return bool(non_null.map(lambda value: isinstance(value, str)).all())
+
+
+# -----------------------------------------------------------------------------
 def validate_sql_identifier(identifier: str) -> str:
     normalized = str(identifier or "").strip()
     if not normalized:
@@ -79,14 +89,6 @@ def resolve_conflict_columns(
 
 # -----------------------------------------------------------------------------
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
-    def is_string_object_column(series: pd.Series) -> bool:
-        if not pd.api.types.is_object_dtype(series):
-            return False
-        non_null = series.dropna()
-        if non_null.empty:
-            return False
-        return bool(non_null.map(lambda value: isinstance(value, str)).all())
-
     string_columns = [
         column
         for column in df.columns

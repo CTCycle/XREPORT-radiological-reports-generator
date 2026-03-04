@@ -28,6 +28,19 @@ from XREPORT.server.services.evaluation import CheckpointEvaluator
 
 
 # -----------------------------------------------------------------------------
+def resolve_metric_fraction(
+    config: dict[str, Any] | None,
+    default_fraction: float = 1.0,
+) -> float:
+    if not isinstance(config, dict):
+        return default_fraction
+    fraction = config.get("data_fraction", default_fraction)
+    if not isinstance(fraction, (int, float)):
+        return default_fraction
+    return float(min(1.0, max(0.01, fraction)))
+
+
+# -----------------------------------------------------------------------------
 class ProgressRange:
     def __init__(self, job_id: str, start: float, end: float) -> None:
         self.job_id = job_id
@@ -271,17 +284,6 @@ def run_checkpoint_evaluation_job(
     results: dict[str, Any] = {}
     resolved_metric_configs: dict[str, dict[str, float | int]] = {}
 
-    def resolve_fraction(
-        config: dict[str, Any] | None,
-        default_fraction: float = 1.0,
-    ) -> float:
-        if not isinstance(config, dict):
-            return default_fraction
-        fraction = config.get("data_fraction", default_fraction)
-        if not isinstance(fraction, (int, float)):
-            return default_fraction
-        return float(min(1.0, max(0.01, fraction)))
-
     validation_data = None
     if "evaluation_report" in metrics or "bleu_score" in metrics:
         data_serializer = DataSerializer()
@@ -301,7 +303,7 @@ def run_checkpoint_evaluation_job(
             logger.warning("No validation data available for evaluation report")
         else:
             evaluation_config = metric_configs.get("evaluation_report")
-            evaluation_fraction = resolve_fraction(
+            evaluation_fraction = resolve_metric_fraction(
                 evaluation_config, default_fraction=1.0
             )
             resolved_metric_configs["evaluation_report"] = {
@@ -336,7 +338,9 @@ def run_checkpoint_evaluation_job(
         else:
             if not validation_data.empty:
                 bleu_config = metric_configs.get("bleu_score")
-                bleu_fraction = resolve_fraction(bleu_config, default_fraction=1.0)
+                bleu_fraction = resolve_metric_fraction(
+                    bleu_config, default_fraction=1.0
+                )
                 if bleu_config is None:
                     bleu_fraction = 1.0
                 bleu_samples = max(1, int(num_samples))
