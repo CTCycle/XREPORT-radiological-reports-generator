@@ -9,6 +9,7 @@ import {
     ValidationResponse,
 } from '../services/validationService';
 import { useManagedPoller } from '../hooks/useManagedPoller';
+import FormCheckbox from '../components/shared/FormCheckbox';
 import './DatasetPage.css'; // Reusing styles for now
 
 type ValidationConfig = {
@@ -128,33 +129,21 @@ export default function DatasetValidationPage() {
                         </div>
 
                         <div className="eval-checkboxes validation-checkboxes-row">
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.imgStats}
-                                    onChange={(e) => handleConfigChange('imgStats', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Image statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.textStats}
-                                    onChange={(e) => handleConfigChange('textStats', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Text statistics</span>
-                            </label>
-                            <label className="form-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={config.pixDist}
-                                    onChange={(e) => handleConfigChange('pixDist', e.target.checked)}
-                                />
-                                <div className="checkbox-visual" />
-                                <span className="checkbox-label">Pixel intensity dist.</span>
-                            </label>
+                            <FormCheckbox
+                                checked={config.imgStats}
+                                label="Image statistics"
+                                onChange={(checked) => handleConfigChange('imgStats', checked)}
+                            />
+                            <FormCheckbox
+                                checked={config.textStats}
+                                label="Text statistics"
+                                onChange={(checked) => handleConfigChange('textStats', checked)}
+                            />
+                            <FormCheckbox
+                                checked={config.pixDist}
+                                label="Pixel intensity dist."
+                                onChange={(checked) => handleConfigChange('pixDist', checked)}
+                            />
                         </div>
                     </div>
 

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { TrainingConfig } from '../types';
 import WizardSteps from './WizardSteps';
+import FormCheckbox from './shared/FormCheckbox';
 import '../pages/TrainingPage.css';
 
 interface NewTrainingWizardProps {
@@ -135,15 +136,11 @@ export default function NewTrainingWizard({
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label form-label-placeholder">Encoders</label>
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.freezeImgEncoder}
-                                                onChange={(e) => onConfigChange('freezeImgEncoder', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Freeze Encoder</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.freezeImgEncoder}
+                                            label="Freeze Encoder"
+                                            onChange={(checked) => onConfigChange('freezeImgEncoder', checked)}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -160,30 +157,23 @@ export default function NewTrainingWizard({
                                 <div className="wizard-col">
                                     <div className="form-group">
                                         <label className="form-label">Image Augmentation</label>
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.useImgAugment}
-                                                onChange={(e) => onConfigChange('useImgAugment', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Enable Augmentation</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.useImgAugment}
+                                            label="Enable Augmentation"
+                                            onChange={(checked) => onConfigChange('useImgAugment', checked)}
+                                        />
                                     </div>
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
                                         <label className="form-label form-label-transparent">Shuffle</label>
                                         <div className="wizard-inline-row">
-                                            <label className="form-checkbox form-checkbox-no-margin">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={config.shuffleWithBuffer}
-                                                    onChange={(e) => onConfigChange('shuffleWithBuffer', e.target.checked)}
-                                                />
-                                                <div className="checkbox-visual" />
-                                                <span className="checkbox-label">Shuffle</span>
-                                            </label>
+                                            <FormCheckbox
+                                                checked={config.shuffleWithBuffer}
+                                                label="Shuffle"
+                                                className="form-checkbox-no-margin"
+                                                onChange={(checked) => onConfigChange('shuffleWithBuffer', checked)}
+                                            />
                                             {config.shuffleWithBuffer && (
                                                 <input
                                                     type="number"
@@ -231,15 +221,11 @@ export default function NewTrainingWizard({
                                 <div className="wizard-col">
                                     <div className="form-group">
                                         <label className="form-label form-label-placeholder">Save Checkpoints</label>
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.saveCheckpoints}
-                                                onChange={(e) => onConfigChange('saveCheckpoints', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Save Checkpoints</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.saveCheckpoints}
+                                            label="Save Checkpoints"
+                                            onChange={(checked) => onConfigChange('saveCheckpoints', checked)}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -249,15 +235,11 @@ export default function NewTrainingWizard({
                             <div className="wizard-2col-panel">
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.useScheduler}
-                                                onChange={(e) => onConfigChange('useScheduler', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Use LR Scheduler</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.useScheduler}
+                                            label="Use LR Scheduler"
+                                            onChange={(checked) => onConfigChange('useScheduler', checked)}
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Target Learning Rate</label>
@@ -317,40 +299,28 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.pinMemory}
-                                                onChange={(e) => onConfigChange('pinMemory', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Pin Memory</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.pinMemory}
+                                            label="Pin Memory"
+                                            onChange={(checked) => onConfigChange('pinMemory', checked)}
+                                        />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.persistentWorkers}
-                                                onChange={(e) => onConfigChange('persistentWorkers', e.target.checked)}
-                                                disabled={config.dataloaderWorkers === 0}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Persistent Workers</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.persistentWorkers}
+                                            label="Persistent Workers"
+                                            disabled={config.dataloaderWorkers === 0}
+                                            onChange={(checked) => onConfigChange('persistentWorkers', checked)}
+                                        />
                                     </div>
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.useGpu}
-                                                onChange={(e) => onConfigChange('useGpu', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Enable GPU</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.useGpu}
+                                            label="Enable GPU"
+                                            onChange={(checked) => onConfigChange('useGpu', checked)}
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Device</label>
@@ -364,15 +334,11 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.jitCompile}
-                                                onChange={(e) => onConfigChange('jitCompile', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Enable Torch Compile</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.jitCompile}
+                                            label="Enable Torch Compile"
+                                            onChange={(checked) => onConfigChange('jitCompile', checked)}
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Backend</label>
@@ -388,26 +354,18 @@ export default function NewTrainingWizard({
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.useMixedPrecision}
-                                                onChange={(e) => onConfigChange('useMixedPrecision', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Enable Mixed Precision</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.useMixedPrecision}
+                                            label="Enable Mixed Precision"
+                                            onChange={(checked) => onConfigChange('useMixedPrecision', checked)}
+                                        />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={config.realTimePlot}
-                                                onChange={(e) => onConfigChange('realTimePlot', e.target.checked)}
-                                            />
-                                            <div className="checkbox-visual" />
-                                            <span className="checkbox-label">Plot Training Metrics</span>
-                                        </label>
+                                        <FormCheckbox
+                                            checked={config.realTimePlot}
+                                            label="Plot Training Metrics"
+                                            onChange={(checked) => onConfigChange('realTimePlot', checked)}
+                                        />
                                     </div>
                                 </div>
                             </div>
