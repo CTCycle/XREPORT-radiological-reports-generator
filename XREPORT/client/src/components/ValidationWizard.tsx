@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { DatasetInfo } from '../services/trainingService';
+import { useMetricSelection } from '../hooks/useMetricSelection';
 import './ValidationWizard.css';
 
 export type ValidationMetric = 'pixels_distribution' | 'text_statistics' | 'image_statistics';
@@ -38,7 +39,7 @@ export default function ValidationWizard({
     onClose,
     onConfirm,
 }: ValidationWizardProps) {
-    const [selectedMetrics, setSelectedMetrics] = useState<ValidationMetric[]>([]);
+    const { selectedMetrics, setSelectedMetrics, toggleMetric, isSelected } = useMetricSelection<ValidationMetric>();
     const [validateFullDataset, setValidateFullDataset] = useState(true);
     const [validationFraction, setValidationFraction] = useState<string>('0.5');
 
@@ -53,15 +54,6 @@ export default function ValidationWizard({
         if (!row) return 'Select a dataset';
         return row.name;
     }, [row]);
-
-    const toggleMetric = (metric: ValidationMetric) => {
-        setSelectedMetrics(prev => {
-            if (prev.includes(metric)) {
-                return prev.filter(item => item !== metric);
-            }
-            return [...prev, metric];
-        });
-    };
 
     const handleConfirm = () => {
         const fractionValue = validateFullDataset ? 1.0 : parseFloat(validationFraction);
@@ -123,18 +115,18 @@ export default function ValidationWizard({
                         <div className="wizard-step-title">Metrics selection</div>
                         <div className="wizard-metrics-grid">
                             {METRICS.map(metric => {
-                                const isSelected = selectedMetrics.includes(metric.id);
+                                const selected = isSelected(metric.id);
                                 return (
                                     <button
                                         key={metric.id}
                                         type="button"
-                                        className={`wizard-metric ${isSelected ? 'selected' : ''}`}
+                                        className={`wizard-metric ${selected ? 'selected' : ''}`}
                                         onClick={() => toggleMetric(metric.id)}
                                     >
                                         <div className="wizard-metric-title">{metric.name}</div>
                                         <div className="wizard-metric-desc">{metric.description}</div>
                                         <div className="wizard-metric-state">
-                                            {isSelected ? 'Selected' : 'Select'}
+                                            {selected ? 'Selected' : 'Select'}
                                         </div>
                                     </button>
                                 );

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,27 @@ from keras.utils import set_random_seed
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.processing import TokenizerHandler
+
+
+###############################################################################
+def normalize_beam_score(
+    candidate: tuple[list[int], float],
+    length_penalty: float,
+) -> float:
+    sequence, cumulative_score = candidate
+    return cumulative_score / (len(sequence) ** length_penalty)
+
+
+###############################################################################
+def emit_image_stream_token(
+    stream_callback: Callable[[int, str, int, int], None] | None,
+    image_index: int,
+    token: str,
+    step: int,
+    total: int,
+) -> None:
+    if stream_callback is not None:
+        stream_callback(image_index, token, step, total)
 
 
 ###############################################################################
@@ -147,11 +169,11 @@ class TextGenerator:
         beam_width: int,
         length_penalty: float,
     ) -> list[tuple[list[int], float]]:
-        def normalized_score(candidate: tuple[list[int], float]) -> float:
-            seq, cumulative_score = candidate
-            return cumulative_score / (len(seq) ** length_penalty)
-
-        return sorted(all_candidates, key=normalized_score, reverse=True)[:beam_width]
+        return sorted(
+            all_candidates,
+            key=lambda candidate: normalize_beam_score(candidate, length_penalty),
+            reverse=True,
+        )[:beam_width]
 
     # -------------------------------------------------------------------------
     def _stream_best_beam_token(
@@ -389,11 +411,7 @@ class TextGenerator:
         stream_callback: Callable[[int, str, int, int], None] | None,
         image_index: int,
     ) -> Callable[[str, int, int], None]:
-        def image_stream_callback(token: str, step: int, total: int) -> None:
-            if stream_callback is not None:
-                stream_callback(image_index, token, step, total)
-
-        return image_stream_callback
+        return partial(emit_image_stream_token, stream_callback, image_index)
 
     # -------------------------------------------------------------------------
     def _generate_reports_with_streaming(
