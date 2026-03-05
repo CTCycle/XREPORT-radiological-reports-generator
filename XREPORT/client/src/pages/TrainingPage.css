@@ -652,6 +652,62 @@ input[type="checkbox"] {
     gap: 0.85rem;
 }
 
+.wizard-device-panel {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+}
+
+.wizard-device-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.wizard-device-panel-description {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.wizard-device-layout {
+    gap: 1rem 1.5rem;
+}
+
+.wizard-device-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+}
+
+.wizard-device-card h5 {
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.wizard-device-card p {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.wizard-device-card-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 160px);
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.wizard-device-card-controls .form-group {
+    margin: 0;
+}
+
 /* Keep compact grid for Summary or other auto-flow needs */
 .wizard-compact-grid {
     display: grid;
@@ -967,6 +1023,14 @@ input[type="checkbox"] {
 
     .wizard-page-layout {
         gap: 1rem;
+    }
+
+    .wizard-device-card-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .wizard-device-card {
+        padding: 0.65rem;
     }
 
     .buffer-input-container {
