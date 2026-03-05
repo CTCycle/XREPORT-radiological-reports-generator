@@ -11,6 +11,7 @@ from keras.models import load_model
 
 from XREPORT.server.common.constants import CHECKPOINT_PATH
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import validate_checkpoint_name
 from XREPORT.server.learning.training.encoder import BeitXRayImageEncoder
 from XREPORT.server.learning.training.layers import (
     AddNorm,
@@ -119,8 +120,11 @@ class ModelSerializer:
         self, checkpoint: str, custom_objects: dict[str, Any] | None = None
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load checkpoint model and configuration for resume training or inference."""
-
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        checkpoint_name = validate_checkpoint_name(checkpoint)
+        base_path = os.path.realpath(CHECKPOINT_PATH)
+        checkpoint_path = os.path.realpath(os.path.join(base_path, checkpoint_name))
+        if os.path.commonpath([base_path, checkpoint_path]) != base_path:
+            raise ValueError("Checkpoint path is outside the checkpoints directory")
         model_path = os.path.join(checkpoint_path, "saved_model.keras")
 
         default_custom_objects = {

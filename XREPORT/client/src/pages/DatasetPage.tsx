@@ -13,8 +13,9 @@ import {
     getDatasetNames,
     getPreparationJobStatus,
     DatasetInfo,
-    ProcessDatasetResponse,
     deleteDataset,
+    pollJobStatus,
+    parseProcessDatasetResponse,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
@@ -26,9 +27,11 @@ import {
     pollValidationJobStatus,
     ValidationReport,
     ValidationResponse,
+    parseValidationResponse,
 } from '../services/validationService';
 import ImageViewerModal from '../components/ImageViewerModal';
 import { usePersistedRecord } from '../hooks/usePersistedRecord';
+import { useManagedPoller } from '../hooks/useManagedPoller';
 
 const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
 
@@ -40,27 +43,6 @@ type StoredValidationJob = {
     status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
     progress?: number;
 };
-
-function asValidationResponse(result: Record<string, unknown>): ValidationResponse {
-    return {
-        success: (result.success as boolean) ?? true,
-        message: (result.message as string) ?? 'Validation completed',
-        pixel_distribution: result.pixel_distribution as ValidationResponse['pixel_distribution'],
-        image_statistics: result.image_statistics as ValidationResponse['image_statistics'],
-        text_statistics: result.text_statistics as ValidationResponse['text_statistics'],
-    };
-}
-
-function asProcessDatasetResponse(result: Record<string, unknown>): ProcessDatasetResponse {
-    return {
-        success: true,
-        total_samples: (result.total_samples as number) ?? 0,
-        train_samples: (result.train_samples as number) ?? 0,
-        validation_samples: (result.validation_samples as number) ?? 0,
-        vocabulary_size: (result.vocabulary_size as number) ?? 0,
-        message: 'Dataset processed successfully',
-    };
-}
 
 export default function DatasetPage() {
     const [validationWizardOpen, setValidationWizardOpen] = useState(false);
@@ -87,6 +69,7 @@ export default function DatasetPage() {
     // Image Viewer State
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerDataset, setViewerDataset] = useState<string | null>(null);
+    const { startPolling: startProcessingPolling, stopPolling: stopProcessingPolling } = useManagedPoller();
 
     const {
         state,
@@ -175,7 +158,7 @@ export default function DatasetPage() {
 
                 if (status.status === 'completed' && status.result) {
                     if (reportDatasetRef.current === datasetName) {
-                        setReportResult(asValidationResponse(status.result));
+                        setReportResult(parseValidationResponse(status.result));
                         setReportError(null);
                     }
                     void (async () => {
@@ -256,6 +239,7 @@ export default function DatasetPage() {
     const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
     // Determine if data is available for processing
     const hasDataForProcessing = state.loadResult?.success || (state.dbStatus?.has_data && state.selectedDatasets.length > 0);
+    const canBrowseServerFilesystem = state.dbStatus?.allow_server_browse ?? true;
 
     const handleConfigChange = <K extends keyof typeof state.config>(
         key: K,
@@ -295,38 +279,35 @@ export default function DatasetPage() {
             return;
         }
 
-        // Poll for job completion
         const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        const poll = async () => {
-            const { result: status, error: pollError } = await getPreparationJobStatus(jobResult.job_id);
-
-            if (pollError) {
+        startProcessingPolling(() => pollJobStatus(
+            getPreparationJobStatus,
+            jobResult.job_id,
+            () => {
+                // Processing progress is represented by spinner + final result summary in this view.
+            },
+            (status) => {
+                stopProcessingPolling();
+                setIsProcessing(false);
+                if (status.status === 'completed' && status.result) {
+                    setProcessingResult(parseProcessDatasetResponse(status.result));
+                    return;
+                }
+                if (status.status === 'failed') {
+                    setUploadError(status.error || 'Processing failed');
+                    return;
+                }
+                if (status.status === 'cancelled') {
+                    setUploadError('Processing was cancelled');
+                }
+            },
+            (pollError) => {
+                stopProcessingPolling();
                 setIsProcessing(false);
                 setUploadError(pollError);
-                return;
-            }
-
-            if (!status) {
-                setIsProcessing(false);
-                setUploadError('Failed to get job status');
-                return;
-            }
-
-            if (status.status === 'completed' && status.result) {
-                setIsProcessing(false);
-                setProcessingResult(asProcessDatasetResponse(status.result));
-            } else if (status.status === 'failed') {
-                setIsProcessing(false);
-                setUploadError(status.error || 'Processing failed');
-            } else if (status.status === 'cancelled') {
-                setIsProcessing(false);
-                setUploadError('Processing was cancelled');
-            } else {
-                // Still running, poll again
-                setTimeout(poll, pollInterval);
-            }
-        };
-        poll();
+            },
+            pollInterval
+        ));
     };
 
     const handleFolderSelect = async (path: string, _imageCount: number) => {
@@ -574,12 +555,19 @@ export default function DatasetPage() {
                                     type="button"
                                     className="upload-card"
                                     onClick={() => setFolderBrowserOpen(true)}
+                                    disabled={!canBrowseServerFilesystem}
                                 >
                                     <FolderUp className="upload-icon" />
                                     <div className="upload-text">Upload Image Folder</div>
-                                    <div className="upload-hint">DICOM, PNG, JPG</div>
+                                    <div className="upload-hint">
+                                        {canBrowseServerFilesystem
+                                            ? 'DICOM, PNG, JPG'
+                                            : 'Disabled in this deployment mode'}
+                                    </div>
                                     <div className="upload-subtext">
-                                        {state.imageFolderName ? state.imageFolderName : 'Select directory'}
+                                        {state.imageFolderName
+                                            ? state.imageFolderName
+                                            : (canBrowseServerFilesystem ? 'Select directory' : 'Unavailable')}
                                     </div>
                                     {state.imageValidation && (
                                         <div className={`upload-status ${state.imageValidation.valid ? 'success' : 'error'}`}>
@@ -588,6 +576,11 @@ export default function DatasetPage() {
                                             ) : (
                                                 <><AlertCircle size={14} /> {state.imageValidation.message}</>
                                             )}
+                                        </div>
+                                    )}
+                                    {!canBrowseServerFilesystem && (
+                                        <div className="upload-status error">
+                                            <AlertCircle size={14} /> Server filesystem access is disabled
                                         </div>
                                     )}
                                 </button>

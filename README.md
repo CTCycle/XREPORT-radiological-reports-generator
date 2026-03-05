@@ -16,6 +16,8 @@ Runtime is dual-mode:
 - **Local mode (default)**: no Docker required, launched by `XREPORT/start_on_windows.bat`.
 - **Cloud mode**: Dockerized backend + frontend with same-origin `/api` proxying.
 
+> **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
+
 ---
 
 ## 2. Model and Dataset (Optional)

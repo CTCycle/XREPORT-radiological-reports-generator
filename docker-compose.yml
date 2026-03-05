@@ -5,8 +5,8 @@ services:
       dockerfile: docker/backend.Dockerfile
     env_file:
       - XREPORT/settings/.env
-    ports:
-      - "${FASTAPI_PORT:-8000}:8000"
+    expose:
+      - "8000"
     volumes:
       - xreport_resources:/app/XREPORT/resources
     healthcheck:

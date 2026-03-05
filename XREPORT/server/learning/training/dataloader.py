@@ -10,8 +10,6 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from XREPORT.server.services.processing import TokenizerHandler
-
 
 ###############################################################################
 class XRAYDataset(Dataset):
@@ -83,8 +81,6 @@ class XRAYDataLoader:
         self.persistent_workers = configuration.get("persistent_workers", False)
 
         self.shuffle = shuffle
-
-        self._tokenizer_handler = TokenizerHandler(configuration)
 
     # -------------------------------------------------------------------------
     def _get_transforms(self, training: bool) -> transforms.Compose:

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ###############################################################################
 class ValidationRequest(BaseModel):
     """Request model for dataset validation."""
 
-    dataset_name: str
-    metrics: list[str]
-    sample_size: float = 1.0
+    dataset_name: str = Field(..., min_length=1, max_length=128)
+    metrics: list[str] = Field(..., min_length=1, max_length=4)
+    sample_size: float = Field(1.0, ge=0.01, le=1.0)
     seed: int | None = None
     model_config = ConfigDict(extra="forbid")
 
@@ -76,9 +76,9 @@ class ValidationReportResponse(BaseModel):
 class CheckpointEvaluationRequest(BaseModel):
     """Request model for checkpoint evaluation."""
 
-    checkpoint: str
-    metrics: list[str]  # ["evaluation_report", "bleu_score"]
-    num_samples: int = 10  # Number of samples for BLEU calculation
+    checkpoint: str = Field(..., min_length=1, max_length=128)
+    metrics: list[str] = Field(..., min_length=1, max_length=4)
+    num_samples: int = Field(10, ge=1, le=1000)
     metric_configs: dict[str, dict[str, float | int]] | None = None
     seed: int | None = None
 

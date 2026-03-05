@@ -30,6 +30,7 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 | `DB_SSL`, `DB_SSL_CA` | External DB TLS settings. |
 | `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB connection and write-batching runtime settings. |
 | `MPLBACKEND`, `KERAS_BACKEND` | Runtime backend settings for plotting and ML stack. |
+| `ALLOW_LOCAL_FILESYSTEM_ACCESS` | Enables server-side local filesystem helper endpoints (`/preparation/browse`, path validation/load, image file serving). Use `true` for local mode and `false` for cloud mode. |
 
 ## 4. Local Mode (Default)
 
@@ -57,6 +58,7 @@ Cloud topology:
 - `backend`: FastAPI/Uvicorn container.
 - `frontend`: Nginx container serving static frontend.
 - `/api` on frontend origin is reverse-proxied to backend (`backend:8000`).
+- Backend port is container-internal only (`expose: 8000`), not published to the host in cloud mode.
 
 ## 6. Deterministic Build Notes
 

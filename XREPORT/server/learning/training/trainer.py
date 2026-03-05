@@ -25,13 +25,6 @@ class ModelTrainer:
         self.metadata = metadata
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def to_generator(loader: Any) -> Any:
-        while True:
-            for batch in loader:
-                yield batch
-
-    # -------------------------------------------------------------------------
     def train_model(
         self,
         model: Model,
@@ -60,10 +53,10 @@ class ModelTrainer:
         validation_data = DeviceDataLoader(validation_data, device)
 
         session = model.fit(
-            self.to_generator(train_data),
+            train_data,
             steps_per_epoch=len(train_data),
             epochs=total_epochs,
-            validation_data=self.to_generator(validation_data),
+            validation_data=validation_data,
             validation_steps=len(validation_data),
             callbacks=callbacks_list,
         )
@@ -106,10 +99,10 @@ class ModelTrainer:
         validation_data = DeviceDataLoader(validation_data, device)
 
         new_session = model.fit(
-            self.to_generator(train_data),
+            train_data,
             steps_per_epoch=len(train_data),
             epochs=total_epochs,
-            validation_data=self.to_generator(validation_data),
+            validation_data=validation_data,
             validation_steps=len(validation_data),
             callbacks=callbacks_list,
             initial_epoch=from_epoch,

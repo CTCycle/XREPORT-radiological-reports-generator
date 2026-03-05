@@ -16,6 +16,7 @@ from XREPORT.server.configurations import DatabaseSettings
 from XREPORT.server.repositories.database.utils import (
     normalize_string_columns,
     resolve_conflict_columns,
+    validate_table_name,
     validate_unique_key_values,
 )
 from XREPORT.server.repositories.schemas import Base
@@ -96,12 +97,13 @@ class SQLiteRepository:
         limit: int | None = None,
         offset: int | None = None,
     ) -> pd.DataFrame:
+        safe_table_name = validate_table_name(table_name)
         with self.engine.connect() as conn:
             inspector = inspect(conn)
-            if not inspector.has_table(table_name):
-                logger.warning("Table %s does not exist", table_name)
+            if not inspector.has_table(safe_table_name):
+                logger.warning("Table %s does not exist", safe_table_name)
                 return pd.DataFrame()
-            data = pd.read_sql_table(table_name, conn)
+            data = pd.read_sql_table(safe_table_name, conn)
         if offset:
             data = data.iloc[offset:]
         if limit is not None:
@@ -110,22 +112,25 @@ class SQLiteRepository:
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
+        safe_table_name = validate_table_name(table_name)
         with self.engine.begin() as conn:
             inspector = inspect(conn)
-            if inspector.has_table(table_name):
-                conn.execute(sqlalchemy.text(f'DELETE FROM "{table_name}"'))
-            df.to_sql(table_name, conn, if_exists="append", index=False)
+            if inspector.has_table(safe_table_name):
+                conn.execute(sqlalchemy.text(f'DELETE FROM "{safe_table_name}"'))
+            df.to_sql(safe_table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
-        table_cls = self.get_table_class(table_name)
+        safe_table_name = validate_table_name(table_name)
+        table_cls = self.get_table_class(safe_table_name)
         self.upsert_dataframe(df, table_cls)
 
     # -----------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
+        safe_table_name = validate_table_name(table_name)
         with self.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(f'SELECT COUNT(*) FROM "{table_name}"')
+                sqlalchemy.text(f'SELECT COUNT(*) FROM "{safe_table_name}"')
             )
             value = result.scalar() or 0
         return int(value)
