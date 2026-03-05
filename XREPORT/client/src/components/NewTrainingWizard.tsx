@@ -38,6 +38,11 @@ export default function NewTrainingWizard({
 }: NewTrainingWizardProps) {
     const steps = ['Model', 'Dataset', 'Training', 'Device', 'Summary'];
     const jitBackendOptions = ['inductor', 'eager', 'aot_eager', 'nvprims_nvfuser'];
+    const selectedGpuId = Math.max(0, config.gpuId);
+    const baseGpuDeviceOptions = [0, 1, 2, 3];
+    const gpuDeviceOptions = baseGpuDeviceOptions.includes(selectedGpuId)
+        ? baseGpuDeviceOptions
+        : [...baseGpuDeviceOptions, selectedGpuId].sort((left, right) => left - right);
     const [currentPage, setCurrentPage] = useState(0);
     const [checkpointName, setCheckpointName] = useState('');
 
@@ -52,6 +57,14 @@ export default function NewTrainingWizard({
 
     const canConfirm = Boolean(selectedDatasetLabel);
     const isLastPage = currentPage === steps.length - 1;
+
+    const parseIntOrFallback = (rawValue: string, fallback: number, min: number) => {
+        const parsedValue = Number.parseInt(rawValue, 10);
+        if (Number.isNaN(parsedValue)) {
+            return fallback;
+        }
+        return Math.max(min, parsedValue);
+    };
 
     const handleConfirm = () => {
         let finalName = checkpointName.trim();
@@ -275,97 +288,131 @@ export default function NewTrainingWizard({
                                 <Monitor size={16} />
                                 <span>Device Configuration</span>
                             </div>
-                            <div className="wizard-2col-panel">
-                                <div className="wizard-col">
-                                    <div className="form-group">
-                                        <label className="form-label">Dataloader Workers</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            className="form-input"
-                                            value={config.dataloaderWorkers}
-                                            onChange={(e) => onConfigChange('dataloaderWorkers', parseInt(e.target.value, 10))}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Prefetch Factor</label>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            className="form-input"
-                                            value={config.prefetchFactor}
-                                            onChange={(e) => onConfigChange('prefetchFactor', parseInt(e.target.value, 10))}
-                                            disabled={config.dataloaderWorkers === 0}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.pinMemory}
-                                            label="Pin Memory"
-                                            onChange={(checked) => onConfigChange('pinMemory', checked)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.persistentWorkers}
-                                            label="Persistent Workers"
-                                            disabled={config.dataloaderWorkers === 0}
-                                            onChange={(checked) => onConfigChange('persistentWorkers', checked)}
-                                        />
-                                    </div>
+                            <div className="wizard-device-panel">
+                                <div className="wizard-device-panel-header">
+                                    <Monitor size={14} />
+                                    <span>Device Controls</span>
                                 </div>
-                                <div className="wizard-col">
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.useGpu}
-                                            label="Enable GPU"
-                                            onChange={(checked) => onConfigChange('useGpu', checked)}
-                                        />
+                                <p className="wizard-device-panel-description">
+                                    Configure data loading and runtime acceleration options.
+                                </p>
+                                <div className="wizard-2col-panel wizard-device-layout">
+                                    <div className="wizard-col">
+                                        <div className="form-group">
+                                            <FormCheckbox
+                                                checked={config.pinMemory}
+                                                label="Pin Memory"
+                                                onChange={(checked) => onConfigChange('pinMemory', checked)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <FormCheckbox
+                                                checked={config.useMixedPrecision}
+                                                label="Mixed Precision"
+                                                onChange={(checked) => onConfigChange('useMixedPrecision', checked)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Dataloader Workers</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                className="form-input"
+                                                value={config.dataloaderWorkers}
+                                                onChange={(e) => onConfigChange(
+                                                    'dataloaderWorkers',
+                                                    parseIntOrFallback(e.target.value, config.dataloaderWorkers, 0),
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Prefetch Factor</label>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                className="form-input"
+                                                value={config.prefetchFactor}
+                                                onChange={(e) => onConfigChange(
+                                                    'prefetchFactor',
+                                                    parseIntOrFallback(e.target.value, config.prefetchFactor, 1),
+                                                )}
+                                                disabled={config.dataloaderWorkers === 0}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <FormCheckbox
+                                                checked={config.persistentWorkers}
+                                                label="Persistent Workers"
+                                                disabled={config.dataloaderWorkers === 0}
+                                                onChange={(checked) => onConfigChange('persistentWorkers', checked)}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <FormCheckbox
+                                                checked={config.realTimePlot}
+                                                label="Plot Training Metrics"
+                                                onChange={(checked) => onConfigChange('realTimePlot', checked)}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Device</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            className="form-input"
-                                            value={config.gpuId}
-                                            onChange={(e) => onConfigChange('gpuId', parseInt(e.target.value, 10))}
-                                            disabled={!config.useGpu}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.jitCompile}
-                                            label="Enable Torch Compile"
-                                            onChange={(checked) => onConfigChange('jitCompile', checked)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label">Backend</label>
-                                        <select
-                                            className="form-select"
-                                            value={config.jitBackend}
-                                            onChange={(e) => onConfigChange('jitBackend', e.target.value)}
-                                            disabled={!config.jitCompile}
-                                        >
-                                            {jitBackendOptions.map((backend) => (
-                                                <option key={backend} value={backend}>{backend}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.useMixedPrecision}
-                                            label="Enable Mixed Precision"
-                                            onChange={(checked) => onConfigChange('useMixedPrecision', checked)}
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <FormCheckbox
-                                            checked={config.realTimePlot}
-                                            label="Plot Training Metrics"
-                                            onChange={(checked) => onConfigChange('realTimePlot', checked)}
-                                        />
+                                    <div className="wizard-col">
+                                        <div className="wizard-device-card">
+                                            <h5>Torch Compile</h5>
+                                            <p>Enable torch.compile to optimize runtime graph execution.</p>
+                                            <div className="wizard-device-card-controls">
+                                                <FormCheckbox
+                                                    checked={config.jitCompile}
+                                                    label="Torch Compile"
+                                                    className="form-checkbox-no-margin"
+                                                    onChange={(checked) => onConfigChange('jitCompile', checked)}
+                                                />
+                                                <div className="form-group">
+                                                    <label className="form-label">Backend</label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={config.jitBackend}
+                                                        onChange={(e) => onConfigChange('jitBackend', e.target.value)}
+                                                        disabled={!config.jitCompile}
+                                                    >
+                                                        {jitBackendOptions.map((backend) => (
+                                                            <option key={backend} value={backend}>
+                                                                {backend}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="wizard-device-card">
+                                            <h5>Enable GPU</h5>
+                                            <p>Run training on CUDA and choose the target GPU device index.</p>
+                                            <div className="wizard-device-card-controls">
+                                                <FormCheckbox
+                                                    checked={config.useGpu}
+                                                    label="Enable GPU"
+                                                    className="form-checkbox-no-margin"
+                                                    onChange={(checked) => onConfigChange('useGpu', checked)}
+                                                />
+                                                <div className="form-group">
+                                                    <label className="form-label">Device</label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={selectedGpuId}
+                                                        onChange={(e) => onConfigChange(
+                                                            'gpuId',
+                                                            parseIntOrFallback(e.target.value, selectedGpuId, 0),
+                                                        )}
+                                                        disabled={!config.useGpu}
+                                                    >
+                                                        {gpuDeviceOptions.map((gpuOption) => (
+                                                            <option key={gpuOption} value={gpuOption}>
+                                                                {gpuOption}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

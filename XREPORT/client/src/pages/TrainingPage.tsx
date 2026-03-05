@@ -673,7 +673,36 @@ export default function TrainingPage() {
         fetchCheckpoints();
     }, [fetchCheckpoints, fetchDatasets]);
 
+    const normalizeIntegerConfig = (value: TrainingConfig[keyof TrainingConfig], min: number, fallback: number) => {
+        if (typeof value !== 'number' || Number.isNaN(value)) {
+            return fallback;
+        }
+        return Math.max(min, Math.trunc(value));
+    };
+
     const handleConfigChange = (key: keyof TrainingConfig, value: TrainingConfig[keyof TrainingConfig]) => {
+        if (key === 'dataloaderWorkers') {
+            const nextWorkers = normalizeIntegerConfig(value, 0, state.config.dataloaderWorkers);
+            updateConfig('dataloaderWorkers', nextWorkers);
+            if (nextWorkers === 0) {
+                updateConfig('prefetchFactor', 1);
+                updateConfig('persistentWorkers', false);
+            }
+            return;
+        }
+
+        if (key === 'prefetchFactor') {
+            const nextPrefetch = normalizeIntegerConfig(value, 1, state.config.prefetchFactor);
+            updateConfig('prefetchFactor', nextPrefetch);
+            return;
+        }
+
+        if (key === 'gpuId') {
+            const nextGpuId = normalizeIntegerConfig(value, 0, state.config.gpuId);
+            updateConfig('gpuId', nextGpuId);
+            return;
+        }
+
         updateConfig(key, value);
     };
 
