@@ -19,6 +19,7 @@ from XREPORT.server.entities.jobs import (
 )
 from XREPORT.server.common.constants import CHECKPOINT_PATH
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import validate_checkpoint_name
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.jobs import JobManager, job_manager
@@ -257,14 +258,22 @@ class InferenceEndpoint:
                 detail=f"Unsupported generation mode: {generation_mode}",
             )
 
-        checkpoint = checkpoint.strip()
-        if not checkpoint:
+        try:
+            checkpoint = validate_checkpoint_name(checkpoint)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Checkpoint name cannot be empty",
-            )
+                detail=str(exc),
+            ) from exc
 
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint, "saved_model.keras")
+        checkpoint_dir = os.path.realpath(os.path.join(CHECKPOINT_PATH, checkpoint))
+        base_path = os.path.realpath(CHECKPOINT_PATH)
+        if os.path.commonpath([base_path, checkpoint_dir]) != base_path:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Checkpoint path is outside the checkpoints directory",
+            )
+        checkpoint_path = os.path.join(checkpoint_dir, "saved_model.keras")
         if not os.path.isfile(checkpoint_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -287,9 +296,15 @@ class InferenceEndpoint:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Image upload missing filename",
                 )
+            filename = os.path.basename(img.filename.strip())
+            if not filename:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Image upload missing filename",
+                )
 
             content_type = img.content_type or ""
-            extension = os.path.splitext(img.filename)[1].lower()
+            extension = os.path.splitext(filename)[1].lower()
             if (
                 content_type not in ALLOWED_IMAGE_TYPES
                 and extension not in ALLOWED_IMAGE_EXTENSIONS
@@ -303,7 +318,7 @@ class InferenceEndpoint:
             if len(content) == 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Empty image payload: {img.filename}",
+                    detail=f"Empty image payload: {filename}",
                 )
 
             total_bytes += len(content)
@@ -318,7 +333,7 @@ class InferenceEndpoint:
 
             stored_images.append(
                 InferenceImage(
-                    filename=img.filename,
+                    filename=filename,
                     content_type=content_type,
                     data=content,
                     size_bytes=len(content),

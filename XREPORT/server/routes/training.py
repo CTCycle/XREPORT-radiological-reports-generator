@@ -22,6 +22,7 @@ from XREPORT.server.entities.jobs import (
     JobCancelResponse,
 )
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.security import validate_checkpoint_name
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
@@ -36,25 +37,16 @@ from XREPORT.server.learning.training.worker import (
 
 # -----------------------------------------------------------------------------
 def resolve_checkpoint_path(checkpoint: str) -> str:
-    if os.path.isabs(checkpoint):
+    try:
+        checkpoint_name = validate_checkpoint_name(checkpoint)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Checkpoint path must be relative to the checkpoints directory",
-        )
-    drive = os.path.splitdrive(checkpoint)[0]
-    if drive:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Checkpoint path must not include a drive letter",
-        )
-    if os.path.sep in checkpoint or (os.path.altsep and os.path.altsep in checkpoint):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Checkpoint name must not contain path separators",
-        )
+            detail=str(exc),
+        ) from exc
 
     base_path = os.path.realpath(CHECKPOINT_PATH)
-    target_path = os.path.realpath(os.path.join(base_path, checkpoint))
+    target_path = os.path.realpath(os.path.join(base_path, checkpoint_name))
 
     if os.path.commonpath([base_path, target_path]) != base_path:
         logger.warning(
@@ -438,14 +430,14 @@ class TrainingEndpoint:
 
     # -------------------------------------------------------------------------
     def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
-        checkpoint = checkpoint.strip()
-        if not checkpoint:
+        try:
+            checkpoint = validate_checkpoint_name(checkpoint)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=self.CHECKPOINT_EMPTY_MESSAGE,
-            )
-
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+                detail=str(exc),
+            ) from exc
+        checkpoint_path = resolve_checkpoint_path(checkpoint)
         if not os.path.isdir(checkpoint_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -472,12 +464,13 @@ class TrainingEndpoint:
 
     # -----------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
-        checkpoint = checkpoint.strip()
-        if not checkpoint:
+        try:
+            checkpoint = validate_checkpoint_name(checkpoint)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=self.CHECKPOINT_EMPTY_MESSAGE,
-            )
+                detail=str(exc),
+            ) from exc
 
         if self.training_state.state.get("is_training"):
             raise HTTPException(
@@ -595,14 +588,15 @@ class TrainingEndpoint:
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
 
-        checkpoint = request.checkpoint.strip()
-        if not checkpoint:
+        try:
+            checkpoint = validate_checkpoint_name(request.checkpoint)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=self.CHECKPOINT_EMPTY_MESSAGE,
-            )
+                detail=str(exc),
+            ) from exc
 
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, checkpoint)
+        checkpoint_path = resolve_checkpoint_path(checkpoint)
         if not os.path.isdir(checkpoint_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
