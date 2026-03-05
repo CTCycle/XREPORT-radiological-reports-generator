@@ -13,7 +13,14 @@ from playwright.sync_api import APIRequestContext
 
 def get_checkpoints_root() -> str:
     return os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "resources", "checkpoints")
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "XREPORT",
+            "resources",
+            "checkpoints",
+        )
     )
 
 

@@ -1,6 +1,7 @@
-import { X, Calendar, Sliders, ListChecks } from 'lucide-react';
+import { Calendar, Sliders, ListChecks } from 'lucide-react';
 import ValidationDashboard from './ValidationDashboard';
 import { ValidationResponse } from '../services/validationService';
+import ReportModalLayout from './shared/ReportModalLayout';
 import './ValidationReportModal.css';
 
 interface ValidationReportModalProps {
@@ -51,60 +52,44 @@ export default function ValidationReportModal({
     metadata,
     onClose,
 }: ValidationReportModalProps) {
-    if (!isOpen) return null;
-
     const metrics = formatMetrics(metadata?.metrics);
     const sampleLabel = formatSampleSize(metadata?.sampleSize);
     const dateLabel = metadata?.date ? `Generated: ${metadata.date}` : 'Generated: N/A';
+    const chips = [
+        {
+            id: 'date',
+            icon: <Calendar size={14} />,
+            text: dateLabel,
+        },
+        {
+            id: 'sample',
+            icon: <Sliders size={14} />,
+            text: sampleLabel,
+        },
+        {
+            id: 'metrics',
+            icon: <ListChecks size={14} />,
+            text: `${metrics.length} metrics`,
+        },
+    ];
 
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="report-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="report-header">
-                    <div>
-                        <h3>Validation Report</h3>
-                        <p className="report-subtitle">
-                            Dataset: <strong>{datasetName || 'Unknown'}</strong>
-                        </p>
-                    </div>
-                    <button className="report-close" onClick={onClose} aria-label="Close validation report">
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <div className="report-meta">
-                    <div className="report-chip">
-                        <Calendar size={14} />
-                        <span>{dateLabel}</span>
-                    </div>
-                    <div className="report-chip">
-                        <Sliders size={14} />
-                        <span>{sampleLabel}</span>
-                    </div>
-                    <div className="report-chip">
-                        <ListChecks size={14} />
-                        <span>{metrics.length} metrics</span>
-                    </div>
-                </div>
-
-                <div className="report-metrics">
-                    {metrics.map(metric => (
-                        <span key={metric} className="report-metric-pill">
-                            {metric}
-                        </span>
-                    ))}
-                </div>
-
-                <div className="report-body">
-                    <ValidationDashboard
-                        isLoading={isLoading}
-                        validationResult={validationResult}
-                        error={error}
-                        progress={progress}
-                        status={status}
-                    />
-                </div>
-            </div>
-        </div>
+        <ReportModalLayout
+            isOpen={isOpen}
+            title="Validation Report"
+            subtitleLabel="Dataset"
+            subtitleValue={datasetName || 'Unknown'}
+            chips={chips}
+            metrics={metrics}
+            onClose={onClose}
+        >
+            <ValidationDashboard
+                isLoading={isLoading}
+                validationResult={validationResult}
+                error={error}
+                progress={progress}
+                status={status}
+            />
+        </ReportModalLayout>
     );
 }

@@ -71,10 +71,14 @@ export const buildEntries = (data: Record<string, unknown>, preferredOrder: stri
 };
 
 export const parseMetadataError = (error: string): string => {
-    const match = error.match(/:\s*(\{.*\})\s*$/);
-    if (match) {
+    const markerIndex = error.indexOf(':');
+    if (markerIndex >= 0) {
+        const candidate = error.slice(markerIndex + 1).trim();
+        if (!candidate.startsWith('{') || !candidate.endsWith('}')) {
+            return error;
+        }
         try {
-            const parsed = JSON.parse(match[1]) as { detail?: string };
+            const parsed = JSON.parse(candidate) as { detail?: string };
             if (parsed.detail) {
                 return parsed.detail;
             }

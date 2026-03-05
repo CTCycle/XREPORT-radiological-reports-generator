@@ -33,6 +33,7 @@ from XREPORT.server.entities.jobs import (
 )
 from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.common.utils.types import coerce_bool
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
@@ -51,6 +52,9 @@ from XREPORT.server.services.processing import (
 )
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
+LOCAL_FILESYSTEM_DISABLED_ERROR = (
+    "Local filesystem endpoints are disabled for this deployment mode"
+)
 
 
 # -----------------------------------------------------------------------------
@@ -238,6 +242,19 @@ class PreparationEndpoint:
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
+        self.allow_local_filesystem_access = coerce_bool(
+            os.getenv("ALLOW_LOCAL_FILESYSTEM_ACCESS"),
+            self.server_settings.database.embedded_database,
+        )
+
+    # -----------------------------------------------------------------------------
+    def ensure_local_filesystem_access(self) -> None:
+        if self.allow_local_filesystem_access:
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
+        )
 
     # -----------------------------------------------------------------------------
     def get_image_column_name(self, columns: list[str]) -> str | None:
@@ -301,6 +318,7 @@ class PreparationEndpoint:
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
+            allow_server_browse=self.allow_local_filesystem_access,
             message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
             if row_count > 0
             else f"No data found in {DATASET_RECORDS_TABLE} table",
@@ -474,6 +492,7 @@ class PreparationEndpoint:
 
     # -----------------------------------------------------------------------------
     def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
+        self.ensure_local_filesystem_access()
         folder_path = request.folder_path.strip()
 
         if not folder_path:
@@ -522,6 +541,7 @@ class PreparationEndpoint:
 
     # -----------------------------------------------------------------------------
     def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
+        self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self.server_settings.global_settings.seed
@@ -701,6 +721,7 @@ class PreparationEndpoint:
         ),
     ) -> BrowseResponse:
         """Browse directories on the server filesystem."""
+        self.ensure_local_filesystem_access()
 
         # If no path provided or path is empty, return drives (Windows)
         if not path or path.strip() == "":
@@ -788,6 +809,7 @@ class PreparationEndpoint:
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
         """Get metadata for a specific image by 1-based index (id)."""
+        self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
             raise HTTPException(
@@ -836,6 +858,7 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     def get_dataset_image_content(self, dataset_name: str, index: int):
         """Serve the image file content."""
+        self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
             raise HTTPException(
