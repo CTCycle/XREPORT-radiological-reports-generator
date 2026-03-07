@@ -246,6 +246,8 @@ if not "%sync_ec%"=="0" (
 
 echo [RUN] Launching backend via uvicorn (%UVICORN_MODULE%)
 if /i "%use_uv_managed_python%"=="true" (
+  set "PYTHONHOME="
+  set "PYTHONPATH="
   "%uv_exe%" run python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
 ) else (
   "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
