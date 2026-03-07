@@ -111,7 +111,7 @@ Launch the application by double-clicking `XREPORT/start_on_windows.bat`.
 Install and run the generated Tauri package.
 
 Runtime behavior:
-- The desktop shell starts `XREPORT/start_on_windows_tauri_backend.bat` in the background.
+- The desktop shell starts `XREPORT/start_on_windows_tauri.bat --backend` in the background.
 - Backend listens on `FASTAPI_HOST` / `FASTAPI_PORT` from `XREPORT/settings/.env`.
 - The desktop window loads the local backend origin once ready.
 

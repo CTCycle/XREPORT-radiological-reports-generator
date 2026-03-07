@@ -246,7 +246,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Uses local `.env` values and portable runtimes in `XREPORT/resources/runtimes` on Windows.
 
 ### 8.2 Local mode (v2, packaged desktop)
-- Tauri desktop shell starts `XREPORT/start_on_windows_tauri_backend.bat`.
+- Tauri desktop shell starts `XREPORT/start_on_windows_tauri.bat --backend`.
 - Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
 - Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
 

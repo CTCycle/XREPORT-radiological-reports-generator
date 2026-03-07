@@ -5,7 +5,7 @@
 XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 
 - Local mode (v1): run web stack directly on host via `start_on_windows.bat`.
-- Local mode (v2): run packaged Tauri desktop shell, which launches backend via `start_on_windows_tauri_backend.bat`.
+- Local mode (v2): run packaged Tauri desktop shell, which launches backend via `start_on_windows_tauri.bat --backend`.
 - Cloud mode: run with Docker (`backend` + `frontend`).
 - Mode switching: replace values in `XREPORT/settings/.env` only.
 
@@ -54,7 +54,7 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
    - `XREPORT/client/src-tauri/target`
 
 Runtime behavior:
-- Tauri starts `XREPORT/start_on_windows_tauri_backend.bat` in the background.
+- Tauri starts `XREPORT/start_on_windows_tauri.bat --backend` in the background.
 - Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT`.
 - Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/`.
 

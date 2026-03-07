@@ -229,12 +229,14 @@ if not exist "%pyproject%" (
 pushd "%root_folder%" >nul
 set "uv_extras_flag="
 if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
+set "use_uv_managed_python=false"
 "%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
 if not "%sync_ec%"=="0" (
   echo [WARN] uv sync with embeddable Python failed, code %sync_ec%. Falling back to uv-managed Python
   "%uv_exe%" sync %uv_extras_flag%
   set "sync_ec=%ERRORLEVEL%"
+  if "%sync_ec%"=="0" set "use_uv_managed_python=true"
 )
 if not "%sync_ec%"=="0" (
   popd >nul
@@ -243,7 +245,11 @@ if not "%sync_ec%"=="0" (
 )
 
 echo [RUN] Launching backend via uvicorn (%UVICORN_MODULE%)
-"%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+if /i "%use_uv_managed_python%"=="true" (
+  "%uv_exe%" run python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+) else (
+  "%uv_exe%" run --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+)
 set "backend_ec=%ERRORLEVEL%"
 popd >nul
 
