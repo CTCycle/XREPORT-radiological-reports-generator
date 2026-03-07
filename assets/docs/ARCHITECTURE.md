@@ -73,8 +73,8 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 ### 3.1 API style
 - JSON REST endpoints via FastAPI.
 - Long operations return `job_id` and use polling (`GET /.../jobs/{job_id}`).
-- Root route redirects to Swagger docs:
-  - `GET /` -> `/docs`
+- Default root route redirects to Swagger docs (`GET /` -> `/docs`) when not in Tauri desktop mode.
+- In Tauri desktop mode, backend serves frontend static assets from `/`.
 
 ### 3.2 Route inventory
 
@@ -241,16 +241,20 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 
 ## 8. Runtime and Deployment
 
-### 8.1 Local mode
+### 8.1 Local mode (v1)
 - Typical launcher: `XREPORT/start_on_windows.bat`
 - Uses local `.env` values and portable runtimes in `XREPORT/resources/runtimes` on Windows.
 
-### 8.2 Cloud mode
+### 8.2 Local mode (v2, packaged desktop)
+- Tauri desktop shell starts `XREPORT/start_on_windows_tauri_backend.bat`.
+- Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
+- Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
+
+### 8.3 Cloud mode
 - Docker Compose services:
   - `backend` (FastAPI/Uvicorn)
   - `frontend` (Nginx serving built frontend)
 - Compose file: `docker-compose.yml`
-
 ## 9. Known Limitations
 
 - No auth/RBAC on API routes.

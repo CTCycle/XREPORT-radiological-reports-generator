@@ -1,0 +1,12 @@
+[package]
+name = "xreport-desktop"
+version = "2.1.0"
+description = "XREPORT desktop shell"
+authors = ["XREPORT"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

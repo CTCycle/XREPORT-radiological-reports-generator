@@ -62,3 +62,7 @@ Thumbs.db
 
 
 
+
+# Tauri
+XREPORT/client/src-tauri/target/
+XREPORT/client/src-tauri/gen/
