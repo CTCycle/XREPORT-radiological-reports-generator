@@ -26,9 +26,9 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "../../pyproject.toml",
-      "../../uv.lock",
-      "../../XREPORT/**"
+      "../../../pyproject.toml",
+      "../../../uv.lock",
+      "../../../XREPORT/**"
     ]
   }
 }
