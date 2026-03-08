@@ -164,7 +164,7 @@ if "%FRONTEND_RUNNING%"=="0" (
     )
 
     echo [INFO] Starting frontend server...
-    start "" /B /D "%FRONTEND_DIST%" "%PYTHON_CMD%" -m http.server %UI_PORT% --bind %UI_HOST%
+    start "" /B /D "%PROJECT_ROOT%" "%PYTHON_CMD%" "%PROJECT_ROOT%\\tests\\spaserver.py" --directory "%FRONTEND_DIST%" --host %UI_HOST% --port %UI_PORT%
     set "STARTED_FRONTEND=1"
     timeout /t 3 /nobreak >nul
 )
@@ -233,3 +233,4 @@ if "%STARTED_FRONTEND%"=="1" (
 )
 
 exit /b %TEST_RESULT%
+
