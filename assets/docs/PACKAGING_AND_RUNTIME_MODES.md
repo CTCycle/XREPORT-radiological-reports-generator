@@ -5,7 +5,7 @@
 XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 
 - Local mode (v1): run web stack directly on host via `start_on_windows.bat`.
-- Local mode (v2): run packaged Tauri desktop shell, which launches backend via `start_on_windows_tauri.bat --backend`.
+- Local mode (v2): build and distribute a packaged Tauri desktop release.
 - Cloud mode: run with Docker (`backend` + `frontend`).
 - Mode switching: replace values in `XREPORT/settings/.env` only.
 
@@ -47,16 +47,15 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 1. Copy local v2 profile values into active env:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
 2. Build desktop package:
-   - `cd XREPORT\client`
-   - `npm ci`
-   - `npm run tauri:build`
-3. Install/run generated package from:
-   - `XREPORT/client/src-tauri/target`
+   - `XREPORT\build_with_tauri.bat`
+3. Distribute installer/executable artifacts from:
+   - `XREPORT/client/src-tauri/target/release/bundle`
 
 Runtime behavior:
-- Tauri starts `XREPORT/start_on_windows_tauri.bat --backend` in the background.
+- The packaged desktop executable starts a local backend process in the background.
 - Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT`.
 - Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/`.
+- End users run the shipped installer/`.exe` and do not need Rust/Cargo.
 
 ## 6. Cloud Mode (Docker)
 
@@ -80,4 +79,3 @@ Cloud topology:
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
 - Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
-
