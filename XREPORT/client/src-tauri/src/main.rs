@@ -14,6 +14,13 @@ struct BackendChildState {
     child: Arc<Mutex<Option<Child>>>,
 }
 
+struct BackendLaunchConfig {
+    host: String,
+    port: u16,
+    reload: bool,
+    install_extras: bool,
+}
+
 fn parse_dotenv_value(raw: &str) -> String {
     let trimmed = raw.trim();
     let unquoted = if (trimmed.starts_with('"') && trimmed.ends_with('"'))
@@ -26,13 +33,24 @@ fn parse_dotenv_value(raw: &str) -> String {
     unquoted.to_string()
 }
 
-fn resolve_backend_host_port(env_path: &Path) -> (String, u16) {
-    let mut host = String::from("127.0.0.1");
-    let mut port = 8000u16;
+fn parse_boolish(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
+fn resolve_backend_launch_config(env_path: &Path) -> BackendLaunchConfig {
+    let mut config = BackendLaunchConfig {
+        host: String::from("127.0.0.1"),
+        port: 8000u16,
+        reload: false,
+        install_extras: false,
+    };
 
     let content = match fs::read_to_string(env_path) {
         Ok(value) => value,
-        Err(_) => return (host, port),
+        Err(_) => return config,
     };
 
     for raw_line in content.lines() {
@@ -48,19 +66,23 @@ fn resolve_backend_host_port(env_path: &Path) -> (String, u16) {
         let key = key.trim();
         let value = parse_dotenv_value(value);
         if key.eq_ignore_ascii_case("FASTAPI_HOST") && !value.is_empty() {
-            host = value;
+            config.host = value;
         } else if key.eq_ignore_ascii_case("FASTAPI_PORT") {
             if let Ok(parsed) = value.parse::<u16>() {
-                port = parsed;
+                config.port = parsed;
             }
+        } else if key.eq_ignore_ascii_case("RELOAD") {
+            config.reload = parse_boolish(&value);
+        } else if key.eq_ignore_ascii_case("OPTIONAL_DEPENDENCIES") {
+            config.install_extras = parse_boolish(&value);
         }
     }
 
-    if host == "0.0.0.0" {
-        host = String::from("127.0.0.1");
+    if config.host == "0.0.0.0" {
+        config.host = String::from("127.0.0.1");
     }
 
-    (host, port)
+    config
 }
 
 fn can_connect(host: &str, port: u16) -> bool {
@@ -96,22 +118,51 @@ fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
     }
 }
 
-fn find_launcher_path(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
+fn is_workspace_root(candidate: &Path) -> bool {
+    candidate.join("pyproject.toml").is_file()
+        && candidate
+            .join("XREPORT")
+            .join("server")
+            .join("app.py")
+            .is_file()
+}
+
+fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     if let Ok(resource_dir) = app_handle.path().resource_dir() {
-        candidates.push(resource_dir.join("XREPORT").join("start_on_windows_tauri.bat"));
-        candidates.push(resource_dir.join("start_on_windows_tauri.bat"));
+        candidates.push(resource_dir.clone());
+        if let Some(parent) = resource_dir.parent() {
+            candidates.push(parent.to_path_buf());
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            candidates.push(exe_dir.to_path_buf());
+            candidates.push(exe_dir.join("resources"));
+        }
     }
 
     if let Ok(current_dir) = std::env::current_dir() {
-        candidates.push(current_dir.join("start_on_windows_tauri.bat"));
-        candidates.push(current_dir.join("..").join("start_on_windows_tauri.bat"));
-        candidates.push(current_dir.join("..").join("..").join("start_on_windows_tauri.bat"));
-        candidates.push(current_dir.join("XREPORT").join("start_on_windows_tauri.bat"));
+        candidates.push(current_dir.clone());
+        if let Some(parent) = current_dir.parent() {
+            candidates.push(parent.to_path_buf());
+        }
     }
 
-    candidates.into_iter().find(|candidate| candidate.is_file())
+    let mut expanded: Vec<PathBuf> = Vec::new();
+    for candidate in candidates {
+        expanded.push(candidate.clone());
+        if let Some(parent) = candidate.parent() {
+            expanded.push(parent.to_path_buf());
+            if let Some(grand_parent) = parent.parent() {
+                expanded.push(grand_parent.to_path_buf());
+            }
+        }
+    }
+
+    expanded.into_iter().find(|candidate| is_workspace_root(candidate))
 }
 
 fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Result<(), String> {
@@ -124,28 +175,124 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
 
     #[cfg(target_os = "windows")]
     {
-        let launcher = find_launcher_path(app_handle)
-            .ok_or_else(|| String::from("Cannot find start_on_windows_tauri.bat in app resources or workspace."))?;
-
-        let project_dir = launcher
+        let workspace_root = find_workspace_root(app_handle).ok_or_else(|| {
+            String::from("Cannot resolve packaged backend workspace (missing pyproject.toml/XREPORT).")
+        })?;
+        let project_dir = workspace_root.join("XREPORT");
+        let env_path = project_dir.join("settings").join(".env");
+        let backend_config = resolve_backend_launch_config(&env_path);
+        let uv_exe = project_dir
+            .join("resources")
+            .join("runtimes")
+            .join("uv")
+            .join("uv.exe");
+        let python_exe = project_dir
+            .join("resources")
+            .join("runtimes")
+            .join("python")
+            .join("python.exe");
+        let python_dir = python_exe
             .parent()
-            .ok_or_else(|| String::from("Launcher path has no parent directory."))?
+            .ok_or_else(|| String::from("Invalid bundled python path."))?
             .to_path_buf();
 
-        let env_path = project_dir.join("settings").join(".env");
-        let (backend_host, backend_port) = resolve_backend_host_port(&env_path);
+        if !uv_exe.is_file() {
+            return Err(format!("Bundled uv runtime not found at {}", uv_exe.display()));
+        }
+        if !python_exe.is_file() {
+            return Err(format!(
+                "Bundled python runtime not found at {}",
+                python_exe.display()
+            ));
+        }
 
-        let launcher_str = launcher.to_string_lossy().to_string();
-        let child = Command::new("cmd")
-            .arg("/c")
-            .arg(launcher_str)
-            .arg("--backend")
-            .current_dir(project_dir)
+        let python_exe_str = python_exe.to_string_lossy().to_string();
+        let mut sync_args = vec![String::from("sync")];
+        if backend_config.install_extras {
+            sync_args.push(String::from("--all-extras"));
+        }
+
+        let mut sync_with_embedded_args = vec![
+            String::from("sync"),
+            String::from("--python"),
+            python_exe_str.clone(),
+        ];
+        if backend_config.install_extras {
+            sync_with_embedded_args.push(String::from("--all-extras"));
+        }
+
+        let embedded_sync_ok = Command::new(&uv_exe)
+            .args(sync_with_embedded_args.iter().map(|s| s.as_str()))
+            .current_dir(&workspace_root)
+            .env("UV_LINK_MODE", "copy")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|error| format!("Failed to run uv sync (embedded python): {error}"))?
+            .success();
+
+        let mut use_uv_managed_python = false;
+        if !embedded_sync_ok {
+            let fallback_sync_ok = Command::new(&uv_exe)
+                .args(sync_args.iter().map(|s| s.as_str()))
+                .current_dir(&workspace_root)
+                .env("UV_LINK_MODE", "copy")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+                .map_err(|error| format!("Failed to run uv sync fallback: {error}"))?
+                .success();
+            if !fallback_sync_ok {
+                return Err(String::from("uv sync failed for packaged runtime."));
+            }
+            use_uv_managed_python = true;
+        }
+
+        let backend_host = backend_config.host.clone();
+        let backend_port = backend_config.port;
+        let backend_port_str = backend_port.to_string();
+        let mut child_command = Command::new(&uv_exe);
+        if use_uv_managed_python {
+            child_command
+                .arg("run")
+                .arg("python")
+                .arg("-m")
+                .arg("uvicorn");
+            child_command.env_remove("PYTHONHOME");
+            child_command.env_remove("PYTHONPATH");
+        } else {
+            child_command
+                .arg("run")
+                .arg("--python")
+                .arg(&python_exe_str)
+                .arg("python")
+                .arg("-m")
+                .arg("uvicorn")
+                .env("PYTHONHOME", python_dir.to_string_lossy().to_string())
+                .env("PYTHONPATH", "")
+                .env("PYTHONNOUSERSITE", "1");
+        }
+        child_command
+            .arg("XREPORT.server.app:app")
+            .arg("--host")
+            .arg(&backend_host)
+            .arg("--port")
+            .arg(&backend_port_str)
+            .arg("--log-level")
+            .arg("info");
+        if backend_config.reload {
+            child_command.arg("--reload");
+        }
+
+        let child = child_command
+            .current_dir(&workspace_root)
+            .env("XREPORT_TAURI_MODE", "true")
+            .env("UV_LINK_MODE", "copy")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|error| format!("Failed to start backend launcher: {error}"))?;
+            .map_err(|error| format!("Failed to start packaged backend process: {error}"))?;
 
         {
             let mut guard = state
@@ -185,7 +332,7 @@ fn stop_backend(state: &BackendChildState) {
         if let Some(child) = guard.as_mut() {
             #[cfg(target_os = "windows")]
             {
-                // Ensure cmd + uv/python descendants are terminated when the app exits.
+                // Ensure uv/python descendants are terminated when the app exits.
                 let _ = Command::new("taskkill")
                     .args(["/PID", &child.id().to_string(), "/T", "/F"])
                     .stdout(Stdio::null())
