@@ -29,16 +29,16 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../../pyproject.toml": "pyproject.toml",
-      "../../../uv.lock": "uv.lock",
-      "../../../XREPORT/server": "XREPORT/server",
-      "../../../XREPORT/scripts": "XREPORT/scripts",
-      "../../../XREPORT/settings": "XREPORT/settings",
-      "../../../XREPORT/resources/templates": "XREPORT/resources/templates",
-      "../../../XREPORT/resources/tokenizers/distilbert-base-uncased": "XREPORT/resources/tokenizers/distilbert-base-uncased",
-      "../../../XREPORT/resources/runtimes/python": "XREPORT/resources/runtimes/python",
-      "../../../XREPORT/resources/runtimes/uv": "XREPORT/resources/runtimes/uv",
-      "../../../XREPORT/resources/runtimes/nodejs": "XREPORT/resources/runtimes/nodejs"
+      "r/pyproject.toml": "pyproject.toml",
+      "r/uv.lock": "uv.lock",
+      "r/server": "XREPORT/server",
+      "r/scripts": "XREPORT/scripts",
+      "r/settings": "XREPORT/settings",
+      "r/client/dist": "XREPORT/client/dist",
+      "r/resources/templates": "XREPORT/resources/templates",
+      "r/resources/tokenizers/distilbert-base-uncased": "XREPORT/resources/tokenizers/distilbert-base-uncased",
+      "r/resources/runtimes/python": "XREPORT/resources/runtimes/python",
+      "r/resources/runtimes/uv": "XREPORT/resources/runtimes/uv"
     }
   }
 }
