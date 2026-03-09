@@ -1,4 +1,5 @@
 # Project-specific generated/runtime artifacts
+release/**
 XREPORT/resources/models/**
 XREPORT/resources/checkpoints/**
 XREPORT/resources/database/**
