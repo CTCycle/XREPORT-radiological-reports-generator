@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{Manager, RunEvent};
 
@@ -210,6 +210,37 @@ fn configure_background_command(command: &mut Command) -> &mut Command {
     command
 }
 
+fn run_command_with_timeout(
+    command: &mut Command,
+    timeout: Duration,
+    context: &str,
+) -> Result<bool, String> {
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("Failed to spawn {context}: {error}"))?;
+    let start = Instant::now();
+
+    loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("Failed while waiting for {context}: {error}"))?
+        {
+            return Ok(status.success());
+        }
+
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!(
+                "{context} timed out after {} seconds.",
+                timeout.as_secs()
+            ));
+        }
+
+        thread::sleep(Duration::from_millis(250));
+    }
+}
+
 fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Result<(), String> {
     #[cfg(not(target_os = "windows"))]
     {
@@ -236,10 +267,11 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             .join("runtimes")
             .join("python")
             .join("python.exe");
-        let python_dir = python_exe
-            .parent()
-            .ok_or_else(|| String::from("Invalid bundled python path."))?
-            .to_path_buf();
+        let venv_python_exe = workspace_root
+            .join(".venv")
+            .join("Scripts")
+            .join("python.exe");
+        let uv_cache_dir = workspace_root.join(".uv-cache");
 
         if !uv_exe.is_file() {
             return Err(format!("Bundled uv runtime not found at {}", uv_exe.display()));
@@ -251,7 +283,15 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             ));
         }
 
+        fs::create_dir_all(&uv_cache_dir).map_err(|error| {
+            format!(
+                "Cannot create uv cache directory at {}: {error}",
+                uv_cache_dir.display()
+            )
+        })?;
+
         let python_exe_str = python_exe.to_string_lossy().to_string();
+        let uv_cache_dir_str = uv_cache_dir.to_string_lossy().to_string();
         let mut sync_args = vec![String::from("sync")];
         if backend_config.install_extras {
             sync_args.push(String::from("--all-extras"));
@@ -266,60 +306,66 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             sync_with_embedded_args.push(String::from("--all-extras"));
         }
 
-        let mut embedded_sync_command = Command::new(&uv_exe);
-        let embedded_sync_ok = configure_background_command(&mut embedded_sync_command)
-            .args(sync_with_embedded_args.iter().map(|s| s.as_str()))
-            .current_dir(&workspace_root)
-            .env("UV_LINK_MODE", "copy")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map_err(|error| format!("Failed to run uv sync (embedded python): {error}"))?
-            .success();
+        if !venv_python_exe.is_file() {
+            render_startup_status(
+                app_handle,
+                "Synchronizing Python environment. First launch can take several minutes while dependencies are prepared.",
+            );
 
-        let mut use_uv_managed_python = false;
-        if !embedded_sync_ok {
-            let mut fallback_sync_command = Command::new(&uv_exe);
-            let fallback_sync_ok = configure_background_command(&mut fallback_sync_command)
-                .args(sync_args.iter().map(|s| s.as_str()))
+            let mut embedded_sync_command = Command::new(&uv_exe);
+            configure_background_command(&mut embedded_sync_command);
+            embedded_sync_command
+                .args(sync_with_embedded_args.iter().map(|s| s.as_str()))
                 .current_dir(&workspace_root)
                 .env("UV_LINK_MODE", "copy")
+                .env("UV_CACHE_DIR", &uv_cache_dir_str)
                 .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .map_err(|error| format!("Failed to run uv sync fallback: {error}"))?
-                .success();
-            if !fallback_sync_ok {
-                return Err(String::from("uv sync failed for packaged runtime."));
+                .stderr(Stdio::null());
+
+            let embedded_sync_ok = run_command_with_timeout(
+                &mut embedded_sync_command,
+                Duration::from_secs(15 * 60),
+                "uv sync (embedded python)",
+            )?;
+
+            if !embedded_sync_ok {
+                let mut fallback_sync_command = Command::new(&uv_exe);
+                configure_background_command(&mut fallback_sync_command);
+                fallback_sync_command
+                    .args(sync_args.iter().map(|s| s.as_str()))
+                    .current_dir(&workspace_root)
+                    .env("UV_LINK_MODE", "copy")
+                    .env("UV_CACHE_DIR", &uv_cache_dir_str)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
+
+                let fallback_sync_ok = run_command_with_timeout(
+                    &mut fallback_sync_command,
+                    Duration::from_secs(15 * 60),
+                    "uv sync fallback",
+                )?;
+
+                if !fallback_sync_ok {
+                    return Err(String::from("uv sync failed for packaged runtime."));
+                }
             }
-            use_uv_managed_python = true;
+
+            if !venv_python_exe.is_file() {
+                return Err(format!(
+                    "Python environment setup completed but {} is missing.",
+                    venv_python_exe.display()
+                ));
+            }
         }
+
+        render_startup_status(app_handle, "Starting local API service.");
 
         let backend_host = backend_config.host.clone();
         let backend_port = backend_config.port;
         let backend_port_str = backend_port.to_string();
-        let mut child_command = Command::new(&uv_exe);
+        let mut child_command = Command::new(&venv_python_exe);
         configure_background_command(&mut child_command);
-        if use_uv_managed_python {
-            child_command
-                .arg("run")
-                .arg("python")
-                .arg("-m")
-                .arg("uvicorn");
-            child_command.env_remove("PYTHONHOME");
-            child_command.env_remove("PYTHONPATH");
-        } else {
-            child_command
-                .arg("run")
-                .arg("--python")
-                .arg(&python_exe_str)
-                .arg("python")
-                .arg("-m")
-                .arg("uvicorn")
-                .env("PYTHONHOME", python_dir.to_string_lossy().to_string())
-                .env("PYTHONPATH", "")
-                .env("PYTHONNOUSERSITE", "1");
-        }
+        child_command.arg("-m").arg("uvicorn");
         child_command
             .arg("XREPORT.server.app:app")
             .arg("--host")
@@ -336,6 +382,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             .current_dir(&workspace_root)
             .env("XREPORT_TAURI_MODE", "true")
             .env("UV_LINK_MODE", "copy")
+            .env("UV_CACHE_DIR", &uv_cache_dir_str)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

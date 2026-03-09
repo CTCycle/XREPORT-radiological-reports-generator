@@ -118,8 +118,10 @@ Install and run the generated Tauri package.
 
 Runtime behavior:
 - The packaged desktop executable starts its local backend process in the background.
+- Desktop mode uses a workspace-local `.venv` and checks it first; dependency sync runs only if `.venv` is missing.
 - Backend listens on `FASTAPI_HOST` / `FASTAPI_PORT` from `XREPORT/settings/.env`.
 - The desktop window loads the local backend origin once ready.
+- First launch can still take time because Python dependencies (including `torch`/`torchvision`) may be synchronized.
 - End users only run the shipped installer/`.exe`; they do not need Rust/Cargo.
 
 ### 4.3 macOS / Linux
