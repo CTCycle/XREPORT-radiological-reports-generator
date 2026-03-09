@@ -57,8 +57,12 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 
 Runtime behavior:
 - The packaged desktop executable starts a local backend process in the background.
-- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT`.
-- Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/`.
+- The desktop bootstrap checks `<workspace>/.venv/Scripts/python.exe`; `uv sync` is executed only when that environment is missing.
+- The desktop bootstrap stores uv cache in `<workspace>/.uv-cache` (portable-local) instead of relying on `%LOCALAPPDATA%\uv\cache`.
+- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the workspace-local `.venv`.
+- Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/` when the API is reachable.
+- First launch can still be long because model dependencies (for example `torch`/`torchvision`) may need to be resolved; this is independent from v1 runtime state.
+- `uv sync` startup phase has a 15-minute timeout and surfaces an error screen instead of waiting indefinitely.
 - End users run the shipped installer/`.exe` and do not need Rust/Cargo.
 - Do not delete `XREPORT/client/src-tauri`; it contains source/config files, not just build output.
 

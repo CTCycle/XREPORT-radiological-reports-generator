@@ -77,6 +77,10 @@ Run these checks before publishing:
   - ensure `build_with_tauri.bat` resolves `node.exe` and exports its folder in `PATH` before `npm ci`/`npm install`.
 - `tauri:build:release` fails
   - inspect `npm run tauri:build:release` logs in `XREPORT/client`.
+- portable app remains on startup splash for a long time
+  - desktop v2 uses a workspace-local `.venv`; it does not reuse v1 runtime state even if v1 has already run.
+  - first launch may still spend minutes on `uv sync` because `torch`/`torchvision` are large.
+  - verify the app can write `<workspace>/.venv` and `<workspace>/.uv-cache`.
 - app starts but cannot reach backend
   - verify `XREPORT/settings/.env` host/port values and firewall rules.
 
