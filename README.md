@@ -58,7 +58,7 @@ XREPORT\build_with_tauri.bat
 
 `build_with_tauri.bat` installs frontend dependencies, runs `npm run tauri:build:release`, and exports user-facing artifacts to:
 - `release\windows\installers` (preferred: setup `.exe` / `.msi`)
-- `release\windows\portable` (raw app `.exe`)
+- `release\windows\portable` (app `.exe` plus required runtime resources)
 
 If you need to remove the previous desktop build before rebuilding:
 ```bat
@@ -211,5 +211,4 @@ For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
 ## 8. License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
-
 

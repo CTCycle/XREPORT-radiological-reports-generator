@@ -50,6 +50,21 @@ foreach ($file in $portableExeCandidates) {
   Copy-Item -Path $file.FullName -Destination $portableDir -Force
 }
 
+$portableResourceEntries = @(
+  "XREPORT",
+  "pyproject.toml",
+  "uv.lock",
+  "_up_"
+)
+
+foreach ($entry in $portableResourceEntries) {
+  $sourcePath = Join-Path $releaseDir $entry
+  if (Test-Path $sourcePath) {
+    $destinationPath = Join-Path $portableDir $entry
+    Copy-Item -Path $sourcePath -Destination $destinationPath -Recurse -Force
+  }
+}
+
 $instructions = @"
 XREPORT desktop build output
 
@@ -57,8 +72,8 @@ XREPORT desktop build output
    Open installers\ and run the setup executable (.exe) or .msi.
 
 2) Portable executable:
-   portable\ contains the raw app .exe.
-   Use this only if you know all runtime dependencies are satisfied.
+   portable\ contains the app .exe and the required runtime resource payload.
+   Keep the exported contents together in the same directory.
 
 Generated from:
 $bundleDir

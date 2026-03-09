@@ -50,7 +50,7 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
    - `XREPORT\build_with_tauri.bat`
 3. Distribute installer/executable artifacts from:
    - `release/windows/installers` (preferred for end users)
-   - `release/windows/portable` (raw app executable)
+   - `release/windows/portable` (app executable plus required runtime resources)
 4. Clean previous desktop build residue (optional):
    - `cd XREPORT\client && npm run tauri:clean`
    - or use option `3. Clean desktop build artifacts` in `XREPORT\setup_and_maintenance.bat`
@@ -84,5 +84,4 @@ Cloud topology:
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
 - Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
-
 
