@@ -28,6 +28,9 @@ set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
 set "scripts_dir=%project_folder%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
+set "tauri_clean_script=%client_dir%\scripts\clean-tauri-build.ps1"
+set "tauri_release_target=%client_dir%\src-tauri\target\release"
+set "tauri_export_dir=%root_folder%release\windows"
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -40,15 +43,17 @@ echo                         Setup and Maintenance
 echo ==========================================================================
 echo 1. Remove logs
 echo 2. Uninstall app
-echo 3. Initialize database
-echo 4. Exit
+echo 3. Clean desktop build artifacts
+echo 4. Initialize database
+echo 5. Exit
 echo.
-set /p sub_choice="Select an option (1-4): "
+set /p sub_choice="Select an option (1-5): "
 
 if "%sub_choice%"=="1" goto :logs
 if "%sub_choice%"=="2" goto :uninstall
-if "%sub_choice%"=="3" goto :run_init_db
-if "%sub_choice%"=="4" goto :exit
+if "%sub_choice%"=="3" goto :clean_desktop_build
+if "%sub_choice%"=="4" goto :run_init_db
+if "%sub_choice%"=="5" goto :exit
 echo Invalid option, try again.
 pause
 goto :setup_menu
@@ -163,6 +168,46 @@ goto :setup_menu
 call :run_server_script "" "Database initialization" "%init_db_script%"
 goto :setup_menu
 
+:clean_desktop_build
+echo --------------------------------------------------------------------------
+echo This operation removes desktop build residue only:
+echo - %tauri_release_target%
+echo - %tauri_export_dir%
+echo.
+echo It does NOT remove source files in client\src-tauri.
+set /p confirm="Type YES to continue: "
+if /i not "%confirm%"=="YES" (
+  echo [INFO] Desktop build cleanup cancelled.
+  pause
+  goto :setup_menu
+)
+if exist "%tauri_clean_script%" (
+  echo [RUN] Cleaning desktop build artifacts using "%tauri_clean_script%"...
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%tauri_clean_script%"
+  if "%ERRORLEVEL%"=="0" (
+    echo [SUCCESS] Desktop build cleanup completed.
+  ) else (
+    echo [WARN] Cleanup script returned exit code %ERRORLEVEL%.
+  )
+) else (
+  echo [WARN] Cleanup script not found at "%tauri_clean_script%".
+  echo [INFO] Running fallback cleanup.
+  if exist "%tauri_release_target%" (
+    rd /s /q "%tauri_release_target%"
+    echo [INFO] Removed "%tauri_release_target%".
+  ) else (
+    echo [INFO] No Tauri release target found to remove.
+  )
+  if exist "%tauri_export_dir%" (
+    rd /s /q "%tauri_export_dir%"
+    echo [INFO] Removed "%tauri_export_dir%".
+  ) else (
+    echo [INFO] No exported release directory found to remove.
+  )
+)
+pause
+goto :setup_menu
+
 :run_server_script
 set "script_module=%~1"
 set "script_label=%~2"
@@ -205,3 +250,5 @@ exit /b !run_script_ec!
 
 :exit
 endlocal
+
+
