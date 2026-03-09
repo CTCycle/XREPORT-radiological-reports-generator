@@ -49,13 +49,18 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 2. Build desktop package:
    - `XREPORT\build_with_tauri.bat`
 3. Distribute installer/executable artifacts from:
-   - `XREPORT/client/src-tauri/target/release/bundle`
+   - `release/windows/installers` (preferred for end users)
+   - `release/windows/portable` (raw app executable)
+4. Clean previous desktop build residue (optional):
+   - `cd XREPORT\client && npm run tauri:clean`
+   - or use option `3. Clean desktop build artifacts` in `XREPORT\setup_and_maintenance.bat`
 
 Runtime behavior:
 - The packaged desktop executable starts a local backend process in the background.
 - Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT`.
 - Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/`.
 - End users run the shipped installer/`.exe` and do not need Rust/Cargo.
+- Do not delete `XREPORT/client/src-tauri`; it contains source/config files, not just build output.
 
 ## 6. Cloud Mode (Docker)
 
@@ -79,3 +84,5 @@ Cloud topology:
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
 - Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
+
+

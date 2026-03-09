@@ -25,10 +25,39 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "icon": [
+      "icons/icon.ico"
+    ],
     "resources": [
       "../../../pyproject.toml",
       "../../../uv.lock",
-      "../../../XREPORT/**"
+      "../../start_on_windows.bat",
+      "../../server/**/*",
+      "../../scripts/**/*",
+      "../../settings/**/*",
+      "../../resources/templates/**/*",
+      "../../resources/tokenizers/distilbert-base-uncased/models--distilbert-base-uncased/blobs/**/*",
+      "../../resources/tokenizers/distilbert-base-uncased/models--distilbert-base-uncased/refs/**/*",
+      "../../resources/tokenizers/distilbert-base-uncased/models--distilbert-base-uncased/snapshots/12040accade4e8a0f71eabdb258fecc2e7e948be/config.json",
+      "../../resources/tokenizers/distilbert-base-uncased/models--distilbert-base-uncased/snapshots/12040accade4e8a0f71eabdb258fecc2e7e948be/tokenizer.json",
+      "../../resources/tokenizers/distilbert-base-uncased/models--distilbert-base-uncased/snapshots/12040accade4e8a0f71eabdb258fecc2e7e948be/vocab.txt",
+      "../../resources/runtimes/python/**/*",
+      "../../resources/runtimes/uv/**/*",
+      "../../resources/runtimes/nodejs/node_modules/**/*",
+      "../../resources/runtimes/nodejs/node.exe",
+      "../../resources/runtimes/nodejs/npm",
+      "../../resources/runtimes/nodejs/npm.cmd",
+      "../../resources/runtimes/nodejs/npm.ps1",
+      "../../resources/runtimes/nodejs/npx",
+      "../../resources/runtimes/nodejs/npx.cmd",
+      "../../resources/runtimes/nodejs/npx.ps1",
+      "../../resources/runtimes/nodejs/nodevars.bat",
+      "../../resources/runtimes/nodejs/corepack",
+      "../../resources/runtimes/nodejs/corepack.cmd",
+      "../../resources/runtimes/nodejs/install_tools.bat",
+      "../../resources/runtimes/nodejs/README.md",
+      "../../resources/runtimes/nodejs/LICENSE",
+      "../../resources/runtimes/nodejs/CHANGELOG.md"
     ]
   }
 }

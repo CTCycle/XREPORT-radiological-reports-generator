@@ -9,7 +9,10 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
-    "tauri:build": "tauri build --config src-tauri/tauri.conf.json"
+    "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
+    "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/export-windows-artifacts.ps1",
+    "tauri:build:release": "npm run tauri:build && npm run tauri:export:windows",
+    "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-tauri-build.ps1"
   },
   "dependencies": {
     "lucide-react": "^0.300.0",
@@ -27,4 +30,3 @@
     "vite": "^5.0.8"
   }
 }
-
