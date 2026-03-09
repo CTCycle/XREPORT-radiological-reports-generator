@@ -2,6 +2,8 @@
 
 use std::fs;
 use std::net::{TcpStream, ToSocketAddrs};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -10,6 +12,10 @@ use std::time::Duration;
 
 use tauri::{Manager, RunEvent};
 
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(Clone)]
 struct BackendChildState {
     child: Arc<Mutex<Option<Child>>>,
 }
@@ -107,10 +113,25 @@ fn js_escape(raw: &str) -> String {
         .replace('\r', "")
 }
 
-fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
-    let escaped = js_escape(message);
+fn render_startup_screen(
+    app_handle: &tauri::AppHandle,
+    title: &str,
+    message: &str,
+    accent: &str,
+    show_spinner: bool,
+) {
+    let escaped_title = js_escape(title);
+    let escaped_message = js_escape(message);
+    let spinner_markup = if show_spinner {
+        format!(
+            "<div style='display:flex;align-items:center;gap:14px;margin:0 0 20px 0;'><div style='width:22px;height:22px;border:3px solid rgba(226,232,240,0.20);border-top-color:{accent};border-right-color:{accent};border-radius:50%;animation:xreport-spin 0.85s linear infinite;'></div><div style='font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#94a3b8;'>Launching services</div></div>"
+        )
+    } else {
+        String::new()
+    };
+
     let script = format!(
-        "document.body.style.background='#0f172a';document.body.style.color='#e2e8f0';document.body.style.fontFamily='Segoe UI, sans-serif';document.body.style.padding='20px';document.body.innerHTML='<h2>XREPORT Desktop startup error</h2><pre style=\"white-space:pre-wrap;line-height:1.4;\">{escaped}</pre>';"
+        "document.body.style.margin='0';document.body.style.background='radial-gradient(circle at top, #16213a 0%, #0f172a 58%, #020617 100%)';document.body.style.color='#e2e8f0';document.body.style.fontFamily='Segoe UI, sans-serif';document.body.innerHTML=\"<style>@keyframes xreport-spin{{from{{transform:rotate(0deg)}}to{{transform:rotate(360deg)}}}}</style><div style='min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;box-sizing:border-box;'><div style='max-width:720px;width:100%;background:rgba(15,23,42,0.82);backdrop-filter:blur(12px);border:1px solid rgba(148,163,184,0.20);border-radius:22px;padding:32px 34px;box-shadow:0 28px 70px rgba(0,0,0,0.42);'><div style='width:64px;height:6px;border-radius:999px;background:{accent};margin-bottom:20px;'></div>{spinner_markup}<h2 style='margin:0 0 12px 0;font-size:30px;font-weight:600;'>\"+ '{escaped_title}' +\"</h2><pre style='margin:0;white-space:pre-wrap;line-height:1.6;font-size:15px;color:#cbd5e1;'>\"+ '{escaped_message}' +\"</pre></div></div>\";"
     );
 
     if let Some(window) = app_handle.get_webview_window("main") {
@@ -118,13 +139,29 @@ fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
     }
 }
 
+fn render_startup_status(app_handle: &tauri::AppHandle, message: &str) {
+    render_startup_screen(
+        app_handle,
+        "Starting XREPORT Desktop",
+        message,
+        "#38bdf8",
+        true,
+    );
+}
+
+fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
+    render_startup_screen(
+        app_handle,
+        "XREPORT Desktop startup error",
+        message,
+        "#f87171",
+        false,
+    );
+}
+
 fn is_workspace_root(candidate: &Path) -> bool {
     candidate.join("pyproject.toml").is_file()
-        && candidate
-            .join("XREPORT")
-            .join("server")
-            .join("app.py")
-            .is_file()
+        && candidate.join("XREPORT").join("server").join("app.py").is_file()
 }
 
 fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
@@ -163,6 +200,14 @@ fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     }
 
     expanded.into_iter().find(|candidate| is_workspace_root(candidate))
+}
+
+fn configure_background_command(command: &mut Command) -> &mut Command {
+    #[cfg(target_os = "windows")]
+    {
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
 }
 
 fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Result<(), String> {
@@ -221,7 +266,8 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             sync_with_embedded_args.push(String::from("--all-extras"));
         }
 
-        let embedded_sync_ok = Command::new(&uv_exe)
+        let mut embedded_sync_command = Command::new(&uv_exe);
+        let embedded_sync_ok = configure_background_command(&mut embedded_sync_command)
             .args(sync_with_embedded_args.iter().map(|s| s.as_str()))
             .current_dir(&workspace_root)
             .env("UV_LINK_MODE", "copy")
@@ -233,7 +279,8 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
 
         let mut use_uv_managed_python = false;
         if !embedded_sync_ok {
-            let fallback_sync_ok = Command::new(&uv_exe)
+            let mut fallback_sync_command = Command::new(&uv_exe);
+            let fallback_sync_ok = configure_background_command(&mut fallback_sync_command)
                 .args(sync_args.iter().map(|s| s.as_str()))
                 .current_dir(&workspace_root)
                 .env("UV_LINK_MODE", "copy")
@@ -252,6 +299,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         let backend_port = backend_config.port;
         let backend_port_str = backend_port.to_string();
         let mut child_command = Command::new(&uv_exe);
+        configure_background_command(&mut child_command);
         if use_uv_managed_python {
             child_command
                 .arg("run")
@@ -318,7 +366,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             }
 
             let timeout_message = format!(
-                "Timed out waiting for backend at http://{backend_host}:{backend_port}/.\\nCheck XREPORT/settings/.env and backend bootstrap prerequisites."
+                "Timed out waiting for backend at http://{backend_host}:{backend_port}/.\n\nThe packaged backend may still be installing Python dependencies. If this is the first launch, wait a little longer and try again."
             );
             render_startup_error(&app_handle_clone, &timeout_message);
         });
@@ -332,8 +380,8 @@ fn stop_backend(state: &BackendChildState) {
         if let Some(child) = guard.as_mut() {
             #[cfg(target_os = "windows")]
             {
-                // Ensure uv/python descendants are terminated when the app exits.
-                let _ = Command::new("taskkill")
+                let mut taskkill = Command::new("taskkill");
+                let _ = configure_background_command(&mut taskkill)
                     .args(["/PID", &child.id().to_string(), "/T", "/F"])
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
@@ -365,9 +413,18 @@ fn main() {
                 return Ok(());
             };
 
-            if let Err(error) = spawn_backend(app.handle(), state.inner()) {
-                render_startup_error(app.handle(), &error);
-            }
+            render_startup_status(
+                app.handle(),
+                "Preparing local backend. First launch can take a minute while Python dependencies are synchronized.\n\nThis window will switch automatically once the API is ready.",
+            );
+
+            let app_handle = app.handle().clone();
+            let state = state.inner().clone();
+            thread::spawn(move || {
+                if let Err(error) = spawn_backend(&app_handle, &state) {
+                    render_startup_error(&app_handle, &error);
+                }
+            });
 
             Ok(())
         })

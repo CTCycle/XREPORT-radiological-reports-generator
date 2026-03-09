@@ -129,17 +129,25 @@ if not exist "%node_exe%" (
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPDL%" "%nodejs_zip_url%" "%nodejs_zip_path%" || goto error
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPEXP%" "%nodejs_zip_path%" "%nodejs_dir%" || goto error
   del /q "%nodejs_zip_path%" >nul 2>&1
+)
 
-  for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
-  if not defined found_node (
-    echo [FATAL] node.exe not found after extraction.
-    goto error
-  )
+set "node_archive_dir=%nodejs_dir%\node-v%nodejs_version%-win-x64"
+if exist "%node_archive_dir%\node.exe" (
+  call :promote_node_runtime "%node_archive_dir%"
+  if errorlevel 1 goto error
+)
 
-  if /i not "%found_node%"=="%node_exe%" (
-    for %%D in ("!found_node!") do set "node_parent=%%~dpD"
-    xcopy /s /e /i /q "!node_parent!*" "%nodejs_dir%" >nul
-  )
+for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
+if not defined found_node (
+  echo [FATAL] node.exe not found after extraction.
+  goto error
+)
+
+if /i not "!found_node!"=="%node_exe%" (
+  for %%D in ("!found_node!") do set "node_parent=%%~dpD"
+  if "!node_parent:~-1!"=="\" set "node_parent=!node_parent:~0,-1!"
+  call :promote_node_runtime "!node_parent!"
+  if errorlevel 1 goto error
 )
 
 if exist "%node_exe%" (
@@ -295,6 +303,22 @@ start "" "%UI_URL%"
 echo [SUCCESS] Backend and frontend correctly launched
 goto cleanup
 
+:promote_node_runtime
+set "node_source_dir=%~1"
+if not defined node_source_dir exit /b 1
+for %%D in ("%~1") do set "node_source_dir=%%~fD"
+if /i "!node_source_dir!"=="%nodejs_dir%" exit /b 0
+
+robocopy "!node_source_dir!" "%nodejs_dir%" /MOVE /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NC /NS >nul
+set "node_move_ec=!ERRORLEVEL!"
+if !node_move_ec! geq 8 (
+  echo [FATAL] Failed to flatten portable Node.js runtime from "!node_source_dir!".
+  exit /b !node_move_ec!
+)
+
+if exist "!node_source_dir!" rd /s /q "!node_source_dir!" >nul 2>&1
+exit /b 0
+
 REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
@@ -319,3 +343,4 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+

@@ -2,13 +2,30 @@
 setlocal enabledelayedexpansion
 
 set "project_folder=%~dp0"
+for %%I in ("%project_folder%..") do set "repo_root=%%~fI"
 set "client_dir=%project_folder%client"
 set "tauri_dir=%client_dir%\src-tauri"
+set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%project_folder%..\release\windows"
+set "runtime_python_exe=%project_folder%resources\runtimes\python\python.exe"
+set "runtime_uv_exe=%project_folder%resources\runtimes\uv\uv.exe"
 set "runtime_node_dir=%project_folder%resources\runtimes\nodejs"
+set "node_cmd=%runtime_node_dir%\node.exe"
+set "npm_cmd=%runtime_node_dir%\npm.cmd"
+
 
 echo [TAURI] Release build helper
+
+echo [CHECK] Validating bundled runtimes...
+call :require_file "%runtime_python_exe%" "embedded Python runtime" || goto build_error
+call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
+call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
+call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
+
+echo [CHECK] Preparing short Tauri bundle sources...
+call :prepare_bundle_sources || goto build_error
+
 
 echo [CHECK] Resolving Cargo...
 set "cargo_cmd="
@@ -29,34 +46,6 @@ if /I not "%cargo_cmd%"=="cargo" (
 )
 set "CARGO=%cargo_cmd%"
 
-echo [CHECK] Resolving npm...
-set "npm_cmd="
-if exist "%runtime_node_dir%\npm.cmd" set "npm_cmd=%runtime_node_dir%\npm.cmd"
-if not defined npm_cmd (
-  npm --version >nul 2>&1
-  if not errorlevel 1 set "npm_cmd=npm"
-)
-if not defined npm_cmd (
-  echo [FATAL] npm not found. Install Node.js or run XREPORT\start_on_windows.bat once.
-  goto build_error
-)
-
-echo [CHECK] Resolving node...
-set "node_cmd="
-if exist "%runtime_node_dir%\node.exe" set "node_cmd=%runtime_node_dir%\node.exe"
-if not defined node_cmd (
-  node --version >nul 2>&1
-  if not errorlevel 1 set "node_cmd=node"
-)
-if not defined node_cmd (
-  for %%I in ("%npm_cmd%") do (
-    if exist "%%~dpInode.exe" set "node_cmd=%%~dpInode.exe"
-  )
-)
-if not defined node_cmd (
-  echo [FATAL] node not found. Install Node.js or run XREPORT\start_on_windows.bat once.
-  goto build_error
-)
 if /I not "%node_cmd%"=="node" (
   for %%I in ("%node_cmd%") do set "PATH=%%~dpI;%PATH%"
 )
@@ -105,6 +94,8 @@ if errorlevel 1 (
 )
 popd >nul
 
+call :cleanup_bundle_sources
+
 echo [OK] Build completed successfully.
 if exist "%release_export_dir%" (
   echo [INFO] User-facing release artifacts:
@@ -120,9 +111,64 @@ if exist "%release_export_dir%" (
 
 endlocal & exit /b 0
 
+:require_file
+if exist "%~1" (
+  echo [OK] %~2 found: %~1
+  exit /b 0
+)
+echo [FATAL] Missing %~2 at "%~1"
+echo         Run XREPORT\start_on_windows.bat first to install the portable runtimes.
+exit /b 1
+
+:prepare_bundle_sources
+call :cleanup_bundle_sources
+
+md "%bundle_source_dir%" >nul 2>&1
+if errorlevel 1 (
+  echo [FATAL] Failed to create bundle source directory "%bundle_source_dir%".
+  exit /b 1
+)
+md "%bundle_source_dir%\resources" >nul 2>&1
+md "%bundle_source_dir%\client" >nul 2>&1
+md "%bundle_source_dir%\resources\tokenizers" >nul 2>&1
+md "%bundle_source_dir%\resources\runtimes" >nul 2>&1
+
+copy /y "%repo_root%\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
+  exit /b 1
+)
+copy /y "%repo_root%\uv.lock" "%bundle_source_dir%\uv.lock" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to stage uv.lock for Tauri bundling.
+  exit /b 1
+)
+
+call :make_junction "%bundle_source_dir%\server" "%project_folder%server" || exit /b 1
+call :make_junction "%bundle_source_dir%\scripts" "%project_folder%scripts" || exit /b 1
+call :make_junction "%bundle_source_dir%\settings" "%project_folder%settings" || exit /b 1
+call :make_junction "%bundle_source_dir%\client\dist" "%client_dir%\dist" || exit /b 1
+call :make_junction "%bundle_source_dir%\resources\templates" "%project_folder%resources\templates" || exit /b 1
+call :make_junction "%bundle_source_dir%\resources\tokenizers\distilbert-base-uncased" "%project_folder%resources\tokenizers\distilbert-base-uncased" || exit /b 1
+call :make_junction "%bundle_source_dir%\resources\runtimes\python" "%project_folder%resources\runtimes\python" || exit /b 1
+call :make_junction "%bundle_source_dir%\resources\runtimes\uv" "%project_folder%resources\runtimes\uv" || exit /b 1
+exit /b 0
+
+:make_junction
+cmd /c mklink /J "%~1" "%~2" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to create junction "%~1" -> "%~2".
+  exit /b 1
+)
+exit /b 0
+
+:cleanup_bundle_sources
+if exist "%bundle_source_dir%" rd /s /q "%bundle_source_dir%" >nul 2>&1
+exit /b 0
+
 :build_error
+call :cleanup_bundle_sources
 echo.
 echo Press any key to close this build script...
 pause >nul
 endlocal & exit /b 1
-
