@@ -15,7 +15,7 @@ Goals:
 1. Maintainer prepares desktop env profile:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
 2. Maintainer runs release build helper:
-   - `XREPORT\build_with_tauri.bat`
+   - `release\tauri\build_with_tauri.bat`
 3. Script installs frontend dependencies and runs:
    - `npm run tauri:build:release`
 4. Artifacts are exported to:
@@ -29,7 +29,7 @@ Goals:
 - `XREPORT/start_on_windows.bat`
   - local mode (v1) web launcher
   - portable runtime bootstrap for development
-- `XREPORT/build_with_tauri.bat`
+- `release/tauri/build_with_tauri.bat`
   - release build helper for desktop packaging
   - build-time checks for Cargo, npm, and node runtime availability
 - `XREPORT/setup_and_maintenance.bat`
@@ -61,7 +61,7 @@ Current resource coverage includes:
 
 Run these checks before publishing:
 
-1. Run `XREPORT\build_with_tauri.bat`.
+1. Run `release\tauri\build_with_tauri.bat`.
 2. Confirm artifacts exist under `release/windows/installers`.
 3. Install/run generated package on a clean Windows machine.
 4. Confirm app starts and backend endpoints are reachable from desktop UI.
