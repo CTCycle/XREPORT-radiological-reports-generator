@@ -1,13 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "project_folder=%~dp0"
-for %%I in ("%project_folder%..") do set "repo_root=%%~fI"
+set "script_dir=%~dp0"
+for %%I in ("%script_dir%..\..") do set "repo_root=%%~fI"
+set "project_folder=%repo_root%\XREPORT\"
 set "client_dir=%project_folder%client"
 set "tauri_dir=%client_dir%\src-tauri"
 set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
-set "release_export_dir=%project_folder%..\release\windows"
+set "release_export_dir=%repo_root%\release\windows"
 set "runtime_python_exe=%project_folder%resources\runtimes\python\python.exe"
 set "runtime_uv_exe=%project_folder%resources\runtimes\uv\uv.exe"
 set "runtime_node_dir=%project_folder%resources\runtimes\nodejs"
@@ -172,3 +173,4 @@ echo.
 echo Press any key to close this build script...
 pause >nul
 endlocal & exit /b 1
+

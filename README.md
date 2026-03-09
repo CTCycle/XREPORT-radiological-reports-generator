@@ -53,7 +53,7 @@ Build prerequisites:
 Build steps:
 ```bat
 copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env
-XREPORT\build_with_tauri.bat
+release\tauri\build_with_tauri.bat
 ```
 
 `build_with_tauri.bat` installs frontend dependencies, runs `npm run tauri:build:release`, and exports user-facing artifacts to:
