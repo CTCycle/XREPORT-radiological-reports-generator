@@ -28,7 +28,7 @@ set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
 set "scripts_dir=%project_folder%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
-set "tauri_clean_script=%client_dir%\scripts\clean-tauri-build.ps1"
+set "tauri_clean_script=%root_folder%release\tauri\scripts\clean-tauri-build.ps1"
 set "tauri_release_target=%client_dir%\src-tauri\target\release"
 set "tauri_export_dir=%root_folder%release\windows"
 
@@ -250,5 +250,4 @@ exit /b !run_script_ec!
 
 :exit
 endlocal
-
 

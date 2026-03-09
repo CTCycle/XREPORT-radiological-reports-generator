@@ -3,10 +3,11 @@ param()
 
 $ErrorActionPreference = "Stop"
 
-$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
+$clientDir = Join-Path $repoRoot "XREPORT\client"
 $pathsToRemove = @(
   (Join-Path $clientDir "src-tauri\target\release"),
-  [System.IO.Path]::GetFullPath((Join-Path $clientDir "..\..\release\windows"))
+  (Join-Path $repoRoot "release\windows")
 )
 
 foreach ($path in $pathsToRemove) {
@@ -19,3 +20,4 @@ foreach ($path in $pathsToRemove) {
 }
 
 Write-Host "[DONE] Build cleanup complete."
+

@@ -1,14 +1,21 @@
 [CmdletBinding()]
 param(
-  [string]$OutputRelativePath = "..\..\release\windows"
+  [string]$OutputPath = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-$clientDir = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
+$clientDir = Join-Path $repoRoot "XREPORT\client"
 $releaseDir = Join-Path $clientDir "src-tauri\target\release"
 $bundleDir = Join-Path $releaseDir "bundle"
-$outputDir = [System.IO.Path]::GetFullPath((Join-Path $clientDir $OutputRelativePath))
+
+if ([string]::IsNullOrWhiteSpace($OutputPath)) {
+  $outputDir = Join-Path $repoRoot "release\windows"
+} else {
+  $outputDir = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputPath))
+}
+
 $installersDir = Join-Path $outputDir "installers"
 $portableDir = Join-Path $outputDir "portable"
 
@@ -94,3 +101,4 @@ if ($portableFiles.Count -eq 0) {
 } else {
   $portableFiles | ForEach-Object { Write-Host " - $($_.FullName)" }
 }
+

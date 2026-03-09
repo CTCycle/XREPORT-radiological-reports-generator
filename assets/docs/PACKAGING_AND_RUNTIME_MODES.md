@@ -47,7 +47,7 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 1. Copy local v2 profile values into active env:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
 2. Build desktop package:
-   - `XREPORT\build_with_tauri.bat`
+   - `release\tauri\build_with_tauri.bat`
 3. Distribute installer/executable artifacts from:
    - `release/windows/installers` (preferred for end users)
    - `release/windows/portable` (app executable plus required runtime resources)

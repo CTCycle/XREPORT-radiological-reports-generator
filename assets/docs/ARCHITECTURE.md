@@ -246,7 +246,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Uses local `.env` values and portable runtimes in `XREPORT/resources/runtimes` on Windows.
 
 ### 8.2 Local mode (v2, packaged desktop)
-- Desktop packages are built with `XREPORT/build_with_tauri.bat` (build-time helper).
+- Desktop packages are built with `release/tauri/build_with_tauri.bat` (build-time helper).
 - At runtime, the packaged Tauri executable starts a local backend process and waits for backend readiness.
 - Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
 - Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
@@ -262,6 +262,3 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Filesystem browse endpoint is Windows-drive oriented.
 - `/training/stop` is a legacy compatibility endpoint; job cancellation via `/training/jobs/{job_id}` is the primary path.
 - `vite.config.ts` defines websocket proxy entries, but backend route modules currently expose polling-based APIs only.
-
-
-
