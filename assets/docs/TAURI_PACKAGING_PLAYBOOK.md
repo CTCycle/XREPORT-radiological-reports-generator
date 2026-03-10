@@ -14,15 +14,17 @@ Goals:
 
 1. Maintainer prepares desktop env profile:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
-2. Maintainer runs release build helper:
+2. If desktop branding changed, maintainer regenerates desktop icons:
+   - `cd XREPORT\client && npm run tauri:icon`
+3. Maintainer runs release build helper:
    - `release\tauri\build_with_tauri.bat`
-3. Script installs frontend dependencies and runs:
+4. Script installs frontend dependencies and runs:
    - `npm run tauri:build:release`
-4. Artifacts are exported to:
+5. Artifacts are exported to:
    - `release/windows/installers` (preferred for users)
    - `release/windows/portable` (raw app executable)
-5. Maintainer publishes installer artifacts (for example, GitHub Releases).
-6. End user runs installer/`.exe` directly.
+6. Maintainer publishes installer artifacts (for example, GitHub Releases).
+7. End user runs installer/`.exe` directly.
 
 ## 3. Script Roles
 
@@ -32,10 +34,16 @@ Goals:
 - `release/tauri/build_with_tauri.bat`
   - release build helper for desktop packaging
   - build-time checks for Cargo, npm, and node runtime availability
+- `XREPORT/client/package.json` -> `npm run tauri:icon`
+  - regenerates desktop icon assets from `XREPORT/client/public/favicon.png`
+  - removes generated mobile icon folders so the repo stays desktop-only
 - `XREPORT/setup_and_maintenance.bat`
   - maintenance menu including `3. Clean desktop build artifacts`
 
 ## 4. Cleanup Guidance
+
+If the desktop app branding changes, regenerate icons before packaging:
+- `cd XREPORT\client && npm run tauri:icon`
 
 Use one of these methods to clean desktop build residue:
 - `cd XREPORT\client && npm run tauri:clean`
@@ -66,6 +74,8 @@ Run these checks before publishing:
 3. Install/run generated package on a clean Windows machine.
 4. Confirm app starts and backend endpoints are reachable from desktop UI.
 5. Confirm end-user flow works without globally installed Rust/Cargo.
+6. Confirm splash/status text does not expose absolute filesystem paths.
+7. Confirm the installer and portable `.exe` show the expected app icon.
 
 ## 7. Common Failure Modes
 
@@ -77,10 +87,14 @@ Run these checks before publishing:
   - ensure `build_with_tauri.bat` resolves `node.exe` and exports its folder in `PATH` before `npm ci`/`npm install`.
 - `tauri:build:release` fails
   - inspect `npm run tauri:build:release` logs in `XREPORT/client`.
-- portable app remains on startup splash for a long time
-  - desktop v2 uses a workspace-local `.venv`; it does not reuse v1 runtime state even if v1 has already run.
-  - first launch may still spend minutes on `uv sync` because `torch`/`torchvision` are large.
-  - verify the app can write `<workspace>/.venv` and `<workspace>/.uv-cache`.
+- icon generation fails
+  - verify `XREPORT/client/public/favicon.png` is a real square PNG, not a renamed JPEG or another format.
+- rebuilt app still shows the old icon in Windows Explorer
+  - verify the built `.exe` was replaced, then rename the file, move it to a new folder, or refresh Windows icon cache because Explorer can keep stale icon cache entries for the same path/name.
+- portable/installed app remains on startup splash for a long time
+  - desktop v2 first looks for an existing `.venv` in discovered valid workspaces; when one is available it is reused.
+  - if no reusable `.venv` exists, runtime is created under a writable root (`<workspace>` when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
+  - first launch may still spend minutes on `uv sync --frozen` because `torch`/`torchvision` are large.
+  - verify the app can write `<runtime-root>\.venv` and `<runtime-root>\.uv-cache`.
 - app starts but cannot reach backend
   - verify `XREPORT/settings/.env` host/port values and firewall rules.
-

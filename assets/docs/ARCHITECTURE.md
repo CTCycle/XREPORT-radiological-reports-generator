@@ -248,6 +248,9 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 ### 8.2 Local mode (v2, packaged desktop)
 - Desktop packages are built with `release/tauri/build_with_tauri.bat` (build-time helper).
 - At runtime, the packaged Tauri executable starts a local backend process and waits for backend readiness.
+- Runtime bootstrap prefers a discovered valid workspace that already has `.venv\Scripts\python.exe`; otherwise it creates runtime state in a writable root (workspace root when writable, else `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
+- Dependency sync runs through `uv sync --frozen` only when the resolved runtime `.venv` is missing.
+- Splash synchronization status messaging remains generic and does not include absolute runtime paths.
 - Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
 - Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
 ### 8.3 Cloud mode
@@ -262,3 +265,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Filesystem browse endpoint is Windows-drive oriented.
 - `/training/stop` is a legacy compatibility endpoint; job cancellation via `/training/jobs/{job_id}` is the primary path.
 - `vite.config.ts` defines websocket proxy entries, but backend route modules currently expose polling-based APIs only.
+
+
+
+
