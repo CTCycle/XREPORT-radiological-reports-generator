@@ -1,4 +1,4 @@
-import { BarChart2, FileText, Image, Loader, CheckCircle, AlertCircle } from 'lucide-react';
+import { BarChart2, FileText, Image, Loader } from 'lucide-react';
 import {
     BarChart,
     Bar,
@@ -15,14 +15,16 @@ import {
     ImageStatistics,
     TextStatistics,
 } from '../services/validationService';
+import { useJobProgressState, JobExecutionStatus } from '../hooks/useJobProgressState';
 import JobProgress from './shared/JobProgress';
+import DashboardStatusHeader from './shared/DashboardStatusHeader';
 
 interface ValidationDashboardProps {
     isLoading: boolean;
     validationResult: ValidationResponse | null;
     error: string | null;
     progress?: number | null;
-    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
+    status?: JobExecutionStatus;
 }
 
 function PixelDistributionChart({ data }: { data: PixelDistribution }) {
@@ -37,7 +39,7 @@ function PixelDistributionChart({ data }: { data: PixelDistribution }) {
     }
 
     return (
-            <div className="chart-section">
+        <div className="chart-section">
             <div className="chart-title">
                 <BarChart2 size={16} className="chart-title-icon" />
                 Pixel Intensity Distribution
@@ -164,35 +166,16 @@ export default function ValidationDashboard({
         validationResult.image_statistics ||
         validationResult.pixel_distribution
     );
-    const isRunning = status === 'running' || status === 'pending';
-    const showProgress = isLoading || isRunning;
+    const { isRunning, showProgress } = useJobProgressState(isLoading, status);
 
     return (
         <div className="validation-dashboard">
-            <div className="dashboard-header">
-                <div className="dashboard-title">
-                    <BarChart2 size={20} />
-                    Dataset Validation Results
-                </div>
-                {hasResults && (
-                    <div className="dashboard-status success">
-                        <CheckCircle size={14} />
-                        Complete
-                    </div>
-                )}
-                {isRunning && !hasResults && (
-                    <div className="dashboard-status running">
-                        <Loader size={14} className="spin" />
-                        Running
-                    </div>
-                )}
-                {error && (
-                    <div className="dashboard-status error">
-                        <AlertCircle size={14} />
-                        Error
-                    </div>
-                )}
-            </div>
+            <DashboardStatusHeader
+                title="Dataset Validation Results"
+                hasResults={Boolean(hasResults)}
+                isRunning={isRunning}
+                error={error}
+            />
 
             <JobProgress show={showProgress} progress={progress} status={status} />
 
