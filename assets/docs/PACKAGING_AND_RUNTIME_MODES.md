@@ -46,24 +46,32 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 
 1. Copy local v2 profile values into active env:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
-2. Build desktop package:
+2. If desktop branding changed, regenerate desktop icons from the shared favicon source:
+   - `cd XREPORT\client && npm run tauri:icon`
+3. Build desktop package:
    - `release\tauri\build_with_tauri.bat`
-3. Distribute installer/executable artifacts from:
+4. Distribute installer/executable artifacts from:
    - `release/windows/installers` (preferred for end users)
    - `release/windows/portable` (app executable plus required runtime resources)
-4. Clean previous desktop build residue (optional):
+5. Clean previous desktop build residue (optional):
    - `cd XREPORT\client && npm run tauri:clean`
    - or use option `3. Clean desktop build artifacts` in `XREPORT\setup_and_maintenance.bat`
 
 Runtime behavior:
 - The packaged desktop executable starts a local backend process in the background.
-- The desktop bootstrap checks `<workspace>/.venv/Scripts/python.exe`; `uv sync` is executed only when that environment is missing.
-- The desktop bootstrap stores uv cache in `<workspace>/.uv-cache` (portable-local) instead of relying on `%LOCALAPPDATA%\uv\cache`.
-- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the workspace-local `.venv`.
+- The desktop bootstrap discovers packaged workspace roots and prefers a valid workspace that already has `.venv\Scripts\python.exe`.
+- When no reusable `.venv` is found, runtime files are created in a writable location: packaged workspace root when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime` (installer-safe fallback).
+- `uv sync` runs only when `<runtime-root>\.venv\Scripts\python.exe` is missing and uses `UV_PROJECT_ENVIRONMENT` plus `--frozen` for lockfile-backed sync.
+- The desktop bootstrap stores uv cache in `<runtime-root>\.uv-cache`.
+- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the resolved runtime `.venv`.
 - Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/` when the API is reachable.
 - First launch can still be long because model dependencies (for example `torch`/`torchvision`) may need to be resolved; this is independent from v1 runtime state.
 - `uv sync` startup phase has a 15-minute timeout and surfaces an error screen instead of waiting indefinitely.
+- Startup splash synchronization text is intentionally generic and does not expose absolute filesystem paths.
 - End users run the shipped installer/`.exe` and do not need Rust/Cargo.
+- Desktop icon assets are sourced from `XREPORT/client/public/favicon.png` and regenerated via `npm run tauri:icon`.
+- The repository intentionally keeps only desktop icon outputs in `XREPORT/client/src-tauri/icons`; generated `android` and `ios` folders are removed after regeneration.
+- Windows Explorer can cache stale icons for unchanged exe names/paths; if a rebuilt app appears unchanged, verify the binary or refresh the icon cache before assuming packaging failed.
 - Do not delete `XREPORT/client/src-tauri`; it contains source/config files, not just build output.
 
 ## 6. Cloud Mode (Docker)
@@ -88,4 +96,3 @@ Cloud topology:
 - Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
 - Docker base images are pinned to explicit tags in `docker/backend.Dockerfile` and `docker/frontend.Dockerfile`.
-

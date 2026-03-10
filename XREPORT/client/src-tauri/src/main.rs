@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::collections::HashSet;
 use std::fs;
 use std::net::{TcpStream, ToSocketAddrs};
 #[cfg(target_os = "windows")]
@@ -161,45 +162,100 @@ fn render_startup_error(app_handle: &tauri::AppHandle, message: &str) {
 
 fn is_workspace_root(candidate: &Path) -> bool {
     candidate.join("pyproject.toml").is_file()
-        && candidate.join("XREPORT").join("server").join("app.py").is_file()
+        && candidate
+            .join("XREPORT")
+            .join("server")
+            .join("app.py")
+            .is_file()
+}
+
+fn has_workspace_venv(candidate: &Path) -> bool {
+    candidate
+        .join(".venv")
+        .join("Scripts")
+        .join("python.exe")
+        .is_file()
+}
+
+fn push_with_ancestors(base: &Path, candidates: &mut Vec<PathBuf>) {
+    let mut cursor = Some(base);
+    while let Some(path) = cursor {
+        candidates.push(path.to_path_buf());
+        cursor = path.parent();
+    }
 }
 
 fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
     if let Ok(resource_dir) = app_handle.path().resource_dir() {
-        candidates.push(resource_dir.clone());
-        if let Some(parent) = resource_dir.parent() {
-            candidates.push(parent.to_path_buf());
-        }
+        push_with_ancestors(&resource_dir, &mut candidates);
     }
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            candidates.push(exe_dir.to_path_buf());
-            candidates.push(exe_dir.join("resources"));
+            push_with_ancestors(exe_dir, &mut candidates);
+            push_with_ancestors(&exe_dir.join("resources"), &mut candidates);
         }
     }
 
     if let Ok(current_dir) = std::env::current_dir() {
-        candidates.push(current_dir.clone());
-        if let Some(parent) = current_dir.parent() {
-            candidates.push(parent.to_path_buf());
-        }
+        push_with_ancestors(&current_dir, &mut candidates);
     }
 
-    let mut expanded: Vec<PathBuf> = Vec::new();
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+    let mut workspace_candidates: Vec<PathBuf> = Vec::new();
     for candidate in candidates {
-        expanded.push(candidate.clone());
-        if let Some(parent) = candidate.parent() {
-            expanded.push(parent.to_path_buf());
-            if let Some(grand_parent) = parent.parent() {
-                expanded.push(grand_parent.to_path_buf());
-            }
+        if seen.insert(candidate.clone()) && is_workspace_root(&candidate) {
+            workspace_candidates.push(candidate);
         }
     }
 
-    expanded.into_iter().find(|candidate| is_workspace_root(candidate))
+    if let Some(with_venv) = workspace_candidates
+        .iter()
+        .find(|candidate| has_workspace_venv(candidate))
+    {
+        return Some(with_venv.clone());
+    }
+
+    workspace_candidates.into_iter().next()
+}
+
+fn directory_is_writable(path: &Path) -> bool {
+    if fs::create_dir_all(path).is_err() {
+        return false;
+    }
+
+    let probe_path = path.join(".xreport-write-probe");
+    let wrote_probe = fs::write(&probe_path, b"ok").is_ok();
+    let _ = fs::remove_file(&probe_path);
+    wrote_probe
+}
+
+fn resolve_runtime_root(
+    app_handle: &tauri::AppHandle,
+    workspace_root: &Path,
+) -> Result<PathBuf, String> {
+    if has_workspace_venv(workspace_root) {
+        return Ok(workspace_root.to_path_buf());
+    }
+
+    if directory_is_writable(workspace_root) {
+        return Ok(workspace_root.to_path_buf());
+    }
+
+    let app_data_dir = app_handle.path().app_local_data_dir().map_err(|error| {
+        format!("Cannot resolve per-user runtime directory for packaged desktop mode: {error}")
+    })?;
+    let runtime_root = app_data_dir.join("runtime");
+    if directory_is_writable(&runtime_root) {
+        return Ok(runtime_root);
+    }
+
+    Err(format!(
+        "Cannot access writable runtime directory at {}.",
+        runtime_root.display()
+    ))
 }
 
 fn configure_background_command(command: &mut Command) -> &mut Command {
@@ -246,14 +302,19 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
     {
         let _ = app_handle;
         let _ = state;
-        return Err(String::from("Local Mode (v2) is currently supported on Windows only."));
+        return Err(String::from(
+            "Local Mode (v2) is currently supported on Windows only.",
+        ));
     }
 
     #[cfg(target_os = "windows")]
     {
         let workspace_root = find_workspace_root(app_handle).ok_or_else(|| {
-            String::from("Cannot resolve packaged backend workspace (missing pyproject.toml/XREPORT).")
+            String::from(
+                "Cannot resolve packaged backend workspace (missing pyproject.toml/XREPORT).",
+            )
         })?;
+        let runtime_root = resolve_runtime_root(app_handle, &workspace_root)?;
         let project_dir = workspace_root.join("XREPORT");
         let env_path = project_dir.join("settings").join(".env");
         let backend_config = resolve_backend_launch_config(&env_path);
@@ -267,14 +328,15 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             .join("runtimes")
             .join("python")
             .join("python.exe");
-        let venv_python_exe = workspace_root
-            .join(".venv")
-            .join("Scripts")
-            .join("python.exe");
-        let uv_cache_dir = workspace_root.join(".uv-cache");
+        let venv_dir = runtime_root.join(".venv");
+        let venv_python_exe = venv_dir.join("Scripts").join("python.exe");
+        let uv_cache_dir = runtime_root.join(".uv-cache");
 
         if !uv_exe.is_file() {
-            return Err(format!("Bundled uv runtime not found at {}", uv_exe.display()));
+            return Err(format!(
+                "Bundled uv runtime not found at {}",
+                uv_exe.display()
+            ));
         }
         if !python_exe.is_file() {
             return Err(format!(
@@ -283,19 +345,14 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             ));
         }
 
-        fs::create_dir_all(&uv_cache_dir).map_err(|error| {
-            format!(
-                "Cannot create uv cache directory at {}: {error}",
-                uv_cache_dir.display()
-            )
-        })?;
-
         let python_exe_str = python_exe.to_string_lossy().to_string();
         let uv_cache_dir_str = uv_cache_dir.to_string_lossy().to_string();
+        let venv_dir_str = venv_dir.to_string_lossy().to_string();
         let mut sync_args = vec![String::from("sync")];
         if backend_config.install_extras {
             sync_args.push(String::from("--all-extras"));
         }
+        sync_args.push(String::from("--frozen"));
 
         let mut sync_with_embedded_args = vec![
             String::from("sync"),
@@ -305,8 +362,16 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         if backend_config.install_extras {
             sync_with_embedded_args.push(String::from("--all-extras"));
         }
+        sync_with_embedded_args.push(String::from("--frozen"));
 
         if !venv_python_exe.is_file() {
+            fs::create_dir_all(&uv_cache_dir).map_err(|error| {
+                format!(
+                    "Cannot create uv cache directory at {}: {error}",
+                    uv_cache_dir.display()
+                )
+            })?;
+
             render_startup_status(
                 app_handle,
                 "Synchronizing Python environment. First launch can take several minutes while dependencies are prepared.",
@@ -317,7 +382,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
             embedded_sync_command
                 .args(sync_with_embedded_args.iter().map(|s| s.as_str()))
                 .current_dir(&workspace_root)
-                .env("UV_LINK_MODE", "copy")
+                .env("UV_PROJECT_ENVIRONMENT", &venv_dir_str)
                 .env("UV_CACHE_DIR", &uv_cache_dir_str)
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
@@ -334,7 +399,7 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
                 fallback_sync_command
                     .args(sync_args.iter().map(|s| s.as_str()))
                     .current_dir(&workspace_root)
-                    .env("UV_LINK_MODE", "copy")
+                    .env("UV_PROJECT_ENVIRONMENT", &venv_dir_str)
                     .env("UV_CACHE_DIR", &uv_cache_dir_str)
                     .stdout(Stdio::null())
                     .stderr(Stdio::null());
@@ -381,8 +446,6 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         let child = child_command
             .current_dir(&workspace_root)
             .env("XREPORT_TAURI_MODE", "true")
-            .env("UV_LINK_MODE", "copy")
-            .env("UV_CACHE_DIR", &uv_cache_dir_str)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -421,7 +484,6 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         Ok(())
     }
 }
-
 fn stop_backend(state: &BackendChildState) {
     if let Ok(mut guard) = state.child.lock() {
         if let Some(child) = guard.as_mut() {
