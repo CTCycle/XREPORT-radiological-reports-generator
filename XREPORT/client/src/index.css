@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 *,
 *::before,
 *::after {
@@ -5,29 +7,29 @@
 }
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Space Grotesk', 'Segoe UI', 'Inter', sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light;
-  --bg-primary: #f0f4f8;
+  --bg-primary: #e9eef6;
   --bg-secondary: #ffffff;
-  --bg-muted: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --accent-color: #3b82f6;
-  --accent-color-strong: #2563eb;
-  --border-color: #e2e8f0;
-  --input-bg: #f8fafc;
+  --bg-muted: #e3e9f3;
+  --text-primary: #20324a;
+  --text-secondary: #5f728c;
+  --accent-color: #4f86ea;
+  --accent-color-strong: #2f6de0;
+  --border-color: #d6dfec;
+  --input-bg: #f6f9ff;
   --success-color: #16a34a;
   --warning-color: #b45309;
   --error-color: #dc2626;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 8px 20px rgba(15, 23, 42, 0.08);
-  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.24);
+  --shadow-sm: 0 2px 6px rgba(28, 48, 72, 0.05);
+  --shadow-md: 0 10px 24px rgba(28, 48, 72, 0.1);
+  --focus-ring: 0 0 0 3px rgba(79, 134, 234, 0.22);
 
   color: var(--text-primary);
   background-color: var(--bg-primary);
@@ -47,7 +49,7 @@ body {
 body {
   margin: 0;
   min-width: 320px;
-  background-color: var(--bg-primary);
+  background: linear-gradient(180deg, #edf2f8 0%, #e9eef6 100%);
   color: var(--text-primary);
 }
 

@@ -147,10 +147,9 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 ## 4. Frontend Architecture
 
 ### 4.1 UI navigation
-Sidebar navigation currently includes:
-- Dataset
-- Training
-- Inference
+The application shell uses a two-tier top navigation:
+- Header bar with logo + application title on the left
+- Compact tab bar below the header with icon+label buttons for Dataset, Training, and Inference
 
 Routes:
 - `/dataset`
@@ -265,6 +264,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Filesystem browse endpoint is Windows-drive oriented.
 - `/training/stop` is a legacy compatibility endpoint; job cancellation via `/training/jobs/{job_id}` is the primary path.
 - `vite.config.ts` defines websocket proxy entries, but backend route modules currently expose polling-based APIs only.
+
 
 
 
