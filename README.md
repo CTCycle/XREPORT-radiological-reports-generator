@@ -162,19 +162,19 @@ The application workflow is divided into four main areas:
 
 The **Dataset** page allows you to prepare your data. It features a refined configuration panel for setting preprocessing parameters and an "Available Datasets" browser to view and select local datasets. Use this section to validate image-report pairs before training.
 
-![Dataset page](assets/figures/dataset_page.png)
+![Dataset page](assets/figures/datasets-list.png)
 
 **Training Dashboard**
 
 The **Training** page provides a real-time view of model performance. The dashboard layout features consolidated, single-row score panels for immediate visibility of key metrics (Loss, Reward). You can start, pause, and configure training runs, with live plotting synchronized to the backend.
 
-![Training page](assets/figures/training_page.png)
+![Training page](assets/figures/dashboard.png)
 
 **Validation & Inference**
 
 The **Inference** page handles model evaluation. It includes a **Checkpoint Evaluation Wizard** with an optimized layout for assessing saved model checkpoints. Users can generate reports from new X-ray images and review the model's output quality.
 
-![inference_page](assets/figures/inference_page.png)
+![Inference page](assets/figures/inference.png)
 
 ## 5. Setup and Maintenance
 
@@ -210,7 +210,26 @@ Configurations are split between environment variables and JSON settings.
 
 For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
 
-## 8. License
+## 8. Screenshots
+
+The following screenshots were generated from a live local run and stored in `assets/figures/` (see `assets/figures/manifest.json` for route, viewport, and capture metadata).
+
+### Dataset List
+
+![Dataset list page](assets/figures/datasets-list.png)
+
+### Training Dashboard
+
+![Training dashboard](assets/figures/dashboard.png)
+
+### Inference
+
+![Inference page](assets/figures/inference.png)
+
+## 9. License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+
+
 
