@@ -10,10 +10,9 @@ The system is architected as:
 
 This tool aims to accelerate the reporting workflow for radiologists by providing high-quality, editable drafts.
 
-Runtime supports three execution modes:
+Runtime supports two execution modes:
 - **Local mode (v1)**: web app launched by `XREPORT/start_on_windows.bat`.
 - **Local mode (v2)**: packaged Windows desktop application built with Tauri (release artifacts built by maintainers).
-- **Cloud mode**: Dockerized backend + frontend with same-origin `/api` proxying.
 
 > **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
 
@@ -88,19 +87,6 @@ npm run tauri:clean
    npm run build
    ```
 
-### 3.4 Cloud Mode (Docker)
-
-1. Select cloud profile:
-   ```bat
-   copy /Y XREPORT\settings\.env.cloud.example XREPORT\settings\.env
-   ```
-2. Build and start:
-   ```bat
-   docker compose --env-file XREPORT/settings/.env up --build -d
-   ```
-3. Open frontend: `http://127.0.0.1:<UI_PORT>`
-4. API docs through same origin proxy: `http://127.0.0.1:<UI_PORT>/api/docs`
-
 ---
 
 ## 4. How to Use
@@ -148,10 +134,6 @@ The active runtime file is always `XREPORT/settings/.env`.
 - Local defaults (v2):
   ```bat
   copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env
-  ```
-- Cloud defaults:
-  ```bat
-  copy /Y XREPORT\settings\.env.cloud.example XREPORT\settings\.env
   ```
 
 ### 4.5 Using the Application
@@ -205,7 +187,6 @@ Configurations are split between environment variables and JSON settings.
 - **Profile templates**:
   - `XREPORT/settings/.env.local.example`
   - `XREPORT/settings/.env.local.tauri.example`
-  - `XREPORT/settings/.env.cloud.example`
 - **Backend/Training JSON defaults (non-runtime)**: `XREPORT/settings/configurations.json`
 
 For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.

@@ -53,7 +53,7 @@ from XREPORT.server.services.processing import (
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 LOCAL_FILESYSTEM_DISABLED_ERROR = (
-    "Local filesystem endpoints are disabled for this deployment mode"
+    "Local filesystem endpoints are disabled by server configuration"
 )
 
 

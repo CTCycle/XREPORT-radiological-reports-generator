@@ -13,7 +13,7 @@ class EnvironmentVariables:
     def __init__(self) -> None:
         self.env_path = ENV_FILE_PATH
         if os.path.exists(self.env_path):
-            # Keep process env authoritative (e.g. Docker env_file / runtime env vars).
+            # Keep process env authoritative (runtime env vars override .env values).
             load_dotenv(dotenv_path=self.env_path, override=False)
         else:
             logger.error(f".env file not found at: {self.env_path}")
