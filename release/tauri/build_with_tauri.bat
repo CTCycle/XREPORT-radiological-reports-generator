@@ -9,9 +9,10 @@ set "tauri_dir=%client_dir%\src-tauri"
 set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
-set "runtime_python_exe=%project_folder%resources\runtimes\python\python.exe"
-set "runtime_uv_exe=%project_folder%resources\runtimes\uv\uv.exe"
-set "runtime_node_dir=%project_folder%resources\runtimes\nodejs"
+set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
+set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
+set "runtime_uv_lock=%repo_root%\runtimes\uv.lock"
+set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
 
@@ -21,6 +22,7 @@ echo [TAURI] Release build helper
 echo [CHECK] Validating bundled runtimes...
 call :require_file "%runtime_python_exe%" "embedded Python runtime" || goto build_error
 call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
+call :require_file "%runtime_uv_lock%" "runtime uv lockfile" || goto build_error
 call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
 call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
 
@@ -39,7 +41,34 @@ if not defined cargo_cmd (
   echo [FATAL] Rust/Cargo not found. Install Rust first: https://rustup.rs/
   goto build_error
 )
+set "rustup_cmd="
+if exist "%USERPROFILE%\.cargo\bin\rustup.exe" set "rustup_cmd=%USERPROFILE%\.cargo\bin\rustup.exe"
+if not defined rustup_cmd (
+  rustup --version >nul 2>&1
+  if not errorlevel 1 set "rustup_cmd=rustup"
+)
+if defined rustup_cmd (
+  "%rustup_cmd%" show active-toolchain >nul 2>&1
+  if errorlevel 1 (
+    echo [FATAL] Cargo is available but no default Rust toolchain is configured.
+    echo         Remediation:
+    echo           rustup toolchain install stable
+    echo           rustup default stable
+    goto build_error
+  )
+)
+if not defined rustup_cmd (
+  echo [WARN] rustup was not found in PATH; skipping default toolchain validation.
+)
+set "cargo_version="
 for /f "delims=" %%V in ('"%cargo_cmd%" --version 2^>nul') do set "cargo_version=%%V"
+if not defined cargo_version (
+  echo [FATAL] Unable to execute cargo successfully.
+  echo         If Rust was installed with rustup, run:
+  echo           rustup toolchain install stable
+  echo           rustup default stable
+  goto build_error
+)
 echo [INFO] Cargo command: %cargo_cmd%
 if defined cargo_version echo [INFO] !cargo_version!
 if /I not "%cargo_cmd%"=="cargo" (
@@ -132,16 +161,16 @@ if errorlevel 1 (
 md "%bundle_source_dir%\resources" >nul 2>&1
 md "%bundle_source_dir%\client" >nul 2>&1
 md "%bundle_source_dir%\resources\tokenizers" >nul 2>&1
-md "%bundle_source_dir%\resources\runtimes" >nul 2>&1
+md "%bundle_source_dir%\runtimes" >nul 2>&1
 
 copy /y "%repo_root%\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
 if errorlevel 1 (
   echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
   exit /b 1
 )
-copy /y "%repo_root%\uv.lock" "%bundle_source_dir%\uv.lock" >nul
+copy /y "%runtime_uv_lock%" "%bundle_source_dir%\uv.lock" >nul
 if errorlevel 1 (
-  echo [FATAL] Failed to stage uv.lock for Tauri bundling.
+  echo [FATAL] Failed to stage runtime lockfile from "%runtime_uv_lock%" into bundle uv.lock.
   exit /b 1
 )
 
@@ -151,8 +180,9 @@ call :make_junction "%bundle_source_dir%\settings" "%project_folder%settings" ||
 call :make_junction "%bundle_source_dir%\client\dist" "%client_dir%\dist" || exit /b 1
 call :make_junction "%bundle_source_dir%\resources\templates" "%project_folder%resources\templates" || exit /b 1
 call :make_junction "%bundle_source_dir%\resources\tokenizers\distilbert-base-uncased" "%project_folder%resources\tokenizers\distilbert-base-uncased" || exit /b 1
-call :make_junction "%bundle_source_dir%\resources\runtimes\python" "%project_folder%resources\runtimes\python" || exit /b 1
-call :make_junction "%bundle_source_dir%\resources\runtimes\uv" "%project_folder%resources\runtimes\uv" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\nodejs" "%repo_root%\runtimes\nodejs" || exit /b 1
 exit /b 0
 
 :make_junction

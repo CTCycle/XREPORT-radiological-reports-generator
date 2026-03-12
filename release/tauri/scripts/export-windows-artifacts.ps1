@@ -57,10 +57,25 @@ foreach ($file in $portableExeCandidates) {
   Copy-Item -Path $file.FullName -Destination $portableDir -Force
 }
 
+$requiredReleaseEntries = @(
+  @{ Name = "backend payload"; Path = (Join-Path $releaseDir "XREPORT") },
+  @{ Name = "runtime payload"; Path = (Join-Path $releaseDir "runtimes") },
+  @{ Name = "pyproject.toml"; Path = (Join-Path $releaseDir "pyproject.toml") },
+  @{ Name = "uv.lock"; Path = (Join-Path $releaseDir "uv.lock") }
+)
+
+foreach ($entry in $requiredReleaseEntries) {
+  if (-not (Test-Path $entry.Path)) {
+    throw "Missing $($entry.Name) in release payload: $($entry.Path). Run release\tauri\build_with_tauri.bat and ensure runtime resources are staged at release root."
+  }
+}
+
 $portableResourceEntries = @(
   "XREPORT",
+  "runtimes",
   "pyproject.toml",
   "uv.lock",
+  "resources",
   "_up_"
 )
 
@@ -86,6 +101,20 @@ Generated from:
 $bundleDir
 "@
 Set-Content -Path (Join-Path $outputDir "README.txt") -Value $instructions -Encoding ascii
+
+$requiredPortablePaths = @(
+  (Join-Path $portableDir "runtimes\uv\uv.exe"),
+  (Join-Path $portableDir "runtimes\python\python.exe"),
+  (Join-Path $portableDir "XREPORT"),
+  (Join-Path $portableDir "pyproject.toml"),
+  (Join-Path $portableDir "uv.lock")
+)
+
+foreach ($requiredPath in $requiredPortablePaths) {
+  if (-not (Test-Path $requiredPath)) {
+    throw "Portable export validation failed; required path missing: $requiredPath"
+  }
+}
 
 Write-Host "[OK] Exported Windows artifacts to: $outputDir"
 Write-Host "[INFO] Installers:"

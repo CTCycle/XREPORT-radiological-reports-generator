@@ -92,9 +92,9 @@ Run these checks before publishing:
 - rebuilt app still shows the old icon in Windows Explorer
   - verify the built `.exe` was replaced, then rename the file, move it to a new folder, or refresh Windows icon cache because Explorer can keep stale icon cache entries for the same path/name.
 - portable/installed app remains on startup splash for a long time
-  - desktop v2 first looks for an existing `.venv` in discovered valid workspaces; when one is available it is reused.
-  - if no reusable `.venv` exists, runtime is created under a writable root (`<workspace>` when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
+  - desktop v2 first looks for an existing `runtimes\.venv` in discovered valid workspaces; when one is available it is reused.
+  - if no reusable `runtimes\.venv` exists, runtime is created under a writable root (`<workspace>` when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
   - first launch may still spend minutes on `uv sync --frozen` because `torch`/`torchvision` are large.
-  - verify the app can write `<runtime-root>\.venv` and `<runtime-root>\.uv-cache`.
+  - verify the app can write `<runtime-root>\runtimes\.venv` and `<runtime-root>\runtimes\.uv-cache`.
 - app starts but cannot reach backend
   - verify `XREPORT/settings/.env` host/port values and firewall rules.
