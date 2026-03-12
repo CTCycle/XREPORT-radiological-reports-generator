@@ -47,7 +47,7 @@ tests\run_tests.bat
 ```
 
 What this script does:
-1. Validates prerequisites (`.venv`, npm/runtime availability).
+1. Validates prerequisites (`runtimes/.venv`, npm/runtime availability).
 2. Starts backend/frontend if not already running.
 3. Runs `pytest tests -v --tb=short`.
 4. Cleans up services it started.
@@ -103,6 +103,6 @@ These tests are heavier, may require cached model assets, and can run with addit
   - verify backend/frontend URLs and ports.
   - prefer `127.0.0.1` over `localhost` on Windows.
 - Playwright missing:
-  - ensure optional deps are installed in `.venv`.
+  - ensure optional deps are installed in `runtimes/.venv`.
 - flaky stateful failures:
   - make sure no long-running training job is already active before running tests that require idle state.

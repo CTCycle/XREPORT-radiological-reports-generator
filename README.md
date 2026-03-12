@@ -35,7 +35,7 @@ The system is designed to work with:
 The project includes an automated setup script for Windows: `XREPORT/start_on_windows.bat`.
 
 The launcher performs the following:
-1. Downloads portable runtimes (Python, Node.js) to `XREPORT/resources/runtimes`.
+1. Downloads portable runtimes (Python, Node.js) to `runtimes/` at the project root.
 2. Installs all backend and frontend dependencies (including `uv` and `npm` packages).
 3. Builds the frontend client for local serving.
 4. Launches the backend server and opens the web interface.
@@ -104,7 +104,7 @@ Install and run the generated Tauri package.
 
 Runtime behavior:
 - The packaged desktop executable starts its local backend process in the background.
-- Desktop mode uses a workspace-local `.venv` and checks it first; dependency sync runs only if `.venv` is missing.
+- Desktop mode uses runtime-local `runtimes/.venv` and checks it first; dependency sync runs only if `runtimes/.venv` is missing.
 - Backend listens on `FASTAPI_HOST` / `FASTAPI_PORT` from `XREPORT/settings/.env`.
 - The desktop window loads the local backend origin once ready.
 - First launch can still take time because Python dependencies (including `torch`/`torchvision`) may be synchronized.
@@ -164,7 +164,7 @@ Use `XREPORT/setup_and_maintenance.bat` (Windows) to manage the installation.
 
 Available actions:
 - **Remove logs**: Clears the `XREPORT/resources/logs` directory.
-- **Uninstall app**: Removes all portable runtimes, virtual environments (`.venv`), and build artifacts to clean the directory.
+- **Uninstall app**: Removes all portable runtimes, runtime lockfile (`runtimes/uv.lock`), runtime virtual environment (`runtimes/.venv`), and build artifacts to clean the directory.
 - **Clean desktop build artifacts**: Removes packaged desktop residue (`XREPORT/client/src-tauri/target/release` and `release/windows`) without deleting `XREPORT/client/src-tauri` source files.
 - **Initialize database**: Resets the local SQLite database used by the backend.
 
@@ -176,8 +176,9 @@ The `XREPORT/resources` directory contains project assets and artifacts:
 - **database/**: Contains the SQLite database file (`sqlite.db`) and local dataset storage.
 - **logs/**: Backend and training logs.
 - **models/**: Cached external model components (tokenizers, encoders).
-- **runtimes/**: (Windows only) Portable Python, uv, and Node.js environments.
 - **templates/**: Standard document templates for reports.
+
+At project root (`runtimes/`, Windows only), XREPORT stores portable Python, uv, Node.js, runtime virtual environment (`runtimes/.venv`), and runtime lockfile (`runtimes/uv.lock`) used by launcher and packaging scripts.
 
 ## 7. Configuration
 

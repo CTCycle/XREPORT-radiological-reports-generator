@@ -57,11 +57,11 @@ XREPORT uses one active runtime file: `XREPORT/settings/.env`.
 
 Runtime behavior:
 - The packaged desktop executable starts a local backend process in the background.
-- The desktop bootstrap discovers packaged workspace roots and prefers a valid workspace that already has `.venv\Scripts\python.exe`.
-- When no reusable `.venv` is found, runtime files are created in a writable location: packaged workspace root when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime` (installer-safe fallback).
-- `uv sync` runs only when `<runtime-root>\.venv\Scripts\python.exe` is missing and uses `UV_PROJECT_ENVIRONMENT` plus `--frozen` for lockfile-backed sync.
-- The desktop bootstrap stores uv cache in `<runtime-root>\.uv-cache`.
-- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the resolved runtime `.venv`.
+- The desktop bootstrap discovers packaged workspace roots and prefers a valid workspace that already has `runtimes\.venv\Scripts\python.exe`.
+- When no reusable runtime env is found, runtime files are created in a writable location: packaged workspace root when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime` (installer-safe fallback).
+- `uv sync` runs only when `<runtime-root>\runtimes\.venv\Scripts\python.exe` is missing and uses `UV_PROJECT_ENVIRONMENT` plus `--frozen` for lockfile-backed sync.
+- The desktop bootstrap stores uv cache in `<runtime-root>\runtimes\.uv-cache`.
+- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the resolved `runtimes\.venv`.
 - Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/` when the API is reachable.
 - First launch can still be long because model dependencies (for example `torch`/`torchvision`) may need to be resolved; this is independent from v1 runtime state.
 - `uv sync` startup phase has a 15-minute timeout and surfaces an error screen instead of waiting indefinitely.
@@ -74,5 +74,5 @@ Runtime behavior:
 
 ## 6. Deterministic Build Notes
 
-- Backend dependency graph is lockfile-backed via `uv.lock` and installed with `uv sync --frozen`.
+- Backend dependency graph is lockfile-backed via `runtimes/uv.lock` (staged as `uv.lock` at runtime sync/build time) and installed with `uv sync --frozen`.
 - Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
