@@ -238,7 +238,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 1. Dataset validation: `/validation/run` -> poll `/validation/jobs/{job_id}` -> retrieve report via `/validation/reports/{dataset_name}`.
 2. Checkpoint evaluation: `/validation/checkpoint` -> poll `/validation/jobs/{job_id}` -> retrieve report via `/validation/checkpoint/reports/{checkpoint}`.
 
-## 8. Runtime and Deployment
+## 8. Runtime Modes
 
 ### 8.1 Local mode (v1)
 - Typical launcher: `XREPORT/start_on_windows.bat`
@@ -252,11 +252,7 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - Splash synchronization status messaging remains generic and does not include absolute runtime paths.
 - Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
 - Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
-### 8.3 Cloud mode
-- Docker Compose services:
-  - `backend` (FastAPI/Uvicorn)
-  - `frontend` (Nginx serving built frontend)
-- Compose file: `docker-compose.yml`
+
 ## 9. Known Limitations
 
 - No auth/RBAC on API routes.
