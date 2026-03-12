@@ -41,8 +41,9 @@
       "r/client/dist": "XREPORT/client/dist",
       "r/resources/templates": "XREPORT/resources/templates",
       "r/resources/tokenizers/distilbert-base-uncased": "XREPORT/resources/tokenizers/distilbert-base-uncased",
-      "r/resources/runtimes/python": "XREPORT/resources/runtimes/python",
-      "r/resources/runtimes/uv": "XREPORT/resources/runtimes/uv"
+      "r/runtimes/python": "runtimes/python",
+      "r/runtimes/uv": "runtimes/uv",
+      "r/runtimes/nodejs": "runtimes/nodejs"
     }
   }
 }
