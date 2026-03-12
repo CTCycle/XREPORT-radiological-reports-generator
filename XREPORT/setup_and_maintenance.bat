@@ -6,7 +6,7 @@ REM == Configuration: define project and tool paths
 REM ============================================================================
 set "project_folder=%~dp0"
 set "root_folder=%project_folder%..\"
-set "runtimes_dir=%project_folder%resources\runtimes"
+set "runtimes_dir=%root_folder%runtimes"
 set "settings_dir=%project_folder%settings"
 set "python_dir=%runtimes_dir%\python"
 set "python_exe=%python_dir%\python.exe"
@@ -16,13 +16,15 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
+set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
+set "UV_CACHE_DIR_LEGACY=%runtimes_dir%\uv_cache"
 
 set "pyproject=%root_folder%pyproject.toml"
 set "update_script=%project_folder%tools\update_project.py"
 set "log_path=%project_folder%resources\logs"
-set "uv_lock=%root_folder%uv.lock"
-set "venv_dir=%root_folder%.venv"
+set "uv_lock=%runtimes_dir%\uv.lock"
+set "venv_dir=%runtimes_dir%\.venv"
+set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
 set "client_dir=%project_folder%client"
 set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
@@ -79,10 +81,9 @@ goto :setup_menu
 
 :uninstall
 echo --------------------------------------------------------------------------
-echo This operation will remove uv artifacts, caches, local Python files in
-echo resources\runtimes, the portable Node.js installation, and the .venv
-echo directory. The embedded Python folder will be cleaned but the folder
-echo structure will be preserved.
+echo This operation will remove runtime-local uv artifacts, caches, lockfile,
+echo virtual environment, local Python files in runtimes, and the portable
+echo Node.js installation.
 echo.
 set /p confirm="Type YES to continue: "
 if /i not "%confirm%"=="YES" (
@@ -94,7 +95,7 @@ if exist "%uv_lock%" (
   del /q "%uv_lock%"
   echo [INFO] Removed "%uv_lock%".
 ) else (
-  echo [INFO] No uv.lock file found to remove.
+  echo [INFO] No runtime lockfile found to remove at "%uv_lock%".
 )
 if exist "%uv_dir%" (
   rd /s /q "%uv_dir%"
@@ -106,7 +107,13 @@ if exist "%UV_CACHE_DIR%" (
   rd /s /q "%UV_CACHE_DIR%"
   echo [INFO] Removed uv cache "%UV_CACHE_DIR%".
 ) else (
-  echo [INFO] No uv cache directory found to remove.
+  echo [INFO] No uv cache directory found to remove at "%UV_CACHE_DIR%".
+)
+if exist "%UV_CACHE_DIR_LEGACY%" (
+  rd /s /q "%UV_CACHE_DIR_LEGACY%"
+  echo [INFO] Removed legacy uv cache "%UV_CACHE_DIR_LEGACY%".
+) else (
+  echo [INFO] No legacy uv cache directory found to remove at "%UV_CACHE_DIR_LEGACY%".
 )
 if exist "%python_dir%" (
   rd /s /q "%python_dir%"
@@ -118,7 +125,7 @@ if exist "%venv_dir%" (
   rd /s /q "%venv_dir%"
   echo [INFO] Removed virtual environment "%venv_dir%".
 ) else (
-  echo [INFO] No .venv directory found to remove.
+  echo [INFO] No runtime virtual environment found at "%venv_dir%".
 )
 if exist "%client_dir%\node_modules" (
   rd /s /q "%client_dir%\node_modules"

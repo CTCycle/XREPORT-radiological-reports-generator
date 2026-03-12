@@ -171,10 +171,19 @@ fn is_workspace_root(candidate: &Path) -> bool {
 
 fn has_workspace_venv(candidate: &Path) -> bool {
     candidate
+        .join("runtimes")
         .join(".venv")
         .join("Scripts")
         .join("python.exe")
         .is_file()
+}
+
+fn format_checked_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| format!("  - {}", path.display()))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn push_with_ancestors(base: &Path, candidates: &mut Vec<PathBuf>) {
@@ -253,7 +262,8 @@ fn resolve_runtime_root(
     }
 
     Err(format!(
-        "Cannot access writable runtime directory at {}.",
+        "Cannot access writable runtime directories. Checked:\n  - {}\n  - {}",
+        workspace_root.display(),
         runtime_root.display()
     ))
 }
@@ -318,30 +328,26 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         let project_dir = workspace_root.join("XREPORT");
         let env_path = project_dir.join("settings").join(".env");
         let backend_config = resolve_backend_launch_config(&env_path);
-        let uv_exe = project_dir
-            .join("resources")
-            .join("runtimes")
-            .join("uv")
-            .join("uv.exe");
-        let python_exe = project_dir
-            .join("resources")
-            .join("runtimes")
-            .join("python")
-            .join("python.exe");
-        let venv_dir = runtime_root.join(".venv");
+        let runtimes_dir = workspace_root.join("runtimes");
+        let uv_candidates = vec![runtimes_dir.join("uv").join("uv.exe")];
+        let python_candidates = vec![runtimes_dir.join("python").join("python.exe")];
+        let uv_exe = uv_candidates[0].clone();
+        let python_exe = python_candidates[0].clone();
+        let runtime_runtimes_dir = runtime_root.join("runtimes");
+        let venv_dir = runtime_runtimes_dir.join(".venv");
         let venv_python_exe = venv_dir.join("Scripts").join("python.exe");
-        let uv_cache_dir = runtime_root.join(".uv-cache");
+        let uv_cache_dir = runtime_runtimes_dir.join(".uv-cache");
 
         if !uv_exe.is_file() {
             return Err(format!(
-                "Bundled uv runtime not found at {}",
-                uv_exe.display()
+                "Bundled uv runtime not found. Checked:\n{}",
+                format_checked_paths(&uv_candidates)
             ));
         }
         if !python_exe.is_file() {
             return Err(format!(
-                "Bundled python runtime not found at {}",
-                python_exe.display()
+                "Bundled python runtime not found. Checked:\n{}",
+                format_checked_paths(&python_candidates)
             ));
         }
 
@@ -365,6 +371,12 @@ fn spawn_backend(app_handle: &tauri::AppHandle, state: &BackendChildState) -> Re
         sync_with_embedded_args.push(String::from("--frozen"));
 
         if !venv_python_exe.is_file() {
+            fs::create_dir_all(&runtime_runtimes_dir).map_err(|error| {
+                format!(
+                    "Cannot create runtime directory at {}: {error}",
+                    runtime_runtimes_dir.display()
+                )
+            })?;
             fs::create_dir_all(&uv_cache_dir).map_err(|error| {
                 format!(
                     "Cannot create uv cache directory at {}: {error}",

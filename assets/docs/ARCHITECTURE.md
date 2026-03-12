@@ -20,7 +20,8 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 - Backend startup entrypoint: `XREPORT/server/app.py`
 - Active runtime env file: `XREPORT/settings/.env`
 - Non-runtime defaults: `XREPORT/settings/configurations.json` (global seed + job polling interval)
-- Main runtime data path: `XREPORT/resources` (checkpoints, models, logs, DB, runtimes)
+- Main runtime data path: `XREPORT/resources` (checkpoints, models, logs, DB)
+- Windows portable runtimes path: `runtimes/` at the repository root
 
 ## 2. Codebase Structure
 
@@ -34,7 +35,7 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 | `XREPORT/server/learning` | Training/inference ML logic and callbacks |
 | `XREPORT/server/repositories` | Database backends, schema models, queries, serializers |
 | `XREPORT/settings` | `.env` profiles and JSON configuration |
-| `XREPORT/resources` | Runtime artifacts and persistent assets |
+| `XREPORT/resources` | Persistent assets and generated runtime data |
 | `tests` | unit, e2e, and verification tests |
 
 ### 2.2 Backend module organization
@@ -242,13 +243,13 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 
 ### 8.1 Local mode (v1)
 - Typical launcher: `XREPORT/start_on_windows.bat`
-- Uses local `.env` values and portable runtimes in `XREPORT/resources/runtimes` on Windows.
+- Uses local `.env` values and portable runtimes in the repository root `runtimes/` directory on Windows.
 
 ### 8.2 Local mode (v2, packaged desktop)
 - Desktop packages are built with `release/tauri/build_with_tauri.bat` (build-time helper).
 - At runtime, the packaged Tauri executable starts a local backend process and waits for backend readiness.
-- Runtime bootstrap prefers a discovered valid workspace that already has `.venv\Scripts\python.exe`; otherwise it creates runtime state in a writable root (workspace root when writable, else `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
-- Dependency sync runs through `uv sync --frozen` only when the resolved runtime `.venv` is missing.
+- Runtime bootstrap prefers a discovered valid workspace that already has `runtimes\.venv\Scripts\python.exe`; otherwise it creates runtime state in a writable root (workspace root when writable, else `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
+- Dependency sync runs through `uv sync --frozen` only when the resolved runtime `runtimes\.venv` is missing.
 - Splash synchronization status messaging remains generic and does not include absolute runtime paths.
 - Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
 - Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
