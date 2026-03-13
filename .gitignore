@@ -3,7 +3,6 @@ release/**
 XREPORT/resources/models/**
 XREPORT/resources/checkpoints/**
 XREPORT/resources/database/**
-XREPORT/resources/runtimes/**
 XREPORT/resources/logs/**
 XREPORT/client/node_modules/
 XREPORT/client/dist/
@@ -11,6 +10,7 @@ XREPORT/client/dist-ssr/
 XREPORT/client/logs/
 XREPORT/resources/tokenizers/**
 XREPORT/client/*.local
+runtimes/**
 
 
 # Python
@@ -58,6 +58,7 @@ Thumbs.db
 *.gz
 
 !.gitkeep
+!runtimes/.gitkeep
 
 
 
