@@ -562,7 +562,7 @@ export default function DatasetPage() {
                                     <div className="upload-hint">
                                         {canBrowseServerFilesystem
                                             ? 'DICOM, PNG, JPG'
-                                            : 'Disabled in this deployment mode'}
+                                            : 'Disabled by server configuration'}
                                     </div>
                                     <div className="upload-subtext">
                                         {state.imageFolderName

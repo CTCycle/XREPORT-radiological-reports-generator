@@ -1,14 +1,16 @@
-import { BarChart2, Loader, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import './ValidationDashboard.css';
 import { CheckpointEvaluationResults } from '../services/inferenceService';
+import { useJobProgressState, JobExecutionStatus } from '../hooks/useJobProgressState';
 import JobProgress from './shared/JobProgress';
+import DashboardStatusHeader from './shared/DashboardStatusHeader';
 
 interface CheckpointEvaluationDashboardProps {
     isLoading: boolean;
     results: CheckpointEvaluationResults | null;
     error: string | null;
     progress?: number | null;
-    status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null;
+    status?: JobExecutionStatus;
 }
 
 function formatMetric(value: number | undefined, decimals: number) {
@@ -27,35 +29,16 @@ export default function CheckpointEvaluationDashboard({
         typeof results.accuracy === 'number' ||
         typeof results.bleu_score === 'number'
     );
-    const isRunning = status === 'running' || status === 'pending';
-    const showProgress = isLoading || isRunning;
+    const { isRunning, showProgress } = useJobProgressState(isLoading, status);
 
     return (
         <div className="validation-dashboard">
-            <div className="dashboard-header">
-                <div className="dashboard-title">
-                    <BarChart2 size={20} />
-                    Checkpoint Evaluation Results
-                </div>
-                {hasResults && (
-                    <div className="dashboard-status success">
-                        <CheckCircle size={14} />
-                        Complete
-                    </div>
-                )}
-                {isRunning && !hasResults && (
-                    <div className="dashboard-status running">
-                        <Loader size={14} className="spin" />
-                        Running
-                    </div>
-                )}
-                {error && (
-                    <div className="dashboard-status error">
-                        <AlertCircle size={14} />
-                        Error
-                    </div>
-                )}
-            </div>
+            <DashboardStatusHeader
+                title="Checkpoint Evaluation Results"
+                hasResults={Boolean(hasResults)}
+                isRunning={isRunning}
+                error={error}
+            />
 
             <JobProgress show={showProgress} progress={progress} status={status} />
 
