@@ -19,6 +19,7 @@ from XREPORT.server.repositories.database.utils import (
     validate_table_name,
     validate_unique_key_values,
 )
+from XREPORT.server.repositories.queries import database as database_queries
 from XREPORT.server.repositories.schemas import Base
 
 
@@ -39,7 +40,7 @@ class SQLiteRepository:
     def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute(database_queries.enable_foreign_keys_sql())
         finally:
             cursor.close()
 
@@ -116,7 +117,11 @@ class SQLiteRepository:
         with self.engine.begin() as conn:
             inspector = inspect(conn)
             if inspector.has_table(safe_table_name):
-                conn.execute(sqlalchemy.text(f'DELETE FROM "{safe_table_name}"'))
+                conn.execute(
+                    sqlalchemy.text(
+                        database_queries.delete_all_rows_sql(safe_table_name)
+                    )
+                )
             df.to_sql(safe_table_name, conn, if_exists="append", index=False)
 
     # -------------------------------------------------------------------------
@@ -130,7 +135,7 @@ class SQLiteRepository:
         safe_table_name = validate_table_name(table_name)
         with self.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(f'SELECT COUNT(*) FROM "{safe_table_name}"')
+                sqlalchemy.text(database_queries.count_rows_sql(safe_table_name))
             )
             value = result.scalar() or 0
         return int(value)
