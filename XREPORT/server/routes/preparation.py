@@ -38,12 +38,10 @@ from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
+from XREPORT.server.repositories.queries import preparation as preparation_queries
 from XREPORT.server.common.constants import (
-    DATASETS_TABLE,
     DATASET_RECORDS_TABLE,
-    PROCESSING_RUNS_TABLE,
     TRAINING_SAMPLES_TABLE,
-    VALIDATION_RUNS_TABLE,
 )
 from XREPORT.server.services.processing import (
     TextSanitizer,
@@ -329,26 +327,7 @@ class PreparationEndpoint:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(
-                    f"""
-                    SELECT
-                        d.name,
-                        MIN(r.image_path) AS sample_path,
-                        COUNT(r.record_id) AS row_count,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM "{VALIDATION_RUNS_TABLE}" vr
-                                WHERE vr.dataset_id = d.dataset_id
-                            ) THEN TRUE
-                            ELSE FALSE
-                        END AS has_validation_report
-                    FROM "{DATASETS_TABLE}" d
-                    JOIN "{DATASET_RECORDS_TABLE}" r ON r.dataset_id = d.dataset_id
-                    GROUP BY d.dataset_id, d.name
-                    ORDER BY d.name
-                """
-                )
+                sqlalchemy.text(preparation_queries.dataset_names_sql())
             )
             datasets = []
             for row in result.fetchall():
@@ -381,33 +360,7 @@ class PreparationEndpoint:
                 return DatasetNamesResponse(datasets=[], count=0)
 
             result = conn.execute(
-                sqlalchemy.text(
-                    f"""
-                    WITH latest_runs AS (
-                        SELECT
-                            dataset_id,
-                            MAX(processing_run_id) AS processing_run_id
-                        FROM "{PROCESSING_RUNS_TABLE}"
-                        GROUP BY dataset_id
-                    )
-                    SELECT
-                        d.name,
-                        COUNT(ts.training_sample_id) AS row_count,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM "{VALIDATION_RUNS_TABLE}" vr
-                                WHERE vr.dataset_id = d.dataset_id
-                            ) THEN TRUE
-                            ELSE FALSE
-                        END AS has_validation_report
-                    FROM latest_runs lr
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = lr.dataset_id
-                    LEFT JOIN "{TRAINING_SAMPLES_TABLE}" ts ON ts.processing_run_id = lr.processing_run_id
-                    GROUP BY d.dataset_id, d.name
-                    ORDER BY d.name
-                """
-                )
+                sqlalchemy.text(preparation_queries.processed_dataset_names_sql())
             )
 
             datasets = []
@@ -474,9 +427,7 @@ class PreparationEndpoint:
 
         with self.database.backend.engine.begin() as conn:
             result = conn.execute(
-                sqlalchemy.text(
-                    f'DELETE FROM "{DATASETS_TABLE}" WHERE name = :dataset_name'
-                ),
+                sqlalchemy.text(preparation_queries.delete_dataset_by_name_sql()),
                 {"dataset_name": dataset_name},
             )
             if result.rowcount <= 0:
@@ -790,14 +741,7 @@ class PreparationEndpoint:
         dataset_name = dataset_name.strip()
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT COUNT(*)
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    '''
-                ),
+                sqlalchemy.text(preparation_queries.dataset_image_count_sql()),
                 {"dataset_name": dataset_name},
             )
             count = result.scalar() or 0
@@ -819,16 +763,7 @@ class PreparationEndpoint:
 
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT r.image_name, r.report_text, r.image_path
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    ORDER BY r.row_order, r.record_id
-                    LIMIT 1 OFFSET :offset
-                    '''
-                ),
+                sqlalchemy.text(preparation_queries.dataset_image_metadata_sql()),
                 {"dataset_name": dataset_name, "offset": index - 1},
             )
             row = result.fetchone()
@@ -868,16 +803,7 @@ class PreparationEndpoint:
 
         with self.database.backend.engine.connect() as conn:
             result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT r.image_path
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    ORDER BY r.row_order, r.record_id
-                    LIMIT 1 OFFSET :offset
-                    '''
-                ),
+                sqlalchemy.text(preparation_queries.dataset_image_content_sql()),
                 {"dataset_name": dataset_name, "offset": index - 1},
             )
             row = result.fetchone()
