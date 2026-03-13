@@ -1,8 +1,108 @@
 .main-layout {
     display: flex;
+    flex-direction: column;
     width: 100%;
     min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+.main-layout-chrome {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    z-index: 20;
+}
+
+.app-header-bar {
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.app-header-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+}
+
+.app-header-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    flex: 0 0 auto;
+}
+
+.app-header-titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.app-header-title {
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.1;
+    color: var(--text-primary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.app-header-subtitle {
+    margin: 0.12rem 0 0;
+    font-size: 0.72rem;
+    line-height: 1.1;
+    color: var(--text-secondary);
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-nav-bar {
+    min-height: 46px;
+    padding: 0.35rem 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.app-nav-list {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+}
+
+.app-nav-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.7rem;
+    border: none;
+    border-radius: 9px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1;
+    background: transparent;
+    transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+.app-nav-button:hover {
+    color: var(--text-primary);
+    background: var(--input-bg);
+}
+
+.app-nav-button.active {
+    color: var(--accent-color-strong);
+    background: rgba(37, 99, 235, 0.12);
+}
+
+.app-nav-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .main-layout-content {
@@ -10,4 +110,23 @@
     overflow: auto;
     background-color: var(--bg-primary);
     color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+    .app-header-bar {
+        padding: 0.65rem 0.9rem;
+    }
+
+    .app-nav-bar {
+        padding: 0.3rem 0.9rem;
+        overflow-x: auto;
+    }
+
+    .app-nav-list {
+        min-width: max-content;
+    }
+
+    .app-header-subtitle {
+        display: none;
+    }
 }

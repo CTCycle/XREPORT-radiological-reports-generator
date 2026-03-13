@@ -6,7 +6,7 @@ REM == Configuration: define project and tool paths
 REM ============================================================================
 set "project_folder=%~dp0"
 set "root_folder=%project_folder%..\"
-set "runtimes_dir=%project_folder%resources\runtimes"
+set "runtimes_dir=%root_folder%runtimes"
 set "settings_dir=%project_folder%settings"
 set "python_dir=%runtimes_dir%\python"
 set "python_exe=%python_dir%\python.exe"
@@ -16,18 +16,23 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
+set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
+set "UV_CACHE_DIR_LEGACY=%runtimes_dir%\uv_cache"
 
 set "pyproject=%root_folder%pyproject.toml"
 set "update_script=%project_folder%tools\update_project.py"
 set "log_path=%project_folder%resources\logs"
-set "uv_lock=%root_folder%uv.lock"
-set "venv_dir=%root_folder%.venv"
+set "uv_lock=%runtimes_dir%\uv.lock"
+set "venv_dir=%runtimes_dir%\.venv"
+set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
 set "client_dir=%project_folder%client"
 set "nodejs_dir=%runtimes_dir%\nodejs"
 set "server_dir=%project_folder%server"
 set "scripts_dir=%project_folder%\scripts"
 set "init_db_script=%scripts_dir%\initialize_database.py"
+set "tauri_clean_script=%root_folder%release\tauri\scripts\clean-tauri-build.ps1"
+set "tauri_release_target=%client_dir%\src-tauri\target\release"
+set "tauri_export_dir=%root_folder%release\windows"
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -40,15 +45,17 @@ echo                         Setup and Maintenance
 echo ==========================================================================
 echo 1. Remove logs
 echo 2. Uninstall app
-echo 3. Initialize database
-echo 4. Exit
+echo 3. Clean desktop build artifacts
+echo 4. Initialize database
+echo 5. Exit
 echo.
-set /p sub_choice="Select an option (1-4): "
+set /p sub_choice="Select an option (1-5): "
 
 if "%sub_choice%"=="1" goto :logs
 if "%sub_choice%"=="2" goto :uninstall
-if "%sub_choice%"=="3" goto :run_init_db
-if "%sub_choice%"=="4" goto :exit
+if "%sub_choice%"=="3" goto :clean_desktop_build
+if "%sub_choice%"=="4" goto :run_init_db
+if "%sub_choice%"=="5" goto :exit
 echo Invalid option, try again.
 pause
 goto :setup_menu
@@ -74,10 +81,9 @@ goto :setup_menu
 
 :uninstall
 echo --------------------------------------------------------------------------
-echo This operation will remove uv artifacts, caches, local Python files in
-echo resources\runtimes, the portable Node.js installation, and the .venv
-echo directory. The embedded Python folder will be cleaned but the folder
-echo structure will be preserved.
+echo This operation will remove runtime-local uv artifacts, caches, lockfile,
+echo virtual environment, local Python files in runtimes, and the portable
+echo Node.js installation.
 echo.
 set /p confirm="Type YES to continue: "
 if /i not "%confirm%"=="YES" (
@@ -89,7 +95,7 @@ if exist "%uv_lock%" (
   del /q "%uv_lock%"
   echo [INFO] Removed "%uv_lock%".
 ) else (
-  echo [INFO] No uv.lock file found to remove.
+  echo [INFO] No runtime lockfile found to remove at "%uv_lock%".
 )
 if exist "%uv_dir%" (
   rd /s /q "%uv_dir%"
@@ -101,7 +107,13 @@ if exist "%UV_CACHE_DIR%" (
   rd /s /q "%UV_CACHE_DIR%"
   echo [INFO] Removed uv cache "%UV_CACHE_DIR%".
 ) else (
-  echo [INFO] No uv cache directory found to remove.
+  echo [INFO] No uv cache directory found to remove at "%UV_CACHE_DIR%".
+)
+if exist "%UV_CACHE_DIR_LEGACY%" (
+  rd /s /q "%UV_CACHE_DIR_LEGACY%"
+  echo [INFO] Removed legacy uv cache "%UV_CACHE_DIR_LEGACY%".
+) else (
+  echo [INFO] No legacy uv cache directory found to remove at "%UV_CACHE_DIR_LEGACY%".
 )
 if exist "%python_dir%" (
   rd /s /q "%python_dir%"
@@ -113,7 +125,7 @@ if exist "%venv_dir%" (
   rd /s /q "%venv_dir%"
   echo [INFO] Removed virtual environment "%venv_dir%".
 ) else (
-  echo [INFO] No .venv directory found to remove.
+  echo [INFO] No runtime virtual environment found at "%venv_dir%".
 )
 if exist "%client_dir%\node_modules" (
   rd /s /q "%client_dir%\node_modules"
@@ -163,6 +175,46 @@ goto :setup_menu
 call :run_server_script "" "Database initialization" "%init_db_script%"
 goto :setup_menu
 
+:clean_desktop_build
+echo --------------------------------------------------------------------------
+echo This operation removes desktop build residue only:
+echo - %tauri_release_target%
+echo - %tauri_export_dir%
+echo.
+echo It does NOT remove source files in client\src-tauri.
+set /p confirm="Type YES to continue: "
+if /i not "%confirm%"=="YES" (
+  echo [INFO] Desktop build cleanup cancelled.
+  pause
+  goto :setup_menu
+)
+if exist "%tauri_clean_script%" (
+  echo [RUN] Cleaning desktop build artifacts using "%tauri_clean_script%"...
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%tauri_clean_script%"
+  if "%ERRORLEVEL%"=="0" (
+    echo [SUCCESS] Desktop build cleanup completed.
+  ) else (
+    echo [WARN] Cleanup script returned exit code %ERRORLEVEL%.
+  )
+) else (
+  echo [WARN] Cleanup script not found at "%tauri_clean_script%".
+  echo [INFO] Running fallback cleanup.
+  if exist "%tauri_release_target%" (
+    rd /s /q "%tauri_release_target%"
+    echo [INFO] Removed "%tauri_release_target%".
+  ) else (
+    echo [INFO] No Tauri release target found to remove.
+  )
+  if exist "%tauri_export_dir%" (
+    rd /s /q "%tauri_export_dir%"
+    echo [INFO] Removed "%tauri_export_dir%".
+  ) else (
+    echo [INFO] No exported release directory found to remove.
+  )
+)
+pause
+goto :setup_menu
+
 :run_server_script
 set "script_module=%~1"
 set "script_label=%~2"
@@ -205,3 +257,4 @@ exit /b !run_script_ec!
 
 :exit
 endlocal
+

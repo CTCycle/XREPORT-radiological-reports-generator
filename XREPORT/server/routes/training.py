@@ -716,7 +716,7 @@ class TrainingEndpoint:
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
-            "/checkpoints/{checkpoint}",
+            "/checkpoints/{checkpoint:path}",
             self.delete_checkpoint,
             methods=["DELETE"],
             response_model=DeleteResponse,
@@ -774,3 +774,4 @@ training_endpoint = TrainingEndpoint(
     training_state=training_state,
 )
 training_endpoint.add_routes()
+

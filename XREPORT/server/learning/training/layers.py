@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from keras import layers, ops
+from keras import activations, layers, ops
 from keras.config import floatx
 from keras.saving import register_keras_serializable
 
@@ -189,8 +189,6 @@ class SoftMaxClassifier(layers.Layer):
 
     # -------------------------------------------------------------------------
     def call(self, x: Any, training: bool | None = None) -> Any:
-        from keras import activations
-
         layer = self.dense1(x)
         layer = activations.relu(layer)
         layer = self.dense2(layer)

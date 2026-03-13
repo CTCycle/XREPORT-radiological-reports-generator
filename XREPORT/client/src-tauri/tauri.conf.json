@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "XREPORT Desktop",
+  "version": "2.1.0",
+  "identifier": "com.xreport.desktop",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist",
+    "devUrl": "about:blank"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "XREPORT Desktop",
+        "url": "about:blank",
+        "width": 1440,
+        "height": 920,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "r/pyproject.toml": "pyproject.toml",
+      "r/uv.lock": "uv.lock",
+      "r/server": "XREPORT/server",
+      "r/scripts": "XREPORT/scripts",
+      "r/settings": "XREPORT/settings",
+      "r/client/dist": "XREPORT/client/dist",
+      "r/resources/templates": "XREPORT/resources/templates",
+      "r/resources/tokenizers/distilbert-base-uncased": "XREPORT/resources/tokenizers/distilbert-base-uncased",
+      "r/runtimes/python": "runtimes/python",
+      "r/runtimes/uv": "runtimes/uv",
+      "r/runtimes/nodejs": "runtimes/nodejs"
+    }
+  }
+}

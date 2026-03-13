@@ -15,6 +15,14 @@ import {
 
 const MAX_IMAGES = 16;
 
+function isGenerationMode(value: string): value is GenerationMode {
+    return value === 'greedy_search' || value === 'beam_search';
+}
+
+function parseGenerationMode(value: string, fallback: GenerationMode): GenerationMode {
+    return isGenerationMode(value) ? value : fallback;
+}
+
 export default function InferencePage() {
     const {
         state,
@@ -474,7 +482,7 @@ export default function InferencePage() {
                             <select
                                 id="mode-select"
                                 value={state.generationMode}
-                                onChange={(e) => setGenerationMode(e.target.value as GenerationMode)}
+                                onChange={(e) => setGenerationMode(parseGenerationMode(e.target.value, state.generationMode))}
                                 disabled={state.isGenerating}
                             >
                                 <option value="greedy_search">Greedy</option>

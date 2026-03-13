@@ -6,7 +6,7 @@ REM == Configuration
 REM ============================================================================
 set "project_folder=%~dp0"
 set "root_folder=%project_folder%..\"
-set "runtimes_dir=%project_folder%resources\runtimes"
+set "runtimes_dir=%root_folder%runtimes"
 set "settings_dir=%project_folder%settings"
 set "python_dir=%runtimes_dir%\python"
 set "python_exe=%python_dir%\python.exe"
@@ -16,7 +16,11 @@ set "env_marker=%python_dir%\.is_installed"
 set "uv_dir=%runtimes_dir%\uv"
 set "uv_exe=%uv_dir%\uv.exe"
 set "uv_zip_path=%uv_dir%\uv.zip"
-set "UV_CACHE_DIR=%runtimes_dir%\uv_cache"
+set "UV_CACHE_DIR=%runtimes_dir%\.uv-cache"
+set "venv_dir=%runtimes_dir%\.venv"
+set "UV_PROJECT_ENVIRONMENT=%venv_dir%"
+set "runtime_uv_lock=%runtimes_dir%\uv.lock"
+set "uv_lock_file=%root_folder%uv.lock"
 
 set "py_version=3.14.2"
 set "python_zip_filename=python-%py_version%-embed-amd64.zip"
@@ -48,7 +52,6 @@ set "TMPEXP=%TEMP%\app_expand.ps1"
 set "TMPTXT=%TEMP%\app_txt.ps1"
 set "TMPFIND=%TEMP%\app_find_uv.ps1"
 set "TMPVER=%TEMP%\app_pyver.ps1"
-set "TMPFINDNODE=%TEMP%\app_find_node.ps1"
 
 set "UV_LINK_MODE=copy"
 
@@ -73,7 +76,6 @@ echo $ErrorActionPreference='Stop'; Expand-Archive -LiteralPath $args[0] -Destin
 echo $ErrorActionPreference='Stop'; (Get-Content -LiteralPath $args[0]) -replace '#import site','import site' ^| Set-Content -LiteralPath $args[0] > "%TMPTXT%"
 echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'uv.exe' ^| Select-Object -First 1).FullName > "%TMPFIND%"
 echo $ErrorActionPreference='Stop'; ^& $args[0] -c "import platform;print(platform.python_version())" > "%TMPVER%"
-echo $ErrorActionPreference='Stop'; (Get-ChildItem -LiteralPath $args[0] -Recurse -Filter 'node.exe' ^| Select-Object -First 1).FullName > "%TMPFINDNODE%"
 
 REM ============================================================================
 REM == Step 1: Ensure Python (embeddable)
@@ -129,17 +131,12 @@ if not exist "%node_exe%" (
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPDL%" "%nodejs_zip_url%" "%nodejs_zip_path%" || goto error
   powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPEXP%" "%nodejs_zip_path%" "%nodejs_dir%" || goto error
   del /q "%nodejs_zip_path%" >nul 2>&1
+)
 
-  for /f "delims=" %%F in ('powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%TMPFINDNODE%" "%nodejs_dir%"') do set "found_node=%%F"
-  if not defined found_node (
-    echo [FATAL] node.exe not found after extraction.
-    goto error
-  )
-
-  if /i not "%found_node%"=="%node_exe%" (
-    for %%D in ("!found_node!") do set "node_parent=%%~dpD"
-    xcopy /s /e /i /q "!node_parent!*" "%nodejs_dir%" >nul
-  )
+set "node_archive_dir=%nodejs_dir%\node-v%nodejs_version%-win-x64"
+if exist "%node_archive_dir%\node.exe" (
+  call :promote_node_runtime "%node_archive_dir%"
+  if errorlevel 1 goto error
 )
 
 if exist "%node_exe%" (
@@ -149,7 +146,8 @@ if exist "%node_exe%" (
   set "PATH=%nodejs_dir%;%PATH%"
 
 ) else (
-  echo [FATAL] node.exe not found at expected location.
+  echo [FATAL] node.exe not found in "%nodejs_dir%".
+  echo [INFO] Expected file: "%node_exe%"
   goto error
 )
 
@@ -160,8 +158,8 @@ REM ============================================================================
 set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=8000"
 set "UI_HOST=127.0.0.1"
-set "UI_PORT=5173"
-set "RELOAD=false"
+set "UI_PORT=8001"
+set "RELOAD=true"
 set "OPTIONAL_DEPENDENCIES=false"
 
 if exist "%DOTENV%" (
@@ -206,6 +204,18 @@ if not exist "%pyproject%" (
   goto error
 )
 
+if exist "%runtime_uv_lock%" (
+  echo [INFO] Runtime lockfile detected: "%runtime_uv_lock%"
+  copy /y "%runtime_uv_lock%" "%uv_lock_file%" >nul
+  if errorlevel 1 (
+    echo [WARN] Failed to copy runtime lockfile to "%uv_lock_file%". Continuing with existing root lockfile state.
+  ) else (
+    echo [INFO] Using runtime lockfile for uv sync.
+  )
+) else (
+  echo [INFO] Runtime lockfile not found at "%runtime_uv_lock%". uv sync may create/update "%uv_lock_file%".
+)
+
 pushd "%root_folder%" >nul
 set "uv_extras_flag="
 if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
@@ -220,6 +230,17 @@ popd >nul
 if not "%sync_ec%"=="0" (
   echo [FATAL] uv sync failed with code %sync_ec%.
   goto error
+)
+
+if exist "%uv_lock_file%" (
+  copy /y "%uv_lock_file%" "%runtime_uv_lock%" >nul
+  if errorlevel 1 (
+    echo [WARN] uv sync succeeded, but failed to update runtime lockfile at "%runtime_uv_lock%".
+  ) else (
+    echo [INFO] Runtime lockfile updated: "%runtime_uv_lock%"
+  )
+) else (
+  echo [WARN] uv sync succeeded, but no lockfile was found at "%uv_lock_file%". Runtime lockfile not updated.
 )
 
 > "%env_marker%" echo setup_completed
@@ -295,11 +316,27 @@ start "" "%UI_URL%"
 echo [SUCCESS] Backend and frontend correctly launched
 goto cleanup
 
+:promote_node_runtime
+set "node_source_dir=%~1"
+if not defined node_source_dir exit /b 1
+for %%D in ("%~1") do set "node_source_dir=%%~fD"
+if /i "!node_source_dir!"=="%nodejs_dir%" exit /b 0
+
+robocopy "!node_source_dir!" "%nodejs_dir%" /MOVE /E /R:2 /W:1 /NFL /NDL /NJH /NJS /NC /NS >nul
+set "node_move_ec=!ERRORLEVEL!"
+if !node_move_ec! geq 8 (
+  echo [FATAL] Failed to flatten portable Node.js runtime from "!node_source_dir!".
+  exit /b !node_move_ec!
+)
+
+if exist "!node_source_dir!" rd /s /q "!node_source_dir!" >nul 2>&1
+exit /b 0
+
 REM ============================================================================
 REM Cleanup temp helpers
 REM ============================================================================
 :cleanup
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPFINDNODE%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
 endlocal & exit /b 0
 
 REM ============================================================================
@@ -309,7 +346,7 @@ REM ============================================================================
 echo.
 echo !!! An error occurred during execution. !!!
 pause
-del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" "%TMPFINDNODE%" >nul 2>&1
+del /q "%TMPDL%" "%TMPEXP%" "%TMPTXT%" "%TMPFIND%" "%TMPVER%" >nul 2>&1
 endlocal & exit /b 1
 
 :kill_port
@@ -319,3 +356,4 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
   taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+
