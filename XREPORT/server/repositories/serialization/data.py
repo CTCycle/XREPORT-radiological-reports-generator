@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
-import sqlalchemy
+from sqlalchemy import delete, exists, func, select
+from sqlalchemy.orm import aliased
 
 from XREPORT.server.common.constants import (
     CHECKPOINTS_TABLE,
@@ -34,7 +35,19 @@ from XREPORT.server.repositories.database.utils import (
     validate_table_name,
 )
 from XREPORT.server.repositories.queries.data import DataRepositoryQueries
-from XREPORT.server.repositories.queries import serialization as serialization_queries
+from XREPORT.server.repositories.schemas import (
+    Checkpoint,
+    CheckpointEvaluation,
+    Dataset,
+    DatasetRecord,
+    InferenceRun,
+    ProcessingRun,
+    TrainingSample,
+    ValidationImageStat,
+    ValidationPixelDistribution,
+    ValidationRun,
+    ValidationTextSummary,
+)
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
@@ -182,15 +195,24 @@ class DataSerializer:
         self.queries.upsert_table(dataset, table_name)
 
     # -------------------------------------------------------------------------
+    def _session(self):
+        return self.queries.backend.session()
+
+    # -------------------------------------------------------------------------
+    def _get_table_class(self, table_name: str):
+        safe_table_name = validate_table_name(table_name)
+        return self.queries.backend.get_table_class(safe_table_name)
+
+    # -------------------------------------------------------------------------
     def _get_dataset_id(self, dataset_name: str) -> int | None:
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(serialization_queries.select_dataset_id_by_name_sql()),
-                {"name": dataset_name},
-            ).fetchone()
-        if row is None:
-            return None
-        return int(row[0])
+        session = self._session()
+        try:
+            row = session.execute(
+                select(Dataset.dataset_id).where(Dataset.name == dataset_name)
+            ).first()
+        finally:
+            session.close()
+        return int(row[0]) if row is not None else None
 
     # -------------------------------------------------------------------------
     def _ensure_dataset(self, dataset_name: str) -> int:
@@ -214,14 +236,13 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     def _ensure_checkpoint(self, checkpoint: str) -> int:
         checkpoint_name = validate_checkpoint_name(checkpoint)
-
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.select_checkpoint_id_by_name_sql()
-                ),
-                {"name": checkpoint_name},
-            ).fetchone()
+        session = self._session()
+        try:
+            row = session.execute(
+                select(Checkpoint.checkpoint_id).where(Checkpoint.name == checkpoint_name)
+            ).first()
+        finally:
+            session.close()
         if row is not None:
             return int(row[0])
 
@@ -235,32 +256,32 @@ class DataSerializer:
             ]
         )
         self.upsert_table(payload, CHECKPOINTS_TABLE)
-
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.select_checkpoint_id_by_name_sql()
-                ),
-                {"name": checkpoint_name},
-            ).fetchone()
+        session = self._session()
+        try:
+            row = session.execute(
+                select(Checkpoint.checkpoint_id).where(Checkpoint.name == checkpoint_name)
+            ).first()
+        finally:
+            session.close()
         if row is None:
             raise RuntimeError(f"Failed to create checkpoint row: {checkpoint_name}")
         return int(row[0])
 
     # -------------------------------------------------------------------------
     def _delete_by_key(self, table_name: str, column_name: str, value: Any) -> None:
-        safe_table_name = validate_table_name(table_name)
+        table_cls = self._get_table_class(table_name)
         safe_column_name = validate_sql_identifier(column_name)
-        with self.queries.backend.engine.begin() as conn:
-            conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.delete_by_key_sql(
-                        safe_table_name,
-                        safe_column_name,
-                    )
-                ),
-                {"value": value},
+        column = getattr(table_cls, safe_column_name, None)
+        if column is None:
+            raise ValueError(
+                f"Column {safe_column_name} does not exist on table {table_name}"
             )
+        session = self._session()
+        try:
+            session.execute(delete(table_cls).where(column == value))
+            session.commit()
+        finally:
+            session.close()
 
     # -------------------------------------------------------------------------
     def validate_metadata(
@@ -334,15 +355,31 @@ class DataSerializer:
         dataset_name: str | None = None,
     ) -> pd.DataFrame:
         dataset_name_filter = str(dataset_name).strip() if dataset_name else None
-        sql, parameters = serialization_queries.load_source_dataset_sql(
-            dataset_name_filter
-        )
-        with self.queries.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(sql),
-                parameters,
+        stmt = (
+            select(
+                Dataset.dataset_id,
+                Dataset.name.label("name"),
+                DatasetRecord.record_id,
+                DatasetRecord.image_name.label("image"),
+                DatasetRecord.report_text.label("text"),
+                DatasetRecord.image_path.label("path"),
+                DatasetRecord.row_order,
             )
-            dataset = pd.DataFrame(result.fetchall(), columns=result.keys())
+            .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+            .order_by(
+                Dataset.name,
+                DatasetRecord.row_order,
+                DatasetRecord.record_id,
+            )
+        )
+        if dataset_name_filter:
+            stmt = stmt.where(Dataset.name == dataset_name_filter)
+        session = self._session()
+        try:
+            rows = session.execute(stmt).all()
+        finally:
+            session.close()
+        dataset = pd.DataFrame([dict(row._mapping) for row in rows])
 
         if dataset.empty:
             return dataset
@@ -355,14 +392,40 @@ class DataSerializer:
         self, dataset_name: str | None = None
     ) -> dict[str, Any] | None:
         dataset_name_filter = str(dataset_name).strip() if dataset_name else None
-        sql, parameters = serialization_queries.latest_processing_run_sql(
-            dataset_name_filter
+        source_dataset = aliased(Dataset)
+        stmt = (
+            select(
+                ProcessingRun.processing_run_id,
+                ProcessingRun.dataset_id,
+                ProcessingRun.source_dataset_id,
+                ProcessingRun.config_hash,
+                ProcessingRun.executed_at,
+                ProcessingRun.seed,
+                ProcessingRun.sample_size,
+                ProcessingRun.validation_size,
+                ProcessingRun.split_seed,
+                ProcessingRun.vocabulary_size,
+                ProcessingRun.max_report_size,
+                ProcessingRun.tokenizer,
+                Dataset.name.label("dataset_name"),
+                source_dataset.name.label("source_dataset"),
+            )
+            .join(Dataset, Dataset.dataset_id == ProcessingRun.dataset_id)
+            .outerjoin(
+                source_dataset,
+                source_dataset.dataset_id == ProcessingRun.source_dataset_id,
+            )
+            .order_by(ProcessingRun.processing_run_id.desc())
+            .limit(1)
         )
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(sql),
-                parameters,
-            ).fetchone()
+        if dataset_name_filter:
+            stmt = stmt.where(Dataset.name == dataset_name_filter)
+
+        session = self._session()
+        try:
+            row = session.execute(stmt).first()
+        finally:
+            session.close()
         if row is None:
             return None
         return dict(row._mapping)
@@ -399,14 +462,28 @@ class DataSerializer:
         if only_metadata:
             return metadata
 
-        with self.queries.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.training_samples_for_processing_run_sql()
-                ),
-                {"processing_run_id": latest_run["processing_run_id"]},
+        stmt = (
+            select(
+                TrainingSample.training_sample_id,
+                DatasetRecord.record_id,
+                TrainingSample.split,
+                TrainingSample.tokens_json.label("tokens"),
+                DatasetRecord.image_name.label("image"),
+                DatasetRecord.report_text.label("text"),
+                DatasetRecord.image_path.label("path"),
             )
-            training_data = pd.DataFrame(result.fetchall(), columns=result.keys())
+            .join(DatasetRecord, DatasetRecord.record_id == TrainingSample.record_id)
+            .where(
+                TrainingSample.processing_run_id == latest_run["processing_run_id"]
+            )
+            .order_by(TrainingSample.training_sample_id)
+        )
+        session = self._session()
+        try:
+            rows = session.execute(stmt).all()
+        finally:
+            session.close()
+        training_data = pd.DataFrame([dict(row._mapping) for row in rows])
 
         if training_data.empty:
             return pd.DataFrame(), pd.DataFrame(), metadata
@@ -466,26 +543,29 @@ class DataSerializer:
             ]
         )
         self.upsert_table(run_payload, PROCESSING_RUNS_TABLE)
-
-        with self.queries.backend.engine.connect() as conn:
-            run_row = conn.execute(
-                sqlalchemy.text(serialization_queries.latest_processing_run_id_sql()),
-                {"config_hash": hashcode, "dataset_id": dataset_id},
-            ).fetchone()
+        session = self._session()
+        try:
+            run_row = session.execute(
+                select(ProcessingRun.processing_run_id)
+                .where(
+                    ProcessingRun.config_hash == hashcode,
+                    ProcessingRun.dataset_id == dataset_id,
+                )
+                .order_by(ProcessingRun.processing_run_id.desc())
+                .limit(1)
+            ).first()
             if run_row is None:
                 raise RuntimeError("Processing run was not persisted correctly")
             processing_run_id = int(run_row[0])
+            source_records = session.execute(
+                select(DatasetRecord.record_id).where(
+                    DatasetRecord.dataset_id == source_dataset_id
+                )
+            ).all()
+        finally:
+            session.close()
 
-            records_result = conn.execute(
-                sqlalchemy.text(serialization_queries.dataset_record_ids_sql()),
-                {"dataset_id": source_dataset_id},
-            )
-            source_records = pd.DataFrame(
-                records_result.fetchall(),
-                columns=records_result.keys(),
-            )
-
-        if source_records.empty:
+        if not source_records:
             raise ValueError(f"No source records found for dataset: {source_dataset}")
 
         training_payload = training_data.copy()
@@ -500,7 +580,7 @@ class DataSerializer:
             )
         training_payload["record_id"] = training_payload["record_id"].astype(int)
 
-        source_record_ids = set(source_records["record_id"].astype(int).tolist())
+        source_record_ids = {int(row[0]) for row in source_records}
         invalid_record_ids = int(
             (~training_payload["record_id"].isin(source_record_ids)).sum()
         )
@@ -604,17 +684,18 @@ class DataSerializer:
             ]
         )
         self.upsert_table(run_df, INFERENCE_RUNS_TABLE)
-
-        with self.queries.backend.engine.connect() as conn:
-            run_row = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.select_inference_run_id_by_request_id_sql()
-                ),
-                {"request_id": normalized_request_id},
-            ).fetchone()
-            if run_row is None:
-                raise RuntimeError("Inference run creation failed")
-            inference_run_id = int(run_row[0])
+        session = self._session()
+        try:
+            run_row = session.execute(
+                select(InferenceRun.inference_run_id).where(
+                    InferenceRun.request_id == normalized_request_id
+                )
+            ).first()
+        finally:
+            session.close()
+        if run_row is None:
+            raise RuntimeError("Inference run creation failed")
+        inference_run_id = int(run_row[0])
 
         reports_df = pd.DataFrame(reports)
         payload = pd.DataFrame(
@@ -654,15 +735,19 @@ class DataSerializer:
             ]
         )
         self.upsert_table(run_df, VALIDATION_RUNS_TABLE)
-
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(serialization_queries.latest_validation_run_id_sql()),
-                {"dataset_id": dataset_id},
-            ).fetchone()
-            if row is None:
-                raise RuntimeError("Validation run creation failed")
-            validation_run_id = int(row[0])
+        session = self._session()
+        try:
+            row = session.execute(
+                select(ValidationRun.validation_run_id)
+                .where(ValidationRun.dataset_id == dataset_id)
+                .order_by(ValidationRun.validation_run_id.desc())
+                .limit(1)
+            ).first()
+        finally:
+            session.close()
+        if row is None:
+            raise RuntimeError("Validation run creation failed")
+        validation_run_id = int(row[0])
 
         text_stats = report.get("text_statistics") or {}
         text_summary_df = pd.DataFrame(
@@ -712,14 +797,16 @@ class DataSerializer:
                 image_df = image_df[image_df["record_id"].notna()].copy()
                 image_df["record_id"] = image_df["record_id"].astype(int)
 
-                with self.queries.backend.engine.connect() as conn:
-                    result = conn.execute(
-                        sqlalchemy.text(serialization_queries.dataset_record_ids_sql()),
-                        {"dataset_id": dataset_id},
-                    )
-                    record_df = pd.DataFrame(result.fetchall(), columns=result.keys())
-
-                valid_record_ids = set(record_df["record_id"].astype(int).tolist())
+                session = self._session()
+                try:
+                    dataset_record_rows = session.execute(
+                        select(DatasetRecord.record_id).where(
+                            DatasetRecord.dataset_id == dataset_id
+                        )
+                    ).all()
+                finally:
+                    session.close()
+                valid_record_ids = {int(row[0]) for row in dataset_record_rows}
                 invalid_dataset_refs = int(
                     (~image_df["record_id"].isin(valid_record_ids)).sum()
                 )
@@ -773,32 +860,57 @@ class DataSerializer:
         dataset_id = self._get_dataset_id(str(dataset_name or "").strip())
         if dataset_id is None:
             return None
-
-        with self.queries.backend.engine.connect() as conn:
-            run_row = conn.execute(
-                sqlalchemy.text(serialization_queries.latest_validation_run_sql()),
-                {"dataset_id": dataset_id},
-            ).fetchone()
+        session = self._session()
+        try:
+            run_row = session.execute(
+                select(
+                    ValidationRun.validation_run_id,
+                    ValidationRun.executed_at,
+                    ValidationRun.sample_size,
+                    ValidationRun.metrics_json,
+                    ValidationRun.artifacts_json,
+                )
+                .where(ValidationRun.dataset_id == dataset_id)
+                .order_by(ValidationRun.validation_run_id.desc())
+                .limit(1)
+            ).first()
             if run_row is None:
                 return None
 
             validation_run_id = int(run_row[0])
-            text_row = conn.execute(
-                sqlalchemy.text(serialization_queries.validation_text_summary_sql()),
-                {"validation_run_id": validation_run_id},
-            ).fetchone()
+            text_row = session.execute(
+                select(
+                    ValidationTextSummary.count,
+                    ValidationTextSummary.total_words,
+                    ValidationTextSummary.unique_words,
+                    ValidationTextSummary.avg_words_per_report,
+                    ValidationTextSummary.min_words_per_report,
+                    ValidationTextSummary.max_words_per_report,
+                ).where(ValidationTextSummary.validation_run_id == validation_run_id)
+            ).first()
 
-            image_agg = conn.execute(
-                sqlalchemy.text(serialization_queries.validation_image_aggregate_sql()),
-                {"validation_run_id": validation_run_id},
-            ).fetchone()
+            image_agg = session.execute(
+                select(
+                    func.count(ValidationImageStat.record_id),
+                    func.avg(ValidationImageStat.height),
+                    func.avg(ValidationImageStat.width),
+                    func.avg(ValidationImageStat.mean),
+                    func.avg(ValidationImageStat.std),
+                    func.avg(ValidationImageStat.noise_std),
+                    func.avg(ValidationImageStat.noise_ratio),
+                ).where(ValidationImageStat.validation_run_id == validation_run_id)
+            ).first()
 
-            pixel_rows = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.validation_pixel_distribution_sql()
-                ),
-                {"validation_run_id": validation_run_id},
-            ).fetchall()
+            pixel_rows = session.execute(
+                select(
+                    ValidationPixelDistribution.bin,
+                    ValidationPixelDistribution.count,
+                )
+                .where(ValidationPixelDistribution.validation_run_id == validation_run_id)
+                .order_by(ValidationPixelDistribution.bin)
+            ).all()
+        finally:
+            session.close()
 
         metrics = DataSerializer._parse_json(run_row[3], default=[])
         artifacts = DataSerializer._parse_json(run_row[4], default={})
@@ -849,12 +961,15 @@ class DataSerializer:
         dataset_id = self._get_dataset_id(str(dataset_name or "").strip())
         if dataset_id is None:
             return False
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(serialization_queries.validation_report_exists_sql()),
-                {"dataset_id": dataset_id},
-            ).fetchone()
-        return row is not None
+        session = self._session()
+        try:
+            return bool(
+                session.execute(
+                    select(exists().where(ValidationRun.dataset_id == dataset_id))
+                ).scalar()
+            )
+        finally:
+            session.close()
 
     # -------------------------------------------------------------------------
     def save_checkpoint_evaluation_report(self, report: dict[str, Any]) -> None:
@@ -883,14 +998,25 @@ class DataSerializer:
         checkpoint_name = str(checkpoint or "").strip()
         if not checkpoint_name:
             return None
-
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(
-                    serialization_queries.latest_checkpoint_evaluation_sql()
-                ),
-                {"checkpoint": checkpoint_name},
-            ).fetchone()
+        session = self._session()
+        try:
+            row = session.execute(
+                select(
+                    CheckpointEvaluation.executed_at,
+                    CheckpointEvaluation.metrics_json,
+                    CheckpointEvaluation.metric_configs_json,
+                    CheckpointEvaluation.results_json,
+                )
+                .join(
+                    Checkpoint,
+                    Checkpoint.checkpoint_id == CheckpointEvaluation.checkpoint_id,
+                )
+                .where(Checkpoint.name == checkpoint_name)
+                .order_by(CheckpointEvaluation.evaluation_id.desc())
+                .limit(1)
+            ).first()
+        finally:
+            session.close()
         if row is None:
             return None
 
@@ -912,9 +1038,18 @@ class DataSerializer:
         checkpoint_name = str(checkpoint or "").strip()
         if not checkpoint_name:
             return False
-        with self.queries.backend.engine.connect() as conn:
-            row = conn.execute(
-                sqlalchemy.text(serialization_queries.checkpoint_evaluation_exists_sql()),
-                {"checkpoint": checkpoint_name},
-            ).fetchone()
-        return row is not None
+        session = self._session()
+        try:
+            return bool(
+                session.execute(
+                    select(
+                        exists().where(
+                            CheckpointEvaluation.checkpoint_id
+                            == Checkpoint.checkpoint_id,
+                            Checkpoint.name == checkpoint_name,
+                        )
+                    )
+                ).scalar()
+            )
+        finally:
+            session.close()

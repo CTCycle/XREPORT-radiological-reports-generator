@@ -13,7 +13,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 from XREPORT.server.repositories.schemas.types import JSONSequence
 
@@ -33,6 +33,27 @@ class Dataset(Base):
         default=lambda: datetime.now(timezone.utc),
     )
     __table_args__ = (UniqueConstraint("name", name="uq_datasets_name"),)
+    records = relationship(
+        "DatasetRecord",
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+    )
+    processing_runs = relationship(
+        "ProcessingRun",
+        back_populates="dataset",
+        foreign_keys="ProcessingRun.dataset_id",
+        cascade="all, delete-orphan",
+    )
+    source_processing_runs = relationship(
+        "ProcessingRun",
+        back_populates="source_dataset",
+        foreign_keys="ProcessingRun.source_dataset_id",
+    )
+    validation_runs = relationship(
+        "ValidationRun",
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+    )
 
 
 ###############################################################################
@@ -59,6 +80,21 @@ class DatasetRecord(Base):
         ),
         Index("ix_dataset_records_dataset_order", "dataset_id", "row_order"),
         Index("ix_dataset_records_dataset_image", "dataset_id", "image_name"),
+    )
+    dataset = relationship("Dataset", back_populates="records")
+    training_samples = relationship(
+        "TrainingSample",
+        back_populates="record",
+        cascade="all, delete-orphan",
+    )
+    validation_image_stats = relationship(
+        "ValidationImageStat",
+        back_populates="record",
+        cascade="all, delete-orphan",
+    )
+    inference_reports = relationship(
+        "InferenceReport",
+        back_populates="record",
     )
 
 
@@ -95,6 +131,21 @@ class ProcessingRun(Base):
         Index("ix_processing_runs_config_hash", "config_hash"),
         Index("ix_processing_runs_dataset_id", "dataset_id"),
     )
+    dataset = relationship(
+        "Dataset",
+        back_populates="processing_runs",
+        foreign_keys=[dataset_id],
+    )
+    source_dataset = relationship(
+        "Dataset",
+        back_populates="source_processing_runs",
+        foreign_keys=[source_dataset_id],
+    )
+    training_samples = relationship(
+        "TrainingSample",
+        back_populates="processing_run",
+        cascade="all, delete-orphan",
+    )
 
 
 ###############################################################################
@@ -127,6 +178,8 @@ class TrainingSample(Base):
         ),
         Index("ix_training_samples_run_split", "processing_run_id", "split"),
     )
+    processing_run = relationship("ProcessingRun", back_populates="training_samples")
+    record = relationship("DatasetRecord", back_populates="training_samples")
 
 
 ###############################################################################
@@ -152,6 +205,23 @@ class ValidationRun(Base):
         Index("ix_validation_runs_dataset_id", "dataset_id"),
         Index("ix_validation_runs_dataset_executed", "dataset_id", "executed_at"),
     )
+    dataset = relationship("Dataset", back_populates="validation_runs")
+    text_summary = relationship(
+        "ValidationTextSummary",
+        back_populates="validation_run",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    image_stats = relationship(
+        "ValidationImageStat",
+        back_populates="validation_run",
+        cascade="all, delete-orphan",
+    )
+    pixel_distribution = relationship(
+        "ValidationPixelDistribution",
+        back_populates="validation_run",
+        cascade="all, delete-orphan",
+    )
 
 
 ###############################################################################
@@ -170,6 +240,7 @@ class ValidationTextSummary(Base):
     avg_words_per_report = Column(Float, nullable=False)
     min_words_per_report = Column(Integer, nullable=False)
     max_words_per_report = Column(Integer, nullable=False)
+    validation_run = relationship("ValidationRun", back_populates="text_summary")
 
 
 ###############################################################################
@@ -197,6 +268,8 @@ class ValidationImageStat(Base):
     pixel_range = Column(Float)
     noise_std = Column(Float)
     noise_ratio = Column(Float)
+    validation_run = relationship("ValidationRun", back_populates="image_stats")
+    record = relationship("DatasetRecord", back_populates="validation_image_stats")
 
 
 ###############################################################################
@@ -214,6 +287,7 @@ class ValidationPixelDistribution(Base):
     __table_args__ = (
         CheckConstraint("bin >= 0 AND bin <= 255", name="ck_validation_pixel_bin"),
     )
+    validation_run = relationship("ValidationRun", back_populates="pixel_distribution")
 
 
 ###############################################################################
@@ -232,6 +306,16 @@ class Checkpoint(Base):
     __table_args__ = (
         UniqueConstraint("name", name="uq_checkpoints_name"),
         UniqueConstraint("path", name="uq_checkpoints_path"),
+    )
+    evaluations = relationship(
+        "CheckpointEvaluation",
+        back_populates="checkpoint",
+        cascade="all, delete-orphan",
+    )
+    inference_runs = relationship(
+        "InferenceRun",
+        back_populates="checkpoint",
+        cascade="all, delete-orphan",
     )
 
 
@@ -257,6 +341,7 @@ class CheckpointEvaluation(Base):
     __table_args__ = (
         Index("ix_checkpoint_evaluations_checkpoint_id", "checkpoint_id"),
     )
+    checkpoint = relationship("Checkpoint", back_populates="evaluations")
 
 
 ###############################################################################
@@ -279,6 +364,12 @@ class InferenceRun(Base):
     )
     __table_args__ = (
         UniqueConstraint("request_id", name="uq_inference_runs_request_id"),
+    )
+    checkpoint = relationship("Checkpoint", back_populates="inference_runs")
+    reports = relationship(
+        "InferenceReport",
+        back_populates="inference_run",
+        cascade="all, delete-orphan",
     )
 
 
@@ -306,3 +397,5 @@ class InferenceReport(Base):
             name="uq_inference_reports_run_image",
         ),
     )
+    inference_run = relationship("InferenceRun", back_populates="reports")
+    record = relationship("DatasetRecord", back_populates="inference_reports")
