@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 import sqlalchemy
-from sqlalchemy import inspect
+from sqlalchemy import delete, func, inspect, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +19,6 @@ from XREPORT.server.repositories.database.utils import (
     validate_table_name,
     validate_unique_key_values,
 )
-from XREPORT.server.repositories.queries import database as database_queries
 from XREPORT.server.repositories.schemas import Base
 
 
@@ -117,25 +116,49 @@ class PostgresRepository:
             if not inspector.has_table(safe_table_name):
                 logger.warning("Table %s does not exist", safe_table_name)
                 return pd.DataFrame()
-            data = pd.read_sql_table(safe_table_name, conn)
-        if offset:
-            data = data.iloc[offset:]
+
+        table_cls = self.get_table_class(safe_table_name)
+        primary_keys = [column.name for column in table_cls.__table__.primary_key.columns]
+        order_columns = [getattr(table_cls, key) for key in primary_keys]
+        stmt = select(table_cls)
+        if order_columns:
+            stmt = stmt.order_by(*order_columns)
+        if offset is not None:
+            stmt = stmt.offset(offset)
         if limit is not None:
-            data = data.head(limit)
-        return data.reset_index(drop=True)
+            stmt = stmt.limit(limit)
+
+        session = self.session()
+        try:
+            instances = session.execute(stmt).scalars().all()
+        finally:
+            session.close()
+        if not instances:
+            return pd.DataFrame()
+        rows = [
+            {
+                column.name: getattr(instance, column.name)
+                for column in table_cls.__table__.columns
+            }
+            for instance in instances
+        ]
+        return pd.DataFrame(rows).reset_index(drop=True)
 
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         safe_table_name = validate_table_name(table_name)
-        with self.engine.begin() as conn:
-            inspector = inspect(conn)
-            if inspector.has_table(safe_table_name):
-                conn.execute(
-                    sqlalchemy.text(
-                        database_queries.delete_all_rows_sql(safe_table_name)
-                    )
-                )
-            df.to_sql(safe_table_name, conn, if_exists="append", index=False)
+        table_cls = self.get_table_class(safe_table_name)
+        normalized = normalize_string_columns(df)
+        records = normalized.to_dict(orient="records")
+
+        session = self.session()
+        try:
+            session.execute(delete(table_cls))
+            if records:
+                session.add_all([table_cls(**record) for record in records])
+            session.commit()
+        finally:
+            session.close()
 
     # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
@@ -146,9 +169,12 @@ class PostgresRepository:
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
         safe_table_name = validate_table_name(table_name)
-        with self.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(database_queries.count_rows_sql(safe_table_name))
+        table_cls = self.get_table_class(safe_table_name)
+        session = self.session()
+        try:
+            value = (
+                session.execute(select(func.count()).select_from(table_cls)).scalar() or 0
             )
-            value = result.scalar() or 0
+        finally:
+            session.close()
         return int(value)
