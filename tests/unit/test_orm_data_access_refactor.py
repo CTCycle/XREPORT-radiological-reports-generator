@@ -24,7 +24,7 @@ from XREPORT.server.repositories.schemas import (
     ValidationTextSummary,
 )
 from XREPORT.server.repositories.serialization.data import DataSerializer
-from XREPORT.server.routes.preparation import PreparationEndpoint
+from XREPORT.server.api.preparation import PreparationEndpoint
 
 
 ###############################################################################
