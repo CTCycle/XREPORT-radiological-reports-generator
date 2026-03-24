@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-import sqlalchemy
+from sqlalchemy import case, delete, exists, func, select
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
@@ -39,11 +39,14 @@ from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.routes.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
-    DATASETS_TABLE,
     DATASET_RECORDS_TABLE,
-    PROCESSING_RUNS_TABLE,
-    TRAINING_SAMPLES_TABLE,
-    VALIDATION_RUNS_TABLE,
+)
+from XREPORT.server.repositories.schemas import (
+    Dataset,
+    DatasetRecord,
+    ProcessingRun,
+    TrainingSample,
+    ValidationRun,
 )
 from XREPORT.server.services.processing import (
     TextSanitizer,
@@ -327,45 +330,41 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
-        with self.database.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    f"""
-                    SELECT
-                        d.name,
-                        MIN(r.image_path) AS sample_path,
-                        COUNT(r.record_id) AS row_count,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM "{VALIDATION_RUNS_TABLE}" vr
-                                WHERE vr.dataset_id = d.dataset_id
-                            ) THEN TRUE
-                            ELSE FALSE
-                        END AS has_validation_report
-                    FROM "{DATASETS_TABLE}" d
-                    JOIN "{DATASET_RECORDS_TABLE}" r ON r.dataset_id = d.dataset_id
-                    GROUP BY d.dataset_id, d.name
-                    ORDER BY d.name
-                """
+        validation_exists = exists().where(
+            ValidationRun.dataset_id == Dataset.dataset_id
+        )
+        stmt = (
+            select(
+                Dataset.name,
+                func.min(DatasetRecord.image_path).label("sample_path"),
+                func.count(DatasetRecord.record_id).label("row_count"),
+                case((validation_exists, True), else_=False).label(
+                    "has_validation_report"
+                ),
+            )
+            .join(DatasetRecord, DatasetRecord.dataset_id == Dataset.dataset_id)
+            .group_by(Dataset.dataset_id, Dataset.name)
+            .order_by(Dataset.name)
+        )
+        session = self.database.backend.session()
+        try:
+            rows = session.execute(stmt).all()
+        finally:
+            session.close()
+
+        datasets = []
+        for row in rows:
+            sample_path = row.sample_path or ""
+            # Extract folder path from the sample path
+            folder_path = os.path.dirname(sample_path) if sample_path else ""
+            datasets.append(
+                DatasetInfo(
+                    name=row.name,
+                    folder_path=folder_path,
+                    row_count=int(row.row_count or 0),
+                    has_validation_report=bool(row.has_validation_report),
                 )
             )
-            datasets = []
-            for row in result.fetchall():
-                name = row[0]
-                sample_path = row[1] or ""
-                row_count = row[2]
-                has_validation_report = bool(row[3])
-                # Extract folder path from the sample path
-                folder_path = os.path.dirname(sample_path) if sample_path else ""
-                datasets.append(
-                    DatasetInfo(
-                        name=name,
-                        folder_path=folder_path,
-                        row_count=row_count,
-                        has_validation_report=has_validation_report,
-                    )
-                )
 
         return DatasetNamesResponse(
             datasets=datasets,
@@ -375,55 +374,49 @@ class PreparationEndpoint:
     # -----------------------------------------------------------------------------
     def get_processed_dataset_names(self) -> DatasetNamesResponse:
         """Get list of processed datasets available for training."""
-        with self.database.backend.engine.connect() as conn:
-            inspector = sqlalchemy.inspect(conn)
-            if not inspector.has_table(TRAINING_SAMPLES_TABLE):
-                return DatasetNamesResponse(datasets=[], count=0)
-
-            result = conn.execute(
-                sqlalchemy.text(
-                    f"""
-                    WITH latest_runs AS (
-                        SELECT
-                            dataset_id,
-                            MAX(processing_run_id) AS processing_run_id
-                        FROM "{PROCESSING_RUNS_TABLE}"
-                        GROUP BY dataset_id
-                    )
-                    SELECT
-                        d.name,
-                        COUNT(ts.training_sample_id) AS row_count,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM "{VALIDATION_RUNS_TABLE}" vr
-                                WHERE vr.dataset_id = d.dataset_id
-                            ) THEN TRUE
-                            ELSE FALSE
-                        END AS has_validation_report
-                    FROM latest_runs lr
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = lr.dataset_id
-                    LEFT JOIN "{TRAINING_SAMPLES_TABLE}" ts ON ts.processing_run_id = lr.processing_run_id
-                    GROUP BY d.dataset_id, d.name
-                    ORDER BY d.name
-                """
+        latest_runs = (
+            select(
+                ProcessingRun.dataset_id.label("dataset_id"),
+                func.max(ProcessingRun.processing_run_id).label("processing_run_id"),
+            )
+            .group_by(ProcessingRun.dataset_id)
+            .subquery()
+        )
+        validation_exists = exists().where(
+            ValidationRun.dataset_id == Dataset.dataset_id
+        )
+        stmt = (
+            select(
+                Dataset.name,
+                func.count(TrainingSample.training_sample_id).label("row_count"),
+                case((validation_exists, True), else_=False).label(
+                    "has_validation_report"
                 )
             )
+            .join(latest_runs, latest_runs.c.dataset_id == Dataset.dataset_id)
+            .outerjoin(
+                TrainingSample,
+                TrainingSample.processing_run_id == latest_runs.c.processing_run_id,
+            )
+            .group_by(Dataset.dataset_id, Dataset.name)
+            .order_by(Dataset.name)
+        )
+        session = self.database.backend.session()
+        try:
+            rows = session.execute(stmt).all()
+        finally:
+            session.close()
 
-            datasets = []
-            for row in result.fetchall():
-                name = row[0]
-                row_count = row[1]
-                has_report = bool(row[2])
-
-                datasets.append(
-                    DatasetInfo(
-                        name=name,
-                        folder_path="processed",  # Placeholder indicating processed data
-                        row_count=row_count,
-                        has_validation_report=has_report,
-                    )
+        datasets = []
+        for row in rows:
+            datasets.append(
+                DatasetInfo(
+                    name=row.name,
+                    folder_path="processed",  # Placeholder indicating processed data
+                    row_count=int(row.row_count or 0),
+                    has_validation_report=bool(row.has_validation_report),
                 )
+            )
 
         return DatasetNamesResponse(
             datasets=datasets,
@@ -471,19 +464,17 @@ class PreparationEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
-
-        with self.database.backend.engine.begin() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    f'DELETE FROM "{DATASETS_TABLE}" WHERE name = :dataset_name'
-                ),
-                {"dataset_name": dataset_name},
-            )
+        session = self.database.backend.session()
+        try:
+            result = session.execute(delete(Dataset).where(Dataset.name == dataset_name))
             if result.rowcount <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Dataset not found: {dataset_name}",
                 )
+            session.commit()
+        finally:
+            session.close()
 
         return DeleteResponse(
             success=True,
@@ -788,19 +779,18 @@ class PreparationEndpoint:
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         """Get total number of images in a dataset."""
         dataset_name = dataset_name.strip()
-        with self.database.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT COUNT(*)
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    '''
-                ),
-                {"dataset_name": dataset_name},
+        session = self.database.backend.session()
+        try:
+            count = (
+                session.execute(
+                    select(func.count(DatasetRecord.record_id))
+                    .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+                    .where(Dataset.name == dataset_name)
+                ).scalar()
+                or 0
             )
-            count = result.scalar() or 0
+        finally:
+            session.close()
 
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
@@ -816,44 +806,44 @@ class PreparationEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Image index must be >= 1",
             )
-
-        with self.database.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT r.image_name, r.report_text, r.image_path
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    ORDER BY r.row_order, r.record_id
-                    LIMIT 1 OFFSET :offset
-                    '''
-                ),
-                {"dataset_name": dataset_name, "offset": index - 1},
-            )
-            row = result.fetchone()
-
-            if not row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Image index {index} not found in dataset {dataset_name}",
+        session = self.database.backend.session()
+        try:
+            row = session.execute(
+                select(
+                    DatasetRecord.image_name,
+                    DatasetRecord.report_text,
+                    DatasetRecord.image_path,
                 )
+                .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+                .where(Dataset.name == dataset_name)
+                .order_by(DatasetRecord.row_order, DatasetRecord.record_id)
+                .offset(index - 1)
+                .limit(1)
+            ).first()
+        finally:
+            session.close()
 
-            image_name = row[0]
-            caption = row[1] or ""
-            path = row[2] or ""
-
-            # Check if file exists
-            valid_path = os.path.exists(path) if path else False
-
-            return ImageMetadataResponse(
-                dataset_name=dataset_name,
-                index=index,
-                image_name=image_name,
-                caption=caption,
-                valid_path=valid_path,
-                path=path,
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Image index {index} not found in dataset {dataset_name}",
             )
+
+        image_name = row[0]
+        caption = row[1] or ""
+        path = row[2] or ""
+
+        # Check if file exists
+        valid_path = os.path.exists(path) if path else False
+
+        return ImageMetadataResponse(
+            dataset_name=dataset_name,
+            index=index,
+            image_name=image_name,
+            caption=caption,
+            valid_path=valid_path,
+            path=path,
+        )
 
     # -----------------------------------------------------------------------------
     def get_dataset_image_content(self, dataset_name: str, index: int):
@@ -865,39 +855,35 @@ class PreparationEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Image index must be >= 1",
             )
+        session = self.database.backend.session()
+        try:
+            row = session.execute(
+                select(DatasetRecord.image_path)
+                .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+                .where(Dataset.name == dataset_name)
+                .order_by(DatasetRecord.row_order, DatasetRecord.record_id)
+                .offset(index - 1)
+                .limit(1)
+            ).first()
+        finally:
+            session.close()
 
-        with self.database.backend.engine.connect() as conn:
-            result = conn.execute(
-                sqlalchemy.text(
-                    f'''
-                    SELECT r.image_path
-                    FROM "{DATASET_RECORDS_TABLE}" r
-                    JOIN "{DATASETS_TABLE}" d ON d.dataset_id = r.dataset_id
-                    WHERE d.name = :dataset_name
-                    ORDER BY r.row_order, r.record_id
-                    LIMIT 1 OFFSET :offset
-                    '''
-                ),
-                {"dataset_name": dataset_name, "offset": index - 1},
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Image index {index} not found in dataset {dataset_name}",
             )
-            row = result.fetchone()
 
-            if not row:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Image index {index} not found in dataset {dataset_name}",
-                )
+        path = row[0]
 
-            path = row[0]
+        if not path or not os.path.exists(path):
+            # Elegant warning message as requested
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Source file not found at {path}",
+            )
 
-            if not path or not os.path.exists(path):
-                # Elegant warning message as requested
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Source file not found at {path}",
-                )
-
-            return FileResponse(path)
+        return FileResponse(path)
 
     # -----------------------------------------------------------------------------
     def add_routes(self) -> None:
