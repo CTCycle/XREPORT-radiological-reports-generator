@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 import pytest
-import sqlalchemy
+from sqlalchemy import delete
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 if os.environ.get("RUN_PERF_TESTS", "0") != "1":
@@ -248,19 +248,23 @@ def write_training_data(
 
 ###############################################################################
 def cleanup_training_data(dataset_name: str) -> None:
-    with database.backend.engine.begin() as conn:
-        conn.execute(
-            sqlalchemy.text(
-                f'DELETE FROM "{TRAINING_DATASET_TABLE}" WHERE name = :dataset_name'
-            ),
-            {"dataset_name": dataset_name},
+    training_table = database.backend.get_table_class(TRAINING_DATASET_TABLE)
+    metadata_table = database.backend.get_table_class(PROCESSING_METADATA_TABLE)
+    session = database.backend.session()
+    try:
+        session.execute(
+            delete(training_table).where(
+                getattr(training_table, "name") == dataset_name
+            )
         )
-        conn.execute(
-            sqlalchemy.text(
-                f'DELETE FROM "{PROCESSING_METADATA_TABLE}" WHERE name = :dataset_name'
-            ),
-            {"dataset_name": dataset_name},
+        session.execute(
+            delete(metadata_table).where(
+                getattr(metadata_table, "name") == dataset_name
+            )
         )
+        session.commit()
+    finally:
+        session.close()
 
 
 ###############################################################################
