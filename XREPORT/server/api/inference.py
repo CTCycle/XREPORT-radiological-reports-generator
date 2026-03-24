@@ -7,12 +7,12 @@ from typing import Any
 
 from fastapi import APIRouter, File, Form, UploadFile, status, HTTPException
 
-from XREPORT.server.entities.inference import (
+from XREPORT.server.domain.inference import (
     CheckpointInfo,
     CheckpointsResponse,
     InferenceImage,
 )
-from XREPORT.server.entities.jobs import (
+from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
