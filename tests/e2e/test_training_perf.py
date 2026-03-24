@@ -26,7 +26,7 @@ if os.environ.get("RUN_PERF_TESTS", "0") != "1":
         allow_module_level=True,
     )
 
-from XREPORT.server.routes.training import training_endpoint, training_state
+from XREPORT.server.api.training import training_endpoint, training_state
 from XREPORT.server.schemas.training import StartTrainingRequest
 from XREPORT.server.utils.constants import (
     CHECKPOINT_PATH,

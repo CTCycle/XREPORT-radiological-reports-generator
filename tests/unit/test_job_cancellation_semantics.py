@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 import time
 
-from XREPORT.server.entities.jobs import JobState
+from XREPORT.server.domain.jobs import JobState
 from XREPORT.server.services.jobs import JobManager
 
 
