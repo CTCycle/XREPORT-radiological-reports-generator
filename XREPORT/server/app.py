@@ -15,11 +15,11 @@ from XREPORT.server.common.constants import (
     FASTAPI_VERSION,
 )
 from XREPORT.server.common.utils.variables import env_variables  # noqa: F401
-from XREPORT.server.routes.inference import router as inference_router
-from XREPORT.server.routes.preparation import router as preparation_router
-from XREPORT.server.routes.training import router as training_router
-from XREPORT.server.routes.upload import router as upload_router
-from XREPORT.server.routes.validation import router as validation_router
+from XREPORT.server.api.inference import router as inference_router
+from XREPORT.server.api.preparation import router as preparation_router
+from XREPORT.server.api.training import router as training_router
+from XREPORT.server.api.upload import router as upload_router
+from XREPORT.server.api.validation import router as validation_router
 
 
 def tauri_mode_enabled() -> bool:

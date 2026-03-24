@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from XREPORT.server.entities.training import (
+from XREPORT.server.domain.training import (
     CheckpointInfo,
     CheckpointsResponse,
     CheckpointMetadataResponse,
@@ -16,7 +16,7 @@ from XREPORT.server.entities.training import (
     ResumeTrainingRequest,
     TrainingStatusResponse,
 )
-from XREPORT.server.entities.jobs import (
+from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
