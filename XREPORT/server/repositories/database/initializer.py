@@ -11,6 +11,7 @@ from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 from XREPORT.server.repositories.database.utils import normalize_postgres_engine
 from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.repositories.queries import database as database_queries
 from XREPORT.server.repositories.schemas import Base
 
 # -------------------------------------------------------------------------
@@ -58,10 +59,7 @@ def clone_settings_with_database(
 def build_postgres_create_database_sql(
     database_name: str,
 ) -> TextClause:
-    safe_database = database_name.replace('"', '""')
-    return sqlalchemy.text(
-        f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'
-    )
+    return sqlalchemy.text(database_queries.create_database_sql(database_name))
 
 # -----------------------------------------------------------------------------
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
@@ -94,7 +92,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     with admin_engine.connect() as conn:
         exists = conn.execute(
-            sqlalchemy.text("SELECT 1 FROM pg_database WHERE datname=:name"),
+            sqlalchemy.text(database_queries.postgres_database_exists_sql()),
             {"name": target_database},
         ).scalar()
         if exists:
