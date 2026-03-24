@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from XREPORT.server.entities.training import DatasetUploadResponse
+from XREPORT.server.domain.training import DatasetUploadResponse
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.security import sanitize_dataset_name
 

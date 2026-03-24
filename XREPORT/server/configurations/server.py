@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 from XREPORT.server.configurations.base import ensure_mapping, load_configuration_data
-from XREPORT.server.entities.settings import (
+from XREPORT.server.domain.settings import (
     DatabaseSettings,
     GlobalSettings,
     JobsSettings,

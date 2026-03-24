@@ -5,13 +5,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from XREPORT.server.entities.validation import (
+from XREPORT.server.domain.validation import (
     ValidationRequest,
     ValidationReportResponse,
     CheckpointEvaluationRequest,
     CheckpointEvaluationReportResponse,
 )
-from XREPORT.server.entities.jobs import (
+from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,

@@ -9,7 +9,7 @@ from typing import Any
 from collections.abc import Callable
 
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.entities.jobs import JobState
+from XREPORT.server.domain.jobs import JobState
 
 
 ###############################################################################

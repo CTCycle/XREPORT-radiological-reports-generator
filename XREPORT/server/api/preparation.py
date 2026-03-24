@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse
 
 from XREPORT.server.repositories.database import XREPORTDatabase, database
-from XREPORT.server.entities.training import (
+from XREPORT.server.domain.training import (
     BrowseResponse,
     DatasetInfo,
     DatasetNamesResponse,
@@ -26,7 +26,7 @@ from XREPORT.server.entities.training import (
     ImageCountResponse,
     ImageMetadataResponse,
 )
-from XREPORT.server.entities.jobs import (
+from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
@@ -36,7 +36,7 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.types import coerce_bool
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
-from XREPORT.server.routes.upload import UploadState, upload_state
+from XREPORT.server.api.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
     DATASET_RECORDS_TABLE,
