@@ -4,7 +4,7 @@ XREPORT uses a centralized, thread-based job manager to run long operations with
 
 Core implementation:
 - `XREPORT/server/services/jobs.py` (`JobManager`, global `job_manager`)
-- `XREPORT/server/entities/jobs.py` (`JobState`, job response models)
+- `XREPORT/server/domain/jobs.py` (`JobState`, job response models)
 
 ## Core Concepts
 
