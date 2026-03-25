@@ -41,16 +41,16 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 ### 2.2 Backend module organization
 - App composition: `XREPORT/server/app.py`
 - Routes:
-  - `XREPORT/server/routes/upload.py`
-  - `XREPORT/server/routes/preparation.py`
-  - `XREPORT/server/routes/training.py`
-  - `XREPORT/server/routes/inference.py`
-  - `XREPORT/server/routes/validation.py`
+  - `XREPORT/server/api/upload.py`
+  - `XREPORT/server/api/preparation.py`
+  - `XREPORT/server/api/training.py`
+  - `XREPORT/server/api/inference.py`
+  - `XREPORT/server/api/validation.py`
 - Entities:
-  - `XREPORT/server/entities/training.py`
-  - `XREPORT/server/entities/inference.py`
-  - `XREPORT/server/entities/validation.py`
-  - `XREPORT/server/entities/jobs.py`
+  - `XREPORT/server/domain/training.py`
+  - `XREPORT/server/domain/inference.py`
+  - `XREPORT/server/domain/validation.py`
+  - `XREPORT/server/domain/jobs.py`
 - DB layer:
   - `XREPORT/server/repositories/database/backend.py`
   - `XREPORT/server/repositories/schemas/models.py`
@@ -134,8 +134,8 @@ XREPORT is a web application for generating radiology report drafts from X-ray i
 | DELETE | `/validation/jobs/{job_id}` | Cancel validation/evaluation job |
 
 ### 3.3 Schemas and response models
-- Request/response models live under `XREPORT/server/entities/*.py`.
-- Job payload models are shared in `XREPORT/server/entities/jobs.py`.
+- Request/response models live under `XREPORT/server/domain/*.py`.
+- Job payload models are shared in `XREPORT/server/domain/jobs.py`.
 - Route modules use class-based endpoint objects and register paths with `add_api_route`.
 
 ### 3.4 Auth and access control
