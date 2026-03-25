@@ -43,18 +43,18 @@ cls
 echo ==========================================================================
 echo                         Setup and Maintenance
 echo ==========================================================================
-echo 1. Remove logs
-echo 2. Uninstall app
+echo 1. Initialize database
+echo 2. Remove logs
 echo 3. Clean desktop build artifacts
-echo 4. Initialize database
+echo 4. Uninstall app
 echo 5. Exit
 echo.
 set /p sub_choice="Select an option (1-5): "
 
-if "%sub_choice%"=="1" goto :logs
-if "%sub_choice%"=="2" goto :uninstall
+if "%sub_choice%"=="1" goto :run_init_db
+if "%sub_choice%"=="2" goto :logs
 if "%sub_choice%"=="3" goto :clean_desktop_build
-if "%sub_choice%"=="4" goto :run_init_db
+if "%sub_choice%"=="4" goto :uninstall
 if "%sub_choice%"=="5" goto :exit
 echo Invalid option, try again.
 pause
