@@ -1,83 +1,81 @@
 # Background Job Management
 
-XREPORT uses a centralized, thread-based job manager to run long operations without blocking the FastAPI request thread. It powers dataset processing, training, inference, dataset validation, and checkpoint evaluation.
+XREPORT uses a centralized, thread-based job manager for long-running operations.
 
-Core implementation:
+Primary implementation:
 - `XREPORT/server/services/jobs.py` (`JobManager`, global `job_manager`)
-- `XREPORT/server/domain/jobs.py` (`JobState`, job response models)
+- `XREPORT/server/domain/jobs.py` (job state and response models)
 
-## Core Concepts
+## 1. Job Types
 
-### Threading model
+Current long-running job types include:
+- `preparation`
+- `training`
+- `inference`
+- `validation`
+- `checkpoint_evaluation`
+
+Routes enforce single-running-job semantics per job type where needed.
+
+## 2. Threading and Lifecycle
+
+### 2.1 Execution model
 - Each job runs in a daemon `threading.Thread`.
-- Jobs are cooperative-cancellation: threads are not force-killed by default.
-- Training is a special case: the job thread supervises a separate `ProcessWorker` child process (`XREPORT/server/learning/training/worker.py`) for heavy ML execution.
+- Cancellation is cooperative by default (`stop_requested` flag).
+- Training is a special case: the job thread supervises a `ProcessWorker` subprocess for heavy compute.
 
-### Job state
-Each job is tracked in a `JobState` object with:
-- `job_id` (8-char UUID)
+### 2.2 State model
+Each job stores:
+- `job_id` (short UUID)
 - `job_type`
-- `status` (`pending`, `running`, `completed`, `failed`, `cancelled`)
-- `progress` (0.0 to 100.0)
-- `result` (merged partial/final payload)
-- `error`
-- internal cancellation flag (`stop_requested`)
+- `status`: `pending`, `running`, `completed`, `failed`, `cancelled`
+- `progress` (`0.0` to `100.0`)
+- `result` (dict payload, supports incremental merge)
+- `error` (terminal failure message)
 
-## Usage Pattern
+## 3. API Usage Pattern
 
-### 1. Import the singleton
+### 3.1 Start
+A start endpoint calls:
 ```python
-from XREPORT.server.services.jobs import job_manager
+job_id = job_manager.start_job(job_type="...", runner=..., kwargs={...})
 ```
 
-### 2. Define a blocking runner
-Prefer runners that accept `job_id`; `JobManager.start_job` injects it automatically when supported.
-
+### 3.2 Poll
+Status endpoint returns:
 ```python
-def run_my_job(payload: dict, job_id: str) -> dict:
-    if job_manager.should_stop(job_id):
-        return {}
-
-    # Optional live updates for polling clients
-    job_manager.update_progress(job_id, 50.0)
-    job_manager.update_result(job_id, {"stage": "halfway"})
-
-    result = do_blocking_work(payload)
-    return {"result": result}
+job_manager.get_job_status(job_id)
 ```
 
-### 3. Start from endpoint code
+### 3.3 Cancel
+Cancel endpoint calls:
 ```python
-if job_manager.is_job_running("my_job_type"):
-    raise HTTPException(status_code=409, detail="Job already running")
-
-job_id = job_manager.start_job(
-    job_type="my_job_type",
-    runner=run_my_job,
-    kwargs={"payload": request.model_dump()},
-)
+job_manager.cancel_job(job_id)
 ```
 
-### 4. Expose standard polling/cancel endpoints
-- `GET .../jobs/{job_id}` -> `job_manager.get_job_status(job_id)`
-- `DELETE .../jobs/{job_id}` -> `job_manager.cancel_job(job_id)`
+## 4. Live Result Merging
 
-## Result Merging Behavior
+During execution, runners can send partial updates:
+- `job_manager.update_progress(job_id, value)`
+- `job_manager.update_result(job_id, patch_dict)`
 
-XREPORT supports partial result updates while a job is running:
-- `update_result(job_id, patch)` merges into the existing result dict.
-- when the runner returns, returned payload is merged with partial state.
-- this enables live UI progress/metrics without losing final summary values.
+Partial updates merge into the final `result`, so UIs can display live progress without losing final payload fields.
 
-## Cancellation Semantics
+## 5. Cancellation Rules
 
-- `cancel_job` on a running job sets `stop_requested=True`.
-- runner code must check `should_stop(job_id)` and exit cleanly.
-- for training jobs, route logic also triggers `ProcessWorker.stop()` and can escalate to `terminate()` after timeout in `monitor_training_process`.
+- `cancel_job` marks the job with `stop_requested=True`.
+- Runner logic must check `job_manager.should_stop(job_id)` and exit cleanly.
+- Training cancellation also calls `ProcessWorker.stop()` and may escalate to termination if needed.
 
-## Frontend Interaction
+## 6. Frontend Contract
 
-All long-running workflows use polling:
-1. Start endpoint returns `job_id` (+ optional `poll_interval`).
-2. UI polls corresponding `.../jobs/{job_id}` endpoint.
-3. UI stops polling on terminal status (`completed`, `failed`, `cancelled`).
+All long tasks follow the same contract:
+1. Start endpoint returns `job_id` and may return `poll_interval`.
+2. Frontend polls `GET /.../jobs/{job_id}`.
+3. Polling stops when status is terminal.
+
+Terminal statuses:
+- `completed`
+- `failed`
+- `cancelled`
+

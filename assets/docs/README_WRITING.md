@@ -1,171 +1,71 @@
 # README Writing Guidelines
 
-This document defines the **required structure, scope, and writing standards** for producing a proper README file.  
-Its purpose is to ensure clarity, consistency, and usability across projects, especially for applications involving backend and frontend components or machine learning workflows.
+Use this document when creating or updating `README.md` for this repository.
 
-A proper README explains **what the project does, how to install it, and how to use it**, without exposing internal code details or overwhelming the reader.
+## 1. Goal
 
-If a section does not fit in the observed project, skip it completely and adapt section numbering accordingly.
+A README must help users run and use XREPORT without reading source code.
+It should describe:
+- what the app does
+- how to install/run it
+- how to use core workflows
+- where outputs/configuration live
 
----
+## 2. Required Structure
 
-## 1. Project Overview
+If a section does not apply, omit it and keep numbering contiguous.
 
-This section provides a concise but comprehensive description of the project.
+1. Project Overview
+2. Model and Dataset (optional, for ML context)
+3. Installation
+4. How to Use
+5. Setup and Maintenance
+6. Resources
+7. Configuration
+8. License
 
-It must clearly explain:
-- The purpose of the software.
-- The problem it aims to solve.
-- The general mechanism or method used.
-- The high-level architecture of the system.
+## 3. Content Rules
 
-If the project includes both backend and frontend components, briefly describe their roles and how they interact.  
-Do not describe internal code elements such as functions, classes, or modules.
+- Write for users, not internal implementation details.
+- Keep instructions reproducible and command-accurate.
+- Reflect current runtime mode names consistently:
+  - Local mode (v1): web launcher
+  - Local mode (v2): packaged desktop
+- Use real paths and command examples from this repository.
+- Avoid speculative claims; call out uncertainty explicitly.
 
-The reader should understand **what the system does and how it is organized**, without reading the source code.
-
----
-
-## 2. Model and Dataset (Optional)
-
-This section is required only for machine learning projects.
-
-Describe at a high level:
-- The type of model or algorithm used.
-- The learning paradigm, such as supervised learning or reinforcement learning.
-- The nature and origin of the dataset used for training or evaluation.
-
-Do not include architectural details, hyperparameters, or implementation specifics.  
-If datasets are user-provided, synthetic, or externally sourced, state this clearly.
-
-If model or dataset details are uncertain, this must be explicitly acknowledged.
-
----
-
-## 3. Installation
-
-This section explains how to install and prepare the application for use.
-
-Instructions must be:
-- Minimal
-- Reproducible
-- Focused on outcomes rather than internal mechanics
-
-Avoid documenting every internal setup step unless strictly necessary.
-
-### 3.1 Windows (One Click Setup)
-
-If the project provides an automated Windows setup:
-- State clearly that the setup is automated.
-- List, in order, what the launcher performs at a high level.
-- Explain first-run behavior versus subsequent runs.
-- Specify whether the installation is portable or modifies the host system.
-
-Do not describe script internals.
-
-### 3.2 macOS / Linux (Manual Setup)
-
-If manual setup is required:
-- List prerequisites explicitly.
-- Provide numbered installation steps.
-- Separate backend and frontend setup if applicable.
-- Mention optional components only when relevant.
-
-Terminal commands may be shown in fenced blocks, but should remain concise.
-
----
-
-## 4. How to Use
-
-This section explains how users interact with the application after installation.
+## 4. Installation Section Rules
 
 ### 4.1 Windows
+- Include `XREPORT/start_on_windows.bat` flow for local mode (v1).
+- Include desktop packaging flow only for maintainer/build context.
 
-Describe:
-- How to launch the application.
-- The URL or interface where the application becomes available.
+### 4.2 macOS/Linux
+- Include manual setup only if verified and supported by repository scripts/config.
 
-### 4.2 macOS / Linux
+## 5. How to Use Section Rules
 
-Provide:
-- Separate commands for backend and frontend if applicable.
-- The local URLs for the UI, backend API, and documentation if exposed.
+- Describe operational workflow (dataset -> training -> inference -> validation).
+- Include UI endpoints and launch behavior at a user level.
+- If screenshots are used, keep file references valid and concise.
 
-### 4.3 Using the Application
+## 6. Maintenance and Resources
 
-Describe the **operational workflow**, not the internal logic.
+- Document `XREPORT/setup_and_maintenance.bat` actions at outcome level.
+- Explain `XREPORT/resources` and `runtimes` responsibilities accurately.
 
-Examples of acceptable topics:
-- Loading or preparing data.
-- Running training, analysis, or processing tasks.
-- Executing inference or simulations.
-- Reviewing outputs, logs, or stored results.
+## 7. Configuration Section Rules
 
-If the application includes a UI, include linked screenshots from the project’s assets directory, each accompanied by a short functional description.
+- Reference active env file: `XREPORT/settings/.env`.
+- Mention profile templates:
+  - `XREPORT/settings/.env.local.example`
+  - `XREPORT/settings/.env.local.tauri.example`
+- Include a variable table only for variables that are actually used.
 
----
+## 8. Cross-Reference Requirement
 
-## 5. Setup and Maintenance
+When README behavior changes materially, verify consistency with:
+- `assets/docs/ARCHITECTURE.md`
+- `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`
+- `assets/docs/GUIDELINES_TESTS.md`
 
-Describe any maintenance or utility scripts provided with the project.
-
-List available actions in bullet form, each with a short explanation, such as:
-- Clearing logs.
-- Resetting application state.
-- Reinitializing databases.
-- Removing local installations.
-
-Focus on **what each action does**, not how it is implemented.
-
----
-
-## 6. Resources
-
-Explain the purpose of the project’s resource or data directory.
-
-For each subdirectory:
-- Begin with the directory name followed by a colon.
-- Describe what it contains.
-- Explain how it is used by the application.
-
-If templates or sample files exist, note their location and intended use.
-
----
-
-## 7. Configuration
-
-Describe where configuration files are located and how they are applied.
-
-If both backend and frontend configurations exist:
-- Describe them separately.
-- Clarify how configuration is loaded, for example via environment variables or configuration files.
-
-Include a configuration table with the following format:
-
-| Variable | Description |
-|----------|-------------|
-| VARIABLE_NAME | Purpose, definition location, and default value |
-
-Each row must specify:
-- The variable name.
-- Its function.
-- Where it is defined.
-- Its default behavior or value.
-
----
-
-## 8. License
-
-State the license type clearly and refer to the LICENSE file for full terms.
-
----
-
-## Final Notes
-
-A proper README:
-- Is written for users, not developers.
-- Explains functionality and workflow, not code.
-- Is factual and avoids speculative claims.
-- Is structured, readable, and skimmable.
-
-Any README written using these guidelines must follow this structure exactly.
