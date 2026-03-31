@@ -1,78 +1,82 @@
-# XREPORT Packaging and Runtime Modes
+# Packaging and Runtime Modes
 
-## 1. Strategy
+This document defines how XREPORT runtime profiles and packaging modes work.
 
-XREPORT uses one active runtime file: `XREPORT/settings/.env`.
+## 1. Runtime Strategy
 
-- Local mode (v1): run web stack directly on host via `start_on_windows.bat`.
-- Local mode (v2): build and distribute a packaged Tauri desktop release.
-- Mode switching: replace values in `XREPORT/settings/.env` only.
+Active runtime profile:
+- `XREPORT/settings/.env`
 
-## 2. Runtime Profiles
+Profile templates:
+- `XREPORT/settings/.env.local.example` (Local mode v1)
+- `XREPORT/settings/.env.local.tauri.example` (Local mode v2)
 
-- `XREPORT/settings/.env.local.example`: local web defaults for Local mode (v1).
-- `XREPORT/settings/.env.local.tauri.example`: packaged desktop defaults for Local mode (v2).
-- `XREPORT/settings/.env`: active profile used by launchers and tests.
-- `XREPORT/settings/configurations.json`: non-runtime defaults only (global seed + job polling interval).
+Non-runtime defaults:
+- `XREPORT/settings/configurations.json` (`global.seed`, `jobs.polling_interval`)
 
-## 3. Required Environment Keys
+## 2. Mode Definitions
+
+### 2.1 Local mode (v1): web launcher
+- Launcher: `XREPORT/start_on_windows.bat`
+- Runs backend + frontend as local web services
+
+### 2.2 Local mode (v2): packaged desktop
+- Build helper: `release/tauri/build_with_tauri.bat`
+- Produces Windows desktop artifacts under `release/windows`
+- Packaged app runs local backend in background and serves the SPA
+
+## 3. Environment Keys
 
 | Key | Purpose |
 |---|---|
-| `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port in local runtime modes. |
-| `UI_HOST`, `UI_PORT` | Frontend bind host/port in Local mode (v1). |
-| `VITE_API_BASE_URL` | Frontend API base path. Must stay `/api` for same-origin proxying and packaged desktop compatibility. |
-| `RELOAD` | Enables backend reload in local development when `true`. |
-| `OPTIONAL_DEPENDENCIES` | Enables optional test dependencies in launcher flow. |
-| `DB_EMBEDDED` | `true` uses SQLite; `false` uses external DB settings. |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB connection settings used when `DB_EMBEDDED=false`. |
-| `DB_SSL`, `DB_SSL_CA` | External DB TLS settings. |
-| `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB connection and write-batching runtime settings. |
-| `MPLBACKEND`, `KERAS_BACKEND` | Runtime backend settings for plotting and ML stack. |
-| `ALLOW_LOCAL_FILESYSTEM_ACCESS` | Enables server-side local filesystem helper endpoints (`/preparation/browse`, path validation/load, image file serving). Keep `true` for local runtime modes. |
+| `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port |
+| `UI_HOST`, `UI_PORT` | Frontend bind host/port for local web mode |
+| `VITE_API_BASE_URL` | Frontend API base path (keep `/api` for compatibility) |
+| `RELOAD` | Uvicorn reload toggle in local dev |
+| `OPTIONAL_DEPENDENCIES` | Installs optional Python dependencies in launcher flow |
+| `DB_EMBEDDED` | `true` for SQLite, `false` for external DB |
+| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB configuration |
+| `DB_SSL`, `DB_SSL_CA` | External DB TLS settings |
+| `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB runtime tuning |
+| `MPLBACKEND`, `KERAS_BACKEND` | Runtime ML/plotting backend settings |
+| `ALLOW_LOCAL_FILESYSTEM_ACCESS` | Enables local filesystem API helpers |
 
-## 4. Local Mode (v1: Web Launcher)
+## 4. Local Mode (v1) Workflow
 
-1. Copy local v1 profile values into active env:
+1. Activate local profile:
    - `copy /Y XREPORT\settings\.env.local.example XREPORT\settings\.env`
 2. Start application:
    - `XREPORT\start_on_windows.bat`
-3. Run tests (optional):
+3. Optional test run:
    - `tests\run_tests.bat`
 
-## 5. Local Mode (v2: Packaged Tauri Desktop)
+## 5. Local Mode (v2) Workflow
 
-1. Copy local v2 profile values into active env:
+1. Activate desktop profile:
    - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
-2. If desktop branding changed, regenerate desktop icons from the shared favicon source:
+2. Optional icon regeneration (when branding changes):
    - `cd XREPORT\client && npm run tauri:icon`
-3. Build desktop package:
+3. Build desktop artifacts:
    - `release\tauri\build_with_tauri.bat`
-4. Distribute installer/executable artifacts from:
-   - `release/windows/installers` (preferred for end users)
-   - `release/windows/portable` (app executable plus required runtime resources)
-5. Clean previous desktop build residue (optional):
-   - `cd XREPORT\client && npm run tauri:clean`
-   - or use option `3. Clean desktop build artifacts` in `XREPORT\setup_and_maintenance.bat`
+4. Collect release outputs:
+   - `release/windows/installers` (preferred)
+   - `release/windows/portable`
 
-Runtime behavior:
-- The packaged desktop executable starts a local backend process in the background.
-- The desktop bootstrap discovers packaged workspace roots and prefers a valid workspace that already has `runtimes\.venv\Scripts\python.exe`.
-- When no reusable runtime env is found, runtime files are created in a writable location: packaged workspace root when writable, otherwise `%LOCALAPPDATA%\com.xreport.desktop\runtime` (installer-safe fallback).
-- `uv sync` runs only when `<runtime-root>\runtimes\.venv\Scripts\python.exe` is missing and uses `UV_PROJECT_ENVIRONMENT` plus `--frozen` for lockfile-backed sync.
-- The desktop bootstrap stores uv cache in `<runtime-root>\runtimes\.uv-cache`.
-- Backend starts uvicorn on `FASTAPI_HOST:FASTAPI_PORT` from the resolved `runtimes\.venv`.
-- Desktop window loads `http://<FASTAPI_HOST>:<FASTAPI_PORT>/` when the API is reachable.
-- First launch can still be long because model dependencies (for example `torch`/`torchvision`) may need to be resolved; this is independent from v1 runtime state.
-- `uv sync` startup phase has a 15-minute timeout and surfaces an error screen instead of waiting indefinitely.
-- Startup splash synchronization text is intentionally generic and does not expose absolute filesystem paths.
-- End users run the shipped installer/`.exe` and do not need Rust/Cargo.
-- Desktop icon assets are sourced from `XREPORT/client/public/favicon.png` and regenerated via `npm run tauri:icon`.
-- The repository intentionally keeps only desktop icon outputs in `XREPORT/client/src-tauri/icons`; generated `android` and `ios` folders are removed after regeneration.
-- Windows Explorer can cache stale icons for unchanged exe names/paths; if a rebuilt app appears unchanged, verify the binary or refresh the icon cache before assuming packaging failed.
-- Do not delete `XREPORT/client/src-tauri`; it contains source/config files, not just build output.
+Optional cleanup:
+- `cd XREPORT\client && npm run tauri:clean`
+- or `XREPORT\setup_and_maintenance.bat` option `3. Clean desktop build artifacts`
 
-## 6. Deterministic Build Notes
+## 6. Desktop Runtime Notes
 
-- Backend dependency graph is lockfile-backed via `runtimes/uv.lock` (staged as `uv.lock` at runtime sync/build time) and installed with `uv sync --frozen`.
-- Frontend dependency graph is lockfile-backed via `XREPORT/client/package-lock.json` and installed with `npm ci`.
+- Packaged runtime tries to reuse an existing valid `runtimes/.venv` first.
+- If no reusable runtime is found, runtime files are created under a writable runtime root.
+- Dependency sync is lockfile-backed with `uv sync --frozen` and runs only when runtime venv is missing.
+- First launch may still be slower due to heavy ML dependency resolution (`torch`, `torchvision`).
+- Splash/status text is intentionally generic and should not expose absolute runtime paths.
+- End users only need the produced installer/executable; Rust/Cargo is build-machine-only.
+
+## 7. Deterministic Build Inputs
+
+- Backend dependency graph: `runtimes/uv.lock` (staged to `uv.lock` during sync/build)
+- Frontend dependency graph: `XREPORT/client/package-lock.json`
+

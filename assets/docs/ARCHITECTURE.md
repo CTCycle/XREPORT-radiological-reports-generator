@@ -1,182 +1,143 @@
 # XREPORT Architecture
 
-## 1. High-Level Overview
+## 1. System Overview
 
-### 1.1 Purpose and scope
-XREPORT is a web application for generating radiology report drafts from X-ray images. It provides an end-to-end workflow:
-- dataset upload and preparation
-- model training and resume
-- inference on uploaded images
-- dataset validation and checkpoint evaluation
+### 1.1 Purpose
+XREPORT is an application for generating draft radiology reports from X-ray images.
 
-### 1.2 System shape
-- Frontend: React + Vite app in `XREPORT/client`
-- Backend: FastAPI service in `XREPORT/server`
-- Persistence: SQLite (embedded default) or PostgreSQL (external mode), via SQLAlchemy repositories
-- Long-running tasks: centralized job system with polling endpoints
+### 1.2 Main workflows
+- Dataset upload and preparation
+- Model training and resume
+- Inference on uploaded images
+- Dataset validation and checkpoint evaluation
 
-### 1.3 Runtime assumptions
-- Python: `>=3.14` (`pyproject.toml`)
-- Backend startup entrypoint: `XREPORT/server/app.py`
-- Active runtime env file: `XREPORT/settings/.env`
-- Non-runtime defaults: `XREPORT/settings/configurations.json` (global seed + job polling interval)
-- Main runtime data path: `XREPORT/resources` (checkpoints, models, logs, DB)
-- Windows portable runtimes path: `runtimes/` at the repository root
+### 1.3 Runtime shape
+- Frontend: React + Vite in `XREPORT/client`
+- Backend: FastAPI in `XREPORT/server`
+- Persistence: SQLite (embedded default) or PostgreSQL (external mode)
+- Long-running work: centralized background job manager with polling endpoints
 
-## 2. Codebase Structure
+## 2. Repository Structure
 
 ### 2.1 Primary directories
 | Path | Purpose |
 |---|---|
-| `XREPORT/client` | React UI, route pages, API service modules |
-| `XREPORT/server/routes` | FastAPI route modules (upload, preparation, training, validation, inference) |
-| `XREPORT/server/entities` | Pydantic request/response models and job state dataclass |
+| `XREPORT/client` | UI routes, components, styles, API service modules |
+| `XREPORT/server/api` | FastAPI route modules |
+| `XREPORT/server/domain` | Request/response models and job models |
 | `XREPORT/server/services` | Domain services (jobs, processing, validation, evaluation) |
-| `XREPORT/server/learning` | Training/inference ML logic and callbacks |
+| `XREPORT/server/learning` | ML training and inference logic |
 | `XREPORT/server/repositories` | Database backends, schema models, queries, serializers |
-| `XREPORT/settings` | `.env` profiles and JSON configuration |
-| `XREPORT/resources` | Persistent assets and generated runtime data |
-| `tests` | unit, e2e, and verification tests |
+| `XREPORT/settings` | Active env and env templates |
+| `XREPORT/resources` | Runtime data (DB file, checkpoints, models, logs) |
+| `tests` | Unit, E2E, and backend verification tests |
+| `runtimes` | Windows portable runtimes and `.venv` |
 
-### 2.2 Backend module organization
+### 2.2 Backend entrypoints
 - App composition: `XREPORT/server/app.py`
-- Routes:
-  - `XREPORT/server/routes/upload.py`
-  - `XREPORT/server/routes/preparation.py`
-  - `XREPORT/server/routes/training.py`
-  - `XREPORT/server/routes/inference.py`
-  - `XREPORT/server/routes/validation.py`
-- Entities:
-  - `XREPORT/server/entities/training.py`
-  - `XREPORT/server/entities/inference.py`
-  - `XREPORT/server/entities/validation.py`
-  - `XREPORT/server/entities/jobs.py`
-- DB layer:
-  - `XREPORT/server/repositories/database/backend.py`
-  - `XREPORT/server/repositories/schemas/models.py`
-  - `XREPORT/server/repositories/serialization/data.py`
-  - `XREPORT/server/repositories/serialization/model.py`
+- Route modules:
+  - `XREPORT/server/api/upload.py`
+  - `XREPORT/server/api/preparation.py`
+  - `XREPORT/server/api/training.py`
+  - `XREPORT/server/api/inference.py`
+  - `XREPORT/server/api/validation.py`
 
-### 2.3 Frontend module organization
-- Router shell: `XREPORT/client/src/App.tsx`, `XREPORT/client/src/components/MainLayout.tsx`
-- Top-level pages:
+### 2.3 Frontend entrypoints
+- Router shell: `XREPORT/client/src/App.tsx`
+- Layout: `XREPORT/client/src/components/MainLayout.tsx`
+- Top pages:
   - `XREPORT/client/src/pages/DatasetPage.tsx`
   - `XREPORT/client/src/pages/TrainingPage.tsx`
   - `XREPORT/client/src/pages/InferencePage.tsx`
   - `XREPORT/client/src/pages/DatasetValidationPage.tsx`
-- API clients:
-  - `XREPORT/client/src/services/trainingService.ts`
-  - `XREPORT/client/src/services/inferenceService.ts`
-  - `XREPORT/client/src/services/validationService.ts`
 
-## 3. Backend API
+## 3. API Design
 
-### 3.1 API style
-- JSON REST endpoints via FastAPI.
-- Long operations return `job_id` and use polling (`GET /.../jobs/{job_id}`).
-- Default root route redirects to Swagger docs (`GET /` -> `/docs`) when not in Tauri desktop mode.
-- In Tauri desktop mode, backend serves frontend static assets from `/`.
+### 3.1 Route mounting
+All routers are included twice in `app.py`:
+- native path (for example `/training/start`)
+- aliased `/api` path (for example `/api/training/start`)
 
-### 3.2 Route inventory
+This supports same-origin frontend calls in desktop mode while preserving direct backend paths.
+
+### 3.2 Root behavior
+- Desktop mode (`XREPORT_TAURI_MODE=true`) with packaged client available: backend serves SPA files from `XREPORT/client/dist`.
+- Otherwise: `GET /` redirects to `/docs`.
+
+### 3.3 Route inventory
 
 #### Upload
-| Method | Route | Description |
-|---|---|---|
-| POST | `/upload/dataset` | Upload CSV/XLSX metadata file into temporary in-memory upload state |
+| Method | Route |
+|---|---|
+| POST | `/upload/dataset` |
 
 #### Preparation
-| Method | Route | Description |
-|---|---|---|
-| GET | `/preparation/dataset/status` | Source dataset row availability status |
-| GET | `/preparation/dataset/names` | Source dataset list with row counts/report flag |
-| GET | `/preparation/dataset/processed/names` | Processed dataset list (latest processing runs) |
-| GET | `/preparation/dataset/metadata/{dataset_name}` | Latest processing metadata for dataset |
-| DELETE | `/preparation/dataset/{dataset_name}` | Delete dataset by name |
-| POST | `/preparation/images/validate` | Validate image folder path |
-| POST | `/preparation/dataset/load` | Match uploaded records with image folder and persist source records |
-| POST | `/preparation/dataset/process` | Start dataset processing job |
-| GET | `/preparation/dataset/{dataset_name}/images/count` | Dataset image count |
-| GET | `/preparation/dataset/{dataset_name}/images/{index}` | Dataset image metadata by 1-based index |
-| GET | `/preparation/dataset/{dataset_name}/images/{index}/content` | Serve image file content |
-| GET | `/preparation/jobs/{job_id}` | Preparation job status |
-| DELETE | `/preparation/jobs/{job_id}` | Cancel preparation job |
-| GET | `/preparation/browse` | Server-side directory browser (Windows drive-oriented) |
+| Method | Route |
+|---|---|
+| GET | `/preparation/dataset/status` |
+| GET | `/preparation/dataset/names` |
+| GET | `/preparation/dataset/processed/names` |
+| GET | `/preparation/dataset/metadata/{dataset_name}` |
+| DELETE | `/preparation/dataset/{dataset_name}` |
+| POST | `/preparation/images/validate` |
+| POST | `/preparation/dataset/load` |
+| POST | `/preparation/dataset/process` |
+| GET | `/preparation/dataset/{dataset_name}/images/count` |
+| GET | `/preparation/dataset/{dataset_name}/images/{index}` |
+| GET | `/preparation/dataset/{dataset_name}/images/{index}/content` |
+| GET | `/preparation/jobs/{job_id}` |
+| DELETE | `/preparation/jobs/{job_id}` |
+| GET | `/preparation/browse` |
 
 #### Training
-| Method | Route | Description |
-|---|---|---|
-| GET | `/training/checkpoints` | List checkpoints (config metadata only) |
-| GET | `/training/checkpoints/{checkpoint}/metadata` | Load checkpoint metadata/config/session |
-| DELETE | `/training/checkpoints/{checkpoint}` | Delete checkpoint directory |
-| GET | `/training/status` | Current training dashboard state |
-| POST | `/training/start` | Start training job |
-| POST | `/training/resume` | Resume training from checkpoint |
-| GET | `/training/jobs/{job_id}` | Training job status |
-| DELETE | `/training/jobs/{job_id}` | Cancel training job |
-| POST | `/training/stop` | Legacy stop endpoint (kept for backward compatibility) |
+| Method | Route |
+|---|---|
+| GET | `/training/checkpoints` |
+| GET | `/training/checkpoints/{checkpoint}/metadata` |
+| DELETE | `/training/checkpoints/{checkpoint:path}` |
+| GET | `/training/status` |
+| POST | `/training/start` |
+| POST | `/training/resume` |
+| GET | `/training/jobs/{job_id}` |
+| DELETE | `/training/jobs/{job_id}` |
+| POST | `/training/stop` |
 
 #### Inference
-| Method | Route | Description |
-|---|---|---|
-| GET | `/inference/checkpoints` | List inference checkpoints |
-| POST | `/inference/generate` | Start inference job for uploaded images |
-| GET | `/inference/jobs/{job_id}` | Inference job status |
-| DELETE | `/inference/jobs/{job_id}` | Cancel inference job |
+| Method | Route |
+|---|---|
+| GET | `/inference/checkpoints` |
+| POST | `/inference/generate` |
+| GET | `/inference/jobs/{job_id}` |
+| DELETE | `/inference/jobs/{job_id}` |
 
-#### Validation and checkpoint evaluation
-| Method | Route | Description |
-|---|---|---|
-| POST | `/validation/run` | Start dataset validation job |
-| POST | `/validation/checkpoint` | Start checkpoint evaluation job |
-| GET | `/validation/checkpoint/reports/{checkpoint}` | Get persisted checkpoint evaluation report |
-| GET | `/validation/reports/{dataset_name}` | Get persisted dataset validation report |
-| GET | `/validation/jobs/{job_id}` | Validation/evaluation job status |
-| DELETE | `/validation/jobs/{job_id}` | Cancel validation/evaluation job |
+#### Validation
+| Method | Route |
+|---|---|
+| POST | `/validation/run` |
+| POST | `/validation/checkpoint` |
+| GET | `/validation/checkpoint/reports/{checkpoint}` |
+| GET | `/validation/reports/{dataset_name}` |
+| GET | `/validation/jobs/{job_id}` |
+| DELETE | `/validation/jobs/{job_id}` |
 
-### 3.3 Schemas and response models
-- Request/response models live under `XREPORT/server/entities/*.py`.
-- Job payload models are shared in `XREPORT/server/entities/jobs.py`.
-- Route modules use class-based endpoint objects and register paths with `add_api_route`.
+## 4. Frontend Integration
 
-### 3.4 Auth and access control
-- No authentication/authorization layer is currently implemented.
-
-### 3.5 Error handling
-- Errors are returned primarily via `HTTPException` with status codes 400/404/409/422/500.
-- Job failures surface via job status payload (`status=failed`, `error=...`).
-
-## 4. Frontend Architecture
-
-### 4.1 UI navigation
-The application shell uses a two-tier top navigation:
-- Header bar with logo + application title on the left
-- Compact tab bar below the header with icon+label buttons for Dataset, Training, and Inference
-
-Routes:
-- `/dataset`
-- `/training`
-- `/inference`
-- `/dataset/validate/:datasetName`
-
-### 4.2 Frontend state model
-- Page-level state is centralized through `AppStateContext.tsx`.
-- Long-running workflows persist active job references in local storage through `usePersistedRecord`.
-- API modules in `src/services` wrap all backend calls and expose polling helpers.
-
-### 4.3 API integration
-- Frontend uses `/api/...` calls.
-- Vite proxy configuration in `XREPORT/client/vite.config.ts` rewrites `/api` to backend `FASTAPI_HOST:FASTAPI_PORT`.
-- Poll intervals can be controlled by backend response field `poll_interval`.
+- Frontend calls `/api/...` endpoints.
+- Vite proxy in `XREPORT/client/vite.config.ts` rewrites configured API base (default `/api`) to `http://<FASTAPI_HOST>:<FASTAPI_PORT>`.
+- Current backend communication model is HTTP polling for long-running tasks.
 
 ## 5. Persistence Model
 
-### 5.1 Database backends
-- Embedded mode: SQLite via `SQLiteRepository`
-- External mode: PostgreSQL via `PostgresRepository`
-- Backend selection is driven by `DB_EMBEDDED` and DB env vars.
+### 5.1 Database backend selection
+- `DB_EMBEDDED=true`: SQLite via `SQLiteRepository`
+- `DB_EMBEDDED=false`: PostgreSQL via `PostgresRepository`
 
-### 5.2 Canonical schema tables
-Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XREPORT/server/common/constants.py`:
+### 5.2 SQLite location
+SQLite DB file path resolves to:
+- `XREPORT/resources/database.db`
+
+### 5.3 Core tables
+Defined in `XREPORT/server/repositories/schemas/models.py`:
 - `datasets`
 - `dataset_records`
 - `processing_runs`
@@ -190,79 +151,32 @@ Defined in `XREPORT/server/repositories/schemas/models.py` and constants in `XRE
 - `inference_runs`
 - `inference_reports`
 
-### 5.3 Serialization layer
-`DataSerializer` is the main persistence orchestrator for:
-- source dataset upsert and retrieval
-- processing run + training samples save/load
-- validation report save/load
-- checkpoint evaluation report save/load
-- generated inference reports save
+## 6. Background Jobs
 
-## 6. Background Job Architecture
+- Global job manager: `XREPORT/server/services/jobs.py` (`job_manager` singleton)
+- Job states: `pending`, `running`, `completed`, `failed`, `cancelled`
+- Start endpoints return `job_id`; status is read through `GET /.../jobs/{job_id}`; cancellation via `DELETE /.../jobs/{job_id}`
+- Training uses a monitored `ProcessWorker` subprocess for heavy ML execution
 
-### 6.1 Job manager core
-- Singleton `job_manager` in `XREPORT/server/services/jobs.py`.
-- Starts daemon threads, tracks state, supports cancellation flagging.
-- Merges partial `update_result(...)` payloads with final runner result.
+See `assets/docs/BACKGROUND_JOBS.md` for implementation details.
 
-### 6.2 Job lifecycle
-- `pending` -> `running` -> terminal (`completed`, `failed`, `cancelled`)
-- Polling endpoints expose progress and latest result payload.
+## 7. Runtime Modes
 
-### 6.3 Training special case
-- Training route starts a job thread that supervises a `ProcessWorker` subprocess.
-- Route-level monitor loop handles:
-  - callback message polling
-  - progress/result updates
-  - cooperative stop
-  - forced termination on stop timeout
+### 7.1 Local mode (v1)
+- Launcher: `XREPORT/start_on_windows.bat`
+- Runs backend + frontend web stack locally
 
-## 7. Main Application Flows
+### 7.2 Local mode (v2)
+- Build helper: `release/tauri/build_with_tauri.bat`
+- Packaged desktop executable starts local backend and serves SPA
+- Runtime environment is resolved under a writable runtime root, with reuse of existing `runtimes/.venv` when available
 
-### 7.1 Dataset ingestion and preparation
-1. Upload CSV/XLSX via `/upload/dataset`.
-2. Validate folder path via `/preparation/images/validate`.
-3. Load + match records/images via `/preparation/dataset/load`.
-4. Process dataset via `/preparation/dataset/process` (sanitize, tokenize, split, persist training samples/metadata).
+See `assets/docs/PACKAGING_AND_RUNTIME_MODES.md` and `assets/docs/TAURI_PACKAGING_PLAYBOOK.md`.
 
-### 7.2 Training and resume
-1. Choose processed dataset and post `/training/start` (or `/training/resume`).
-2. Poll `/training/jobs/{job_id}` and `/training/status`.
-3. Artifacts/checkpoints are persisted under `XREPORT/resources/checkpoints`.
+## 8. Current Limitations
 
-### 7.3 Inference
-1. Upload images + checkpoint + generation mode to `/inference/generate`.
-2. Poll `/inference/jobs/{job_id}` for progress and report payload.
-3. Generated outputs are persisted to inference tables.
-
-### 7.4 Validation and checkpoint evaluation
-1. Dataset validation: `/validation/run` -> poll `/validation/jobs/{job_id}` -> retrieve report via `/validation/reports/{dataset_name}`.
-2. Checkpoint evaluation: `/validation/checkpoint` -> poll `/validation/jobs/{job_id}` -> retrieve report via `/validation/checkpoint/reports/{checkpoint}`.
-
-## 8. Runtime Modes
-
-### 8.1 Local mode (v1)
-- Typical launcher: `XREPORT/start_on_windows.bat`
-- Uses local `.env` values and portable runtimes in the repository root `runtimes/` directory on Windows.
-
-### 8.2 Local mode (v2, packaged desktop)
-- Desktop packages are built with `release/tauri/build_with_tauri.bat` (build-time helper).
-- At runtime, the packaged Tauri executable starts a local backend process and waits for backend readiness.
-- Runtime bootstrap prefers a discovered valid workspace that already has `runtimes\.venv\Scripts\python.exe`; otherwise it creates runtime state in a writable root (workspace root when writable, else `%LOCALAPPDATA%\com.xreport.desktop\runtime`).
-- Dependency sync runs through `uv sync --frozen` only when the resolved runtime `runtimes\.venv` is missing.
-- Splash synchronization status messaging remains generic and does not include absolute runtime paths.
-- Backend serves both API routes and frontend static files (from `XREPORT/client/dist`) when `XREPORT_TAURI_MODE=true`.
-- Backend also exposes additive `/api/*` route aliases for same-origin frontend compatibility.
-
-## 9. Known Limitations
-
-- No auth/RBAC on API routes.
-- Uploaded dataset file state (`UploadState`) is in-memory and not persisted across backend restarts.
-- Filesystem browse endpoint is Windows-drive oriented.
-- `/training/stop` is a legacy compatibility endpoint; job cancellation via `/training/jobs/{job_id}` is the primary path.
-- `vite.config.ts` defines websocket proxy entries, but backend route modules currently expose polling-based APIs only.
-
-
-
-
+- No authentication/authorization layer
+- Uploaded dataset content for `/upload/dataset` is held in process memory and is not durable across backend restarts
+- Filesystem browsing endpoint (`/preparation/browse`) is oriented to local desktop usage
+- Training websocket proxy entries exist in Vite config, but backend workflows are polling-based
 
