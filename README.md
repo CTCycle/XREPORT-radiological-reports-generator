@@ -194,7 +194,7 @@ For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
 
 ## 8. Screenshots
 
-The following screenshots were generated from a live local run and stored in `assets/figures/` (see `assets/figures/manifest.json` for route, viewport, and capture metadata).
+The following screenshots were generated from a live local run on 2026-03-31 and stored in `assets/figures/` (see `assets/figures/manifest.json` for route, viewport, and capture metadata). Captures are full-page to preserve complete UI context.
 
 ### Dataset List
 

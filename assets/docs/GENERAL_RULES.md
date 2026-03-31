@@ -1,35 +1,62 @@
-## WEB SEARCH
-Use web search to verify facts and stay current on tools, frameworks, and industry standards when it improves accuracy.
+# General Rules for This Repository
 
-## REQUIRED DOCUMENTATION REVIEW
-Before any task, review the relevant files in `assets/docs`:
+This document is the primary source of truth for how work should be executed and documented in this repository.
 
-- `GENERAL_RULES.md`, mandatory for every task
-- `GUIDELINES_PYTHON.md`, when using Python
-- `GUIDELINES_TYPESCRIPT.md`, when using TypeScript
-- `GUIDELINES_TESTS.md`, when writing tests
-- `ARCHITECTURE.md`, system structure and APIs
-- `BACKGROUND_JOBS.md`, background job management
-- `README_WRITING.md`, required README structure and standards
+## 1. Mandatory Read Order
 
-## SKILLS REFERENCE
-When task-specific reusable workflows or capabilities are needed, check skills repository and use the relevant skill guidance.
+Before starting any task:
+1. Read `assets/docs/GENERAL_RULES.md`.
+2. Read only the additional docs that are relevant to the task scope.
 
-## DOCUMENTATION UPDATES
-If changes materially affect behavior, architecture, or usage, update the relevant `assets/docs` files and notify the user.
+Use this mapping:
+- `assets/docs/ARCHITECTURE.md`: system structure, APIs, runtime behavior.
+- `assets/docs/BACKGROUND_JOBS.md`: job lifecycle, polling, cancellation.
+- `assets/docs/GUIDELINES_PYTHON.md`: Python/FastAPI backend changes.
+- `assets/docs/GUIDELINES_TYPESCRIPT.md`: React/TypeScript frontend changes.
+- `assets/docs/GUIDELINES_TESTS.md`: test layout, runners, and test-writing rules.
+- `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`: env profiles, launch/build modes.
+- `assets/docs/TAURI_PACKAGING_PLAYBOOK.md`: Windows desktop packaging flow.
+- `assets/docs/README_WRITING.md`: README authoring and structure.
 
-## CROSS-LANGUAGE PRINCIPLES
+## 2. Source of Truth Priority
 
-### Code quality
-- Prefer consistent style, clear naming, and small single-purpose components.
-- Optimize for readability, testability, and low coupling.
+When docs disagree, resolve with this priority:
+1. Current source code and scripts in the repository.
+2. This file (`GENERAL_RULES.md`).
+3. Task-specific docs in `assets/docs`.
 
-### Testing and automation
-- Enforce CI checks: formatting, linting, type checks, tests, and security scans.
+If you discover drift, update the affected docs in the same change.
 
-### Security
-- Apply standard secure coding practices: input validation, correct auth handling, secret protection, minimal attack surface.
+## 3. Core Engineering Principles
 
-## EXECUTION RULES
-- Use PowerShell by default for terminal commands in this repository.
-- Use `cmd /c` only when invoking `.bat` scripts or CMD-specific syntax.
+- Keep changes scoped to the user task; avoid broad refactors.
+- Prefer small, verifiable increments: implement, wire, validate.
+- Preserve existing project conventions for structure, naming, and architecture.
+- Use PowerShell for commands in this repository (use `cmd /c` only when needed for `.bat`/CMD-specific behavior).
+
+## 4. Runtime and Environment Rules
+
+- Active runtime env file: `XREPORT/settings/.env`.
+- Local profile templates:
+  - `XREPORT/settings/.env.local.example`
+  - `XREPORT/settings/.env.local.tauri.example`
+- Python target version: `>=3.14` (`pyproject.toml`).
+- If `runtimes/.venv` exists, use it for Python commands and tests.
+
+## 5. Documentation Maintenance Rules
+
+Update docs when changes affect behavior, architecture, workflows, or operations.
+
+Minimum expectations for every doc update:
+- Commands are runnable as written.
+- File paths and endpoint paths exist.
+- Terminology is consistent across all docs.
+- Examples match current runtime mode names:
+  - Local mode (v1): web launcher flow.
+  - Local mode (v2): packaged Tauri desktop flow.
+
+## 6. Skills and External References
+
+- Use relevant skills from the skills repository when the task benefits from reusable workflows.
+- Use web verification when facts are likely to change or precision is required.
+
