@@ -192,23 +192,7 @@ Configurations are split between environment variables and JSON settings.
 
 For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
 
-## 8. Screenshots
-
-The following screenshots were generated from a live local run on 2026-03-31 and stored in `assets/figures/` (see `assets/figures/manifest.json` for route, viewport, and capture metadata). Captures are full-page to preserve complete UI context.
-
-### Dataset List
-
-![Dataset list page](assets/figures/datasets-list.png)
-
-### Training Dashboard
-
-![Training dashboard](assets/figures/dashboard.png)
-
-### Inference
-
-![Inference page](assets/figures/inference.png)
-
-## 9. License
+## 8. License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
