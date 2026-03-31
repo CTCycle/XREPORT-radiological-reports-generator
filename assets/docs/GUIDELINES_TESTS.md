@@ -1,32 +1,37 @@
-# Testing Guide
+# Testing Guide (XREPORT)
 
-This document describes the current test strategy for XREPORT and how to run or extend the suite.
+This document describes the current test layout and execution flow.
 
-## Overview
+## 1. Test Strategy
 
-XREPORT uses a mixed test strategy:
-- `tests/unit`: fast Python unit tests for core behavior (job manager semantics, config parsing, evaluation helpers, normalization utilities).
-- `tests/e2e`: API + UI tests using Playwright + pytest against running backend/frontend.
-- `tests/backend/verification`: focused verification scripts for serializer/loader checks.
+XREPORT uses three test scopes:
+- `tests/unit`: fast unit tests for backend logic and contracts.
+- `tests/e2e`: API and UI end-to-end tests (pytest + Playwright).
+- `tests/backend/verification`: focused backend verification scripts.
 
 Primary tools:
 - `pytest`
 - `pytest-playwright`
-- Playwright browser automation + API request context
+- Playwright request/page contexts
 
-## Current Test Layout
+## 2. Current Test Layout
 
 ```text
 tests/
-- run_tests.bat
 - conftest.py
+- run_tests.bat
+- spaserver.py
 - unit/
   - test_database_mode_env_override.py
+  - test_e2e_training_fixture_paths.py
   - test_evaluation.py
   - test_job_cancellation_semantics.py
+  - test_orm_data_access_refactor.py
   - test_pandas_string_normalization.py
+  - test_training_memory_guards.py
   - test_training_stop_mechanism.py
 - e2e/
+  - perf_config.json
   - test_app_flow.py
   - test_database_api.py
   - test_inference_api.py
@@ -39,70 +44,68 @@ tests/
   - verify_serializer.py
 ```
 
-## Running Tests
+## 3. Running Tests
 
-### Recommended (Windows automation)
+### 3.1 Recommended on Windows
 ```cmd
 tests\run_tests.bat
 ```
 
-What this script does:
-1. Validates prerequisites (`runtimes/.venv`, npm/runtime availability).
-2. Starts backend/frontend if not already running.
-3. Runs `pytest tests -v --tb=short`.
-4. Cleans up services it started.
+Behavior:
+1. Requires existing `runtimes/.venv` (created by `XREPORT/start_on_windows.bat`).
+2. Reads host/port and optional settings from `XREPORT/settings/.env`.
+3. Starts backend/frontend only if not already running.
+4. Runs `pytest tests -v --tb=short`.
+5. Cleans up only the services started by the script.
 
-### Manual run
-1. Start the app (`XREPORT\start_on_windows.bat`) or manually start backend + frontend.
-2. Run:
-```cmd
-pytest tests
+### 3.2 Manual execution
+From repository root:
+```powershell
+runtimes\.venv\Scripts\python.exe -m pytest tests -v --tb=short
 ```
 
-## URL and Environment Resolution
+If backend/frontend are needed for specific E2E paths, start them first.
+
+## 4. URL and Environment Resolution
 
 `tests/conftest.py` resolves URLs in this order:
-1. explicit `APP_TEST_FRONTEND_URL` / `APP_TEST_BACKEND_URL`
-2. `UI_HOST`/`UI_PORT` and `FASTAPI_HOST`/`FASTAPI_PORT`
-3. fallbacks (`127.0.0.1:7861` UI, `127.0.0.1:8000` API)
+1. `APP_TEST_FRONTEND_URL` / `APP_TEST_BACKEND_URL`
+2. `UI_HOST` + `UI_PORT`, `FASTAPI_HOST` + `FASTAPI_PORT`
+3. Fallbacks (`127.0.0.1:7861` UI, `127.0.0.1:8000` API)
 
-It also normalizes `0.0.0.0` to `127.0.0.1`.
+`0.0.0.0` is normalized to `127.0.0.1` for test requests.
 
-## E2E Scope
+## 5. Performance Tests
 
-E2E coverage currently targets:
-- UI navigation and page rendering (`/dataset`, `/training`, `/inference`)
-- upload endpoint (`/upload/dataset`)
-- preparation endpoints (`/preparation/*`)
-- training endpoints (`/training/*`)
-- inference endpoints (`/inference/*`)
-- validation endpoints (`/validation/*`)
+`tests/e2e/test_training_perf.py` is opt-in and skipped by default.
 
-Long-running operations are validated through job start + polling endpoint behavior, not by full-length model training in default runs.
-
-## Performance Tests
-
-`tests/e2e/test_training_perf.py` is opt-in and skipped unless:
+Enable it with:
 - `RUN_PERF_TESTS=1`
 
-These tests are heavier, may require cached model assets, and can run with additional perf-related env configuration.
+Optional config path:
+- `PERF_TEST_CONFIG_PATH=<path-to-json>`
 
-## Writing New Tests
+Default config lookup is `tests/settings/perf_config.json` when present.
 
-- Unit tests: add under `tests/unit` and keep them deterministic and isolated.
-- E2E API tests: use `api_context` fixture.
-- E2E UI tests: use `page` fixture and stable selectors (`title`, ids, role/text where appropriate).
+## 6. Writing New Tests
+
+- Add unit tests under `tests/unit`.
+- Add API/UI integration coverage under `tests/e2e`.
+- Keep tests deterministic and isolated.
 - For job-based APIs:
-  - assert 202 start response shape
-  - poll `/.../jobs/{job_id}` to terminal status
-  - assert terminal payload (`result`/`error`) rather than timing assumptions
+  - assert start response shape
+  - poll `.../jobs/{job_id}`
+  - assert terminal state and payload
 
-## Troubleshooting
+Avoid brittle timing assumptions.
 
-- `ECONNREFUSED` or timeout:
-  - verify backend/frontend URLs and ports.
-  - prefer `127.0.0.1` over `localhost` on Windows.
-- Playwright missing:
-  - ensure optional deps are installed in `runtimes/.venv`.
-- flaky stateful failures:
-  - make sure no long-running training job is already active before running tests that require idle state.
+## 7. Troubleshooting
+
+- Connection errors:
+  - confirm backend/frontend URLs and ports.
+  - prefer `127.0.0.1` on Windows.
+- Missing Playwright/pytest dependencies:
+  - ensure `runtimes/.venv` includes optional test dependencies.
+- Stateful failures:
+  - ensure no conflicting long-running job is active before test run.
+

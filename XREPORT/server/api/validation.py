@@ -4,14 +4,15 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+import pandas as pd
 
-from XREPORT.server.entities.validation import (
+from XREPORT.server.domain.validation import (
     ValidationRequest,
     ValidationReportResponse,
     CheckpointEvaluationRequest,
     CheckpointEvaluationReportResponse,
 )
-from XREPORT.server.entities.jobs import (
+from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
     JobCancelResponse,
@@ -40,7 +41,7 @@ def resolve_metric_fraction(
     return float(min(1.0, max(0.01, fraction)))
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 class ProgressRange:
     def __init__(self, job_id: str, start: float, end: float) -> None:
         self.job_id = job_id
@@ -288,7 +289,7 @@ def run_checkpoint_evaluation_job(
     if "evaluation_report" in metrics or "bleu_score" in metrics:
         data_serializer = DataSerializer()
         _, validation_data, _ = data_serializer.load_training_data()
-        if validation_data.empty:
+        if isinstance(validation_data, pd.DataFrame) and validation_data.empty:
             logger.warning("No validation data available for checkpoint evaluation")
         else:
             validation_data = data_serializer.validate_img_paths(validation_data)
