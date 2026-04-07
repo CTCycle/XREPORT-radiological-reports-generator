@@ -19,22 +19,18 @@ def _payload() -> dict[str, object]:
     }
 
 
-def test_db_embedded_env_override_takes_precedence(monkeypatch) -> None:
+def test_db_embedded_payload_uses_sqlite_defaults() -> None:
     payload = _payload()
-    monkeypatch.setenv("DB_EMBEDDED", "false")
-    monkeypatch.setenv("DB_HOST", "env-host")
-    monkeypatch.setenv("DB_NAME", "env_db")
-    monkeypatch.setenv("DB_USER", "env_user")
 
     settings = build_database_settings(payload)
 
-    assert settings.embedded_database is False
-    assert settings.engine == "postgres"
-    assert settings.host == "env-host"
-    assert settings.port == 5432
+    assert settings.embedded_database is True
+    assert settings.engine is None
+    assert settings.host is None
+    assert settings.port is None
 
 
-def test_external_db_env_fields_override_json(monkeypatch) -> None:
+def test_external_db_uses_payload_values() -> None:
     payload = _payload()
     payload["embedded_database"] = False
     payload["host"] = "json-host"
@@ -42,44 +38,32 @@ def test_external_db_env_fields_override_json(monkeypatch) -> None:
     payload["database_name"] = "json_db"
     payload["username"] = "json_user"
     payload["password"] = "json_password"
-
-    monkeypatch.setenv("DB_EMBEDDED", "false")
-    monkeypatch.setenv("DB_ENGINE", "postgresql+psycopg")
-    monkeypatch.setenv("DB_HOST", "env-host")
-    monkeypatch.setenv("DB_PORT", "6543")
-    monkeypatch.setenv("DB_NAME", "env_db")
-    monkeypatch.setenv("DB_USER", "env_user")
-    monkeypatch.setenv("DB_PASSWORD", "env_password")
-    monkeypatch.setenv("DB_SSL", "true")
-    monkeypatch.setenv("DB_SSL_CA", "/tmp/ca.pem")
-    monkeypatch.setenv("DB_CONNECT_TIMEOUT", "45")
-    monkeypatch.setenv("DB_INSERT_BATCH_SIZE", "77")
+    payload["ssl"] = True
+    payload["ssl_ca"] = "/tmp/ca.pem"
+    payload["connect_timeout"] = 45
+    payload["insert_batch_size"] = 77
 
     settings = build_database_settings(payload)
 
     assert settings.embedded_database is False
-    assert settings.engine == "postgresql+psycopg"
-    assert settings.host == "env-host"
-    assert settings.port == 6543
-    assert settings.database_name == "env_db"
-    assert settings.username == "env_user"
-    assert settings.password == "env_password"
+    assert settings.engine == "postgres"
+    assert settings.host == "json-host"
+    assert settings.port == 1000
+    assert settings.database_name == "json_db"
+    assert settings.username == "json_user"
+    assert settings.password == "json_password"
     assert settings.ssl is True
     assert settings.ssl_ca == "/tmp/ca.pem"
     assert settings.connect_timeout == 45
     assert settings.insert_batch_size == 77
 
 
-def test_external_db_json_fields_are_ignored_when_env_absent(monkeypatch) -> None:
+def test_external_db_normalizes_engine_value() -> None:
     payload = _payload()
     payload["embedded_database"] = False
-    monkeypatch.setenv("DB_EMBEDDED", "false")
+    payload["engine"] = "PoStGreSQL+PsYcOpG"
 
     settings = build_database_settings(payload)
 
     assert settings.embedded_database is False
-    assert settings.engine == "postgres"
-    assert settings.host is None
-    assert settings.database_name is None
-    assert settings.username is None
-    assert settings.password is None
+    assert settings.engine == "postgresql+psycopg"

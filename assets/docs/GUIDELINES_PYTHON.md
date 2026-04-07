@@ -36,7 +36,7 @@ Do not move logic across layers unless required by the task.
 
 - Use repository/serializer abstractions (`DataSerializer`, `ModelSerializer`, DB backends) for persistence behavior.
 - Do not bypass DB abstractions with ad-hoc direct SQL in route modules.
-- Keep SQLite/PostgreSQL mode behavior compatible with `DB_EMBEDDED` settings.
+- Keep SQLite/PostgreSQL mode behavior compatible with `database.embedded_database` in `XREPORT/settings/configurations.json`.
 
 ## 6. Imports, Paths, and Logging
 
