@@ -12,7 +12,7 @@ This flow keeps:
 ## 2. Build Workflow
 
 1. Activate desktop env profile:
-   - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
+   - verify `XREPORT\settings\.env` runtime values
 2. If branding changed, regenerate icons:
    - `cd XREPORT\client && npm run tauri:icon`
 3. Build desktop release:
