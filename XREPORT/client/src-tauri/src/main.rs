@@ -28,6 +28,13 @@ struct BackendLaunchConfig {
     install_extras: bool,
 }
 
+fn parse_boolish(raw: &str) -> bool {
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "on"
+    )
+}
+
 fn parse_dotenv_value(raw: &str) -> String {
     let trimmed = raw.trim();
     let unquoted = if (trimmed.starts_with('"') && trimmed.ends_with('"'))
@@ -38,13 +45,6 @@ fn parse_dotenv_value(raw: &str) -> String {
         trimmed
     };
     unquoted.to_string()
-}
-
-fn parse_boolish(raw: &str) -> bool {
-    matches!(
-        raw.trim().to_ascii_lowercase().as_str(),
-        "1" | "true" | "yes" | "on"
-    )
 }
 
 fn resolve_backend_launch_config(env_path: &Path) -> BackendLaunchConfig {

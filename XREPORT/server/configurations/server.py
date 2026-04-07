@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from XREPORT.server.configurations.base import ensure_mapping, load_configuration_data
 from XREPORT.server.domain.settings import (
     DatabaseSettings,
+    FeatureSettings,
     GlobalSettings,
     JobsSettings,
     ServerSettings,
@@ -41,12 +41,9 @@ def build_jobs_settings(data: dict[str, Any]) -> JobsSettings:
 # -----------------------------------------------------------------------------
 def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
     database_payload = ensure_mapping(payload)
-    payload_embedded = coerce_bool(database_payload.get("embedded_database"), True)
-    embedded_value = os.getenv("DB_EMBEDDED") if "DB_EMBEDDED" in os.environ else None
-    embedded = coerce_bool(embedded_value, payload_embedded)
-
+    embedded = coerce_bool(database_payload.get("embedded_database"), True)
     insert_batch_size = coerce_int(
-        os.getenv("DB_INSERT_BATCH_SIZE"),
+        database_payload.get("insert_batch_size"),
         1000,
         minimum=1,
     )
@@ -68,31 +65,41 @@ def build_database_settings(payload: dict[str, Any] | Any) -> DatabaseSettings:
         )
 
     # External DB mode
-    engine_value = coerce_str_or_none(os.getenv("DB_ENGINE")) or "postgres"
+    engine_value = coerce_str_or_none(database_payload.get("engine")) or "postgres"
     normalized_engine = engine_value.lower() if engine_value else None
-    ssl = coerce_bool(os.getenv("DB_SSL"), False)
+    ssl = coerce_bool(database_payload.get("ssl"), False)
 
     return DatabaseSettings(
         embedded_database=False,
         engine=normalized_engine,
-        host=coerce_str_or_none(os.getenv("DB_HOST")),
+        host=coerce_str_or_none(database_payload.get("host")),
         port=coerce_int(
-            os.getenv("DB_PORT"),
+            database_payload.get("port"),
             5432,
             minimum=1,
             maximum=65535,
         ),
-        database_name=coerce_str_or_none(os.getenv("DB_NAME")),
-        username=coerce_str_or_none(os.getenv("DB_USER")),
-        password=coerce_str_or_none(os.getenv("DB_PASSWORD")),
+        database_name=coerce_str_or_none(database_payload.get("database_name")),
+        username=coerce_str_or_none(database_payload.get("username")),
+        password=coerce_str_or_none(database_payload.get("password")),
         ssl=ssl,
-        ssl_ca=coerce_str_or_none(os.getenv("DB_SSL_CA")),
+        ssl_ca=coerce_str_or_none(database_payload.get("ssl_ca")),
         connect_timeout=coerce_int(
-            os.getenv("DB_CONNECT_TIMEOUT"),
+            database_payload.get("connect_timeout"),
             10,
             minimum=1,
         ),
         insert_batch_size=insert_batch_size,
+    )
+
+
+def build_feature_settings(payload: dict[str, Any] | Any) -> FeatureSettings:
+    feature_payload = ensure_mapping(payload)
+    return FeatureSettings(
+        allow_local_filesystem_access=coerce_bool(
+            feature_payload.get("allow_local_filesystem_access"),
+            True,
+        )
     )
 
 
@@ -101,11 +108,13 @@ def build_server_settings(data: dict[str, Any] | Any) -> ServerSettings:
     payload = ensure_mapping(data)
     database_payload = ensure_mapping(payload.get("database"))
     global_payload = ensure_mapping(payload.get("global"))
+    feature_payload = ensure_mapping(payload.get("features"))
     jobs_payload = ensure_mapping(payload.get("jobs"))
 
     return ServerSettings(
         database=build_database_settings(database_payload),
         global_settings=build_global_settings(global_payload),
+        features=build_feature_settings(feature_payload),
         jobs=build_jobs_settings(jobs_payload),
     )
 

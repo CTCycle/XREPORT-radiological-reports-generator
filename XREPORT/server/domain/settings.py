@@ -25,6 +25,11 @@ class GlobalSettings:
     seed: int
 
 
+@dataclass(frozen=True)
+class FeatureSettings:
+    allow_local_filesystem_access: bool
+
+
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
@@ -36,4 +41,5 @@ class JobsSettings:
 class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
+    features: FeatureSettings
     jobs: JobsSettings
