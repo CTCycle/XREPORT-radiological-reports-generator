@@ -57,9 +57,8 @@ If a section does not apply, omit it and keep numbering contiguous.
 ## 7. Configuration Section Rules
 
 - Reference active env file: `XREPORT/settings/.env`.
-- Mention profile templates:
-  - `XREPORT/settings/.env.local.example`
-  - `XREPORT/settings/.env.local.tauri.example`
+- Do not reference `.env.local*` profile templates (not maintained).
+- Clarify split: runtime/process values in `.env`, DB settings in `XREPORT/settings/configurations.json`.
 - Include a variable table only for variables that are actually used.
 
 ## 8. Cross-Reference Requirement

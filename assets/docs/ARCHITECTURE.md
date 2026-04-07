@@ -28,7 +28,7 @@ XREPORT is an application for generating draft radiology reports from X-ray imag
 | `XREPORT/server/services` | Domain services (jobs, processing, validation, evaluation) |
 | `XREPORT/server/learning` | ML training and inference logic |
 | `XREPORT/server/repositories` | Database backends, schema models, queries, serializers |
-| `XREPORT/settings` | Active env and env templates |
+| `XREPORT/settings` | Runtime `.env` and JSON configuration |
 | `XREPORT/resources` | Runtime data (DB file, checkpoints, models, logs) |
 | `tests` | Unit, E2E, and backend verification tests |
 | `runtimes` | Windows portable runtimes and `.venv` |
@@ -129,8 +129,8 @@ This supports same-origin frontend calls in desktop mode while preserving direct
 ## 5. Persistence Model
 
 ### 5.1 Database backend selection
-- `DB_EMBEDDED=true`: SQLite via `SQLiteRepository`
-- `DB_EMBEDDED=false`: PostgreSQL via `PostgresRepository`
+- `database.embedded_database=true` in `XREPORT/settings/configurations.json`: SQLite via `SQLiteRepository`
+- `database.embedded_database=false` in `XREPORT/settings/configurations.json`: PostgreSQL via `PostgresRepository`
 
 ### 5.2 SQLite location
 SQLite DB file path resolves to:

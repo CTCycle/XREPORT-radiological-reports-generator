@@ -33,7 +33,6 @@ from XREPORT.server.domain.jobs import (
 )
 from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.common.utils.types import coerce_bool
 from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.configurations.server import ServerSettings, server_settings
 from XREPORT.server.api.upload import UploadState, upload_state
@@ -245,9 +244,8 @@ class PreparationEndpoint:
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
-        self.allow_local_filesystem_access = coerce_bool(
-            os.getenv("ALLOW_LOCAL_FILESYSTEM_ACCESS"),
-            self.server_settings.database.embedded_database,
+        self.allow_local_filesystem_access = (
+            self.server_settings.features.allow_local_filesystem_access
         )
 
     # -----------------------------------------------------------------------------

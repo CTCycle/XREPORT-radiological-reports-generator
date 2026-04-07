@@ -37,9 +37,7 @@ If you discover drift, update the affected docs in the same change.
 ## 4. Runtime and Environment Rules
 
 - Active runtime env file: `XREPORT/settings/.env`.
-- Local profile templates:
-  - `XREPORT/settings/.env.local.example`
-  - `XREPORT/settings/.env.local.tauri.example`
+- No profile templates are maintained; edit `XREPORT/settings/.env` directly for runtime values.
 - Python target version: `>=3.14` (`pyproject.toml`).
 - If `runtimes/.venv` exists, use it for Python commands and tests.
 

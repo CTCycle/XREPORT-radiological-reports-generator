@@ -51,7 +51,7 @@ Build prerequisites:
 
 Build steps:
 ```bat
-copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env
+REM verify XREPORT\settings\.env runtime values
 release\tauri\build_with_tauri.bat
 ```
 
@@ -126,15 +126,7 @@ npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
 ### 4.4 Mode Switching
 
 The active runtime file is always `XREPORT/settings/.env`.
-
-- Local defaults (v1):
-  ```bat
-  copy /Y XREPORT\settings\.env.local.example XREPORT\settings\.env
-  ```
-- Local defaults (v2):
-  ```bat
-  copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env
-  ```
+Adjust host/port and runtime backend values directly in `XREPORT/settings/.env` before launching/building.
 
 ### 4.5 Using the Application
 
@@ -184,11 +176,8 @@ At project root (`runtimes/`, Windows only), XREPORT stores portable Python, uv,
 
 Configurations are split between environment variables and JSON settings.
 
-- **Active environment profile**: `XREPORT/settings/.env`
-- **Profile templates**:
-  - `XREPORT/settings/.env.local.example`
-  - `XREPORT/settings/.env.local.tauri.example`
-- **Backend/Training JSON defaults (non-runtime)**: `XREPORT/settings/configurations.json`
+- **Runtime/process settings**: `XREPORT/settings/.env` (`FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `VITE_API_BASE_URL`, `RELOAD`, `OPTIONAL_DEPENDENCIES`, `MPLBACKEND`, `KERAS_BACKEND`)
+- **Backend/DB/settings defaults**: `XREPORT/settings/configurations.json` (including SQLite/PostgreSQL switch and DB connection fields)
 
 For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
 

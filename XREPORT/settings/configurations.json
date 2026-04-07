@@ -2,6 +2,22 @@
   "global": {
     "seed": 42
   },
+  "features": {
+    "allow_local_filesystem_access": true
+  },
+  "database": {
+    "embedded_database": true,
+    "engine": "postgres",
+    "host": "127.0.0.1",
+    "port": 5432,
+    "database_name": "XREPORT",
+    "username": "postgres",
+    "password": "",
+    "ssl": false,
+    "ssl_ca": null,
+    "connect_timeout": 30,
+    "insert_batch_size": 1000
+  },
   "jobs": {
     "polling_interval": 1
   }
