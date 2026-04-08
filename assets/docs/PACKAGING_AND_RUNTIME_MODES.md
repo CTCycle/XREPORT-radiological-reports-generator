@@ -1,5 +1,7 @@
 # Packaging and Runtime Modes
 
+Last updated: 2026-04-08
+
 This document defines how XREPORT runtime settings and packaging modes work.
 
 ## 1. Runtime Strategy
@@ -74,4 +76,3 @@ Optional cleanup:
 
 - Backend dependency graph: `runtimes/uv.lock` (staged to `uv.lock` during sync/build)
 - Frontend dependency graph: `XREPORT/client/package-lock.json`
-
