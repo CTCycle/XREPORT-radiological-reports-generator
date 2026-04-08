@@ -1,5 +1,7 @@
 # Background Job Management
 
+Last updated: 2026-04-08
+
 XREPORT uses a centralized, thread-based job manager for long-running operations.
 
 Primary implementation:
@@ -78,4 +80,3 @@ Terminal statuses:
 - `completed`
 - `failed`
 - `cancelled`
-
