@@ -1,9 +1,8 @@
 /* Inference Page Layout */
 .inference-container {
-    padding: 2rem;
+    padding: var(--space-8);
     max-width: 1600px;
     margin: 0 auto;
-    font-family: 'Inter', system-ui, sans-serif;
     min-height: calc(100vh - 4rem);
     display: flex;
     flex-direction: column;
@@ -148,6 +147,7 @@
 .panel-control-item select:focus {
     outline: none;
     border-color: var(--accent-color);
+    box-shadow: var(--focus-ring);
 }
 
 .panel-content {
@@ -179,6 +179,12 @@
 .image-dropzone:hover {
     border-color: var(--accent-color);
     background: #eff6ff;
+}
+
+.image-dropzone:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent-color);
 }
 
 .image-dropzone.dragging {
@@ -282,6 +288,11 @@
     color: var(--text-primary);
 }
 
+.nav-arrow:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
 /* Image Counter */
 .image-counter {
     position: absolute;
@@ -324,6 +335,12 @@
     color: var(--text-secondary);
     width: 18px;
     height: 18px;
+}
+
+.btn-icon:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent-color);
 }
 
 /* Flow Connector Panel */
@@ -407,6 +424,11 @@
 .btn-generate:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.btn-generate:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .btn-generate.generating {
@@ -633,6 +655,20 @@
             opacity: 1;
             transform: translateY(-4px);
         }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flow-arrow svg,
+    .btn-generate.generating,
+    .loading-spinner,
+    .markdown-report.streaming::after {
+        animation: none !important;
+    }
+
+    .btn-generate:hover:not(:disabled),
+    .nav-arrow:hover {
+        transform: none;
     }
 }
 
