@@ -1,11 +1,10 @@
 .training-container {
-    padding: 2rem;
+    padding: var(--space-8);
     max-width: 1400px;
     margin: 0 auto;
-    font-family: 'Inter', system-ui, sans-serif;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--space-6);
 }
 
 .header h1 {
@@ -173,7 +172,7 @@
 
 .panel-row-count,
 .panel-row-meta {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
     white-space: nowrap;
 }
@@ -200,6 +199,13 @@
     border-color: var(--accent-color);
     color: var(--accent-color);
     background: rgba(59, 130, 246, 0.1);
+}
+
+.icon-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
 }
 
 .icon-button.danger:hover {
@@ -258,7 +264,7 @@
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.5rem 1rem;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: var(--text-secondary);
 }
 
@@ -344,7 +350,7 @@
 
 .form-label {
     color: var(--text-secondary);
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
