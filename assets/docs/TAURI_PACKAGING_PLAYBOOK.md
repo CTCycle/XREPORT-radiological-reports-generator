@@ -1,5 +1,7 @@
 # Tauri Windows Packaging Playbook
 
+Last updated: 2026-04-08
+
 Operational playbook for building and validating XREPORT desktop releases on Windows.
 
 ## 1. Purpose
@@ -72,4 +74,3 @@ Current staged coverage includes:
   - Explorer icon cache may lag; verify binary replacement and refresh cache/path.
 - long splash startup:
   - expected on first run when runtime sync is needed for heavy ML dependencies.
-

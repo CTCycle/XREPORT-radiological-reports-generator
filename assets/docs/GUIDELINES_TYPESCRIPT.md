@@ -1,5 +1,7 @@
 # TypeScript and Frontend Guidelines (XREPORT)
 
+Last updated: 2026-04-08
+
 Repository-scoped standards for `XREPORT/client`.
 
 ## 1. Stack and Tooling Baseline
@@ -52,4 +54,3 @@ Before finalizing frontend edits:
 1. Run `npm run build` in `XREPORT/client`.
 2. Verify route-level behavior for impacted pages.
 3. Verify API calls still match backend route paths and payload shapes.
-

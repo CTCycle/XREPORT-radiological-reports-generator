@@ -1,5 +1,7 @@
 # Python Guidelines (XREPORT)
 
+Last updated: 2026-04-08
+
 Repository-scoped standards for Python backend and scripts.
 
 ## 1. Runtime and Environment
@@ -63,4 +65,3 @@ Preferred quality tooling:
 - For job-based flows, assert API contract shape and terminal job outcomes rather than timing-sensitive internals.
 
 See `assets/docs/GUIDELINES_TESTS.md` for test layout and execution commands.
-

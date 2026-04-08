@@ -2,189 +2,135 @@
 
 ## 1. Project Overview
 
-XREPORT is a client-server application designed to generate draft radiological reports from X-ray images. It leverages a vision-language machine learning workflow to interpret visual data and produce consistent, text-based diagnostic descriptions.
-
-The system is architected as:
-- **Backend**: A FastAPI service managing data processing, model training, and inference logic.
-- **Frontend**: A comprehensive web UI for configuring datasets, monitoring training progress in real-time, and reviewing generated reports.
-
-This tool aims to accelerate the reporting workflow for radiologists by providing high-quality, editable drafts.
+XREPORT is a client-server application that generates draft radiological reports from X-ray images.
+It combines a FastAPI backend and a React frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
 
 Runtime supports two execution modes:
 - **Local mode (v1)**: web app launched by `XREPORT/start_on_windows.bat`.
-- **Local mode (v2)**: packaged Windows desktop application built with Tauri (release artifacts built by maintainers).
+- **Local mode (v2)**: packaged Windows desktop application built with Tauri.
 
-> **Work in Progress**: This project is still under active development. It will be updated regularly, but you may encounter bugs, issues, or incomplete features.
+> **Work in Progress**: The project is under active development and may contain incomplete features.
 
 ---
 
 ## 2. Model and Dataset (Optional)
 
-XREPORT employs an image captioning model trained via supervised learning. It learns mappings between visual pathologies in X-ray images and their corresponding textual descriptors in radiology reports.
+XREPORT uses an image-captioning workflow trained via supervised learning to map X-ray findings to text report drafts.
 
-The system is designed to work with:
-- **MIMIC-CXR**: Initially validated on this public dataset.
-- **Custom Datasets**: User-provided datasets that follow the supported image-text pairing structure.
+Supported data sources:
+- **MIMIC-CXR** (initial validation dataset)
+- **Custom datasets** following the supported image-report pair format
 
 ---
 
 ## 3. Installation
 
-### 3.1 Windows (One Click Setup, Local Mode v1)
+### 3.1 Windows (One-Click Setup, Local mode v1)
 
-The project includes an automated setup script for Windows: `XREPORT/start_on_windows.bat`.
+Run:
+- `XREPORT/start_on_windows.bat`
 
-The launcher performs the following:
-1. Downloads portable runtimes (Python, Node.js) to `runtimes/` at the project root.
-2. Installs all backend and frontend dependencies (including `uv` and `npm` packages).
-3. Builds the frontend client for local serving.
-4. Launches the backend server and opens the web interface.
+The launcher downloads portable runtimes into `runtimes/`, installs backend/frontend dependencies, builds the client, and starts the application.
 
-**Note**: The first run will take time to download runtimes and compile dependencies. Subsequent runs check for updates and launch immediately.
+### 3.2 Windows (Packaged Desktop, Local mode v2)
 
-### 3.2 Windows (Packaged Desktop, Local Mode v2)
-
-Build prerequisites:
-- Rust toolchain (stable) + Cargo
+Prerequisites for maintainers/build machines:
+- Rust toolchain (stable)
 - Node.js 22.x + npm
-- WebView2 runtime (normally present on modern Windows)
+- WebView2 runtime
 
-Build steps:
+Build:
 ```bat
-REM verify XREPORT\settings\.env runtime values
 release\tauri\build_with_tauri.bat
 ```
 
-`build_with_tauri.bat` installs frontend dependencies, runs `npm run tauri:build:release`, and exports user-facing artifacts to:
-- `release\windows\installers` (preferred: setup `.exe` / `.msi`)
-- `release\windows\portable` (app `.exe` plus required runtime resources)
-
-If you need to remove the previous desktop build before rebuilding:
-```bat
-cd XREPORT\client
-npm run tauri:clean
-```
+Outputs:
+- `release\windows\installers`
+- `release\windows\portable`
 
 ### 3.3 macOS / Linux (Manual Setup)
 
-**Prerequisites**:
-- Python 3.14.x
+Prerequisites:
+- Python 3.14+
 - Node.js 22.x + npm
-- uv (recommended)
+- uv
 
-**Setup Steps**:
-
-1. **Configure Environment**: Copy or edit `XREPORT/settings/.env` to match your local ports.
-2. **Backend Setup**:
-   ```bash
-   uv sync
-   # Optional: uv sync --all-extras for test dependencies
-   ```
-3. **Frontend Setup**:
-   ```bash
-   cd XREPORT/client
-   npm ci
-   npm run build
-   ```
+Setup:
+```bash
+uv sync
+cd XREPORT/client
+npm ci
+npm run build
+```
 
 ---
 
 ## 4. How to Use
 
-### 4.1 Windows (Local Mode v1)
+### 4.1 Launch
 
-Launch the application by double-clicking `XREPORT/start_on_windows.bat`.
+Windows (Local mode v1):
+- Run `XREPORT/start_on_windows.bat`
 
-- **Web UI**: Opens automatically at `http://<UI_HOST>:<UI_PORT>` from `XREPORT/settings/.env`.
-- **Backend**: Runs on `http://<FASTAPI_HOST>:<FASTAPI_PORT>` from `XREPORT/settings/.env`.
+Windows (Local mode v2):
+- Install and start the packaged Tauri app
 
-### 4.2 Windows (Local Mode v2)
-
-Install and run the generated Tauri package.
-
-Runtime behavior:
-- The packaged desktop executable starts its local backend process in the background.
-- Desktop mode uses runtime-local `runtimes/.venv` and checks it first; dependency sync runs only if `runtimes/.venv` is missing.
-- Backend listens on `FASTAPI_HOST` / `FASTAPI_PORT` from `XREPORT/settings/.env`.
-- The desktop window loads the local backend origin once ready.
-- First launch can still take time because Python dependencies (including `torch`/`torchvision`) may be synchronized.
-- End users only run the shipped installer/`.exe`; they do not need Rust/Cargo.
-
-### 4.3 macOS / Linux
-
-**Backend**:
+macOS/Linux (manual):
 ```bash
 uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
-```
-
-**Frontend** (Preview Mode):
-```bash
 cd XREPORT/client
 npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
 ```
 
-### 4.4 Mode Switching
+### 4.2 Core Workflow
 
-The active runtime file is always `XREPORT/settings/.env`.
-Adjust host/port and runtime backend values directly in `XREPORT/settings/.env` before launching/building.
-
-### 4.5 Using the Application
-
-The application workflow is divided into four main areas:
-
-**Dataset Management**
-
-The **Dataset** page allows you to prepare your data. It features a refined configuration panel for setting preprocessing parameters and an "Available Datasets" browser to view and select local datasets. Use this section to validate image-report pairs before training.
+1. Prepare or load dataset on the **Dataset** page.
+2. Start training and monitor progress on the **Training** page.
+3. Generate draft reports on the **Inference** page.
+4. Run dataset/checkpoint validation from **Validation** flows.
 
 ![Dataset page](assets/figures/datasets-list.png)
-
-**Training Dashboard**
-
-The **Training** page provides a real-time view of model performance. The dashboard layout features consolidated, single-row score panels for immediate visibility of key metrics (Loss, Reward). You can start, pause, and configure training runs, with live plotting synchronized to the backend.
-
 ![Training page](assets/figures/dashboard.png)
-
-**Validation & Inference**
-
-The **Inference** page handles model evaluation. It includes a **Checkpoint Evaluation Wizard** with an optimized layout for assessing saved model checkpoints. Users can generate reports from new X-ray images and review the model's output quality.
-
 ![Inference page](assets/figures/inference.png)
+
+For a full operator guide, see `assets/docs/USER_MANUAL.md`.
+
+---
 
 ## 5. Setup and Maintenance
 
-Use `XREPORT/setup_and_maintenance.bat` (Windows) to manage the installation.
+Use `XREPORT/setup_and_maintenance.bat` (Windows) to:
+- remove logs
+- uninstall app runtimes/artifacts
+- clean desktop build artifacts
+- initialize/reset local database
 
-Available actions:
-- **Remove logs**: Clears the `XREPORT/resources/logs` directory.
-- **Uninstall app**: Removes all portable runtimes, runtime lockfile (`runtimes/uv.lock`), runtime virtual environment (`runtimes/.venv`), and build artifacts to clean the directory.
-- **Clean desktop build artifacts**: Removes packaged desktop residue (`XREPORT/client/src-tauri/target/release` and `release/windows`) without deleting `XREPORT/client/src-tauri` source files.
-- **Initialize database**: Resets the local SQLite database used by the backend.
+---
 
 ## 6. Resources
 
-The `XREPORT/resources` directory contains project assets and artifacts:
+Runtime data is stored under `XREPORT/resources`:
+- `checkpoints/`
+- `logs/`
+- `models/`
+- `templates/`
+- database file (`database.db`)
 
-- **checkpoints/**: Saved model weights and training states.
-- **database/**: Contains the SQLite database file (`sqlite.db`) and local dataset storage.
-- **logs/**: Backend and training logs.
-- **models/**: Cached external model components (tokenizers, encoders).
-- **templates/**: Standard document templates for reports.
+On Windows, portable runtimes and runtime virtual environment are stored in `runtimes/`.
 
-At project root (`runtimes/`, Windows only), XREPORT stores portable Python, uv, Node.js, runtime virtual environment (`runtimes/.venv`), and runtime lockfile (`runtimes/uv.lock`) used by launcher and packaging scripts.
+---
 
 ## 7. Configuration
 
-Configurations are split between environment variables and JSON settings.
+- Runtime/process settings: `XREPORT/settings/.env`
+- Backend defaults (including DB mode): `XREPORT/settings/configurations.json`
 
-- **Runtime/process settings**: `XREPORT/settings/.env` (`FASTAPI_HOST`, `FASTAPI_PORT`, `UI_HOST`, `UI_PORT`, `VITE_API_BASE_URL`, `RELOAD`, `OPTIONAL_DEPENDENCIES`, `MPLBACKEND`, `KERAS_BACKEND`)
-- **Backend/DB/settings defaults**: `XREPORT/settings/configurations.json` (including SQLite/PostgreSQL switch and DB connection fields)
+See also:
+- `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`
+- `assets/docs/USER_MANUAL.md`
 
-For packaging/runtime details see `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`.
+---
 
 ## 8. License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
-
-
-
-
+This project is licensed under the MIT License. See `LICENSE`.

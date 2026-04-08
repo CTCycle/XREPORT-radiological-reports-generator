@@ -1,5 +1,7 @@
 # UI Standards (Frontend)
 
+Last updated: 2026-04-08
+
 ## Spacing scale
 - Base rhythm: 8px.
 - Token set:
