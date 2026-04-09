@@ -1,6 +1,6 @@
 .validation-dashboard {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 249, 252, 0.9));
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 255, 0.9));
+    border: 1px solid rgba(79, 134, 234, 0.2);
     border-radius: 12px;
     padding: 1.5rem;
     margin-top: 1.5rem;
@@ -13,14 +13,14 @@
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+    border-bottom: 1px solid rgba(79, 134, 234, 0.15);
 }
 
 .validation-dashboard .dashboard-title {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    color: #3b82f6;
+    color: var(--accent-color);
     font-size: 1.1rem;
     font-weight: 600;
 }
@@ -37,20 +37,20 @@
 
 .validation-dashboard .dashboard-status.success {
     background: rgba(34, 197, 94, 0.1);
-    color: #16a34a;
+    color: var(--success-color);
     border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .validation-dashboard .dashboard-status.error {
     background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
+    color: var(--error-color);
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .validation-dashboard .dashboard-status.running {
-    background: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: rgba(79, 134, 234, 0.12);
+    color: var(--accent-color-strong);
+    border: 1px solid rgba(79, 134, 234, 0.3);
 }
 
 .validation-dashboard .validation-progress {
@@ -69,7 +69,7 @@
 
 .validation-dashboard .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    background: linear-gradient(90deg, var(--accent-color-strong), var(--accent-color));
     transition: width 0.4s ease;
 }
 
@@ -99,7 +99,7 @@
 
 .validation-dashboard .stats-section {
     background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(79, 134, 234, 0.16);
     border-radius: 8px;
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -109,7 +109,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #3b82f6;
+    color: var(--accent-color);
     font-size: 0.9rem;
     font-weight: 600;
     margin-bottom: 1rem;
@@ -135,27 +135,27 @@
 }
 
 .validation-dashboard .stat-value {
-    color: #1e293b;
+    color: var(--text-primary);
     font-size: 1rem;
     font-weight: 600;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 .validation-dashboard .stat-value.highlight {
-    color: #3b82f6;
+    color: var(--accent-color);
 }
 
 /* Chart Section */
 .validation-dashboard .chart-section {
     background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(79, 134, 234, 0.16);
     border-radius: 8px;
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .validation-dashboard .chart-title {
-    color: #3b82f6;
+    color: var(--accent-color);
     font-size: 0.9rem;
     font-weight: 600;
     margin-bottom: 1rem;
@@ -180,7 +180,7 @@
 
 .validation-dashboard .loading-container .spin {
     animation: spin 1s linear infinite;
-    color: #3b82f6;
+    color: var(--accent-color);
 }
 
 .validation-dashboard .spin {
@@ -211,7 +211,7 @@
 }
 
 .validation-dashboard .idle-message.error {
-    color: #ef4444;
+    color: var(--error-color);
 }
 
 /* Responsive */
