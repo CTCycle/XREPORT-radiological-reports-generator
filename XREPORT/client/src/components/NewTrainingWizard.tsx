@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import {
     Activity,
     ChevronLeft,
@@ -8,11 +8,12 @@ import {
     Monitor,
     Play,
     Settings,
-    X,
 } from 'lucide-react';
 import { TrainingConfig } from '../types';
 import WizardSteps from './WizardSteps';
 import FormCheckbox from './shared/FormCheckbox';
+import TrainingWizardModal from './shared/TrainingWizardModal';
+import { useResetOnOpen } from '../hooks/useResetOnOpen';
 import '../pages/TrainingPage.css';
 
 interface NewTrainingWizardProps {
@@ -46,12 +47,12 @@ export default function NewTrainingWizard({
     const [currentPage, setCurrentPage] = useState(0);
     const [checkpointName, setCheckpointName] = useState('');
 
-    useEffect(() => {
-        if (isOpen) {
-            setCurrentPage(0);
-            setCheckpointName('');
-        }
-    }, [isOpen]);
+    const resetWizard = useCallback(() => {
+        setCurrentPage(0);
+        setCheckpointName('');
+    }, []);
+
+    useResetOnOpen(isOpen, resetWizard);
 
     if (!isOpen) return null;
 
@@ -76,20 +77,13 @@ export default function NewTrainingWizard({
     };
 
     return (
-        <div className="training-modal-backdrop">
-            <div className="training-wizard-modal">
-                <div className="training-wizard-header">
-                    <div>
-                        <h3>New Training Wizard</h3>
-                        <p>Dataset: <strong>{selectedDatasetLabel || 'No dataset selected'}</strong></p>
-                    </div>
-                    <button className="training-wizard-close" onClick={onClose} aria-label="Close wizard">
-                        <X size={18} />
-                    </button>
-                </div>
-                <WizardSteps steps={steps} current={currentPage} />
-
-                <div className="training-wizard-body">
+        <TrainingWizardModal
+            title="New Training Wizard"
+            subtitle={<p>Dataset: <strong>{selectedDatasetLabel || 'No dataset selected'}</strong></p>}
+            onClose={onClose}
+            steps={<WizardSteps steps={steps} current={currentPage} />}
+            body={(
+                <>
                     {currentPage === 0 && (
                         <div className="wizard-page">
                             <div className="wizard-section-title">
@@ -472,9 +466,10 @@ export default function NewTrainingWizard({
                             </div>
                         </div>
                     )}
-                </div>
-
-                <div className="training-wizard-footer">
+                </>
+            )}
+            footer={(
+                <>
                     {error && <span className="wizard-error">{error}</span>}
                     <div className="wizard-actions">
                         <button className="btn btn-secondary" onClick={onClose} disabled={isLoading}>
@@ -511,8 +506,8 @@ export default function NewTrainingWizard({
                             </button>
                         )}
                     </div>
-                </div>
-            </div>
-        </div>
+                </>
+            )}
+        />
     );
 }

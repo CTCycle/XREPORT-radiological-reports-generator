@@ -8,17 +8,20 @@ from XREPORT.server.services.jobs import JobManager
 
 
 ###############################################################################
+def blocking_runner(release: threading.Event) -> dict[str, object]:
+    release.wait(timeout=3.0)
+    return {}
+
+
+###############################################################################
 def test_cancel_running_job_marks_stop_requested_only() -> None:
     manager = JobManager()
     release = threading.Event()
 
-    def blocking_runner() -> dict[str, object]:
-        release.wait(timeout=3.0)
-        return {}
-
     job_id = manager.start_job(
         job_type="training",
         runner=blocking_runner,
+        kwargs={"release": release},
     )
 
     assert manager.cancel_job(job_id) is True

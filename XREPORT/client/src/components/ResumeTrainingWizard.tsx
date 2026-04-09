@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import {
     Activity,
     RotateCcw,
-    X,
 } from 'lucide-react';
 import { CheckpointInfo } from '../services/trainingService';
+import TrainingWizardModal from './shared/TrainingWizardModal';
 import '../pages/TrainingPage.css';
 
 interface ResumeTrainingWizardProps {
@@ -41,19 +41,12 @@ export default function ResumeTrainingWizard({
     const canConfirm = Boolean(selectedCheckpoint);
 
     return (
-        <div className="training-modal-backdrop">
-            <div className="training-wizard-modal">
-                <div className="training-wizard-header">
-                    <div>
-                        <h3>Resume Training</h3>
-                        <p>Configure the continuation for: <strong>{selectedCheckpoint}</strong></p>
-                    </div>
-                    <button className="training-wizard-close" onClick={onClose} aria-label="Close wizard">
-                        <X size={18} />
-                    </button>
-                </div>
-
-                <div className="training-wizard-body">
+        <TrainingWizardModal
+            title="Resume Training"
+            subtitle={<p>Configure the continuation for: <strong>{selectedCheckpoint}</strong></p>}
+            onClose={onClose}
+            body={(
+                <>
                     <div className="wizard-page">
                         <div className="wizard-section-title">
                             <Activity size={16} />
@@ -84,9 +77,10 @@ export default function ResumeTrainingWizard({
                             </div>
                         )}
                     </div>
-                </div>
-
-                <div className="training-wizard-footer">
+                </>
+            )}
+            footer={(
+                <>
                     {error && <span className="wizard-error">{error}</span>}
                     <div className="wizard-actions">
                         <button className="btn btn-secondary" onClick={onClose} disabled={isLoading}>
@@ -101,8 +95,8 @@ export default function ResumeTrainingWizard({
                             {isLoading ? 'Resuming...' : 'Resume Training'}
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
+                </>
+            )}
+        />
     );
 }
