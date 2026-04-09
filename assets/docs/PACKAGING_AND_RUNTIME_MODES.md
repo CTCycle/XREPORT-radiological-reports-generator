@@ -1,18 +1,16 @@
 # Packaging and Runtime Modes
 
-This document defines how XREPORT runtime profiles and packaging modes work.
+Last updated: 2026-04-08
+
+This document defines how XREPORT runtime settings and packaging modes work.
 
 ## 1. Runtime Strategy
 
-Active runtime profile:
+Active runtime settings file:
 - `XREPORT/settings/.env`
 
-Profile templates:
-- `XREPORT/settings/.env.local.example` (Local mode v1)
-- `XREPORT/settings/.env.local.tauri.example` (Local mode v2)
-
-Non-runtime defaults:
-- `XREPORT/settings/configurations.json` (`global.seed`, `jobs.polling_interval`)
+Non-runtime defaults (including DB settings):
+- `XREPORT/settings/configurations.json`
 
 ## 2. Mode Definitions
 
@@ -34,17 +32,21 @@ Non-runtime defaults:
 | `VITE_API_BASE_URL` | Frontend API base path (keep `/api` for compatibility) |
 | `RELOAD` | Uvicorn reload toggle in local dev |
 | `OPTIONAL_DEPENDENCIES` | Installs optional Python dependencies in launcher flow |
-| `DB_EMBEDDED` | `true` for SQLite, `false` for external DB |
-| `DB_ENGINE`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | External DB configuration |
-| `DB_SSL`, `DB_SSL_CA` | External DB TLS settings |
-| `DB_CONNECT_TIMEOUT`, `DB_INSERT_BATCH_SIZE` | DB runtime tuning |
 | `MPLBACKEND`, `KERAS_BACKEND` | Runtime ML/plotting backend settings |
-| `ALLOW_LOCAL_FILESYSTEM_ACCESS` | Enables local filesystem API helpers |
+
+Database settings are read from JSON:
+- `database.embedded_database` (`true` SQLite / `false` PostgreSQL)
+- `database.engine`, `database.host`, `database.port`, `database.database_name`
+- `database.username`, `database.password`, `database.ssl`, `database.ssl_ca`
+- `database.connect_timeout`, `database.insert_batch_size`
+
+Database initialization behavior:
+- SQLite mode (`database.embedded_database=true`): startup initializes schema only when `XREPORT/resources/database.db` is missing.
+- PostgreSQL mode (`database.embedded_database=false`): startup does not initialize the database; initialize manually from `XREPORT/setup_and_maintenance.bat` option `1` (runs `XREPORT/scripts/initialize_database.py`).
 
 ## 4. Local Mode (v1) Workflow
 
-1. Activate local profile:
-   - `copy /Y XREPORT\settings\.env.local.example XREPORT\settings\.env`
+1. Verify/update `XREPORT/settings/.env`.
 2. Start application:
    - `XREPORT\start_on_windows.bat`
 3. Optional test run:
@@ -52,8 +54,7 @@ Non-runtime defaults:
 
 ## 5. Local Mode (v2) Workflow
 
-1. Activate desktop profile:
-   - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
+1. Verify/update `XREPORT/settings/.env`.
 2. Optional icon regeneration (when branding changes):
    - `cd XREPORT\client && npm run tauri:icon`
 3. Build desktop artifacts:
@@ -79,4 +80,3 @@ Optional cleanup:
 
 - Backend dependency graph: `runtimes/uv.lock` (staged to `uv.lock` during sync/build)
 - Frontend dependency graph: `XREPORT/client/package-lock.json`
-
