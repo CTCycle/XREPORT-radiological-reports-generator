@@ -40,6 +40,10 @@ Database settings are read from JSON:
 - `database.username`, `database.password`, `database.ssl`, `database.ssl_ca`
 - `database.connect_timeout`, `database.insert_batch_size`
 
+Database initialization behavior:
+- SQLite mode (`database.embedded_database=true`): startup initializes schema only when `XREPORT/resources/database.db` is missing.
+- PostgreSQL mode (`database.embedded_database=false`): startup does not initialize the database; initialize manually from `XREPORT/setup_and_maintenance.bat` option `1` (runs `XREPORT/scripts/initialize_database.py`).
+
 ## 4. Local Mode (v1) Workflow
 
 1. Verify/update `XREPORT/settings/.env`.

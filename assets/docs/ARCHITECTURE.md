@@ -79,6 +79,14 @@ From `XREPORT/settings/configurations.json`:
   - checkpoints and checkpoint evaluations
   - inference runs and inference reports
 
+### 5.3 Database initialization flow
+- SQLite (`database.embedded_database=true`):
+  - During backend startup, if `XREPORT/resources/database.db` is missing, schema creation is executed automatically.
+  - If the file exists, initialization is skipped.
+- PostgreSQL (`database.embedded_database=false`):
+  - Backend startup does not run database initialization.
+  - Initialization is a manual operation through `XREPORT/setup_and_maintenance.bat` option `1`, which executes `XREPORT/scripts/initialize_database.py`.
+
 ## 6. Background Job Architecture
 
 - Global singleton: `job_manager` in `XREPORT/server/services/jobs.py`

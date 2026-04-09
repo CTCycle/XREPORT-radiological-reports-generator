@@ -125,6 +125,16 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 - Runtime/process settings: `XREPORT/settings/.env`
 - Backend defaults (including DB mode): `XREPORT/settings/configurations.json`
 
+### 7.1 Database initialization behavior
+
+- SQLite mode (`database.embedded_database=true`):
+  - On application startup, if `XREPORT/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
+  - If the file already exists, startup skips initialization.
+- PostgreSQL mode (`database.embedded_database=false`):
+  - Application startup never initializes PostgreSQL automatically.
+  - PostgreSQL initialization is manual via `XREPORT/setup_and_maintenance.bat` option `1`, which runs `XREPORT/scripts/initialize_database.py`.
+  - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.
+
 See also:
 - `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`
 - `assets/docs/USER_MANUAL.md`
