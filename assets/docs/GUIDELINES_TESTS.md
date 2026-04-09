@@ -1,5 +1,7 @@
 # Testing Guide (XREPORT)
 
+Last updated: 2026-04-08
+
 This document describes the current test layout and execution flow.
 
 ## 1. Test Strategy
@@ -108,4 +110,3 @@ Avoid brittle timing assumptions.
   - ensure `runtimes/.venv` includes optional test dependencies.
 - Stateful failures:
   - ensure no conflicting long-running job is active before test run.
-
