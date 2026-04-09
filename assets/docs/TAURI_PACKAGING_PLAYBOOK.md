@@ -1,5 +1,7 @@
 # Tauri Windows Packaging Playbook
 
+Last updated: 2026-04-08
+
 Operational playbook for building and validating XREPORT desktop releases on Windows.
 
 ## 1. Purpose
@@ -12,7 +14,7 @@ This flow keeps:
 ## 2. Build Workflow
 
 1. Activate desktop env profile:
-   - `copy /Y XREPORT\settings\.env.local.tauri.example XREPORT\settings\.env`
+   - verify `XREPORT\settings\.env` runtime values
 2. If branding changed, regenerate icons:
    - `cd XREPORT\client && npm run tauri:icon`
 3. Build desktop release:
@@ -72,4 +74,3 @@ Current staged coverage includes:
   - Explorer icon cache may lag; verify binary replacement and refresh cache/path.
 - long splash startup:
   - expected on first run when runtime sync is needed for heavy ML dependencies.
-

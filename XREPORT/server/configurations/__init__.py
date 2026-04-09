@@ -7,6 +7,7 @@ from XREPORT.server.configurations.base import (
 
 from XREPORT.server.configurations.server import (
     DatabaseSettings,
+    FeatureSettings,
     JobsSettings,
     ServerSettings,
     server_settings,
@@ -17,6 +18,7 @@ __all__ = [
     "ensure_mapping",
     "load_configuration_data",
     "DatabaseSettings",
+    "FeatureSettings",
     "JobsSettings",
     "ServerSettings",
     "server_settings",

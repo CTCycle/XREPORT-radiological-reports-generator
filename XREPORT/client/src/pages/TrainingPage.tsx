@@ -83,13 +83,20 @@ function toApiMetricConfigs(metricConfigs: Record<string, { dataFraction: number
     );
 }
 
+function readRecord(value: unknown): Record<string, unknown> | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    return value as Record<string, unknown>;
+}
+
 function toCheckpointEvaluationResults(statusResult: Record<string, unknown> | null) {
     const jobResults = statusResult ?? {};
-    const metricsResult = (jobResults.results as Record<string, unknown> | null) ?? {};
+    const metricsResult = readRecord(jobResults.results) ?? {};
     return {
-        loss: metricsResult.loss as number | undefined,
-        accuracy: metricsResult.accuracy as number | undefined,
-        bleu_score: metricsResult.bleu_score as number | undefined,
+        loss: readNumber(metricsResult.loss),
+        accuracy: readNumber(metricsResult.accuracy),
+        bleu_score: readNumber(metricsResult.bleu_score),
     };
 }
 

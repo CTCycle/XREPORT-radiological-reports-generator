@@ -1,5 +1,7 @@
 # Python Guidelines (XREPORT)
 
+Last updated: 2026-04-08
+
 Repository-scoped standards for Python backend and scripts.
 
 ## 1. Runtime and Environment
@@ -36,7 +38,7 @@ Do not move logic across layers unless required by the task.
 
 - Use repository/serializer abstractions (`DataSerializer`, `ModelSerializer`, DB backends) for persistence behavior.
 - Do not bypass DB abstractions with ad-hoc direct SQL in route modules.
-- Keep SQLite/PostgreSQL mode behavior compatible with `DB_EMBEDDED` settings.
+- Keep SQLite/PostgreSQL mode behavior compatible with `database.embedded_database` in `XREPORT/settings/configurations.json`.
 
 ## 6. Imports, Paths, and Logging
 
@@ -63,4 +65,3 @@ Preferred quality tooling:
 - For job-based flows, assert API contract shape and terminal job outcomes rather than timing-sensitive internals.
 
 See `assets/docs/GUIDELINES_TESTS.md` for test layout and execution commands.
-

@@ -1,8 +1,7 @@
 .dataset-container {
-    padding: 2rem;
+    padding: var(--space-8);
     max-width: 1400px;
     margin: 0 auto;
-    font-family: 'Inter', system-ui, sans-serif;
 }
 
 .header {
@@ -114,7 +113,7 @@
 
 .dataset-table-header {
     display: grid;
-    grid-template-columns: 150px 1.5fr 2fr 100px;
+    grid-template-columns: 172px 1.5fr 2fr 100px;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     background: var(--bg-secondary);
@@ -143,7 +142,7 @@
 
 .dataset-table-row {
     display: grid;
-    grid-template-columns: 150px 1.5fr 2fr 100px;
+    grid-template-columns: 172px 1.5fr 2fr 100px;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     font-size: 0.8rem;
@@ -233,8 +232,9 @@
 }
 
 .processing-config-section {
-    width: 320px;
-    /* Fixed width for config panel */
+    flex-basis: 320px;
+    min-width: 280px;
+    max-width: 360px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -421,14 +421,20 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
     border-radius: 6px;
     border: 1px solid transparent;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s;
+}
+
+.btn-icon-small:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent-color);
 }
 
 .dataset-refresh-button {
@@ -596,13 +602,13 @@ input[type="checkbox"] {
 
 /* Actions Bar */
 .btn {
-    padding: 0.5rem 1rem;
+    padding: var(--space-2) var(--space-4);
     border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     border: none;
-    font-size: 0.85rem;
+    font-size: var(--text-sm);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -621,8 +627,8 @@ input[type="checkbox"] {
 }
 
 .btn-sm {
-    padding: 0.35rem 0.75rem;
-    font-size: 0.8rem;
+    padding: calc(var(--space-1) + 0.1rem) var(--space-3);
+    font-size: var(--text-xs);
 }
 
 /* Span helpers for grid */
@@ -692,6 +698,21 @@ input[type="checkbox"] {
 
     .dataset-table-header,
     .dataset-table-row {
-        min-width: 620px;
+        min-width: 660px;
+    }
+
+    .dataset-processing-split {
+        flex-direction: column;
+    }
+
+    .processing-config-section {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .vertical-separator {
+        width: 100%;
+        height: 1px;
+        margin: 0;
     }
 }

@@ -14,7 +14,7 @@ from XREPORT.server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from XREPORT.server.common.utils.variables import env_variables  # noqa: F401
+from XREPORT.server.common.utils.variables import load_runtime_environment  # noqa: F401
 from XREPORT.server.api.inference import router as inference_router
 from XREPORT.server.api.preparation import router as preparation_router
 from XREPORT.server.api.training import router as training_router
