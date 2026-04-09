@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { DatasetInfo } from '../services/trainingService';
 import { useMetricSelection } from '../hooks/useMetricSelection';
+import { useResetOnOpen } from '../hooks/useResetOnOpen';
 import './ValidationWizard.css';
 
 export type ValidationMetric = 'pixels_distribution' | 'text_statistics' | 'image_statistics';
@@ -43,12 +44,13 @@ export default function ValidationWizard({
     const [validateFullDataset, setValidateFullDataset] = useState(true);
     const [validationFraction, setValidationFraction] = useState<string>('0.5');
 
-    useEffect(() => {
-        if (!isOpen) return;
+    const resetWizard = useCallback(() => {
         setSelectedMetrics(initialSelected ?? []);
         setValidateFullDataset(true);
         setValidationFraction('0.5');
-    }, [isOpen, initialSelected, row]);
+    }, [initialSelected, row, setSelectedMetrics]);
+
+    useResetOnOpen(isOpen, resetWizard);
 
     const datasetLabel = useMemo(() => {
         if (!row) return 'Select a dataset';
