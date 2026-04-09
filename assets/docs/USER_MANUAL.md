@@ -123,3 +123,13 @@ Expected result:
 - Database file (SQLite mode): `XREPORT/resources/database.db`
 - Checkpoints: `XREPORT/resources/checkpoints`
 - Logs: `XREPORT/resources/logs`
+
+## 9. Database Initialization
+
+- SQLite mode (`database.embedded_database=true`):
+  - On first startup only, if `XREPORT/resources/database.db` does not exist, the backend initializes the database automatically.
+  - On later startups, initialization is skipped when the file is present.
+- PostgreSQL mode (`database.embedded_database=false`):
+  - Database initialization is not automatic at startup.
+  - Run `XREPORT/setup_and_maintenance.bat`, choose option `1. Initialize database`, to execute `XREPORT/scripts/initialize_database.py`.
+  - The same script also works for SQLite mode, but normally it is unnecessary because first-run SQLite initialization is automatic.
