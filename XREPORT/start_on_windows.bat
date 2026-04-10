@@ -45,6 +45,7 @@ set "UVICORN_MODULE=XREPORT.server.app:app"
 set "FRONTEND_DIR=%project_folder%client"
 set "FRONTEND_DIST=%FRONTEND_DIR%\dist"
 set "FRONTEND_LOCKFILE=%FRONTEND_DIR%\package-lock.json"
+set "BACKEND_BOOT_LOG=%project_folder%resources\logs\backend_boot.log"
 
 set "DOTENV=%settings_dir%\.env"
 set "TMPDL=%TEMP%\app_dl.ps1"
@@ -300,23 +301,42 @@ if not exist "%python_exe%" (
 
 echo [RUN] Launching backend via uvicorn (!UVICORN_MODULE!)
 call :kill_port !FASTAPI_PORT!
-start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info
+call :wait_port_free !FASTAPI_PORT! 10
+if errorlevel 1 (
+  echo [FATAL] Port !FASTAPI_PORT! is still busy after cleanup. Backend cannot start.
+  goto error
+)
+if exist "%BACKEND_BOOT_LOG%" del /q "%BACKEND_BOOT_LOG%" >nul 2>&1
+start "" /b cmd /c ""%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info > "%BACKEND_BOOT_LOG%" 2>&1"
 
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-echo [WAIT] Waiting for backend to be ready on port !FASTAPI_PORT!...
-for /L %%i in (1,1,20) do (
-  netstat -ano | findstr ":!FASTAPI_PORT!" | findstr "LISTENING" >nul
+echo [WAIT] Waiting for backend health endpoint on !FASTAPI_HOST!:!FASTAPI_PORT!...
+for /L %%i in (1,1,60) do (
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { $resp = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri 'http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs'; if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
   if !errorlevel! equ 0 goto :backend_ready_check
   timeout /t 1 /nobreak >nul
 )
-echo [WARN] Timed out waiting for backend. Proceeding to launch frontend...
+echo [FATAL] Timed out waiting for backend readiness on http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs
+if exist "%BACKEND_BOOT_LOG%" (
+  echo [INFO] Last backend boot log lines:
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -LiteralPath '%BACKEND_BOOT_LOG%' -Tail 60" 2>nul
+) else (
+  echo [WARN] Backend boot log file not found at "%BACKEND_BOOT_LOG%".
+)
+goto error
 :backend_ready_check
 
 echo [RUN] Launching frontend
 pushd "%FRONTEND_DIR%" >nul
 call :kill_port !UI_PORT!
+call :wait_port_free !UI_PORT! 10
+if errorlevel 1 (
+  popd >nul
+  echo [FATAL] Port !UI_PORT! is still busy after cleanup. Frontend cannot start.
+  goto error
+)
 start "" /b "%NPM_CMD%" run preview -- --host !UI_HOST! --port !UI_PORT! --strictPort
 popd >nul
 
@@ -361,7 +381,18 @@ endlocal & exit /b 1
 :kill_port
 set "target_port=%~1"
 if not defined target_port goto :eof
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":!target_port!"') do (
-  taskkill /PID %%P /F >nul 2>&1
+for /f "usebackq delims=" %%P in (`powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$port=%target_port%; Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique"`) do (
+  if not "%%P"=="0" taskkill /PID %%P /F >nul 2>&1
 )
 goto :eof
+
+:wait_port_free
+set "target_port=%~1"
+set "wait_seconds=%~2"
+if not defined wait_seconds set "wait_seconds=10"
+for /L %%W in (1,1,!wait_seconds!) do (
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$port=%target_port%; $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue; if ($null -eq $conn) { exit 0 } else { exit 1 }" >nul 2>&1
+  if !errorlevel! equ 0 exit /b 0
+  timeout /t 1 /nobreak >nul
+)
+exit /b 1
