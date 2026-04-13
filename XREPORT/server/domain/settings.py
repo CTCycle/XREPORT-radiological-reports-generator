@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
-from pydantic.fields import FieldInfo
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
-
-from XREPORT.server.common.constants import CONFIGURATION_FILE
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 ###############################################################################
@@ -124,94 +118,28 @@ class JsonJobsSettings(BaseModel):
 
 
 ###############################################################################
-class JsonConfigurationSettingsSource(PydanticBaseSettingsSource):
-    def __init__(self, settings_cls: type[BaseSettings]) -> None:
-        super().__init__(settings_cls)
-        raw_path = getattr(settings_cls, "_configuration_file", CONFIGURATION_FILE)
-        self.configuration_file = Path(raw_path)
-
-    # -------------------------------------------------------------------------
-    def get_field_value(self, field: FieldInfo, field_name: str) -> tuple[Any, str, bool]:
-        return None, field_name, False
-
-    # -------------------------------------------------------------------------
-    def __call__(self) -> dict[str, Any]:
-        if not self.configuration_file.exists():
-            raise RuntimeError(f"Configuration file not found: {self.configuration_file}")
-
-        try:
-            payload = json.loads(self.configuration_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"Unable to load configuration from {self.configuration_file}") from exc
-
-        if not isinstance(payload, dict):
-            raise RuntimeError("Configuration must be a JSON object.")
-
-        return {
-            "database": payload.get("database", {}),
-            "global_settings": payload.get("global", {}),
-            "features": payload.get("features", {}),
-            "jobs": payload.get("jobs", {}),
-        }
-
-
-###############################################################################
-class AppSettings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_prefix="",
-        case_sensitive=False,
+class JsonServerSettings(BaseModel):
+    model_config = ConfigDict(
         extra="ignore",
+        populate_by_name=True,
     )
-
-    _configuration_file: ClassVar[str] = CONFIGURATION_FILE
 
     database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
     global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings)
     features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
 
-    fastapi_host: str = "127.0.0.1"
-    fastapi_port: int = Field(default=8000, ge=1, le=65535)
-    ui_host: str = "127.0.0.1"
-    ui_port: int = Field(default=8001, ge=1, le=65535)
-    vite_api_base_url: str = "/api"
-    reload: bool = True
-    optional_dependencies: bool = False
-    mplbackend: str | None = None
-    keras_backend: str | None = None
-    xreport_tauri_mode: bool = False
-
-    @field_validator(
-        "fastapi_host",
-        "ui_host",
-        "vite_api_base_url",
-        "mplbackend",
-        "keras_backend",
-        mode="before",
-    )
+    # "global" is reserved, map it explicitly.
+    @model_validator(mode="before")
     @classmethod
-    def normalize_optional_strings(cls, value: Any) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        _ = dotenv_settings
-        return (
-            init_settings,
-            env_settings,
-            JsonConfigurationSettingsSource(settings_cls),
-            file_secret_settings,
-        )
+    def map_global_alias(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        if "global" in value and "global_settings" not in value:
+            mapped = dict(value)
+            mapped["global_settings"] = mapped.get("global", {})
+            return mapped
+        return value
 
     # -------------------------------------------------------------------------
     def to_server_settings(self) -> ServerSettings:
@@ -254,3 +182,12 @@ class AppSettings(BaseSettings):
             ),
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
         )
+
+    # -------------------------------------------------------------------------
+    def to_blocks(self) -> dict[str, dict[str, Any]]:
+        return {
+            "database": self.database.model_dump(),
+            "global": self.global_settings.model_dump(),
+            "features": self.features.model_dump(),
+            "jobs": self.jobs.model_dump(),
+        }

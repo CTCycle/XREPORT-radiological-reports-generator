@@ -6,7 +6,7 @@ import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from XREPORT.server.configurations import DatabaseSettings, server_settings
+from XREPORT.server.configurations import DatabaseSettings, get_server_settings
 from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 from XREPORT.server.repositories.database.utils import normalize_postgres_engine
@@ -110,7 +110,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
 # -----------------------------------------------------------------------------
 def run_database_initialization() -> None:
-    settings = server_settings.database
+    settings = get_server_settings().database
     if settings.embedded_database:
         initialize_sqlite_database(settings)
         return
