@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from XREPORT.server.configurations.server import server_settings
+from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.repositories.schemas import (
     Base,
     Checkpoint,
@@ -59,6 +59,7 @@ def session_factory(tmp_path: Path):
 def create_preparation_endpoint(session_factory: sessionmaker) -> PreparationEndpoint:
     backend = BackendStub(session_factory)
     database_stub = SimpleNamespace(backend=backend)
+    server_settings = get_server_settings()
     endpoint = PreparationEndpoint(
         router=APIRouter(),
         database=database_stub,
