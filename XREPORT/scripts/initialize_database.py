@@ -4,7 +4,7 @@ from dataclasses import asdict
 import json
 import time
 
-from XREPORT.server.configurations import server_settings
+from XREPORT.server.configurations import get_server_settings
 from XREPORT.server.repositories.database.initializer import initialize_database
 from XREPORT.server.common.utils.logger import logger
 
@@ -13,6 +13,7 @@ from XREPORT.server.common.utils.logger import logger
 ###############################################################################
 if __name__ == "__main__":
     start = time.perf_counter()
+    server_settings = get_server_settings()
     logger.info("Starting database initialization")
     logger.info(
         "Current database configuration: %s",
