@@ -98,13 +98,7 @@ set "CARGO_TERM_PROGRESS_WHEN=auto"
 
 echo [STEP 1/2] Installing frontend dependencies
 pushd "%client_dir%" >nul
-if exist "package-lock.json" (
-  echo [CMD] "%npm_cmd%" ci --foreground-scripts
-  call "%npm_cmd%" ci --foreground-scripts
-) else (
-  echo [CMD] "%npm_cmd%" install --foreground-scripts
-  call "%npm_cmd%" install --foreground-scripts
-)
+call :install_frontend_deps
 if errorlevel 1 (
   popd >nul
   echo [FATAL] npm dependency installation failed.
@@ -115,11 +109,18 @@ echo [STEP 2/2] Building Tauri application
 if exist "%release_export_dir%" (
   echo [INFO] Removing previous exported release folder: "%release_export_dir%"
 )
-echo [CMD] "%npm_cmd%" run tauri:build:release
-call "%npm_cmd%" run tauri:build:release
+echo [CMD] "%npm_cmd%" run tauri:build
+call "%npm_cmd%" run tauri:build
 if errorlevel 1 (
   popd >nul
   echo [FATAL] Tauri build failed.
+  goto build_error
+)
+echo [CMD] "%npm_cmd%" run tauri:export:windows
+call "%npm_cmd%" run tauri:export:windows
+if errorlevel 1 (
+  popd >nul
+  echo [FATAL] Tauri artifact export failed.
   goto build_error
 )
 popd >nul
@@ -195,6 +196,27 @@ exit /b 0
 
 :cleanup_bundle_sources
 if exist "%bundle_source_dir%" rd /s /q "%bundle_source_dir%" >nul 2>&1
+exit /b 0
+
+:install_frontend_deps
+set "npm_install_args=install --foreground-scripts"
+if exist "package-lock.json" (
+  set "npm_install_args=ci --foreground-scripts"
+  echo [CMD] "%npm_cmd%" !npm_install_args!
+  call "%npm_cmd%" !npm_install_args!
+  if exist "node_modules\.bin\tauri.cmd" exit /b 0
+  echo [WARN] npm ci did not complete cleanly. Falling back to npm install after releasing stale local esbuild locks...
+  call :kill_local_esbuild_processes
+  timeout /t 2 /nobreak >nul
+)
+set "npm_install_args=install --foreground-scripts"
+echo [CMD] "%npm_cmd%" !npm_install_args!
+call "%npm_cmd%" !npm_install_args!
+if exist "node_modules\.bin\tauri.cmd" exit /b 0
+exit /b 1
+
+:kill_local_esbuild_processes
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$target=[IO.Path]::GetFullPath('%client_dir%\node_modules\@esbuild\win32-x64\esbuild.exe'); Get-CimInstance Win32_Process -Filter \"Name='esbuild.exe'\" | Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -ieq $target) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue };"
 exit /b 0
 
 :build_error

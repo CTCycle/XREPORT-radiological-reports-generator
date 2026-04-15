@@ -2,19 +2,20 @@ from __future__ import annotations
 
 import os
 
-from dotenv import load_dotenv
-
-from XREPORT.server.common.constants import ENV_FILE_PATH
-from XREPORT.server.common.utils.logger import logger
+from XREPORT.server.configurations.environment import load_environment
 
 
+# [LOAD ENVIRONMENT VARIABLES]
 ###############################################################################
+class EnvironmentVariables:
+    def __init__(self) -> None:
+        self.env_path = load_environment()
+
+    # -------------------------------------------------------------------------
+    def get(self, key: str, default: str | None = None) -> str | None:
+        return os.getenv(key, default)
+
+
+# Backward-compatible alias for existing imports.
 def load_runtime_environment() -> None:
-    if os.path.exists(ENV_FILE_PATH):
-        # Keep process env authoritative (already-exported vars win over file values).
-        load_dotenv(dotenv_path=ENV_FILE_PATH, override=False)
-    else:
-        logger.warning(".env file not found at: %s", ENV_FILE_PATH)
-
-
-load_runtime_environment()
+    load_environment()
