@@ -1,5 +1,11 @@
 # XREPORT Radiological Reports Generator
 
+[![Release](https://img.shields.io/github/v/release/CTCycle/XREPORT-radiological-reports-generator?sort=semver)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases)
+[![Python](https://img.shields.io/badge/python-%3E%3D3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Node.js](https://img.shields.io/badge/node.js-22.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
+[![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
+
 ## 1. Project Overview
 
 XREPORT is a client-server application that generates draft radiological reports from X-ray images.
