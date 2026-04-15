@@ -77,9 +77,9 @@ Windows (Local mode v2):
 
 macOS/Linux (manual):
 ```bash
-uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
+uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5002
 cd XREPORT/client
-npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
+npm run preview
 ```
 
 ### 4.2 Core Workflow
@@ -89,9 +89,14 @@ npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
 3. Generate draft reports on the **Inference** page.
 4. Run dataset/checkpoint validation from **Validation** flows.
 
-![Dataset page](assets/figures/datasets-list.png)
-![Training page](assets/figures/dashboard.png)
-![Inference page](assets/figures/inference.png)
+### 4.3 UI Snapshots
+
+- **Dataset management**: data source selection and dataset processing configuration.
+  ![Dataset management page](assets/figures/readme-dataset.png)
+- **Training workspace**: training session setup, checkpoint actions, and training dashboard.
+  ![Training workspace page](assets/figures/readme-training.png)
+- **Inference workspace**: X-ray upload, checkpoint selection, and report generation panel.
+  ![Inference workspace page](assets/figures/readme-inference.png)
 
 For a full operator guide, see `assets/docs/USER_MANUAL.md`.
 
