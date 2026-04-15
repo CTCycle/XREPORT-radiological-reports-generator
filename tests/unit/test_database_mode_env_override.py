@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from XREPORT.server.configurations.server import build_database_settings
+from XREPORT.server.domain.settings import JsonServerSettings
 
 
 def _payload() -> dict[str, object]:
@@ -19,10 +19,15 @@ def _payload() -> dict[str, object]:
     }
 
 
+def _build_database_settings(payload: dict[str, object]):
+    settings = JsonServerSettings.model_validate({"database": payload})
+    return settings.to_server_settings().database
+
+
 def test_db_embedded_payload_uses_sqlite_defaults() -> None:
     payload = _payload()
 
-    settings = build_database_settings(payload)
+    settings = _build_database_settings(payload)
 
     assert settings.embedded_database is True
     assert settings.engine is None
@@ -43,7 +48,7 @@ def test_external_db_uses_payload_values() -> None:
     payload["connect_timeout"] = 45
     payload["insert_batch_size"] = 77
 
-    settings = build_database_settings(payload)
+    settings = _build_database_settings(payload)
 
     assert settings.embedded_database is False
     assert settings.engine == "postgres"
@@ -63,7 +68,7 @@ def test_external_db_normalizes_engine_value() -> None:
     payload["embedded_database"] = False
     payload["engine"] = "PoStGreSQL+PsYcOpG"
 
-    settings = build_database_settings(payload)
+    settings = _build_database_settings(payload)
 
     assert settings.embedded_database is False
     assert settings.engine == "postgresql+psycopg"

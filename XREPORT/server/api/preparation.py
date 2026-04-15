@@ -34,12 +34,13 @@ from XREPORT.server.domain.jobs import (
 from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, job_manager
-from XREPORT.server.configurations.server import ServerSettings, server_settings
+from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.api.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
+from XREPORT.server.domain.settings import ServerSettings
 from XREPORT.server.repositories.schemas import (
     Dataset,
     DatasetRecord,
@@ -993,6 +994,6 @@ preparation_endpoint = PreparationEndpoint(
     database=database,
     job_manager=job_manager,
     upload_state=upload_state,
-    server_settings=server_settings,
+    server_settings=get_server_settings(),
 )
 preparation_endpoint.add_routes()

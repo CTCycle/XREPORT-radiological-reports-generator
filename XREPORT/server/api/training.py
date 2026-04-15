@@ -27,7 +27,7 @@ from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.common.constants import CHECKPOINT_PATH
-from XREPORT.server.configurations.server import server_settings
+from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.learning.training.worker import (
     ProcessWorker,
     run_resume_training_process,
@@ -363,6 +363,7 @@ class TrainingEndpoint:
     def apply_runtime_training_configuration(
         self, configuration: dict[str, Any]
     ) -> None:
+        server_settings = get_server_settings()
         configuration["training_seed"] = server_settings.global_settings.seed
         configuration["polling_interval"] = server_settings.jobs.polling_interval
 
@@ -393,7 +394,7 @@ class TrainingEndpoint:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=message,
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------
@@ -511,7 +512,7 @@ class TrainingEndpoint:
             val_accuracy=self.training_state.state["val_accuracy"],
             progress_percent=self.training_state.state["progress_percent"],
             elapsed_seconds=self.training_state.state["elapsed_seconds"],
-            poll_interval=server_settings.jobs.polling_interval,
+            poll_interval=get_server_settings().jobs.polling_interval,
         )
 
     # -----------------------------------------------------------------------------

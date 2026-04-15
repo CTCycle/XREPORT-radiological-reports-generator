@@ -8,7 +8,7 @@ import pandas as pd
 
 from XREPORT.server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.configurations import DatabaseSettings, server_settings
+from XREPORT.server.configurations import DatabaseSettings, get_server_settings
 from XREPORT.server.repositories.database.postgres import PostgresRepository
 from XREPORT.server.repositories.database.sqlite import SQLiteRepository
 from XREPORT.server.repositories.schemas import Base
@@ -59,7 +59,7 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 ###############################################################################
 class XREPORTDatabase:
     def __init__(self) -> None:
-        self.settings = server_settings.database
+        self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)
 
     # -------------------------------------------------------------------------
