@@ -46,9 +46,6 @@ yarn.lock
 .DS_Store
 Thumbs.db
 
-# Agents
-.agent/skills/**
-
 # Misc
 *.lock
 *.log
@@ -58,11 +55,6 @@ Thumbs.db
 *.gz
 
 !.gitkeep
-!runtimes/.gitkeep
-
-
-
-
 
 
 # Tauri
