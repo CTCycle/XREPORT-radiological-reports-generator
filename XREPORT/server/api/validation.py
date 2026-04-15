@@ -23,9 +23,10 @@ from XREPORT.server.services.jobs import JobManager, job_manager
 from XREPORT.server.services.validation import DatasetValidator
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
-from XREPORT.server.configurations.server import ServerSettings, server_settings
+from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
 from XREPORT.server.services.evaluation import CheckpointEvaluator
+from XREPORT.server.domain.settings import ServerSettings
 
 
 # -----------------------------------------------------------------------------
@@ -596,6 +597,6 @@ router = APIRouter(prefix="/validation", tags=["validation"])
 validation_endpoint = ValidationEndpoint(
     router=router,
     job_manager=job_manager,
-    server_settings=server_settings,
+    server_settings=get_server_settings(),
 )
 validation_endpoint.add_routes()
