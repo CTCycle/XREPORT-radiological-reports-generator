@@ -1,6 +1,6 @@
 """
 E2E tests for Training API endpoints.
-Tests: /training/checkpoints, /training/status, /training/start, /training/stop
+Tests: /training/checkpoints, /training/status, /training/start, /training/jobs/{job_id}
 """
 
 import os
@@ -80,17 +80,12 @@ class TestTrainingEndpoints:
         for checkpoint in data["checkpoints"]:
             assert "name" in checkpoint
 
-    def test_stop_training_when_not_running(self, api_context: APIRequestContext):
-        """POST /training/stop should return error if no training is active."""
-        # First verify no training is running
-        status_response = api_context.get("/training/status")
-        assert status_response.ok
-        if status_response.ok and status_response.json().get("is_training"):
-            return  # Skip if training is actually running
-
-        response = api_context.post("/training/stop")
-        assert response.status == 400
-
+    def test_cancel_unknown_training_job_returns_not_found(
+        self, api_context: APIRequestContext
+    ):
+        """DELETE /training/jobs/{job_id} should return 404 for unknown jobs."""
+        response = api_context.delete("/training/jobs/non_existent_job_id")
+        assert response.status == 404
         data = response.json()
         assert "detail" in data
 

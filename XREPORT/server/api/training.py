@@ -669,37 +669,6 @@ class TrainingEndpoint:
             message="Cancellation requested" if success else "Job cannot be cancelled",
         )
 
-    # -----------------------------------------------------------------------------
-    def stop_training(self) -> TrainingStatusResponse:
-        """Legacy stop endpoint - maintained for backward compatibility."""
-        if not self.training_state.state["is_training"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No training is currently in progress",
-            )
-
-        if self.training_state.worker is not None:
-            self.training_state.worker.stop()
-            logger.info("Training stop requested")
-
-        # Also cancel via job manager if we have a job_id
-        if self.training_state.current_job_id:
-            self.job_manager.cancel_job(self.training_state.current_job_id)
-
-        return TrainingStatusResponse(
-            job_id=self.training_state.current_job_id,
-            is_training=self.training_state.state["is_training"],
-            current_epoch=self.training_state.state["current_epoch"],
-            total_epochs=self.training_state.state["total_epochs"],
-            loss=self.training_state.state["loss"],
-            val_loss=self.training_state.state["val_loss"],
-            accuracy=self.training_state.state["accuracy"],
-            val_accuracy=self.training_state.state["val_accuracy"],
-            progress_percent=self.training_state.state["progress_percent"],
-            elapsed_seconds=self.training_state.state["elapsed_seconds"],
-        )
-
-    # -----------------------------------------------------------------------------
     def add_routes(self) -> None:
         """Register all training-related routes."""
         self.router.add_api_route(
@@ -758,15 +727,6 @@ class TrainingEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-        self.router.add_api_route(
-            "/stop",
-            self.stop_training,
-            methods=["POST"],
-            response_model=TrainingStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-
-
 ###############################################################################
 router = APIRouter(prefix="/training", tags=["training"])
 training_endpoint = TrainingEndpoint(
