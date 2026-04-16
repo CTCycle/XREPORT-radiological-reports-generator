@@ -42,7 +42,7 @@ class TestTrainingEndpoints:
 
     def test_get_training_status(self, api_context: APIRequestContext):
         """GET /training/status should return current training state."""
-        response = api_context.get("/training/status")
+        response = api_context.get("/api/training/status")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -61,7 +61,7 @@ class TestTrainingEndpoints:
         self, api_context: APIRequestContext
     ):
         """GET /training/status should return numeric fields for dashboard display."""
-        response = api_context.get("/training/status")
+        response = api_context.get("/api/training/status")
         assert response.ok
 
         data = response.json()
@@ -70,7 +70,7 @@ class TestTrainingEndpoints:
 
     def test_get_checkpoints_list(self, api_context: APIRequestContext):
         """GET /training/checkpoints should return a list of checkpoint info."""
-        response = api_context.get("/training/checkpoints")
+        response = api_context.get("/api/training/checkpoints")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -84,14 +84,14 @@ class TestTrainingEndpoints:
         self, api_context: APIRequestContext
     ):
         """DELETE /training/jobs/{job_id} should return 404 for unknown jobs."""
-        response = api_context.delete("/training/jobs/non_existent_job_id")
+        response = api_context.delete("/api/training/jobs/non_existent_job_id")
         assert response.status == 404
         data = response.json()
         assert "detail" in data
 
     def test_delete_checkpoint_removes_directory(self, api_context: APIRequestContext):
         """DELETE /training/checkpoints/{checkpoint} should remove the entire folder."""
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         if status_response.ok and status_response.json().get("is_training"):
             return
 
@@ -99,7 +99,7 @@ class TestTrainingEndpoints:
         checkpoint_dir = create_checkpoint_fixture(checkpoint_name)
 
         try:
-            response = api_context.delete(f"/training/checkpoints/{checkpoint_name}")
+            response = api_context.delete(f"/api/training/checkpoints/{checkpoint_name}")
             assert response.ok, f"Expected 200, got {response.status}"
             assert not os.path.exists(checkpoint_dir)
         finally:
@@ -109,18 +109,18 @@ class TestTrainingEndpoints:
         self, api_context: APIRequestContext
     ):
         """DELETE /training/checkpoints/{checkpoint} should reject traversal attempts."""
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         if status_response.ok and status_response.json().get("is_training"):
             return
 
-        response = api_context.delete("/training/checkpoints/%2e%2e%2f%2e%2e%2f")
+        response = api_context.delete("/api/training/checkpoints/%2e%2e%2f%2e%2e%2f")
         assert response.status == 400
         data = response.json()
         assert "detail" in data
 
     def test_delete_checkpoint_is_idempotent(self, api_context: APIRequestContext):
         """Repeated DELETE should return a consistent 404 after removal."""
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         if status_response.ok and status_response.json().get("is_training"):
             return
 
@@ -129,12 +129,12 @@ class TestTrainingEndpoints:
 
         try:
             first_response = api_context.delete(
-                f"/training/checkpoints/{checkpoint_name}"
+                f"/api/training/checkpoints/{checkpoint_name}"
             )
             assert first_response.ok, f"Expected 200, got {first_response.status}"
 
             second_response = api_context.delete(
-                f"/training/checkpoints/{checkpoint_name}"
+                f"/api/training/checkpoints/{checkpoint_name}"
             )
             assert second_response.status == 404
             assert not os.path.exists(checkpoint_dir)
@@ -149,13 +149,13 @@ class TestTrainingStartValidation:
         self, api_context: APIRequestContext
     ) -> None:
         """POST /training/start should validate request body."""
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         assert status_response.ok
         if status_response.ok and status_response.json().get("is_training"):
             return  # Skip if training is already running
 
         # Invalid request should fail validation (epochs below minimum)
-        response = api_context.post("/training/start", data={"epochs": 0})
+        response = api_context.post("/api/training/start", data={"epochs": 0})
         assert response.status == 422
 
     def test_start_training_while_already_running_returns_409(
@@ -163,14 +163,14 @@ class TestTrainingStartValidation:
     ):
         """POST /training/start should return 409 if training is already in progress."""
         # Check if training is already running
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         assert status_response.ok
         status_data = status_response.json()
 
         if status_data.get("is_training"):
             # Attempt to start again
             response = api_context.post(
-                "/training/start",
+                "/api/training/start",
                 data={"dataset_name": "test", "epochs": 1},
             )
             assert response.status == 409
@@ -184,7 +184,7 @@ class TestTrainingResumeEndpoint:
     def test_resume_training_requires_checkpoint(self, api_context: APIRequestContext):
         """POST /training/resume should require a checkpoint name."""
         # Empty request should fail
-        response = api_context.post("/training/resume", data={})
+        response = api_context.post("/api/training/resume", data={})
 
         assert response.status == 422
 
@@ -192,14 +192,15 @@ class TestTrainingResumeEndpoint:
         self, api_context: APIRequestContext
     ):
         """POST /training/resume with invalid checkpoint should fail."""
-        status_response = api_context.get("/training/status")
+        status_response = api_context.get("/api/training/status")
         assert status_response.ok
         if status_response.ok and status_response.json().get("is_training"):
             return  # Skip if training is already running
 
         response = api_context.post(
-            "/training/resume",
+            "/api/training/resume",
             data={"checkpoint": "non_existent_checkpoint_xyz", "additional_epochs": 1},
         )
 
         assert response.status in [400, 404]
+

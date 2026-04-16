@@ -148,3 +148,4 @@ class TestInferencePage:
 
         # Check for upload area
         expect(page.locator("input[type='file']")).to_be_attached()
+

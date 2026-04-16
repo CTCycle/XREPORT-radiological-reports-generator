@@ -9,7 +9,7 @@ class TestPreparationEndpoints:
     """Tests for the /preparation/* API endpoints."""
 
     def test_get_dataset_status_returns_shape(self, api_context: APIRequestContext):
-        response = api_context.get("/preparation/dataset/status")
+        response = api_context.get("/api/preparation/dataset/status")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -18,7 +18,7 @@ class TestPreparationEndpoints:
         assert isinstance(data.get("message"), str)
 
     def test_get_dataset_names_returns_shape(self, api_context: APIRequestContext):
-        response = api_context.get("/preparation/dataset/names")
+        response = api_context.get("/api/preparation/dataset/names")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -29,7 +29,7 @@ class TestPreparationEndpoints:
     def test_get_processed_dataset_names_returns_shape(
         self, api_context: APIRequestContext
     ):
-        response = api_context.get("/preparation/dataset/processed/names")
+        response = api_context.get("/api/preparation/dataset/processed/names")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -38,7 +38,7 @@ class TestPreparationEndpoints:
         assert data["count"] == len(data["datasets"])
 
     def test_browse_root_returns_drives(self, api_context: APIRequestContext):
-        response = api_context.get("/preparation/browse")
+        response = api_context.get("/api/preparation/browse")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -50,13 +50,14 @@ class TestPreparationEndpoints:
     def test_get_preparation_job_status_invalid_job_returns_404(
         self, api_context: APIRequestContext
     ):
-        response = api_context.get("/preparation/jobs/non_existent_job")
+        response = api_context.get("/api/preparation/jobs/non_existent_job")
         assert response.status == 404
         assert "detail" in response.json()
 
     def test_cancel_preparation_job_invalid_job_returns_404(
         self, api_context: APIRequestContext
     ):
-        response = api_context.delete("/preparation/jobs/non_existent_job")
+        response = api_context.delete("/api/preparation/jobs/non_existent_job")
         assert response.status == 404
         assert "detail" in response.json()
+
