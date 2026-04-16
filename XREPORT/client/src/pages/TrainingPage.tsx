@@ -40,7 +40,7 @@ import {
     pollJobStatus,
     resumeTraining,
     startTraining,
-    stopTraining,
+    cancelTrainingJob,
 } from '../services/trainingService';
 import {
     CheckpointEvaluationReport,
@@ -891,7 +891,13 @@ export default function TrainingPage() {
             appendLogLine('Stop requested. Finishing current batch and shutting down training.');
         }
         stopRequestedRef.current = true;
-        const { error: stopError } = await stopTraining();
+        const { result: statusResult, error: statusError } = await getTrainingStatus();
+        if (statusError || !statusResult?.job_id) {
+            console.error('Stop training failed:', statusError || 'No active training job ID');
+            stopRequestedRef.current = false;
+            return;
+        }
+        const { error: stopError } = await cancelTrainingJob(statusResult.job_id);
         if (stopError) {
             console.error('Stop training failed:', stopError);
             stopRequestedRef.current = false;

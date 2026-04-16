@@ -657,26 +657,6 @@ export async function cancelTrainingJob(
     }
 }
 
-/**
- * Stop current training session (legacy endpoint)
- */
-export async function stopTraining(): Promise<{ result: TrainingStatusResponse | null; error: string | null }> {
-    try {
-        const response = await fetch('/api/training/stop', {
-            method: 'POST',
-        });
-        if (!response.ok) {
-            const body = await response.text();
-            return { result: null, error: `${response.status} ${response.statusText}: ${body}` };
-        }
-        const payload = await readJson<TrainingStatusResponse>(response);
-        return { result: payload, error: null };
-    } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { result: null, error: message };
-    }
-}
-
 // ============================================================================
 // Image Viewer API
 // ============================================================================

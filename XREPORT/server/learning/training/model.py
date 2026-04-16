@@ -63,10 +63,7 @@ class XREPORTModel:
 
     # -------------------------------------------------------------------------
     def compile_model(self, model: Model, model_summary: bool = True) -> Model:
-        # Use target_LR (frontend naming) with fallback to post_warmup_LR (legacy naming)
-        target_lr = self.configuration.get(
-            "target_LR", self.configuration.get("post_warmup_LR", 0.0001)
-        )
+        target_lr = self.configuration.get("target_LR", 0.0001)
         lr_schedule: float | WarmUpLRScheduler = target_lr
 
         if self.configuration.get("use_scheduler", False):
