@@ -709,14 +709,6 @@ class DataSerializer:
         self.upsert_table(payload, INFERENCE_REPORTS_TABLE)
 
     # -------------------------------------------------------------------------
-    def save_text_statistics(self, data: pd.DataFrame) -> None:
-        logger.debug("save_text_statistics is deprecated in the normalized schema")
-
-    # -------------------------------------------------------------------------
-    def save_images_statistics(self, data: pd.DataFrame) -> None:
-        logger.debug("save_images_statistics is deprecated in the normalized schema")
-
-    # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "").strip()
         if not dataset_name:
@@ -1053,3 +1045,4 @@ class DataSerializer:
             )
         finally:
             session.close()
+

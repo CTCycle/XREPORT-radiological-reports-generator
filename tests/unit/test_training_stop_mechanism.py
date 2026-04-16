@@ -7,7 +7,7 @@ import pytest
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
 from XREPORT.server.learning.callbacks import TrainingInterruptCallback, WorkerInterrupted
-from XREPORT.server.routes import training as training_routes
+from XREPORT.server.api import training as training_routes
 
 
 ###############################################################################

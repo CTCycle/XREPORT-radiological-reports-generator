@@ -29,7 +29,7 @@ Non-runtime defaults (including DB settings):
 |---|---|
 | `FASTAPI_HOST`, `FASTAPI_PORT` | Backend bind host/port |
 | `UI_HOST`, `UI_PORT` | Frontend bind host/port for local web mode |
-| `VITE_API_BASE_URL` | Frontend API base path (keep `/api` for compatibility) |
+| `VITE_API_BASE_URL` | Frontend API base path (use `/api`) |
 | `RELOAD` | Uvicorn reload toggle in local dev |
 | `OPTIONAL_DEPENDENCIES` | Installs optional Python dependencies in launcher flow |
 | `MPLBACKEND`, `KERAS_BACKEND` | Runtime ML/plotting backend settings |
