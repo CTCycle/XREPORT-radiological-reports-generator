@@ -32,9 +32,7 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 
 ### 3.1 App entrypoint
 - `XREPORT/server/app.py` creates the FastAPI app and mounts all routers.
-- Each router is included twice:
-  - native routes (for example `/training/start`)
-  - `/api`-prefixed aliases (for example `/api/training/start`)
+- Routers are mounted only under the `/api` prefix (for example `/api/training/start`).
 
 ### 3.2 Root behavior
 - If `XREPORT_TAURI_MODE=true` and `XREPORT/client/dist` exists, backend serves the SPA and static assets.
@@ -61,7 +59,7 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 ### 4.2 Backend communication
 - Frontend uses `/api` semantics through service modules in `XREPORT/client/src/services`.
 - Vite proxy in `XREPORT/client/vite.config.ts` rewrites API calls to `http://<FASTAPI_HOST>:<FASTAPI_PORT>`.
-- Long-running operations use polling; websocket proxy entries exist for training/inference paths but operational flows are polling-based.
+- Long-running operations use polling.
 
 ## 5. Persistence Model
 

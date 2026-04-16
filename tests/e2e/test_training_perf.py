@@ -941,3 +941,4 @@ def test_training_pipeline_longer_run(tmp_path, scenario: dict[str, Any]) -> Non
             "peak_gpu_mb": peak_gpu_mb if use_gpu else None,
         },
     )
+
