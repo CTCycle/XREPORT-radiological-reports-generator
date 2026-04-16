@@ -27,7 +27,7 @@ Preserve this structure when adding features.
 ## 3. API Integration Rules
 
 - Use service modules in `src/services` for backend calls.
-- Use `/api` path semantics compatible with Vite proxy and backend `/api` aliases.
+- Use `/api` paths consistently (frontend service modules and Vite proxy).
 - Keep endpoint contracts aligned with FastAPI models and job polling behavior.
 
 ## 4. State and Job Flows

@@ -11,14 +11,14 @@ class TestDatasetUploadEndpoint:
 
     def test_upload_without_file_returns_422(self, api_context: APIRequestContext):
         """POST /upload/dataset without a file should return 422 (validation error)."""
-        response = api_context.post("/upload/dataset")
+        response = api_context.post("/api/upload/dataset")
         # FastAPI returns 422 for missing required fields
         assert response.status == 422
 
     def test_upload_invalid_file_type_returns_400(self, api_context: APIRequestContext):
         """POST /upload/dataset with an invalid file type should return 400."""
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "test.txt",
@@ -39,7 +39,7 @@ class TestDatasetUploadEndpoint:
         csv_content = b"id,image,text\n1,img001.png,Normal chest X-ray\n2,img002.png,Mild cardiomegaly"
 
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "test_dataset.csv",
@@ -69,7 +69,7 @@ class TestDatasetUploadEndpoint:
         csv_content = b"col1,col2\nval1,val2"
 
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "my_custom_dataset.csv",
@@ -91,7 +91,7 @@ class TestDatasetUploadEndpoint:
         # This test verifies the endpoint accepts the format
         # but will fail parsing with invalid content
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "test.xlsx",
@@ -107,7 +107,7 @@ class TestDatasetUploadEndpoint:
     def test_upload_empty_csv_returns_400(self, api_context: APIRequestContext):
         """POST /upload/dataset with empty content should return 400."""
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "empty.csv",
@@ -130,7 +130,7 @@ class TestDatasetUploadEdgeCases:
         csv_content = b"id;image;text\n1;img001.png;Normal findings\n2;img002.png;Abnormal findings"
 
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "semicolon_dataset.csv",
@@ -152,7 +152,7 @@ class TestDatasetUploadEdgeCases:
         )
 
         response = api_context.post(
-            "/upload/dataset",
+            "/api/upload/dataset",
             multipart={
                 "file": {
                     "name": "special_chars.csv",
@@ -165,3 +165,4 @@ class TestDatasetUploadEdgeCases:
         assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
         data = response.json()
         assert data["row_count"] == 2
+

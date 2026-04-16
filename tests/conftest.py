@@ -68,3 +68,4 @@ def api_context(playwright):
     context = playwright.request.new_context(base_url=API_BASE_URL)
     yield context
     context.dispose()
+

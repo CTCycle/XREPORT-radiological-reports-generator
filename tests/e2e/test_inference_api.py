@@ -12,7 +12,7 @@ class TestInferenceEndpoints:
 
     def test_get_checkpoints_list(self, api_context: APIRequestContext):
         """GET /inference/checkpoints should return available checkpoints."""
-        response = api_context.get("/inference/checkpoints")
+        response = api_context.get("/api/inference/checkpoints")
         assert response.ok, f"Expected 200, got {response.status}"
 
         data = response.json()
@@ -27,7 +27,7 @@ class TestInferenceEndpoints:
     def test_generate_without_images_returns_422(self, api_context: APIRequestContext):
         """POST /inference/generate without images should return 422."""
         response = api_context.post(
-            "/inference/generate",
+            "/api/inference/generate",
             multipart={
                 "checkpoint": "test_checkpoint",
                 "generation_mode": "greedy_search",
@@ -117,7 +117,7 @@ class TestInferenceEndpoints:
         )
 
         response = api_context.post(
-            "/inference/generate",
+            "/api/inference/generate",
             multipart={
                 "checkpoint": "non_existent_checkpoint_xyz",
                 "generation_mode": "greedy_search",
@@ -139,7 +139,7 @@ class TestInferenceGenerationModes:
     def test_generate_accepts_greedy_mode(self, api_context: APIRequestContext):
         """POST /inference/generate should accept 'greedy' generation mode."""
         # Get checkpoints first
-        checkpoints_response = api_context.get("/inference/checkpoints")
+        checkpoints_response = api_context.get("/api/inference/checkpoints")
         assert checkpoints_response.ok
 
         checkpoints = checkpoints_response.json().get("checkpoints", [])
@@ -152,7 +152,7 @@ class TestInferenceGenerationModes:
         png_data = self._create_minimal_png()
 
         response = api_context.post(
-            "/inference/generate",
+            "/api/inference/generate",
             multipart={
                 "checkpoint": checkpoint_name,
                 "generation_mode": "greedy_search",
@@ -168,7 +168,7 @@ class TestInferenceGenerationModes:
 
     def test_generate_accepts_beam_mode(self, api_context: APIRequestContext):
         """POST /inference/generate should accept 'beam' generation mode."""
-        checkpoints_response = api_context.get("/inference/checkpoints")
+        checkpoints_response = api_context.get("/api/inference/checkpoints")
         assert checkpoints_response.ok
 
         checkpoints = checkpoints_response.json().get("checkpoints", [])
@@ -179,7 +179,7 @@ class TestInferenceGenerationModes:
         png_data = self._create_minimal_png()
 
         response = api_context.post(
-            "/inference/generate",
+            "/api/inference/generate",
             multipart={
                 "checkpoint": checkpoint_name,
                 "generation_mode": "beam_search",
@@ -194,7 +194,7 @@ class TestInferenceGenerationModes:
         assert response.status == 202
 
     def test_generate_rejects_invalid_mode(self, api_context: APIRequestContext):
-        checkpoints_response = api_context.get("/inference/checkpoints")
+        checkpoints_response = api_context.get("/api/inference/checkpoints")
         assert checkpoints_response.ok
 
         checkpoints = checkpoints_response.json().get("checkpoints", [])
@@ -205,7 +205,7 @@ class TestInferenceGenerationModes:
         png_data = self._create_minimal_png()
 
         response = api_context.post(
-            "/inference/generate",
+            "/api/inference/generate",
             multipart={
                 "checkpoint": checkpoint_name,
                 "generation_mode": "invalid_mode",
@@ -302,7 +302,7 @@ class TestInferenceResponseFormat:
 
     def test_checkpoints_response_format(self, api_context: APIRequestContext):
         """GET /inference/checkpoints should return properly formatted response."""
-        response = api_context.get("/inference/checkpoints")
+        response = api_context.get("/api/inference/checkpoints")
         assert response.ok
 
         data = response.json()
@@ -313,3 +313,4 @@ class TestInferenceResponseFormat:
         assert "message" in data
         assert isinstance(data["success"], bool)
         assert isinstance(data["message"], str)
+
