@@ -23,7 +23,7 @@ from XREPORT.server.domain.jobs import (
 )
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.security import validate_checkpoint_name
-from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, get_job_manager
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.common.constants import CHECKPOINT_PATH
@@ -160,8 +160,8 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
 
     message_type = message.get("type")
     if message_type == "training_update":
-        job_manager.update_progress(job_id, float(message.get("progress_percent", 0)))
-        job_manager.update_result(
+        get_job_manager().update_progress(job_id, float(message.get("progress_percent", 0)))
+        get_job_manager().update_result(
             job_id,
             {
                 "current_epoch": message.get("epoch", 0),
@@ -175,7 +175,7 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
             },
         )
     elif message_type == "training_plot":
-        job_manager.update_result(
+        get_job_manager().update_result(
             job_id,
             {
                 "chart_data": training_state.state["chart_data"],
@@ -200,7 +200,7 @@ def request_worker_stop_if_needed(
     worker: ProcessWorker,
     stop_requested_at: float | None,
 ) -> float | None:
-    if not job_manager.should_stop(job_id):
+    if not get_job_manager().should_stop(job_id):
         return stop_requested_at
 
     if stop_requested_at is None:
@@ -239,7 +239,7 @@ def enforce_worker_stop_timeout(
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
     result_payload = worker.read_result()
     if result_payload is None:
-        if worker.exitcode not in (0, None) and not job_manager.should_stop(job_id):
+        if worker.exitcode not in (0, None) and not get_job_manager().should_stop(job_id):
             raise RuntimeError(f"Training process exited with code {worker.exitcode}")
         return {}
 
@@ -731,8 +731,10 @@ class TrainingEndpoint:
 router = APIRouter(prefix="/training", tags=["training"])
 training_endpoint = TrainingEndpoint(
     router=router,
-    job_manager=job_manager,
+    job_manager=get_job_manager(),
     training_state=training_state,
 )
 training_endpoint.add_routes()
+
+
 

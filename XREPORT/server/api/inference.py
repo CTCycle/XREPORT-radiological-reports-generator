@@ -22,7 +22,7 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.security import validate_checkpoint_name
 from XREPORT.server.learning.inference import TextGenerator
 from XREPORT.server.learning.training.dataloader import XRAYDataLoader
-from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, get_job_manager
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
 from XREPORT.server.configurations.startup import get_server_settings
@@ -95,7 +95,7 @@ def run_inference_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking inference function that runs in background thread."""
-    if job_manager.should_stop(job_id):
+    if get_job_manager().should_stop(job_id):
         inference_image_store.remove_job(job_id)
         return {}
 
@@ -139,7 +139,7 @@ def run_inference_job(
 
     try:
         for image_index, stored_image in enumerate(stored_images, start=1):
-            if job_manager.should_stop(job_id):
+            if get_job_manager().should_stop(job_id):
                 break
 
             try:
@@ -158,8 +158,8 @@ def run_inference_job(
             reports_ordered.append(report)
             report_filenames.append(stored_image.filename)
             progress = (image_index / total_images) * 100.0
-            job_manager.update_progress(job_id, progress)
-            job_manager.update_result(
+            get_job_manager().update_progress(job_id, progress)
+            get_job_manager().update_result(
                 job_id,
                 {
                     "reports": dict(reports_by_filename),
@@ -482,6 +482,8 @@ class InferenceEndpoint:
 router = APIRouter(prefix="/inference", tags=["inference"])
 inference_endpoint = InferenceEndpoint(
     router=router,
-    job_manager=job_manager,
+    job_manager=get_job_manager(),
 )
 inference_endpoint.add_routes()
+
+
