@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 import inspect
 import threading
 import uuid
@@ -179,5 +180,10 @@ class JobManager:
         return "job_id" in signature.parameters
 
 
+
 ###############################################################################
-job_manager = JobManager()
+@lru_cache(maxsize=1)
+def get_job_manager() -> JobManager:
+    return JobManager()
+
+

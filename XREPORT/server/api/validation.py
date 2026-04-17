@@ -19,7 +19,7 @@ from XREPORT.server.domain.jobs import (
 )
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.security import validate_checkpoint_name
-from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, get_job_manager
 from XREPORT.server.services.validation import DatasetValidator
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.repositories.serialization.model import ModelSerializer
@@ -53,7 +53,7 @@ class ProgressRange:
     def update(self, fraction: float) -> None:
         clamped = min(1.0, max(0.0, fraction))
         progress = self.start + (self.end - self.start) * clamped
-        job_manager.update_progress(self.job_id, progress)
+        get_job_manager().update_progress(self.job_id, progress)
 
 
 # -----------------------------------------------------------------------------
@@ -62,8 +62,7 @@ def run_validation_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking validation function that runs in background thread."""
-    # Use global job_manager imported at top level
-    jm = job_manager
+    jm = get_job_manager()
 
     serializer = DataSerializer()
 
@@ -237,8 +236,7 @@ def run_checkpoint_evaluation_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking checkpoint evaluation function that runs in background thread."""
-    # Use global job_manager imported at top level
-    jm = job_manager
+    jm = get_job_manager()
 
     raw_checkpoint = request_data.get("checkpoint", "")
     try:
@@ -596,7 +594,9 @@ class ValidationEndpoint:
 router = APIRouter(prefix="/validation", tags=["validation"])
 validation_endpoint = ValidationEndpoint(
     router=router,
-    job_manager=job_manager,
+    job_manager=get_job_manager(),
     server_settings=get_server_settings(),
 )
 validation_endpoint.add_routes()
+
+

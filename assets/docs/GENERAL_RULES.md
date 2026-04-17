@@ -50,6 +50,7 @@ If you discover drift, update the affected docs in the same change.
 - Prefer small, verifiable increments: implement, wire, validate.
 - Preserve existing project conventions for structure, naming, and architecture.
 - Use PowerShell for commands in this repository (`cmd /c` only when needed for `.bat`/CMD-specific behavior).
+- Do not introduce module-level mutable global variables (for example `global var_name` patterns or singleton state held in global variables). Use explicit dependency injection or accessor functions instead.
 
 ## 5. Runtime and Environment Rules
 
