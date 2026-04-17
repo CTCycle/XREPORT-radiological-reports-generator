@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.services.jobs import job_manager
+from XREPORT.server.services.jobs import get_job_manager
 
 
 ###############################################################################
@@ -54,7 +54,7 @@ class TrainingInterruptCallback(Callback):
             return True
         if self.job_id is None:
             return False
-        return job_manager.should_stop(self.job_id)
+        return get_job_manager().should_stop(self.job_id)
 
     # -------------------------------------------------------------------------
     def apply_stop_if_requested(self) -> None:
@@ -453,3 +453,4 @@ def initialize_training_callbacks(
         )
 
     return callbacks_list
+
