@@ -33,7 +33,7 @@ from XREPORT.server.domain.jobs import (
 )
 from XREPORT.server.common.constants import VALID_IMAGE_EXTENSIONS
 from XREPORT.server.common.utils.logger import logger
-from XREPORT.server.services.jobs import JobManager, job_manager
+from XREPORT.server.services.jobs import JobManager, get_job_manager
 from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.api.upload import UploadState, upload_state
 from XREPORT.server.repositories.serialization.data import DataSerializer
@@ -143,8 +143,8 @@ def run_process_dataset_job(
     processed_data = sanitizer.sanitize_text(dataset)
     logger.info("Text sanitization completed")
 
-    job_manager.update_progress(job_id, 30.0)
-    if job_manager.should_stop(job_id):
+    get_job_manager().update_progress(job_id, 30.0)
+    if get_job_manager().should_stop(job_id):
         return {}
 
     # Step 2: Tokenize text using Hugging Face tokenizer
@@ -158,8 +158,8 @@ def run_process_dataset_job(
         logger.exception("Failed to tokenize text")
         raise RuntimeError(f"Tokenization failed: {str(e)}") from e
 
-    job_manager.update_progress(job_id, 60.0)
-    if job_manager.should_stop(job_id):
+    get_job_manager().update_progress(job_id, 60.0)
+    if get_job_manager().should_stop(job_id):
         return {}
 
     # Step 3: Keep sanitized text so training upserts can use deterministic keys.
@@ -174,8 +174,8 @@ def run_process_dataset_job(
         f"Split complete: {train_samples} train, {validation_samples} validation samples"
     )
 
-    job_manager.update_progress(job_id, 80.0)
-    if job_manager.should_stop(job_id):
+    get_job_manager().update_progress(job_id, 80.0)
+    if get_job_manager().should_stop(job_id):
         return {}
 
     # Step 5: Save processed data and metadata to database
@@ -205,7 +205,7 @@ def run_process_dataset_job(
         logger.exception("Failed to save training data")
         raise RuntimeError(f"Failed to save training data: {str(e)}") from e
 
-    job_manager.update_progress(job_id, 100.0)
+    get_job_manager().update_progress(job_id, 100.0)
 
     return {
         "total_samples": len(training_data),
@@ -992,8 +992,10 @@ router = APIRouter(prefix="/preparation", tags=["preparation"])
 preparation_endpoint = PreparationEndpoint(
     router=router,
     database=database,
-    job_manager=job_manager,
+    job_manager=get_job_manager(),
     upload_state=upload_state,
     server_settings=get_server_settings(),
 )
 preparation_endpoint.add_routes()
+
+
