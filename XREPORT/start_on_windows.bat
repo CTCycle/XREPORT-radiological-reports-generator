@@ -307,29 +307,23 @@ if errorlevel 1 (
   goto error
 )
 if exist "%BACKEND_BOOT_LOG%" del /q "%BACKEND_BOOT_LOG%" >nul 2>&1
-start "" /b cmd /c ""%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info > "%BACKEND_BOOT_LOG%" 2>&1"
+start "" /b "%uv_exe%" run --no-sync --python "%python_exe%" python -m uvicorn %UVICORN_MODULE% --host !FASTAPI_HOST! --port !FASTAPI_PORT! !RELOAD_FLAG! --log-level info > "%BACKEND_BOOT_LOG%" 2>&1
 
 REM ============================================================================
 REM Wait for backend
 REM ============================================================================
-echo [WAIT] Waiting for backend health endpoint on !FASTAPI_HOST!:!FASTAPI_PORT!...
+set "BACKEND_BASE_URL=http://!FASTAPI_HOST!:!FASTAPI_PORT!"
+echo [WAIT] Waiting for backend readiness at !BACKEND_BASE_URL!...
 for /L %%i in (1,1,60) do (
-  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { $resp = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 -Uri 'http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs'; if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$base='!BACKEND_BASE_URL!'; $paths=@('/api/health','/health','/docs','/'); foreach ($p in $paths) { try { $r = Invoke-WebRequest -UseBasicParsing -Uri ($base + $p) -TimeoutSec 2; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 300) { exit 0 } } catch {} }; exit 1" >nul 2>&1
   if !errorlevel! equ 0 goto :backend_ready_check
-  timeout /t 1 /nobreak >nul
+  timeout /t 1 /nobreak >nul 2>&1
 )
-echo [FATAL] Timed out waiting for backend readiness on http://!FASTAPI_HOST!:!FASTAPI_PORT!/docs
-if exist "%BACKEND_BOOT_LOG%" (
-  echo [INFO] Last backend boot log lines:
-  powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -LiteralPath '%BACKEND_BOOT_LOG%' -Tail 60" 2>nul
-) else (
-  echo [WARN] Backend boot log file not found at "%BACKEND_BOOT_LOG%".
-)
+echo [FATAL] Backend did not become ready at !BACKEND_BASE_URL! (checked /api/health, /health, /docs, /).
 goto error
 :backend_ready_check
 
-echo [RUN] Launching frontend
-pushd "%FRONTEND_DIR%" >nul
+echo [RUN] Launching frontendpushd "%FRONTEND_DIR%" >nul
 call :kill_port !UI_PORT!
 call :wait_port_free !UI_PORT! 10
 if errorlevel 1 (
