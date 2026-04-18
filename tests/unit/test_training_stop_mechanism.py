@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from unittest.mock import Mock
 
 import pytest
 
@@ -73,7 +74,13 @@ def test_monitor_starts_timeout_even_if_worker_already_interrupted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     worker = FakeProcessWorker(interrupted=True, max_alive_checks=10, exitcode=1)
-    monkeypatch.setattr(training_routes.job_manager, "should_stop", lambda _job_id: True)
+    job_manager_mock = Mock()
+    job_manager_mock.should_stop.return_value = True
+    monkeypatch.setattr(
+        training_routes,
+        "get_job_manager",
+        Mock(return_value=job_manager_mock),
+    )
 
     result = training_routes.monitor_training_process(
         "job-cancelled",
@@ -91,7 +98,13 @@ def test_monitor_requests_graceful_stop_before_forcing_termination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     worker = FakeProcessWorker(interrupted=False, max_alive_checks=1, exitcode=0)
-    monkeypatch.setattr(training_routes.job_manager, "should_stop", lambda _job_id: True)
+    job_manager_mock = Mock()
+    job_manager_mock.should_stop.return_value = True
+    monkeypatch.setattr(
+        training_routes,
+        "get_job_manager",
+        Mock(return_value=job_manager_mock),
+    )
 
     result = training_routes.monitor_training_process(
         "job-cancelled",

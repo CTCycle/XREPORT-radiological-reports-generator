@@ -17,6 +17,16 @@ export function readString(value: unknown): string | undefined {
     return typeof value === 'string' ? value : undefined;
 }
 
+export function readStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) {
+        return undefined;
+    }
+    if (value.some((entry) => typeof entry !== 'string')) {
+        return undefined;
+    }
+    return value;
+}
+
 export function readNumberArray(value: unknown): number[] | undefined {
     if (!Array.isArray(value)) {
         return undefined;
