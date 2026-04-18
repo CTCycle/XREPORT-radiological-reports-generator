@@ -25,13 +25,14 @@ import {
     runValidation,
     getValidationReport,
     pollValidationJobStatus,
-    ValidationReport,
     ValidationResponse,
     parseValidationResponse,
 } from '../services/validationService';
 import ImageViewerModal from '../components/ImageViewerModal';
 import { usePersistedRecord } from '../hooks/usePersistedRecord';
 import { useManagedPoller } from '../hooks/useManagedPoller';
+import { useJobPollerRegistry } from '../hooks/useJobPollerRegistry';
+import IconActionButton from '../components/shared/IconActionButton';
 
 const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
 
@@ -62,9 +63,9 @@ export default function DatasetPage() {
         metrics?: string[];
     } | null>(null);
     const [validationJobs, setValidationJobs] = usePersistedRecord<StoredValidationJob>(VALIDATION_JOB_STORAGE_KEY);
-    const validationPollers = useRef<Record<string, { stop: () => void }>>({});
     const restoredValidationJobs = useRef(false);
     const reportDatasetRef = useRef<string | null>(null);
+    const { startPoller, stopPoller } = useJobPollerRegistry();
 
     // Image Viewer State
     const [viewerOpen, setViewerOpen] = useState(false);
@@ -112,20 +113,12 @@ export default function DatasetPage() {
     };
 
     const stopValidationPolling = (jobId: string) => {
-        const poller = validationPollers.current[jobId];
-        if (poller) {
-            poller.stop();
-            delete validationPollers.current[jobId];
-        }
+        stopPoller(jobId);
     };
 
     const startValidationPolling = (datasetName: string, jobId: string, jobMeta: StoredValidationJob) => {
-        if (validationPollers.current[jobId]) {
-            return;
-        }
-
         const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
-        const poller = pollValidationJobStatus(
+        const started = startPoller(jobId, () => pollValidationJobStatus(
             jobId,
             (status) => {
                 updateValidationJobs(prev => {
@@ -187,9 +180,10 @@ export default function DatasetPage() {
                 }
             },
             pollIntervalMs
-        );
-
-        validationPollers.current[jobId] = poller;
+        ));
+        if (!started) {
+            return;
+        }
     };
 
     // Fetch database status and dataset names on component mount
@@ -227,13 +221,6 @@ export default function DatasetPage() {
             startValidationPolling(datasetName, job.jobId, job);
         });
     }, [validationJobs]);
-
-    useEffect(() => {
-        return () => {
-            Object.values(validationPollers.current).forEach(poller => poller.stop());
-            validationPollers.current = {};
-        };
-    }, []);
 
     // Determine if at least one dataset exists (for LED indicator)
     const hasDatasets = (state.datasetNames?.count ?? 0) > 0;
@@ -452,18 +439,17 @@ export default function DatasetPage() {
             return;
         }
 
-        const report = result as ValidationReport;
         setReportMetadata({
-            date: report.date,
-            sampleSize: report.sample_size ?? null,
-            metrics: report.metrics,
+            date: result.date,
+            sampleSize: result.sample_size ?? null,
+            metrics: result.metrics,
         });
         setReportResult({
             success: true,
             message: 'Validation report loaded',
-            pixel_distribution: report.pixel_distribution,
-            image_statistics: report.image_statistics,
-            text_statistics: report.text_statistics,
+            pixel_distribution: result.pixel_distribution,
+            image_statistics: result.image_statistics,
+            text_statistics: result.text_statistics,
         });
         setReportProgress(100);
         setReportStatus('completed');
@@ -649,7 +635,7 @@ export default function DatasetPage() {
                                 <div className="dataset-table-container">
                                     <div className="dataset-table-header-row">
                                         <span className="dataset-table-title">Available Datasets</span>
-                                        <button
+                                        <IconActionButton
                                             className="btn-icon-small dataset-refresh-button"
                                             onClick={async (e) => {
                                                 e.preventDefault();
@@ -659,7 +645,7 @@ export default function DatasetPage() {
                                             title="Refresh datasets"
                                         >
                                             <RefreshCw size={16} />
-                                        </button>
+                                        </IconActionButton>
                                     </div>
                                     <p className="dataset-table-hint">
                                         Lists all datasets currently stored in the database. Select one to configure and build.
@@ -729,8 +715,7 @@ export default function DatasetPage() {
                                                         <div className="dataset-actions" onClick={(e) => {
                                                             e.stopPropagation(); // Don't toggle selection
                                                         }}>
-                                                            <button
-                                                                type="button"
+                                                            <IconActionButton
                                                                 className="btn-icon-small"
                                                                 title="Delete Dataset"
                                                                 onClick={(e) => {
@@ -740,9 +725,8 @@ export default function DatasetPage() {
                                                                 }}
                                                             >
                                                                 <Trash2 size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
+                                                            </IconActionButton>
+                                                            <IconActionButton
                                                                 className="btn-icon-small"
                                                                 title="View Images"
                                                                 onClick={(e) => {
@@ -753,9 +737,8 @@ export default function DatasetPage() {
                                                                 }}
                                                             >
                                                                 <Eye size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
+                                                            </IconActionButton>
+                                                            <IconActionButton
                                                                 className="btn-icon-small"
                                                                 title="Run Validation"
                                                                 onClick={(e) => {
@@ -766,9 +749,8 @@ export default function DatasetPage() {
                                                                 }}
                                                             >
                                                                 <CheckCircle size={16} />
-                                                            </button>
-                                                            <button
-                                                                type="button"
+                                                            </IconActionButton>
+                                                            <IconActionButton
                                                                 className="btn-icon-small"
                                                                 title={
                                                                     hasActiveJob
@@ -786,7 +768,7 @@ export default function DatasetPage() {
                                                                 }}
                                                             >
                                                                 <BarChart2 size={16} />
-                                                            </button>
+                                                            </IconActionButton>
                                                         </div>
                                                         <span className="dataset-name">{dataset.name}</span>
                                                         <span className="dataset-path" title={dataset.folder_path}>{dataset.folder_path}</span>
