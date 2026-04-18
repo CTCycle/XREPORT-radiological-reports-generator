@@ -23,6 +23,8 @@ import EvaluationWizard from '../components/EvaluationWizard';
 import CheckpointEvaluationReportModal from '../components/CheckpointEvaluationReportModal';
 import { ChartDataPoint, TrainingConfig } from '../types';
 import { usePersistedRecord } from '../hooks/usePersistedRecord';
+import { useJobPollerRegistry } from '../hooks/useJobPollerRegistry';
+import IconActionButton from '../components/shared/IconActionButton';
 import {
     CheckpointInfo,
     DatasetInfo,
@@ -245,7 +247,7 @@ export default function TrainingPage() {
         'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null
     >(null);
     const [evaluationJobs, setEvaluationJobs] = usePersistedRecord<StoredEvaluationJob>(EVALUATION_JOB_STORAGE_KEY);
-    const evaluationPollers = useRef<Record<string, { stop: () => void }>>({});
+    const { startPoller, stopPoller } = useJobPollerRegistry();
     const restoredEvaluationJobs = useRef(false);
     const reportCheckpointRef = useRef<string | null>(null);
     const pollerRef = useRef<{ stop: () => void } | null>(null);
@@ -370,24 +372,16 @@ export default function TrainingPage() {
     }, [updateEvaluationJobs]);
 
     const stopEvaluationPolling = useCallback((jobId: string) => {
-        const poller = evaluationPollers.current[jobId];
-        if (poller) {
-            poller.stop();
-            delete evaluationPollers.current[jobId];
-        }
-    }, []);
+        stopPoller(jobId);
+    }, [stopPoller]);
 
     const startEvaluationPolling = useCallback((
         checkpoint: string,
         jobId: string,
         jobMeta: StoredEvaluationJob
     ) => {
-        if (evaluationPollers.current[jobId]) {
-            return;
-        }
-
         const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
-        const poller = pollCheckpointEvaluationJobStatus(
+        const started = startPoller(jobId, () => pollCheckpointEvaluationJobStatus(
             jobId,
             (status) => {
                 updateEvaluationJobs(prev => {
@@ -459,10 +453,11 @@ export default function TrainingPage() {
                 }
             },
             pollIntervalMs
-        );
-
-        evaluationPollers.current[jobId] = poller;
-    }, [removeEvaluationJob, stopEvaluationPolling, updateEvaluationJobs]);
+        ));
+        if (!started) {
+            return;
+        }
+    }, [removeEvaluationJob, startPoller, stopEvaluationPolling, updateEvaluationJobs]);
 
     const appendLogLine = useCallback((line: string) => {
         setDashboardState((prev) => {
@@ -667,13 +662,6 @@ export default function TrainingPage() {
             startEvaluationPolling(checkpoint, job.jobId, job);
         });
     }, [evaluationJobs, startEvaluationPolling]);
-
-    useEffect(() => {
-        return () => {
-            Object.values(evaluationPollers.current).forEach(poller => poller.stop());
-            evaluationPollers.current = {};
-        };
-    }, []);
 
     useEffect(() => {
         fetchDatasets();
@@ -1014,14 +1002,14 @@ export default function TrainingPage() {
                                 <h3>New Training Session</h3>
                                 <p>Select a processed dataset to configure your next run.</p>
                             </div>
-                            <button
+                            <IconActionButton
                                 className="panel-refresh"
                                 onClick={fetchDatasets}
-                                type="button"
-                                aria-label="Refresh datasets"
+                                ariaLabel="Refresh datasets"
+                                title="Refresh datasets"
                             >
                                 <RefreshCw size={16} />
-                            </button>
+                            </IconActionButton>
                         </div>
 
                         <div className="panel-list">
@@ -1045,22 +1033,20 @@ export default function TrainingPage() {
                                             <span className="panel-row-count">{dataset.row_count.toLocaleString()} rows</span>
                                         </button>
                                         <div className="panel-row-actions">
-                                            <button
-                                                type="button"
+                                            <IconActionButton
                                                 className="icon-button"
                                                 title="Show metadata"
                                                 onClick={() => handleShowDatasetMetadata(dataset)}
                                             >
                                                 <Info size={15} />
-                                            </button>
-                                            <button
-                                                type="button"
+                                            </IconActionButton>
+                                            <IconActionButton
                                                 className="icon-button danger"
                                                 title="Delete dataset"
                                                 onClick={() => handleDeleteDataset(dataset)}
                                             >
                                                 <Trash2 size={15} />
-                                            </button>
+                                            </IconActionButton>
                                         </div>
                                     </div>
                                 );
@@ -1108,14 +1094,14 @@ export default function TrainingPage() {
                                 <h3>Resume Training</h3>
                                 <p>Pick a checkpoint to continue training from a saved state.</p>
                             </div>
-                            <button
+                            <IconActionButton
                                 className="panel-refresh"
                                 onClick={fetchCheckpoints}
-                                type="button"
-                                aria-label="Refresh checkpoints"
+                                ariaLabel="Refresh checkpoints"
+                                title="Refresh checkpoints"
                             >
                                 <RefreshCw size={16} />
-                            </button>
+                            </IconActionButton>
                         </div>
                         <div className="panel-list">
                             {checkpoints.length === 0 && (
@@ -1140,30 +1126,27 @@ export default function TrainingPage() {
                                             </span>
                                         </button>
                                         <div className="panel-row-actions">
-                                            <button
-                                                type="button"
+                                            <IconActionButton
                                                 className="icon-button"
                                                 title="Show metadata"
                                                 onClick={() => handleShowCheckpointMetadata(checkpoint)}
                                             >
                                                 <Info size={15} />
-                                            </button>
-                                            <button
-                                                type="button"
+                                            </IconActionButton>
+                                            <IconActionButton
                                                 className="icon-button"
                                                 title="View evaluation report"
                                                 onClick={() => handleVisualizeEvaluationReport(checkpoint)}
                                             >
                                                 <BarChart2 size={15} />
-                                            </button>
-                                            <button
-                                                type="button"
+                                            </IconActionButton>
+                                            <IconActionButton
                                                 className="icon-button danger"
                                                 title="Delete checkpoint"
                                                 onClick={() => handleDeleteCheckpoint(checkpoint)}
                                             >
                                                 <Trash2 size={15} />
-                                            </button>
+                                            </IconActionButton>
                                         </div>
                                     </div>
                                 );

@@ -1,5 +1,6 @@
 // Training service API functions
 import { readBoolean, readNumber, readString } from './parseUtils';
+import { createJobStatusPoller } from './jobPolling';
 
 export interface ImagePathResponse {
     valid: boolean;
@@ -716,46 +717,12 @@ export function pollJobStatus(
     onError: (error: string) => void,
     intervalMs: number = 2000
 ): { stop: () => void } {
-    let stopped = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const poll = async () => {
-        if (stopped) return;
-
-        const { result, error } = await getStatusFn(jobId);
-
-        if (stopped) return;
-
-        if (error) {
-            onError(error);
-            return;
-        }
-
-        if (!result) {
-            onError('No result returned');
-            return;
-        }
-
-        onUpdate(result);
-
-        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
-            onComplete(result);
-            return;
-        }
-
-        // Schedule next poll
-        timeoutId = setTimeout(poll, intervalMs);
-    };
-
-    // Start polling
-    poll();
-
-    return {
-        stop: () => {
-            stopped = true;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        },
-    };
+    return createJobStatusPoller(
+        getStatusFn,
+        jobId,
+        onUpdate,
+        onComplete,
+        onError,
+        intervalMs,
+    );
 }

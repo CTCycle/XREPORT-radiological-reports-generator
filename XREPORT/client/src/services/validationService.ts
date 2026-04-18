@@ -1,5 +1,6 @@
 // Validation service API functions
 import { asRecord, readBoolean, readNumber, readNumberArray, readString } from './parseUtils';
+import { createJobStatusPoller } from './jobPolling';
 
 export interface PixelDistribution {
     bins: number[];
@@ -272,46 +273,12 @@ export function pollValidationJobStatus(
     onError: (error: string) => void,
     intervalMs: number = 2000
 ): { stop: () => void } {
-    let stopped = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const poll = async () => {
-        if (stopped) return;
-
-        const { result, error } = await getValidationJobStatus(jobId);
-
-        if (stopped) return;
-
-        if (error) {
-            onError(error);
-            return;
-        }
-
-        if (!result) {
-            onError('No result returned');
-            return;
-        }
-
-        onUpdate(result);
-
-        if (result.status === 'completed' || result.status === 'failed' || result.status === 'cancelled') {
-            onComplete(result);
-            return;
-        }
-
-        // Schedule next poll
-        timeoutId = setTimeout(poll, intervalMs);
-    };
-
-    // Start polling
-    poll();
-
-    return {
-        stop: () => {
-            stopped = true;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        },
-    };
+    return createJobStatusPoller(
+        getValidationJobStatus,
+        jobId,
+        onUpdate,
+        onComplete,
+        onError,
+        intervalMs,
+    );
 }
