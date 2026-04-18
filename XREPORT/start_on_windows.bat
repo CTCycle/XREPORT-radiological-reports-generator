@@ -323,7 +323,8 @@ echo [FATAL] Backend did not become ready at !BACKEND_BASE_URL! (checked /api/he
 goto error
 :backend_ready_check
 
-echo [RUN] Launching frontendpushd "%FRONTEND_DIR%" >nul
+echo [RUN] Launching frontend
+pushd "%FRONTEND_DIR%" >nul
 call :kill_port !UI_PORT!
 call :wait_port_free !UI_PORT! 10
 if errorlevel 1 (
