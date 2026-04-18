@@ -7,6 +7,7 @@ import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
 import { GenerationMode } from '../types';
 import { useManagedPoller } from '../hooks/useManagedPoller';
+import { asRecord, readString, readStringArray } from '../services/parseUtils';
 import {
     getInferenceCheckpoints,
     generateReports,
@@ -21,6 +22,72 @@ function isGenerationMode(value: string): value is GenerationMode {
 
 function parseGenerationMode(value: string, fallback: GenerationMode): GenerationMode {
     return isGenerationMode(value) ? value : fallback;
+}
+
+function readStringMap(value: unknown): Record<string, string> | undefined {
+    const record = asRecord(value);
+    if (!record) {
+        return undefined;
+    }
+
+    const entries = Object.entries(record);
+    if (entries.some(([, entryValue]) => readString(entryValue) === undefined)) {
+        return undefined;
+    }
+
+    return Object.fromEntries(entries.map(([key, entryValue]) => [key, readString(entryValue) ?? '']));
+}
+
+function toReportsByIndex(
+    result: unknown,
+    images: File[],
+): Record<number, string> {
+    const payload = asRecord(result);
+    if (!payload) {
+        return {};
+    }
+
+    const reports = readStringMap(payload.reports);
+    const reportsOrdered = readStringArray(payload.reports_ordered);
+    const reportFilenames = readStringArray(payload.report_filenames);
+    const reportsByIndex: Record<number, string> = {};
+
+    if (reportsOrdered && reportsOrdered.length > 0) {
+        reportsOrdered.forEach((report, index) => {
+            if (report) {
+                reportsByIndex[index] = report;
+            }
+        });
+        return reportsByIndex;
+    }
+
+    if (!reports) {
+        return reportsByIndex;
+    }
+
+    if (reportFilenames && reportFilenames.length > 0) {
+        reportFilenames.forEach((filename, index) => {
+            const report = reports[filename];
+            if (report !== undefined) {
+                reportsByIndex[index] = report;
+            }
+        });
+    } else {
+        images.forEach((image, index) => {
+            const report = reports[image.name];
+            if (report !== undefined) {
+                reportsByIndex[index] = report;
+            }
+        });
+    }
+
+    if (Object.keys(reportsByIndex).length === 0) {
+        Object.values(reports).forEach((report, index) => {
+            reportsByIndex[index] = report;
+        });
+    }
+
+    return reportsByIndex;
 }
 
 export default function InferencePage() {
@@ -230,45 +297,7 @@ export default function InferencePage() {
         startGenerationPolling(() => pollInferenceJobStatus(
             jobResult.job_id,
             (status) => {
-                if (!status.result) {
-                    return;
-                }
-
-                const resultPayload = status.result as Record<string, unknown>;
-                const reports = resultPayload.reports as Record<string, string> | undefined;
-                const reportsOrdered = resultPayload.reports_ordered as string[] | undefined;
-                const reportFilenames = resultPayload.report_filenames as string[] | undefined;
-                const reportsByIndex: Record<number, string> = {};
-
-                if (reportsOrdered && reportsOrdered.length > 0) {
-                    reportsOrdered.forEach((report, idx) => {
-                        if (report) {
-                            reportsByIndex[idx] = report;
-                        }
-                    });
-                } else if (reports) {
-                    if (reportFilenames && reportFilenames.length > 0) {
-                        reportFilenames.forEach((filename, idx) => {
-                            const report = reports[filename];
-                            if (report !== undefined) {
-                                reportsByIndex[idx] = report;
-                            }
-                        });
-                    } else {
-                        state.images.forEach((image, idx) => {
-                            const report = reports[image.name];
-                            if (report !== undefined) {
-                                reportsByIndex[idx] = report;
-                            }
-                        });
-                    }
-
-                    if (Object.keys(reportsByIndex).length === 0) {
-                        Object.values(reports).forEach((report, idx) => {
-                            reportsByIndex[idx] = report;
-                        });
-                    }
-                }
+                const reportsByIndex = toReportsByIndex(status.result, state.images);
 
                 if (Object.keys(reportsByIndex).length > 0) {
                     setReports(reportsByIndex);

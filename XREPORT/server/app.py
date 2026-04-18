@@ -3,23 +3,23 @@ from __future__ import annotations
 import os
 import warnings
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from XREPORT.server.api.inference import router as inference_router
+from XREPORT.server.api.preparation import router as preparation_router
+from XREPORT.server.api.training import router as training_router
+from XREPORT.server.api.upload import router as upload_router
+from XREPORT.server.api.validation import router as validation_router
 from XREPORT.server.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
 from XREPORT.server.configurations.environment import load_environment
-from XREPORT.server.api.inference import router as inference_router
-from XREPORT.server.api.preparation import router as preparation_router
-from XREPORT.server.api.training import router as training_router
-from XREPORT.server.api.upload import router as upload_router
-from XREPORT.server.api.validation import router as validation_router
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def tauri_mode_enabled() -> bool:
