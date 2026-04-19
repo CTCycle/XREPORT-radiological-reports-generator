@@ -33,6 +33,23 @@ BASE_URL = "/base/tags"
 # [TRAINING CONSTANTS]
 ###############################################################################
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
+INFERENCE_IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".bmp",
+    ".webp",
+    ".tif",
+    ".tiff",
+}
+INFERENCE_IMAGE_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/bmp",
+    "image/webp",
+    "image/tiff",
+}
 
 
 # [DATABASE TABLES]

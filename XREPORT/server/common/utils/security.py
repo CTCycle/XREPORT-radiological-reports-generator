@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 
+from XREPORT.server.common.constants import CHECKPOINT_PATH
+
 
 MAX_CHECKPOINT_NAME_LENGTH = 128
 CHECKPOINT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
@@ -34,6 +36,16 @@ def validate_checkpoint_name(name: str) -> str:
             "Checkpoint name can only include letters, numbers, hyphen, and underscore"
         )
     return normalized
+
+
+# -----------------------------------------------------------------------------
+def resolve_checkpoint_path(name: str) -> str:
+    checkpoint_name = validate_checkpoint_name(name)
+    base_path = os.path.realpath(CHECKPOINT_PATH)
+    target_path = os.path.realpath(os.path.join(base_path, checkpoint_name))
+    if os.path.commonpath([base_path, target_path]) != base_path:
+        raise ValueError("Checkpoint path is outside the checkpoints directory")
+    return target_path
 
 
 # -----------------------------------------------------------------------------
