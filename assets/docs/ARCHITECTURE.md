@@ -20,7 +20,7 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 | `XREPORT/client` | UI routes, components, API service modules, styles |
 | `XREPORT/server/api` | FastAPI route modules (`upload`, `preparation`, `training`, `inference`, `validation`) |
 | `XREPORT/server/domain` | Request/response and job models |
-| `XREPORT/server/services` | Orchestration and domain services (jobs, processing, validation, evaluation) |
+| `XREPORT/server/services` | Orchestration and domain services (`upload`, `preparation`, `training`, `inference`, `validation_runs`, `jobs`, `processing`, `validation`, `evaluation`) |
 | `XREPORT/server/learning` | ML training and inference logic |
 | `XREPORT/server/repositories` | DB backends, schema models, serializers, database bootstrap |
 | `XREPORT/settings` | Runtime `.env` and JSON configuration |
@@ -44,6 +44,12 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 - `training.py`
 - `inference.py`
 - `validation.py`
+
+### 3.4 Backend layering contract
+- Endpoints in `XREPORT/server/api` delegate to service modules only.
+- Services in `XREPORT/server/services` own orchestration and call repository/serializer/database components.
+- Repositories in `XREPORT/server/repositories` own persistence concerns.
+- Shared validation and path-safety logic is centralized in `XREPORT/server/common/utils/security.py`.
 
 ## 4. Frontend Composition
 
