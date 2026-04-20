@@ -1,124 +1,25 @@
 // Training service API functions
-import { readBoolean, readNumber, readString } from './parseUtils';
-import { createJobStatusPoller } from './jobPolling';
-
-export interface ImagePathResponse {
-    valid: boolean;
-    folder_path: string;
-    image_count: number;
-    message: string;
-}
-
-export interface DatasetUploadResponse {
-    success: boolean;
-    filename: string;
-    dataset_name: string;
-    row_count: number;
-    column_count: number;
-    columns: string[];
-    message: string;
-}
-
-export interface LoadDatasetRequest {
-    image_folder_path: string;
-    sample_size?: number;
-}
-
-export interface LoadDatasetResponse {
-    success: boolean;
-    total_images: number;
-    matched_records: number;
-    unmatched_records: number;
-    message: string;
-}
-
-export interface DirectoryItem {
-    name: string;
-    path: string;
-    is_dir: boolean;
-    image_count: number;
-}
-
-export interface BrowseResponse {
-    current_path: string;
-    parent_path: string | null;
-    items: DirectoryItem[];
-    drives: string[];
-}
-
-export interface DatasetStatusResponse {
-    has_data: boolean;
-    row_count: number;
-    allow_server_browse: boolean;
-    message: string;
-}
-
-export interface DatasetInfo {
-    name: string;
-    folder_path: string;
-    row_count: number;
-    has_validation_report: boolean;
-}
-
-export interface ProcessingMetadataResponse {
-    dataset_name: string;
-    metadata: Record<string, unknown>;
-}
-
-export interface CheckpointMetadataResponse {
-    checkpoint: string;
-    configuration: Record<string, unknown>;
-    metadata: Record<string, unknown>;
-    session: Record<string, unknown>;
-}
-
-export interface DeleteResponse {
-    success: boolean;
-    message: string;
-}
-
-export interface DatasetNamesResponse {
-    datasets: DatasetInfo[];
-    count: number;
-}
-
-export interface ImageCountResponse {
-    dataset_name: string;
-    count: number;
-}
-
-export interface ImageMetadataResponse {
-    dataset_name: string;
-    index: number;
-    image_name: string;
-    caption: string;
-    valid_path: boolean;
-    path: string;
-}
-
-
-export interface JobStartResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    message: string;
-    poll_interval?: number;
-}
-
-export interface JobStatusResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    progress: number;
-    result: Record<string, unknown> | null;
-    error: string | null;
-}
-
-export interface JobCancelResponse {
-    job_id: string;
-    success: boolean;
-    message: string;
-}
+import { readBoolean, readNumber, readString } from '../common/parsers';
+import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import {
+    BrowseResponse,
+    CheckpointMetadataResponse,
+    CheckpointsResponse,
+    DatasetNamesResponse,
+    DatasetStatusResponse,
+    DatasetUploadResponse,
+    DeleteResponse,
+    ImageCountResponse,
+    ImageMetadataResponse,
+    ImagePathResponse,
+    LoadDatasetRequest,
+    LoadDatasetResponse,
+    ProcessDatasetRequest,
+    ProcessDatasetResponse,
+    ProcessingMetadataResponse,
+    StartTrainingConfig,
+    TrainingStatusResponse,
+} from '../types/trainingApi';
 
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
@@ -325,28 +226,6 @@ export async function browseDirectory(
     }
 }
 
-// ============================================================================
-// Dataset Processing API
-// ============================================================================
-
-export interface ProcessDatasetRequest {
-    dataset_name: string;
-    custom_name?: string;
-    sample_size: number;
-    validation_size: number;
-    tokenizer: string;
-    max_report_size: number;
-}
-
-export interface ProcessDatasetResponse {
-    success: boolean;
-    total_samples: number;
-    train_samples: number;
-    validation_samples: number;
-    vocabulary_size: number;
-    message: string;
-}
-
 export function parseProcessDatasetResponse(result: Record<string, unknown>): ProcessDatasetResponse {
     return {
         success: readBoolean(result.success) ?? true,
@@ -423,65 +302,6 @@ export async function cancelPreparationJob(
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
     }
-}
-
-// ============================================================================
-// Training Pipeline API
-// ============================================================================
-
-export interface StartTrainingConfig {
-    dataset_name: string;
-    epochs: number;
-    batch_size: number;
-    num_encoders: number;
-    num_decoders: number;
-    embedding_dims: number;
-    attention_heads: number;
-    train_temp: number;
-    freeze_img_encoder: boolean;
-    use_img_augmentation: boolean;
-    shuffle_with_buffer: boolean;
-    shuffle_size: number;
-    save_checkpoints: boolean;
-    checkpoint_id?: string;
-    use_device_GPU: boolean;
-    device_ID: number;
-    jit_compile: boolean;
-    jit_backend: string;
-    use_mixed_precision: boolean;
-    dataloader_workers: number;
-    prefetch_factor: number;
-    pin_memory: boolean;
-    persistent_workers: boolean;
-    plot_training_metrics: boolean;
-    use_scheduler: boolean;
-    target_LR: number;
-    warmup_steps: number;
-}
-
-export interface CheckpointInfo {
-    name: string;
-    epochs: number;
-    loss: number;
-    val_loss: number;
-}
-
-export interface CheckpointsResponse {
-    checkpoints: CheckpointInfo[];
-}
-
-export interface TrainingStatusResponse {
-    job_id?: string | null;
-    is_training: boolean;
-    current_epoch: number;
-    total_epochs: number;
-    loss: number;
-    val_loss: number;
-    accuracy: number;
-    val_accuracy: number;
-    progress_percent: number;
-    elapsed_seconds: number;
-    poll_interval?: number;
 }
 
 /**
@@ -699,30 +519,4 @@ export async function getDatasetImageMetadata(
 
 export function getDatasetImageContentUrl(datasetName: string, index: number): string {
     return `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}/content`;
-}
-
-// ============================================================================
-// Job Polling Helpers
-// ============================================================================
-
-/**
- * Poll a job until it completes, fails, or is cancelled
- * Returns a cleanup function to stop polling
- */
-export function pollJobStatus(
-    getStatusFn: (jobId: string) => Promise<{ result: JobStatusResponse | null; error: string | null }>,
-    jobId: string,
-    onUpdate: (status: JobStatusResponse) => void,
-    onComplete: (status: JobStatusResponse) => void,
-    onError: (error: string) => void,
-    intervalMs: number = 2000
-): { stop: () => void } {
-    return createJobStatusPoller(
-        getStatusFn,
-        jobId,
-        onUpdate,
-        onComplete,
-        onError,
-        intervalMs,
-    );
 }

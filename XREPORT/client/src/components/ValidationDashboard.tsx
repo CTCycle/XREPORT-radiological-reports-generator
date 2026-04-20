@@ -14,7 +14,7 @@ import {
     PixelDistribution,
     ImageStatistics,
     TextStatistics,
-} from '../services/validationService';
+} from '../types/validationApi';
 import { useJobProgressState, JobExecutionStatus } from '../hooks/useJobProgressState';
 import JobProgress from './shared/JobProgress';
 import DashboardStatusHeader from './shared/DashboardStatusHeader';

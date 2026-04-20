@@ -769,125 +769,6 @@ input[type="checkbox"] {
     font-size: 0.8rem;
 }
 
-/* Metadata Modal */
-.metadata-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1250;
-}
-
-.metadata-modal {
-    width: 720px;
-    max-width: 92vw;
-    max-height: 80vh;
-    background: var(--bg-secondary);
-    border-radius: 14px;
-    border: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
-}
-
-.metadata-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.metadata-header h3 {
-    margin: 0;
-    font-size: 1.05rem;
-    color: var(--text-primary);
-}
-
-.metadata-subtitle {
-    margin: 0.35rem 0 0;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.metadata-close {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 6px;
-    display: flex;
-}
-
-.metadata-close:hover {
-    background: var(--input-bg);
-    color: var(--text-primary);
-}
-
-.metadata-body {
-    padding: 1rem 1.25rem 1.25rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.metadata-footer {
-    border-top: 1px solid var(--border-color);
-    padding: 0.85rem 1.25rem 1rem;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.metadata-section h4 {
-    margin: 0 0 0.5rem;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: var(--text-secondary);
-}
-
-.metadata-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.metadata-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    gap: 0.75rem;
-    padding: 0.45rem 0.6rem;
-    border-radius: 8px;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-}
-
-.metadata-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: 600;
-    text-transform: capitalize;
-}
-
-.metadata-value {
-    font-size: 0.78rem;
-    color: var(--text-primary);
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.metadata-error {
-    padding: 0.75rem;
-    border-radius: 10px;
-    background: rgba(239, 68, 68, 0.1);
-    color: #b91c1c;
-    font-size: 0.85rem;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
 
 @media (max-width: 1024px) {
     .training-panel {
@@ -913,9 +794,6 @@ input[type="checkbox"] {
         grid-template-columns: 1fr;
     }
 
-    .metadata-row {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* Summary Page Styles */

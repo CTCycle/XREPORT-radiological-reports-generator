@@ -4,12 +4,12 @@ import { ArrowLeft, Play, Settings } from 'lucide-react';
 import ValidationDashboard from '../components/ValidationDashboard';
 import {
     runValidation,
-    pollValidationJobStatus,
+    getValidationJobStatus,
     parseValidationResponse,
-    ValidationResponse,
 } from '../services/validationService';
-import { useManagedPoller } from '../hooks/useManagedPoller';
+import { useAsyncJob } from '../hooks/useAsyncJob';
 import FormCheckbox from '../components/shared/FormCheckbox';
+import { ValidationResponse } from '../types/validationApi';
 import './DatasetPage.css'; // Reusing styles for now
 
 type ValidationConfig = {
@@ -33,7 +33,26 @@ export default function DatasetValidationPage() {
     const [isValidating, setIsValidating] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [validationResult, setValidationResult] = useState<ValidationResponse | null>(null);
-    const { startPolling: startValidationPolling, stopPolling: stopValidationPolling } = useManagedPoller();
+
+    const validationJob = useAsyncJob({
+        startJob: runValidation,
+        getStatus: getValidationJobStatus,
+        parseResult: (result) => parseValidationResponse(result ?? {}),
+        onComplete: (status, parsedResult) => {
+            setIsValidating(false);
+            if (status.status === 'completed' && parsedResult) {
+                setValidationResult(parsedResult);
+                return;
+            }
+            if (status.status === 'failed') {
+                setValidationError(status.error || 'Validation failed');
+                return;
+            }
+            if (status.status === 'cancelled') {
+                setValidationError('Validation was cancelled');
+            }
+        },
+    });
 
     const handleConfigChange = <K extends keyof ValidationConfig>(key: K, value: ValidationConfig[K]) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -54,46 +73,17 @@ export default function DatasetValidationPage() {
         setValidationError(null);
         setValidationResult(null);
 
-        const { result: jobResult, error: startError } = await runValidation({
+        const jobResult = await validationJob.start({
             dataset_name: datasetName || 'default',
             metrics,
             sample_size: config.evalSampleSize,
         });
 
-        if (startError || !jobResult) {
+        if (!jobResult) {
             setIsValidating(false);
-            setValidationError(startError || 'Failed to start validation job');
+            setValidationError(validationJob.error || 'Failed to start validation job');
             return;
         }
-
-        const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        startValidationPolling(() => pollValidationJobStatus(
-            jobResult.job_id,
-            () => {
-                // Progress updates are shown by the dashboard loading state in this page.
-            },
-            (status) => {
-                stopValidationPolling();
-                setIsValidating(false);
-                if (status.status === 'completed' && status.result) {
-                    setValidationResult(parseValidationResponse(status.result));
-                    return;
-                }
-                if (status.status === 'failed') {
-                    setValidationError(status.error || 'Validation failed');
-                    return;
-                }
-                if (status.status === 'cancelled') {
-                    setValidationError('Validation was cancelled');
-                }
-            },
-            (pollError) => {
-                stopValidationPolling();
-                setIsValidating(false);
-                setValidationError(pollError);
-            },
-            pollInterval
-        ));
     };
 
     return (

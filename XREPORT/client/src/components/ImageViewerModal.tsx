@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, AlertCircle, Loader } from 'lucide-react';
 import {
     getDatasetImageCount,
     getDatasetImageMetadata,
     getDatasetImageContentUrl,
-    ImageMetadataResponse
 } from '../services/trainingService';
+import { ImageMetadataResponse } from '../types/trainingApi';
 import './ImageViewerModal.css';
 
 interface ImageViewerModalProps {
@@ -22,29 +22,18 @@ export default function ImageViewerModal({ isOpen, datasetName, onClose }: Image
     const [error, setError] = useState<string | null>(null);
     const [metadata, setMetadata] = useState<ImageMetadataResponse | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const activeDatasetRef = useRef<string | null>(null);
+    const isOpenRef = useRef(isOpen);
 
-    // Fetch total count when modal opens
-    useEffect(() => {
-        if (isOpen && datasetName) {
-            fetchCount();
-            setCurrentIndex(1); // Reset to first image
-            setError(null);
-            setMetadata(null);
-            setImageError(null);
-        }
-    }, [isOpen, datasetName]);
+    isOpenRef.current = isOpen;
+    activeDatasetRef.current = datasetName;
 
-    // Fetch image metadata when index changes
-    useEffect(() => {
-        if (isOpen && datasetName && totalImages > 0) {
-            fetchMetadata(currentIndex);
-        }
-    }, [isOpen, datasetName, totalImages, currentIndex]);
-
-    const fetchCount = async () => {
-        if (!datasetName) return;
+    const fetchCount = useCallback(async (dataset: string) => {
         setLoadingCount(true);
-        const { result, error } = await getDatasetImageCount(datasetName);
+        const { result, error } = await getDatasetImageCount(dataset);
+        if (!isOpenRef.current || activeDatasetRef.current !== dataset) {
+            return;
+        }
         setLoadingCount(false);
 
         if (error) {
@@ -52,14 +41,16 @@ export default function ImageViewerModal({ isOpen, datasetName, onClose }: Image
         } else if (result) {
             setTotalImages(result.count);
         }
-    };
+    }, []);
 
-    const fetchMetadata = async (index: number) => {
-        if (!datasetName) return;
+    const fetchMetadata = useCallback(async (dataset: string, index: number) => {
         setLoadingImage(true);
-        setImageError(null); // Reset image load error
+        setImageError(null);
 
-        const { result, error } = await getDatasetImageMetadata(datasetName, index);
+        const { result, error } = await getDatasetImageMetadata(dataset, index);
+        if (!isOpenRef.current || activeDatasetRef.current !== dataset) {
+            return;
+        }
 
         if (error) {
             setError(error);
@@ -67,32 +58,52 @@ export default function ImageViewerModal({ isOpen, datasetName, onClose }: Image
         } else if (result) {
             setMetadata(result);
             if (!result.valid_path) {
-                // If path is invalid in metadata, set error immediately
                 setImageError(`Source file not found at ${result.path}`);
                 setLoadingImage(false);
             }
-            // If valid_path is true, we wait for <img> onLoad/onError to clear loading
         }
-    };
+    }, []);
 
-    const handlePrev = () => {
+    useEffect(() => {
+        if (!isOpen || !datasetName) {
+            setLoadingCount(false);
+            setLoadingImage(false);
+            return;
+        }
+        setCurrentIndex(1);
+        setTotalImages(0);
+        setError(null);
+        setImageError(null);
+        setMetadata(null);
+        void fetchCount(datasetName);
+    }, [datasetName, fetchCount, isOpen]);
+
+    useEffect(() => {
+        if (isOpen && datasetName && totalImages > 0) {
+            setError(null);
+            setImageError(null);
+            void fetchMetadata(datasetName, currentIndex);
+        }
+    }, [isOpen, datasetName, totalImages, currentIndex, fetchMetadata]);
+
+    const handlePrev = useCallback(() => {
         if (currentIndex > 1) {
             setCurrentIndex(prev => prev - 1);
         }
-    };
+    }, [currentIndex]);
 
-    const handleNext = () => {
+    const handleNext = useCallback(() => {
         if (currentIndex < totalImages) {
             setCurrentIndex(prev => prev + 1);
         }
-    };
+    }, [currentIndex, totalImages]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (!isOpen) return;
         if (e.key === 'ArrowLeft') handlePrev();
         if (e.key === 'ArrowRight') handleNext();
         if (e.key === 'Escape') onClose();
-    }, [isOpen, currentIndex, totalImages]);
+    }, [isOpen, onClose, handlePrev, handleNext]);
 
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown);

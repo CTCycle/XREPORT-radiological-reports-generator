@@ -68,6 +68,12 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 - Vite proxy in `XREPORT/client/vite.config.ts` rewrites API calls to `http://<FASTAPI_HOST>:<FASTAPI_PORT>`.
 - Long-running operations use polling.
 
+### 4.3 Frontend ownership boundaries
+- `XREPORT/client/src/types/*` owns shared frontend API contracts and job transport contracts.
+- `XREPORT/client/src/common/*` owns pure shared parsing/formatting helpers.
+- Reusable component styles live alongside each component (for example `XREPORT/client/src/components/<Component>.css`).
+- Service modules in `XREPORT/client/src/services/*` own network calls and response handling logic only.
+
 ## 5. Persistence Model
 
 ### 5.1 Backend selection

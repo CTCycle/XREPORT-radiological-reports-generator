@@ -1,56 +1,14 @@
 // Validation service API functions
-import { asRecord, readBoolean, readNumber, readNumberArray, readString } from './parseUtils';
-import { createJobStatusPoller } from './jobPolling';
-
-export interface PixelDistribution {
-    bins: number[];
-    counts: number[];
-}
-
-export interface ImageStatistics {
-    count: number;
-    mean_height: number;
-    mean_width: number;
-    mean_pixel_value: number;
-    std_pixel_value: number;
-    mean_noise_std: number;
-    mean_noise_ratio: number;
-}
-
-export interface TextStatistics {
-    count: number;
-    total_words: number;
-    unique_words: number;
-    avg_words_per_report: number;
-    min_words_per_report: number;
-    max_words_per_report: number;
-}
-
-export interface ValidationRequest {
-    dataset_name: string;
-    metrics: string[];
-    sample_size?: number;
-    seed?: number;
-}
-
-export interface ValidationResponse {
-    success: boolean;
-    message: string;
-    pixel_distribution?: PixelDistribution;
-    image_statistics?: ImageStatistics;
-    text_statistics?: TextStatistics;
-}
-
-export interface ValidationReport {
-    dataset_name: string;
-    date?: string | null;
-    sample_size?: number | null;
-    metrics: string[];
-    pixel_distribution?: PixelDistribution;
-    image_statistics?: ImageStatistics;
-    text_statistics?: TextStatistics;
-    artifacts?: Record<string, { mime_type: string; data: string }> | null;
-}
+import { asRecord, readBoolean, readNumber, readNumberArray, readString } from '../common/parsers';
+import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import {
+    ImageStatistics,
+    PixelDistribution,
+    TextStatistics,
+    ValidationReport,
+    ValidationRequest,
+    ValidationResponse,
+} from '../types/validationApi';
 
 function parsePixelDistribution(value: unknown): PixelDistribution | undefined {
     const payload = asRecord(value);
@@ -138,33 +96,6 @@ export function parseValidationResponse(result: Record<string, unknown>): Valida
         image_statistics: parseImageStatistics(result.image_statistics),
         text_statistics: parseTextStatistics(result.text_statistics),
     };
-}
-
-// ============================================================================
-// Job API Types
-// ============================================================================
-
-export interface JobStartResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    message: string;
-    poll_interval?: number;
-}
-
-export interface JobStatusResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    progress: number;
-    result: Record<string, unknown> | null;
-    error: string | null;
-}
-
-export interface JobCancelResponse {
-    job_id: string;
-    success: boolean;
-    message: string;
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -262,23 +193,3 @@ export async function cancelValidationJob(
     }
 }
 
-/**
- * Poll validation job until it completes, fails, or is cancelled
- * Returns a cleanup function to stop polling
- */
-export function pollValidationJobStatus(
-    jobId: string,
-    onUpdate: (status: JobStatusResponse) => void,
-    onComplete: (status: JobStatusResponse) => void,
-    onError: (error: string) => void,
-    intervalMs: number = 2000
-): { stop: () => void } {
-    return createJobStatusPoller(
-        getValidationJobStatus,
-        jobId,
-        onUpdate,
-        onComplete,
-        onError,
-        intervalMs,
-    );
-}

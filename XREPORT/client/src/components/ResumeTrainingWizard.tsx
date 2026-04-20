@@ -3,7 +3,7 @@ import {
     Activity,
     RotateCcw,
 } from 'lucide-react';
-import { CheckpointInfo } from '../services/trainingService';
+import { CheckpointInfo } from '../types/trainingApi';
 import TrainingWizardModal from './shared/TrainingWizardModal';
 import '../pages/TrainingPage.css';
 

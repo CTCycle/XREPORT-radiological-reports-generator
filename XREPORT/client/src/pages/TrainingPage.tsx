@@ -11,26 +11,19 @@ import {
 import './TrainingPage.css';
 import { useTrainingPageState } from '../AppStateContext';
 import TrainingDashboard from '../components/TrainingDashboard';
-import MetadataModal, {
-    MetadataModalState,
-    PROCESSING_METADATA_ORDER,
-    buildEntries,
-    parseMetadataError,
-} from '../components/MetadataModal';
+import MetadataModal from '../components/MetadataModal';
 import NewTrainingWizard from '../components/NewTrainingWizard';
 import ResumeTrainingWizard from '../components/ResumeTrainingWizard';
 import EvaluationWizard from '../components/EvaluationWizard';
 import CheckpointEvaluationReportModal from '../components/CheckpointEvaluationReportModal';
 import { ChartDataPoint, TrainingConfig } from '../types';
+import { PROCESSING_METADATA_ORDER, buildEntries, parseMetadataError } from '../common/metadata';
 import { usePersistedRecord } from '../hooks/usePersistedRecord';
 import { useJobPollerRegistry } from '../hooks/useJobPollerRegistry';
+import { useAsyncJob } from '../hooks/useAsyncJob';
+import { createJobStatusPoller } from '../services/jobPolling';
 import IconActionButton from '../components/shared/IconActionButton';
 import {
-    CheckpointInfo,
-    DatasetInfo,
-    JobStatusResponse,
-    StartTrainingConfig,
-    TrainingStatusResponse,
     deleteCheckpoint,
     deleteDataset,
     getCheckpointMetadata,
@@ -39,17 +32,19 @@ import {
     getProcessedDatasetNames,
     getTrainingJobStatus,
     getTrainingStatus,
-    pollJobStatus,
     resumeTraining,
     startTraining,
     cancelTrainingJob,
 } from '../services/trainingService';
 import {
-    CheckpointEvaluationReport,
     evaluateCheckpoint,
     getCheckpointEvaluationReport,
-    pollCheckpointEvaluationJobStatus,
+    getCheckpointEvaluationJobStatus,
 } from '../services/inferenceService';
+import { JobStatusResponse } from '../types/jobs';
+import { CheckpointEvaluationReport } from '../types/inferenceApi';
+import { MetadataModalState } from '../types/metadata';
+import { CheckpointInfo, DatasetInfo, StartTrainingConfig, TrainingStatusResponse } from '../types/trainingApi';
 
 const EVALUATION_JOB_STORAGE_KEY = 'xreport.checkpoint_evaluation.jobs';
 
@@ -75,6 +70,10 @@ type ParsedTrainingJobResult = {
     availableMetrics?: string[];
     epochBoundaries?: number[];
 };
+
+type TrainingJobStartRequest =
+    | { kind: 'start'; config: StartTrainingConfig }
+    | { kind: 'resume'; checkpoint: string; additionalEpochs: number };
 
 function toApiMetricConfigs(metricConfigs: Record<string, { dataFraction: number }>) {
     return Object.fromEntries(
@@ -250,18 +249,10 @@ export default function TrainingPage() {
     const { startPoller, stopPoller } = useJobPollerRegistry();
     const restoredEvaluationJobs = useRef(false);
     const reportCheckpointRef = useRef<string | null>(null);
-    const pollerRef = useRef<{ stop: () => void } | null>(null);
     const statusPollerRef = useRef<{ stop: () => void } | null>(null);
     const lastLoggedEpochRef = useRef<number | null>(null);
     const lastStatusRef = useRef<JobStatusResponse['status'] | null>(null);
     const stopRequestedRef = useRef(false);
-
-    const stopPolling = useCallback(() => {
-        if (pollerRef.current) {
-            pollerRef.current.stop();
-            pollerRef.current = null;
-        }
-    }, []);
 
     const stopStatusPolling = useCallback(() => {
         if (statusPollerRef.current) {
@@ -338,7 +329,6 @@ export default function TrainingPage() {
                     lastStatusRef.current = 'cancelled';
                 }
                 stopRequestedRef.current = false;
-                stopPolling();
                 stop();
                 return;
             }
@@ -348,7 +338,7 @@ export default function TrainingPage() {
 
         statusPollerRef.current = { stop };
         void poll();
-    }, [applyTrainingStatusSnapshot, setDashboardState, stopPolling, stopStatusPolling]);
+    }, [applyTrainingStatusSnapshot, setDashboardState, stopStatusPolling]);
 
     useEffect(() => {
         reportCheckpointRef.current = evaluationReportCheckpoint?.name ?? null;
@@ -381,7 +371,8 @@ export default function TrainingPage() {
         jobMeta: StoredEvaluationJob
     ) => {
         const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
-        const started = startPoller(jobId, () => pollCheckpointEvaluationJobStatus(
+        const started = startPoller(jobId, () => createJobStatusPoller(
+            getCheckpointEvaluationJobStatus,
             jobId,
             (status) => {
                 updateEvaluationJobs(prev => {
@@ -452,7 +443,7 @@ export default function TrainingPage() {
                     setEvaluationReportError(error);
                 }
             },
-            pollIntervalMs
+            pollIntervalMs,
         ));
         if (!started) {
             return;
@@ -578,20 +569,35 @@ export default function TrainingPage() {
         setEpochBoundaries,
     ]);
 
-    const startPolling = useCallback((jobId: string, intervalSeconds: number = 2) => {
-        stopPolling();
-        pollerRef.current = pollJobStatus(
-            getTrainingJobStatus,
-            jobId,
-            (status) => applyJobStatus(status),
-            (status) => applyJobStatus(status),
-            (pollError) => {
-                console.error('Training poll error:', pollError);
-                stopPolling();
-            },
-            intervalSeconds * 1000
-        );
-    }, [applyJobStatus, stopPolling]);
+    const trainingJob = useAsyncJob<[TrainingJobStartRequest], ParsedTrainingJobResult>({
+        startJob: async (request) => {
+            if (request.kind === 'start') {
+                return startTraining(request.config);
+            }
+            return resumeTraining(request.checkpoint, request.additionalEpochs);
+        },
+        getStatus: getTrainingJobStatus,
+        cancelJob: cancelTrainingJob,
+        parseResult: (result, status) => parseTrainingJobResult(result ?? {}, status.progress),
+        onUpdate: (status) => {
+            applyJobStatus(status);
+        },
+        onComplete: (status) => {
+            applyJobStatus(status);
+        },
+    });
+
+    const stopPolling = useCallback(() => {
+        trainingJob.reset();
+    }, [trainingJob]);
+
+    const startPolling = useCallback(async (request: TrainingJobStartRequest) => {
+        const started = await trainingJob.start(request);
+        if (started) {
+            startStatusPolling(started.poll_interval);
+        }
+        return started;
+    }, [startStatusPolling, trainingJob]);
 
     const fetchDatasets = useCallback(async () => {
         const { result, error } = await getProcessedDatasetNames();
@@ -637,7 +643,7 @@ export default function TrainingPage() {
                 applyTrainingStatusSnapshot(result);
             }
             if (result?.is_training && result.job_id) {
-                startPolling(result.job_id, result.poll_interval);
+                trainingJob.attach(result.job_id, result.poll_interval ?? 2, 'running');
                 startStatusPolling(result.poll_interval);
             }
         };
@@ -646,7 +652,7 @@ export default function TrainingPage() {
             stopPolling();
             stopStatusPolling();
         };
-    }, [applyTrainingStatusSnapshot, startPolling, startStatusPolling, stopPolling, stopStatusPolling]);
+    }, [applyTrainingStatusSnapshot, startStatusPolling, stopPolling, stopStatusPolling, trainingJob]);
 
     useEffect(() => {
         if (restoredEvaluationJobs.current) {
@@ -739,20 +745,16 @@ export default function TrainingPage() {
             warmup_steps: state.config.warmupSteps,
         };
 
-        const { result: startResult, error: trainError } = await startTraining(config);
+        const startResult = await startPolling({ kind: 'start', config });
         setIsLoading(false);
 
-        if (trainError) {
-            setNewTrainingError(trainError);
-            console.error('Training failed:', trainError);
+        if (!startResult) {
+            setNewTrainingError(trainingJob.error || 'Training failed');
+            console.error('Training failed:', trainingJob.error);
             return;
         }
-        if (startResult) {
-            setIsNewWizardOpen(false);
-            appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
-            startPolling(startResult.job_id, startResult.poll_interval);
-            startStatusPolling(startResult.poll_interval);
-        }
+        setIsNewWizardOpen(false);
+        appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
     };
 
     const handleResumeTraining = async () => {
@@ -762,23 +764,20 @@ export default function TrainingPage() {
         setResumeTrainingError(null);
         resetLogTracking();
 
-        const { result: startResult, error: resumeError } = await resumeTraining(
-            state.selectedCheckpoint,
-            state.additionalEpochs
-        );
+        const startResult = await startPolling({
+            kind: 'resume',
+            checkpoint: state.selectedCheckpoint,
+            additionalEpochs: state.additionalEpochs,
+        });
         setIsLoading(false);
 
-        if (resumeError) {
-            setResumeTrainingError(resumeError);
-            console.error('Resume training failed:', resumeError);
+        if (!startResult) {
+            setResumeTrainingError(trainingJob.error || 'Resume training failed');
+            console.error('Resume training failed:', trainingJob.error);
             return;
         }
-        if (startResult) {
-            setIsResumeWizardOpen(false);
-            appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
-            startPolling(startResult.job_id, startResult.poll_interval);
-            startStatusPolling(startResult.poll_interval);
-        }
+        setIsResumeWizardOpen(false);
+        appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
     };
 
     const handleEvaluationConfirm = async (payload: {

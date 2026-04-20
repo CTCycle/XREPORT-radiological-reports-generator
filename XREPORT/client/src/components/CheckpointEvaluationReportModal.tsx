@@ -1,6 +1,6 @@
 import { Calendar, ListChecks } from 'lucide-react';
 import CheckpointEvaluationDashboard from './CheckpointEvaluationDashboard';
-import { CheckpointEvaluationReport } from '../services/inferenceService';
+import { CheckpointEvaluationReport } from '../types/inferenceApi';
 import ReportModalLayout from './shared/ReportModalLayout';
 import './ValidationReportModal.css';
 
