@@ -1,18 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
-import { DatasetInfo } from '../services/trainingService';
+import { DatasetInfo } from '../types/trainingApi';
 import { useMetricSelection } from '../hooks/useMetricSelection';
 import { useResetOnOpen } from '../hooks/useResetOnOpen';
+import { ValidationMetric, ValidationWizardConfirmPayload } from '../types/validationWizard';
 import './ValidationWizard.css';
-
-export type ValidationMetric = 'pixels_distribution' | 'text_statistics' | 'image_statistics';
 
 interface ValidationWizardProps {
     isOpen: boolean;
     row: DatasetInfo | null;
     initialSelected?: ValidationMetric[];
     onClose: () => void;
-    onConfirm: (config: { metrics: ValidationMetric[]; row: DatasetInfo | null; sampleFraction: number }) => void;
+    onConfirm: (config: ValidationWizardConfirmPayload) => void;
 }
 
 const METRICS: Array<{ id: ValidationMetric; name: string; description: string }> = [
@@ -48,7 +47,7 @@ export default function ValidationWizard({
         setSelectedMetrics(initialSelected ?? []);
         setValidateFullDataset(true);
         setValidationFraction('0.5');
-    }, [initialSelected, row, setSelectedMetrics]);
+    }, [initialSelected, setSelectedMetrics]);
 
     useResetOnOpen(isOpen, resetWizard);
 
