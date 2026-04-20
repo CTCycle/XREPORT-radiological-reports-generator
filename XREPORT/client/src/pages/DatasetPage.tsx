@@ -12,27 +12,28 @@ import {
     getDatasetStatus,
     getDatasetNames,
     getPreparationJobStatus,
-    DatasetInfo,
     deleteDataset,
-    pollJobStatus,
     parseProcessDatasetResponse,
 } from '../services/trainingService';
 import FolderBrowser from '../components/FolderBrowser';
 import { useDatasetPageState } from '../AppStateContext';
-import ValidationWizard, { ValidationMetric } from '../components/ValidationWizard';
+import ValidationWizard from '../components/ValidationWizard';
 import ValidationReportModal from '../components/ValidationReportModal';
 import {
     runValidation,
     getValidationReport,
-    pollValidationJobStatus,
-    ValidationResponse,
+    getValidationJobStatus,
     parseValidationResponse,
 } from '../services/validationService';
+import { createJobStatusPoller } from '../services/jobPolling';
 import ImageViewerModal from '../components/ImageViewerModal';
 import { usePersistedRecord } from '../hooks/usePersistedRecord';
-import { useManagedPoller } from '../hooks/useManagedPoller';
 import { useJobPollerRegistry } from '../hooks/useJobPollerRegistry';
+import { useAsyncJob } from '../hooks/useAsyncJob';
 import IconActionButton from '../components/shared/IconActionButton';
+import { DatasetInfo } from '../types/trainingApi';
+import { ValidationResponse } from '../types/validationApi';
+import { ValidationMetric, ValidationWizardConfirmPayload } from '../types/validationWizard';
 
 const VALIDATION_JOB_STORAGE_KEY = 'xreport.validation.jobs';
 
@@ -70,7 +71,6 @@ export default function DatasetPage() {
     // Image Viewer State
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerDataset, setViewerDataset] = useState<string | null>(null);
-    const { startPolling: startProcessingPolling, stopPolling: stopProcessingPolling } = useManagedPoller();
 
     const {
         state,
@@ -95,6 +95,29 @@ export default function DatasetPage() {
         reportDatasetRef.current = reportDataset?.name ?? null;
     }, [reportDataset]);
 
+    const processingJob = useAsyncJob({
+        startJob: processDataset,
+        getStatus: getPreparationJobStatus,
+        parseResult: (result) => parseProcessDatasetResponse(result ?? {}),
+        onUpdate: () => {
+            // Processing progress is represented by spinner + final result summary in this view.
+        },
+        onComplete: (status, parsedResult) => {
+            setIsProcessing(false);
+            if (status.status === 'completed' && parsedResult) {
+                setProcessingResult(parsedResult);
+                return;
+            }
+            if (status.status === 'failed') {
+                setUploadError(status.error || 'Processing failed');
+                return;
+            }
+            if (status.status === 'cancelled') {
+                setUploadError('Processing was cancelled');
+            }
+        },
+    });
+
     const updateValidationJobs = (
         updater: (prev: Record<string, StoredValidationJob>) => Record<string, StoredValidationJob>
     ) => {
@@ -118,7 +141,8 @@ export default function DatasetPage() {
 
     const startValidationPolling = (datasetName: string, jobId: string, jobMeta: StoredValidationJob) => {
         const pollIntervalMs = jobMeta.pollIntervalMs ?? 2000;
-        const started = startPoller(jobId, () => pollValidationJobStatus(
+        const started = startPoller(jobId, () => createJobStatusPoller(
+            getValidationJobStatus,
             jobId,
             (status) => {
                 updateValidationJobs(prev => {
@@ -251,7 +275,7 @@ export default function DatasetPage() {
         setUploadError(null);
         setProcessingResult(null);
 
-        const { result: jobResult, error: startError } = await processDataset({
+        const jobResult = await processingJob.start({
             dataset_name: selectedNames[0],
             custom_name: state.config.datasetName,
             sample_size: state.config.sampleSize,
@@ -260,41 +284,11 @@ export default function DatasetPage() {
             max_report_size: state.config.maxReportSize,
         });
 
-        if (startError || !jobResult) {
+        if (!jobResult) {
             setIsProcessing(false);
-            setUploadError(startError || 'Failed to start processing job');
+            setUploadError(processingJob.error || 'Failed to start processing job');
             return;
         }
-
-        const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        startProcessingPolling(() => pollJobStatus(
-            getPreparationJobStatus,
-            jobResult.job_id,
-            () => {
-                // Processing progress is represented by spinner + final result summary in this view.
-            },
-            (status) => {
-                stopProcessingPolling();
-                setIsProcessing(false);
-                if (status.status === 'completed' && status.result) {
-                    setProcessingResult(parseProcessDatasetResponse(status.result));
-                    return;
-                }
-                if (status.status === 'failed') {
-                    setUploadError(status.error || 'Processing failed');
-                    return;
-                }
-                if (status.status === 'cancelled') {
-                    setUploadError('Processing was cancelled');
-                }
-            },
-            (pollError) => {
-                stopProcessingPolling();
-                setIsProcessing(false);
-                setUploadError(pollError);
-            },
-            pollInterval
-        ));
     };
 
     const handleFolderSelect = async (path: string, _imageCount: number) => {
@@ -345,7 +339,7 @@ export default function DatasetPage() {
         return selection;
     }, [state.config.pixDist, state.config.textStats, state.config.imgStats]);
 
-    const handleValidationConfirm = async (config: { metrics: ValidationMetric[]; row: DatasetInfo | null; sampleFraction: number }) => {
+    const handleValidationConfirm = async (config: ValidationWizardConfirmPayload) => {
         updateConfig('pixDist', config.metrics.includes('pixels_distribution'));
         updateConfig('textStats', config.metrics.includes('text_statistics'));
         updateConfig('imgStats', config.metrics.includes('image_statistics'));

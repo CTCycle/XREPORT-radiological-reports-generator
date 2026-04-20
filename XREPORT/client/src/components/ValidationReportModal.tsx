@@ -1,6 +1,6 @@
 import { Calendar, Sliders, ListChecks } from 'lucide-react';
 import ValidationDashboard from './ValidationDashboard';
-import { ValidationResponse } from '../services/validationService';
+import { ValidationResponse } from '../types/validationApi';
 import ReportModalLayout from './shared/ReportModalLayout';
 import './ValidationReportModal.css';
 

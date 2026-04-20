@@ -1,5 +1,12 @@
-import { ImagePathResponse, DatasetUploadResponse, LoadDatasetResponse, ProcessDatasetResponse, DatasetStatusResponse, DatasetNamesResponse } from './services/trainingService';
-import { ValidationResponse } from './services/validationService';
+import {
+    DatasetNamesResponse,
+    DatasetStatusResponse,
+    DatasetUploadResponse,
+    ImagePathResponse,
+    LoadDatasetResponse,
+    ProcessDatasetResponse,
+} from './types/trainingApi';
+import { ValidationResponse } from './types/validationApi';
 
 // ============================================================================
 // Dataset Page State

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Folder, HardDrive, ArrowUp, X, Check, Image } from 'lucide-react';
-import { browseDirectory, BrowseResponse, DirectoryItem } from '../services/trainingService';
+import { browseDirectory } from '../services/trainingService';
+import { BrowseResponse, DirectoryItem } from '../types/trainingApi';
 import './FolderBrowser.css';
 
 interface FolderBrowserProps {
@@ -11,22 +12,18 @@ interface FolderBrowserProps {
 
 export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrowserProps) {
     const [browseData, setBrowseData] = useState<BrowseResponse | null>(null);
-    const [currentPath, setCurrentPath] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [currentImageCount, setCurrentImageCount] = useState(0);
 
-    useEffect(() => {
-        if (isOpen) {
-            loadDirectory('');
-        }
-    }, [isOpen]);
-
-    const loadDirectory = async (path: string) => {
+    const loadDirectory = useCallback(async (path: string, requestId: number) => {
         setLoading(true);
         setError(null);
 
         const { result, error: err } = await browseDirectory(path);
+
+        if (requestId !== currentRequestRef.current || !isOpenRef.current) {
+            return;
+        }
 
         setLoading(false);
 
@@ -37,22 +34,34 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
 
         if (result) {
             setBrowseData(result);
-            setCurrentPath(result.current_path);
-            // Count images in current folder
-            const imgCount = result.items.reduce((sum, item) => sum + item.image_count, 0);
-            setCurrentImageCount(imgCount);
         }
-    };
+    }, []);
+
+    const isOpenRef = useRef(isOpen);
+    const currentRequestRef = useRef(0);
+    isOpenRef.current = isOpen;
+
+    useEffect(() => {
+        if (isOpen) {
+            currentRequestRef.current += 1;
+            void loadDirectory('', currentRequestRef.current);
+        }
+    }, [isOpen, loadDirectory]);
+
+    const currentPath = browseData?.current_path ?? '';
+    const currentImageCount = browseData?.items.reduce((sum, item) => sum + item.image_count, 0) ?? 0;
 
     const handleItemClick = (item: DirectoryItem) => {
         if (item.is_dir) {
-            loadDirectory(item.path);
+            currentRequestRef.current += 1;
+            void loadDirectory(item.path, currentRequestRef.current);
         }
     };
 
     const handleGoUp = () => {
         if (browseData?.parent_path !== null) {
-            loadDirectory(browseData?.parent_path || '');
+            currentRequestRef.current += 1;
+            void loadDirectory(browseData?.parent_path || '', currentRequestRef.current);
         }
     };
 
@@ -109,7 +118,10 @@ export default function FolderBrowser({ isOpen, onClose, onSelect }: FolderBrows
                                     key={drive}
                                     type="button"
                                     className="folder-item drive"
-                                    onClick={() => loadDirectory(drive)}
+                                    onClick={() => {
+                                        currentRequestRef.current += 1;
+                                        void loadDirectory(drive, currentRequestRef.current);
+                                    }}
                                 >
                                     <HardDrive size={18} />
                                     <span>{drive}</span>

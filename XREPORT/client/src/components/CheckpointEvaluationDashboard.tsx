@@ -1,6 +1,6 @@
 import { Loader } from 'lucide-react';
 import './ValidationDashboard.css';
-import { CheckpointEvaluationResults } from '../services/inferenceService';
+import { CheckpointEvaluationResults } from '../types/inferenceApi';
 import { useJobProgressState, JobExecutionStatus } from '../hooks/useJobProgressState';
 import JobProgress from './shared/JobProgress';
 import DashboardStatusHeader from './shared/DashboardStatusHeader';

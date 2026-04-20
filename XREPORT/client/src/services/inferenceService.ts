@@ -1,41 +1,11 @@
 // Inference service API functions
-import { createJobStatusPoller } from './jobPolling';
-
-export interface CheckpointInfo {
-    name: string;
-    created: string | null;
-}
-
-export interface CheckpointsResponse {
-    checkpoints: CheckpointInfo[];
-    success: boolean;
-    message: string;
-}
-
-export type GenerationMode = 'greedy_search' | 'beam_search';
-
-export interface JobStartResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    message: string;
-    poll_interval?: number;
-}
-
-export interface JobStatusResponse {
-    job_id: string;
-    job_type: string;
-    status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-    progress: number;
-    result: Record<string, unknown> | null;
-    error: string | null;
-}
-
-export interface JobCancelResponse {
-    job_id: string;
-    success: boolean;
-    message: string;
-}
+import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import {
+    CheckpointEvaluationReport,
+    CheckpointEvaluationRequest,
+    CheckpointsResponse,
+    GenerationMode,
+} from '../types/inferenceApi';
 
 async function readJson<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type') || '';
@@ -156,38 +126,6 @@ export async function cancelInferenceJob(
     }
 }
 
-// ============================================================================
-// Checkpoint Evaluation
-// ============================================================================
-
-export interface CheckpointEvaluationRequest {
-    checkpoint: string;
-    metrics: string[];
-    num_samples: number;
-    metric_configs?: Record<string, { data_fraction?: number; num_samples?: number }>;
-    seed?: number;
-}
-
-export interface CheckpointEvaluationResults {
-    loss?: number;
-    accuracy?: number;
-    bleu_score?: number;
-}
-
-export interface CheckpointEvaluationResponse {
-    success: boolean;
-    message: string;
-    results?: CheckpointEvaluationResults;
-}
-
-export interface CheckpointEvaluationReport {
-    checkpoint: string;
-    date?: string | null;
-    metrics: string[];
-    metric_configs: Record<string, { data_fraction?: number; num_samples?: number }>;
-    results?: CheckpointEvaluationResults;
-}
-
 /**
  * Evaluate a checkpoint using selected metrics
  * Returns a job_id for polling status
@@ -275,48 +213,3 @@ export async function getCheckpointEvaluationReport(
     }
 }
 
-/**
- * Poll checkpoint evaluation job until it completes, fails, or is cancelled
- * Returns a cleanup function to stop polling
- */
-export function pollCheckpointEvaluationJobStatus(
-    jobId: string,
-    onUpdate: (status: JobStatusResponse) => void,
-    onComplete: (status: JobStatusResponse) => void,
-    onError: (error: string) => void,
-    intervalMs: number = 2000
-): { stop: () => void } {
-    return createJobStatusPoller(
-        getCheckpointEvaluationJobStatus,
-        jobId,
-        onUpdate,
-        onComplete,
-        onError,
-        intervalMs
-    );
-}
-
-// ============================================================================
-// Job Polling Helper
-// ============================================================================
-
-/**
- * Poll inference job until it completes, fails, or is cancelled
- * Returns a cleanup function to stop polling
- */
-export function pollInferenceJobStatus(
-    jobId: string,
-    onUpdate: (status: JobStatusResponse) => void,
-    onComplete: (status: JobStatusResponse) => void,
-    onError: (error: string) => void,
-    intervalMs: number = 2000
-): { stop: () => void } {
-    return createJobStatusPoller(
-        getInferenceJobStatus,
-        jobId,
-        onUpdate,
-        onComplete,
-        onError,
-        intervalMs,
-    );
-}
