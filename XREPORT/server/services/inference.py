@@ -6,7 +6,7 @@ import uuid
 from functools import lru_cache
 from typing import Any
 
-from fastapi import File, Form, HTTPException, UploadFile, status
+from fastapi import HTTPException, status
 
 from XREPORT.server.domain.inference import (
     CheckpointInfo,
@@ -227,7 +227,7 @@ class InferenceService:
         self,
         checkpoint: str,
         generation_mode: str,
-        images: list[UploadFile],
+        images: list[InferenceImage],
     ) -> str:
         if len(images) == 0:
             raise HTTPException(
@@ -266,27 +266,19 @@ class InferenceService:
         return checkpoint
 
     # -----------------------------------------------------------------------------
-    async def read_inference_images(
+    def validate_inference_images(
         self,
-        images: list[UploadFile],
-    ) -> tuple[list[InferenceImage], int]:
+        images: list[InferenceImage],
+    ) -> int:
         total_bytes = 0
-        stored_images: list[InferenceImage] = []
-
-        for img in images:
-            if img.filename is None:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Image upload missing filename",
-                )
-            filename = os.path.basename(img.filename.strip())
+        for image in images:
+            filename = os.path.basename(image.filename.strip())
             if not filename:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Image upload missing filename",
                 )
-
-            content_type = img.content_type or ""
+            content_type = image.content_type or ""
             extension = os.path.splitext(filename)[1].lower()
             if (
                 content_type not in INFERENCE_IMAGE_CONTENT_TYPES
@@ -297,14 +289,13 @@ class InferenceService:
                     detail=f"Unsupported image type: {content_type or extension}",
                 )
 
-            content = await img.read()
-            if len(content) == 0:
+            if len(image.data) == 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Empty image payload: {filename}",
                 )
 
-            total_bytes += len(content)
+            total_bytes += len(image.data)
             if total_bytes > MAX_TOTAL_IMAGE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -314,22 +305,7 @@ class InferenceService:
                     ),
                 )
 
-            stored_images.append(
-                InferenceImage(
-                    filename=filename,
-                    content_type=content_type,
-                    data=content,
-                    size_bytes=len(content),
-                )
-            )
-
-        if not stored_images:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No valid images provided",
-            )
-
-        return stored_images, total_bytes
+        return total_bytes
 
     # -----------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
@@ -355,11 +331,11 @@ class InferenceService:
             )
 
     # -----------------------------------------------------------------------------
-    async def generate_reports(
+    def generate_reports(
         self,
-        checkpoint: str = Form(...),
-        generation_mode: str = Form(...),
-        images: list[UploadFile] = File(...),
+        checkpoint: str,
+        generation_mode: str,
+        images: list[InferenceImage],
     ) -> JobStartResponse:
         checkpoint = self.validate_generation_request(
             checkpoint=checkpoint,
@@ -369,9 +345,8 @@ class InferenceService:
 
         request_id = uuid.uuid4().hex[:12]
         try:
-            stored_images, _ = await self.read_inference_images(images)
-
-            self.inference_image_store.store(request_id, stored_images)
+            self.validate_inference_images(images)
+            self.inference_image_store.store(request_id, images)
 
             # Start background job
             job_id = self.job_manager.start_job(
@@ -394,7 +369,7 @@ class InferenceService:
                 job_id=job_id,
                 job_type=job_status["job_type"],
                 status=job_status["status"],
-                message=f"Inference job started for {len(stored_images)} images",
+                message=f"Inference job started for {len(images)} images",
                 poll_interval=get_server_settings().jobs.polling_interval,
             )
 
