@@ -6,12 +6,12 @@ import {
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
 import { GenerationMode } from '../types';
-import { useManagedPoller } from '../hooks/useManagedPoller';
-import { asRecord, readString, readStringArray } from '../services/parseUtils';
+import { useAsyncJob } from '../hooks/useAsyncJob';
+import { asRecord, readString, readStringArray } from '../common/parsers';
 import {
     getInferenceCheckpoints,
     generateReports,
-    pollInferenceJobStatus
+    getInferenceJobStatus,
 } from '../services/inferenceService';
 
 const MAX_IMAGES = 16;
@@ -109,7 +109,26 @@ export default function InferencePage() {
     } = useInferencePageState();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { startPolling: startGenerationPolling, stopPolling: stopGenerationPolling } = useManagedPoller();
+    const generationJob = useAsyncJob({
+        startJob: ({ images, checkpoint, generationMode }: { images: File[]; checkpoint: string; generationMode: GenerationMode }) =>
+            generateReports(images, checkpoint, generationMode),
+        getStatus: getInferenceJobStatus,
+        onUpdate: (status) => {
+            const reportsByIndex = toReportsByIndex(status.result, state.images);
+            if (Object.keys(reportsByIndex).length > 0) {
+                setReports(reportsByIndex);
+                if (reportsByIndex[state.currentIndex] !== undefined) {
+                    setGeneratedReport(reportsByIndex[state.currentIndex]);
+                }
+            }
+        },
+        onComplete: (status) => {
+            if (status.status === 'failed') {
+                console.error('Generation failed:', status.error);
+            }
+            setIsGenerating(false);
+        },
+    });
     // Fetch checkpoints on mount
     useEffect(() => {
         const fetchCheckpoints = async () => {
@@ -281,45 +300,17 @@ export default function InferencePage() {
         setCurrentStreamingIndex(-1);
 
         // Call generate endpoint - now returns job_id
-        const { result: jobResult, error: startError } = await generateReports(
-            state.images,
-            state.selectedCheckpoint,
-            state.generationMode
-        );
+        const jobResult = await generationJob.start({
+            images: state.images,
+            checkpoint: state.selectedCheckpoint,
+            generationMode: state.generationMode,
+        });
 
-        if (startError || !jobResult) {
-            console.error('Generation failed:', startError);
+        if (!jobResult) {
+            console.error('Generation failed:', generationJob.error);
             setIsGenerating(false);
             return;
         }
-
-        const pollInterval = (jobResult.poll_interval ?? 2) * 1000;
-        startGenerationPolling(() => pollInferenceJobStatus(
-            jobResult.job_id,
-            (status) => {
-                const reportsByIndex = toReportsByIndex(status.result, state.images);
-
-                if (Object.keys(reportsByIndex).length > 0) {
-                    setReports(reportsByIndex);
-                    if (reportsByIndex[state.currentIndex] !== undefined) {
-                        setGeneratedReport(reportsByIndex[state.currentIndex]);
-                    }
-                }
-            },
-            (status) => {
-                stopGenerationPolling();
-                if (status.status === 'failed') {
-                    console.error('Generation failed:', status.error);
-                }
-                setIsGenerating(false);
-            },
-            (pollError) => {
-                stopGenerationPolling();
-                console.error('Poll error:', pollError);
-                setIsGenerating(false);
-            },
-            pollInterval
-        ));
     };
 
     // Copy report to clipboard
