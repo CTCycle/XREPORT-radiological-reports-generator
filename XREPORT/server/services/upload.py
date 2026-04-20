@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Any
 
 import pandas as pd
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, status
 
 from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.common.utils.security import sanitize_dataset_name
@@ -48,14 +48,14 @@ class UploadService:
     def __init__(self, upload_state: UploadState) -> None:
         self.upload_state = upload_state
 
-    async def upload_dataset(self, file: UploadFile) -> DatasetUploadResponse:
-        if not file.filename:
+    def upload_dataset(self, filename: str, contents: bytes) -> DatasetUploadResponse:
+        if not filename:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No file provided",
             )
 
-        filename = os.path.basename(file.filename.strip())
+        filename = os.path.basename(filename.strip())
         if not filename:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,7 +70,6 @@ class UploadService:
             )
 
         try:
-            contents = await file.read()
             if len(contents) > MAX_DATASET_UPLOAD_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

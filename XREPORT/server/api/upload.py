@@ -18,7 +18,11 @@ class UploadEndpoint:
     async def upload_dataset(
         self, file: UploadFile = File(...)
     ) -> DatasetUploadResponse:
-        return await self.upload_service.upload_dataset(file)
+        contents = await file.read()
+        return self.upload_service.upload_dataset(
+            filename=file.filename or "",
+            contents=contents,
+        )
 
     # -----------------------------------------------------------------------------
     def add_routes(self) -> None:

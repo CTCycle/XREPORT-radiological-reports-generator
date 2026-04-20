@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
+from functools import lru_cache
 from typing import Any, Protocol
 
 import pandas as pd
@@ -110,13 +111,15 @@ class XREPORTDatabase:
         return self.backend.count_rows(table_name)
 
 
-database = XREPORTDatabase()
+@lru_cache(maxsize=1)
+def get_database() -> XREPORTDatabase:
+    return XREPORTDatabase()
 
 
 __all__ = [
     "DatabaseBackend",
     "XREPORTDatabase",
-    "database",
+    "get_database",
     "build_postgres_backend",
     "build_sqlite_backend",
 ]

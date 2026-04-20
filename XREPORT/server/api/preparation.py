@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
+from fastapi.responses import FileResponse
 
-from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.domain.training import (
     BrowseResponse,
     DatasetNamesResponse,
@@ -22,9 +22,7 @@ from XREPORT.server.domain.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.services.jobs import JobManager
 from XREPORT.server.services.preparation import PreparationService, preparation_service
-from XREPORT.server.services.upload import UploadState, get_upload_state
 
 
 ###############################################################################
@@ -32,27 +30,10 @@ class PreparationEndpoint:
     def __init__(
         self,
         router: APIRouter,
-        database=None,
-        job_manager: JobManager | None = None,
-        upload_state: UploadState | None = None,
-        server_settings=None,
+        service: PreparationService | None = None,
     ) -> None:
         self.router = router
-        resolved_database = (
-            preparation_service.database if database is None else database
-        )
-        resolved_job_manager = (
-            preparation_service.job_manager if job_manager is None else job_manager
-        )
-        resolved_upload_state = (
-            get_upload_state() if upload_state is None else upload_state
-        )
-        self.service = PreparationService(
-            database=resolved_database,
-            job_manager=resolved_job_manager,
-            upload_state=resolved_upload_state,
-            server_settings=server_settings or get_server_settings(),
-        )
+        self.service = preparation_service if service is None else service
 
     def get_dataset_status(self) -> DatasetStatusResponse:
         return self.service.get_dataset_status()
@@ -99,7 +80,8 @@ class PreparationEndpoint:
         return self.service.get_dataset_image_metadata(dataset_name, index)
 
     def get_dataset_image_content(self, dataset_name: str, index: int):
-        return self.service.get_dataset_image_content(dataset_name, index)
+        path = self.service.get_dataset_image_content(dataset_name, index)
+        return FileResponse(path)
 
     def add_routes(self) -> None:
         self.router.add_api_route(

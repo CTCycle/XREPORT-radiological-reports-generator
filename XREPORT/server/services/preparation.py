@@ -5,11 +5,9 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import case, delete, exists, func, select
-from fastapi import HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi import HTTPException, status
 
-from XREPORT.server.repositories.database import XREPORTDatabase, database
+from XREPORT.server.repositories.database import get_database
 from XREPORT.server.domain.training import (
     BrowseResponse,
     DatasetInfo,
@@ -36,18 +34,12 @@ from XREPORT.server.common.utils.logger import logger
 from XREPORT.server.services.jobs import JobManager, get_job_manager
 from XREPORT.server.configurations.startup import get_server_settings
 from XREPORT.server.services.upload import UploadState, get_upload_state
+from XREPORT.server.repositories.preparation import PreparationRepository
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
 from XREPORT.server.domain.settings import ServerSettings
-from XREPORT.server.repositories.schemas import (
-    Dataset,
-    DatasetRecord,
-    ProcessingRun,
-    TrainingSample,
-    ValidationRun,
-)
 from XREPORT.server.services.processing import (
     TextSanitizer,
     TokenizerHandler,
@@ -234,12 +226,12 @@ class PreparationService:
 
     def __init__(
         self,
-        database: XREPORTDatabase,
+        repository: PreparationRepository,
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
     ) -> None:
-        self.database = database
+        self.repository = repository
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
@@ -313,8 +305,7 @@ class PreparationService:
     # -----------------------------------------------------------------------------
     def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
-        serializer = DataSerializer()
-        row_count = serializer.count_rows(DATASET_RECORDS_TABLE)
+        row_count = self.repository.get_dataset_status()
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
@@ -327,27 +318,7 @@ class PreparationService:
     # -----------------------------------------------------------------------------
     def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
-        validation_exists = exists().where(
-            ValidationRun.dataset_id == Dataset.dataset_id
-        )
-        stmt = (
-            select(
-                Dataset.name,
-                func.min(DatasetRecord.image_path).label("sample_path"),
-                func.count(DatasetRecord.record_id).label("row_count"),
-                case((validation_exists, True), else_=False).label(
-                    "has_validation_report"
-                ),
-            )
-            .join(DatasetRecord, DatasetRecord.dataset_id == Dataset.dataset_id)
-            .group_by(Dataset.dataset_id, Dataset.name)
-            .order_by(Dataset.name)
-        )
-        session = self.database.backend.session()
-        try:
-            rows = session.execute(stmt).all()
-        finally:
-            session.close()
+        rows = self.repository.get_dataset_names()
 
         datasets = []
         for row in rows:
@@ -371,38 +342,7 @@ class PreparationService:
     # -----------------------------------------------------------------------------
     def get_processed_dataset_names(self) -> DatasetNamesResponse:
         """Get list of processed datasets available for training."""
-        latest_runs = (
-            select(
-                ProcessingRun.dataset_id.label("dataset_id"),
-                func.max(ProcessingRun.processing_run_id).label("processing_run_id"),
-            )
-            .group_by(ProcessingRun.dataset_id)
-            .subquery()
-        )
-        validation_exists = exists().where(
-            ValidationRun.dataset_id == Dataset.dataset_id
-        )
-        stmt = (
-            select(
-                Dataset.name,
-                func.count(TrainingSample.training_sample_id).label("row_count"),
-                case((validation_exists, True), else_=False).label(
-                    "has_validation_report"
-                )
-            )
-            .join(latest_runs, latest_runs.c.dataset_id == Dataset.dataset_id)
-            .outerjoin(
-                TrainingSample,
-                TrainingSample.processing_run_id == latest_runs.c.processing_run_id,
-            )
-            .group_by(Dataset.dataset_id, Dataset.name)
-            .order_by(Dataset.name)
-        )
-        session = self.database.backend.session()
-        try:
-            rows = session.execute(stmt).all()
-        finally:
-            session.close()
+        rows = self.repository.get_processed_dataset_names()
 
         datasets = []
         for row in rows:
@@ -431,11 +371,7 @@ class PreparationService:
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
 
-        serializer = DataSerializer()
-        latest_metadata = serializer.load_training_data(
-            only_metadata=True,
-            dataset_name=dataset_name,
-        )
+        latest_metadata = self.repository.get_processing_metadata(dataset_name)
         if not isinstance(latest_metadata, dict) or not latest_metadata:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -461,17 +397,12 @@ class PreparationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
-        session = self.database.backend.session()
-        try:
-            result = session.execute(delete(Dataset).where(Dataset.name == dataset_name))
-            if result.rowcount <= 0:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Dataset not found: {dataset_name}",
-                )
-            session.commit()
-        finally:
-            session.close()
+        deleted_count = self.repository.delete_dataset(dataset_name)
+        if deleted_count <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Dataset not found: {dataset_name}",
+            )
 
         return DeleteResponse(
             success=True,
@@ -704,9 +635,7 @@ class PreparationService:
     # -----------------------------------------------------------------------------
     def browse_directory(
         self,
-        path: str = Query(
-            "", description="Directory path to browse. Empty returns drives."
-        ),
+        path: str = "",
     ) -> BrowseResponse:
         """Browse directories on the server filesystem."""
         self.ensure_local_filesystem_access()
@@ -776,18 +705,12 @@ class PreparationService:
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         """Get total number of images in a dataset."""
         dataset_name = dataset_name.strip()
-        session = self.database.backend.session()
-        try:
-            count = (
-                session.execute(
-                    select(func.count(DatasetRecord.record_id))
-                    .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
-                    .where(Dataset.name == dataset_name)
-                ).scalar()
-                or 0
-            )
-        finally:
-            session.close()
+        dataset = self.repository.get_dataset_by_name(dataset_name)
+        count = (
+            self.repository.count_records(dataset.dataset_id)
+            if dataset is not None
+            else 0
+        )
 
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
@@ -803,22 +726,12 @@ class PreparationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Image index must be >= 1",
             )
-        session = self.database.backend.session()
-        try:
-            row = session.execute(
-                select(
-                    DatasetRecord.image_name,
-                    DatasetRecord.report_text,
-                    DatasetRecord.image_path,
-                )
-                .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
-                .where(Dataset.name == dataset_name)
-                .order_by(DatasetRecord.row_order, DatasetRecord.record_id)
-                .offset(index - 1)
-                .limit(1)
-            ).first()
-        finally:
-            session.close()
+        dataset = self.repository.get_dataset_by_name(dataset_name)
+        row = (
+            self.repository.get_record_at_index(dataset.dataset_id, index - 1)
+            if dataset is not None
+            else None
+        )
 
         if not row:
             raise HTTPException(
@@ -843,8 +756,8 @@ class PreparationService:
         )
 
     # -----------------------------------------------------------------------------
-    def get_dataset_image_content(self, dataset_name: str, index: int):
-        """Serve the image file content."""
+    def get_dataset_image_content(self, dataset_name: str, index: int) -> str:
+        """Get absolute image file path for endpoint response handling."""
         self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
@@ -852,18 +765,12 @@ class PreparationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Image index must be >= 1",
             )
-        session = self.database.backend.session()
-        try:
-            row = session.execute(
-                select(DatasetRecord.image_path)
-                .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
-                .where(Dataset.name == dataset_name)
-                .order_by(DatasetRecord.row_order, DatasetRecord.record_id)
-                .offset(index - 1)
-                .limit(1)
-            ).first()
-        finally:
-            session.close()
+        dataset = self.repository.get_dataset_by_name(dataset_name)
+        row = (
+            self.repository.get_record_at_index(dataset.dataset_id, index - 1)
+            if dataset is not None
+            else None
+        )
 
         if not row:
             raise HTTPException(
@@ -871,7 +778,7 @@ class PreparationService:
                 detail=f"Image index {index} not found in dataset {dataset_name}",
             )
 
-        path = row[0]
+        path = row[2]
 
         if not path or not os.path.exists(path):
             # Elegant warning message as requested
@@ -880,11 +787,11 @@ class PreparationService:
                 detail=f"Source file not found at {path}",
             )
 
-        return FileResponse(path)
+        return os.path.abspath(path)
 
 ###############################################################################
 preparation_service = PreparationService(
-    database=database,
+    repository=PreparationRepository(get_database()),
     job_manager=get_job_manager(),
     upload_state=get_upload_state(),
     server_settings=get_server_settings(),
