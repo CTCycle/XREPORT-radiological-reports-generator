@@ -6,13 +6,13 @@ from XREPORT.server.common.constants import (
     PROCESSING_RUNS_TABLE,
     TRAINING_SAMPLES_TABLE,
 )
-from XREPORT.server.repositories.database.backend import XREPORTDatabase, database
+from XREPORT.server.repositories.database.backend import XREPORTDatabase, get_database
 
 
 ###############################################################################
 class TrainingRepositoryQueries:
-    def __init__(self, db: XREPORTDatabase = database) -> None:
-        self.database = db
+    def __init__(self, db: XREPORTDatabase | None = None) -> None:
+        self.database = get_database() if db is None else db
 
     # -------------------------------------------------------------------------
     def load_training_dataset(

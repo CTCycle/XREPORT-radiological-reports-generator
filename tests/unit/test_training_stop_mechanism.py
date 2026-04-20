@@ -8,7 +8,7 @@ import pytest
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
 from XREPORT.server.learning.callbacks import TrainingInterruptCallback, WorkerInterrupted
-from XREPORT.server.api import training as training_routes
+from XREPORT.server.services import training as training_module
 
 
 ###############################################################################
@@ -77,12 +77,12 @@ def test_monitor_starts_timeout_even_if_worker_already_interrupted(
     job_manager_mock = Mock()
     job_manager_mock.should_stop.return_value = True
     monkeypatch.setattr(
-        training_routes,
+        training_module,
         "get_job_manager",
         Mock(return_value=job_manager_mock),
     )
 
-    result = training_routes.monitor_training_process(
+    result = training_module.monitor_training_process(
         "job-cancelled",
         worker,
         stop_timeout_seconds=0.0,
@@ -101,12 +101,12 @@ def test_monitor_requests_graceful_stop_before_forcing_termination(
     job_manager_mock = Mock()
     job_manager_mock.should_stop.return_value = True
     monkeypatch.setattr(
-        training_routes,
+        training_module,
         "get_job_manager",
         Mock(return_value=job_manager_mock),
     )
 
-    result = training_routes.monitor_training_process(
+    result = training_module.monitor_training_process(
         "job-cancelled",
         worker,
         stop_timeout_seconds=10.0,

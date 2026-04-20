@@ -15,22 +15,7 @@ from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from XREPORT.server.services.jobs import get_job_manager
-from XREPORT.server.services import training as training_module
 from XREPORT.server.services.training import training_service
-
-
-def monitor_training_process(job_id: str, worker, stop_timeout_seconds: float):
-    original_get_job_manager = training_module.get_job_manager
-    training_module.get_job_manager = get_job_manager
-    try:
-        return training_module.monitor_training_process(
-            job_id=job_id,
-            worker=worker,
-            stop_timeout_seconds=stop_timeout_seconds,
-        )
-    finally:
-        training_module.get_job_manager = original_get_job_manager
 
 
 ###############################################################################

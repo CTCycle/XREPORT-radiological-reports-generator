@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from XREPORT.server.repositories.database.backend import XREPORTDatabase, database
+from XREPORT.server.repositories.database.backend import XREPORTDatabase, get_database
 
 
 ###############################################################################
 class DataRepositoryQueries:
-    def __init__(self, db: XREPORTDatabase = database) -> None:
-        self.database = db
+    def __init__(self, db: XREPORTDatabase | None = None) -> None:
+        self.database = get_database() if db is None else db
 
     # -------------------------------------------------------------------------
     @property

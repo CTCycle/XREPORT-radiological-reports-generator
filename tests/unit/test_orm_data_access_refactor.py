@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from XREPORT.server.configurations.startup import get_server_settings
+from XREPORT.server.repositories.preparation import PreparationRepository
 from XREPORT.server.repositories.schemas import (
     Base,
     Checkpoint,
@@ -25,6 +26,7 @@ from XREPORT.server.repositories.schemas import (
 )
 from XREPORT.server.repositories.serialization.data import DataSerializer
 from XREPORT.server.api.preparation import PreparationEndpoint
+from XREPORT.server.services.preparation import PreparationService
 
 
 ###############################################################################
@@ -60,14 +62,18 @@ def create_preparation_endpoint(session_factory: sessionmaker) -> PreparationEnd
     backend = BackendStub(session_factory)
     database_stub = SimpleNamespace(backend=backend)
     server_settings = get_server_settings()
-    endpoint = PreparationEndpoint(
-        router=APIRouter(),
-        database=database_stub,
+    repository = PreparationRepository(database=database_stub)
+    service = PreparationService(
+        repository=repository,
         job_manager=SimpleNamespace(),
         upload_state=SimpleNamespace(),
         server_settings=server_settings,
     )
-    endpoint.allow_local_filesystem_access = True
+    endpoint = PreparationEndpoint(
+        router=APIRouter(),
+        service=service,
+    )
+    endpoint.service.allow_local_filesystem_access = True
     return endpoint
 
 
