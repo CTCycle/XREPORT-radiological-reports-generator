@@ -47,7 +47,8 @@ XREPORT generates draft radiology reports from X-ray images and supports dataset
 
 ### 3.4 Backend layering contract
 - Endpoints in `XREPORT/server/api` delegate to service modules only.
-- Services in `XREPORT/server/services` own orchestration and call repository/serializer/database components.
+- Endpoints own FastAPI transport parsing concerns (for example multipart files and query params) and response adapters (for example `FileResponse`).
+- Services in `XREPORT/server/services` own business orchestration and call repository/serializer/database components.
 - Repositories in `XREPORT/server/repositories` own persistence concerns.
 - Shared validation and path-safety logic is centralized in `XREPORT/server/common/utils/security.py`.
 
@@ -90,6 +91,10 @@ From `XREPORT/settings/configurations.json`:
 - PostgreSQL (`database.embedded_database=false`):
   - Backend startup does not run database initialization.
   - Initialization is a manual operation through `XREPORT/setup_and_maintenance.bat` option `1`, which executes `XREPORT/scripts/initialize_database.py`.
+
+### 5.4 Access patterns
+- Database backend access uses lazy accessor `get_database()` from `XREPORT/server/repositories/database/backend.py` (cached singleton pattern).
+- Preparation ORM access is centralized in `XREPORT/server/repositories/preparation.py` via `PreparationRepository`.
 
 ## 6. Background Job Architecture
 

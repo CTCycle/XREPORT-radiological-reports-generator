@@ -1,19 +1,26 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from XREPORT.server.domain.inference import CheckpointsResponse
+from XREPORT.server.domain.inference import CheckpointsResponse, InferenceImage
 from XREPORT.server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
-from XREPORT.server.services.inference import inference_service
+from XREPORT.server.services.inference import InferenceService, inference_service
 
 
 ###############################################################################
 class InferenceEndpoint:
-    def __init__(self, router: APIRouter) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: InferenceService | None = None,
+    ) -> None:
         self.router = router
+        self.service = inference_service if service is None else service
 
     def get_checkpoints(self) -> CheckpointsResponse:
-        return inference_service.get_checkpoints()
+        return self.service.get_checkpoints()
 
     async def generate_reports(
         self,
@@ -21,17 +28,29 @@ class InferenceEndpoint:
         generation_mode: str = Form(...),
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
-        return await inference_service.generate_reports(
+        parsed_images: list[InferenceImage] = []
+        for image in images:
+            filename = os.path.basename((image.filename or "").strip())
+            content = await image.read()
+            parsed_images.append(
+                InferenceImage(
+                    filename=filename,
+                    content_type=image.content_type or "",
+                    data=content,
+                    size_bytes=len(content),
+                )
+            )
+        return self.service.generate_reports(
             checkpoint=checkpoint,
             generation_mode=generation_mode,
-            images=images,
+            images=parsed_images,
         )
 
     def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
-        return inference_service.get_inference_job_status(job_id)
+        return self.service.get_inference_job_status(job_id)
 
     def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
-        return inference_service.cancel_inference_job(job_id)
+        return self.service.cancel_inference_job(job_id)
 
     def add_routes(self) -> None:
         self.router.add_api_route(
