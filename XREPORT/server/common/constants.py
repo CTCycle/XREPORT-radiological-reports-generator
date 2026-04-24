@@ -25,11 +25,6 @@ FASTAPI_TITLE = "XREPORT Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
 FASTAPI_VERSION = "1.0.0"
 
-# [ENDPOINS]
-###############################################################################
-BASE_URL = "/base/tags"
-
-
 # [TRAINING CONSTANTS]
 ###############################################################################
 VALID_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".gif"}
