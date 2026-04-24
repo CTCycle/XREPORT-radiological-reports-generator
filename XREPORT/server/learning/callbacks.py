@@ -216,10 +216,6 @@ class RealTimeMetricsCallback(Callback):
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
         self.progress_callback = progress_callback
 
-        self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
-        self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
-        self.progress_callback = progress_callback
-
         self.last_update_time = time.time()
 
         # Track cumulative batch index for X-axis
