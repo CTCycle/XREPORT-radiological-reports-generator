@@ -41,30 +41,95 @@ const CHART_COLORS = {
     val_accuracy: '#0d9488',
 };
 
+interface MetricChartProps {
+    title: string;
+    data: TrainingDashboardState['chartData'];
+    metrics: string[];
+    epochBoundaries: number[];
+    fallbackColor: string;
+}
+
+function MetricChart({ title, data, metrics, epochBoundaries, fallbackColor }: MetricChartProps) {
+    const chartStroke = (metric: string) =>
+        CHART_COLORS[metric as keyof typeof CHART_COLORS] || fallbackColor;
+
+    return (
+        <div className="chart-section">
+            <div className="chart-title">{title}</div>
+            <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.4)" />
+                    <XAxis
+                        dataKey="batch"
+                        stroke="#94a3b8"
+                        tick={{ fill: '#64748b', fontSize: 12 }}
+                        tickFormatter={(value) => Math.round(value).toString()}
+                    />
+                    <YAxis
+                        stroke="#94a3b8"
+                        tick={{ fill: '#64748b', fontSize: 12 }}
+                    />
+                    <Tooltip
+                        contentStyle={{
+                            background: '#ffffff',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            color: '#0f172a',
+                        }}
+                        labelFormatter={(value) => `Epoch ${Math.round(value)}`}
+                    />
+                    <Legend />
+                    {epochBoundaries.map((boundary, index) => (
+                        <ReferenceLine
+                            key={`epoch-${index}`}
+                            x={boundary}
+                            stroke="rgba(148, 163, 184, 0.6)"
+                            strokeDasharray="3 3"
+                            label={{
+                                value: `E${index + 1}`,
+                                position: 'top',
+                                fill: '#94a3b8',
+                                fontSize: 10,
+                            }}
+                        />
+                    ))}
+                    {metrics.map((metric) => (
+                        <Line
+                            key={metric}
+                            type="monotone"
+                            dataKey={metric}
+                            stroke={chartStroke(metric)}
+                            strokeWidth={2}
+                            dot={false}
+                            name={metric.replace('_', ' ')}
+                        />
+                    ))}
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
 export default function TrainingDashboard({
     onStopTraining,
     dashboardState
 }: TrainingDashboardProps) {
     // Extract state from props
-    const { chartData, availableMetrics, epochBoundaries } = dashboardState;
-    const metrics = {
-        isTraining: dashboardState.isTraining,
-        currentEpoch: dashboardState.currentEpoch,
-        totalEpochs: dashboardState.totalEpochs,
-        loss: dashboardState.loss,
-        valLoss: dashboardState.valLoss,
-        accuracy: dashboardState.accuracy,
-        valAccuracy: dashboardState.valAccuracy,
-        progressPercent: dashboardState.progressPercent,
-        elapsedSeconds: dashboardState.elapsedSeconds,
-        logEntries: dashboardState.logEntries,
-    };
-
-    const handleStopTraining = () => {
-        if (onStopTraining) {
-            onStopTraining();
-        }
-    };
+    const {
+        chartData,
+        availableMetrics,
+        epochBoundaries,
+        isTraining,
+        currentEpoch,
+        totalEpochs,
+        loss,
+        valLoss,
+        accuracy,
+        valAccuracy,
+        progressPercent,
+        elapsedSeconds,
+        logEntries,
+    } = dashboardState;
 
     // Group metrics into loss and accuracy for separate charts
     const lossMetrics = availableMetrics.filter(m => m.toLowerCase().includes('loss'));
@@ -79,9 +144,9 @@ export default function TrainingDashboard({
                     <Activity size={20} />
                     Training Dashboard
                 </div>
-                <div className={`dashboard-status ${metrics.isTraining ? 'training' : 'idle'}`}>
-                    <div className={`status-indicator ${metrics.isTraining ? 'training' : 'idle'}`} />
-                    {metrics.isTraining ? 'Training in Progress' : 'Idle'}
+                <div className={`dashboard-status ${isTraining ? 'training' : 'idle'}`}>
+                    <div className={`status-indicator ${isTraining ? 'training' : 'idle'}`} />
+                    {isTraining ? 'Training in Progress' : 'Idle'}
                 </div>
             </div>
 
@@ -89,7 +154,7 @@ export default function TrainingDashboard({
                 <div className="dashboard-metric-card">
                     <div className="metric-label">Epoch</div>
                     <div className="metric-value">
-                        {metrics.currentEpoch} / {metrics.totalEpochs || '--'}
+                        {currentEpoch} / {totalEpochs || '--'}
                     </div>
                 </div>
                 <div className="dashboard-metric-card">
@@ -98,7 +163,7 @@ export default function TrainingDashboard({
                         Train Loss
                     </div>
                     <div className="metric-value loss">
-                        {metrics.loss.toFixed(3)}
+                        {loss.toFixed(3)}
                     </div>
                 </div>
                 <div className="dashboard-metric-card">
@@ -107,7 +172,7 @@ export default function TrainingDashboard({
                         Val Loss
                     </div>
                     <div className="metric-value loss">
-                        {metrics.valLoss.toFixed(3)}
+                        {valLoss.toFixed(3)}
                     </div>
                 </div>
                 <div className="dashboard-metric-card">
@@ -116,7 +181,7 @@ export default function TrainingDashboard({
                         Train Acc
                     </div>
                     <div className="metric-value accuracy">
-                        {(metrics.accuracy * 100).toFixed(3)}%
+                        {(accuracy * 100).toFixed(3)}%
                     </div>
                 </div>
                 <div className="dashboard-metric-card">
@@ -125,7 +190,7 @@ export default function TrainingDashboard({
                         Val Acc
                     </div>
                     <div className="metric-value accuracy">
-                        {(metrics.valAccuracy * 100).toFixed(3)}%
+                        {(valAccuracy * 100).toFixed(3)}%
                     </div>
                 </div>
             </div>
@@ -134,24 +199,24 @@ export default function TrainingDashboard({
                 <div className="progress-header">
                     <span className="progress-label">
                         <Percent size={14} className="metric-label-icon" />
-                        Progress: {metrics.progressPercent}%
+                        Progress: {progressPercent}%
                     </span>
                     <span className="progress-time">
                         <Clock size={14} className="metric-label-icon" />
-                        {formatTime(metrics.elapsedSeconds)}
+                        {formatTime(elapsedSeconds)}
                     </span>
                 </div>
                 <div className="progress-bar-row">
                     <div className="progress-bar-container">
                         <div
                             className="progress-bar"
-                            style={{ width: `${metrics.progressPercent}%` }}
+                            style={{ width: `${progressPercent}%` }}
                         />
                     </div>
                     <button
                         className="btn-stop"
-                        onClick={handleStopTraining}
-                        disabled={!metrics.isTraining}
+                        onClick={onStopTraining}
+                        disabled={!isTraining}
                     >
                         <Square size={16} />
                         Stop Training
@@ -164,118 +229,24 @@ export default function TrainingDashboard({
             <div className="training-charts-container">
                 {chartData.length > 0 ? (
                     <>
-                        {/* Loss Chart */}
                         {lossMetrics.length > 0 && (
-                            <div className="chart-section">
-                                <div className="chart-title">Loss</div>
-                                <ResponsiveContainer width="100%" height={260}>
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.4)" />
-                                        <XAxis
-                                            dataKey="batch"
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                            tickFormatter={(value) => Math.round(value).toString()}
-                                        />
-                                        <YAxis
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: '#ffffff',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '8px',
-                                                color: '#0f172a',
-                                            }}
-                                            labelFormatter={(value) => `Epoch ${Math.round(value)}`}
-                                        />
-                                        <Legend />
-                                        {epochBoundaries.map((boundary, index) => (
-                                            <ReferenceLine
-                                                key={`epoch-${index}`}
-                                                x={boundary}
-                                                stroke="rgba(148, 163, 184, 0.6)"
-                                                strokeDasharray="3 3"
-                                                label={{
-                                                    value: `E${index + 1}`,
-                                                    position: 'top',
-                                                    fill: '#94a3b8',
-                                                    fontSize: 10,
-                                                }}
-                                            />
-                                        ))}
-                                        {lossMetrics.map((metric) => (
-                                            <Line
-                                                key={metric}
-                                                type="monotone"
-                                                dataKey={metric}
-                                                stroke={CHART_COLORS[metric as keyof typeof CHART_COLORS] || '#ffd700'}
-                                                strokeWidth={2}
-                                                dot={false}
-                                                name={metric.replace('_', ' ')}
-                                            />
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
+                            <MetricChart
+                                title="Loss"
+                                data={chartData}
+                                metrics={lossMetrics}
+                                epochBoundaries={epochBoundaries}
+                                fallbackColor="#ffd700"
+                            />
                         )}
 
-                        {/* Accuracy Chart */}
                         {accuracyMetrics.length > 0 && (
-                            <div className="chart-section">
-                                <div className="chart-title">Accuracy</div>
-                                <ResponsiveContainer width="100%" height={260}>
-                                    <LineChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.4)" />
-                                        <XAxis
-                                            dataKey="batch"
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                            tickFormatter={(value) => Math.round(value).toString()}
-                                        />
-                                        <YAxis
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#64748b', fontSize: 12 }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: '#ffffff',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '8px',
-                                                color: '#0f172a',
-                                            }}
-                                            labelFormatter={(value) => `Epoch ${Math.round(value)}`}
-                                        />
-                                        <Legend />
-                                        {epochBoundaries.map((boundary, index) => (
-                                            <ReferenceLine
-                                                key={`epoch-${index}`}
-                                                x={boundary}
-                                                stroke="rgba(148, 163, 184, 0.6)"
-                                                strokeDasharray="3 3"
-                                                label={{
-                                                    value: `E${index + 1}`,
-                                                    position: 'top',
-                                                    fill: '#94a3b8',
-                                                    fontSize: 10,
-                                                }}
-                                            />
-                                        ))}
-                                        {accuracyMetrics.map((metric) => (
-                                            <Line
-                                                key={metric}
-                                                type="monotone"
-                                                dataKey={metric}
-                                                stroke={CHART_COLORS[metric as keyof typeof CHART_COLORS] || '#22c55e'}
-                                                strokeWidth={2}
-                                                dot={false}
-                                                name={metric.replace('_', ' ')}
-                                            />
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
+                            <MetricChart
+                                title="Accuracy"
+                                data={chartData}
+                                metrics={accuracyMetrics}
+                                epochBoundaries={epochBoundaries}
+                                fallbackColor="#22c55e"
+                            />
                         )}
                     </>
                 ) : (
@@ -298,9 +269,9 @@ export default function TrainingDashboard({
 
             <div className="dashboard-logs">
                 <div className="log-header">Training Log</div>
-                {metrics.logEntries.length > 0 ? (
+                {logEntries.length > 0 ? (
                     <pre className="log-body">
-                        {metrics.logEntries.join('\n')}
+                        {logEntries.join('\n')}
                     </pre>
                 ) : (
                     <div className="log-empty">No training output yet.</div>
