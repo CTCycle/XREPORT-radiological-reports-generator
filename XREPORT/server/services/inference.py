@@ -404,9 +404,11 @@ class InferenceService:
         )
 
 ###############################################################################
-inference_service = InferenceService(
-    job_manager=get_job_manager(),
-    inference_image_store=get_inference_image_store(),
-)
+@lru_cache(maxsize=1)
+def get_inference_service() -> InferenceService:
+    return InferenceService(
+        job_manager=get_job_manager(),
+        inference_image_store=get_inference_image_store(),
+    )
 
 

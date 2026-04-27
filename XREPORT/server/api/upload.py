@@ -37,9 +37,13 @@ class UploadEndpoint:
 
 
 ###############################################################################
-router = APIRouter(prefix="/upload", tags=["upload"])
-upload_endpoint = UploadEndpoint(
-    router=router,
-    upload_service=UploadService(get_upload_state()),
-)
-upload_endpoint.add_routes()
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/upload", tags=["upload"])
+    UploadEndpoint(
+        router=router,
+        upload_service=UploadService(get_upload_state()),
+    ).add_routes()
+    return router
+
+
+router = get_router()
