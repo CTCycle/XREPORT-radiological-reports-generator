@@ -71,7 +71,7 @@ class BrowseResponse(BaseModel):
     current_path: str
     parent_path: str | None = None
     items: list[DirectoryItem]
-    drives: list[str] = []
+    drives: list[str] = Field(default_factory=list)
 
 
 ###############################################################################

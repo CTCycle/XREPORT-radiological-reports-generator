@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 
 from XREPORT.server.domain.inference import CheckpointsResponse, InferenceImage
 from XREPORT.server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
-from XREPORT.server.services.inference import InferenceService, inference_service
+from XREPORT.server.services.inference import InferenceService, get_inference_service
 
 
 ###############################################################################
@@ -17,7 +17,7 @@ class InferenceEndpoint:
         service: InferenceService | None = None,
     ) -> None:
         self.router = router
-        self.service = inference_service if service is None else service
+        self.service = get_inference_service() if service is None else service
 
     def get_checkpoints(self) -> CheckpointsResponse:
         return self.service.get_checkpoints()
@@ -84,6 +84,10 @@ class InferenceEndpoint:
 
 
 ###############################################################################
-router = APIRouter(prefix="/inference", tags=["inference"])
-inference_endpoint = InferenceEndpoint(router=router)
-inference_endpoint.add_routes()
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/inference", tags=["inference"])
+    InferenceEndpoint(router=router).add_routes()
+    return router
+
+
+router = get_router()
