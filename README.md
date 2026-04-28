@@ -83,9 +83,9 @@ Windows (Local mode v2):
 
 macOS/Linux (manual):
 ```bash
-uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5002
+uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5003
 cd XREPORT/client
-npm run preview
+npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
 ### 4.2 Core Workflow
