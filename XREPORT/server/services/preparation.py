@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from functools import lru_cache
 from typing import Any
 
 import pandas as pd
@@ -790,11 +791,13 @@ class PreparationService:
         return os.path.abspath(path)
 
 ###############################################################################
-preparation_service = PreparationService(
-    repository=PreparationRepository(get_database()),
-    job_manager=get_job_manager(),
-    upload_state=get_upload_state(),
-    server_settings=get_server_settings(),
-)
+@lru_cache(maxsize=1)
+def get_preparation_service() -> PreparationService:
+    return PreparationService(
+        repository=PreparationRepository(get_database()),
+        job_manager=get_job_manager(),
+        upload_state=get_upload_state(),
+        server_settings=get_server_settings(),
+    )
 
 

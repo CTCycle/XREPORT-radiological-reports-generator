@@ -669,8 +669,10 @@ class TrainingService:
         )
 
 ###############################################################################
-training_service = TrainingService(
-    job_manager=get_job_manager(),
-    training_state=get_training_state(),
-)
+@lru_cache(maxsize=1)
+def get_training_service() -> TrainingService:
+    return TrainingService(
+        job_manager=get_job_manager(),
+        training_state=get_training_state(),
+    )
 

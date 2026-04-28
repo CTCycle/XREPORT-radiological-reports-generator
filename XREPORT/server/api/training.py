@@ -15,37 +15,42 @@ from XREPORT.server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from XREPORT.server.services.training import training_service
+from XREPORT.server.services.training import TrainingService, get_training_service
 
 
 ###############################################################################
 class TrainingEndpoint:
-    def __init__(self, router: APIRouter) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: TrainingService | None = None,
+    ) -> None:
         self.router = router
+        self.service = get_training_service() if service is None else service
 
     def get_checkpoints(self) -> CheckpointsResponse:
-        return training_service.get_checkpoints()
+        return self.service.get_checkpoints()
 
     def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
-        return training_service.get_checkpoint_metadata(checkpoint)
+        return self.service.get_checkpoint_metadata(checkpoint)
 
     def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
-        return training_service.delete_checkpoint(checkpoint)
+        return self.service.delete_checkpoint(checkpoint)
 
     def get_training_status(self) -> TrainingStatusResponse:
-        return training_service.get_training_status()
+        return self.service.get_training_status()
 
     def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
-        return training_service.start_training(request)
+        return self.service.start_training(request)
 
     def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
-        return training_service.resume_training(request)
+        return self.service.resume_training(request)
 
     def get_training_job_status(self, job_id: str) -> JobStatusResponse:
-        return training_service.get_training_job_status(job_id)
+        return self.service.get_training_job_status(job_id)
 
     def cancel_training_job(self, job_id: str) -> JobCancelResponse:
-        return training_service.cancel_training_job(job_id)
+        return self.service.cancel_training_job(job_id)
 
     def add_routes(self) -> None:
         self.router.add_api_route(
@@ -107,6 +112,10 @@ class TrainingEndpoint:
 
 
 ###############################################################################
-router = APIRouter(prefix="/training", tags=["training"])
-training_endpoint = TrainingEndpoint(router=router)
-training_endpoint.add_routes()
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/training", tags=["training"])
+    TrainingEndpoint(router=router).add_routes()
+    return router
+
+
+router = get_router()

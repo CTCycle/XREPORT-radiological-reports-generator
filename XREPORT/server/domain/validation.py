@@ -65,7 +65,7 @@ class ValidationReportResponse(BaseModel):
     dataset_name: str
     date: str | None = None
     sample_size: float | None = None
-    metrics: list[str] = []
+    metrics: list[str] = Field(default_factory=list)
     pixel_distribution: PixelDistribution | None = None
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
@@ -109,6 +109,6 @@ class CheckpointEvaluationReportResponse(BaseModel):
 
     checkpoint: str
     date: str | None = None
-    metrics: list[str] = []
-    metric_configs: dict[str, dict[str, float | int]] = {}
+    metrics: list[str] = Field(default_factory=list)
+    metric_configs: dict[str, dict[str, float | int]] = Field(default_factory=dict)
     results: CheckpointEvaluationResults | None = None
