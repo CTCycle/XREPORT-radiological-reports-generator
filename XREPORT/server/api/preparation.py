@@ -22,7 +22,7 @@ from XREPORT.server.domain.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from XREPORT.server.services.preparation import PreparationService, preparation_service
+from XREPORT.server.services.preparation import PreparationService, get_preparation_service
 
 
 ###############################################################################
@@ -33,7 +33,7 @@ class PreparationEndpoint:
         service: PreparationService | None = None,
     ) -> None:
         self.router = router
-        self.service = preparation_service if service is None else service
+        self.service = get_preparation_service() if service is None else service
 
     def get_dataset_status(self) -> DatasetStatusResponse:
         return self.service.get_dataset_status()
@@ -184,6 +184,10 @@ class PreparationEndpoint:
 
 
 ###############################################################################
-router = APIRouter(prefix="/preparation", tags=["preparation"])
-preparation_endpoint = PreparationEndpoint(router=router)
-preparation_endpoint.add_routes()
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/preparation", tags=["preparation"])
+    PreparationEndpoint(router=router).add_routes()
+    return router
+
+
+router = get_router()
