@@ -20,29 +20,23 @@ const normalizeApiBase = (value: string) => {
     return withLeadingSlash
 }
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
 const buildProxy = (apiBase: string, apiTarget: string) => {
     const wsTarget = apiTarget.replace('http', 'ws')
-    const baseRegex = new RegExp(`^${escapeRegExp(apiBase)}`)
 
     return {
         [`${apiBase}/training/ws`]: {
             target: wsTarget,
             ws: true,
             changeOrigin: true,
-            rewrite: (proxyPath: string) => proxyPath.replace(baseRegex, ''),
         },
         [`${apiBase}/inference/ws`]: {
             target: wsTarget,
             ws: true,
             changeOrigin: true,
-            rewrite: (proxyPath: string) => proxyPath.replace(baseRegex, ''),
         },
         [apiBase]: {
             target: apiTarget,
             changeOrigin: true,
-            rewrite: (proxyPath: string) => proxyPath.replace(baseRegex, ''),
         },
     }
 }
