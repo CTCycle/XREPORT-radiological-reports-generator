@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -542,9 +543,11 @@ class ValidationService:
         )
 
 ###############################################################################
-validation_service = ValidationService(
-    job_manager=get_job_manager(),
-    server_settings=get_server_settings(),
-)
+@lru_cache(maxsize=1)
+def get_validation_service() -> ValidationService:
+    return ValidationService(
+        job_manager=get_job_manager(),
+        server_settings=get_server_settings(),
+    )
 
 

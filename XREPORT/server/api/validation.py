@@ -9,35 +9,40 @@ from XREPORT.server.domain.validation import (
     ValidationReportResponse,
     ValidationRequest,
 )
-from XREPORT.server.services.validation_runs import validation_service
+from XREPORT.server.services.validation_runs import ValidationService, get_validation_service
 
 
 ###############################################################################
 class ValidationEndpoint:
-    def __init__(self, router: APIRouter) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        service: ValidationService | None = None,
+    ) -> None:
         self.router = router
+        self.service = get_validation_service() if service is None else service
 
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
-        return await validation_service.run_validation(request)
+        return await self.service.run_validation(request)
 
     async def evaluate_checkpoint(
         self, request: CheckpointEvaluationRequest
     ) -> JobStartResponse:
-        return await validation_service.evaluate_checkpoint(request)
+        return await self.service.evaluate_checkpoint(request)
 
     async def get_checkpoint_evaluation_report(
         self, checkpoint: str
     ) -> CheckpointEvaluationReportResponse:
-        return await validation_service.get_checkpoint_evaluation_report(checkpoint)
+        return await self.service.get_checkpoint_evaluation_report(checkpoint)
 
     async def get_validation_report(self, dataset_name: str) -> ValidationReportResponse:
-        return await validation_service.get_validation_report(dataset_name)
+        return await self.service.get_validation_report(dataset_name)
 
     async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
-        return await validation_service.get_validation_job_status(job_id)
+        return await self.service.get_validation_job_status(job_id)
 
     async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
-        return await validation_service.cancel_validation_job(job_id)
+        return await self.service.cancel_validation_job(job_id)
 
     def add_routes(self) -> None:
         self.router.add_api_route(
@@ -85,6 +90,10 @@ class ValidationEndpoint:
 
 
 ###############################################################################
-router = APIRouter(prefix="/validation", tags=["validation"])
-validation_endpoint = ValidationEndpoint(router=router)
-validation_endpoint.add_routes()
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/validation", tags=["validation"])
+    ValidationEndpoint(router=router).add_routes()
+    return router
+
+
+router = get_router()
