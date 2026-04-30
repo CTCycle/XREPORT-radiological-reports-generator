@@ -12,7 +12,7 @@ XREPORT is a client-server application that generates draft radiological reports
 It combines a FastAPI backend and a React frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
 
 Runtime supports two execution modes:
-- **Local mode (v1)**: web app launched by `XREPORT/start_on_windows.bat`.
+- **Local mode (v1)**: web app launched by `start_on_windows.bat`.
 - **Local mode (v2)**: packaged Windows desktop application built with Tauri.
 
 > **Work in Progress**: The project is under active development and may contain incomplete features.
@@ -34,7 +34,7 @@ Supported data sources:
 ### 3.1 Windows (One-Click Setup, Local mode v1)
 
 Run:
-- `XREPORT/start_on_windows.bat`
+- `start_on_windows.bat`
 
 The launcher downloads portable runtimes into `runtimes/`, installs backend/frontend dependencies, builds the client, and starts the application.
 
@@ -63,8 +63,9 @@ Prerequisites:
 
 Setup:
 ```bash
+cd app/server
 uv sync
-cd XREPORT/client
+cd app/client
 npm ci
 npm run build
 ```
@@ -76,15 +77,16 @@ npm run build
 ### 4.1 Launch
 
 Windows (Local mode v1):
-- Run `XREPORT/start_on_windows.bat`
+- Run `start_on_windows.bat`
 
 Windows (Local mode v2):
 - Install and start the packaged Tauri app
 
 macOS/Linux (manual):
 ```bash
-uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5003
-cd XREPORT/client
+cd app/server
+uv run python -m uvicorn server.app:app --host 127.0.0.1 --port 5003
+cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
@@ -110,7 +112,7 @@ For a full operator guide, see `assets/docs/USER_MANUAL.md`.
 
 ## 5. Setup and Maintenance
 
-Use `XREPORT/setup_and_maintenance.bat` (Windows) to:
+Use `setup_and_maintenance.bat` (Windows) to:
 - remove logs
 - uninstall app runtimes/artifacts
 - clean desktop build artifacts
@@ -120,7 +122,7 @@ Use `XREPORT/setup_and_maintenance.bat` (Windows) to:
 
 ## 6. Resources
 
-Runtime data is stored under `XREPORT/resources`:
+Runtime data is stored under `app/resources`:
 - `checkpoints/`
 - `logs/`
 - `models/`
@@ -133,17 +135,17 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 
 ## 7. Configuration
 
-- Runtime/process settings: `XREPORT/settings/.env`
-- Backend defaults (including DB mode): `XREPORT/settings/configurations.json`
+- Runtime/process settings: `settings/.env`
+- Backend defaults (including DB mode): `settings/configurations.json`
 
 ### 7.1 Database initialization behavior
 
 - SQLite mode (`database.embedded_database=true`):
-  - On application startup, if `XREPORT/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
+  - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
   - If the file already exists, startup skips initialization.
 - PostgreSQL mode (`database.embedded_database=false`):
   - Application startup never initializes PostgreSQL automatically.
-  - PostgreSQL initialization is manual via `XREPORT/setup_and_maintenance.bat` option `1`, which runs `XREPORT/scripts/initialize_database.py`.
+  - PostgreSQL initialization is manual via `setup_and_maintenance.bat` option `1`, which runs `app/scripts/initialize_database.py`.
   - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.
 
 See also:
