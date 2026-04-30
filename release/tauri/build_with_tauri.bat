@@ -3,15 +3,14 @@ setlocal enabledelayedexpansion
 
 set "script_dir=%~dp0"
 for %%I in ("%script_dir%..\..") do set "repo_root=%%~fI"
-set "project_folder=%repo_root%\XREPORT\"
+set "project_folder=%repo_root%\app\"
 set "client_dir=%project_folder%client"
 set "tauri_dir=%client_dir%\src-tauri"
-set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
-set "runtime_uv_lock=%repo_root%\runtimes\uv.lock"
+set "runtime_uv_lock=%repo_root%\app\server\uv.lock"
 set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
@@ -25,10 +24,6 @@ call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
 call :require_file "%runtime_uv_lock%" "runtime uv lockfile" || goto build_error
 call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
 call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
-
-echo [CHECK] Preparing short Tauri bundle sources...
-call :prepare_bundle_sources || goto build_error
-
 
 echo [CHECK] Resolving Cargo...
 set "cargo_cmd="
@@ -125,8 +120,6 @@ if errorlevel 1 (
 )
 popd >nul
 
-call :cleanup_bundle_sources
-
 echo [OK] Build completed successfully.
 if exist "%release_export_dir%" (
   echo [INFO] User-facing release artifacts:
@@ -148,55 +141,8 @@ if exist "%~1" (
   exit /b 0
 )
 echo [FATAL] Missing %~2 at "%~1"
-echo         Run XREPORT\start_on_windows.bat first to install the portable runtimes.
+echo         Run start_on_windows.bat first to install the portable runtimes.
 exit /b 1
-
-:prepare_bundle_sources
-call :cleanup_bundle_sources
-
-md "%bundle_source_dir%" >nul 2>&1
-if errorlevel 1 (
-  echo [FATAL] Failed to create bundle source directory "%bundle_source_dir%".
-  exit /b 1
-)
-md "%bundle_source_dir%\resources" >nul 2>&1
-md "%bundle_source_dir%\client" >nul 2>&1
-md "%bundle_source_dir%\resources\tokenizers" >nul 2>&1
-md "%bundle_source_dir%\runtimes" >nul 2>&1
-
-copy /y "%repo_root%\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
-if errorlevel 1 (
-  echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
-  exit /b 1
-)
-copy /y "%runtime_uv_lock%" "%bundle_source_dir%\uv.lock" >nul
-if errorlevel 1 (
-  echo [FATAL] Failed to stage runtime lockfile from "%runtime_uv_lock%" into bundle uv.lock.
-  exit /b 1
-)
-
-call :make_junction "%bundle_source_dir%\server" "%project_folder%server" || exit /b 1
-call :make_junction "%bundle_source_dir%\scripts" "%project_folder%scripts" || exit /b 1
-call :make_junction "%bundle_source_dir%\settings" "%project_folder%settings" || exit /b 1
-call :make_junction "%bundle_source_dir%\client\dist" "%client_dir%\dist" || exit /b 1
-call :make_junction "%bundle_source_dir%\resources\templates" "%project_folder%resources\templates" || exit /b 1
-call :make_junction "%bundle_source_dir%\resources\tokenizers\distilbert-base-uncased" "%project_folder%resources\tokenizers\distilbert-base-uncased" || exit /b 1
-call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
-call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
-call :make_junction "%bundle_source_dir%\runtimes\nodejs" "%repo_root%\runtimes\nodejs" || exit /b 1
-exit /b 0
-
-:make_junction
-cmd /c mklink /J "%~1" "%~2" >nul
-if errorlevel 1 (
-  echo [FATAL] Failed to create junction "%~1" -> "%~2".
-  exit /b 1
-)
-exit /b 0
-
-:cleanup_bundle_sources
-if exist "%bundle_source_dir%" rd /s /q "%bundle_source_dir%" >nul 2>&1
-exit /b 0
 
 :install_frontend_deps
 set "npm_install_args=install --foreground-scripts"
@@ -220,9 +166,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$target=[IO.Path]::GetFu
 exit /b 0
 
 :build_error
-call :cleanup_bundle_sources
 echo.
 echo Press any key to close this build script...
 pause >nul
 endlocal & exit /b 1
+
 
