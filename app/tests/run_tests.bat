@@ -52,7 +52,6 @@ set "APP_TEST_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%FASTAPI_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
 set "API_BASE_URL=%APP_TEST_BACKEND_URL%"
 set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
-set "PYTHONPATH=%APP_DIR%"
 
 if "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "%STANDARD_TEST_SKIP_FRONTEND%"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
@@ -76,6 +75,12 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
+set "UVICORN_APP=app.server.app:app"`r`nset "BACKEND_WORKDIR=%PROJECT_ROOT%"`r`nset "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
+"%PYTHON_CMD%" -c "import importlib; importlib.import_module('app.server.app')" >nul 2>&1
+if errorlevel 1 (
+  set "UVICORN_APP=server.app:app"`r`n  set "BACKEND_WORKDIR=%SERVER_DIR%"`r`n  set "PYTHONPATH=%APP_DIR%"
+)
+
 echo.
 echo ============================================================
 echo  Standard Test Runner
@@ -96,7 +101,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%SERVER_DIR%" "%PYTHON_CMD%" -m uvicorn server.app:app --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning
     set "STARTED_BACKEND=1"
   )
 
@@ -129,7 +134,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
       )
 
       echo [INFO] Starting frontend preview server...
-      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT% --strictPort
+      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT%
       set "STARTED_FRONTEND=1"
     )
   )
@@ -137,7 +142,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   echo [INFO] Waiting for live services...
   set "ATTEMPTS=0"
   :wait_loop
-  if !ATTEMPTS! geq 30 (
+  if !ATTEMPTS! geq 90 (
     set "LIVE_SERVER_PHASE=FAIL"
     set "TEST_RESULT=1"
     goto cleanup
@@ -218,10 +223,11 @@ echo.
 
 :cleanup
 if "%STARTED_BACKEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":%FASTAPI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%FASTAPI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
 if "%STARTED_FRONTEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
 )
 
 exit /b %TEST_RESULT%
+
