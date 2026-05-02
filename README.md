@@ -84,9 +84,9 @@ Windows (Local mode v2):
 
 macOS/Linux (manual):
 ```bash
-cd app/server
-uv run python -m uvicorn server.app:app --host 127.0.0.1 --port 5003
-cd app/client
+cd app
+uv run --project server python -m uvicorn server.app:app --host 127.0.0.1 --port 5003
+cd client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
