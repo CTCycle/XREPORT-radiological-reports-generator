@@ -1,15 +1,15 @@
 # Project-specific generated/runtime artifacts
 release/**
-XREPORT/resources/models/**
-XREPORT/resources/checkpoints/**
-XREPORT/resources/database/**
-XREPORT/resources/logs/**
-XREPORT/client/node_modules/
-XREPORT/client/dist/
-XREPORT/client/dist-ssr/
-XREPORT/client/logs/
-XREPORT/resources/tokenizers/**
-XREPORT/client/*.local
+app/resources/models/**
+app/resources/checkpoints/**
+app/resources/database/**
+app/resources/logs/**
+app/client/node_modules/
+app/client/dist/
+app/client/dist-ssr/
+app/client/logs/
+app/resources/tokenizers/**
+app/client/*.local
 runtimes/**
 
 
@@ -58,5 +58,5 @@ Thumbs.db
 
 
 # Tauri
-XREPORT/client/src-tauri/target/
-XREPORT/client/src-tauri/gen/
+app/client/src-tauri/target/
+app/client/src-tauri/gen/

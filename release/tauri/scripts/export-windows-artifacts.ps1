@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
-$clientDir = Join-Path $repoRoot "XREPORT\client"
+$clientDir = Join-Path $repoRoot "app\client"
 $releaseDir = Join-Path $clientDir "src-tauri\target\release"
 $bundleDir = Join-Path $releaseDir "bundle"
 
@@ -58,7 +58,8 @@ foreach ($file in $portableExeCandidates) {
 }
 
 $requiredReleaseEntries = @(
-  @{ Name = "backend payload"; Path = (Join-Path $releaseDir "XREPORT") },
+  @{ Name = "backend payload"; Path = (Join-Path $releaseDir "app") },
+  @{ Name = "settings payload"; Path = (Join-Path $releaseDir "settings") },
   @{ Name = "runtime payload"; Path = (Join-Path $releaseDir "runtimes") },
   @{ Name = "pyproject.toml"; Path = (Join-Path $releaseDir "pyproject.toml") },
   @{ Name = "uv.lock"; Path = (Join-Path $releaseDir "uv.lock") }
@@ -71,11 +72,11 @@ foreach ($entry in $requiredReleaseEntries) {
 }
 
 $portableResourceEntries = @(
-  "XREPORT",
+  "app",
+  "settings",
   "runtimes",
   "pyproject.toml",
   "uv.lock",
-  "resources",
   "_up_"
 )
 
@@ -105,7 +106,8 @@ Set-Content -Path (Join-Path $outputDir "README.txt") -Value $instructions -Enco
 $requiredPortablePaths = @(
   (Join-Path $portableDir "runtimes\uv\uv.exe"),
   (Join-Path $portableDir "runtimes\python\python.exe"),
-  (Join-Path $portableDir "XREPORT"),
+  (Join-Path $portableDir "app"),
+  (Join-Path $portableDir "settings"),
   (Join-Path $portableDir "pyproject.toml"),
   (Join-Path $portableDir "uv.lock")
 )
