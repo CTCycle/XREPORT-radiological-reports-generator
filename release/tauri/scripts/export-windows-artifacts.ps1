@@ -61,8 +61,8 @@ $requiredReleaseEntries = @(
   @{ Name = "backend payload"; Path = (Join-Path $releaseDir "app") },
   @{ Name = "settings payload"; Path = (Join-Path $releaseDir "settings") },
   @{ Name = "runtime payload"; Path = (Join-Path $releaseDir "runtimes") },
-  @{ Name = "pyproject.toml"; Path = (Join-Path $releaseDir "pyproject.toml") },
-  @{ Name = "uv.lock"; Path = (Join-Path $releaseDir "uv.lock") }
+  @{ Name = "server pyproject.toml"; Path = (Join-Path $releaseDir "app\server\pyproject.toml") },
+  @{ Name = "server uv.lock"; Path = (Join-Path $releaseDir "app\server\uv.lock") }
 )
 
 foreach ($entry in $requiredReleaseEntries) {
@@ -75,8 +75,6 @@ $portableResourceEntries = @(
   "app",
   "settings",
   "runtimes",
-  "pyproject.toml",
-  "uv.lock",
   "_up_"
 )
 
@@ -108,8 +106,8 @@ $requiredPortablePaths = @(
   (Join-Path $portableDir "runtimes\python\python.exe"),
   (Join-Path $portableDir "app"),
   (Join-Path $portableDir "settings"),
-  (Join-Path $portableDir "pyproject.toml"),
-  (Join-Path $portableDir "uv.lock")
+  (Join-Path $portableDir "app\server\pyproject.toml"),
+  (Join-Path $portableDir "app\server\uv.lock")
 )
 
 foreach ($requiredPath in $requiredPortablePaths) {
