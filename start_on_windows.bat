@@ -57,7 +57,7 @@ if not exist "%NPM_CMD%" (
 
 pushd "%SERVER_DIR%" >nul
 set "UV_EXTRAS="
-if /i "%OPTIONAL_DEPENDENCIES%"=="true" set "UV_EXTRAS=--all-extras --extra test"
+if /i "%OPTIONAL_DEPENDENCIES%"=="true" set "UV_EXTRAS=--all-extras"
 "%UV_EXE%" sync --python "%PYTHON_EXE%" %UV_EXTRAS%
 if errorlevel 1 (
   "%UV_EXE%" sync %UV_EXTRAS%
@@ -110,4 +110,5 @@ start "" "http://%UI_HOST%:%UI_PORT%"
 echo [SUCCESS] Backend and frontend launched.
 endlocal
 exit /b 0
+
 
