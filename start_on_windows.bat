@@ -55,6 +55,7 @@ if not exist "%NPM_CMD%" (
   exit /b 1
 )
 
+echo [STEP 1/5] Installing dependencies with uv from pyproject.toml
 pushd "%SERVER_DIR%" >nul
 set "UV_EXTRAS="
 if /i "%OPTIONAL_DEPENDENCIES%"=="true" set "UV_EXTRAS=--all-extras"
@@ -71,6 +72,7 @@ popd >nul
 
 if exist "%UV_CACHE_DIR%" rd /s /q "%UV_CACHE_DIR%" >nul 2>&1
 
+echo [STEP 2/5] Installing frontend dependencies
 if not exist "%CLIENT_DIR%\node_modules" (
   pushd "%CLIENT_DIR%" >nul
   if exist "package-lock.json" (
@@ -86,6 +88,7 @@ if not exist "%CLIENT_DIR%\node_modules" (
   popd >nul
 )
 
+echo [STEP 3/5] Building frontend
 if not exist "%FRONTEND_DIST%" (
   pushd "%CLIENT_DIR%" >nul
   call "%NPM_CMD%" run build
@@ -97,6 +100,10 @@ if not exist "%FRONTEND_DIST%" (
   popd >nul
 )
 
+echo [STEP 4/5] Pruning uv cache
+if exist "%UV_CACHE_DIR%" rd /s /q "%UV_CACHE_DIR%" >nul 2>&1
+
+echo [STEP 5/5] Launching backend and frontend
 if exist "%BACKEND_BOOT_LOG%" del /q "%BACKEND_BOOT_LOG%" >nul 2>&1
 pushd "%SERVER_DIR%" >nul
 start "" /b cmd /c "set ""PYTHONPATH=%APP_DIR%"" && cd /d ""%SERVER_DIR%"" && ""%UV_EXE%"" run --no-sync --python ""%PYTHON_EXE%"" python -m uvicorn %UVICORN_MODULE% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level info > ""%BACKEND_BOOT_LOG%"" 2>&1"
@@ -107,8 +114,12 @@ start "" /b "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT% --stric
 popd >nul
 
 start "" "http://%UI_HOST%:%UI_PORT%"
-echo [SUCCESS] Backend and frontend launched.
+echo [SUCCESS] Backend and frontend correctly launched
 endlocal
 exit /b 0
+
+
+
+
 
 
