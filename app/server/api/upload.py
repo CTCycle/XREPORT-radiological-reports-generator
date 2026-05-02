@@ -1,0 +1,49 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, File, UploadFile, status
+
+from server.domain.training import DatasetUploadResponse
+from server.services.upload import UploadService, get_upload_state
+
+
+###############################################################################
+class UploadEndpoint:
+    """Endpoint for dataset upload operations."""
+
+    def __init__(self, router: APIRouter, upload_service: UploadService) -> None:
+        self.router = router
+        self.upload_service = upload_service
+
+    # -----------------------------------------------------------------------------
+    async def upload_dataset(
+        self, file: UploadFile = File(...)
+    ) -> DatasetUploadResponse:
+        contents = await file.read()
+        return self.upload_service.upload_dataset(
+            filename=file.filename or "",
+            contents=contents,
+        )
+
+    # -----------------------------------------------------------------------------
+    def add_routes(self) -> None:
+        """Register all upload-related routes."""
+        self.router.add_api_route(
+            "/dataset",
+            self.upload_dataset,
+            methods=["POST"],
+            response_model=DatasetUploadResponse,
+            status_code=status.HTTP_200_OK,
+        )
+
+
+###############################################################################
+def get_router() -> APIRouter:
+    router = APIRouter(prefix="/upload", tags=["upload"])
+    UploadEndpoint(
+        router=router,
+        upload_service=UploadService(get_upload_state()),
+    ).add_routes()
+    return router
+
+
+router = get_router()
