@@ -3,27 +3,34 @@ setlocal enabledelayedexpansion
 
 set "script_dir=%~dp0"
 for %%I in ("%script_dir%..\..") do set "repo_root=%%~fI"
-set "project_folder=%repo_root%\app\"
-set "client_dir=%project_folder%client"
+set "app_dir=%repo_root%\app"
+set "client_dir=%app_dir%\client"
 set "tauri_dir=%client_dir%\src-tauri"
+set "bundle_source_dir=%tauri_dir%\r"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
+
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
 set "runtime_uv_lock=%repo_root%\app\server\uv.lock"
 set "runtime_node_dir=%repo_root%\runtimes\nodejs"
 set "node_cmd=%runtime_node_dir%\node.exe"
 set "npm_cmd=%runtime_node_dir%\npm.cmd"
-
+set "runtime_database_file=%app_dir%\resources\database.db"
 
 echo [TAURI] Release build helper
 
 echo [CHECK] Validating bundled runtimes...
 call :require_file "%runtime_python_exe%" "embedded Python runtime" || goto build_error
 call :require_file "%runtime_uv_exe%" "embedded uv runtime" || goto build_error
-call :require_file "%runtime_uv_lock%" "runtime uv lockfile" || goto build_error
+call :require_file "%runtime_uv_lock%" "backend uv lockfile" || goto build_error
 call :require_file "%node_cmd%" "embedded Node.js runtime" || goto build_error
 call :require_file "%npm_cmd%" "embedded npm runtime" || goto build_error
+call :require_file "%app_dir%\server\pyproject.toml" "backend pyproject.toml" || goto build_error
+call :require_file "%runtime_database_file%" "runtime sqlite database" || goto build_error
+
+echo [CHECK] Preparing Tauri bundle sources...
+call :prepare_bundle_sources || goto build_error
 
 echo [CHECK] Resolving Cargo...
 set "cargo_cmd="
@@ -36,34 +43,9 @@ if not defined cargo_cmd (
   echo [FATAL] Rust/Cargo not found. Install Rust first: https://rustup.rs/
   goto build_error
 )
-set "rustup_cmd="
-if exist "%USERPROFILE%\.cargo\bin\rustup.exe" set "rustup_cmd=%USERPROFILE%\.cargo\bin\rustup.exe"
-if not defined rustup_cmd (
-  rustup --version >nul 2>&1
-  if not errorlevel 1 set "rustup_cmd=rustup"
-)
-if defined rustup_cmd (
-  "%rustup_cmd%" show active-toolchain >nul 2>&1
-  if errorlevel 1 (
-    echo [FATAL] Cargo is available but no default Rust toolchain is configured.
-    echo         Remediation:
-    echo           rustup toolchain install stable
-    echo           rustup default stable
-    goto build_error
-  )
-)
-if not defined rustup_cmd (
-  echo [WARN] rustup was not found in PATH; skipping default toolchain validation.
-)
-set "cargo_version="
+
+call :check_rust_toolchain "%cargo_cmd%" || goto build_error
 for /f "delims=" %%V in ('"%cargo_cmd%" --version 2^>nul') do set "cargo_version=%%V"
-if not defined cargo_version (
-  echo [FATAL] Unable to execute cargo successfully.
-  echo         If Rust was installed with rustup, run:
-  echo           rustup toolchain install stable
-  echo           rustup default stable
-  goto build_error
-)
 echo [INFO] Cargo command: %cargo_cmd%
 if defined cargo_version echo [INFO] !cargo_version!
 if /I not "%cargo_cmd%"=="cargo" (
@@ -77,7 +59,6 @@ if /I not "%node_cmd%"=="node" (
 
 for /f "delims=" %%V in ('"%node_cmd%" --version 2^>nul') do set "node_version=%%V"
 for /f "delims=" %%V in ('"%npm_cmd%" --version 2^>nul') do set "npm_version=%%V"
-
 echo [INFO] npm command: %npm_cmd%
 echo [INFO] node command: %node_cmd%
 if defined node_version echo [INFO] Node.js version: !node_version!
@@ -93,32 +74,36 @@ set "CARGO_TERM_PROGRESS_WHEN=auto"
 
 echo [STEP 1/2] Installing frontend dependencies
 pushd "%client_dir%" >nul
-call :install_frontend_deps
+if exist "package-lock.json" (
+  echo [CMD] "%npm_cmd%" ci --foreground-scripts
+  call "%npm_cmd%" ci --foreground-scripts
+) else (
+  echo [CMD] "%npm_cmd%" install --foreground-scripts
+  call "%npm_cmd%" install --foreground-scripts
+)
 if errorlevel 1 (
   popd >nul
   echo [FATAL] npm dependency installation failed.
   goto build_error
 )
 
-echo [STEP 2/2] Building Tauri application
-if exist "%release_export_dir%" (
-  echo [INFO] Removing previous exported release folder: "%release_export_dir%"
+echo [CHECK] Refreshing Tauri bundle sources...
+call :prepare_bundle_sources || (
+  popd >nul
+  goto build_error
 )
-echo [CMD] "%npm_cmd%" run tauri:build
-call "%npm_cmd%" run tauri:build
+
+echo [STEP 2/2] Building Tauri application
+echo [CMD] "%npm_cmd%" run tauri:build:release
+call "%npm_cmd%" run tauri:build:release
 if errorlevel 1 (
   popd >nul
   echo [FATAL] Tauri build failed.
   goto build_error
 )
-echo [CMD] "%npm_cmd%" run tauri:export:windows
-call "%npm_cmd%" run tauri:export:windows
-if errorlevel 1 (
-  popd >nul
-  echo [FATAL] Tauri artifact export failed.
-  goto build_error
-)
 popd >nul
+
+call :cleanup_bundle_sources
 
 echo [OK] Build completed successfully.
 if exist "%release_export_dir%" (
@@ -141,34 +126,116 @@ if exist "%~1" (
   exit /b 0
 )
 echo [FATAL] Missing %~2 at "%~1"
-echo         Run start_on_windows.bat first to install the portable runtimes.
+echo         Run start_on_windows.bat first to install portable runtimes.
 exit /b 1
 
-:install_frontend_deps
-set "npm_install_args=install --foreground-scripts"
-if exist "package-lock.json" (
-  set "npm_install_args=ci --foreground-scripts"
-  echo [CMD] "%npm_cmd%" !npm_install_args!
-  call "%npm_cmd%" !npm_install_args!
-  if exist "node_modules\.bin\tauri.cmd" exit /b 0
-  echo [WARN] npm ci did not complete cleanly. Falling back to npm install after releasing stale local esbuild locks...
-  call :kill_local_esbuild_processes
-  timeout /t 2 /nobreak >nul
+:prepare_bundle_sources
+call :cleanup_bundle_sources
+
+md "%bundle_source_dir%" >nul 2>&1
+if errorlevel 1 (
+  echo [FATAL] Failed to create bundle source directory "%bundle_source_dir%".
+  exit /b 1
 )
-set "npm_install_args=install --foreground-scripts"
-echo [CMD] "%npm_cmd%" !npm_install_args!
-call "%npm_cmd%" !npm_install_args!
-if exist "node_modules\.bin\tauri.cmd" exit /b 0
-exit /b 1
+md "%bundle_source_dir%\app" >nul 2>&1
+md "%bundle_source_dir%\app\client" >nul 2>&1
+md "%bundle_source_dir%\runtimes" >nul 2>&1
 
-:kill_local_esbuild_processes
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$target=[IO.Path]::GetFullPath('%client_dir%\node_modules\@esbuild\win32-x64\esbuild.exe'); Get-CimInstance Win32_Process -Filter \"Name='esbuild.exe'\" | Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -ieq $target) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue };"
+copy /y "%app_dir%\server\pyproject.toml" "%bundle_source_dir%\pyproject.toml" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to stage pyproject.toml for Tauri bundling.
+  exit /b 1
+)
+copy /y "%runtime_uv_lock%" "%bundle_source_dir%\uv.lock" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to stage uv.lock for Tauri bundling.
+  exit /b 1
+)
+
+if not exist "%client_dir%\dist" md "%client_dir%\dist" >nul 2>&1
+
+call :make_junction "%bundle_source_dir%\app\server" "%app_dir%\server" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\scripts" "%app_dir%\scripts" || exit /b 1
+call :make_junction "%bundle_source_dir%\settings" "%repo_root%\settings" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\client\dist" "%client_dir%\dist" || exit /b 1
+call :make_junction "%bundle_source_dir%\app\resources" "%app_dir%\resources" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\python" "%repo_root%\runtimes\python" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\uv" "%repo_root%\runtimes\uv" || exit /b 1
+call :make_junction "%bundle_source_dir%\runtimes\nodejs" "%repo_root%\runtimes\nodejs" || exit /b 1
+exit /b 0
+
+:check_rust_toolchain
+set "cargo_probe="
+for /f "usebackq delims=" %%V in (`"%~1" --version 2^>^&1`) do (
+  if not defined cargo_probe set "cargo_probe=%%V"
+)
+if not defined cargo_probe set "cargo_probe=unknown cargo probe output"
+"%~1" --version >nul 2>&1
+if errorlevel 1 (
+  echo [WARN] Cargo version probe failed: !cargo_probe!
+  echo(!cargo_probe!| findstr /I /C:"rustup could not choose a version of cargo to run" /C:"no default toolchain configured" >nul
+  if not errorlevel 1 (
+    echo [FATAL] Cargo was found but no default Rust toolchain is configured.
+    echo         Run:
+    echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+    echo           rustup default stable-x86_64-pc-windows-msvc
+    echo           rustup show active-toolchain
+    exit /b 1
+  )
+  echo [FATAL] Cargo is installed but not runnable.
+  echo         Details: !cargo_probe!
+  exit /b 1
+)
+
+set "rustup_cmd="
+set "active_toolchain="
+if exist "%USERPROFILE%\.cargo\bin\rustup.exe" set "rustup_cmd=%USERPROFILE%\.cargo\bin\rustup.exe"
+if not defined rustup_cmd (
+  rustup --version >nul 2>&1
+  if not errorlevel 1 set "rustup_cmd=rustup"
+)
+if not defined rustup_cmd (
+  echo [WARN] rustup not found; skipping explicit default-toolchain validation.
+  exit /b 0
+)
+for /f "delims=" %%V in ('"%rustup_cmd%" show active-toolchain 2^>nul') do set "active_toolchain=%%V"
+if not defined active_toolchain (
+  echo [FATAL] Cargo was found but no active Rust toolchain is configured.
+  echo         Run:
+  echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+  echo           rustup default stable-x86_64-pc-windows-msvc
+  echo           rustup show active-toolchain
+  exit /b 1
+)
+echo !active_toolchain! | findstr /I /C:"no default toolchain" >nul
+if not errorlevel 1 (
+  echo [FATAL] Cargo was found but no default Rust toolchain is configured.
+  echo         Run:
+  echo           rustup toolchain install stable-x86_64-pc-windows-msvc
+  echo           rustup default stable-x86_64-pc-windows-msvc
+  echo           rustup show active-toolchain
+  exit /b 1
+)
+echo [INFO] Rust active toolchain: !active_toolchain!
+exit /b 0
+
+:make_junction
+cmd /c mklink /J "%~1" "%~2" >nul
+if errorlevel 1 (
+  echo [FATAL] Failed to create junction "%~1" -> "%~2".
+  exit /b 1
+)
+exit /b 0
+
+:cleanup_bundle_sources
+if exist "%bundle_source_dir%" rd /s /q "%bundle_source_dir%" >nul 2>&1
 exit /b 0
 
 :build_error
+call :cleanup_bundle_sources
+if /I "%CI%"=="1" endlocal & exit /b 1
+if /I "%CI%"=="true" endlocal & exit /b 1
 echo.
 echo Press any key to close this build script...
 pause >nul
 endlocal & exit /b 1
-
-
