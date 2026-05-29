@@ -24,12 +24,12 @@ This manual explains how to operate XREPORT in day-to-day usage.
 ### 2.3 macOS/Linux (manual)
 1. Start backend:
 ```bash
-uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 8000
+uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5003
 ```
 2. Start frontend preview:
 ```bash
 cd XREPORT/client
-npm run preview -- --host 127.0.0.1 --port 7861 --strictPort
+npm run preview -- --host 127.0.0.1 --port 8003 --strictPort
 ```
 
 ## 3. Main User Journeys
