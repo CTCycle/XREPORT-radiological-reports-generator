@@ -14,10 +14,23 @@ MODELS_PATH = join(RESOURCES_PATH, "models")
 ENCODERS_PATH = join(MODELS_PATH, "XRAYEncoder")
 TOKENIZERS_PATH = join(MODELS_PATH, "tokenizers")
 CHECKPOINT_PATH = join(RESOURCES_PATH, "checkpoints")
+TEMPLATES_PATH = join(RESOURCES_PATH, "templates")
 DATABASE_FILENAME = "database.db"
+DATABASE_FILE_PATH = join(RESOURCES_PATH, DATABASE_FILENAME)
+CLIENT_DIST_PATH = join(APP_DIR, "client", "dist")
+CLIENT_ASSETS_PATH = join(CLIENT_DIST_PATH, "assets")
+CLIENT_INDEX_FILE_PATH = join(CLIENT_DIST_PATH, "index.html")
 
 ###############################################################################
 CONFIGURATION_FILE = join(SETTING_PATH, "configurations.json")
+
+# [BACKEND ROUTES]
+###############################################################################
+FASTAPI_ROOT_ENDPOINT = "/"
+FASTAPI_DOCS_ENDPOINT = "/docs"
+FASTAPI_API_PREFIX = "/api"
+FASTAPI_ASSETS_ENDPOINT = "/assets"
+FASTAPI_SPA_FALLBACK_ENDPOINT = "/{full_path:path}"
 
 # [FASTAPI METADATA]
 ###############################################################################

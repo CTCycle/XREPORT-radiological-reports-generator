@@ -1,6 +1,6 @@
 # Runtime Modes
 
-Last updated: 2026-04-24
+Last updated: 2026-05-31
 
 ## 1. Supported Modes
 
@@ -101,15 +101,16 @@ From `configurations.json`:
 - `database.embedded_database=false` -> PostgreSQL
 
 Initialization differences:
-- SQLite: auto schema creation only when DB file is missing
-- PostgreSQL: explicit manual init via `XREPORT/scripts/initialize_database.py` (through maintenance menu option 1)
+- SQLite: schema initialization is ensured at backend startup
+- PostgreSQL: database and schema initialization are performed during backend startup using the configured connection
 
 ## 4. Interoperability
 
 - Frontend talks to backend via `/api` paths.
 - Vite dev/preview proxies `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
 - Tauri desktop starts backend locally, waits for TCP readiness, then redirects the desktop window to backend root URL.
-- Backend in Tauri mode serves packaged SPA assets when `XREPORT_TAURI_MODE=true` and `client/dist` is available.
+- Backend serves packaged SPA assets from `app/client/dist` when a frontend build is available.
+- In Tauri mode, backend startup also validates that the packaged frontend build is present before serving requests.
 
 ## 5. Limitations and Constraints
 

@@ -109,8 +109,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     return target_database
 
 # -----------------------------------------------------------------------------
-def run_database_initialization() -> None:
-    settings = get_server_settings().database
+def run_database_initialization(settings: DatabaseSettings) -> None:
     if settings.embedded_database:
         initialize_sqlite_database(settings)
         return
@@ -127,12 +126,13 @@ def run_database_initialization() -> None:
     ensure_postgres_database(settings)
 
 # -----------------------------------------------------------------------------
-def initialize_database() -> None:
+def initialize_database(settings: DatabaseSettings | None = None) -> None:
+    resolved_settings = settings or get_server_settings().database
     try:
-        run_database_initialization()
+        run_database_initialization(resolved_settings)
     except (SQLAlchemyError, ValueError) as exc:
         logger.error("Database initialization failed: %s", exc)
-        raise SystemExit(1) from exc
+        raise RuntimeError("Database initialization failed.") from exc
     except Exception as exc:
         logger.exception("Unexpected error during database initialization.")
-        raise SystemExit(1) from exc
+        raise RuntimeError("Unexpected error during database initialization.") from exc
