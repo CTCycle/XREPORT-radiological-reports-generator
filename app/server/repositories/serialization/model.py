@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from keras import Model
@@ -44,71 +44,78 @@ class ModelSerializer:
             today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
             sanitized_name = f"{self.model_name}_{today_datetime}"
 
-        checkpoint_path = os.path.join(CHECKPOINT_PATH, sanitized_name)
-        os.makedirs(checkpoint_path, exist_ok=True)
-        os.makedirs(os.path.join(checkpoint_path, "configuration"), exist_ok=True)
+        checkpoint_path = CHECKPOINT_PATH / sanitized_name
+        checkpoint_path.mkdir(parents=True, exist_ok=True)
+        (checkpoint_path / "configuration").mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created checkpoint folder at {checkpoint_path}")
 
-        return checkpoint_path
+        return str(checkpoint_path)
 
     # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model: Model, path: str) -> None:
-        model_files_path = os.path.join(path, "saved_model.keras")
+    def save_pretrained_model(self, model: Model, path: str | Path) -> None:
+        checkpoint_path = Path(path)
+        model_files_path = checkpoint_path / "saved_model.keras"
         model.save(model_files_path)
         logger.info(
-            f"Training session is over. Model {os.path.basename(path)} has been saved"
+            f"Training session is over. Model {checkpoint_path.name} has been saved"
         )
 
     # -------------------------------------------------------------------------
     def save_training_configuration(
         self,
-        path: str,
+        path: str | Path,
         history: dict[str, Any],
         configuration: dict[str, Any],
         metadata: dict[str, Any],
     ) -> None:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        history_path = os.path.join(path, "configuration", "session_history.json")
+        checkpoint_path = Path(path)
+        configuration_path = checkpoint_path / "configuration"
+        config_path = configuration_path / "configuration.json"
+        metadata_path = configuration_path / "metadata.json"
+        history_path = configuration_path / "session_history.json"
 
-        with open(config_path, "w") as f:
+        with config_path.open("w") as f:
             json.dump(configuration, f)
-        with open(metadata_path, "w") as f:
+        with metadata_path.open("w") as f:
             json.dump(metadata, f)
-        with open(history_path, "w") as f:
+        with history_path.open("w") as f:
             json.dump(history, f)
 
         logger.debug(
-            f"Model configuration, session history and metadata saved for {os.path.basename(path)}"
+            f"Model configuration, session history and metadata saved for {checkpoint_path.name}"
         )
 
     # -------------------------------------------------------------------------
-    def load_training_configuration(self, path: str) -> tuple[dict, dict, dict]:
-        config_path = os.path.join(path, "configuration", "configuration.json")
-        with open(config_path) as f:
+    def load_training_configuration(
+        self, path: str | Path
+    ) -> tuple[dict, dict, dict]:
+        checkpoint_path = Path(path)
+        configuration_path = checkpoint_path / "configuration"
+        config_path = configuration_path / "configuration.json"
+        with config_path.open() as f:
             configuration = json.load(f)
 
-        metadata_path = os.path.join(path, "configuration", "metadata.json")
-        with open(metadata_path) as f:
+        metadata_path = configuration_path / "metadata.json"
+        with metadata_path.open() as f:
             metadata = json.load(f)
 
-        history_path = os.path.join(path, "configuration", "session_history.json")
-        with open(history_path) as f:
+        history_path = configuration_path / "session_history.json"
+        with history_path.open() as f:
             history = json.load(f)
 
         return configuration, metadata, history
 
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
-        if not os.path.exists(CHECKPOINT_PATH):
+        if not CHECKPOINT_PATH.exists():
             return []
 
         model_folders = []
-        for entry in os.scandir(CHECKPOINT_PATH):
+        for entry in CHECKPOINT_PATH.iterdir():
             if entry.is_dir():
                 has_keras = any(
-                    f.name.endswith(".keras") and f.is_file()
-                    for f in os.scandir(entry.path)
+                    child.suffix == ".keras" and child.is_file()
+                    for child in entry.iterdir()
                 )
                 if has_keras:
                     model_folders.append(entry.name)
@@ -121,11 +128,11 @@ class ModelSerializer:
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load checkpoint model and configuration for resume training or inference."""
         checkpoint_name = validate_checkpoint_name(checkpoint)
-        base_path = os.path.realpath(CHECKPOINT_PATH)
-        checkpoint_path = os.path.realpath(os.path.join(base_path, checkpoint_name))
-        if os.path.commonpath([base_path, checkpoint_path]) != base_path:
+        base_path = CHECKPOINT_PATH.resolve()
+        checkpoint_path = (base_path / checkpoint_name).resolve()
+        if base_path not in checkpoint_path.parents and checkpoint_path != base_path:
             raise ValueError("Checkpoint path is outside the checkpoints directory")
-        model_path = os.path.join(checkpoint_path, "saved_model.keras")
+        model_path = checkpoint_path / "saved_model.keras"
 
         default_custom_objects = {
             "MaskedSparseCategoricalCrossentropy": MaskedSparseCategoricalCrossentropy,
@@ -147,4 +154,4 @@ class ModelSerializer:
             checkpoint_path
         )
 
-        return model, configuration, metadata, session, checkpoint_path
+        return model, configuration, metadata, session, str(checkpoint_path)

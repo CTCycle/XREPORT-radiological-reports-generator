@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -254,7 +254,7 @@ class TextGenerator:
         image_path: str,
         stream_callback: Callable[[str, int, int], None] | None = None,
     ) -> str:
-        logger.info(f"Generating report for image {os.path.basename(image_path)}")
+        logger.info(f"Generating report for image {Path(image_path).name}")
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
         image = dataloader.prepare_inference_image(image_path)
 
@@ -332,7 +332,7 @@ class TextGenerator:
         length_penalty: float = 0.6,
         stream_callback: Callable[[str, int, int], None] | None = None,
     ) -> str:
-        logger.info(f"Generating report for image {os.path.basename(image_path)}")
+        logger.info(f"Generating report for image {Path(image_path).name}")
         dataloader = XRAYDataLoader(self.configuration, shuffle=False)
         image = dataloader.prepare_inference_image(image_path)
 

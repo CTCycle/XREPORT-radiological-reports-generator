@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -8,7 +8,7 @@ from transformers import AutoTokenizer
 
 from server.common.constants import RESOURCES_PATH
 
-TOKENIZERS_PATH = os.path.join(RESOURCES_PATH, "tokenizers")
+TOKENIZERS_PATH = RESOURCES_PATH / "tokenizers"
 
 
 ###############################################################################
@@ -80,10 +80,10 @@ class TokenizerHandler:
         if tokenizer_name is None:
             return None
 
-        tokenizer_path = os.path.join(TOKENIZERS_PATH, tokenizer_name)
-        os.makedirs(tokenizer_path, exist_ok=True)
+        tokenizer_path = TOKENIZERS_PATH / tokenizer_name
+        tokenizer_path.mkdir(parents=True, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_name, cache_dir=tokenizer_path
+            tokenizer_name, cache_dir=str(tokenizer_path)
         )
         vocabulary_size = len(tokenizer.vocab)
 

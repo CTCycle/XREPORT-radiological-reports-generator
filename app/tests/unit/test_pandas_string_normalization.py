@@ -1,17 +1,15 @@
 import pandas as pd
 import importlib.util
-import os
+from pathlib import Path
 
 
 def load_normalize_string_columns():
-    module_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "server",
-        "repositories",
-        "database",
-        "utils.py",
+    module_path = (
+        Path(__file__).resolve().parents[2]
+        / "server"
+        / "repositories"
+        / "database"
+        / "utils.py"
     )
     spec = importlib.util.spec_from_file_location("xreport_query_common", module_path)
     if spec is None or spec.loader is None:

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import os
 import time
 from collections.abc import Callable
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import keras
@@ -209,8 +209,8 @@ class RealTimeMetricsCallback(Callback):
     ) -> None:
         super().__init__()
         self.configuration = configuration
-        self.plot_path = os.path.join(checkpoint_path, "plots")
-        os.makedirs(self.plot_path, exist_ok=True)
+        self.plot_path = Path(checkpoint_path) / "plots"
+        self.plot_path.mkdir(parents=True, exist_ok=True)
 
         self.total_epochs = 0 if past_logs is None else past_logs.get("epochs", 0)
         self.history: dict[str, Any] = {"history": {}, "epochs": self.total_epochs}
@@ -319,7 +319,7 @@ class RealTimeMetricsCallback(Callback):
         if not base_metrics:
             return
 
-        fig_path = os.path.join(self.plot_path, "training_history.jpeg")
+        fig_path = self.plot_path / "training_history.jpeg"
         rows = len(base_metrics)
         fig, axes = plt.subplots(rows, 1, figsize=(16, 5 * rows))
         if rows == 1:
@@ -342,12 +342,12 @@ class RealTimeMetricsCallback(Callback):
         buffer = BytesIO()
         fig.savefig(buffer, bbox_inches="tight", format="jpeg", dpi=150)
         plot_data = buffer.getvalue()
-        with open(fig_path, "wb") as target:
+        with fig_path.open("wb") as target:
             target.write(plot_data)
 
         # Save final PNG at end of training
         if save_png:
-            png_path = os.path.join(self.plot_path, "training_history.png")
+            png_path = self.plot_path / "training_history.png"
             fig.savefig(png_path, bbox_inches="tight", format="png", dpi=200)
 
         plt.close(fig)
@@ -434,8 +434,8 @@ def initialize_training_callbacks(
     # Checkpoint saving callback
     if configuration.get("save_checkpoints", False):
         logger.debug("Adding checkpoint saving callback")
-        checkpoint_filepath = os.path.join(
-            checkpoint_path, "model_checkpoint_E{epoch:02d}.keras"
+        checkpoint_filepath = str(
+            Path(checkpoint_path) / "model_checkpoint_E{epoch:02d}.keras"
         )
         callbacks_list.append(
             keras.callbacks.ModelCheckpoint(

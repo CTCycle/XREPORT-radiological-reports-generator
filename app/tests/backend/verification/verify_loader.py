@@ -1,5 +1,5 @@
-import os
 import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import cv2
@@ -13,11 +13,12 @@ def verify_loader():
     print("Verifying DataLoader...")
 
     # Create dummy images
-    os.makedirs("temp_images", exist_ok=True)
-    img_path1 = "temp_images/img1.png"
-    img_path2 = "temp_images/img2.png"
-    cv2.imwrite(img_path1, np.zeros((100, 100, 3), dtype=np.uint8))
-    cv2.imwrite(img_path2, np.zeros((100, 100, 3), dtype=np.uint8))
+    temp_images = Path("temp_images")
+    temp_images.mkdir(parents=True, exist_ok=True)
+    img_path1 = temp_images / "img1.png"
+    img_path2 = temp_images / "img2.png"
+    cv2.imwrite(str(img_path1), np.zeros((100, 100, 3), dtype=np.uint8))
+    cv2.imwrite(str(img_path2), np.zeros((100, 100, 3), dtype=np.uint8))
 
     # Create dummy DataFrame
     data = pd.DataFrame(
@@ -105,7 +106,7 @@ def verify_loader():
     # Cleanup
     import shutil
 
-    shutil.rmtree("temp_images")
+    shutil.rmtree(temp_images)
 
 
 if __name__ == "__main__":

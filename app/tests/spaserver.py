@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import functools
-import os
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlparse
 
 
@@ -27,8 +27,8 @@ class SpaRequestHandler(SimpleHTTPRequestHandler):
             return False
 
         relative_path = requested_path.lstrip("/")
-        target_path = os.path.join(self.directory or os.getcwd(), relative_path)
-        return not os.path.isfile(target_path)
+        target_path = Path(self.directory or Path.cwd()) / relative_path
+        return not target_path.is_file()
 
 
 # -----------------------------------------------------------------------------
