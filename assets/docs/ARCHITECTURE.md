@@ -1,6 +1,6 @@
 # XREPORT Architecture
 
-Last updated: 2026-04-24
+Last updated: 2026-05-31
 
 ## 1. System Architecture Overview
 
@@ -149,8 +149,8 @@ All routers are mounted under `/api`.
 - `DELETE /api/inference/jobs/{job_id}`
 
 ### Root behavior
-- Non-Tauri mode: `GET /` redirects to `/docs`
-- Tauri mode (`XREPORT_TAURI_MODE=true` + packaged dist): backend serves SPA files from `XREPORT/client/dist`
+- When `app/client/dist` is available: backend serves SPA files from the built frontend bundle
+- Otherwise: `GET /` redirects to `/docs`
 
 ## 5. Layered Architecture and Responsibilities
 
@@ -188,8 +188,10 @@ From `XREPORT/settings/configurations.json`:
 - `database.embedded_database=false`: PostgreSQL (`database.engine`, host/port/db/user/pass/SSL settings)
 
 ### Initialization behavior
-- SQLite: schema auto-created at startup only when the DB file is missing
-- PostgreSQL: never auto-created at backend startup; manual initialization required (`XREPORT/scripts/initialize_database.py`, exposed via `setup_and_maintenance.bat`)
+- Backend startup performs database initialization before serving requests
+- SQLite: schema creation is ensured against the embedded database file
+- PostgreSQL: database and schema initialization are executed from configured connection settings
+- Additional startup validation ensures required resource directories exist and Tauri mode has a built frontend bundle available
 
 ### Persisted domains
 Core persisted entities include:
