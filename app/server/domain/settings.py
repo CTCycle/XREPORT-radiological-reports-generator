@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -49,6 +51,97 @@ class ServerSettings:
 
 
 ###############################################################################
+def _normalize_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _normalize_int_env(
+    value: str | None,
+    *,
+    default: int,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    if value is None:
+        return default
+    try:
+        parsed = int(value.strip())
+    except (TypeError, ValueError):
+        return default
+    if minimum is not None and parsed < minimum:
+        return default
+    if maximum is not None and parsed > maximum:
+        return default
+    return parsed
+
+
+def _database_env_payload() -> dict[str, Any]:
+    database_url = _normalize_optional_string(os.getenv("XREPORT_DATABASE_URL"))
+    url_parts = urlsplit(database_url) if database_url else None
+    url_username = url_parts.username if url_parts else None
+    url_password = url_parts.password if url_parts else None
+    url_host = url_parts.hostname if url_parts else None
+    url_port = url_parts.port if url_parts and url_parts.port else None
+    url_database_name = None
+    if url_parts:
+        url_database_name = _normalize_optional_string(url_parts.path.lstrip("/"))
+
+    engine = _normalize_optional_string(os.getenv("XREPORT_DB_ENGINE"))
+    if not engine and url_parts and url_parts.scheme:
+        engine = url_parts.scheme
+
+    return {
+        "embedded_database": _normalize_bool_env(
+            os.getenv("XREPORT_DB_EMBEDDED"),
+            default=True,
+        ),
+        "engine": engine or "postgres",
+        "host": _normalize_optional_string(os.getenv("XREPORT_DB_HOST")) or url_host,
+        "port": _normalize_int_env(
+            os.getenv("XREPORT_DB_PORT"),
+            default=url_port or 5432,
+            minimum=1,
+            maximum=65535,
+        ),
+        "database_name": _normalize_optional_string(os.getenv("XREPORT_DB_NAME"))
+        or url_database_name,
+        "username": _normalize_optional_string(os.getenv("XREPORT_DB_USERNAME"))
+        or _normalize_optional_string(url_username),
+        "password": _normalize_optional_string(os.getenv("XREPORT_DB_PASSWORD"))
+        or _normalize_optional_string(url_password),
+        "ssl": _normalize_bool_env(
+            os.getenv("XREPORT_DB_SSL"),
+            default=False,
+        ),
+        "ssl_ca": _normalize_optional_string(os.getenv("XREPORT_DB_SSL_CA")),
+        "connect_timeout": _normalize_int_env(
+            os.getenv("XREPORT_DB_CONNECT_TIMEOUT"),
+            default=30,
+            minimum=1,
+        ),
+        "insert_batch_size": _normalize_int_env(
+            os.getenv("XREPORT_DB_INSERT_BATCH_SIZE"),
+            default=1000,
+            minimum=1,
+        ),
+    }
+
+
+###############################################################################
 class JsonDatabaseSettings(BaseModel):
     embedded_database: bool = True
     engine: str = "postgres"
@@ -72,10 +165,7 @@ class JsonDatabaseSettings(BaseModel):
     )
     @classmethod
     def normalize_optional_strings(cls, value: Any) -> str | None:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+        return _normalize_optional_string(value)
 
     @field_validator("engine", mode="before")
     @classmethod
@@ -124,7 +214,9 @@ class JsonServerSettings(BaseModel):
         populate_by_name=True,
     )
 
-    database: JsonDatabaseSettings = Field(default_factory=JsonDatabaseSettings)
+    database: JsonDatabaseSettings = Field(
+        default_factory=lambda: JsonDatabaseSettings.model_validate(_database_env_payload())
+    )
     global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings)
     features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
@@ -135,11 +227,11 @@ class JsonServerSettings(BaseModel):
     def map_global_alias(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
-        if "global" in value and "global_settings" not in value:
-            mapped = dict(value)
+        mapped = dict(value)
+        if "global" in mapped and "global_settings" not in mapped:
             mapped["global_settings"] = mapped.get("global", {})
-            return mapped
-        return value
+        mapped["database"] = _database_env_payload()
+        return mapped
 
     # -------------------------------------------------------------------------
     def to_server_settings(self) -> ServerSettings:
