@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -25,8 +25,8 @@ from server.repositories.schemas import Base
 ###############################################################################
 class SQLiteRepository:
     def __init__(self, settings: DatabaseSettings) -> None:
-        self.db_path: str | None = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        self.db_path: Path | None = RESOURCES_PATH / DATABASE_FILENAME
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.engine: Engine = sqlalchemy.create_engine(
             f"sqlite:///{self.db_path}", echo=False, future=True
         )

@@ -3,37 +3,29 @@ E2E tests for Training API endpoints.
 Tests: /training/checkpoints, /training/status, /training/start, /training/jobs/{job_id}
 """
 
-import os
 import shutil
 import uuid
+from pathlib import Path
 
 import pytest
 from playwright.sync_api import APIRequestContext
 
 
 def get_checkpoints_root() -> str:
-    return os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "resources",
-            "checkpoints",
-        )
-    )
+    return str(Path(__file__).resolve().parents[2] / "resources" / "checkpoints")
 
 
 def create_checkpoint_fixture(name: str) -> str:
-    checkpoints_root = get_checkpoints_root()
-    checkpoint_dir = os.path.join(checkpoints_root, name)
-    os.makedirs(os.path.join(checkpoint_dir, "nested"), exist_ok=True)
+    checkpoints_root = Path(get_checkpoints_root())
+    checkpoint_dir = checkpoints_root / name
+    (checkpoint_dir / "nested").mkdir(parents=True, exist_ok=True)
 
-    with open(os.path.join(checkpoint_dir, "saved_model.keras"), "w") as file:
+    with (checkpoint_dir / "saved_model.keras").open("w") as file:
         file.write("placeholder")
-    with open(os.path.join(checkpoint_dir, "nested", "artifact.txt"), "w") as file:
+    with (checkpoint_dir / "nested" / "artifact.txt").open("w") as file:
         file.write("nested placeholder")
 
-    return checkpoint_dir
+    return str(checkpoint_dir)
 
 
 class TestTrainingEndpoints:
@@ -100,7 +92,7 @@ class TestTrainingEndpoints:
         try:
             response = api_context.delete(f"/api/training/checkpoints/{checkpoint_name}")
             assert response.ok, f"Expected 200, got {response.status}"
-            assert not os.path.exists(checkpoint_dir)
+            assert not Path(checkpoint_dir).exists()
         finally:
             shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
@@ -136,7 +128,7 @@ class TestTrainingEndpoints:
                 f"/api/training/checkpoints/{checkpoint_name}"
             )
             assert second_response.status == 404
-            assert not os.path.exists(checkpoint_dir)
+            assert not Path(checkpoint_dir).exists()
         finally:
             shutil.rmtree(checkpoint_dir, ignore_errors=True)
 

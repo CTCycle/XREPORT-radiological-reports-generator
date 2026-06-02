@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -55,15 +55,15 @@ LOCAL_FILESYSTEM_DISABLED_ERROR = (
 
 # -----------------------------------------------------------------------------
 def scan_image_folder(folder_path: str) -> list[str]:
-    if not os.path.isdir(folder_path):
+    directory_path = Path(folder_path)
+    if not directory_path.is_dir():
         return []
 
-    image_paths = []
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            ext = os.path.splitext(file)[1].lower()
-            if ext in VALID_IMAGE_EXTENSIONS:
-                image_paths.append(os.path.join(root, file))
+    image_paths = [
+        str(file_path)
+        for file_path in directory_path.rglob("*")
+        if file_path.is_file() and file_path.suffix.lower() in VALID_IMAGE_EXTENSIONS
+    ]
 
     return image_paths
 
@@ -73,9 +73,9 @@ def get_windows_drives() -> list[str]:
     """Get list of available Windows drives."""
     drives = []
     for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-        drive = f"{letter}:\\"
-        if os.path.exists(drive):
-            drives.append(drive)
+        drive = Path(f"{letter}:\\")
+        if drive.exists():
+            drives.append(str(drive))
     return drives
 
 
@@ -83,12 +83,12 @@ def get_windows_drives() -> list[str]:
 def count_images_in_folder(folder_path: str) -> int:
     """Quick count of image files in a folder (non-recursive for speed)."""
     try:
-        count = 0
-        for item in os.listdir(folder_path):
-            ext = os.path.splitext(item)[1].lower()
-            if ext in VALID_IMAGE_EXTENSIONS:
-                count += 1
-        return count
+        directory_path = Path(folder_path)
+        return sum(
+            1
+            for item in directory_path.iterdir()
+            if item.is_file() and item.suffix.lower() in VALID_IMAGE_EXTENSIONS
+        )
     except OSError:
         return 0
 
@@ -261,9 +261,8 @@ class PreparationService:
     def build_images_mapping(self, image_paths: list[str]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for path in image_paths:
-            basename = os.path.basename(path)
-            name_no_ext = os.path.splitext(basename)[0]
-            mapping[name_no_ext] = path
+            image_path = Path(path)
+            mapping[image_path.stem] = str(image_path)
         return mapping
 
     # -----------------------------------------------------------------------------
@@ -325,7 +324,7 @@ class PreparationService:
         for row in rows:
             sample_path = row.sample_path or ""
             # Extract folder path from the sample path
-            folder_path = os.path.dirname(sample_path) if sample_path else ""
+            folder_path = str(Path(sample_path).parent) if sample_path else ""
             datasets.append(
                 DatasetInfo(
                     name=row.name,
@@ -423,7 +422,8 @@ class PreparationService:
                 message="Folder path cannot be empty",
             )
 
-        if not os.path.exists(folder_path):
+        directory_path = Path(folder_path)
+        if not directory_path.exists():
             return ImagePathResponse(
                 valid=False,
                 folder_path=folder_path,
@@ -431,7 +431,7 @@ class PreparationService:
                 message=f"Path does not exist: {folder_path}",
             )
 
-        if not os.path.isdir(folder_path):
+        if not directory_path.is_dir():
             return ImagePathResponse(
                 valid=False,
                 folder_path=folder_path,
@@ -467,7 +467,8 @@ class PreparationService:
         seed = self.server_settings.global_settings.seed
 
         # Validate folder path
-        if not os.path.isdir(folder_path):
+        directory_path = Path(folder_path)
+        if not directory_path.is_dir():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid image folder path: {folder_path}",
@@ -657,37 +658,38 @@ class PreparationService:
         path = path.strip()
 
         # Validate path exists
-        if not os.path.exists(path):
+        directory_path = Path(path)
+        if not directory_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Path not found: {path}",
             )
 
-        if not os.path.isdir(path):
+        if not directory_path.is_dir():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Path is not a directory: {path}",
             )
 
         # Get parent path
-        parent_path = os.path.dirname(path)
-        if parent_path == path:  # At drive root
+        parent = directory_path.parent
+        parent_path = str(parent)
+        if parent == directory_path:  # At drive root
             parent_path = ""  # Return to drives list
 
         # List directory contents
         items: list[DirectoryItem] = []
         try:
-            for item_name in sorted(os.listdir(path)):
-                item_path = os.path.join(path, item_name)
-                is_dir = os.path.isdir(item_path)
+            for item_path in sorted(directory_path.iterdir(), key=lambda item: item.name):
+                is_dir = item_path.is_dir()
 
                 # Only include directories (not files) for navigation
                 if is_dir:
-                    image_count = count_images_in_folder(item_path)
+                    image_count = count_images_in_folder(str(item_path))
                     items.append(
                         DirectoryItem(
-                            name=item_name,
-                            path=item_path,
+                            name=item_path.name,
+                            path=str(item_path),
                             is_dir=True,
                             image_count=image_count,
                         )
@@ -745,7 +747,7 @@ class PreparationService:
         path = row[2] or ""
 
         # Check if file exists
-        valid_path = os.path.exists(path) if path else False
+        valid_path = Path(path).exists() if path else False
 
         return ImageMetadataResponse(
             dataset_name=dataset_name,
@@ -781,14 +783,14 @@ class PreparationService:
 
         path = row[2]
 
-        if not path or not os.path.exists(path):
+        if not path or not Path(path).exists():
             # Elegant warning message as requested
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Source file not found at {path}",
             )
 
-        return os.path.abspath(path)
+        return str(Path(path).resolve())
 
 ###############################################################################
 @lru_cache(maxsize=1)
