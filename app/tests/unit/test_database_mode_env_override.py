@@ -1,33 +1,36 @@
 from __future__ import annotations
 
+import pytest
+
 from server.domain.settings import JsonServerSettings
 
 
-def _payload() -> dict[str, object]:
-    return {
-        "embedded_database": True,
-        "engine": "postgres",
-        "host": "json-host",
-        "port": 5432,
-        "database_name": "json_db",
-        "username": "json_user",
-        "password": "json_password",
-        "ssl": False,
-        "ssl_ca": None,
-        "connect_timeout": 20,
-        "insert_batch_size": 800,
-    }
+@pytest.fixture(autouse=True)
+def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in (
+        "XREPORT_DB_EMBEDDED",
+        "XREPORT_DATABASE_URL",
+        "XREPORT_DB_ENGINE",
+        "XREPORT_DB_HOST",
+        "XREPORT_DB_PORT",
+        "XREPORT_DB_NAME",
+        "XREPORT_DB_USERNAME",
+        "XREPORT_DB_PASSWORD",
+        "XREPORT_DB_SSL",
+        "XREPORT_DB_SSL_CA",
+        "XREPORT_DB_CONNECT_TIMEOUT",
+        "XREPORT_DB_INSERT_BATCH_SIZE",
+    ):
+        monkeypatch.delenv(key, raising=False)
 
 
-def _build_database_settings(payload: dict[str, object]):
-    settings = JsonServerSettings.model_validate({"database": payload})
+def _build_database_settings():
+    settings = JsonServerSettings.model_validate({})
     return settings.to_server_settings().database
 
 
-def test_db_embedded_payload_uses_sqlite_defaults() -> None:
-    payload = _payload()
-
-    settings = _build_database_settings(payload)
+def test_db_embedded_env_uses_sqlite_defaults() -> None:
+    settings = _build_database_settings()
 
     assert settings.embedded_database is True
     assert settings.engine is None
@@ -35,40 +38,51 @@ def test_db_embedded_payload_uses_sqlite_defaults() -> None:
     assert settings.port is None
 
 
-def test_external_db_uses_payload_values() -> None:
-    payload = _payload()
-    payload["embedded_database"] = False
-    payload["host"] = "json-host"
-    payload["port"] = 1000
-    payload["database_name"] = "json_db"
-    payload["username"] = "json_user"
-    payload["password"] = "json_password"
-    payload["ssl"] = True
-    payload["ssl_ca"] = "/tmp/ca.pem"
-    payload["connect_timeout"] = 45
-    payload["insert_batch_size"] = 77
+def test_external_db_uses_component_env_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "false")
+    monkeypatch.setenv("XREPORT_DB_ENGINE", "postgres")
+    monkeypatch.setenv("XREPORT_DB_HOST", "env-host")
+    monkeypatch.setenv("XREPORT_DB_PORT", "1000")
+    monkeypatch.setenv("XREPORT_DB_NAME", "env_db")
+    monkeypatch.setenv("XREPORT_DB_USERNAME", "env_user")
+    monkeypatch.setenv("XREPORT_DB_PASSWORD", "env_password")
+    monkeypatch.setenv("XREPORT_DB_SSL", "true")
+    monkeypatch.setenv("XREPORT_DB_SSL_CA", "/tmp/ca.pem")
+    monkeypatch.setenv("XREPORT_DB_CONNECT_TIMEOUT", "45")
+    monkeypatch.setenv("XREPORT_DB_INSERT_BATCH_SIZE", "77")
 
-    settings = _build_database_settings(payload)
+    settings = _build_database_settings()
 
     assert settings.embedded_database is False
     assert settings.engine == "postgres"
-    assert settings.host == "json-host"
+    assert settings.host == "env-host"
     assert settings.port == 1000
-    assert settings.database_name == "json_db"
-    assert settings.username == "json_user"
-    assert settings.password == "json_password"
+    assert settings.database_name == "env_db"
+    assert settings.username == "env_user"
+    assert settings.password == "env_password"
     assert settings.ssl is True
     assert settings.ssl_ca == "/tmp/ca.pem"
     assert settings.connect_timeout == 45
     assert settings.insert_batch_size == 77
 
 
-def test_external_db_normalizes_engine_value() -> None:
-    payload = _payload()
-    payload["embedded_database"] = False
-    payload["engine"] = "PoStGreSQL+PsYcOpG"
+def test_external_db_merges_database_url_with_component_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "false")
+    monkeypatch.setenv(
+        "XREPORT_DATABASE_URL",
+        "postgresql+psycopg://url_user:url_password@url-host:6789/url_db",
+    )
+    monkeypatch.setenv("XREPORT_DB_PORT", "1000")
+    monkeypatch.setenv("XREPORT_DB_PASSWORD", "env_password")
 
-    settings = _build_database_settings(payload)
+    settings = _build_database_settings()
 
     assert settings.embedded_database is False
     assert settings.engine == "postgresql+psycopg"
+    assert settings.host == "url-host"
+    assert settings.port == 1000
+    assert settings.database_name == "url_db"
+    assert settings.username == "url_user"
+    assert settings.password == "env_password"

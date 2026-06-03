@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import re
+from pathlib import Path, PureWindowsPath
 
 from server.common.constants import CHECKPOINT_PATH
 
@@ -23,13 +23,11 @@ def validate_checkpoint_name(name: str) -> str:
         raise ValueError(
             f"Checkpoint name cannot exceed {MAX_CHECKPOINT_NAME_LENGTH} characters"
         )
-    if os.path.sep in normalized or (
-        os.path.altsep and os.path.altsep in normalized
-    ):
+    if "/" in normalized or "\\" in normalized:
         raise ValueError("Checkpoint name must not contain path separators")
-    if os.path.isabs(normalized):
+    if Path(normalized).is_absolute() or PureWindowsPath(normalized).is_absolute():
         raise ValueError("Checkpoint path must be relative")
-    if os.path.splitdrive(normalized)[0]:
+    if PureWindowsPath(normalized).drive:
         raise ValueError("Checkpoint name must not include a drive letter")
     if not CHECKPOINT_NAME_PATTERN.fullmatch(normalized):
         raise ValueError(
@@ -41,11 +39,11 @@ def validate_checkpoint_name(name: str) -> str:
 # -----------------------------------------------------------------------------
 def resolve_checkpoint_path(name: str) -> str:
     checkpoint_name = validate_checkpoint_name(name)
-    base_path = os.path.realpath(CHECKPOINT_PATH)
-    target_path = os.path.realpath(os.path.join(base_path, checkpoint_name))
-    if os.path.commonpath([base_path, target_path]) != base_path:
+    base_path = CHECKPOINT_PATH.resolve()
+    target_path = (base_path / checkpoint_name).resolve()
+    if base_path not in target_path.parents and target_path != base_path:
         raise ValueError("Checkpoint path is outside the checkpoints directory")
-    return target_path
+    return str(target_path)
 
 
 # -----------------------------------------------------------------------------

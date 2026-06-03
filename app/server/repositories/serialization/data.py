@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -250,7 +250,7 @@ class DataSerializer:
             [
                 {
                     "name": checkpoint_name,
-                    "path": os.path.join(CHECKPOINT_PATH, checkpoint_name),
+                    "path": str(CHECKPOINT_PATH / checkpoint_name),
                     "created_at": self._now_utc(),
                 }
             ]
@@ -317,7 +317,7 @@ class DataSerializer:
             return pd.DataFrame()
 
         valid_mask = dataset["path"].apply(
-            lambda item: os.path.isfile(item) if pd.notna(item) else False
+            lambda item: Path(item).is_file() if pd.notna(item) else False
         )
         clean_dataset = dataset[valid_mask].reset_index(drop=True)
         dropped = len(dataset) - len(clean_dataset)
@@ -331,21 +331,22 @@ class DataSerializer:
 
     # -------------------------------------------------------------------------
     def get_img_path_from_directory(
-        self, path: str, sample_size: float = 1.0
+        self, path: str | Path, sample_size: float = 1.0
     ) -> list[str]:
-        if not os.listdir(path):
+        directory_path = Path(path)
+        if not any(directory_path.iterdir()):
             logger.error("No images found in %s, please add them and try again.", path)
             return []
 
         logger.debug("Valid extensions are: %s", self.valid_extensions)
-        images_path: list[str] = []
-        for root, _, files in os.walk(path):
-            if sample_size < 1.0:
-                files = files[: int(sample_size * len(files))]
-            for file in files:
-                if os.path.splitext(file)[1].lower() in self.valid_extensions:
-                    images_path.append(os.path.join(root, file))
-        return images_path
+        matching_files = [
+            file_path
+            for file_path in directory_path.rglob("*")
+            if file_path.is_file() and file_path.suffix.lower() in self.valid_extensions
+        ]
+        if sample_size < 1.0:
+            matching_files = matching_files[: int(sample_size * len(matching_files))]
+        return [str(file_path) for file_path in matching_files]
 
     # -------------------------------------------------------------------------
     def load_source_dataset(

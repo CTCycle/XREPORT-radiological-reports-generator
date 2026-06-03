@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import io
-import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -14,6 +14,11 @@ from server.domain.training import DatasetUploadResponse
 
 
 MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
+
+
+# -----------------------------------------------------------------------------
+def _sanitize_filename(filename: str) -> str:
+    return Path(filename.replace("\\", "/")).name
 
 
 ###############################################################################
@@ -55,13 +60,13 @@ class UploadService:
                 detail="No file provided",
             )
 
-        filename = os.path.basename(filename.strip())
+        filename = _sanitize_filename(filename.strip())
         if not filename:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid file name",
             )
-        ext = os.path.splitext(filename)[1].lower()
+        ext = Path(filename).suffix.lower()
 
         if ext not in {".csv", ".xlsx"}:
             raise HTTPException(
@@ -79,7 +84,7 @@ class UploadService:
                     ),
                 )
 
-            raw_dataset_name = os.path.splitext(filename)[0]
+            raw_dataset_name = Path(filename).stem
             dataset_name = sanitize_dataset_name(raw_dataset_name)
 
             if ext == ".csv":

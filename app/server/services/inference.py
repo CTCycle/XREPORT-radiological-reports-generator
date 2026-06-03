@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import os
 import threading
 import uuid
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -34,6 +34,12 @@ from server.configurations.startup import get_server_settings
 
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
+
+
+# -----------------------------------------------------------------------------
+def _sanitize_filename(filename: str) -> str:
+    return Path(filename.replace("\\", "/")).name
+
 
 ###############################################################################
 class InferenceImageStore:
@@ -250,14 +256,14 @@ class InferenceService:
 
         try:
             checkpoint_dir = resolve_checkpoint_path(checkpoint)
-            checkpoint = os.path.basename(checkpoint_dir)
+            checkpoint = Path(checkpoint_dir).name
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             )
-        checkpoint_path = os.path.join(checkpoint_dir, "saved_model.keras")
-        if not os.path.isfile(checkpoint_path):
+        checkpoint_path = Path(checkpoint_dir) / "saved_model.keras"
+        if not checkpoint_path.is_file():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Checkpoint not found: {checkpoint}",
@@ -272,14 +278,14 @@ class InferenceService:
     ) -> int:
         total_bytes = 0
         for image in images:
-            filename = os.path.basename(image.filename.strip())
+            filename = _sanitize_filename(image.filename.strip())
             if not filename:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Image upload missing filename",
                 )
             content_type = image.content_type or ""
-            extension = os.path.splitext(filename)[1].lower()
+            extension = Path(filename).suffix.lower()
             if (
                 content_type not in INFERENCE_IMAGE_CONTENT_TYPES
                 and extension not in INFERENCE_IMAGE_EXTENSIONS

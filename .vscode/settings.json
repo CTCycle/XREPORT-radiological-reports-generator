@@ -1,0 +1,16 @@
+{
+  "sonarlint.connectedMode.project": {
+    "connectionId": "ctcycle",
+    "projectKey": "CTCycle_AEGIS-geographics"
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/app/server/.venv/Scripts/python.exe",
+  "python.terminal.useEnvFile": true,
+  "python.terminal.activateEnvironment": true,
+  "python-envs.pythonProjects": [
+    {
+      "path": "app/server",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
+}

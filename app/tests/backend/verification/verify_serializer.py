@@ -1,10 +1,10 @@
 import pandas as pd
 import sys
-import os
 import unittest
+from pathlib import Path
 
 # Add project root to path
-sys.path.append(os.getcwd())
+sys.path.append(str(Path.cwd()))
 
 from server.repositories.serialization.data import DataSerializer
 
@@ -70,6 +70,6 @@ class TestDataSerializer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    with open("verify_output.txt", "w") as f:
+    with Path("verify_output.txt").open("w") as f:
         runner = unittest.TextTestRunner(stream=f, verbosity=2)
         unittest.main(testRunner=runner, exit=False)

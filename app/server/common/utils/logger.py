@@ -3,16 +3,14 @@ from __future__ import annotations
 import logging
 import logging.config
 from datetime import datetime
-from os import makedirs
-from os.path import join
 
 from server.common.constants import LOGS_PATH
 
 
 ###############################################################################
-makedirs(LOGS_PATH, exist_ok=True)
+LOGS_PATH.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = join(LOGS_PATH, f"XREPORT_{current_timestamp}.log")
+log_filename = LOGS_PATH / f"XREPORT_{current_timestamp}.log"
 
 LOG_CONFIG = {
     "version": 1,
@@ -36,7 +34,7 @@ LOG_CONFIG = {
             "class": "logging.FileHandler",
             "level": "DEBUG",
             "formatter": "default",
-            "filename": log_filename,
+            "filename": str(log_filename),
             "mode": "a",
             "encoding": "utf-8",
         },

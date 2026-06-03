@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import os
-import warnings
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
@@ -13,52 +14,73 @@ from server.api.training import router as training_router
 from server.api.upload import router as upload_router
 from server.api.validation import router as validation_router
 from server.common.constants import (
+    CLIENT_ASSETS_PATH,
+    CLIENT_INDEX_FILE_PATH,
+    CLIENT_DIST_PATH,
+    FASTAPI_API_PREFIX,
+    FASTAPI_ASSETS_ENDPOINT,
     FASTAPI_DESCRIPTION,
+    FASTAPI_DOCS_ENDPOINT,
+    FASTAPI_ROOT_ENDPOINT,
+    FASTAPI_SPA_FALLBACK_ENDPOINT,
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
-from server.configurations.environment import load_environment
-
-warnings.filterwarnings("ignore", category=FutureWarning)
-
-
-def tauri_mode_enabled() -> bool:
-    value = os.getenv("XREPORT_TAURI_MODE", "false").strip().lower()
-    return value in {"1", "true", "yes", "on"}
+from server.configurations import get_server_settings
+from server.repositories.database.initializer import initialize_database
+from server.services.startup_validation import run_startup_validations
 
 
-def get_client_dist_path() -> str:
-    project_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    return os.path.join(project_path, "client", "dist")
+def _client_build_available() -> bool:
+    return Path(CLIENT_INDEX_FILE_PATH).is_file()
 
 
-def packaged_client_available() -> bool:
-    return tauri_mode_enabled() and os.path.isdir(get_client_dist_path())
+def _resolve_client_file(full_path: str) -> Path | None:
+    client_root = Path(CLIENT_DIST_PATH).resolve()
+    requested_path = (client_root / full_path).resolve()
+
+    if not requested_path.is_relative_to(client_root):
+        return None
+
+    if requested_path.is_file():
+        return requested_path
+
+    return None
 
 
-def serve_spa_root() -> FileResponse:
-    return FileResponse(os.path.join(get_client_dist_path(), "index.html"))
+def serve_client_root() -> FileResponse:
+    return FileResponse(CLIENT_INDEX_FILE_PATH)
 
 
-def serve_spa_entrypoint(full_path: str) -> FileResponse:
-    client_dist_path = get_client_dist_path()
-    requested_path = os.path.join(client_dist_path, full_path)
-    if os.path.isfile(requested_path):
-        return FileResponse(requested_path)
-    return FileResponse(os.path.join(client_dist_path, "index.html"))
+def serve_client_path(full_path: str) -> FileResponse:
+    client_file = _resolve_client_file(full_path)
+    if client_file is not None:
+        return FileResponse(client_file)
+    return FileResponse(CLIENT_INDEX_FILE_PATH)
 
 
-def redirect_to_docs() -> RedirectResponse:
-    return RedirectResponse(url="/docs")
+def redirect_root_to_docs() -> RedirectResponse:
+    return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
+
+
+@asynccontextmanager
+async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    settings = get_server_settings()
+
+    initialize_database(settings.database)
+    run_startup_validations(settings)
+
+    application.state.server_settings = settings
+
+    yield
 
 
 def create_app() -> FastAPI:
-    load_environment()
-
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
         description=FASTAPI_DESCRIPTION,
+        lifespan=app_lifespan,
     )
 
     for router in (
@@ -68,34 +90,36 @@ def create_app() -> FastAPI:
         validation_router,
         inference_router,
     ):
-        application.include_router(router, prefix="/api")
+        application.include_router(router, prefix=FASTAPI_API_PREFIX)
 
-    if packaged_client_available():
-        assets_path = os.path.join(get_client_dist_path(), "assets")
-        if os.path.isdir(assets_path):
+    if _client_build_available():
+        if Path(CLIENT_ASSETS_PATH).is_dir():
             application.mount(
-                "/assets",
-                StaticFiles(directory=assets_path),
+                FASTAPI_ASSETS_ENDPOINT,
+                StaticFiles(directory=CLIENT_ASSETS_PATH),
                 name="spa-assets",
             )
         application.add_api_route(
-            "/",
-            serve_spa_root,
+            FASTAPI_ROOT_ENDPOINT,
+            serve_client_root,
             methods=["GET"],
             include_in_schema=False,
         )
         application.add_api_route(
-            "/{full_path:path}",
-            serve_spa_entrypoint,
+            FASTAPI_SPA_FALLBACK_ENDPOINT,
+            serve_client_path,
             methods=["GET"],
             include_in_schema=False,
         )
     else:
-        application.add_api_route("/", redirect_to_docs, methods=["GET"])
+        application.add_api_route(
+            FASTAPI_ROOT_ENDPOINT,
+            redirect_root_to_docs,
+            methods=["GET"],
+            include_in_schema=False,
+        )
 
     return application
 
 
-###############################################################################
 app = create_app()
-

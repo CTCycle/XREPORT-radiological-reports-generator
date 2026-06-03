@@ -40,7 +40,6 @@ package-lock.json
 yarn.lock
 
 # IDE / OS
-.vscode/
 !.vscode/extensions.json
 .idea/
 .DS_Store

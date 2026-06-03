@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Protocol
 
 import pandas as pd
@@ -17,7 +17,7 @@ from server.repositories.schemas import Base
 
 ###############################################################################
 class DatabaseBackend(Protocol):
-    db_path: str | None
+    db_path: Path | None
     engine: Any
 
     # -------------------------------------------------------------------------
@@ -73,8 +73,8 @@ class XREPORTDatabase:
         sqlite_db_path: str | None = None
         sqlite_database_exists = True
         if normalized_name == "sqlite":
-            sqlite_db_path = os.path.join(RESOURCES_PATH, DATABASE_FILENAME)
-            sqlite_database_exists = os.path.exists(sqlite_db_path)
+            sqlite_db_path = RESOURCES_PATH / DATABASE_FILENAME
+            sqlite_database_exists = sqlite_db_path.exists()
         factory = BACKEND_FACTORIES[normalized_name]
         backend = factory(self.settings)
         if normalized_name == "sqlite" and not sqlite_database_exists:
@@ -87,7 +87,7 @@ class XREPORTDatabase:
 
     # -------------------------------------------------------------------------
     @property
-    def db_path(self) -> str | None:
+    def db_path(self) -> Path | None:
         return getattr(self.backend, "db_path", None)
 
     # -------------------------------------------------------------------------

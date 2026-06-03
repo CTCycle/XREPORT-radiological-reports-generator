@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import os
 import shutil
 import time
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -388,7 +388,7 @@ class TrainingService:
         for name in checkpoint_names:
             try:
                 # Only load JSON configuration files, NOT the model
-                checkpoint_path = os.path.join(CHECKPOINT_PATH, name)
+                checkpoint_path = CHECKPOINT_PATH / name
                 _, _, session = modser.load_training_configuration(checkpoint_path)
                 checkpoints.append(
                     CheckpointInfo(
@@ -426,7 +426,8 @@ class TrainingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-        if not os.path.isdir(checkpoint_path):
+        checkpoint_path_obj = Path(checkpoint_path)
+        if not checkpoint_path_obj.is_dir():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Checkpoint not found: {checkpoint}",
@@ -473,14 +474,15 @@ class TrainingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-        if not os.path.isdir(checkpoint_path):
+        checkpoint_path_obj = Path(checkpoint_path)
+        if not checkpoint_path_obj.is_dir():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
         try:
-            shutil.rmtree(checkpoint_path)
+            shutil.rmtree(checkpoint_path_obj)
         except OSError as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -597,14 +599,15 @@ class TrainingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-        if not os.path.isdir(checkpoint_path):
+        checkpoint_path_obj = Path(checkpoint_path)
+        if not checkpoint_path_obj.is_dir():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
         try:
-            _, _, session = modser.load_training_configuration(checkpoint_path)
+            _, _, session = modser.load_training_configuration(checkpoint_path_obj)
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
