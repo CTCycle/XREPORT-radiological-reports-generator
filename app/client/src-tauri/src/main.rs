@@ -195,6 +195,19 @@ fn push_with_ancestors(base: &Path, candidates: &mut Vec<PathBuf>) {
     }
 }
 
+fn workspace_root_from_candidate(candidate: &Path) -> Option<PathBuf> {
+    if is_workspace_root(candidate) {
+        return Some(candidate.to_path_buf());
+    }
+
+    let runtime_child = candidate.join("runtime");
+    if is_workspace_root(&runtime_child) {
+        return Some(runtime_child);
+    }
+
+    None
+}
+
 fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
@@ -216,8 +229,10 @@ fn find_workspace_root(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
     let mut seen: HashSet<PathBuf> = HashSet::new();
     let mut workspace_candidates: Vec<PathBuf> = Vec::new();
     for candidate in candidates {
-        if seen.insert(candidate.clone()) && is_workspace_root(&candidate) {
-            workspace_candidates.push(candidate);
+        if seen.insert(candidate.clone()) {
+            if let Some(workspace_root) = workspace_root_from_candidate(&candidate) {
+                workspace_candidates.push(workspace_root);
+            }
         }
     }
 
