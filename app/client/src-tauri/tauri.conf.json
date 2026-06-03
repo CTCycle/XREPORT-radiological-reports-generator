@@ -33,25 +33,24 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../server/api": "app/server/api",
-      "../../server/common": "app/server/common",
-      "../../server/configurations": "app/server/configurations",
-      "../../server/domain": "app/server/domain",
-      "../../server/learning": "app/server/learning",
-      "../../server/repositories": "app/server/repositories",
-      "../../server/services": "app/server/services",
-      "../../server/__init__.py": "app/server/__init__.py",
-      "../../server/app.py": "app/server/app.py",
-      "../../server/pyproject.toml": "app/server/pyproject.toml",
-      "../../server/uv.lock": "app/server/uv.lock",
-      "../../scripts": "app/scripts",
-      "../../../settings": "settings",
-      "../dist": "app/client/dist",
-      "../../resources/templates": "app/resources/templates",
-      "../../resources/tokenizers/distilbert-base-uncased": "app/resources/tokenizers/distilbert-base-uncased",
-      "../../../runtimes/python": "runtimes/python",
-      "../../../runtimes/uv": "runtimes/uv",
-      "../../../runtimes/nodejs": "runtimes/nodejs"
+      "../../server/api": "runtime/app/server/api",
+      "../../server/common": "runtime/app/server/common",
+      "../../server/configurations": "runtime/app/server/configurations",
+      "../../server/domain": "runtime/app/server/domain",
+      "../../server/learning": "runtime/app/server/learning",
+      "../../server/repositories": "runtime/app/server/repositories",
+      "../../server/services": "runtime/app/server/services",
+      "../../server/__init__.py": "runtime/app/server/__init__.py",
+      "../../server/app.py": "runtime/app/server/app.py",
+      "../../server/pyproject.toml": "runtime/app/server/pyproject.toml",
+      "../../server/uv.lock": "runtime/app/server/uv.lock",
+      "../../scripts": "runtime/app/scripts",
+      "../../../settings": "runtime/settings",
+      "../dist": "runtime/app/client/dist",
+      "../../resources/templates": "runtime/app/resources/templates",
+      "../../resources/tokenizers/distilbert-base-uncased": "runtime/app/resources/tokenizers/distilbert-base-uncased",
+      "../../../runtimes/python": "runtime/runtimes/python",
+      "../../../runtimes/uv": "runtime/runtimes/uv"
     }
   }
 }
