@@ -25,6 +25,6 @@ if __name__ == "__main__":
         "Current database configuration: %s",
         json.dumps(asdict(server_settings.database), ensure_ascii=False),
     )
-    initialize_database()
+    initialize_database(server_settings.database)
     elapsed = time.perf_counter() - start
     logger.info("Database initialization completed in %.2f seconds", elapsed)
