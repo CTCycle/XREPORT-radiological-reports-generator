@@ -1,14 +1,15 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main", "develop"]
   pull_request:
     branches: ["main", "develop"]
 
 jobs:
-  backend-sanity:
-    name: Backend Sanity
+  validation:
+    name: Backend And Client Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +21,27 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Verify Python files compile
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+
+      - name: Sync backend dependencies
         working-directory: app/server
-        run: |
-          python -m compileall app.py api common configurations domain learning repositories services
+        run: uv sync --frozen --extra test
+
+      - name: Run backend unit tests
+        run: app/server/.venv/bin/python -m pytest app/tests/unit -q
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: app/client
+        run: npm ci
+
+      - name: Build client
+        working-directory: app/client
+        run: npm run build
