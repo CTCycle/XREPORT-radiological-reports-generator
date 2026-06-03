@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import os
-
 from collections.abc import Callable
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -140,7 +139,7 @@ class DatasetValidator:
         log_interval = max(1, total_images // 10)  # Log every 10%
 
         for idx, path in enumerate(image_paths):
-            if not os.path.exists(path):
+            if not Path(path).exists():
                 continue
 
             img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -241,7 +240,7 @@ class DatasetValidator:
         processed = 0
 
         for idx, path in enumerate(image_paths):
-            if not os.path.exists(path):
+            if not Path(path).exists():
                 continue
 
             img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)

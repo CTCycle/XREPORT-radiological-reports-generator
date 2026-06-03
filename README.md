@@ -99,6 +99,8 @@ npm run preview -- --host 127.0.0.1 --port 8003
 
 ### 4.3 UI Snapshots
 
+The snapshots below were captured from the current Windows desktop build at 1440×920.
+
 - **Dataset management**: data source selection and dataset processing configuration.
   ![Dataset management page](assets/figures/readme-dataset.png)
 - **Training workspace**: training session setup, checkpoint actions, and training dashboard.
