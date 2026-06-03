@@ -18,6 +18,7 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 
 $installersDir = Join-Path $outputDir "installers"
 $portableDir = Join-Path $outputDir "portable"
+$portableRuntimeDir = Join-Path $portableDir "runtime"
 
 if (-not (Test-Path $bundleDir)) {
   throw "Bundle directory not found. Run 'npm run tauri:build' first. Missing: $bundleDir"
@@ -58,11 +59,11 @@ foreach ($file in $portableExeCandidates) {
 }
 
 $requiredReleaseEntries = @(
-  @{ Name = "backend payload"; Path = (Join-Path $releaseDir "app") },
-  @{ Name = "settings payload"; Path = (Join-Path $releaseDir "settings") },
-  @{ Name = "runtime payload"; Path = (Join-Path $releaseDir "runtimes") },
-  @{ Name = "server pyproject.toml"; Path = (Join-Path $releaseDir "app\server\pyproject.toml") },
-  @{ Name = "server uv.lock"; Path = (Join-Path $releaseDir "app\server\uv.lock") }
+  @{ Name = "backend payload"; Path = (Join-Path $releaseDir "runtime\app") },
+  @{ Name = "settings payload"; Path = (Join-Path $releaseDir "runtime\settings") },
+  @{ Name = "runtime payload"; Path = (Join-Path $releaseDir "runtime\runtimes") },
+  @{ Name = "server pyproject.toml"; Path = (Join-Path $releaseDir "runtime\app\server\pyproject.toml") },
+  @{ Name = "server uv.lock"; Path = (Join-Path $releaseDir "runtime\app\server\uv.lock") }
 )
 
 foreach ($entry in $requiredReleaseEntries) {
@@ -72,9 +73,7 @@ foreach ($entry in $requiredReleaseEntries) {
 }
 
 $portableResourceEntries = @(
-  "app",
-  "settings",
-  "runtimes",
+  "runtime",
   "_up_"
 )
 
@@ -93,7 +92,7 @@ XREPORT desktop build output
    Open installers\ and run the setup executable (.exe) or .msi.
 
 2) Portable executable:
-   portable\ contains the app .exe and the required runtime resource payload.
+   portable\ contains the app .exe and a sibling runtime\ folder with the required payload.
    Keep the exported contents together in the same directory.
 
 Generated from:
@@ -102,12 +101,12 @@ $bundleDir
 Set-Content -Path (Join-Path $outputDir "README.txt") -Value $instructions -Encoding ascii
 
 $requiredPortablePaths = @(
-  (Join-Path $portableDir "runtimes\uv\uv.exe"),
-  (Join-Path $portableDir "runtimes\python\python.exe"),
-  (Join-Path $portableDir "app"),
-  (Join-Path $portableDir "settings"),
-  (Join-Path $portableDir "app\server\pyproject.toml"),
-  (Join-Path $portableDir "app\server\uv.lock")
+  (Join-Path $portableRuntimeDir "runtimes\uv\uv.exe"),
+  (Join-Path $portableRuntimeDir "runtimes\python\python.exe"),
+  (Join-Path $portableRuntimeDir "app"),
+  (Join-Path $portableRuntimeDir "settings"),
+  (Join-Path $portableRuntimeDir "app\server\pyproject.toml"),
+  (Join-Path $portableRuntimeDir "app\server\uv.lock")
 )
 
 foreach ($requiredPath in $requiredPortablePaths) {
