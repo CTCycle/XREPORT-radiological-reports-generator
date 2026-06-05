@@ -9,7 +9,7 @@ from typing import Any
 from keras import Model
 from keras.models import load_model
 
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINT_PATH
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
 from server.learning.training.encoder import BeitXRayImageEncoder

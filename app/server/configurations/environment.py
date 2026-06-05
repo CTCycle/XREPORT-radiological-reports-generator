@@ -7,7 +7,7 @@ from threading import Lock
 
 from dotenv import load_dotenv
 
-from server.common.constants import ENV_FILE_PATH
+from server.common.path import ENV_FILE_PATH
 from server.common.utils.logger import logger
 
 
@@ -25,7 +25,7 @@ def _environment_state() -> _EnvironmentState:
 ###############################################################################
 def load_environment(*, force: bool = False) -> Path | None:
     state = _environment_state()
-    env_path = Path(ENV_FILE_PATH)
+    env_path = ENV_FILE_PATH
     with state.lock:
         if state.loaded and not force:
             return env_path if env_path.exists() else None
