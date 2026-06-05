@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Shared Configuration Sources
 
@@ -18,6 +18,18 @@ Last updated: 2026-06-03
 - `OPTIONAL_DEPENDENCIES`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
+- `XREPORT_DB_EMBEDDED`
+- `XREPORT_DATABASE_URL`
+- `XREPORT_DB_ENGINE`
+- `XREPORT_DB_HOST`
+- `XREPORT_DB_PORT`
+- `XREPORT_DB_NAME`
+- `XREPORT_DB_USERNAME`
+- `XREPORT_DB_PASSWORD`
+- `XREPORT_DB_SSL`
+- `XREPORT_DB_SSL_CA`
+- `XREPORT_DB_CONNECT_TIMEOUT`
+- `XREPORT_DB_INSERT_BATCH_SIZE`
 
 Expected value note:
 
@@ -25,15 +37,15 @@ Expected value note:
 
 ## Database Mode Switch
 
-From `configurations.json`:
+From `XREPORT/settings/.env`:
 
-- `database.embedded_database=true` selects SQLite
-- `database.embedded_database=false` selects PostgreSQL
+- `XREPORT_DB_EMBEDDED=true` selects SQLite
+- `XREPORT_DB_EMBEDDED=false` selects PostgreSQL
 
 Initialization differences:
 
 - SQLite ensures schema initialization at backend startup.
-- PostgreSQL performs database and schema initialization during backend startup using configured connection settings.
+- PostgreSQL performs database and schema initialization during backend startup using `.env` connection settings.
 
 ## Interoperability
 

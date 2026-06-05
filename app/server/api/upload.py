@@ -14,7 +14,7 @@ class UploadEndpoint:
         self.router = router
         self.upload_service = upload_service
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     async def upload_dataset(
         self, file: UploadFile = File(...)
     ) -> DatasetUploadResponse:
@@ -24,7 +24,7 @@ class UploadEndpoint:
             contents=contents,
         )
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     def add_routes(self) -> None:
         """Register all upload-related routes."""
         self.router.add_api_route(

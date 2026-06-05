@@ -64,7 +64,7 @@ class TokenizerCallGuard:
         raise AssertionError("Tokenizer loading must not happen in XRAYDataLoader init")
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
     model = FakeModel()
@@ -88,7 +88,7 @@ def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     assert model.fit_validation_steps == 2
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_xray_dataloader_init_does_not_load_tokenizer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

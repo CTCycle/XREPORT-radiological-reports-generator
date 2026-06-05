@@ -43,7 +43,7 @@ def test_cancel_running_job_marks_stop_requested_only() -> None:
     assert final_status["status"] == "cancelled"
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_cancel_pending_job_transitions_to_cancelled() -> None:
     manager = JobManager()
     job_id = "manual_pending"

@@ -138,14 +138,15 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 ## 7. Configuration
 
 - Runtime/process settings: `settings/.env`
-- Backend defaults (including DB mode): `settings/configurations.json`
+- Backend defaults: `settings/configurations.json`
+- Database configuration: `settings/.env`
 
 ### 7.1 Database initialization behavior
 
-- SQLite mode (`database.embedded_database=true`):
+- SQLite mode (`XREPORT_DB_EMBEDDED=true`):
   - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
   - If the file already exists, startup skips initialization.
-- PostgreSQL mode (`database.embedded_database=false`):
+- PostgreSQL mode (`XREPORT_DB_EMBEDDED=false`):
   - Application startup never initializes PostgreSQL automatically.
   - PostgreSQL initialization is manual via `setup_and_maintenance.bat` option `1`, which runs `app/scripts/initialize_database.py`.
   - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.

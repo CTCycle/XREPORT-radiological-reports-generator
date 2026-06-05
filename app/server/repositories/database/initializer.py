@@ -26,7 +26,7 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
             connect_args["sslrootcert"] = settings.ssl_ca
     return connect_args
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
     port = settings.port or 5432
     engine_name = normalize_postgres_engine(settings.engine)
@@ -37,7 +37,7 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
         f"@{settings.host}:{port}/{database_name}"
     )
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def clone_settings_with_database(
     settings: DatabaseSettings, database_name: str
 ) -> DatabaseSettings:
@@ -55,20 +55,20 @@ def clone_settings_with_database(
         insert_batch_size=settings.insert_batch_size,
     )
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_create_database_sql(
     database_name: str,
 ) -> TextClause:
     return sqlalchemy.text(database_queries.create_database_sql(database_name))
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
     Base.metadata.create_all(repository.engine)
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host:
         raise ValueError("Database host is required for PostgreSQL initialization.")
@@ -108,7 +108,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     return target_database
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_database_initialization(settings: DatabaseSettings) -> None:
     if settings.embedded_database:
         initialize_sqlite_database(settings)
@@ -125,7 +125,7 @@ def run_database_initialization(settings: DatabaseSettings) -> None:
 
     ensure_postgres_database(settings)
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings().database
     try:

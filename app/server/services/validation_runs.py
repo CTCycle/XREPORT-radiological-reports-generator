@@ -30,7 +30,7 @@ from server.services.evaluation import CheckpointEvaluator
 from server.domain.settings import ServerSettings
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_metric_fraction(
     config: dict[str, Any] | None,
     default_fraction: float = 1.0,
@@ -57,7 +57,7 @@ class ProgressRange:
         get_job_manager().update_progress(self.job_id, progress)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_validation_job(
     request_data: dict[str, Any],
     job_id: str,
@@ -231,7 +231,7 @@ def run_validation_job(
     return result
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_checkpoint_evaluation_job(
     request_data: dict[str, Any],
     job_id: str,
@@ -397,7 +397,7 @@ class ValidationService:
         self.job_manager = job_manager
         self.server_settings = server_settings
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
         """Run validation analytics on the current dataset."""
         if self.job_manager.is_job_running("validation"):
@@ -468,7 +468,7 @@ class ValidationService:
             )
         return CheckpointEvaluationReportResponse(**report)
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     async def evaluate_checkpoint(
         self,
         request: CheckpointEvaluationRequest,
@@ -515,7 +515,7 @@ class ValidationService:
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -525,7 +525,7 @@ class ValidationService:
             )
         return JobStatusResponse(**job_status)
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:

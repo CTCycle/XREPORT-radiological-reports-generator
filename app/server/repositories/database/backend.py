@@ -40,12 +40,12 @@ class DatabaseBackend(Protocol):
 BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return SQLiteRepository(settings)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return PostgresRepository(settings)
 
