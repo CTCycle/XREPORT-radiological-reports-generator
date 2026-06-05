@@ -76,6 +76,34 @@ def test_configuration_manager_resolves_database_from_env(
     assert database_settings.password == "env-password"
 
 
+def test_configuration_manager_ignores_database_block_in_json(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = tmp_path / "configurations.json"
+    payload = _configuration_payload() | {
+        "database": {
+            "embedded_database": False,
+            "host": "json-host",
+            "port": 9999,
+            "database_name": "json-db",
+            "username": "json-user",
+            "password": "json-password",
+        }
+    }
+    config_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "true")
+
+    manager = ConfigurationManager(config_path=str(config_path))
+
+    database_settings = manager.get_all().database
+    assert database_settings.embedded_database is True
+    assert database_settings.host is None
+    assert database_settings.port is None
+    assert manager.get_block("database")["embedded_database"] is True
+    assert manager.get_block("database")["host"] is None
+
+
 def test_configuration_manager_reload_updates_snapshot(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
     payload = _configuration_payload()

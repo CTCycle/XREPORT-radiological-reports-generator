@@ -9,7 +9,7 @@ from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusRes
 from server.services.inference import InferenceService, get_inference_service
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 

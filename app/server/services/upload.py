@@ -16,7 +16,7 @@ from server.domain.training import DatasetUploadResponse
 MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 

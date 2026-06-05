@@ -35,7 +35,7 @@ SQL_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ALLOWED_TABLE_NAMES = frozenset(TABLE_REQUIRED_COLUMNS.keys())
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def is_string_object_column(series: pd.Series) -> bool:
     if not pd.api.types.is_object_dtype(series):
         return False
@@ -45,7 +45,7 @@ def is_string_object_column(series: pd.Series) -> bool:
     return bool(non_null.map(lambda value: isinstance(value, str)).all())
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def validate_sql_identifier(identifier: str) -> str:
     normalized = str(identifier or "").strip()
     if not normalized:
@@ -55,7 +55,7 @@ def validate_sql_identifier(identifier: str) -> str:
     return normalized
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def validate_table_name(table_name: str) -> str:
     normalized = validate_sql_identifier(table_name)
     if normalized not in ALLOWED_TABLE_NAMES:
@@ -63,7 +63,7 @@ def validate_table_name(table_name: str) -> str:
     return normalized
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_postgres_engine(engine: str | None) -> str:
     if not engine:
         return "postgresql+psycopg"
@@ -73,7 +73,7 @@ def normalize_postgres_engine(engine: str | None) -> str:
     return engine
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_conflict_columns(
     table_name: str,
     payload_columns: list[str],
@@ -87,7 +87,7 @@ def resolve_conflict_columns(
     return configured, []
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     string_columns = [
         column
@@ -104,7 +104,7 @@ def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
     return normalized
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def validate_unique_key_values(
     records: list[dict[Any, Any]],
     unique_columns: list[str],
