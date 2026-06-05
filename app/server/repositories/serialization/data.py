@@ -14,7 +14,6 @@ from sqlalchemy.orm import aliased
 from server.common.constants import (
     CHECKPOINTS_TABLE,
     CHECKPOINT_EVALUATIONS_TABLE,
-    CHECKPOINT_PATH,
     DATASETS_TABLE,
     DATASET_RECORDS_TABLE,
     INFERENCE_REPORTS_TABLE,
@@ -28,6 +27,7 @@ from server.common.constants import (
     VALIDATION_RUNS_TABLE,
     VALIDATION_TEXT_SUMMARY_TABLE,
 )
+from server.common.path import CHECKPOINT_PATH
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
 from server.repositories.database.utils import (

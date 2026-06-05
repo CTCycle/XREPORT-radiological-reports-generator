@@ -4,7 +4,7 @@ import logging
 import logging.config
 from datetime import datetime
 
-from server.common.constants import LOGS_PATH
+from server.common.path import LOGS_PATH
 
 
 ###############################################################################

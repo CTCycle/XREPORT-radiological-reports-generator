@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINT_PATH
 from server.common.utils.security import (
     resolve_checkpoint_path,
     validate_checkpoint_name,

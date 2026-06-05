@@ -14,9 +14,6 @@ from server.api.training import router as training_router
 from server.api.upload import router as upload_router
 from server.api.validation import router as validation_router
 from server.common.constants import (
-    CLIENT_ASSETS_PATH,
-    CLIENT_INDEX_FILE_PATH,
-    CLIENT_DIST_PATH,
     FASTAPI_API_PREFIX,
     FASTAPI_ASSETS_ENDPOINT,
     FASTAPI_DESCRIPTION,
@@ -26,17 +23,22 @@ from server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
+from server.common.path import (
+    CLIENT_ASSETS_PATH,
+    CLIENT_DIST_PATH,
+    CLIENT_INDEX_FILE_PATH,
+)
 from server.configurations import get_server_settings
 from server.repositories.database.initializer import initialize_database
 from server.services.startup_validation import run_startup_validations
 
 
 def _client_build_available() -> bool:
-    return Path(CLIENT_INDEX_FILE_PATH).is_file()
+    return CLIENT_INDEX_FILE_PATH.is_file()
 
 
 def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = Path(CLIENT_DIST_PATH).resolve()
+    client_root = CLIENT_DIST_PATH.resolve()
     requested_path = (client_root / full_path).resolve()
 
     if not requested_path.is_relative_to(client_root):
@@ -93,7 +95,7 @@ def create_app() -> FastAPI:
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
 
     if _client_build_available():
-        if Path(CLIENT_ASSETS_PATH).is_dir():
+        if CLIENT_ASSETS_PATH.is_dir():
             application.mount(
                 FASTAPI_ASSETS_ENDPOINT,
                 StaticFiles(directory=CLIENT_ASSETS_PATH),
