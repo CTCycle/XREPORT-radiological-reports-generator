@@ -86,3 +86,22 @@ def test_external_db_merges_database_url_with_component_overrides(
     assert settings.database_name == "url_db"
     assert settings.username == "url_user"
     assert settings.password == "env_password"
+
+
+def test_database_json_payload_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "true")
+
+    settings = JsonServerSettings.model_validate(
+        {
+            "database": {
+                "embedded_database": False,
+                "host": "json-host",
+                "database_name": "json-db",
+                "username": "json-user",
+            }
+        }
+    ).to_server_settings()
+
+    assert settings.database.embedded_database is True
+    assert settings.database.host is None
+    assert settings.database.database_name is None

@@ -14,7 +14,7 @@ DATASET_NAME_ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._ -]+")
 DATASET_NAME_EDGE_TRIM = "._ -"
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def validate_checkpoint_name(name: str) -> str:
     normalized = str(name or "").strip()
     if not normalized:
@@ -36,7 +36,7 @@ def validate_checkpoint_name(name: str) -> str:
     return normalized
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_checkpoint_path(name: str) -> str:
     checkpoint_name = validate_checkpoint_name(name)
     base_path = CHECKPOINT_PATH.resolve()
@@ -46,7 +46,7 @@ def resolve_checkpoint_path(name: str) -> str:
     return str(target_path)
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def sanitize_dataset_name(name: str) -> str:
     normalized = str(name or "").strip()
     if not normalized:

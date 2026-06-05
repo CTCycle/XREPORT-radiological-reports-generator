@@ -180,15 +180,17 @@ class JsonDatabaseSettings(BaseModel):
 
         missing: list[str] = []
         if not self.host:
-            missing.append("database.host")
+            missing.append("XREPORT_DB_HOST or XREPORT_DATABASE_URL")
         if not self.database_name:
-            missing.append("database.database_name")
+            missing.append("XREPORT_DB_NAME or XREPORT_DATABASE_URL")
         if not self.username:
-            missing.append("database.username")
+            missing.append("XREPORT_DB_USERNAME or XREPORT_DATABASE_URL")
 
         if missing:
             joined = ", ".join(missing)
-            raise ValueError(f"External database mode requires configuration keys: {joined}")
+            raise ValueError(
+                f"External database mode requires environment variables: {joined}"
+            )
         return self
 
 

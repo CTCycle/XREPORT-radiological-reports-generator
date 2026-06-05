@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 class SpaRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.should_serve_index():
@@ -31,7 +31,7 @@ class SpaRequestHandler(SimpleHTTPRequestHandler):
         return not target_path.is_file()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Serve a SPA bundle with client-side route fallback."
@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# -----------------------------------------------------------------------------
+###############################################################################
 def main() -> None:
     args = parse_args()
     handler = functools.partial(SpaRequestHandler, directory=args.directory)

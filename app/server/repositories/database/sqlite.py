@@ -153,7 +153,7 @@ class SQLiteRepository:
         table_cls = self.get_table_class(safe_table_name)
         self.upsert_dataframe(df, table_cls)
 
-    # -----------------------------------------------------------------------------
+    ###############################################################################
     def count_rows(self, table_name: str) -> int:
         safe_table_name = validate_table_name(table_name)
         table_cls = self.get_table_class(safe_table_name)
