@@ -3,10 +3,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from server.common.constants import (
+from server.common.path import (
     CHECKPOINT_PATH,
     CLIENT_INDEX_FILE_PATH,
-    CONFIGURATION_FILE,
+    CONFIGURATION_FILE_PATH,
     LOGS_PATH,
     MODELS_PATH,
     RESOURCES_PATH,
@@ -22,15 +22,15 @@ def _tauri_mode_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
-def _ensure_directory(path: str) -> None:
-    Path(path).mkdir(parents=True, exist_ok=True)
+def _ensure_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def run_startup_validations(settings: ServerSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings()
 
-    if not Path(CONFIGURATION_FILE).is_file():
-        raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE}")
+    if not CONFIGURATION_FILE_PATH.is_file():
+        raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE_PATH}")
 
     for directory in (
         RESOURCES_PATH,
@@ -42,7 +42,7 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
     ):
         _ensure_directory(directory)
 
-    if _tauri_mode_enabled() and not Path(CLIENT_INDEX_FILE_PATH).is_file():
+    if _tauri_mode_enabled() and not CLIENT_INDEX_FILE_PATH.is_file():
         raise RuntimeError(
             "Tauri mode requires a built frontend at "
             f"{CLIENT_INDEX_FILE_PATH}."
