@@ -5,15 +5,15 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from server.common.constants import CONFIGURATION_FILE
+from server.common.path import CONFIGURATION_FILE_PATH
 from server.domain.settings import JsonServerSettings, ServerSettings
 
 
 ###############################################################################
 class ConfigurationManager:
-    def __init__(self, config_path: str | None = None) -> None:
+    def __init__(self, config_path: str | Path | None = None) -> None:
         self._lock = RLock()
-        self._config_path = Path(config_path or CONFIGURATION_FILE)
+        self._config_path = Path(config_path) if config_path else CONFIGURATION_FILE_PATH
         self._json_settings: JsonServerSettings | None = None
         self._server_settings: ServerSettings | None = None
         self.reload()
@@ -36,7 +36,7 @@ class ConfigurationManager:
         return payload
 
     # -------------------------------------------------------------------------
-    def reload(self, config_path: str | None = None) -> ServerSettings:
+    def reload(self, config_path: str | Path | None = None) -> ServerSettings:
         with self._lock:
             if config_path:
                 self._config_path = Path(config_path)

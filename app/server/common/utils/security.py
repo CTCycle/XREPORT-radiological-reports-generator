@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path, PureWindowsPath
 
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINT_PATH
 
 
 MAX_CHECKPOINT_NAME_LENGTH = 128

@@ -7,7 +7,7 @@ from keras.layers import TorchModuleWrapper
 from keras.saving import register_keras_serializable
 from transformers import AutoModel
 
-from server.common.constants import ENCODERS_PATH
+from server.common.path import ENCODERS_PATH
 
 
 # [PRETRAINED IMAGE ENCODER]

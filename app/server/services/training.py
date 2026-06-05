@@ -30,7 +30,7 @@ from server.common.utils.security import (
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.data import DataSerializer
 from server.repositories.serialization.model import ModelSerializer
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINT_PATH
 from server.configurations.startup import get_server_settings
 from server.learning.training.worker import (
     ProcessWorker,

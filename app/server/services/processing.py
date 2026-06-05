@@ -6,9 +6,7 @@ from typing import Any
 import pandas as pd
 from transformers import AutoTokenizer
 
-from server.common.constants import RESOURCES_PATH
-
-TOKENIZERS_PATH = RESOURCES_PATH / "tokenizers"
+from server.common.path import TOKENIZERS_PATH
 
 
 ###############################################################################
