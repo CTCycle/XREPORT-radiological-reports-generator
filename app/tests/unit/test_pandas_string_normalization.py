@@ -1,16 +1,11 @@
 import pandas as pd
 import importlib.util
-from pathlib import Path
+
+from server.common.path import SERVER_DIR
 
 
 def load_normalize_string_columns():
-    module_path = (
-        Path(__file__).resolve().parents[2]
-        / "server"
-        / "repositories"
-        / "database"
-        / "utils.py"
-    )
+    module_path = SERVER_DIR / "repositories" / "database" / "utils.py"
     spec = importlib.util.spec_from_file_location("xreport_query_common", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load query common module for tests")
