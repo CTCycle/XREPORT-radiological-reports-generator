@@ -12,8 +12,8 @@ Last updated: 2026-06-03
 
 ### Desktop Runtime Tauri Mode
 
-- Desktop shell: `XREPORT/client/src-tauri/src/main.rs`
-- Bundled with configuration from `XREPORT/client/src-tauri/tauri.conf.json`
+- Desktop shell: `app/src-tauri/src/main.rs`
+- Bundled with configuration from `app/src-tauri/tauri.conf.json`
 - Desktop app starts a local backend process and loads the web UI from local HTTP
 
 ### Containerized Runtime
