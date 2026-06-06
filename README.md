@@ -45,6 +45,8 @@ Prerequisites for maintainers/build machines:
 - Node.js 22.x + npm
 - WebView2 runtime
 
+The desktop shell now lives in `app/src-tauri` and packages the whole `app/` boundary, including `client/dist`, `server`, `resources`, `settings`, and `runtimes`.
+
 Build:
 ```bat
 release\tauri\build_with_tauri.bat
