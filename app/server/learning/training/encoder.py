@@ -7,7 +7,7 @@ from keras.layers import TorchModuleWrapper
 from keras.saving import register_keras_serializable
 from transformers import AutoModel
 
-from server.common.path import ENCODERS_PATH
+from server.common.path import ENCODERS_DIR
 
 
 # [PRETRAINED IMAGE ENCODER]
@@ -24,7 +24,7 @@ class BeitXRayImageEncoder(layers.Layer):
 
         # Load the pretrained BEiT model
         beit_model = AutoModel.from_pretrained(
-            self.encoder_name, cache_dir=ENCODERS_PATH
+            self.encoder_name, cache_dir=ENCODERS_DIR
         )
         if self.freeze_layers is True:
             for param in beit_model.parameters():

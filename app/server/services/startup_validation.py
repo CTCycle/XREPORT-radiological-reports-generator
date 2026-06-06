@@ -4,14 +4,14 @@ import os
 from pathlib import Path
 
 from server.common.path import (
-    CHECKPOINT_PATH,
+    CHECKPOINTS_DIR,
     CLIENT_INDEX_FILE_PATH,
     CONFIGURATION_FILE_PATH,
-    LOGS_PATH,
-    MODELS_PATH,
-    RESOURCES_PATH,
-    TEMPLATES_PATH,
-    TOKENIZERS_PATH,
+    LOGS_DIR,
+    MODELS_DIR,
+    RESOURCES_DIR,
+    TEMPLATES_DIR,
+    TOKENIZERS_DIR,
 )
 from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
@@ -33,12 +33,12 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
         raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE_PATH}")
 
     for directory in (
-        RESOURCES_PATH,
-        LOGS_PATH,
-        MODELS_PATH,
-        TOKENIZERS_PATH,
-        CHECKPOINT_PATH,
-        TEMPLATES_PATH,
+        RESOURCES_DIR,
+        LOGS_DIR,
+        MODELS_DIR,
+        TOKENIZERS_DIR,
+        CHECKPOINTS_DIR,
+        TEMPLATES_DIR,
     ):
         _ensure_directory(directory)
 

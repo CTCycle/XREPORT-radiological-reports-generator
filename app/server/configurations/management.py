@@ -5,8 +5,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from server.common.path import CONFIGURATION_FILE_PATH
-from server.domain.settings import JsonServerSettings, ServerSettings
+from ..common.path import CONFIGURATION_FILE_PATH
+from ..domain.settings import JsonServerSettings, ServerSettings
 
 
 ###############################################################################
