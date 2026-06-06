@@ -7,8 +7,8 @@ from threading import Lock
 
 from dotenv import load_dotenv
 
-from server.common.path import ENV_FILE_PATH
-from server.common.utils.logger import logger
+from ..common.path import ENV_FILE_PATH
+from ..common.utils.logger import logger
 
 
 @dataclass

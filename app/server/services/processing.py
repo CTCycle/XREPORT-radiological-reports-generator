@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 from transformers import AutoTokenizer
 
-from server.common.path import TOKENIZERS_PATH
+from server.common.path import TOKENIZERS_DIR
 
 
 ###############################################################################
@@ -78,7 +78,7 @@ class TokenizerHandler:
         if tokenizer_name is None:
             return None
 
-        tokenizer_path = TOKENIZERS_PATH / tokenizer_name
+        tokenizer_path = TOKENIZERS_DIR / tokenizer_name
         tokenizer_path.mkdir(parents=True, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name, cache_dir=str(tokenizer_path)

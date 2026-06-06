@@ -10,9 +10,11 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import APIRequestContext
 
+from server.common.path import CHECKPOINTS_DIR
+
 
 def get_checkpoints_root() -> str:
-    return str(Path(__file__).resolve().parents[2] / "resources" / "checkpoints")
+    return str(CHECKPOINTS_DIR)
 
 
 def create_checkpoint_fixture(name: str) -> str:

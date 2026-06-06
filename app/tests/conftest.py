@@ -4,17 +4,10 @@ Provides fixtures for Playwright page objects and API client.
 """
 
 import os
-import sys
 import threading
-from pathlib import Path
 from queue import Queue
 
 import pytest
-
-
-APP_DIR = Path(__file__).resolve().parents[1]
-if str(APP_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_DIR))
 
 
 def _normalize_host(value: str) -> str:

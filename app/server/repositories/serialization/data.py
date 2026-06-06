@@ -27,7 +27,7 @@ from server.common.constants import (
     VALIDATION_RUNS_TABLE,
     VALIDATION_TEXT_SUMMARY_TABLE,
 )
-from server.common.path import CHECKPOINT_PATH
+from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
 from server.repositories.database.utils import (
@@ -250,7 +250,7 @@ class DataSerializer:
             [
                 {
                     "name": checkpoint_name,
-                    "path": str(CHECKPOINT_PATH / checkpoint_name),
+                    "path": str(CHECKPOINTS_DIR / checkpoint_name),
                     "created_at": self._now_utc(),
                 }
             ]

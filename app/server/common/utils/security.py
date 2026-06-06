@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path, PureWindowsPath
 
-from server.common.path import CHECKPOINT_PATH
+from server.common.path import CHECKPOINTS_DIR
 
 
 MAX_CHECKPOINT_NAME_LENGTH = 128
@@ -39,7 +39,7 @@ def validate_checkpoint_name(name: str) -> str:
 ###############################################################################
 def resolve_checkpoint_path(name: str) -> str:
     checkpoint_name = validate_checkpoint_name(name)
-    base_path = CHECKPOINT_PATH.resolve()
+    base_path = CHECKPOINTS_DIR.resolve()
     target_path = (base_path / checkpoint_name).resolve()
     if base_path not in target_path.parents and target_path != base_path:
         raise ValueError("Checkpoint path is outside the checkpoints directory")
