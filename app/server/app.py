@@ -24,8 +24,8 @@ from server.common.constants import (
     FASTAPI_VERSION,
 )
 from server.common.path import (
-    CLIENT_ASSETS_PATH,
-    CLIENT_DIST_PATH,
+    CLIENT_ASSETS_DIR,
+    CLIENT_DIST_DIR,
     CLIENT_INDEX_FILE_PATH,
 )
 from server.configurations import get_server_settings
@@ -38,7 +38,7 @@ def _client_build_available() -> bool:
 
 
 def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = CLIENT_DIST_PATH.resolve()
+    client_root = CLIENT_DIST_DIR.resolve()
     requested_path = (client_root / full_path).resolve()
 
     if not requested_path.is_relative_to(client_root):
@@ -95,10 +95,10 @@ def create_app() -> FastAPI:
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
 
     if _client_build_available():
-        if CLIENT_ASSETS_PATH.is_dir():
+        if CLIENT_ASSETS_DIR.is_dir():
             application.mount(
                 FASTAPI_ASSETS_ENDPOINT,
-                StaticFiles(directory=CLIENT_ASSETS_PATH),
+                StaticFiles(directory=CLIENT_ASSETS_DIR),
                 name="spa-assets",
             )
         application.add_api_route(

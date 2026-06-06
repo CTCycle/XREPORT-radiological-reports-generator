@@ -30,7 +30,7 @@ from server.common.utils.security import (
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.data import DataSerializer
 from server.repositories.serialization.model import ModelSerializer
-from server.common.path import CHECKPOINT_PATH
+from server.common.path import CHECKPOINTS_DIR
 from server.configurations.startup import get_server_settings
 from server.learning.training.worker import (
     ProcessWorker,
@@ -388,7 +388,7 @@ class TrainingService:
         for name in checkpoint_names:
             try:
                 # Only load JSON configuration files, NOT the model
-                checkpoint_path = CHECKPOINT_PATH / name
+                checkpoint_path = CHECKPOINTS_DIR / name
                 _, _, session = modser.load_training_configuration(checkpoint_path)
                 checkpoints.append(
                     CheckpointInfo(
