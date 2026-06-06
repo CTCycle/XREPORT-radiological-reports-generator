@@ -8,9 +8,9 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "tauri:icon": "tauri icon public/favicon.png && powershell -NoProfile -Command \"Remove-Item -Recurse -Force src-tauri/icons/android,src-tauri/icons/ios -ErrorAction SilentlyContinue\"",
-    "tauri:dev": "tauri dev --config src-tauri/tauri.conf.json",
-    "tauri:build": "tauri build --config src-tauri/tauri.conf.json",
+    "tauri:icon": "node ./node_modules/@tauri-apps/cli/tauri.js icon public/favicon.png && powershell -NoProfile -Command \"Remove-Item -Recurse -Force ../src-tauri/icons/android,../src-tauri/icons/ios -ErrorAction SilentlyContinue\"",
+    "tauri:dev": "node ./node_modules/@tauri-apps/cli/tauri.js dev --config ../src-tauri/tauri.conf.json",
+    "tauri:build": "npm run build && node ./node_modules/@tauri-apps/cli/tauri.js build --config ../src-tauri/tauri.conf.json",
     "tauri:export:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/export-windows-artifacts.ps1",
     "tauri:build:release": "npm run tauri:build && npm run tauri:export:windows",
     "tauri:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../release/tauri/scripts/clean-tauri-build.ps1"
