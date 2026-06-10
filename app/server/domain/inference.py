@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class InferenceImage:
@@ -13,12 +12,10 @@ class InferenceImage:
     data: bytes
     size_bytes: int
 
-
 ###############################################################################
 class CheckpointInfo(BaseModel):
     name: str
     created: str | None = None
-
 
 ###############################################################################
 class CheckpointsResponse(BaseModel):

@@ -1,16 +1,12 @@
 import pandas as pd
 import importlib.util
-from pathlib import Path
+
+from server.common.path import SERVER_DIR
 
 
+###############################################################################
 def load_normalize_string_columns():
-    module_path = (
-        Path(__file__).resolve().parents[2]
-        / "server"
-        / "repositories"
-        / "database"
-        / "utils.py"
-    )
+    module_path = SERVER_DIR / "repositories" / "database" / "utils.py"
     spec = importlib.util.spec_from_file_location("xreport_query_common", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError("Unable to load query common module for tests")
@@ -22,6 +18,7 @@ def load_normalize_string_columns():
 normalize_string_columns = load_normalize_string_columns()
 
 
+###############################################################################
 def test_normalize_string_columns_handles_pandas_string_dtype() -> None:
     dataframe = pd.DataFrame({"name": ["alpha", None]})
 
@@ -32,6 +29,7 @@ def test_normalize_string_columns_handles_pandas_string_dtype() -> None:
     assert normalized.loc[1, "name"] is None
 
 
+###############################################################################
 def test_normalize_string_columns_handles_object_string_column() -> None:
     dataframe = pd.DataFrame({"name": pd.Series(["alpha", pd.NA], dtype=object)})
 
@@ -42,6 +40,7 @@ def test_normalize_string_columns_handles_object_string_column() -> None:
     assert normalized.loc[1, "name"] is None
 
 
+###############################################################################
 def test_normalize_string_columns_ignores_mixed_object_column() -> None:
     dataframe = pd.DataFrame({"payload": pd.Series(["alpha", pd.NA, 3], dtype=object)})
 

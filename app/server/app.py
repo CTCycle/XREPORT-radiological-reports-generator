@@ -14,9 +14,6 @@ from server.api.training import router as training_router
 from server.api.upload import router as upload_router
 from server.api.validation import router as validation_router
 from server.common.constants import (
-    CLIENT_ASSETS_PATH,
-    CLIENT_INDEX_FILE_PATH,
-    CLIENT_DIST_PATH,
     FASTAPI_API_PREFIX,
     FASTAPI_ASSETS_ENDPOINT,
     FASTAPI_DESCRIPTION,
@@ -26,17 +23,24 @@ from server.common.constants import (
     FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
+from server.common.path import (
+    CLIENT_ASSETS_DIR,
+    CLIENT_DIST_DIR,
+    CLIENT_INDEX_FILE_PATH,
+)
 from server.configurations import get_server_settings
 from server.repositories.database.initializer import initialize_database
 from server.services.startup_validation import run_startup_validations
 
 
+###############################################################################
 def _client_build_available() -> bool:
-    return Path(CLIENT_INDEX_FILE_PATH).is_file()
+    return CLIENT_INDEX_FILE_PATH.is_file()
 
 
+###############################################################################
 def _resolve_client_file(full_path: str) -> Path | None:
-    client_root = Path(CLIENT_DIST_PATH).resolve()
+    client_root = CLIENT_DIST_DIR.resolve()
     requested_path = (client_root / full_path).resolve()
 
     if not requested_path.is_relative_to(client_root):
@@ -48,10 +52,12 @@ def _resolve_client_file(full_path: str) -> Path | None:
     return None
 
 
+###############################################################################
 def serve_client_root() -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE_PATH)
 
 
+###############################################################################
 def serve_client_path(full_path: str) -> FileResponse:
     client_file = _resolve_client_file(full_path)
     if client_file is not None:
@@ -59,10 +65,12 @@ def serve_client_path(full_path: str) -> FileResponse:
     return FileResponse(CLIENT_INDEX_FILE_PATH)
 
 
+###############################################################################
 def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
 
 
+###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
@@ -75,6 +83,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+###############################################################################
 def create_app() -> FastAPI:
     application = FastAPI(
         title=FASTAPI_TITLE,
@@ -93,10 +102,10 @@ def create_app() -> FastAPI:
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
 
     if _client_build_available():
-        if Path(CLIENT_ASSETS_PATH).is_dir():
+        if CLIENT_ASSETS_DIR.is_dir():
             application.mount(
                 FASTAPI_ASSETS_ENDPOINT,
-                StaticFiles(directory=CLIENT_ASSETS_PATH),
+                StaticFiles(directory=CLIENT_ASSETS_DIR),
                 name="spa-assets",
             )
         application.add_api_route(

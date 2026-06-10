@@ -29,8 +29,7 @@ from server.learning.training.dataloader import XRAYDataLoader
 from server.services.evaluation import CheckpointEvaluator
 from server.domain.settings import ServerSettings
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_metric_fraction(
     config: dict[str, Any] | None,
     default_fraction: float = 1.0,
@@ -42,9 +41,10 @@ def resolve_metric_fraction(
         return default_fraction
     return float(min(1.0, max(0.01, fraction)))
 
-
 ###############################################################################
 class ProgressRange:
+
+    # -------------------------------------------------------------------------
     def __init__(self, job_id: str, start: float, end: float) -> None:
         self.job_id = job_id
         self.start = start
@@ -56,8 +56,7 @@ class ProgressRange:
         progress = self.start + (self.end - self.start) * clamped
         get_job_manager().update_progress(self.job_id, progress)
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_validation_job(
     request_data: dict[str, Any],
     job_id: str,
@@ -230,8 +229,7 @@ def run_validation_job(
 
     return result
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_checkpoint_evaluation_job(
     request_data: dict[str, Any],
     job_id: str,
@@ -381,7 +379,6 @@ def run_checkpoint_evaluation_job(
         "results": results,
     }
 
-
 ###############################################################################
 class ValidationService:
     """Endpoint for dataset validation and checkpoint evaluation analytics."""
@@ -389,6 +386,7 @@ class ValidationService:
     JOB_TYPE_VALIDATION = "validation"
     JOB_TYPE_EVALUATION = "checkpoint_evaluation"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         job_manager: JobManager,
@@ -397,7 +395,7 @@ class ValidationService:
         self.job_manager = job_manager
         self.server_settings = server_settings
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
         """Run validation analytics on the current dataset."""
         if self.job_manager.is_job_running("validation"):
@@ -468,7 +466,7 @@ class ValidationService:
             )
         return CheckpointEvaluationReportResponse(**report)
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     async def evaluate_checkpoint(
         self,
         request: CheckpointEvaluationRequest,
@@ -515,7 +513,7 @@ class ValidationService:
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -525,7 +523,7 @@ class ValidationService:
             )
         return JobStatusResponse(**job_status)
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:

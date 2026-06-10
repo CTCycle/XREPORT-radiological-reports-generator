@@ -10,9 +10,10 @@ os.environ.setdefault("KERAS_BACKEND", "torch")
 from server.learning.callbacks import TrainingInterruptCallback, WorkerInterrupted
 from server.services import training as training_module
 
-
 ###############################################################################
 class FakeProcessWorker:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         interrupted: bool,
@@ -61,13 +62,12 @@ class FakeProcessWorker:
     def read_result(self):
         return None
 
-
 ###############################################################################
 class BrokenWorker:
+
     # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
         raise RuntimeError("Worker channel unavailable")
-
 
 ###############################################################################
 def test_monitor_starts_timeout_even_if_worker_already_interrupted(
@@ -92,8 +92,7 @@ def test_monitor_starts_timeout_even_if_worker_already_interrupted(
     assert worker.join_called is True
     assert result == {}
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def test_monitor_requests_graceful_stop_before_forcing_termination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -115,16 +114,14 @@ def test_monitor_requests_graceful_stop_before_forcing_termination(
     assert worker.stop_called is True
     assert result == {}
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def test_interrupt_callback_raises_worker_interrupted() -> None:
     callback = TrainingInterruptCallback(worker=FakeProcessWorker(interrupted=True))
 
     with pytest.raises(WorkerInterrupted):
         callback.raise_if_interrupted()
 
-
-# -------------------------------------------------------------------------
+###############################################################################
 def test_interrupt_callback_ignores_worker_probe_failures() -> None:
     callback = TrainingInterruptCallback(worker=BrokenWorker())
     callback.raise_if_interrupted()

@@ -24,9 +24,10 @@ from server.domain.jobs import (
 )
 from server.services.preparation import PreparationService, get_preparation_service
 
-
 ###############################################################################
 class PreparationEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         router: APIRouter,
@@ -35,54 +36,69 @@ class PreparationEndpoint:
         self.router = router
         self.service = get_preparation_service() if service is None else service
 
+    # -------------------------------------------------------------------------
     def get_dataset_status(self) -> DatasetStatusResponse:
         return self.service.get_dataset_status()
 
+    # -------------------------------------------------------------------------
     def get_dataset_names(self) -> DatasetNamesResponse:
         return self.service.get_dataset_names()
 
+    # -------------------------------------------------------------------------
     def get_processed_dataset_names(self) -> DatasetNamesResponse:
         return self.service.get_processed_dataset_names()
 
+    # -------------------------------------------------------------------------
     def get_processing_metadata(self, dataset_name: str) -> ProcessingMetadataResponse:
         return self.service.get_processing_metadata(dataset_name)
 
+    # -------------------------------------------------------------------------
     def delete_dataset(self, dataset_name: str) -> DeleteResponse:
         return self.service.delete_dataset(dataset_name)
 
+    # -------------------------------------------------------------------------
     def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
         return self.service.validate_image_path(request)
 
+    # -------------------------------------------------------------------------
     def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
         return self.service.load_dataset(request)
 
+    # -------------------------------------------------------------------------
     def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         return self.service.process_dataset(request)
 
+    # -------------------------------------------------------------------------
     def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
         return self.service.get_preparation_job_status(job_id)
 
+    # -------------------------------------------------------------------------
     def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
         return self.service.cancel_preparation_job(job_id)
 
+    # -------------------------------------------------------------------------
     def browse_directory(
         self,
         path: str = Query("", description="Directory path to browse. Empty returns drives."),
     ) -> BrowseResponse:
         return self.service.browse_directory(path)
 
+    # -------------------------------------------------------------------------
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         return self.service.get_dataset_image_count(dataset_name)
 
+    # -------------------------------------------------------------------------
     def get_dataset_image_metadata(
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
         return self.service.get_dataset_image_metadata(dataset_name, index)
 
+    # -------------------------------------------------------------------------
     def get_dataset_image_content(self, dataset_name: str, index: int):
         path = self.service.get_dataset_image_content(dataset_name, index)
         return FileResponse(path)
 
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
             "/dataset/status",
@@ -181,7 +197,6 @@ class PreparationEndpoint:
             response_model=BrowseResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

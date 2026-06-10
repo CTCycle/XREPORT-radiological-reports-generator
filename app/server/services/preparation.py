@@ -52,8 +52,7 @@ LOCAL_FILESYSTEM_DISABLED_ERROR = (
     "Local filesystem endpoints are disabled by server configuration"
 )
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def scan_image_folder(folder_path: str) -> list[str]:
     directory_path = Path(folder_path)
     if not directory_path.is_dir():
@@ -67,8 +66,7 @@ def scan_image_folder(folder_path: str) -> list[str]:
 
     return image_paths
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def get_windows_drives() -> list[str]:
     """Get list of available Windows drives."""
     drives = []
@@ -78,8 +76,7 @@ def get_windows_drives() -> list[str]:
             drives.append(str(drive))
     return drives
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def count_images_in_folder(folder_path: str) -> int:
     """Quick count of image files in a folder (non-recursive for speed)."""
     try:
@@ -92,8 +89,7 @@ def count_images_in_folder(folder_path: str) -> int:
     except OSError:
         return 0
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def run_process_dataset_job(
     configuration: dict[str, Any],
     job_id: str,
@@ -207,8 +203,7 @@ def run_process_dataset_job(
         "vocabulary_size": vocabulary_size,
     }
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_processed_dataset_name(
     source_dataset_name: str,
     custom_name: str | None,
@@ -218,13 +213,13 @@ def resolve_processed_dataset_name(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{source_dataset_name}_{timestamp}"
 
-
 ###############################################################################
 class PreparationService:
     """Endpoint for dataset preparation and browsing operations."""
 
     JOB_TYPE = "dataset_processing"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         repository: PreparationRepository,
@@ -240,7 +235,7 @@ class PreparationService:
             self.server_settings.features.allow_local_filesystem_access
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def ensure_local_filesystem_access(self) -> None:
         if self.allow_local_filesystem_access:
             return
@@ -249,7 +244,7 @@ class PreparationService:
             detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_image_column_name(self, columns: list[str]) -> str | None:
         candidate_names = {"image", "filename", "file", "img", "image_name"}
         for column in columns:
@@ -257,7 +252,7 @@ class PreparationService:
                 return column
         return None
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def build_images_mapping(self, image_paths: list[str]) -> dict[str, str]:
         mapping: dict[str, str] = {}
         for path in image_paths:
@@ -265,7 +260,7 @@ class PreparationService:
             mapping[image_path.stem] = str(image_path)
         return mapping
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def prepare_dataset_records_dataframe(
         self,
         matched: pd.DataFrame,
@@ -292,7 +287,7 @@ class PreparationService:
             ]
         ]
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -302,7 +297,7 @@ class PreparationService:
             )
         return job_status
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_dataset_status(self) -> DatasetStatusResponse:
         """Check if dataset is available in the database for processing."""
         row_count = self.repository.get_dataset_status()
@@ -315,7 +310,7 @@ class PreparationService:
             else f"No data found in {DATASET_RECORDS_TABLE} table",
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_dataset_names(self) -> DatasetNamesResponse:
         """Get list of distinct datasets with metadata (folder path, row count)."""
         rows = self.repository.get_dataset_names()
@@ -339,7 +334,7 @@ class PreparationService:
             count=len(datasets),
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_processed_dataset_names(self) -> DatasetNamesResponse:
         """Get list of processed datasets available for training."""
         rows = self.repository.get_processed_dataset_names()
@@ -360,7 +355,7 @@ class PreparationService:
             count=len(datasets),
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_processing_metadata(
         self, dataset_name: str
     ) -> ProcessingMetadataResponse:
@@ -389,7 +384,7 @@ class PreparationService:
             metadata=metadata,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def delete_dataset(self, dataset_name: str) -> DeleteResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
@@ -409,7 +404,7 @@ class PreparationService:
             message=f"Deleted dataset {dataset_name}",
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
         self.ensure_local_filesystem_access()
         folder_path = request.folder_path.strip()
@@ -459,7 +454,7 @@ class PreparationService:
             message=f"Found {image_count} valid images",
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
         self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
@@ -562,7 +557,7 @@ class PreparationService:
             message=f"Successfully loaded dataset with {len(matched)} matched records",
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
         if self.job_manager.is_job_running("dataset_processing"):
@@ -617,12 +612,12 @@ class PreparationService:
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
         self.get_job_status_or_404(job_id)
 
@@ -634,7 +629,7 @@ class PreparationService:
             message="Cancellation requested" if success else "Job cannot be cancelled",
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def browse_directory(
         self,
         path: str = "",
@@ -704,7 +699,7 @@ class PreparationService:
             drives=get_windows_drives(),
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
         """Get total number of images in a dataset."""
         dataset_name = dataset_name.strip()
@@ -717,7 +712,7 @@ class PreparationService:
 
         return ImageCountResponse(dataset_name=dataset_name, count=count)
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_dataset_image_metadata(
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
@@ -758,7 +753,7 @@ class PreparationService:
             path=path,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_dataset_image_content(self, dataset_name: str, index: int) -> str:
         """Get absolute image file path for endpoint response handling."""
         self.ensure_local_filesystem_access()

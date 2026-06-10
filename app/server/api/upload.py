@@ -5,16 +5,16 @@ from fastapi import APIRouter, File, UploadFile, status
 from server.domain.training import DatasetUploadResponse
 from server.services.upload import UploadService, get_upload_state
 
-
 ###############################################################################
 class UploadEndpoint:
     """Endpoint for dataset upload operations."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, upload_service: UploadService) -> None:
         self.router = router
         self.upload_service = upload_service
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     async def upload_dataset(
         self, file: UploadFile = File(...)
     ) -> DatasetUploadResponse:
@@ -24,7 +24,7 @@ class UploadEndpoint:
             contents=contents,
         )
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         """Register all upload-related routes."""
         self.router.add_api_route(
@@ -34,7 +34,6 @@ class UploadEndpoint:
             response_model=DatasetUploadResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:
