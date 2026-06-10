@@ -13,7 +13,6 @@ MAX_DATASET_NAME_LENGTH = 128
 DATASET_NAME_ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._ -]+")
 DATASET_NAME_EDGE_TRIM = "._ -"
 
-
 ###############################################################################
 def validate_checkpoint_name(name: str) -> str:
     normalized = str(name or "").strip()
@@ -35,7 +34,6 @@ def validate_checkpoint_name(name: str) -> str:
         )
     return normalized
 
-
 ###############################################################################
 def resolve_checkpoint_path(name: str) -> str:
     checkpoint_name = validate_checkpoint_name(name)
@@ -44,7 +42,6 @@ def resolve_checkpoint_path(name: str) -> str:
     if base_path not in target_path.parents and target_path != base_path:
         raise ValueError("Checkpoint path is outside the checkpoints directory")
     return str(target_path)
-
 
 ###############################################################################
 def sanitize_dataset_name(name: str) -> str:

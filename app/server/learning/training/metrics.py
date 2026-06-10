@@ -7,9 +7,10 @@ from keras.config import floatx
 from keras.losses import Loss, SparseCategoricalCrossentropy
 from keras.metrics import Metric
 
-
 ###############################################################################
 class MaskedSparseCategoricalCrossentropy(Loss):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, name: str = "MaskedSparseCategoricalCrossentropy", **kwargs
     ) -> None:
@@ -31,15 +32,17 @@ class MaskedSparseCategoricalCrossentropy(Loss):
         base_config = super(MaskedSparseCategoricalCrossentropy, self).get_config()
         return {**base_config, "name": self.name}
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[MaskedSparseCategoricalCrossentropy], config: dict[str, Any]
     ) -> MaskedSparseCategoricalCrossentropy:
         return cls(**config)
 
-
 ###############################################################################
 class MaskedAccuracy(Metric):
+
+    # -------------------------------------------------------------------------
     def __init__(self, name: str = "MaskedAccuracy", **kwargs) -> None:
         super(MaskedAccuracy, self).__init__(name=name, **kwargs)
         self.total = self.add_weight(name="total", initializer="zeros")
@@ -79,6 +82,7 @@ class MaskedAccuracy(Metric):
         base_config = super(MaskedAccuracy, self).get_config()
         return {**base_config, "name": self.name}
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_config(
         cls: type[MaskedAccuracy], config: dict[str, Any]

@@ -13,10 +13,12 @@ from playwright.sync_api import APIRequestContext
 from server.common.path import CHECKPOINTS_DIR
 
 
+###############################################################################
 def get_checkpoints_root() -> str:
     return str(CHECKPOINTS_DIR)
 
 
+###############################################################################
 def create_checkpoint_fixture(name: str) -> str:
     checkpoints_root = Path(get_checkpoints_root())
     checkpoint_dir = checkpoints_root / name
@@ -30,9 +32,11 @@ def create_checkpoint_fixture(name: str) -> str:
     return str(checkpoint_dir)
 
 
+###############################################################################
 class TestTrainingEndpoints:
     """Tests for the /training/* API endpoints."""
 
+    # -------------------------------------------------------------------------
     def test_get_training_status(self, api_context: APIRequestContext):
         """GET /training/status should return current training state."""
         response = api_context.get("/api/training/status")
@@ -50,6 +54,7 @@ class TestTrainingEndpoints:
         assert "elapsed_seconds" in data
         assert isinstance(data["is_training"], bool)
 
+    # -------------------------------------------------------------------------
     def test_get_training_status_includes_chart_data(
         self, api_context: APIRequestContext
     ):
@@ -61,6 +66,7 @@ class TestTrainingEndpoints:
         assert isinstance(data.get("current_epoch"), int)
         assert isinstance(data.get("total_epochs"), int)
 
+    # -------------------------------------------------------------------------
     def test_get_checkpoints_list(self, api_context: APIRequestContext):
         """GET /training/checkpoints should return a list of checkpoint info."""
         response = api_context.get("/api/training/checkpoints")
@@ -73,6 +79,7 @@ class TestTrainingEndpoints:
         for checkpoint in data["checkpoints"]:
             assert "name" in checkpoint
 
+    # -------------------------------------------------------------------------
     def test_cancel_unknown_training_job_returns_not_found(
         self, api_context: APIRequestContext
     ):
@@ -82,6 +89,7 @@ class TestTrainingEndpoints:
         data = response.json()
         assert "detail" in data
 
+    # -------------------------------------------------------------------------
     def test_delete_checkpoint_removes_directory(self, api_context: APIRequestContext):
         """DELETE /training/checkpoints/{checkpoint} should remove the entire folder."""
         status_response = api_context.get("/api/training/status")
@@ -98,6 +106,7 @@ class TestTrainingEndpoints:
         finally:
             shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
+    # -------------------------------------------------------------------------
     def test_delete_checkpoint_rejects_path_traversal(
         self, api_context: APIRequestContext
     ):
@@ -111,6 +120,7 @@ class TestTrainingEndpoints:
         data = response.json()
         assert "detail" in data
 
+    # -------------------------------------------------------------------------
     def test_delete_checkpoint_is_idempotent(self, api_context: APIRequestContext):
         """Repeated DELETE should return a consistent 404 after removal."""
         status_response = api_context.get("/api/training/status")
@@ -135,9 +145,11 @@ class TestTrainingEndpoints:
             shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
 
+###############################################################################
 class TestTrainingStartValidation:
     """Tests for training start request validation."""
 
+    # -------------------------------------------------------------------------
     def test_start_training_requires_valid_request(
         self, api_context: APIRequestContext
     ) -> None:
@@ -151,6 +163,7 @@ class TestTrainingStartValidation:
         response = api_context.post("/api/training/start", data={"epochs": 0})
         assert response.status == 422
 
+    # -------------------------------------------------------------------------
     def test_start_training_while_already_running_returns_409(
         self, api_context: APIRequestContext
     ):
@@ -171,9 +184,11 @@ class TestTrainingStartValidation:
         pytest.skip("Training is not running; 409 path not applicable")
 
 
+###############################################################################
 class TestTrainingResumeEndpoint:
     """Tests for training resume functionality."""
 
+    # -------------------------------------------------------------------------
     def test_resume_training_requires_checkpoint(self, api_context: APIRequestContext):
         """POST /training/resume should require a checkpoint name."""
         # Empty request should fail
@@ -181,6 +196,7 @@ class TestTrainingResumeEndpoint:
 
         assert response.status == 422
 
+    # -------------------------------------------------------------------------
     def test_resume_with_invalid_checkpoint_returns_error(
         self, api_context: APIRequestContext
     ):
