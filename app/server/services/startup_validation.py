@@ -17,15 +17,18 @@ from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
 
 
+###############################################################################
 def _tauri_mode_enabled() -> bool:
     value = os.getenv("XREPORT_TAURI_MODE", "false").strip().lower()
     return value in {"1", "true", "yes", "on"}
 
 
+###############################################################################
 def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+###############################################################################
 def run_startup_validations(settings: ServerSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings()
 

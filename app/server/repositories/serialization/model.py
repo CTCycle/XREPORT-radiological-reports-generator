@@ -27,9 +27,10 @@ from server.learning.training.metrics import (
 )
 from server.learning.training.scheduler import WarmUpLRScheduler
 
-
 ###############################################################################
 class ModelSerializer:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.model_name = "XREPORT"
 

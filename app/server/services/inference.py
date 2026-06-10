@@ -35,14 +35,14 @@ from server.configurations.startup import get_server_settings
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
-
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 
-
 ###############################################################################
 class InferenceImageStore:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, list[InferenceImage]] = {}
         self.job_links: dict[str, str] = {}
@@ -77,10 +77,10 @@ class InferenceImageStore:
             self.storage.pop(request_id, None)
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
-
 
 ###############################################################################
 def run_inference_job(
@@ -193,13 +193,13 @@ def run_inference_job(
         "count": len(reports_by_filename),
     }
 
-
 ###############################################################################
 class InferenceService:
     """Endpoint for inference and report generation operations."""
 
     JOB_TYPE = "inference"
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         job_manager: JobManager,
@@ -208,7 +208,7 @@ class InferenceService:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -218,7 +218,7 @@ class InferenceService:
             )
         return job_status
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -228,7 +228,7 @@ class InferenceService:
             )
         return job_status
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def validate_generation_request(
         self,
         checkpoint: str,
@@ -271,7 +271,7 @@ class InferenceService:
 
         return checkpoint
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def validate_inference_images(
         self,
         images: list[InferenceImage],
@@ -313,7 +313,7 @@ class InferenceService:
 
         return total_bytes
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         try:
             serializer = ModelSerializer()
@@ -336,7 +336,7 @@ class InferenceService:
                 message=str(e),
             )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def generate_reports(
         self,
         checkpoint: str,
@@ -390,12 +390,12 @@ class InferenceService:
                 detail=str(e),
             ) from e
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.get_job_status_or_404(job_id)
         return JobStatusResponse(**job_status)
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
         self.get_job_status_or_404(job_id)
 

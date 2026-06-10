@@ -15,16 +15,15 @@ from server.domain.training import DatasetUploadResponse
 
 MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
-
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
-
 
 ###############################################################################
 class UploadState:
     """Encapsulates temporary dataset storage."""
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, Any] = {}
 
@@ -47,12 +46,14 @@ class UploadState:
     def is_empty(self) -> bool:
         return len(self.storage) == 0
 
-
 ###############################################################################
 class UploadService:
+
+    # -------------------------------------------------------------------------
     def __init__(self, upload_state: UploadState) -> None:
         self.upload_state = upload_state
 
+    # -------------------------------------------------------------------------
     def upload_dataset(self, filename: str, contents: bytes) -> DatasetUploadResponse:
         if not filename:
             raise HTTPException(
@@ -123,7 +124,6 @@ class UploadService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to parse file: {str(e)}",
             ) from e
-
 
 ###############################################################################
 @lru_cache(maxsize=1)

@@ -7,16 +7,17 @@ from server.api.upload import UploadEndpoint
 from server.domain.training import DatasetUploadResponse
 from tests.conftest import run_async_in_thread
 
-
 ###############################################################################
 class UploadFileStub:
+
+    # -------------------------------------------------------------------------
     def __init__(self, filename: str, content: bytes) -> None:
         self.filename = filename
         self._content = content
 
+    # -------------------------------------------------------------------------
     async def read(self) -> bytes:
         return self._content
-
 
 ###############################################################################
 def test_upload_endpoint_reads_file_and_forwards_plain_inputs() -> None:

@@ -14,7 +14,7 @@ from server.common.utils.logger import logger
 from server.repositories.queries import database as database_queries
 from server.repositories.schemas import Base
 
-# -------------------------------------------------------------------------
+###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
     connect_args: dict[str, str | int] = {
         "connect_timeout": settings.connect_timeout,
@@ -66,7 +66,6 @@ def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = SQLiteRepository(settings)
     Base.metadata.create_all(repository.engine)
     logger.info("Initialized SQLite database at %s", repository.db_path)
-
 
 ###############################################################################
 def ensure_postgres_database(settings: DatabaseSettings) -> str:

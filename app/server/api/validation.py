@@ -11,9 +11,10 @@ from server.domain.validation import (
 )
 from server.services.validation_runs import ValidationService, get_validation_service
 
-
 ###############################################################################
 class ValidationEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         router: APIRouter,
@@ -22,28 +23,35 @@ class ValidationEndpoint:
         self.router = router
         self.service = get_validation_service() if service is None else service
 
+    # -------------------------------------------------------------------------
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
         return await self.service.run_validation(request)
 
+    # -------------------------------------------------------------------------
     async def evaluate_checkpoint(
         self, request: CheckpointEvaluationRequest
     ) -> JobStartResponse:
         return await self.service.evaluate_checkpoint(request)
 
+    # -------------------------------------------------------------------------
     async def get_checkpoint_evaluation_report(
         self, checkpoint: str
     ) -> CheckpointEvaluationReportResponse:
         return await self.service.get_checkpoint_evaluation_report(checkpoint)
 
+    # -------------------------------------------------------------------------
     async def get_validation_report(self, dataset_name: str) -> ValidationReportResponse:
         return await self.service.get_validation_report(dataset_name)
 
+    # -------------------------------------------------------------------------
     async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
         return await self.service.get_validation_job_status(job_id)
 
+    # -------------------------------------------------------------------------
     async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
         return await self.service.cancel_validation_job(job_id)
 
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
             "/run",
@@ -87,7 +95,6 @@ class ValidationEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -9,12 +9,16 @@ os.environ["KERAS_BACKEND"] = "torch"
 from server.services import evaluation as evaluation_service
 
 
+###############################################################################
 class DummyTextGenerator:
+
+    # -------------------------------------------------------------------------
     def __init__(self, model, model_metadata, max_report_size) -> None:
         self.model = model
         self.model_metadata = model_metadata
         self.max_report_size = max_report_size
 
+    # -------------------------------------------------------------------------
     def generate_radiological_reports(
         self,
         image_paths: list[str],
@@ -23,6 +27,7 @@ class DummyTextGenerator:
         return dict.fromkeys(image_paths, "one two three four")
 
 
+###############################################################################
 def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
     monkeypatch.setattr(evaluation_service, "TextGenerator", DummyTextGenerator)
     evaluator = evaluation_service.CheckpointEvaluator(
@@ -42,6 +47,7 @@ def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
     assert bleu_score == pytest.approx(0.0)
 
 
+###############################################################################
 def test_bleu_score_accepts_valid_string_reports(monkeypatch) -> None:
     monkeypatch.setattr(evaluation_service, "TextGenerator", DummyTextGenerator)
     evaluator = evaluation_service.CheckpointEvaluator(

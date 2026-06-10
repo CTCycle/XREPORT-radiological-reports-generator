@@ -11,9 +11,12 @@ from server.common.path import ENCODERS_DIR
 
 
 # [PRETRAINED IMAGE ENCODER]
+
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, freeze_layers: bool = False, embedding_dims: int = 256, **kwargs
     ) -> None:
@@ -37,11 +40,13 @@ class BeitXRayImageEncoder(layers.Layer):
         self.dense = layers.Dense(self.embedding_dims)
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(BeitXRayImageEncoder, self).build(input_shape)
 
     # call method
+
     # -------------------------------------------------------------------------
     def call(self, inputs: Any, **kwargs) -> Any:
         inputs = ops.transpose(inputs, axes=(0, 3, 1, 2))
@@ -53,6 +58,7 @@ class BeitXRayImageEncoder(layers.Layer):
         return output
 
     # serialize layer for saving
+
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         config = super(BeitXRayImageEncoder, self).get_config()
@@ -63,6 +69,7 @@ class BeitXRayImageEncoder(layers.Layer):
         return config
 
     # deserialization method
+
     # -------------------------------------------------------------------------
     @classmethod
     def from_config(

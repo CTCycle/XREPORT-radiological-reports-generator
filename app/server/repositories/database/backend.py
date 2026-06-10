@@ -14,7 +14,6 @@ from server.repositories.database.postgres import PostgresRepository
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 class DatabaseBackend(Protocol):
     db_path: Path | None
@@ -31,6 +30,7 @@ class DatabaseBackend(Protocol):
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
     # -------------------------------------------------------------------------
@@ -39,11 +39,9 @@ class DatabaseBackend(Protocol):
 
 BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 
-
 ###############################################################################
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return SQLiteRepository(settings)
-
 
 ###############################################################################
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
@@ -57,8 +55,11 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 
 
 # [DATABASE]
+
 ###############################################################################
 class XREPORTDatabase:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)
@@ -103,6 +104,7 @@ class XREPORTDatabase:
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.save_into_database(df, table_name)
 
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.upsert_into_database(df, table_name)
 
@@ -111,6 +113,7 @@ class XREPORTDatabase:
         return self.backend.count_rows(table_name)
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_database() -> XREPORTDatabase:
     return XREPORTDatabase()

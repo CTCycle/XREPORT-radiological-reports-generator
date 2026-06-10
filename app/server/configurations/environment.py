@@ -11,16 +11,17 @@ from ..common.path import ENV_FILE_PATH
 from ..common.utils.logger import logger
 
 
+###############################################################################
 @dataclass
 class _EnvironmentState:
     lock: Lock = field(default_factory=Lock)
     loaded: bool = False
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def _environment_state() -> _EnvironmentState:
     return _EnvironmentState()
-
 
 ###############################################################################
 def load_environment(*, force: bool = False) -> Path | None:

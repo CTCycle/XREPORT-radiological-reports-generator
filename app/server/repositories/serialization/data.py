@@ -51,9 +51,10 @@ from server.repositories.schemas import (
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
-
 ###############################################################################
 class DataSerializer:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         queries: DataRepositoryQueries | None = None,

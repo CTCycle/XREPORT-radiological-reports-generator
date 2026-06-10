@@ -8,9 +8,10 @@ from server.common.constants import (
 )
 from server.repositories.database.backend import XREPORTDatabase, get_database
 
-
 ###############################################################################
 class TrainingRepositoryQueries:
+
+    # -------------------------------------------------------------------------
     def __init__(self, db: XREPORTDatabase | None = None) -> None:
         self.database = get_database() if db is None else db
 
