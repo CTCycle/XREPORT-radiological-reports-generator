@@ -4,13 +4,13 @@ import logging
 import logging.config
 from datetime import datetime
 
-from server.common.constants import LOGS_PATH
+from server.common.path import LOGS_DIR
 
 
 ###############################################################################
-LOGS_PATH.mkdir(parents=True, exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = LOGS_PATH / f"XREPORT_{current_timestamp}.log"
+log_filename = LOGS_DIR / f"XREPORT_{current_timestamp}.log"
 
 LOG_CONFIG = {
     "version": 1,

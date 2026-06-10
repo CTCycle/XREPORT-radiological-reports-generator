@@ -9,7 +9,10 @@ sys.path.append(str(Path.cwd()))
 from server.repositories.serialization.data import DataSerializer
 
 
+###############################################################################
 class TestDataSerializer(unittest.TestCase):
+
+    # -------------------------------------------------------------------------
     def test_parse_json_basic(self):
         """Test basic JSON parsing"""
         print("\nTesting _parse_json basic functionality...")
@@ -26,6 +29,7 @@ class TestDataSerializer(unittest.TestCase):
         # Test already dict
         self.assertEqual(DataSerializer._parse_json({"b": 2}), {"b": 2})
 
+    # -------------------------------------------------------------------------
     def test_parse_json_defaults(self):
         """Test default values handling"""
         print("Testing _parse_json defaults...")
@@ -42,6 +46,7 @@ class TestDataSerializer(unittest.TestCase):
         # Test None with custom default
         self.assertEqual(DataSerializer._parse_json(None, default=None), None)
 
+    # -------------------------------------------------------------------------
     def test_integration_serialization(self):
         """Test the existing integration serialization logic"""
         print("Testing generic serialization integration...")

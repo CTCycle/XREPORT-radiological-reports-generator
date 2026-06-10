@@ -8,14 +8,14 @@ from server.domain.inference import CheckpointsResponse, InferenceImage
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 
-
 ###############################################################################
 class InferenceEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         router: APIRouter,
@@ -24,9 +24,11 @@ class InferenceEndpoint:
         self.router = router
         self.service = get_inference_service() if service is None else service
 
+    # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         return self.service.get_checkpoints()
 
+    # -------------------------------------------------------------------------
     async def generate_reports(
         self,
         checkpoint: str = Form(...),
@@ -51,12 +53,15 @@ class InferenceEndpoint:
             images=parsed_images,
         )
 
+    # -------------------------------------------------------------------------
     def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
         return self.service.get_inference_job_status(job_id)
 
+    # -------------------------------------------------------------------------
     def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
         return self.service.cancel_inference_job(job_id)
 
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
             "/checkpoints",
@@ -86,7 +91,6 @@ class InferenceEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

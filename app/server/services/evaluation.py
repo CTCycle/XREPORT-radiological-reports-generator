@@ -11,9 +11,10 @@ from torch.utils.data import DataLoader
 from server.common.utils.logger import logger
 from server.learning.inference import TextGenerator
 
-
 ###############################################################################
 class CheckpointEvaluator:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         model: Model,

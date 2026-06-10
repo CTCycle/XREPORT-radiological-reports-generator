@@ -8,9 +8,11 @@ import uuid
 from playwright.sync_api import APIRequestContext
 
 
+###############################################################################
 class TestValidationEndpoints:
     """Tests for active /validation endpoints."""
 
+    # -------------------------------------------------------------------------
     def test_get_checkpoint_evaluation_report_missing_checkpoint_returns_404(
         self, api_context: APIRequestContext
     ):
@@ -22,6 +24,7 @@ class TestValidationEndpoints:
         data = response.json()
         assert "detail" in data
 
+    # -------------------------------------------------------------------------
     def test_get_validation_job_status_invalid_job_returns_404(
         self, api_context: APIRequestContext
     ):
@@ -29,6 +32,7 @@ class TestValidationEndpoints:
         assert response.status == 404
         assert "detail" in response.json()
 
+    # -------------------------------------------------------------------------
     def test_cancel_validation_job_invalid_job_returns_404(
         self, api_context: APIRequestContext
     ):

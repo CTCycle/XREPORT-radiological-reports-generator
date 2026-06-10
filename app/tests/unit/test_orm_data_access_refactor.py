@@ -28,9 +28,10 @@ from server.repositories.serialization.data import DataSerializer
 from server.api.preparation import PreparationEndpoint
 from server.services.preparation import PreparationService
 
-
 ###############################################################################
 class BackendStub:
+
+    # -------------------------------------------------------------------------
     def __init__(self, session_factory: sessionmaker) -> None:
         self.session_factory = session_factory
 
@@ -38,11 +39,9 @@ class BackendStub:
     def session(self):
         return self.session_factory()
 
-
 ###############################################################################
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 ###############################################################################
 @pytest.fixture()
@@ -55,7 +54,6 @@ def session_factory(tmp_path: Path):
         yield SessionLocal
     finally:
         engine.dispose()
-
 
 ###############################################################################
 def create_preparation_endpoint(session_factory: sessionmaker) -> PreparationEndpoint:
@@ -75,7 +73,6 @@ def create_preparation_endpoint(session_factory: sessionmaker) -> PreparationEnd
     )
     endpoint.service.allow_local_filesystem_access = True
     return endpoint
-
 
 ###############################################################################
 def create_processing_run(
@@ -100,7 +97,6 @@ def create_processing_run(
     session.add(run)
     session.flush()
     return run
-
 
 ###############################################################################
 def test_preparation_dataset_names_and_flags(session_factory: sessionmaker, tmp_path: Path):
@@ -164,7 +160,6 @@ def test_preparation_dataset_names_and_flags(session_factory: sessionmaker, tmp_
     assert by_name["dataset_b"].row_count == 1
     assert by_name["dataset_b"].has_validation_report is False
 
-
 ###############################################################################
 def test_preparation_processed_names_uses_latest_run(session_factory: sessionmaker):
     session = session_factory()
@@ -220,7 +215,6 @@ def test_preparation_processed_names_uses_latest_run(session_factory: sessionmak
     assert response.count == 1
     assert response.datasets[0].name == "processed_dataset"
     assert response.datasets[0].row_count == 1
-
 
 ###############################################################################
 def test_data_serializer_get_validation_report_aggregates(session_factory: sessionmaker):
@@ -304,7 +298,6 @@ def test_data_serializer_get_validation_report_aggregates(session_factory: sessi
     assert report["text_statistics"]["count"] == 1
     assert report["pixel_distribution"]["bins"] == [0, 1]
     assert report["pixel_distribution"]["counts"] == [3, 5]
-
 
 ###############################################################################
 def test_data_serializer_checkpoint_evaluation_exists_orm(session_factory: sessionmaker):

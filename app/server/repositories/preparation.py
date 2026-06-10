@@ -12,9 +12,10 @@ from server.repositories.schemas import (
     ValidationRun,
 )
 
-
 ###############################################################################
 class PreparationRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self, database: XREPORTDatabase) -> None:
         self.database = database
 

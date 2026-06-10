@@ -1,5 +1,5 @@
 # Project-specific generated/runtime artifacts
-release/**
+release/windows/**
 app/resources/models/**
 app/resources/checkpoints/**
 app/resources/database/**
@@ -52,10 +52,7 @@ Thumbs.db
 *.sqlite*
 *.exe
 *.gz
-
 !.gitkeep
 
-
 # Tauri
-app/client/src-tauri/target/
-app/client/src-tauri/gen/
+app/src-tauri/

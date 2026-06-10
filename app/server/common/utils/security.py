@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path, PureWindowsPath
 
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINTS_DIR
 
 
 MAX_CHECKPOINT_NAME_LENGTH = 128
@@ -13,8 +13,7 @@ MAX_DATASET_NAME_LENGTH = 128
 DATASET_NAME_ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._ -]+")
 DATASET_NAME_EDGE_TRIM = "._ -"
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def validate_checkpoint_name(name: str) -> str:
     normalized = str(name or "").strip()
     if not normalized:
@@ -35,18 +34,16 @@ def validate_checkpoint_name(name: str) -> str:
         )
     return normalized
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def resolve_checkpoint_path(name: str) -> str:
     checkpoint_name = validate_checkpoint_name(name)
-    base_path = CHECKPOINT_PATH.resolve()
+    base_path = CHECKPOINTS_DIR.resolve()
     target_path = (base_path / checkpoint_name).resolve()
     if base_path not in target_path.parents and target_path != base_path:
         raise ValueError("Checkpoint path is outside the checkpoints directory")
     return str(target_path)
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def sanitize_dataset_name(name: str) -> str:
     normalized = str(name or "").strip()
     if not normalized:

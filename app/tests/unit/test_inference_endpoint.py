@@ -7,32 +7,39 @@ from server.domain.inference import InferenceImage
 from server.domain.jobs import JobStartResponse
 from tests.conftest import run_async_in_thread
 
-
 ###############################################################################
 class UploadFileStub:
+
+    # -------------------------------------------------------------------------
     def __init__(self, filename: str, content_type: str, content: bytes) -> None:
         self.filename = filename
         self.content_type = content_type
         self._content = content
 
+    # -------------------------------------------------------------------------
     async def read(self) -> bytes:
         return self._content
 
-
 ###############################################################################
 class InferenceServiceStub:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.captured: dict[str, object] | None = None
 
+    # -------------------------------------------------------------------------
     def get_checkpoints(self):
         raise NotImplementedError
 
+    # -------------------------------------------------------------------------
     def get_inference_job_status(self, job_id: str):
         raise NotImplementedError
 
+    # -------------------------------------------------------------------------
     def cancel_inference_job(self, job_id: str):
         raise NotImplementedError
 
+    # -------------------------------------------------------------------------
     def generate_reports(
         self,
         checkpoint: str,
@@ -51,7 +58,6 @@ class InferenceServiceStub:
             message=f"Inference job started for {len(images)} images",
             poll_interval=1.0,
         )
-
 
 ###############################################################################
 def test_inference_endpoint_converts_uploads_to_domain_images() -> None:

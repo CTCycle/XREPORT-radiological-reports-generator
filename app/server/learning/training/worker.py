@@ -25,19 +25,21 @@ from server.learning.training.trainer import ModelTrainer
 from server.repositories.serialization.data import DataSerializer
 from server.repositories.serialization.model import ModelSerializer
 
-
 ###############################################################################
 class ProcessLike(Protocol):
     pid: int | None
     exitcode: int | None
 
+    # -------------------------------------------------------------------------
     def is_alive(self) -> bool: ...
 
+    # -------------------------------------------------------------------------
     def join(self, timeout: float | None = None) -> None: ...
-
 
 ###############################################################################
 class QueueProgressReporter:
+
+    # -------------------------------------------------------------------------
     def __init__(self, target_queue: Any) -> None:
         self.target_queue = target_queue
 
@@ -62,9 +64,10 @@ class QueueProgressReporter:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to push training update: %s", exc)
 
-
 ###############################################################################
 class WorkerChannels:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         progress_queue: Any,
@@ -79,9 +82,10 @@ class WorkerChannels:
     def is_interrupted(self) -> bool:
         return bool(self.stop_event.is_set())
 
-
 ###############################################################################
 class ProcessWorker:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         progress_queue_size: int = 256,
@@ -217,7 +221,6 @@ class ProcessWorker:
             return None
         return self.process.exitcode
 
-
 ###############################################################################
 def process_target(
     target: Callable[..., None],
@@ -227,7 +230,6 @@ def process_target(
     if os.name != "nt":
         os.setsid()
     target(worker=worker, **kwargs)
-
 
 ###############################################################################
 def prepare_training_data(
@@ -259,7 +261,6 @@ def prepare_training_data(
 
     return train_data, validation_data, metadata
 
-
 ###############################################################################
 def load_resume_training_data(
     train_config: dict[str, Any],
@@ -284,7 +285,6 @@ def load_resume_training_data(
             )
 
     return train_data, validation_data
-
 
 ###############################################################################
 def run_training_process(
@@ -372,7 +372,6 @@ def run_training_process(
         result_queue.put({"result": {}})
     except Exception as exc:  # noqa: BLE001
         result_queue.put({"error": str(exc)})
-
 
 ###############################################################################
 def run_resume_training_process(

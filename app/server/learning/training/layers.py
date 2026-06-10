@@ -6,10 +6,11 @@ from keras import activations, layers, ops
 from keras.config import floatx
 from keras.saving import register_keras_serializable
 
-
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         vocabulary_size: int,
@@ -82,10 +83,11 @@ class PositionalEmbedding(layers.Layer):
     ) -> PositionalEmbedding:
         return cls(**config)
 
-
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(self, epsilon: float = 10e-5, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
         self.epsilon = epsilon
@@ -94,6 +96,7 @@ class AddNorm(layers.Layer):
         self.supports_masking = True
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(AddNorm, self).build(input_shape)
@@ -117,10 +120,11 @@ class AddNorm(layers.Layer):
     def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
-
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, dense_units: int, dropout: float = 0.2, seed: int = 42, **kwargs
     ) -> None:
@@ -137,6 +141,7 @@ class FeedForward(layers.Layer):
         self.seed = seed
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(FeedForward, self).build(input_shape)
@@ -165,10 +170,11 @@ class FeedForward(layers.Layer):
     def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
-
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, dense_units: int, output_size: int, temperature: float = 1.0, **kwargs
     ) -> None:
@@ -183,6 +189,7 @@ class SoftMaxClassifier(layers.Layer):
         self.supports_masking = True
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(SoftMaxClassifier, self).build(input_shape)
@@ -216,10 +223,11 @@ class SoftMaxClassifier(layers.Layer):
     ) -> SoftMaxClassifier:
         return cls(**config)
 
-
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, embedding_dims: int, num_heads: int, seed: int, **kwargs
     ) -> None:
@@ -238,6 +246,7 @@ class TransformerEncoder(layers.Layer):
         self.supports_masking: bool = True
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(TransformerEncoder, self).build(input_shape)
@@ -288,10 +297,11 @@ class TransformerEncoder(layers.Layer):
     ) -> TransformerEncoder:
         return cls(**config)
 
-
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")
 class TransformerDecoder(layers.Layer):
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, embedding_dims: int, num_heads: int, seed: int, **kwargs
     ) -> None:
@@ -320,6 +330,7 @@ class TransformerDecoder(layers.Layer):
         self.supports_masking: bool = True
 
     # build method for the custom layer
+
     # -------------------------------------------------------------------------
     def build(self, input_shape: Any) -> None:
         super(TransformerDecoder, self).build(input_shape)

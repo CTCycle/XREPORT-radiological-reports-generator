@@ -12,9 +12,10 @@ from collections.abc import Callable
 from server.common.utils.logger import logger
 from server.domain.jobs import JobState
 
-
 ###############################################################################
 class JobManager:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.jobs: dict[str, JobState] = {}
         self.threads: dict[str, threading.Thread] = {}
@@ -178,8 +179,6 @@ class JobManager:
             if param.kind == param.VAR_KEYWORD:
                 return True
         return "job_id" in signature.parameters
-
-
 
 ###############################################################################
 @lru_cache(maxsize=1)

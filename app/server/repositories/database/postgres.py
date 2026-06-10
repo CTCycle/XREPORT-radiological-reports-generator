@@ -21,9 +21,10 @@ from server.repositories.database.utils import (
 )
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 class PostgresRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(self, settings: DatabaseSettings) -> None:
         if not settings.host:
             raise ValueError("Database host must be provided for external database.")

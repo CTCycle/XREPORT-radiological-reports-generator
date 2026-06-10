@@ -2,18 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict
 import json
-from pathlib import Path
-import sys
 import time
 
-
-APP_DIR = Path(__file__).resolve().parents[1]
-if str(APP_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_DIR))
-
+from server.common.utils.logger import logger
 from server.configurations import get_server_settings
 from server.repositories.database.initializer import initialize_database
-from server.common.utils.logger import logger
+
+
 
 
 ###############################################################################
