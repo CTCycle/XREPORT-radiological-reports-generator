@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from server.app import app
 
-
 ###############################################################################
 def test_openapi_schema_generation_and_prefixes() -> None:
     schema = app.openapi()

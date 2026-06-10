@@ -10,6 +10,7 @@ from queue import Queue
 import pytest
 
 
+###############################################################################
 def _normalize_host(value: str) -> str:
     host = value.strip()
     if host == "0.0.0.0":
@@ -17,6 +18,7 @@ def _normalize_host(value: str) -> str:
     return host
 
 
+###############################################################################
 def _resolve_base_url(
     explicit_url_env: str,
     host_env: str,
@@ -49,18 +51,21 @@ API_BASE_URL = _resolve_base_url(
 )
 
 
+###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
     """Returns the base URL of the UI."""
     return UI_BASE_URL
 
 
+###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Returns the base URL of the API."""
     return API_BASE_URL
 
 
+###############################################################################
 @pytest.fixture
 def api_context(playwright):
     """
@@ -72,6 +77,7 @@ def api_context(playwright):
     context.dispose()
 
 
+###############################################################################
 def run_async_in_thread(awaitable):
     """Run a coroutine on a dedicated thread to avoid cross-plugin event loop clashes."""
     result_queue: Queue[tuple[bool, object]] = Queue(maxsize=1)

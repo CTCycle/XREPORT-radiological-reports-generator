@@ -42,12 +42,13 @@ from server.learning.training.worker import (
 class TrainingState:
     """Encapsulates all training session state."""
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.state = self.build_state(is_training=False, total_epochs=0)
         self.worker: ProcessWorker | None = None
         self.current_job_id: str | None = None
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def build_state(self, is_training: bool, total_epochs: int) -> dict[str, Any]:
         return {
             "is_training": is_training,
@@ -64,7 +65,7 @@ class TrainingState:
             "available_metrics": [],
         }
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def result_payload(self) -> dict[str, Any]:
         return {
             "current_epoch": self.state["current_epoch"],
@@ -80,7 +81,7 @@ class TrainingState:
             "available_metrics": list(self.state["available_metrics"]),
         }
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def update_metrics(self, message: dict[str, Any]) -> None:
         """Update state from a training callback message."""
         self.state.update(
@@ -112,13 +113,13 @@ class TrainingState:
 
             self.state["available_metrics"] = message.get("metrics", [])
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def reset_for_new_session(self, total_epochs: int, job_id: str) -> None:
         """Reset state for a new training session."""
         self.state = self.build_state(is_training=True, total_epochs=total_epochs)
         self.current_job_id = job_id
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def finish_session(self) -> None:
         """Mark training session as complete."""
         self.state["is_training"] = False
@@ -126,10 +127,10 @@ class TrainingState:
         self.current_job_id = None
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_training_state() -> TrainingState:
     return TrainingState()
-
 
 ###############################################################################
 def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
@@ -165,7 +166,6 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
             },
         )
 
-
 ###############################################################################
 def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
     while True:
@@ -173,7 +173,6 @@ def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
         if message is None:
             return
         handle_training_progress(job_id, message)
-
 
 ###############################################################################
 def request_worker_stop_if_needed(
@@ -191,7 +190,6 @@ def request_worker_stop_if_needed(
         worker.stop()
 
     return stop_requested_at
-
 
 ###############################################################################
 def enforce_worker_stop_timeout(
@@ -215,7 +213,6 @@ def enforce_worker_stop_timeout(
     worker.terminate()
     return True
 
-
 ###############################################################################
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
     result_payload = worker.read_result()
@@ -231,7 +228,6 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
         return result_payload["result"] or {}
 
     return {}
-
 
 ###############################################################################
 def monitor_training_process(
@@ -265,7 +261,6 @@ def monitor_training_process(
 
     return read_worker_result(job_id=job_id, worker=worker)
 
-
 ###############################################################################
 def run_training_job(
     configuration: dict[str, Any],
@@ -292,7 +287,6 @@ def run_training_job(
             worker.join(timeout=5)
         worker.cleanup()
         training_state.finish_session()
-
 
 ###############################################################################
 def run_resume_training_job(
@@ -325,13 +319,13 @@ def run_resume_training_job(
         worker.cleanup()
         training_state.finish_session()
 
-
 ###############################################################################
 class TrainingService:
     JOB_TYPE = "training"
     CHECKPOINT_EMPTY_MESSAGE = "Checkpoint name cannot be empty"
     NO_TRAINING_DATA_MESSAGE = "No training data found. Please process a dataset first."
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         job_manager: JobManager,
@@ -340,7 +334,7 @@ class TrainingService:
         self.job_manager = job_manager
         self.training_state = training_state
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def apply_runtime_training_configuration(
         self, configuration: dict[str, Any]
     ) -> None:
@@ -348,7 +342,7 @@ class TrainingService:
         configuration["training_seed"] = server_settings.global_settings.seed
         configuration["polling_interval"] = server_settings.jobs.polling_interval
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def initialize_training_state(
         self, job_id: str, total_epochs: int, current_epoch: int = 0
     ) -> None:
@@ -356,7 +350,7 @@ class TrainingService:
         self.training_state.state["current_epoch"] = current_epoch
         self.job_manager.update_result(job_id, self.training_state.result_payload())
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def build_job_start_response(
         self,
         job_id: str,
@@ -378,7 +372,7 @@ class TrainingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         """Get list of available checkpoints (JSON config only, no model loading)."""
         modser = ModelSerializer()
@@ -451,7 +445,7 @@ class TrainingService:
             session=session,
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def delete_checkpoint(self, checkpoint: str) -> DeleteResponse:
         try:
             checkpoint = validate_checkpoint_name(checkpoint)
@@ -494,7 +488,7 @@ class TrainingService:
             message=f"Deleted checkpoint {checkpoint}",
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_training_status(self) -> TrainingStatusResponse:
         return TrainingStatusResponse(
             job_id=self.training_state.current_job_id,
@@ -510,7 +504,7 @@ class TrainingService:
             poll_interval=get_server_settings().jobs.polling_interval,
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
             raise HTTPException(
@@ -565,7 +559,7 @@ class TrainingService:
             initialization_error="Failed to initialize training job",
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
             raise HTTPException(
@@ -638,7 +632,7 @@ class TrainingService:
             initialization_error="Failed to initialize training resume job",
         )
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def get_training_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -648,7 +642,7 @@ class TrainingService:
             )
         return JobStatusResponse(**job_status)
 
-    ###############################################################################
+    # -------------------------------------------------------------------------
     def cancel_training_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
