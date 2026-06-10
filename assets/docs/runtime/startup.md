@@ -49,6 +49,8 @@ npm run tauri:build
 npm run tauri:export:windows
 ```
 
+The Tauri project itself now lives under `app\src-tauri`, but the client package still owns the frontend scripts and can invoke the desktop build with the updated relative config path.
+
 Prerequisites:
 
 - Rust and Cargo on the build machine

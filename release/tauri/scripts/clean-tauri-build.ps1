@@ -4,9 +4,9 @@ param()
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
-$clientDir = Join-Path $repoRoot "app\client"
+$appDir = Join-Path $repoRoot "app"
 $pathsToRemove = @(
-  (Join-Path $clientDir "src-tauri\target\release"),
+  (Join-Path $appDir "src-tauri"),
   (Join-Path $repoRoot "release\windows")
 )
 

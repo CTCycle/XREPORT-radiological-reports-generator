@@ -9,7 +9,7 @@ from typing import Any
 from keras import Model
 from keras.models import load_model
 
-from server.common.constants import CHECKPOINT_PATH
+from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
 from server.learning.training.encoder import BeitXRayImageEncoder
@@ -27,9 +27,10 @@ from server.learning.training.metrics import (
 )
 from server.learning.training.scheduler import WarmUpLRScheduler
 
-
 ###############################################################################
 class ModelSerializer:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.model_name = "XREPORT"
 
@@ -44,7 +45,7 @@ class ModelSerializer:
             today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
             sanitized_name = f"{self.model_name}_{today_datetime}"
 
-        checkpoint_path = CHECKPOINT_PATH / sanitized_name
+        checkpoint_path = CHECKPOINTS_DIR / sanitized_name
         checkpoint_path.mkdir(parents=True, exist_ok=True)
         (checkpoint_path / "configuration").mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created checkpoint folder at {checkpoint_path}")
@@ -107,11 +108,11 @@ class ModelSerializer:
 
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
-        if not CHECKPOINT_PATH.exists():
+        if not CHECKPOINTS_DIR.exists():
             return []
 
         model_folders = []
-        for entry in CHECKPOINT_PATH.iterdir():
+        for entry in CHECKPOINTS_DIR.iterdir():
             if entry.is_dir():
                 has_keras = any(
                     child.suffix == ".keras" and child.is_file()
@@ -128,7 +129,7 @@ class ModelSerializer:
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load checkpoint model and configuration for resume training or inference."""
         checkpoint_name = validate_checkpoint_name(checkpoint)
-        base_path = CHECKPOINT_PATH.resolve()
+        base_path = CHECKPOINTS_DIR.resolve()
         checkpoint_path = (base_path / checkpoint_name).resolve()
         if base_path not in checkpoint_path.parents and checkpoint_path != base_path:
             raise ValueError("Checkpoint path is outside the checkpoints directory")

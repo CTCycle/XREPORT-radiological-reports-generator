@@ -60,9 +60,10 @@ echo 3. Uninstall application
 echo 4. Remove desktop packages
 echo 5. Run test suite
 echo 6. Remove logs
-echo 7. Exit
+echo 7. Clear cache
+echo 8. Exit
 echo.
-set /p sub_choice="Select an option (1-7): "
+set /p sub_choice="Select an option (1-8): "
 set "sub_choice=%sub_choice: =%"
 
 if "%sub_choice%"=="1" goto :install_app
@@ -71,7 +72,8 @@ if "%sub_choice%"=="3" goto :uninstall
 if "%sub_choice%"=="4" goto :remove_desktop
 if "%sub_choice%"=="5" goto :run_tests
 if "%sub_choice%"=="6" goto :remove_logs
-if "%sub_choice%"=="7" goto :exit
+if "%sub_choice%"=="7" goto :clear_cache
+if "%sub_choice%"=="8" goto :exit
 
 echo [ERROR] Invalid option.
 pause
@@ -290,6 +292,9 @@ echo [UNINSTALL] Removing virtual environments...
 if exist "%repo_root%\app\server\.venv" rd /s /q "%repo_root%\app\server\.venv"
 if exist "%repo_root%\.venv" rd /s /q "%repo_root%\.venv"
 
+echo [UNINSTALL] Removing Python cache directories...
+call :clear_python_cache
+
 echo [UNINSTALL] Removing frontend artifacts...
 if exist "%client_dir%\node_modules" rd /s /q "%client_dir%\node_modules"
 if exist "%client_dir%\.angular" rd /s /q "%client_dir%\.angular"
@@ -300,12 +305,16 @@ echo [UNINSTALL] Completed.
 pause
 goto :menu
 
+:clear_cache
+call :clear_python_cache
+pause
+goto :menu
+
 :remove_desktop
 if exist "%tauri_clean_script%" (
   powershell -NoProfile -ExecutionPolicy Bypass -File "%tauri_clean_script%"
 ) else (
-  if exist "%client_dir%\src-tauri\target\release" rd /s /q "%client_dir%\src-tauri\target\release"
-  if exist "%client_dir%\src-tauri\target" rd /s /q "%client_dir%\src-tauri\target"
+  if exist "%app_dir%\src-tauri" rd /s /q "%app_dir%\src-tauri"
   if exist "%repo_root%\release\windows" rd /s /q "%repo_root%\release\windows"
   for /r "%repo_root%" %%F in (*.exe) do del /q "%%F"
 )
@@ -348,6 +357,26 @@ if exist "%log_dir%\*.log" (
 )
 pause
 goto :menu
+
+:clear_python_cache
+set "pycache_removed=0"
+for /d /r "%repo_root%" %%D in (__pycache__) do (
+  if exist "%%~fD\" (
+    rd /s /q "%%~fD"
+    if not exist "%%~fD\" (
+      set /a pycache_removed+=1
+      echo [CACHE] Removed "%%~fD"
+    ) else (
+      echo [WARN] Failed to remove "%%~fD"
+    )
+  )
+)
+if "%pycache_removed%"=="0" (
+  echo [INFO] No __pycache__ directories found.
+) else (
+  echo [SUCCESS] Removed %pycache_removed% __pycache__ director^ies.
+)
+exit /b 0
 
 :promote_node_runtime
 set "node_source_dir=%~1"

@@ -13,9 +13,10 @@ from server.learning.callbacks import (
     initialize_training_callbacks,
 )
 
-
 ###############################################################################
 class ModelTrainer:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, configuration: dict[str, Any], metadata: dict[str, Any] | None = None
     ) -> None:

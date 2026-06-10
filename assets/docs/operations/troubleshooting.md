@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-06-03
+Last updated: 2026-06-05
 
 ## Troubleshooting Quick Guide
 
@@ -18,11 +18,11 @@ Last updated: 2026-06-03
 
 ### SQLite Mode
 
-- When `database.embedded_database=true`, the backend initializes `XREPORT/resources/database.db` automatically on first startup if the file does not exist.
+- When `XREPORT_DB_EMBEDDED=true`, the backend initializes `XREPORT/resources/database.db` automatically on first startup if the file does not exist.
 - On later startups, initialization is skipped when the file is already present.
 
 ### PostgreSQL Mode
 
-- When `database.embedded_database=false`, database initialization is not automatic through the operations flow.
+- When `XREPORT_DB_EMBEDDED=false`, PostgreSQL initialization uses the database values from `XREPORT/settings/.env`.
 - Run `XREPORT/setup_and_maintenance.bat`, choose `1. Initialize database`, and execute `XREPORT/scripts/initialize_database.py`.
 - The same script also works for SQLite mode, but it is normally unnecessary because first-run SQLite initialization is automatic.

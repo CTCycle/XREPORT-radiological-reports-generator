@@ -13,9 +13,10 @@ from server.learning.training.dataloader import XRAYDataLoader
 from server.learning.training.trainer import ModelTrainer
 from server.services import processing
 
-
 ###############################################################################
 class FakeLoader:
+
+    # -------------------------------------------------------------------------
     def __init__(self, length: int) -> None:
         self.length = length
 
@@ -28,16 +29,18 @@ class FakeLoader:
         for _ in range(self.length):
             yield ((0, 0), 0)
 
-
 ###############################################################################
 class FakeSession:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.history = {"loss": [1.0], "val_loss": [1.2]}
         self.epoch = [0]
 
-
 ###############################################################################
 class FakeModel:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.fit_x: Any = None
         self.fit_validation_data: Any = None
@@ -52,9 +55,10 @@ class FakeModel:
         self.fit_validation_steps = int(kwargs.get("validation_steps", 0))
         return FakeSession()
 
-
 ###############################################################################
 class TokenizerCallGuard:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.call_count = 0
 
@@ -63,8 +67,7 @@ class TokenizerCallGuard:
         self.call_count += 1
         raise AssertionError("Tokenizer loading must not happen in XRAYDataLoader init")
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
     model = FakeModel()
@@ -87,8 +90,7 @@ def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     assert model.fit_steps_per_epoch == 3
     assert model.fit_validation_steps == 2
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def test_xray_dataloader_init_does_not_load_tokenizer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

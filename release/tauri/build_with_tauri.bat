@@ -5,10 +5,11 @@ set "script_dir=%~dp0"
 for %%I in ("%script_dir%..\..") do set "repo_root=%%~fI"
 set "app_dir=%repo_root%\app"
 set "client_dir=%app_dir%\client"
-set "tauri_dir=%client_dir%\src-tauri"
+set "tauri_dir=%app_dir%\src-tauri"
 set "bundle_dir=%tauri_dir%\target\release\bundle"
 set "release_export_dir=%repo_root%\release\windows"
 set "bundle_source_dir=%tauri_dir%\r"
+set "tauri_js=%client_dir%\node_modules\@tauri-apps\cli\tauri.js"
 
 set "runtime_python_exe=%repo_root%\runtimes\python\python.exe"
 set "runtime_uv_exe=%repo_root%\runtimes\uv\uv.exe"
@@ -170,14 +171,20 @@ if errorlevel 1 (
   goto fail
 )
 
-echo [STEP 1/2] Installing frontend dependencies
+echo [CHECK] Removing stale frontend install artifacts...
+if exist "%client_dir%\node_modules" rd /s /q "%client_dir%\node_modules"
+if exist "%client_dir%\node_modules" (
+  echo [WARN] Failed to remove stale frontend install artifacts; continuing with npm ci.
+)
+
+echo [STEP 1/3] Installing frontend dependencies
 pushd "%client_dir%" >nul
 if exist "package-lock.json" (
-  echo [CMD] "%npm_cmd%" ci --foreground-scripts
-  call "%npm_cmd%" ci --foreground-scripts
+  echo [CMD] "%npm_cmd%" ci --ignore-scripts --no-bin-links --foreground-scripts
+  call "%npm_cmd%" ci --ignore-scripts --no-bin-links --foreground-scripts
 ) else (
-  echo [CMD] "%npm_cmd%" install --foreground-scripts
-  call "%npm_cmd%" install --foreground-scripts
+  echo [CMD] "%npm_cmd%" install --ignore-scripts --no-bin-links --foreground-scripts
+  call "%npm_cmd%" install --ignore-scripts --no-bin-links --foreground-scripts
 )
 if errorlevel 1 (
   popd >nul
@@ -185,15 +192,49 @@ if errorlevel 1 (
   goto fail
 )
 
-echo [STEP 2/2] Building Tauri application
-echo [CMD] "%npm_cmd%" run tauri:build:release
-call "%npm_cmd%" run tauri:build:release
+if not exist "%tauri_js%" (
+  popd >nul
+  echo [FATAL] Missing Tauri CLI entrypoint at "%tauri_js%"
+  echo         Install frontend dependencies first so @tauri-apps/cli is available.
+  goto fail
+)
+
+echo [STEP 2/3] Building frontend bundle
+echo [CMD] "%node_cmd%" "%client_dir%\node_modules\typescript\bin\tsc"
+call "%node_cmd%" "%client_dir%\node_modules\typescript\bin\tsc"
 if errorlevel 1 (
   popd >nul
+  echo [FATAL] TypeScript build failed.
+  goto fail
+)
+echo [CMD] "%node_cmd%" "%client_dir%\node_modules\vite\bin\vite.js" build
+call "%node_cmd%" "%client_dir%\node_modules\vite\bin\vite.js" build
+if errorlevel 1 (
+  popd >nul
+  echo [FATAL] Frontend build failed.
+  goto fail
+)
+
+echo [STEP 3/4] Building Tauri application
+popd >nul
+pushd "%app_dir%" >nul
+echo [CMD] "%node_cmd%" "%tauri_js%" build --config src-tauri/tauri.conf.json
+set "tauri_build_exit=0"
+call "%node_cmd%" "%tauri_js%" build --config src-tauri/tauri.conf.json
+set "tauri_build_exit=%errorlevel%"
+popd >nul
+if not "%tauri_build_exit%"=="0" (
   echo [FATAL] Tauri build failed.
   goto fail
 )
-popd >nul
+
+echo [STEP 4/4] Exporting Windows artifacts
+echo [CMD] powershell -NoProfile -ExecutionPolicy Bypass -File "%repo_root%\release\tauri\scripts\export-windows-artifacts.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%repo_root%\release\tauri\scripts\export-windows-artifacts.ps1"
+if errorlevel 1 (
+  echo [FATAL] Windows artifact export failed.
+  goto fail
+)
 
 if exist "%bundle_source_dir%" rd /s /q "%bundle_source_dir%" >nul 2>&1
 
