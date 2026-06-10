@@ -8,9 +8,10 @@ from typing import Any
 from ..common.path import CONFIGURATION_FILE_PATH
 from ..domain.settings import JsonServerSettings, ServerSettings
 
-
 ###############################################################################
 class ConfigurationManager:
+
+    # -------------------------------------------------------------------------
     def __init__(self, config_path: str | Path | None = None) -> None:
         self._lock = RLock()
         self._config_path = Path(config_path) if config_path else CONFIGURATION_FILE_PATH

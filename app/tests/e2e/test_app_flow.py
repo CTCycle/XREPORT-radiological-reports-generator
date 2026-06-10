@@ -7,9 +7,11 @@ import re
 from playwright.sync_api import Page, expect
 
 
+###############################################################################
 class TestHomePage:
     """Tests for the home page and basic navigation."""
 
+    # -------------------------------------------------------------------------
     def test_homepage_loads_successfully(self, page: Page, base_url: str):
         """The homepage should load without errors."""
         page.goto(base_url)
@@ -18,6 +20,7 @@ class TestHomePage:
             re.compile("XREPORT|Radiological Reports", re.IGNORECASE)
         )
 
+    # -------------------------------------------------------------------------
     def test_homepage_has_navigation(self, page: Page, base_url: str):
         """The homepage should have navigation elements."""
         page.goto(base_url)
@@ -28,6 +31,7 @@ class TestHomePage:
         expect(page.locator('a[title="Training"]')).to_be_visible()
         expect(page.locator('a[title="Inference"]')).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_homepage_has_xreport_branding(self, page: Page, base_url: str):
         """The homepage should display the dataset landing header."""
         page.goto(base_url)
@@ -40,9 +44,11 @@ class TestHomePage:
         ).to_be_visible()
 
 
+###############################################################################
 class TestNavigationFlow:
     """Tests for navigating between different pages."""
 
+    # -------------------------------------------------------------------------
     def test_navigate_to_dataset_page(self, page: Page, base_url: str):
         """Should remain on the Dataset page from homepage navigation."""
         page.goto(base_url)
@@ -56,6 +62,7 @@ class TestNavigationFlow:
             )
         ).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_navigate_to_training_page(self, page: Page, base_url: str):
         """Should be able to navigate to the Training page."""
         page.goto(base_url)
@@ -68,6 +75,7 @@ class TestNavigationFlow:
             )
         ).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_navigate_to_inference_page(self, page: Page, base_url: str):
         """Should be able to navigate to the Inference page."""
         page.goto(base_url)
@@ -78,9 +86,11 @@ class TestNavigationFlow:
         expect(page.locator("h1, h2, h3").filter(has_text="Inference")).to_be_visible()
 
 
+###############################################################################
 class TestDatasetPage:
     """Tests for the Dataset page."""
 
+    # -------------------------------------------------------------------------
     def test_dataset_page_loads(self, page: Page, base_url: str):
         """The Dataset page should display the dataset management heading."""
         page.goto(f"{base_url}/dataset")
@@ -93,9 +103,11 @@ class TestDatasetPage:
         ).to_be_visible()
 
 
+###############################################################################
 class TestTrainingPage:
     """Tests for the Training page."""
 
+    # -------------------------------------------------------------------------
     def test_training_page_loads(self, page: Page, base_url: str):
         """The Training page should load without errors."""
         page.goto(f"{base_url}/training")
@@ -106,12 +118,14 @@ class TestTrainingPage:
             )
         ).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_training_page_shows_status(self, page: Page, base_url: str):
         """The Training page should display training status."""
         page.goto(f"{base_url}/training")
 
         expect(page.get_by_text("Training Dashboard", exact=False)).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_training_page_has_dashboard(self, page: Page, base_url: str):
         """The Training page should have a dashboard for metrics."""
         page.goto(f"{base_url}/training")
@@ -120,9 +134,11 @@ class TestTrainingPage:
         expect(page.locator("canvas, svg").first).to_be_visible()
 
 
+###############################################################################
 class TestInferencePage:
     """Tests for the Inference page."""
 
+    # -------------------------------------------------------------------------
     def test_inference_page_loads(self, page: Page, base_url: str):
         """The Inference page should load without errors."""
         page.goto(f"{base_url}/inference")
@@ -130,6 +146,7 @@ class TestInferencePage:
 
         expect(page.locator("h1, h2").filter(has_text="Inference")).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_inference_page_shows_checkpoint_selector(self, page: Page, base_url: str):
         """The Inference page should have a checkpoint selector."""
         page.goto(f"{base_url}/inference")
@@ -137,6 +154,7 @@ class TestInferencePage:
 
         expect(page.locator("#checkpoint-select")).to_be_visible()
 
+    # -------------------------------------------------------------------------
     def test_inference_page_has_image_upload(self, page: Page, base_url: str):
         """The Inference page should have an image upload area."""
         page.goto(f"{base_url}/inference")
