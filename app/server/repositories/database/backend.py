@@ -7,13 +7,12 @@ from typing import Any, Protocol
 
 import pandas as pd
 
-from server.common.constants import DATABASE_FILENAME, RESOURCES_PATH
+from server.common.path import DATABASE_FILE_PATH
 from server.common.utils.logger import logger
 from server.configurations import DatabaseSettings, get_server_settings
 from server.repositories.database.postgres import PostgresRepository
 from server.repositories.database.sqlite import SQLiteRepository
 from server.repositories.schemas import Base
-
 
 ###############################################################################
 class DatabaseBackend(Protocol):
@@ -31,6 +30,7 @@ class DatabaseBackend(Protocol):
     # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None: ...
 
     # -------------------------------------------------------------------------
@@ -39,13 +39,11 @@ class DatabaseBackend(Protocol):
 
 BackendFactory = Callable[[DatabaseSettings], DatabaseBackend]
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_sqlite_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return SQLiteRepository(settings)
 
-
-# -----------------------------------------------------------------------------
+###############################################################################
 def build_postgres_backend(settings: DatabaseSettings) -> DatabaseBackend:
     return PostgresRepository(settings)
 
@@ -57,8 +55,11 @@ BACKEND_FACTORIES: dict[str, BackendFactory] = {
 
 
 # [DATABASE]
+
 ###############################################################################
 class XREPORTDatabase:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.settings = get_server_settings().database
         self.backend = self._build_backend(self.settings.embedded_database)
@@ -73,7 +74,7 @@ class XREPORTDatabase:
         sqlite_db_path: str | None = None
         sqlite_database_exists = True
         if normalized_name == "sqlite":
-            sqlite_db_path = RESOURCES_PATH / DATABASE_FILENAME
+            sqlite_db_path = DATABASE_FILE_PATH
             sqlite_database_exists = sqlite_db_path.exists()
         factory = BACKEND_FACTORIES[normalized_name]
         backend = factory(self.settings)
@@ -103,6 +104,7 @@ class XREPORTDatabase:
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.save_into_database(df, table_name)
 
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         self.backend.upsert_into_database(df, table_name)
 
@@ -111,6 +113,7 @@ class XREPORTDatabase:
         return self.backend.count_rows(table_name)
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_database() -> XREPORTDatabase:
     return XREPORTDatabase()

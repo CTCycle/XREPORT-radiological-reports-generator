@@ -6,13 +6,12 @@ from typing import Any
 import pandas as pd
 from transformers import AutoTokenizer
 
-from server.common.constants import RESOURCES_PATH
-
-TOKENIZERS_PATH = RESOURCES_PATH / "tokenizers"
-
+from server.common.path import TOKENIZERS_DIR
 
 ###############################################################################
 class TrainValidationSplit:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame) -> None:
         self.validation_size = configuration.get("validation_size", 0.2)
         self.seed = configuration.get("split_seed", 42)
@@ -47,9 +46,10 @@ class TrainValidationSplit:
 
         return dataframe
 
-
 ###############################################################################
 class TextSanitizer:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.max_report_size = configuration.get("max_report_size", 200)
         self.configuration = configuration
@@ -59,9 +59,10 @@ class TextSanitizer:
         dataset["text"] = dataset["text"].str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
         return dataset
 
-
 ###############################################################################
 class TokenizerHandler:
+
+    # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.tokenizer_id = configuration.get("tokenizer", None)
         self.max_report_size = configuration.get("max_report_size", 200)
@@ -80,7 +81,7 @@ class TokenizerHandler:
         if tokenizer_name is None:
             return None
 
-        tokenizer_path = TOKENIZERS_PATH / tokenizer_name
+        tokenizer_path = TOKENIZERS_DIR / tokenizer_name
         tokenizer_path.mkdir(parents=True, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(
             tokenizer_name, cache_dir=str(tokenizer_path)

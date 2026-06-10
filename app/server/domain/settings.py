@@ -7,7 +7,6 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -23,23 +22,21 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
 
 
+###############################################################################
 @dataclass(frozen=True)
 class FeatureSettings:
     allow_local_filesystem_access: bool
-
 
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -49,7 +46,6 @@ class ServerSettings:
     features: FeatureSettings
     jobs: JobsSettings
 
-
 ###############################################################################
 def _normalize_optional_string(value: Any) -> str | None:
     if value is None:
@@ -58,6 +54,7 @@ def _normalize_optional_string(value: Any) -> str | None:
     return text or None
 
 
+###############################################################################
 def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     if value is None:
         return default
@@ -69,6 +66,7 @@ def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     return default
 
 
+###############################################################################
 def _normalize_int_env(
     value: str | None,
     *,
@@ -89,6 +87,7 @@ def _normalize_int_env(
     return parsed
 
 
+###############################################################################
 def _database_env_payload() -> dict[str, Any]:
     database_url = _normalize_optional_string(os.getenv("XREPORT_DATABASE_URL"))
     url_parts = urlsplit(database_url) if database_url else None
@@ -140,7 +139,6 @@ def _database_env_payload() -> dict[str, Any]:
         ),
     }
 
-
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
     embedded_database: bool = True
@@ -155,6 +153,7 @@ class JsonDatabaseSettings(BaseModel):
     connect_timeout: int = Field(default=30, ge=1)
     insert_batch_size: int = Field(default=1000, ge=1)
 
+    # -------------------------------------------------------------------------
     @field_validator(
         "host",
         "database_name",
@@ -167,12 +166,14 @@ class JsonDatabaseSettings(BaseModel):
     def normalize_optional_strings(cls, value: Any) -> str | None:
         return _normalize_optional_string(value)
 
+    # -------------------------------------------------------------------------
     @field_validator("engine", mode="before")
     @classmethod
     def normalize_engine(cls, value: Any) -> str:
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_external_database_requirements(self) -> "JsonDatabaseSettings":
         if self.embedded_database:
@@ -180,32 +181,30 @@ class JsonDatabaseSettings(BaseModel):
 
         missing: list[str] = []
         if not self.host:
-            missing.append("database.host")
+            missing.append("XREPORT_DB_HOST or XREPORT_DATABASE_URL")
         if not self.database_name:
-            missing.append("database.database_name")
+            missing.append("XREPORT_DB_NAME or XREPORT_DATABASE_URL")
         if not self.username:
-            missing.append("database.username")
+            missing.append("XREPORT_DB_USERNAME or XREPORT_DATABASE_URL")
 
         if missing:
             joined = ", ".join(missing)
-            raise ValueError(f"External database mode requires configuration keys: {joined}")
+            raise ValueError(
+                f"External database mode requires environment variables: {joined}"
+            )
         return self
-
 
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
     seed: int = 42
 
-
 ###############################################################################
 class JsonFeatureSettings(BaseModel):
     allow_local_filesystem_access: bool = True
 
-
 ###############################################################################
 class JsonJobsSettings(BaseModel):
     polling_interval: float = 1.0
-
 
 ###############################################################################
 class JsonServerSettings(BaseModel):
@@ -222,6 +221,8 @@ class JsonServerSettings(BaseModel):
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
 
     # "global" is reserved, map it explicitly.
+
+    # -------------------------------------------------------------------------
     @model_validator(mode="before")
     @classmethod
     def map_global_alias(cls, value: Any) -> Any:

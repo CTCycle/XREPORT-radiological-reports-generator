@@ -18,9 +18,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from server.repositories.schemas.types import JSONSequence
 
 
+###############################################################################
 class Base(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class Dataset(Base):
@@ -56,7 +56,6 @@ class Dataset(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
     )
-
 
 ###############################################################################
 class DatasetRecord(Base):
@@ -98,7 +97,6 @@ class DatasetRecord(Base):
         "InferenceReport",
         back_populates="record",
     )
-
 
 ###############################################################################
 class ProcessingRun(Base):
@@ -149,7 +147,6 @@ class ProcessingRun(Base):
         cascade="all, delete-orphan",
     )
 
-
 ###############################################################################
 class TrainingSample(Base):
     """Processed training samples linked to preprocessing runs and source records."""
@@ -184,7 +181,6 @@ class TrainingSample(Base):
         "ProcessingRun", back_populates="training_samples"
     )
     record: Mapped[DatasetRecord] = relationship("DatasetRecord", back_populates="training_samples")
-
 
 ###############################################################################
 class ValidationRun(Base):
@@ -227,7 +223,6 @@ class ValidationRun(Base):
         cascade="all, delete-orphan",
     )
 
-
 ###############################################################################
 class ValidationTextSummary(Base):
     """Aggregate text statistics for a validation run."""
@@ -247,7 +242,6 @@ class ValidationTextSummary(Base):
     validation_run: Mapped[ValidationRun] = relationship(
         "ValidationRun", back_populates="text_summary"
     )
-
 
 ###############################################################################
 class ValidationImageStat(Base):
@@ -281,7 +275,6 @@ class ValidationImageStat(Base):
         "DatasetRecord", back_populates="validation_image_stats"
     )
 
-
 ###############################################################################
 class ValidationPixelDistribution(Base):
     """Pixel intensity distribution bins for a validation run."""
@@ -300,7 +293,6 @@ class ValidationPixelDistribution(Base):
     validation_run: Mapped[ValidationRun] = relationship(
         "ValidationRun", back_populates="pixel_distribution"
     )
-
 
 ###############################################################################
 class Checkpoint(Base):
@@ -330,7 +322,6 @@ class Checkpoint(Base):
         cascade="all, delete-orphan",
     )
 
-
 ###############################################################################
 class CheckpointEvaluation(Base):
     """Latest checkpoint evaluation payload."""
@@ -354,7 +345,6 @@ class CheckpointEvaluation(Base):
         Index("ix_checkpoint_evaluations_checkpoint_id", "checkpoint_id"),
     )
     checkpoint: Mapped[Checkpoint] = relationship("Checkpoint", back_populates="evaluations")
-
 
 ###############################################################################
 class InferenceRun(Base):
@@ -383,7 +373,6 @@ class InferenceRun(Base):
         back_populates="inference_run",
         cascade="all, delete-orphan",
     )
-
 
 ###############################################################################
 class InferenceReport(Base):

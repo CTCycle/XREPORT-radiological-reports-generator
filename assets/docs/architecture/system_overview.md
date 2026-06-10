@@ -8,7 +8,7 @@ XREPORT is a local-first client/server system for radiological report generation
 
 - Frontend: React + TypeScript + Vite (`XREPORT/client`)
 - Backend: FastAPI (`XREPORT/server`)
-- Desktop wrapper: Tauri 2 (`XREPORT/client/src-tauri`)
+- Desktop wrapper: Tauri 2 (`app/src-tauri`)
 - Persistence: SQLite by default, PostgreSQL optional (`XREPORT/server/repositories/database`)
 - Long-running execution: job manager with start, poll, and cancel contracts (`XREPORT/server/services/jobs.py`)
 
@@ -56,21 +56,21 @@ XREPORT is a local-first client/server system for radiological report generation
    │  ├─ learning/
    │  ├─ configurations/
    │  └─ common/
-   └─ client/
-      ├─ package.json
-      ├─ vite.config.ts
-      ├─ src/
-      │  ├─ main.tsx
-      │  ├─ App.tsx
-      │  ├─ pages/
-      │  ├─ components/
-      │  ├─ services/
-      │  ├─ hooks/
-      │  └─ types/
-      └─ src-tauri/
-         ├─ Cargo.toml
-         ├─ tauri.conf.json
-         └─ src/main.rs
+   ├─ client/
+   │  ├─ package.json
+   │  ├─ vite.config.ts
+   │  ├─ src/
+   │  │  ├─ main.tsx
+   │  │  ├─ App.tsx
+   │  │  ├─ pages/
+   │  │  ├─ components/
+   │  │  ├─ services/
+   │  │  ├─ hooks/
+   │  │  └─ types/
+   └─ src-tauri/
+      ├─ Cargo.toml
+      ├─ tauri.conf.json
+      └─ src/main.rs
 ```
 
 ## Entry Points
@@ -78,6 +78,6 @@ XREPORT is a local-first client/server system for radiological report generation
 - Backend API entrypoint: `XREPORT/server/app.py`
 - Frontend web entrypoint: `XREPORT/client/src/main.tsx`
 - Frontend route composition: `XREPORT/client/src/App.tsx`
-- Desktop entrypoint: `XREPORT/client/src-tauri/src/main.rs`
+- Desktop entrypoint: `app/src-tauri/src/main.rs`
 - Local launcher on Windows: `XREPORT/start_on_windows.bat`
 - Desktop build flow on Windows: `release/tauri/build_with_tauri.bat`

@@ -2,7 +2,7 @@ import path from 'node:path'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const normalizeApiBase = (value: string) => {
+const normalizeApiBase = (value) => {
     if (!value) {
         return '/api'
     }
@@ -20,7 +20,7 @@ const normalizeApiBase = (value: string) => {
     return withLeadingSlash
 }
 
-const buildProxy = (apiBase: string, apiTarget: string) => {
+const buildProxy = (apiBase, apiTarget) => {
     const wsTarget = apiTarget.replace('http', 'ws')
 
     return {
