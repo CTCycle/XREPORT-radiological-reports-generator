@@ -6,7 +6,6 @@ import pytest
 
 from server.configurations.management import ConfigurationManager
 
-
 ###############################################################################
 def _configuration_payload() -> dict[str, object]:
     return {
@@ -14,7 +13,6 @@ def _configuration_payload() -> dict[str, object]:
         "features": {"allow_local_filesystem_access": False},
         "jobs": {"polling_interval": 2.5},
     }
-
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -35,7 +33,6 @@ def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         monkeypatch.delenv(key, raising=False)
 
-
 ###############################################################################
 def test_configuration_manager_loads_and_accesses_values(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -53,7 +50,6 @@ def test_configuration_manager_loads_and_accesses_values(tmp_path) -> None:
     assert manager.get_block("global_settings") == {"seed": 123}
     assert manager.get_value("global", "seed") == 123
     assert manager.get_value("missing", "key", default="fallback") == "fallback"
-
 
 ###############################################################################
 def test_configuration_manager_resolves_database_from_env(
@@ -78,7 +74,6 @@ def test_configuration_manager_resolves_database_from_env(
     assert database_settings.database_name == "env-db"
     assert database_settings.username == "env-user"
     assert database_settings.password == "env-password"
-
 
 ###############################################################################
 def test_configuration_manager_ignores_database_block_in_json(
@@ -108,7 +103,6 @@ def test_configuration_manager_ignores_database_block_in_json(
     assert manager.get_block("database")["embedded_database"] is True
     assert manager.get_block("database")["host"] is None
 
-
 ###############################################################################
 def test_configuration_manager_reload_updates_snapshot(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -123,13 +117,11 @@ def test_configuration_manager_reload_updates_snapshot(tmp_path) -> None:
     assert reloaded.global_settings.seed == 999
     assert manager.get_all().global_settings.seed == 999
 
-
 ###############################################################################
 def test_configuration_manager_raises_on_missing_file(tmp_path) -> None:
     missing_path = tmp_path / "missing.json"
     with pytest.raises(RuntimeError, match="Configuration file not found"):
         ConfigurationManager(config_path=str(missing_path))
-
 
 ###############################################################################
 def test_configuration_manager_raises_on_invalid_json(tmp_path) -> None:
@@ -137,7 +129,6 @@ def test_configuration_manager_raises_on_invalid_json(tmp_path) -> None:
     config_path.write_text("{invalid-json", encoding="utf-8")
     with pytest.raises(RuntimeError, match="Unable to load configuration"):
         ConfigurationManager(config_path=str(config_path))
-
 
 ###############################################################################
 def test_configuration_manager_raises_when_json_root_is_not_object(tmp_path) -> None:

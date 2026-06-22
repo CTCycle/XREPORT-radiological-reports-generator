@@ -114,7 +114,6 @@ class XREPORTModel:
 
         return model
 
-
 ###############################################################################
 def build_xreport_model(
     metadata: dict[str, Any], configuration: dict[str, Any]

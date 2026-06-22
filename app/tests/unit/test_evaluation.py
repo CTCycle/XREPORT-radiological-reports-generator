@@ -8,7 +8,6 @@ os.environ["KERAS_BACKEND"] = "torch"
 
 from server.services import evaluation as evaluation_service
 
-
 ###############################################################################
 class DummyTextGenerator:
 
@@ -25,7 +24,6 @@ class DummyTextGenerator:
         method: str = "greedy_search",
     ) -> dict[str, str]:
         return dict.fromkeys(image_paths, "one two three four")
-
 
 ###############################################################################
 def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
@@ -45,7 +43,6 @@ def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
     bleu_score = evaluator.calculate_bleu_score(validation_data, num_samples=1)
 
     assert bleu_score == pytest.approx(0.0)
-
 
 ###############################################################################
 def test_bleu_score_accepts_valid_string_reports(monkeypatch) -> None:

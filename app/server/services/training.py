@@ -126,7 +126,6 @@ class TrainingState:
         self.worker = None
         self.current_job_id = None
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_training_state() -> TrainingState:

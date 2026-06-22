@@ -6,7 +6,6 @@ Tests basic UI functionality using Playwright browser automation.
 import re
 from playwright.sync_api import Page, expect
 
-
 ###############################################################################
 class TestHomePage:
     """Tests for the home page and basic navigation."""
@@ -42,7 +41,6 @@ class TestHomePage:
                 has_text=re.compile("Dataset Management", re.IGNORECASE)
             )
         ).to_be_visible()
-
 
 ###############################################################################
 class TestNavigationFlow:
@@ -85,7 +83,6 @@ class TestNavigationFlow:
         expect(page).to_have_url(re.compile(".*inference", re.IGNORECASE))
         expect(page.locator("h1, h2, h3").filter(has_text="Inference")).to_be_visible()
 
-
 ###############################################################################
 class TestDatasetPage:
     """Tests for the Dataset page."""
@@ -101,7 +98,6 @@ class TestDatasetPage:
                 has_text=re.compile("Dataset Management", re.IGNORECASE)
             )
         ).to_be_visible()
-
 
 ###############################################################################
 class TestTrainingPage:
@@ -132,7 +128,6 @@ class TestTrainingPage:
 
         # Check for charts or metrics area
         expect(page.locator("canvas, svg").first).to_be_visible()
-
 
 ###############################################################################
 class TestInferencePage:
