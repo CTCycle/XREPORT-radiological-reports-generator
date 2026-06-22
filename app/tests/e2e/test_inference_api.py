@@ -6,7 +6,6 @@ Tests: /inference/checkpoints, /inference/generate
 import pytest
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestInferenceEndpoints:
     """Tests for the /inference/* API endpoints."""
@@ -135,7 +134,6 @@ class TestInferenceEndpoints:
 
         assert response.status == 404
         assert "detail" in response.json()
-
 
 ###############################################################################
 class TestInferenceGenerationModes:
@@ -304,7 +302,6 @@ class TestInferenceGenerationModes:
                 0x82,
             ]
         )
-
 
 ###############################################################################
 class TestInferenceResponseFormat:

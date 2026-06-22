@@ -9,7 +9,6 @@ from server.common.utils.security import (
 )
 from server.services.upload import UploadService, UploadState
 
-
 ###############################################################################
 def test_validate_checkpoint_name_rejects_path_separators_cross_platform() -> None:
     for value in ("nested/name", "nested\\name"):
@@ -20,7 +19,6 @@ def test_validate_checkpoint_name_rejects_path_separators_cross_platform() -> No
         else:  # pragma: no cover - defensive assertion
             raise AssertionError(f"Expected path separator rejection for {value!r}")
 
-
 ###############################################################################
 def test_resolve_checkpoint_path_returns_checkpoint_child_path() -> None:
     checkpoint_name = "checkpoint_123"
@@ -29,7 +27,6 @@ def test_resolve_checkpoint_path_returns_checkpoint_child_path() -> None:
 
     assert resolved == (CHECKPOINTS_DIR / checkpoint_name).resolve()
     assert CHECKPOINTS_DIR.resolve() in resolved.parents
-
 
 ###############################################################################
 def test_upload_service_sanitizes_windows_style_filename() -> None:
