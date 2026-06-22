@@ -112,7 +112,6 @@ class XREPORTDatabase:
     def count_rows(self, table_name: str) -> int:
         return self.backend.count_rows(table_name)
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database() -> XREPORTDatabase:
