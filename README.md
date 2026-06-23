@@ -47,6 +47,11 @@ Prerequisites for maintainers/build machines:
 
 The desktop shell now lives in `app/src-tauri` and packages the whole `app/` boundary, including `client/dist`, `server`, `resources`, `settings`, and `runtimes`.
 
+Repository policy:
+- `app/src-tauri` source, configuration, icons, capabilities, and required build metadata are versioned.
+- Generated desktop outputs under `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows` must not be committed.
+- `.exe`, installer, and archive outputs are published as release artifacts, not tracked in Git.
+
 Build:
 ```bat
 release\tauri\build_with_tauri.bat

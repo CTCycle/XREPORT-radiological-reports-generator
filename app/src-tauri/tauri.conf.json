@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "XREPORT Desktop",
+  "version": "2.4.0",
+  "identifier": "com.xreport.desktop",
+  "build": {
+    "frontendDist": "../client/dist",
+    "devUrl": "about:blank"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "XREPORT Desktop",
+        "url": "about:blank",
+        "width": 1440,
+        "height": 920,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../server/api": "runtime/app/server/api",
+      "../server/common": "runtime/app/server/common",
+      "../server/configurations": "runtime/app/server/configurations",
+      "../server/domain": "runtime/app/server/domain",
+      "../server/learning": "runtime/app/server/learning",
+      "../server/repositories": "runtime/app/server/repositories",
+      "../server/services": "runtime/app/server/services",
+      "../server/__init__.py": "runtime/app/server/__init__.py",
+      "../server/app.py": "runtime/app/server/app.py",
+      "../server/pyproject.toml": "runtime/app/server/pyproject.toml",
+      "../server/uv.lock": "runtime/app/server/uv.lock",
+      "../scripts": "runtime/app/scripts",
+      "../../settings": "runtime/settings",
+      "../client/dist": "runtime/app/client/dist",
+      "../resources/templates": "runtime/app/resources/templates",
+      "../resources/tokenizers/distilbert-base-uncased": "runtime/app/resources/tokenizers/distilbert-base-uncased",
+      "../../runtimes/python": "runtime/runtimes/python",
+      "../../runtimes/uv": "runtime/runtimes/uv"
+    }
+  }
+}

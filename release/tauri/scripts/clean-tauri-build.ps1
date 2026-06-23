@@ -6,7 +6,9 @@ $ErrorActionPreference = "Stop"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $appDir = Join-Path $repoRoot "app"
 $pathsToRemove = @(
-  (Join-Path $appDir "src-tauri"),
+  (Join-Path $appDir "src-tauri\target"),
+  (Join-Path $appDir "src-tauri\bundle"),
+  (Join-Path $appDir "src-tauri\gen"),
   (Join-Path $repoRoot "release\windows")
 )
 
