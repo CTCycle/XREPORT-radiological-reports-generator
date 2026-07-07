@@ -11,7 +11,7 @@ app/client/logs/
 app/resources/tokenizers/**
 app/client/*.local
 runtimes/**
-
+assets/QA/**
 
 # Python
 __pycache__/
@@ -26,6 +26,7 @@ dist/
 build/
 .coverage
 htmlcov/
+app/server/uv.lock
 
 # Node / JS
 **/node_modules/
