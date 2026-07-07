@@ -4,7 +4,6 @@ E2E tests for active preparation and dataset API endpoints.
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestPreparationEndpoints:
     """Tests for the /preparation/* API endpoints."""
