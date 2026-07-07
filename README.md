@@ -15,8 +15,6 @@ Runtime supports two execution modes:
 - **Local mode (v1)**: web app launched by `start_on_windows.bat`.
 - **Local mode (v2)**: packaged Windows desktop application built with Tauri.
 
-> **Work in Progress**: The project is under active development and may contain incomplete features.
-
 ---
 
 ## 2. Model and Dataset (Optional)
@@ -163,6 +161,10 @@ See also:
 - `assets/docs/USER_MANUAL.md`
 
 ---
+
+## 9. Development Status
+
+This project is under active development and may contain incomplete features. Tagged releases (currently v2.4.0) are stable for local evaluation and testing.
 
 ## 8. License
 
