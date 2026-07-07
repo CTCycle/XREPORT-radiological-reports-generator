@@ -8,7 +8,6 @@ sys.path.append(str(Path.cwd()))
 
 from server.repositories.serialization.data import DataSerializer
 
-
 ###############################################################################
 class TestDataSerializer(unittest.TestCase):
 

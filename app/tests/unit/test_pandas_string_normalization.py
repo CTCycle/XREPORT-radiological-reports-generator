@@ -3,7 +3,6 @@ import importlib.util
 
 from server.common.path import SERVER_DIR
 
-
 ###############################################################################
 def load_normalize_string_columns():
     module_path = SERVER_DIR / "repositories" / "database" / "utils.py"
@@ -17,7 +16,6 @@ def load_normalize_string_columns():
 
 normalize_string_columns = load_normalize_string_columns()
 
-
 ###############################################################################
 def test_normalize_string_columns_handles_pandas_string_dtype() -> None:
     dataframe = pd.DataFrame({"name": ["alpha", None]})
@@ -28,7 +26,6 @@ def test_normalize_string_columns_handles_pandas_string_dtype() -> None:
     assert normalized.loc[0, "name"] == "alpha"
     assert normalized.loc[1, "name"] is None
 
-
 ###############################################################################
 def test_normalize_string_columns_handles_object_string_column() -> None:
     dataframe = pd.DataFrame({"name": pd.Series(["alpha", pd.NA], dtype=object)})
@@ -38,7 +35,6 @@ def test_normalize_string_columns_handles_object_string_column() -> None:
     assert normalized["name"].dtype == object
     assert normalized.loc[0, "name"] == "alpha"
     assert normalized.loc[1, "name"] is None
-
 
 ###############################################################################
 def test_normalize_string_columns_ignores_mixed_object_column() -> None:

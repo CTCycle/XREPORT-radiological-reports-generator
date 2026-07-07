@@ -9,14 +9,12 @@ from queue import Queue
 
 import pytest
 
-
 ###############################################################################
 def _normalize_host(value: str) -> str:
     host = value.strip()
     if host == "0.0.0.0":
         return "127.0.0.1"
     return host
-
 
 ###############################################################################
 def _resolve_base_url(
@@ -50,20 +48,17 @@ API_BASE_URL = _resolve_base_url(
     fallback_port="8000",
 )
 
-
 ###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
     """Returns the base URL of the UI."""
     return UI_BASE_URL
 
-
 ###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Returns the base URL of the API."""
     return API_BASE_URL
-
 
 ###############################################################################
 @pytest.fixture
@@ -75,7 +70,6 @@ def api_context(playwright):
     context = playwright.request.new_context(base_url=API_BASE_URL)
     yield context
     context.dispose()
-
 
 ###############################################################################
 def run_async_in_thread(awaitable):

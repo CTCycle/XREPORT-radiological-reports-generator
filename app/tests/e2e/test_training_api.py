@@ -12,11 +12,9 @@ from playwright.sync_api import APIRequestContext
 
 from server.common.path import CHECKPOINTS_DIR
 
-
 ###############################################################################
 def get_checkpoints_root() -> str:
     return str(CHECKPOINTS_DIR)
-
 
 ###############################################################################
 def create_checkpoint_fixture(name: str) -> str:
@@ -30,7 +28,6 @@ def create_checkpoint_fixture(name: str) -> str:
         file.write("nested placeholder")
 
     return str(checkpoint_dir)
-
 
 ###############################################################################
 class TestTrainingEndpoints:
@@ -144,7 +141,6 @@ class TestTrainingEndpoints:
         finally:
             shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
-
 ###############################################################################
 class TestTrainingStartValidation:
     """Tests for training start request validation."""
@@ -182,7 +178,6 @@ class TestTrainingStartValidation:
             assert response.status == 409
             return
         pytest.skip("Training is not running; 409 path not applicable")
-
 
 ###############################################################################
 class TestTrainingResumeEndpoint:

@@ -27,7 +27,6 @@ class DatabaseSettings:
 class GlobalSettings:
     seed: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class FeatureSettings:
@@ -53,7 +52,6 @@ def _normalize_optional_string(value: Any) -> str | None:
     text = str(value).strip()
     return text or None
 
-
 ###############################################################################
 def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     if value is None:
@@ -64,7 +62,6 @@ def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     return default
-
 
 ###############################################################################
 def _normalize_int_env(
@@ -85,7 +82,6 @@ def _normalize_int_env(
     if maximum is not None and parsed > maximum:
         return default
     return parsed
-
 
 ###############################################################################
 def _database_env_payload() -> dict[str, Any]:
