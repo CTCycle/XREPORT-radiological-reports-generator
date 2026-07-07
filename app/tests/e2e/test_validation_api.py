@@ -7,7 +7,6 @@ import uuid
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestValidationEndpoints:
     """Tests for active /validation endpoints."""

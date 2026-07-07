@@ -214,8 +214,14 @@ if not exist "%pyproject%" (
 pushd "%root_folder%app\server" >nul
 set "uv_extras_flag="
 if /i "%INSTALL_EXTRAS%"=="true" set "uv_extras_flag=--all-extras"
-"%uv_exe%" sync %uv_extras_flag%
+"%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
 set "sync_ec=%ERRORLEVEL%"
+if not "%sync_ec%"=="0" (
+  echo [WARN] Existing virtual environment may reference a previous repository location. Recreating it.
+  if exist "%venv_dir%" rd /s /q "%venv_dir%"
+  "%uv_exe%" sync --python "%python_exe%" %uv_extras_flag%
+  set "sync_ec=%ERRORLEVEL%"
+)
 popd >nul
 if not "%sync_ec%"=="0" (
   echo [FATAL] uv sync failed with code %sync_ec%.

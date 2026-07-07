@@ -5,7 +5,6 @@ Tests: POST /upload/dataset
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 class TestDatasetUploadEndpoint:
     """Tests for the /upload/dataset API endpoint."""
@@ -126,7 +125,6 @@ class TestDatasetUploadEndpoint:
         # Empty file should fail parsing
         assert response.status == 400
         assert "detail" in response.json()
-
 
 ###############################################################################
 class TestDatasetUploadEdgeCases:

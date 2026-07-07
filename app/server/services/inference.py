@@ -76,7 +76,6 @@ class InferenceImageStore:
                 return
             self.storage.pop(request_id, None)
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
