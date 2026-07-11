@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-06-03
+Last updated: 2026-07-11
 
 ## Purpose
 
@@ -52,11 +52,11 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/modes.md`
   - Supported runtime modes and operational constraints.
 - `runtime/startup.md`
-  - Launcher, manual startup, desktop build, and test procedures.
+  - Windows launcher, manual startup, and test procedures.
 - `runtime/configuration.md`
   - Shared configuration sources, environment variables, and interoperability.
 - `runtime/deployment.md`
-  - Packaging prerequisites, Windows distribution, and runtime lock notes.
+  - Local deployment scope and runtime preparation notes.
 
 ### UI
 
@@ -98,4 +98,4 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Assume Windows as the default operating environment for commands and paths.
 - Document both CMD and PowerShell usage when commands differ.
 - Prefer commands runnable from repository root with explicit relative paths.
-- Keep environment guidance aligned with `XREPORT/start_on_windows.bat`, `XREPORT/setup_and_maintenance.bat`, `release/tauri/build_with_tauri.bat`, and `tests/run_tests.bat`.
+- Keep environment guidance aligned with `start_on_windows.ps1` and `app/tests/run_tests.bat`.

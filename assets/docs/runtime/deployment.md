@@ -1,23 +1,25 @@
 # Runtime Deployment
 
-Last updated: 2026-06-03
+Last updated: 2026-07-11
 
-## Packaging Scope
+## Deployment Scope
 
-- Current deployment and distribution implementation is Windows-focused.
-- Installer and portable artifacts are exported to `release/windows`.
+- XREPORT is a local client/server application.
+- Windows users run the application through `start_on_windows.ps1`.
+- macOS and Linux users start the backend and frontend manually.
 
-## Build Flow
+## Windows Runtime Preparation
 
-1. Prepare runtimes through the launcher.
-2. Build the Tauri app.
-3. Export Windows artifacts with `tauri:export:windows`.
+1. Run `start_on_windows.ps1`.
+2. Select **Install / update dependencies** to prepare Python, uv, Node.js, and the frontend build.
+3. Select **Launch application** to start the backend and frontend locally.
 
-## Packaging Prerequisites
+## Runtime Prerequisites
 
-- Rust and Cargo must be available on the build machine.
-- Runtime assets should be prepared before packaging.
+- Windows prerequisites are downloaded into `runtimes/` by the launcher.
+- Manual environments require Python 3.14+, uv, and Node.js 22.x with npm.
 
-## Runtime Lock Consistency
+## Dependency Consistency
 
-- Packaged workflow consistency is anchored to `runtimes/uv.lock`.
+- Python dependencies are synchronized from `app/server/pyproject.toml`.
+- Frontend dependencies are installed from `app/client/package-lock.json` when it exists.

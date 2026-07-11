@@ -1,11 +1,12 @@
 # Runtime Configuration
 
-Last updated: 2026-06-05
+Last updated: 2026-07-11
 
 ## Shared Configuration Sources
 
-- Environment overrides: `XREPORT/settings/.env`
-- Static configuration: `XREPORT/settings/configurations.json`
+- Environment overrides: `settings/.env`
+- Tracked environment template: `settings/.env.example`
+- Static configuration: `settings/configurations.json`
 
 ## Key Environment Variables
 
@@ -15,6 +16,7 @@ Last updated: 2026-06-05
 - `UI_PORT`
 - `VITE_API_BASE_URL`
 - `RELOAD`
+- `BACKEND_VISIBLE`
 - `OPTIONAL_DEPENDENCIES`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
@@ -31,26 +33,17 @@ Last updated: 2026-06-05
 - `XREPORT_DB_CONNECT_TIMEOUT`
 - `XREPORT_DB_INSERT_BATCH_SIZE`
 
-Expected value note:
-
-- `VITE_API_BASE_URL` should remain `/api` for the proxied local flow.
+`VITE_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
 
 ## Database Mode Switch
 
-From `XREPORT/settings/.env`:
+- `XREPORT_DB_EMBEDDED=true` selects SQLite.
+- `XREPORT_DB_EMBEDDED=false` selects PostgreSQL.
 
-- `XREPORT_DB_EMBEDDED=true` selects SQLite
-- `XREPORT_DB_EMBEDDED=false` selects PostgreSQL
-
-Initialization differences:
-
-- SQLite ensures schema initialization at backend startup.
-- PostgreSQL performs database and schema initialization during backend startup using `.env` connection settings.
+SQLite ensures schema initialization at backend startup. PostgreSQL performs database and schema initialization during backend startup using `.env` connection settings.
 
 ## Interoperability
 
 - Frontend calls backend routes through `/api`.
 - Vite dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
-- Tauri desktop starts the backend locally, waits for TCP readiness, then redirects the desktop window to the backend root URL.
-- Backend serves packaged SPA assets from `app/client/dist` when a frontend build is available.
-- In Tauri mode, backend startup also validates that the packaged frontend build is present before serving requests.
+- The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
