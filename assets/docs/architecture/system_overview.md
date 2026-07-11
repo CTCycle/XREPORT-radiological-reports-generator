@@ -1,83 +1,54 @@
 # XREPORT System Overview
 
-Last updated: 2026-06-03
+Last updated: 2026-07-11
 
 XREPORT is a local-first client/server system for radiological report generation and model lifecycle workflows.
 
 ## Runtime Topology
 
-- Frontend: React + TypeScript + Vite (`XREPORT/client`)
-- Backend: FastAPI (`XREPORT/server`)
-- Desktop wrapper: Tauri 2 (`app/src-tauri`)
-- Persistence: SQLite by default, PostgreSQL optional (`XREPORT/server/repositories/database`)
-- Long-running execution: job manager with start, poll, and cancel contracts (`XREPORT/server/services/jobs.py`)
+- Frontend: React + TypeScript + Vite (`app/client`)
+- Backend: FastAPI (`app/server`)
+- Persistence: SQLite by default, PostgreSQL optional (`app/server/repositories/database`)
+- Long-running execution: job manager with start, poll, and cancel contracts (`app/server/services/jobs.py`)
 
 ## Implementation-Relevant Repository Structure
 
 ```text
 .
-├─ pyproject.toml
 ├─ README.md
+├─ start_on_windows.ps1
 ├─ runtimes/
-│  ├─ uv.lock
-│  └─ .venv/
+│  ├─ python/
+│  ├─ uv/
+│  └─ nodejs/
 ├─ assets/
 │  └─ docs/
-├─ release/
-│  └─ tauri/
-│     ├─ build_with_tauri.bat
-│     └─ scripts/
-├─ tests/
-│  ├─ run_tests.bat
-│  ├─ conftest.py
-│  ├─ spaserver.py
-│  ├─ unit/
-│  └─ e2e/
-└─ XREPORT/
-   ├─ start_on_windows.bat
-   ├─ setup_and_maintenance.bat
-   ├─ settings/
-   │  ├─ .env
-   │  └─ configurations.json
+├─ scripts/
+│  └─ windows/
+├─ settings/
+│  ├─ .env.example
+│  └─ configurations.json
+└─ app/
    ├─ resources/
-   │  ├─ checkpoints/
-   │  ├─ logs/
-   │  ├─ templates/
-   │  ├─ tokenizers/
-   │  └─ database.db
    ├─ scripts/
    │  └─ initialize_database.py
    ├─ server/
-   │  ├─ app.py
+   │  ├─ pyproject.toml
    │  ├─ api/
    │  ├─ domain/
    │  ├─ services/
-   │  ├─ repositories/
-   │  ├─ learning/
-   │  ├─ configurations/
-   │  └─ common/
+   │  └─ repositories/
    ├─ client/
    │  ├─ package.json
    │  ├─ vite.config.ts
-   │  ├─ src/
-   │  │  ├─ main.tsx
-   │  │  ├─ App.tsx
-   │  │  ├─ pages/
-   │  │  ├─ components/
-   │  │  ├─ services/
-   │  │  ├─ hooks/
-   │  │  └─ types/
-   └─ src-tauri/
-      ├─ Cargo.toml
-      ├─ tauri.conf.json
-      └─ src/main.rs
+   │  └─ src/
+   └─ tests/
+      └─ run_tests.bat
 ```
 
 ## Entry Points
 
-- Backend API entrypoint: `XREPORT/server/app.py`
-- Frontend web entrypoint: `XREPORT/client/src/main.tsx`
-- Frontend route composition: `XREPORT/client/src/App.tsx`
-- Desktop entrypoint: `app/src-tauri/src/main.rs`
-- Local launcher on Windows: `XREPORT/start_on_windows.bat`
-- Desktop build flow on Windows: `release/tauri/build_with_tauri.bat`
+- Backend API entrypoint: `app/server/app.py`
+- Frontend web entrypoint: `app/client/src/main.tsx`
+- Frontend route composition: `app/client/src/App.tsx`
+- Local launcher and maintenance menu on Windows: `start_on_windows.ps1`

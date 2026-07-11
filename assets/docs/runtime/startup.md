@@ -1,71 +1,43 @@
 # Runtime Startup
 
-Last updated: 2026-06-30
+Last updated: 2026-07-11
 
 ## Windows Local Launcher
 
-CMD:
+PowerShell:
 
-```cmd
-XREPORT\start_on_windows.bat
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 ```
 
-What it does:
+The menu can:
 
-- ensures portable Python, uv, and Node in `runtimes/`
-- runs `uv sync`
-- installs frontend dependencies and builds frontend when needed
-- starts the backend with `uvicorn`
-- starts the frontend with `npm run preview`
+- prepare portable Python, uv, and Node.js in `runtimes/`
+- synchronize backend and frontend dependencies
+- build and launch the local web application
+- initialize the database and run tests
+- remove logs, clear caches, or uninstall generated dependencies
+
+The launch option starts the backend, waits for `/api/health`, starts the frontend preview, opens the browser, and then exits the menu.
 
 ## Manual Backend And Frontend
 
 PowerShell:
 
 ```powershell
-uv run python -m uvicorn XREPORT.server.app:app --host 127.0.0.1 --port 5003
-Set-Location XREPORT\client
+uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+Set-Location app/client
 npm run preview -- --host 127.0.0.1 --port 8003 --strictPort
 ```
 
-Notes:
-
-- Replace host and port using values from `XREPORT/settings/.env`.
-- `VITE_API_BASE_URL` should remain `/api` for proxied local flow.
-
-## Desktop Build And Packaging
-
-CMD:
-
-```cmd
-release\tauri\build_with_tauri.bat
-```
-
-Equivalent client-local commands:
-
-```cmd
-cd XREPORT\client
-npm run tauri:build
-npm run tauri:export:windows
-```
-
-The Tauri project itself now lives under `app\src-tauri`, but the client package still owns the frontend scripts and can invoke the desktop build with the updated relative config path.
-
-Prerequisites:
-
-- Rust and Cargo on the build machine
-- runtime assets prepared by `XREPORT/start_on_windows.bat`
+Use host and port values from `settings/.env`. `VITE_API_BASE_URL` should remain `/api` for the proxied local flow.
 
 ## Test Runtime
 
 CMD:
 
 ```cmd
-tests\run_tests.bat
+app\tests\run_tests.bat
 ```
 
-Behavior:
-
-- requires existing `runtimes\.venv`
-- starts backend and frontend if they are not already running
-- runs the pytest suite
+The test launcher uses the prepared backend environment and starts required local services when they are not already running.

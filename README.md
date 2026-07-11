@@ -12,9 +12,7 @@
 XREPORT is a client-server application that generates draft radiological reports from X-ray images.
 It combines a FastAPI backend and a React frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
 
-Runtime supports two execution modes:
-- **Local mode (v1)**: web app launched by `start_on_windows.bat`.
-- **Local mode (v2)**: packaged Windows desktop application built with Tauri.
+The application runs locally as a FastAPI backend with a Vite-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
 
 ---
 
@@ -30,37 +28,14 @@ Supported data sources:
 
 ## 3. Installation
 
-### 3.1 Windows (One-Click Setup, Local mode v1)
+### 3.1 Windows (One-Click Setup)
 
 Run:
-- `start_on_windows.bat`
+- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 
-The launcher downloads portable runtimes into `runtimes/`, installs backend/frontend dependencies, builds the client, and starts the application.
+The launcher menu can launch the app, install or update dependencies, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
 
-### 3.2 Windows (Packaged Desktop, Local mode v2)
-
-Prerequisites for maintainers/build machines:
-- Rust toolchain (stable)
-- Node.js 22.x + npm
-- WebView2 runtime
-
-The desktop shell now lives in `app/src-tauri` and packages the whole `app/` boundary, including `client/dist`, `server`, `resources`, `settings`, and `runtimes`.
-
-Repository policy:
-- `app/src-tauri` source, configuration, icons, capabilities, and required build metadata are versioned.
-- Generated desktop outputs under `app/src-tauri/target`, `app/src-tauri/bundle`, `app/src-tauri/gen`, and `release/windows` must not be committed.
-- `.exe`, installer, and archive outputs are published as release artifacts, not tracked in Git.
-
-Build:
-```bat
-release\tauri\build_with_tauri.bat
-```
-
-Outputs:
-- `release\windows\installers`
-- `release\windows\portable`
-
-### 3.3 macOS / Linux (Manual Setup)
+### 3.2 macOS / Linux (Manual Setup)
 
 Prerequisites:
 - Python 3.14+
@@ -82,11 +57,8 @@ npm run build
 
 ### 4.1 Launch
 
-Windows (Local mode v1):
-- Run `start_on_windows.bat`
-
-Windows (Local mode v2):
-- Install and start the packaged Tauri app
+Windows:
+- Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select **Launch application**.
 
 macOS/Linux (manual):
 ```bash
@@ -105,7 +77,7 @@ npm run preview -- --host 127.0.0.1 --port 8003
 
 ### 4.3 UI Snapshots
 
-The snapshots below were captured from the current Windows desktop build at 1440×920.
+The snapshots below were captured from the current Windows web interface at 1440×920.
 
 - **Dataset management**: data source selection and dataset processing configuration.
   ![Dataset management page](assets/figures/readme-dataset.png)
@@ -120,11 +92,7 @@ For a full operator guide, see `assets/docs/USER_MANUAL.md`.
 
 ## 5. Setup and Maintenance
 
-Use `setup_and_maintenance.bat` (Windows) to:
-- remove logs
-- uninstall app runtimes/artifacts
-- clean desktop build artifacts
-- initialize/reset local database
+Use `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` on Windows to access the consolidated launch and maintenance menu.
 
 ---
 
@@ -154,19 +122,17 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
   - If the file already exists, startup skips initialization.
 - PostgreSQL mode (`XREPORT_DB_EMBEDDED=false`):
   - Application startup never initializes PostgreSQL automatically.
-  - PostgreSQL initialization is manual via `setup_and_maintenance.bat` option `1`, which runs `app/scripts/initialize_database.py`.
+  - PostgreSQL initialization is manual via `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
   - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.
 
-See also:
-- `assets/docs/PACKAGING_AND_RUNTIME_MODES.md`
-- `assets/docs/USER_MANUAL.md`
+See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
 
 ---
 
-## 9. Development Status
+## 8. Development Status
 
 This project is under active development and may contain incomplete features. Tagged releases (currently v2.4.0) are stable for local evaluation and testing.
 
-## 8. License
+## 9. License
 
 This project is licensed under the MIT License. See `LICENSE`.

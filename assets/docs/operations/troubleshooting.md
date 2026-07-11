@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-06-05
+Last updated: 2026-07-11
 
 ## Troubleshooting Quick Guide
 
@@ -24,5 +24,5 @@ Last updated: 2026-06-05
 ### PostgreSQL Mode
 
 - When `XREPORT_DB_EMBEDDED=false`, PostgreSQL initialization uses the database values from `XREPORT/settings/.env`.
-- Run `XREPORT/setup_and_maintenance.bat`, choose `1. Initialize database`, and execute `XREPORT/scripts/initialize_database.py`.
+- Run `start_on_windows.ps1`, choose `3. Initialize database`, and execute `app/scripts/initialize_database.py`.
 - The same script also works for SQLite mode, but it is normally unnecessary because first-run SQLite initialization is automatic.

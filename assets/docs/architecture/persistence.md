@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-06-05
+Last updated: 2026-07-11
 
 ## Database Backend Selection
 
@@ -15,7 +15,6 @@ From `XREPORT/settings/.env`:
 - SQLite mode ensures schema creation against the embedded database file.
 - PostgreSQL mode executes database and schema initialization from `.env` connection settings.
 - Additional startup validation ensures required resource directories exist.
-- In Tauri mode, startup also validates that a built frontend bundle is available before serving requests.
 
 ## Persisted Domains
 
