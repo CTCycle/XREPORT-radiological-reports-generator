@@ -1,5 +1,4 @@
 # Project-specific generated/runtime artifacts
-release/windows/
 app/resources/models/**
 app/resources/checkpoints/**
 app/resources/database/**
@@ -27,7 +26,6 @@ build/
 .coverage
 htmlcov/
 app/server/uv.lock
-
 # Node / JS
 **/node_modules/
 **/dist/
@@ -54,22 +52,3 @@ Thumbs.db
 *.exe
 *.gz
 !.gitkeep
-
-# Tauri and Rust build outputs
-app/src-tauri/target/
-app/src-tauri/bundle/
-app/src-tauri/gen/
-
-# Desktop binaries and installers
-app/src-tauri/**/*.exe
-app/src-tauri/**/*.msi
-app/src-tauri/**/*.dmg
-app/src-tauri/**/*.AppImage
-app/src-tauri/**/*.deb
-app/src-tauri/**/*.rpm
-app/src-tauri/**/*.zip
-app/src-tauri/**/*.7z
-app/src-tauri/**/*.tar.gz
-
-# Keep required Tauri lockfile tracked
-!app/src-tauri/Cargo.lock
