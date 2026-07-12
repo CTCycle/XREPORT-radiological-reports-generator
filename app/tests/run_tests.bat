@@ -60,7 +60,7 @@ if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
 ) else (
   echo [ERROR] Missing backend venv: "%VENV_PYTHON%"
-  echo [ERROR] Run start_on_windows.bat first.
+  echo [ERROR] Run start_on_windows.ps1 first.
   exit /b 1
 )
 
@@ -75,10 +75,14 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
-set "UVICORN_APP=app.server.app:app"`r`nset "BACKEND_WORKDIR=%PROJECT_ROOT%"`r`nset "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
+set "UVICORN_APP=app.server.app:app"
+set "BACKEND_WORKDIR=%PROJECT_ROOT%"
+set "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
 "%PYTHON_CMD%" -c "import importlib; importlib.import_module('app.server.app')" >nul 2>&1
 if errorlevel 1 (
-  set "UVICORN_APP=server.app:app"`r`n  set "BACKEND_WORKDIR=%SERVER_DIR%"`r`n  set "PYTHONPATH=%APP_DIR%"
+  set "UVICORN_APP=server.app:app"
+  set "BACKEND_WORKDIR=%SERVER_DIR%"
+  set "PYTHONPATH=%APP_DIR%"
 )
 
 echo.
