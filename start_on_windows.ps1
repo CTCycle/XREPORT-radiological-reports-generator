@@ -118,14 +118,13 @@ function Invoke-HealthCheck {
         try {
             $response = Invoke-WebRequest -UseBasicParsing -Uri $Uri -TimeoutSec 2
             if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
-                exit 0
+                return $true
             }
         } catch {
             Start-Sleep -Seconds 1
         }
     } while ((Get-Date) -lt $deadline)
-    Write-Error "Health check timed out after $TimeoutSeconds seconds: $Uri"
-    exit 1
+    throw "Health check timed out after $TimeoutSeconds seconds: $Uri"
 }
 
 function Ensure-PortableRuntimes {
@@ -262,8 +261,8 @@ function Invoke-Launch {
 
     Write-Step 'Starting backend'
     if ($settings.BACKEND_VISIBLE -eq 'true') {
-        $visibleCommand = "start `"Backend`" cmd /c `"`"$VenvPython`" $backendArgs`""
-        Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $visibleCommand -Wait
+        $visibleCommand = "`"$VenvPython`" $backendArgs"
+        Start-Process -FilePath 'cmd.exe' -ArgumentList '/k', $visibleCommand -WorkingDirectory $RepoRoot | Out-Null
     } else {
         Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle Hidden | Out-Null
     }
@@ -271,7 +270,6 @@ function Invoke-Launch {
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
     Write-Step "Waiting for backend health at $healthUrl"
     Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 60
-    if ($LASTEXITCODE -ne 0) { throw 'Backend health check failed.' }
 
     Write-Step 'Starting frontend preview'
     $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
