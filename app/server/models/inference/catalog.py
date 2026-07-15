@@ -12,6 +12,7 @@ from server.domain.inference import (
     ProviderAvailability,
 )
 from server.repositories.serialization.model import ModelSerializer
+from server.models.inference.providers.ollama import OllamaProvider
 
 
 CATALOG_PATH = Path(__file__).resolve().parents[4] / "settings" / "inference_models.json"
@@ -24,30 +25,30 @@ class InferenceModelCatalog:
         self.settings = settings
 
     def list_models(self) -> InferenceModelsResponse:
-        models = self._configured_models()
+        installed_ollama = OllamaProvider(self.settings).installed_models()
+        models = self._configured_models(installed_ollama)
         models.extend(self._xreport_models())
         return InferenceModelsResponse(
             models=models,
             providers={
-                "ollama": ProviderAvailability(
-                    status="runtime_unavailable",
-                    message="Ollama discovery is enabled in the next provider increment.",
-                ),
+                "ollama": self._ollama_provider_status(installed_ollama),
                 "huggingface": self._huggingface_provider_status(),
                 "xreport": ProviderAvailability(status="ready"),
             },
         )
 
-    def _configured_models(self) -> list[ModelAvailability]:
+    def _configured_models(self, installed_ollama: set[str] | None) -> list[ModelAvailability]:
         payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
         configured = payload.get("models", [])
         if not isinstance(configured, list):
             raise ValueError("Inference model catalog must contain a models list")
-        return [self._configured_model(entry) for entry in configured if isinstance(entry, dict)]
+        return [self._configured_model(entry, installed_ollama) for entry in configured if isinstance(entry, dict)]
 
-    def _configured_model(self, entry: dict[str, Any]) -> ModelAvailability:
+    def _configured_model(self, entry: dict[str, Any], installed_ollama: set[str] | None) -> ModelAvailability:
         provider = str(entry["provider"])
         status = "disabled" if provider == "huggingface" and not self.settings.hf_local_only else "not_installed"
+        if provider == "ollama":
+            status = "runtime_unavailable" if installed_ollama is None else ("ready" if entry["model_ref"].removeprefix("ollama:") in installed_ollama else "not_installed")
         return ModelAvailability(
             model_ref=str(entry["model_ref"]),
             provider=provider,  # type: ignore[arg-type]
@@ -64,6 +65,11 @@ class InferenceModelCatalog:
             capabilities=ModelCapabilities.model_validate(entry.get("capabilities", {})),
             model_revision=entry.get("model_revision"),
         )
+
+    def _ollama_provider_status(self, installed_models: set[str] | None) -> ProviderAvailability:
+        if installed_models is None:
+            return ProviderAvailability(status="runtime_unavailable", message="Ollama is not running at the configured local address.")
+        return ProviderAvailability(status="ready")
 
     def _huggingface_provider_status(self) -> ProviderAvailability:
         if not self.settings.hf_local_only:
