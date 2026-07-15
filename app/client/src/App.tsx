@@ -12,7 +12,7 @@ export default function App() {
             <BrowserRouter>
                 <Routes>
                     <Route path="/" element={<MainLayout />}>
-                        <Route index element={<Navigate to="/dataset" replace />} />
+                        <Route index element={<Navigate to="/inference" replace />} />
                         <Route path="training" element={<TrainingPage />} />
                         <Route path="inference" element={<InferencePage />} />
                         <Route path="dataset" element={<DatasetPage />} />
