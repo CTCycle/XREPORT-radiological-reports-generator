@@ -291,10 +291,28 @@ class InferenceService:
     # -------------------------------------------------------------------------
     def generate_reports(
         self,
-        checkpoint: str,
-        generation_mode: str,
+        checkpoint: str | None,
+        generation_mode: str | None,
         images: list[InferenceImage],
+        model_ref: str | None = None,
+        generation_profile: str | None = None,
     ) -> JobStartResponse:
+        if model_ref:
+            if not model_ref.startswith("xreport:"):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected model provider is not yet enabled for generation",
+                )
+            checkpoint = model_ref.removeprefix("xreport:")
+            generation_mode = {
+                "deterministic": "greedy_search",
+                "concise": "greedy_search",
+                "detailed": "beam_search",
+            }.get(generation_profile or "deterministic")
+            if generation_mode is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported generation profile")
+        if checkpoint is None or generation_mode is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="model_ref and generation_profile are required")
         checkpoint = self.validate_generation_request(
             checkpoint=checkpoint,
             generation_mode=generation_mode,
