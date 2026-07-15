@@ -36,11 +36,11 @@ from server.services.jobs import JobManager, get_job_manager
 from server.configurations.startup import get_server_settings
 from server.services.upload import UploadState, get_upload_state
 from server.repositories.preparation import PreparationRepository
-from server.repositories.serialization.data import DataSerializer
+from server.repositories.serialization.dataset import DatasetRepository
 from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
-from server.domain.settings import ServerSettings
+from server.configurations import ServerSettings
 from server.services.processing import (
     TextSanitizer,
     TokenizerHandler,
@@ -95,7 +95,7 @@ def run_process_dataset_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking dataset processing function that runs in background thread."""
-    serializer = DataSerializer()
+    serializer = DatasetRepository()
     source_dataset_name_raw = configuration.get("dataset_name")
     source_dataset_name = (
         str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""
@@ -529,7 +529,7 @@ class PreparationService:
         # Persist matched data to database with name and path.
         if not matched.empty:
             try:
-                serializer = DataSerializer()
+                serializer = DatasetRepository()
                 db_df = self.prepare_dataset_records_dataframe(
                     matched=matched,
                     image_column=image_column,
@@ -576,7 +576,7 @@ class PreparationService:
             )
 
         # Quick validation - check if source data exists
-        serializer = DataSerializer()
+        serializer = DatasetRepository()
         dataset = serializer.load_source_dataset(
             sample_size=1.0,
             seed=configuration["seed"],

@@ -12,8 +12,8 @@ from keras.models import load_model
 from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
-from server.learning.training.encoder import BeitXRayImageEncoder
-from server.learning.training.layers import (
+from server.models.training.encoder import BeitXRayImageEncoder
+from server.models.training.layers import (
     AddNorm,
     FeedForward,
     PositionalEmbedding,
@@ -21,11 +21,11 @@ from server.learning.training.layers import (
     TransformerDecoder,
     TransformerEncoder,
 )
-from server.learning.training.metrics import (
+from server.models.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from server.learning.training.scheduler import WarmUpLRScheduler
+from server.models.training.scheduler import WarmUpLRScheduler
 
 ###############################################################################
 class ModelSerializer:

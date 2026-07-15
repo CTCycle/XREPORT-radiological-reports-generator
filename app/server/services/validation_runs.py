@@ -22,12 +22,12 @@ from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
 from server.services.jobs import JobManager, get_job_manager
 from server.services.validation import DatasetValidator
-from server.repositories.serialization.data import DataSerializer
+from server.repositories.serialization.validation import ValidationRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
-from server.learning.training.dataloader import XRAYDataLoader
+from server.models.training.dataloader import XRAYDataLoader
 from server.services.evaluation import CheckpointEvaluator
-from server.domain.settings import ServerSettings
+from server.configurations import ServerSettings
 
 ###############################################################################
 def resolve_metric_fraction(
@@ -64,7 +64,7 @@ def run_validation_job(
     """Blocking validation function that runs in background thread."""
     jm = get_job_manager()
 
-    serializer = DataSerializer()
+    serializer = ValidationRepository()
 
     sample_size = request_data.get("sample_size", 1.0)
     # Access server_settings carefully if inside thread, but here we pass request_data.
@@ -285,7 +285,7 @@ def run_checkpoint_evaluation_job(
 
     validation_data = None
     if "evaluation_report" in metrics or "bleu_score" in metrics:
-        data_serializer = DataSerializer()
+        data_serializer = ValidationRepository()
         _, validation_data, _ = data_serializer.load_training_data()
         if isinstance(validation_data, pd.DataFrame) and validation_data.empty:
             logger.warning("No validation data available for checkpoint evaluation")
@@ -368,7 +368,7 @@ def run_checkpoint_evaluation_job(
         "results": results,
     }
     try:
-        serializer = DataSerializer()
+        serializer = ValidationRepository()
         serializer.save_checkpoint_evaluation_report(report_payload)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to save checkpoint evaluation report: %s", exc)
@@ -437,7 +437,7 @@ class ValidationService:
     async def get_validation_report(
         self, dataset_name: str
     ) -> ValidationReportResponse:
-        serializer = DataSerializer()
+        serializer = ValidationRepository()
         report = serializer.get_validation_report(dataset_name)
         if report is None:
             raise HTTPException(
@@ -457,7 +457,7 @@ class ValidationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-        serializer = DataSerializer()
+        serializer = ValidationRepository()
         report = serializer.get_checkpoint_evaluation_report(checkpoint_name)
         if report is None:
             raise HTTPException(

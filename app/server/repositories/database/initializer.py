@@ -7,12 +7,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
 from server.configurations import DatabaseSettings, get_server_settings
-from server.repositories.database.postgres import PostgresRepository
-from server.repositories.database.sqlite import SQLiteRepository
+from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.common.utils.logger import logger
-from server.repositories.queries import database as database_queries
 from server.repositories.schemas import Base
+
+
+def _postgres_database_exists_sql() -> str:
+    return "SELECT 1 FROM pg_database WHERE datname=:name"
+
+
+def _create_database_sql(database_name: str) -> str:
+    safe_database = database_name.replace('"', '""')
+    return f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'
 
 ###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
@@ -42,7 +49,7 @@ def clone_settings_with_database(
     settings: DatabaseSettings, database_name: str
 ) -> DatabaseSettings:
     return DatabaseSettings(
-        embedded_database=False,
+        backend="postgresql",
         engine=settings.engine,
         host=settings.host,
         port=settings.port,
@@ -59,11 +66,11 @@ def clone_settings_with_database(
 def build_postgres_create_database_sql(
     database_name: str,
 ) -> TextClause:
-    return sqlalchemy.text(database_queries.create_database_sql(database_name))
+    return sqlalchemy.text(_create_database_sql(database_name))
 
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
-    repository = SQLiteRepository(settings)
+    repository = Database(settings)
     Base.metadata.create_all(repository.engine)
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
@@ -89,27 +96,31 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
         pool_pre_ping=True,
     )
 
-    with admin_engine.connect() as conn:
-        exists = conn.execute(
-            sqlalchemy.text(database_queries.postgres_database_exists_sql()),
-            {"name": target_database},
-        ).scalar()
-        if exists:
-            logger.info("PostgreSQL database %s already exists", target_database)
-        else:
-            conn.execute(build_postgres_create_database_sql(target_database))
-            logger.info("Created PostgreSQL database %s", target_database)
+    try:
+        with admin_engine.connect() as conn:
+            exists = conn.execute(
+                sqlalchemy.text(_postgres_database_exists_sql()),
+                {"name": target_database},
+            ).scalar()
+            if exists:
+                logger.info("PostgreSQL database %s already exists", target_database)
+            else:
+                conn.execute(build_postgres_create_database_sql(target_database))
+                logger.info("Created PostgreSQL database %s", target_database)
+    finally:
+        admin_engine.dispose()
 
     normalized_settings = clone_settings_with_database(settings, target_database)
-    repository = PostgresRepository(normalized_settings)
+    repository = Database(normalized_settings)
     Base.metadata.create_all(repository.engine)
+    repository.engine.dispose()
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
 
     return target_database
 
 ###############################################################################
 def run_database_initialization(settings: DatabaseSettings) -> None:
-    if settings.embedded_database:
+    if settings.backend == "sqlite":
         initialize_sqlite_database(settings)
         return
 

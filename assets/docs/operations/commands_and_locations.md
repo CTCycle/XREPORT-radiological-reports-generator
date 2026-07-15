@@ -31,7 +31,7 @@ Last updated: 2026-07-11
 - end-to-end dataset preparation to training to inference to validation workflow
 - long-running operations with start, poll, and cancel behavior
 - local web runtime with a consolidated Windows launcher and maintenance menu
-- embedded SQLite by default with optional PostgreSQL mode
+- SQLite by default with optional PostgreSQL mode selected by `XREPORT_DB_BACKEND`
 
 ## Data And Output Locations
 

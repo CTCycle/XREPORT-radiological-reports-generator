@@ -1,23 +1,9 @@
-from server.repositories.database.backend import (
-    BACKEND_FACTORIES,
-    DatabaseBackend,
-    XREPORTDatabase,
-    build_postgres_backend,
-    build_sqlite_backend,
-    get_database,
-)
+from server.repositories.database.backend import get_database
+from server.repositories.database.engine import Database
 from server.repositories.database.initializer import initialize_database
-from server.repositories.database.postgres import PostgresRepository
-from server.repositories.database.sqlite import SQLiteRepository
 
 __all__ = [
-    "BACKEND_FACTORIES",
-    "DatabaseBackend",
-    "XREPORTDatabase",
     "get_database",
-    "build_postgres_backend",
-    "build_sqlite_backend",
     "initialize_database",
-    "PostgresRepository",
-    "SQLiteRepository",
+    "Database",
 ]

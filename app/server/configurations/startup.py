@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from ..common.path import CONFIGURATION_FILE_PATH
-from ..domain.settings import ServerSettings
+from .settings import ServerSettings
 from .environment import load_environment
 from .management import ConfigurationManager
 

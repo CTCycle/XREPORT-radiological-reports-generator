@@ -7,7 +7,7 @@ from .startup import (
     get_server_settings,
     reload_settings_for_tests,
 )
-from ..domain.settings import (
+from .settings import (
     DatabaseSettings,
     FeatureSettings,
     GlobalSettings,

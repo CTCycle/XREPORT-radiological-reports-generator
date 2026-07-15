@@ -11,6 +11,20 @@ jobs:
   validation:
     name: Backend And Client Validation
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: xreport
+          POSTGRES_USER: xreport
+          POSTGRES_PASSWORD: xreport
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U xreport -d xreport"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout
@@ -30,6 +44,20 @@ jobs:
 
       - name: Run backend unit tests
         run: app/server/.venv/bin/python -m pytest app/tests/unit -q
+
+      - name: Run Pyright
+        working-directory: app/server
+        run: uv run pyright .
+
+      - name: Run PostgreSQL persistence tests
+        env:
+          XREPORT_DB_BACKEND: postgresql
+          XREPORT_DB_HOST: 127.0.0.1
+          XREPORT_DB_PORT: 5432
+          XREPORT_DB_NAME: xreport
+          XREPORT_DB_USERNAME: xreport
+          XREPORT_DB_PASSWORD: xreport
+        run: app/server/.venv/bin/python -m pytest app/tests/integration -q
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

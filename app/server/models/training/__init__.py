@@ -1,32 +1,32 @@
 from __future__ import annotations
 
-from server.learning.device import DeviceConfig
+from server.models.device import DeviceConfig
 from server.services.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
 )
-from server.learning.training.dataloader import (
+from server.models.training.dataloader import (
     XRAYDataLoader,
     XRAYDataset,
 )
-from server.learning.callbacks import (
+from server.models.callbacks import (
     TrainingProgressCallback,
     RealTimeMetricsCallback,
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )
-from server.learning.training.trainer import ModelTrainer
-from server.learning.training.model import (
+from server.models.training.trainer import ModelTrainer
+from server.models.training.model import (
     XREPORTModel,
     build_xreport_model,
 )
-from server.learning.training.metrics import (
+from server.models.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from server.learning.training.scheduler import WarmUpLRScheduler
-from server.learning.training.layers import (
+from server.models.training.scheduler import WarmUpLRScheduler
+from server.models.training.layers import (
     AddNorm,
     FeedForward,
     PositionalEmbedding,
@@ -34,7 +34,7 @@ from server.learning.training.layers import (
     TransformerDecoder,
     TransformerEncoder,
 )
-from server.learning.training.encoder import BeitXRayImageEncoder
+from server.models.training.encoder import BeitXRayImageEncoder
 
 __all__ = [
     "DeviceConfig",

@@ -18,7 +18,7 @@ def _configuration_payload() -> dict[str, object]:
 @pytest.fixture(autouse=True)
 def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
-        "XREPORT_DB_EMBEDDED",
+        "XREPORT_DB_BACKEND",
         "XREPORT_DATABASE_URL",
         "XREPORT_DB_ENGINE",
         "XREPORT_DB_HOST",
@@ -44,7 +44,7 @@ def test_configuration_manager_loads_and_accesses_values(tmp_path) -> None:
     assert all_settings.global_settings.seed == 123
     assert all_settings.features.allow_local_filesystem_access is False
     assert all_settings.jobs.polling_interval == 2.5
-    assert all_settings.database.embedded_database is True
+    assert all_settings.database.backend == "sqlite"
 
     assert manager.get_block("global") == {"seed": 123}
     assert manager.get_block("global_settings") == {"seed": 123}
@@ -58,7 +58,7 @@ def test_configuration_manager_resolves_database_from_env(
 ) -> None:
     config_path = tmp_path / "configurations.json"
     config_path.write_text(json.dumps(_configuration_payload()), encoding="utf-8")
-    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "false")
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
     monkeypatch.setenv("XREPORT_DB_HOST", "env-host")
     monkeypatch.setenv("XREPORT_DB_PORT", "15432")
     monkeypatch.setenv("XREPORT_DB_NAME", "env-db")
@@ -68,7 +68,7 @@ def test_configuration_manager_resolves_database_from_env(
     manager = ConfigurationManager(config_path=str(config_path))
 
     database_settings = manager.get_all().database
-    assert database_settings.embedded_database is False
+    assert database_settings.backend == "postgresql"
     assert database_settings.host == "env-host"
     assert database_settings.port == 15432
     assert database_settings.database_name == "env-db"
@@ -83,7 +83,7 @@ def test_configuration_manager_ignores_database_block_in_json(
     config_path = tmp_path / "configurations.json"
     payload = _configuration_payload() | {
         "database": {
-            "embedded_database": False,
+            "backend": "postgresql",
             "host": "json-host",
             "port": 9999,
             "database_name": "json-db",
@@ -92,15 +92,15 @@ def test_configuration_manager_ignores_database_block_in_json(
         }
     }
     config_path.write_text(json.dumps(payload), encoding="utf-8")
-    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "true")
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "sqlite")
 
     manager = ConfigurationManager(config_path=str(config_path))
 
     database_settings = manager.get_all().database
-    assert database_settings.embedded_database is True
+    assert database_settings.backend == "sqlite"
     assert database_settings.host is None
     assert database_settings.port is None
-    assert manager.get_block("database")["embedded_database"] is True
+    assert manager.get_block("database")["backend"] == "sqlite"
     assert manager.get_block("database")["host"] is None
 
 ###############################################################################

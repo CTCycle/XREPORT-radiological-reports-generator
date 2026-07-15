@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
-    embedded_database: bool
+    backend: str
     engine: str | None
     host: str | None
     port: int | None
@@ -99,11 +99,9 @@ def _database_env_payload() -> dict[str, Any]:
     if not engine and url_parts and url_parts.scheme:
         engine = url_parts.scheme
 
+    configured_backend = (_normalize_optional_string(os.getenv("XREPORT_DB_BACKEND")) or "sqlite").lower()
     return {
-        "embedded_database": _normalize_bool_env(
-            os.getenv("XREPORT_DB_EMBEDDED"),
-            default=True,
-        ),
+        "backend": configured_backend,
         "engine": engine or "postgres",
         "host": _normalize_optional_string(os.getenv("XREPORT_DB_HOST")) or url_host,
         "port": _normalize_int_env(
@@ -137,7 +135,7 @@ def _database_env_payload() -> dict[str, Any]:
 
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
-    embedded_database: bool = True
+    backend: str = "sqlite"
     engine: str = "postgres"
     host: str | None = None
     port: int = Field(default=5432, ge=1, le=65535)
@@ -169,10 +167,16 @@ class JsonDatabaseSettings(BaseModel):
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
+    @field_validator("backend", mode="before")
+    @classmethod
+    def normalize_backend(cls, value: Any) -> str:
+        text = str(value).strip().lower() if value is not None else ""
+        return text or "sqlite"
+
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_external_database_requirements(self) -> "JsonDatabaseSettings":
-        if self.embedded_database:
+        if self.backend == "sqlite":
             return self
 
         missing: list[str] = []
@@ -233,9 +237,9 @@ class JsonServerSettings(BaseModel):
     # -------------------------------------------------------------------------
     def to_server_settings(self) -> ServerSettings:
         db = self.database
-        if db.embedded_database:
+        if db.backend == "sqlite":
             database_settings = DatabaseSettings(
-                embedded_database=True,
+                backend="sqlite",
                 engine=None,
                 host=None,
                 port=None,
@@ -250,7 +254,7 @@ class JsonServerSettings(BaseModel):
         else:
             normalized_engine = db.engine.strip().lower()
             database_settings = DatabaseSettings(
-                embedded_database=False,
+                backend=db.backend,
                 engine=normalized_engine,
                 host=db.host,
                 port=db.port,

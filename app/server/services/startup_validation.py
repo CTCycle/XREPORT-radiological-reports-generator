@@ -49,7 +49,7 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
         )
 
     logger.info(
-        "Startup validations completed (embedded_database=%s, tauri_mode=%s)",
-        resolved_settings.database.embedded_database,
+        "Startup validations completed (database_backend=%s, tauri_mode=%s)",
+        resolved_settings.database.backend,
         _tauri_mode_enabled(),
     )

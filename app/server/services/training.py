@@ -28,11 +28,11 @@ from server.common.utils.security import (
     validate_checkpoint_name,
 )
 from server.services.jobs import JobManager, get_job_manager
-from server.repositories.serialization.data import DataSerializer
+from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.common.path import CHECKPOINTS_DIR
 from server.configurations.startup import get_server_settings
-from server.learning.training.worker import (
+from server.models.training.worker import (
     ProcessWorker,
     run_resume_training_process,
     run_training_process,
@@ -511,7 +511,7 @@ class TrainingService:
                 detail="Training is already in progress",
             )
 
-        serializer = DataSerializer()
+        serializer = DatasetRepository()
 
         # Build configuration from request
         configuration = request.model_dump()
@@ -567,7 +567,7 @@ class TrainingService:
             )
 
         # Initialize serializers
-        serializer = DataSerializer()
+        serializer = DatasetRepository()
         modser = ModelSerializer()
 
         stored_metadata = serializer.load_training_data(only_metadata=True)

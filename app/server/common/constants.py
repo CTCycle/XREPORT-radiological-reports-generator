@@ -40,12 +40,10 @@ INFERENCE_IMAGE_CONTENT_TYPES = {
 ###############################################################################
 DATASETS_TABLE = "datasets"
 DATASET_RECORDS_TABLE = "dataset_records"
+DATASET_VERSIONS_TABLE = "dataset_versions"
 PROCESSING_RUNS_TABLE = "processing_runs"
 TRAINING_SAMPLES_TABLE = "training_samples"
 VALIDATION_RUNS_TABLE = "validation_runs"
-VALIDATION_TEXT_SUMMARY_TABLE = "validation_text_summary"
-VALIDATION_IMAGE_STATS_TABLE = "validation_image_stats"
-VALIDATION_PIXEL_DISTRIBUTION_TABLE = "validation_pixel_distribution"
 CHECKPOINTS_TABLE = "checkpoints"
 CHECKPOINT_EVALUATIONS_TABLE = "checkpoint_evaluations"
 INFERENCE_RUNS_TABLE = "inference_runs"
@@ -55,10 +53,18 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     DATASETS_TABLE: ["name", "created_at"],
     DATASET_RECORDS_TABLE: [
         "dataset_id",
+        "dataset_version_id",
         "image_name",
         "report_text",
         "image_path",
         "row_order",
+    ],
+    DATASET_VERSIONS_TABLE: [
+        "dataset_id",
+        "version_number",
+        "content_hash",
+        "record_count",
+        "imported_at",
     ],
     PROCESSING_RUNS_TABLE: [
         "dataset_id",
@@ -84,38 +90,12 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
         "sample_size",
         "metrics_json",
     ],
-    VALIDATION_TEXT_SUMMARY_TABLE: [
-        "validation_run_id",
-        "count",
-        "total_words",
-        "unique_words",
-        "avg_words_per_report",
-        "min_words_per_report",
-        "max_words_per_report",
-    ],
-    VALIDATION_IMAGE_STATS_TABLE: [
-        "validation_run_id",
-        "record_id",
-        "height",
-        "width",
-        "mean",
-        "median",
-        "std",
-        "min",
-        "max",
-        "pixel_range",
-        "noise_std",
-        "noise_ratio",
-    ],
-    VALIDATION_PIXEL_DISTRIBUTION_TABLE: [
-        "validation_run_id",
-        "bin",
-        "count",
-    ],
     CHECKPOINTS_TABLE: [
         "name",
+        "name_key",
         "path",
         "created_at",
+        "last_seen_at",
     ],
     CHECKPOINT_EVALUATIONS_TABLE: [
         "checkpoint_id",
@@ -127,11 +107,15 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     INFERENCE_RUNS_TABLE: [
         "checkpoint_id",
         "generation_mode",
+        "request_id",
+        "status",
         "executed_at",
     ],
     INFERENCE_REPORTS_TABLE: [
         "inference_run_id",
         "input_image_name",
+        "input_image_name_key",
+        "image_index",
         "generated_report",
     ],
 }

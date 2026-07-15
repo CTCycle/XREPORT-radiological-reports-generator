@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
 
 from fastapi import APIRouter
 import pytest
@@ -19,12 +18,9 @@ from server.repositories.schemas import (
     DatasetRecord,
     ProcessingRun,
     TrainingSample,
-    ValidationImageStat,
-    ValidationPixelDistribution,
     ValidationRun,
-    ValidationTextSummary,
 )
-from server.repositories.serialization.data import DataSerializer
+from server.repositories.serialization.dataset import DatasetRepository
 from server.api.preparation import PreparationEndpoint
 from server.services.preparation import PreparationService
 
@@ -244,52 +240,14 @@ def test_data_serializer_get_validation_report_aggregates(session_factory: sessi
         session.add(run)
         session.flush()
 
-        session.add(
-            ValidationTextSummary(
-                validation_run_id=run.validation_run_id,
-                count=1,
-                total_words=10,
-                unique_words=7,
-                avg_words_per_report=10.0,
-                min_words_per_report=10,
-                max_words_per_report=10,
-            )
-        )
-        session.add(
-            ValidationImageStat(
-                validation_run_id=run.validation_run_id,
-                record_id=record.record_id,
-                height=224,
-                width=224,
-                mean=0.5,
-                median=0.5,
-                std=0.1,
-                min=0.0,
-                max=1.0,
-                pixel_range=1.0,
-                noise_std=0.02,
-                noise_ratio=0.1,
-            )
-        )
-        session.add_all(
-            [
-                ValidationPixelDistribution(
-                    validation_run_id=run.validation_run_id,
-                    bin=0,
-                    count=3,
-                ),
-                ValidationPixelDistribution(
-                    validation_run_id=run.validation_run_id,
-                    bin=1,
-                    count=5,
-                ),
-            ]
-        )
+        run.text_count = 1
+        run.pixel_bins_json = [0, 1]
+        run.pixel_counts_json = [3, 5]
         session.commit()
     finally:
         session.close()
 
-    serializer = DataSerializer(queries=SimpleNamespace(backend=BackendStub(session_factory)))
+    serializer = DatasetRepository(database=BackendStub(session_factory))
     report = serializer.get_validation_report("validation_dataset")
 
     assert report is not None
@@ -323,6 +281,6 @@ def test_data_serializer_checkpoint_evaluation_exists_orm(session_factory: sessi
     finally:
         session.close()
 
-    serializer = DataSerializer(queries=SimpleNamespace(backend=BackendStub(session_factory)))
+    serializer = DatasetRepository(database=BackendStub(session_factory))
     assert serializer.checkpoint_evaluation_report_exists("checkpoint_a") is True
     assert serializer.checkpoint_evaluation_report_exists("missing") is False
