@@ -7,7 +7,7 @@ import pytest
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
-from server.learning.callbacks import TrainingInterruptCallback, WorkerInterrupted
+from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
 from server.services import training as training_module
 
 ###############################################################################

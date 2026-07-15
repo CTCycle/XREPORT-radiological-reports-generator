@@ -9,24 +9,20 @@ from server.common.constants import (
     CHECKPOINTS_TABLE,
     DATASETS_TABLE,
     DATASET_RECORDS_TABLE,
+    DATASET_VERSIONS_TABLE,
     INFERENCE_REPORTS_TABLE,
     INFERENCE_RUNS_TABLE,
     TABLE_REQUIRED_COLUMNS,
     TRAINING_SAMPLES_TABLE,
-    VALIDATION_IMAGE_STATS_TABLE,
-    VALIDATION_PIXEL_DISTRIBUTION_TABLE,
-    VALIDATION_TEXT_SUMMARY_TABLE,
 )
 
 
 UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
-    DATASETS_TABLE: ("name",),
-    DATASET_RECORDS_TABLE: ("dataset_id", "image_name", "report_text"),
+    DATASETS_TABLE: ("name_key",),
+    DATASET_RECORDS_TABLE: ("dataset_version_id", "image_name_key"),
+    DATASET_VERSIONS_TABLE: ("dataset_id", "content_hash"),
     TRAINING_SAMPLES_TABLE: ("processing_run_id", "record_id"),
-    VALIDATION_TEXT_SUMMARY_TABLE: ("validation_run_id",),
-    VALIDATION_IMAGE_STATS_TABLE: ("validation_run_id", "record_id"),
-    VALIDATION_PIXEL_DISTRIBUTION_TABLE: ("validation_run_id", "bin"),
-    CHECKPOINTS_TABLE: ("name",),
+    CHECKPOINTS_TABLE: ("name_key",),
     INFERENCE_RUNS_TABLE: ("request_id",),
     INFERENCE_REPORTS_TABLE: ("inference_run_id", "input_image_name"),
 }

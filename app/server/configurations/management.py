@@ -6,7 +6,7 @@ from threading import RLock
 from typing import Any
 
 from ..common.path import CONFIGURATION_FILE_PATH
-from ..domain.settings import JsonServerSettings, ServerSettings
+from .settings import JsonServerSettings, ServerSettings
 
 ###############################################################################
 class ConfigurationManager:

@@ -7,8 +7,8 @@ from keras import Model
 from keras.utils import set_random_seed
 
 from server.common.utils.logger import logger
-from server.learning.device import DeviceConfig, DeviceDataLoader
-from server.learning.callbacks import (
+from server.models.device import DeviceConfig, DeviceDataLoader
+from server.models.callbacks import (
     TrainingInterruptCallback,
     initialize_training_callbacks,
 )

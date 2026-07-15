@@ -6,18 +6,18 @@ from keras import Model, layers, optimizers
 from torch import compile as torch_compile
 
 from server.common.utils.logger import logger
-from server.learning.training.encoder import BeitXRayImageEncoder
-from server.learning.training.layers import (
+from server.models.training.encoder import BeitXRayImageEncoder
+from server.models.training.layers import (
     PositionalEmbedding,
     SoftMaxClassifier,
     TransformerDecoder,
     TransformerEncoder,
 )
-from server.learning.training.metrics import (
+from server.models.training.metrics import (
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from server.learning.training.scheduler import WarmUpLRScheduler
+from server.models.training.scheduler import WarmUpLRScheduler
 
 ###############################################################################
 class XREPORTModel:

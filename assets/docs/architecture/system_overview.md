@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-07-11
+Last updated: 2026-07-14
 
 XREPORT is a local-first client/server system for radiological report generation and model lifecycle workflows.
 
@@ -36,6 +36,8 @@ XREPORT is a local-first client/server system for radiological report generation
    │  ├─ pyproject.toml
    │  ├─ api/
    │  ├─ domain/
+   │  ├─ configurations/
+   │  ├─ models/
    │  ├─ services/
    │  └─ repositories/
    ├─ client/

@@ -9,7 +9,7 @@ from nltk.translate.bleu_score import corpus_bleu
 from torch.utils.data import DataLoader
 
 from server.common.utils.logger import logger
-from server.learning.inference import TextGenerator
+from server.models.inference import TextGenerator
 
 ###############################################################################
 class CheckpointEvaluator:

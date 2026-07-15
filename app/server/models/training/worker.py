@@ -14,15 +14,15 @@ import pandas as pd
 
 from server.configurations.startup import get_server_settings
 from server.common.utils.logger import logger
-from server.learning.callbacks import (
+from server.models.callbacks import (
     TrainingInterruptCallback,
     WorkerInterrupted,
 )
-from server.learning.device import DeviceConfig
-from server.learning.training.dataloader import XRAYDataLoader
-from server.learning.training.model import build_xreport_model
-from server.learning.training.trainer import ModelTrainer
-from server.repositories.serialization.data import DataSerializer
+from server.models.device import DeviceConfig
+from server.models.training.dataloader import XRAYDataLoader
+from server.models.training.model import build_xreport_model
+from server.models.training.trainer import ModelTrainer
+from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.model import ModelSerializer
 
 ###############################################################################
@@ -235,7 +235,7 @@ def process_target(
 def prepare_training_data(
     configuration: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
-    serializer = DataSerializer()
+    serializer = DatasetRepository()
     dataset_name = configuration.get("dataset_name")
     stored_metadata = serializer.load_training_data(
         only_metadata=True,
@@ -267,7 +267,7 @@ def load_resume_training_data(
     model_metadata: dict[str, Any],
     validate_paths: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    serializer = DataSerializer()
+    serializer = DatasetRepository()
     current_metadata = serializer.load_training_data(only_metadata=True)
     is_validated = serializer.validate_metadata(current_metadata, model_metadata)
     if not is_validated:

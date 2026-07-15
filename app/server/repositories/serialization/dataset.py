@@ -16,16 +16,9 @@ from server.common.constants import (
     CHECKPOINT_EVALUATIONS_TABLE,
     DATASETS_TABLE,
     DATASET_RECORDS_TABLE,
-    INFERENCE_REPORTS_TABLE,
-    INFERENCE_RUNS_TABLE,
-    PROCESSING_RUNS_TABLE,
     TABLE_REQUIRED_COLUMNS,
     TRAINING_SAMPLES_TABLE,
     VALID_IMAGE_EXTENSIONS,
-    VALIDATION_IMAGE_STATS_TABLE,
-    VALIDATION_PIXEL_DISTRIBUTION_TABLE,
-    VALIDATION_RUNS_TABLE,
-    VALIDATION_TEXT_SUMMARY_TABLE,
 )
 from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
@@ -34,32 +27,33 @@ from server.repositories.database.utils import (
     validate_sql_identifier,
     validate_table_name,
 )
-from server.repositories.queries.data import DataRepositoryQueries
+from server.repositories.database import Database, get_database
 from server.repositories.schemas import (
     Checkpoint,
     CheckpointEvaluation,
     Dataset,
     DatasetRecord,
+    DatasetVersion,
+    InferenceReport,
     InferenceRun,
     ProcessingRun,
     TrainingSample,
-    ValidationImageStat,
-    ValidationPixelDistribution,
     ValidationRun,
-    ValidationTextSummary,
 )
+from server.repositories.schemas.normalization import normalize_key
+from server.repositories.serialization.support import JsonDataSupport
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
 ###############################################################################
-class DataSerializer:
+class DatasetRepository(JsonDataSupport):
 
     # -------------------------------------------------------------------------
     def __init__(
         self,
-        queries: DataRepositoryQueries | None = None,
+        database: Database | None = None,
     ) -> None:
-        self.queries = queries or DataRepositoryQueries()
+        self.database = database or get_database()
         self.img_shape = (224, 224)
         self.num_channels = 3
         self.valid_extensions = VALID_EXTENSIONS
@@ -85,27 +79,12 @@ class DataSerializer:
     # -------------------------------------------------------------------------
     @staticmethod
     def _parse_json(value: Any, default: Any = None) -> Any:
-        if value is None:
-            return default
-        if isinstance(value, (dict, list)):
-            return value
-        if isinstance(value, str):
-            payload = value.strip()
-            if not payload:
-                return default
-            try:
-                decoded = json.loads(payload)
-            except json.JSONDecodeError:
-                return default
-            if isinstance(decoded, (dict, list)):
-                return decoded
-            return default
-        return default
+        return JsonDataSupport.parse_json(value, default)
 
     # -------------------------------------------------------------------------
     @staticmethod
     def _now_utc() -> datetime:
-        return datetime.now(timezone.utc)
+        return JsonDataSupport.now_utc()
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -123,7 +102,7 @@ class DataSerializer:
                 if parsed.tzinfo is not None
                 else parsed.replace(tzinfo=timezone.utc)
             )
-        return DataSerializer._now_utc()
+        return DatasetRepository._now_utc()
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -159,11 +138,11 @@ class DataSerializer:
             raise ValueError("limit must be >= 0")
         if offset is not None and offset < 0:
             raise ValueError("offset must be >= 0")
-        return self.queries.load_table(table_name, limit=limit, offset=offset)
+        return self.database.load_from_database(table_name, limit=limit, offset=offset)
 
     # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
-        return self.queries.count_rows(table_name)
+        return self.database.count_rows(table_name)
 
     # -------------------------------------------------------------------------
     def save_table(self, dataset: pd.DataFrame, table_name: str) -> None:
@@ -178,7 +157,7 @@ class DataSerializer:
                 table_name,
                 "save",
             )
-        self.queries.save_table(dataset, table_name)
+        self.database.save_into_database(dataset, table_name)
 
     # -------------------------------------------------------------------------
     def upsert_table(self, dataset: pd.DataFrame, table_name: str) -> None:
@@ -193,23 +172,23 @@ class DataSerializer:
                 table_name,
                 "upsert",
             )
-        self.queries.upsert_table(dataset, table_name)
+        self.database.upsert_into_database(dataset, table_name)
 
     # -------------------------------------------------------------------------
     def _session(self):
-        return self.queries.backend.session()
+        return self.database.session()
 
     # -------------------------------------------------------------------------
     def _get_table_class(self, table_name: str):
         safe_table_name = validate_table_name(table_name)
-        return self.queries.backend.get_table_class(safe_table_name)
+        return self.database.get_table_class(safe_table_name)
 
     # -------------------------------------------------------------------------
     def _get_dataset_id(self, dataset_name: str) -> int | None:
         session = self._session()
         try:
             row = session.execute(
-                select(Dataset.dataset_id).where(Dataset.name == dataset_name)
+                select(Dataset.dataset_id).where(Dataset.name_key == normalize_key(dataset_name))
             ).first()
         finally:
             session.close()
@@ -226,7 +205,13 @@ class DataSerializer:
             return existing_id
 
         payload = pd.DataFrame(
-            [{"name": normalized_name, "created_at": self._now_utc()}]
+            [
+                {
+                    "name": normalized_name,
+                    "name_key": normalize_key(normalized_name),
+                    "created_at": self._now_utc(),
+                }
+            ]
         )
         self.upsert_table(payload, DATASETS_TABLE)
         created_id = self._get_dataset_id(normalized_name)
@@ -240,7 +225,9 @@ class DataSerializer:
         session = self._session()
         try:
             row = session.execute(
-                select(Checkpoint.checkpoint_id).where(Checkpoint.name == checkpoint_name)
+                select(Checkpoint.checkpoint_id).where(
+                    Checkpoint.name_key == normalize_key(checkpoint_name)
+                )
             ).first()
         finally:
             session.close()
@@ -251,8 +238,10 @@ class DataSerializer:
             [
                 {
                     "name": checkpoint_name,
+                    "name_key": normalize_key(checkpoint_name),
                     "path": str(CHECKPOINTS_DIR / checkpoint_name),
                     "created_at": self._now_utc(),
+                    "last_seen_at": self._now_utc(),
                 }
             ]
         )
@@ -260,7 +249,9 @@ class DataSerializer:
         session = self._session()
         try:
             row = session.execute(
-                select(Checkpoint.checkpoint_id).where(Checkpoint.name == checkpoint_name)
+                select(Checkpoint.checkpoint_id).where(
+                    Checkpoint.name_key == normalize_key(checkpoint_name)
+                )
             ).first()
         finally:
             session.close()
@@ -357,6 +348,14 @@ class DataSerializer:
         dataset_name: str | None = None,
     ) -> pd.DataFrame:
         dataset_name_filter = str(dataset_name).strip() if dataset_name else None
+        latest_versions = (
+            select(
+                DatasetVersion.dataset_id,
+                func.max(DatasetVersion.version_number).label("version_number"),
+            )
+            .group_by(DatasetVersion.dataset_id)
+            .subquery()
+        )
         stmt = (
             select(
                 Dataset.dataset_id,
@@ -368,6 +367,15 @@ class DataSerializer:
                 DatasetRecord.row_order,
             )
             .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+            .join(
+                DatasetVersion,
+                DatasetVersion.dataset_version_id == DatasetRecord.dataset_version_id,
+            )
+            .join(
+                latest_versions,
+                (latest_versions.c.dataset_id == DatasetVersion.dataset_id)
+                & (latest_versions.c.version_number == DatasetVersion.version_number),
+            )
             .order_by(
                 Dataset.name,
                 DatasetRecord.row_order,
@@ -375,7 +383,7 @@ class DataSerializer:
             )
         )
         if dataset_name_filter:
-            stmt = stmt.where(Dataset.name == dataset_name_filter)
+            stmt = stmt.where(Dataset.name_key == normalize_key(dataset_name_filter))
         session = self._session()
         try:
             rows = session.execute(stmt).all()
@@ -421,7 +429,7 @@ class DataSerializer:
             .limit(1)
         )
         if dataset_name_filter:
-            stmt = stmt.where(Dataset.name == dataset_name_filter)
+            stmt = stmt.where(Dataset.name_key == normalize_key(dataset_name_filter))
 
         session = self._session()
         try:
@@ -491,7 +499,7 @@ class DataSerializer:
             return pd.DataFrame(), pd.DataFrame(), metadata
 
         training_data["tokens"] = training_data["tokens"].apply(
-            lambda value: DataSerializer._parse_json(value, default=[])
+            lambda value: DatasetRepository._parse_json(value, default=[])
         )
         train_data = training_data[training_data["split"] == "train"].copy()
         val_data = training_data[training_data["split"] == "validation"].copy()
@@ -524,52 +532,6 @@ class DataSerializer:
         if not source_dataset:
             raise ValueError("Training configuration must include a source_dataset.")
 
-        dataset_id = self._ensure_dataset(dataset_name)
-        source_dataset_id = self._ensure_dataset(source_dataset)
-
-        run_payload = pd.DataFrame(
-            [
-                {
-                    "dataset_id": dataset_id,
-                    "source_dataset_id": source_dataset_id,
-                    "config_hash": hashcode,
-                    "executed_at": self._now_utc(),
-                    "seed": int(configuration.get("seed", 42)),
-                    "sample_size": float(configuration.get("sample_size", 1.0)),
-                    "validation_size": float(configuration.get("validation_size", 0.2)),
-                    "split_seed": int(configuration.get("split_seed", 42)),
-                    "vocabulary_size": vocabulary_size,
-                    "max_report_size": int(configuration.get("max_report_size", 200)),
-                    "tokenizer": str(configuration.get("tokenizer") or ""),
-                }
-            ]
-        )
-        self.upsert_table(run_payload, PROCESSING_RUNS_TABLE)
-        session = self._session()
-        try:
-            run_row = session.execute(
-                select(ProcessingRun.processing_run_id)
-                .where(
-                    ProcessingRun.config_hash == hashcode,
-                    ProcessingRun.dataset_id == dataset_id,
-                )
-                .order_by(ProcessingRun.processing_run_id.desc())
-                .limit(1)
-            ).first()
-            if run_row is None:
-                raise RuntimeError("Processing run was not persisted correctly")
-            processing_run_id = int(run_row[0])
-            source_records = session.execute(
-                select(DatasetRecord.record_id).where(
-                    DatasetRecord.dataset_id == source_dataset_id
-                )
-            ).all()
-        finally:
-            session.close()
-
-        if not source_records:
-            raise ValueError(f"No source records found for dataset: {source_dataset}")
-
         training_payload = training_data.copy()
         training_payload["record_id"] = pd.to_numeric(
             training_payload["record_id"],
@@ -582,15 +544,6 @@ class DataSerializer:
             )
         training_payload["record_id"] = training_payload["record_id"].astype(int)
 
-        source_record_ids = {int(row[0]) for row in source_records}
-        invalid_record_ids = int(
-            (~training_payload["record_id"].isin(source_record_ids)).sum()
-        )
-        if invalid_record_ids:
-            raise ValueError(
-                f"Training payload has {invalid_record_ids} rows referencing records outside source dataset"
-            )
-
         normalized_split = (
             training_payload["split"].astype("string").str.strip().str.lower()
         )
@@ -601,20 +554,69 @@ class DataSerializer:
                 f"Training payload has {invalid_split_count} rows with invalid split values"
             )
 
-        samples_df = pd.DataFrame(
-            {
-                "processing_run_id": processing_run_id,
-                "record_id": training_payload["record_id"],
-                "split": normalized_split.astype(str),
-                "tokens_json": training_payload["tokens"],
-            }
-        )
-        self._delete_by_key(
-            TRAINING_SAMPLES_TABLE,
-            "processing_run_id",
-            processing_run_id,
-        )
-        self.upsert_table(samples_df, TRAINING_SAMPLES_TABLE)
+        backend = self.database
+        with backend.transaction() as session:
+            datasets: dict[str, Dataset] = {}
+            for name in (dataset_name, source_dataset):
+                key = normalize_key(name)
+                row = session.execute(
+                    select(Dataset).where(Dataset.name_key == key)
+                ).scalar_one_or_none()
+                if row is None:
+                    row = Dataset(name=name, name_key=key, created_at=self._now_utc())
+                    session.add(row)
+                    session.flush()
+                datasets[key] = row
+            dataset_id = datasets[normalize_key(dataset_name)].dataset_id
+            source_dataset_id = datasets[normalize_key(source_dataset)].dataset_id
+            latest_source_version = session.execute(
+                select(DatasetVersion.dataset_version_id)
+                .where(DatasetVersion.dataset_id == source_dataset_id)
+                .order_by(DatasetVersion.version_number.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            source_records = session.execute(
+                select(DatasetRecord.record_id).where(
+                    DatasetRecord.dataset_id == source_dataset_id,
+                    DatasetRecord.dataset_version_id == latest_source_version,
+                )
+            ).all()
+            if not source_records:
+                raise ValueError(f"No source records found for dataset: {source_dataset}")
+            source_record_ids = {int(row[0]) for row in source_records}
+            invalid_record_ids = int(
+                (~training_payload["record_id"].isin(source_record_ids)).sum()
+            )
+            if invalid_record_ids:
+                raise ValueError(
+                    f"Training payload has {invalid_record_ids} rows referencing records outside source dataset"
+                )
+            run = ProcessingRun(
+                dataset_id=dataset_id,
+                source_dataset_id=source_dataset_id,
+                config_hash=hashcode,
+                executed_at=self._now_utc(),
+                seed=int(configuration.get("seed", 42)),
+                sample_size=float(configuration.get("sample_size", 1.0)),
+                validation_size=float(configuration.get("validation_size", 0.2)),
+                split_seed=int(configuration.get("split_seed", 42)),
+                vocabulary_size=vocabulary_size,
+                max_report_size=int(configuration.get("max_report_size", 200)),
+                tokenizer=str(configuration.get("tokenizer") or ""),
+            )
+            session.add(run)
+            session.flush()
+            session.add_all(
+                TrainingSample(
+                    processing_run_id=run.processing_run_id,
+                    record_id=int(row.record_id),
+                    split=str(row.split),
+                    tokens_json=row.tokens,
+                )
+                for row in training_payload.assign(split=normalized_split).itertuples(
+                    index=False
+                )
+            )
 
     # -------------------------------------------------------------------------
     def upsert_source_dataset(self, dataset: pd.DataFrame) -> None:
@@ -633,28 +635,75 @@ class DataSerializer:
         )
         dataset_payload["image_path"] = dataset_payload["image_path"].astype(str)
 
-        batches: list[pd.DataFrame] = []
-        for dataset_name, group in dataset_payload.groupby("dataset_name", sort=False):
-            dataset_id = self._ensure_dataset(dataset_name)
-            records = group.copy().reset_index(drop=True)
-            if "row_order" not in records.columns:
-                records["row_order"] = range(1, len(records) + 1)
+        backend = self.database
+        with backend.transaction() as session:
+            for dataset_name, group in dataset_payload.groupby("dataset_name", sort=False):
+                normalized_name = str(dataset_name).strip()
+                dataset_row = session.execute(
+                    select(Dataset).where(
+                        Dataset.name_key == normalize_key(normalized_name)
+                    )
+                ).scalar_one_or_none()
+                if dataset_row is None:
+                    dataset_row = Dataset(
+                        name=normalized_name,
+                        name_key=normalize_key(normalized_name),
+                        created_at=self._now_utc(),
+                    )
+                    session.add(dataset_row)
+                    session.flush()
 
-            batches.append(
-                pd.DataFrame(
+                records = group.copy().reset_index(drop=True)
+                if "row_order" not in records.columns:
+                    records["row_order"] = range(1, len(records) + 1)
+                canonical_records = [
                     {
-                        "dataset_id": dataset_id,
-                        "image_name": records["image_name"],
-                        "report_text": records["report_text"],
-                        "image_path": records["image_path"],
-                        "row_order": records["row_order"].astype(int),
+                        "image_name": str(row.image_name),
+                        "image_name_key": normalize_key(str(row.image_name)),
+                        "report_text": str(row.report_text),
+                        "image_path": str(row.image_path),
+                        "row_order": int(row.row_order),
                     }
+                    for row in records.itertuples(index=False)
+                ]
+                content_hash = hashlib.sha256(
+                    json.dumps(
+                        canonical_records,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest()
+                existing_version = session.execute(
+                    select(DatasetVersion).where(
+                        DatasetVersion.dataset_id == dataset_row.dataset_id,
+                        DatasetVersion.content_hash == content_hash,
+                    )
+                ).scalar_one_or_none()
+                if existing_version is not None:
+                    continue
+                latest_number = session.execute(
+                    select(func.max(DatasetVersion.version_number)).where(
+                        DatasetVersion.dataset_id == dataset_row.dataset_id
+                    )
+                ).scalar() or 0
+                version = DatasetVersion(
+                    dataset_id=dataset_row.dataset_id,
+                    version_number=int(latest_number) + 1,
+                    content_hash=content_hash,
+                    record_count=len(canonical_records),
+                    imported_at=self._now_utc(),
                 )
-            )
-
-        if not batches:
-            return
-        self.upsert_table(pd.concat(batches, ignore_index=True), DATASET_RECORDS_TABLE)
+                session.add(version)
+                session.flush()
+                session.add_all(
+                    DatasetRecord(
+                        dataset_id=dataset_row.dataset_id,
+                        dataset_version_id=version.dataset_version_id,
+                        **record,
+                    )
+                    for record in canonical_records
+                )
 
     # -------------------------------------------------------------------------
     def save_generated_reports(
@@ -675,179 +724,90 @@ class DataSerializer:
             normalized_request_id = f"gen_{uuid.uuid4().hex[:12]}"
         normalized_generation_mode = str(generation_mode or "").strip() or "unknown"
 
-        run_df = pd.DataFrame(
-            [
-                {
-                    "checkpoint_id": checkpoint_id,
-                    "generation_mode": normalized_generation_mode,
-                    "request_id": normalized_request_id,
-                    "executed_at": self._now_utc(),
-                }
-            ]
-        )
-        self.upsert_table(run_df, INFERENCE_RUNS_TABLE)
-        session = self._session()
-        try:
-            run_row = session.execute(
-                select(InferenceRun.inference_run_id).where(
+        reports_df = pd.DataFrame(reports)
+        if "image" not in reports_df or "report" not in reports_df:
+            raise ValueError("Generated reports require image and report fields")
+        with self.database.transaction() as session:
+            run = session.execute(
+                select(InferenceRun).where(
                     InferenceRun.request_id == normalized_request_id
                 )
-            ).first()
-        finally:
-            session.close()
-        if run_row is None:
-            raise RuntimeError("Inference run creation failed")
-        inference_run_id = int(run_row[0])
-
-        reports_df = pd.DataFrame(reports)
-        payload = pd.DataFrame(
-            {
-                "inference_run_id": inference_run_id,
-                "input_image_name": reports_df["image"].astype(str),
-                "generated_report": reports_df["report"].astype(str),
-                "record_id": None,
-            }
-        )
-        self.upsert_table(payload, INFERENCE_REPORTS_TABLE)
+            ).scalar_one_or_none()
+            if run is None:
+                run = InferenceRun(
+                    checkpoint_id=checkpoint_id,
+                    generation_mode=normalized_generation_mode,
+                    request_id=normalized_request_id,
+                    status="succeeded",
+                    executed_at=self._now_utc(),
+                )
+                session.add(run)
+                session.flush()
+            else:
+                run.status = "succeeded"
+                session.execute(
+                    delete(InferenceReport).where(
+                        InferenceReport.inference_run_id == run.inference_run_id
+                    )
+                )
+            session.add_all(
+                InferenceReport(
+                    inference_run_id=run.inference_run_id,
+                    input_image_name=str(row.image),
+                    input_image_name_key=normalize_key(str(row.image)),
+                    image_index=index,
+                    generated_report=str(row.report),
+                    record_id=None,
+                )
+                for index, row in enumerate(reports_df.itertuples(index=False))
+            )
 
     # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "").strip()
         if not dataset_name:
             raise ValueError("Validation report requires dataset_name")
-
-        dataset_id = self._ensure_dataset(dataset_name)
-        run_df = pd.DataFrame(
-            [
-                {
-                    "dataset_id": dataset_id,
-                    "executed_at": self._coerce_datetime(report.get("date")),
-                    "sample_size": float(report.get("sample_size") or 1.0),
-                    "metrics_json": report.get("metrics") or [],
-                    "artifacts_json": report.get("artifacts") or {},
-                }
-            ]
-        )
-        self.upsert_table(run_df, VALIDATION_RUNS_TABLE)
-        session = self._session()
-        try:
-            row = session.execute(
-                select(ValidationRun.validation_run_id)
-                .where(ValidationRun.dataset_id == dataset_id)
-                .order_by(ValidationRun.validation_run_id.desc())
-                .limit(1)
-            ).first()
-        finally:
-            session.close()
-        if row is None:
-            raise RuntimeError("Validation run creation failed")
-        validation_run_id = int(row[0])
-
-        text_stats = report.get("text_statistics") or {}
-        text_summary_df = pd.DataFrame(
-            [
-                {
-                    "validation_run_id": validation_run_id,
-                    "count": int(text_stats.get("count", 0) or 0),
-                    "total_words": int(text_stats.get("total_words", 0) or 0),
-                    "unique_words": int(text_stats.get("unique_words", 0) or 0),
-                    "avg_words_per_report": float(
-                        text_stats.get("avg_words_per_report", 0.0) or 0.0
-                    ),
-                    "min_words_per_report": int(
-                        text_stats.get("min_words_per_report", 0) or 0
-                    ),
-                    "max_words_per_report": int(
-                        text_stats.get("max_words_per_report", 0) or 0
-                    ),
-                }
-            ]
-        )
-        self.upsert_table(text_summary_df, VALIDATION_TEXT_SUMMARY_TABLE)
-
-        self._delete_by_key(
-            VALIDATION_IMAGE_STATS_TABLE,
-            "validation_run_id",
-            validation_run_id,
-        )
-        image_records = report.get("image_records") or []
-        image_df = pd.DataFrame(image_records)
-        if not image_df.empty:
-            if "record_id" not in image_df.columns:
-                logger.warning(
-                    "Skipping image statistics persistence because record_id is missing from payload"
+        backend = self.database
+        with backend.transaction() as session:
+            dataset = session.execute(
+                select(Dataset).where(Dataset.name_key == normalize_key(dataset_name))
+            ).scalar_one_or_none()
+            if dataset is None:
+                dataset = Dataset(
+                    name=dataset_name,
+                    name_key=normalize_key(dataset_name),
+                    created_at=self._now_utc(),
                 )
-            else:
-                image_df["record_id"] = pd.to_numeric(
-                    image_df["record_id"],
-                    errors="coerce",
-                )
-                invalid_missing = int(image_df["record_id"].isna().sum())
-                if invalid_missing:
-                    logger.warning(
-                        "Skipped %s image statistics rows with invalid record_id",
-                        invalid_missing,
-                    )
-                image_df = image_df[image_df["record_id"].notna()].copy()
-                image_df["record_id"] = image_df["record_id"].astype(int)
-
-                session = self._session()
-                try:
-                    dataset_record_rows = session.execute(
-                        select(DatasetRecord.record_id).where(
-                            DatasetRecord.dataset_id == dataset_id
-                        )
-                    ).all()
-                finally:
-                    session.close()
-                valid_record_ids = {int(row[0]) for row in dataset_record_rows}
-                invalid_dataset_refs = int(
-                    (~image_df["record_id"].isin(valid_record_ids)).sum()
-                )
-                if invalid_dataset_refs:
-                    logger.warning(
-                        "Skipped %s image statistics rows not belonging to dataset",
-                        invalid_dataset_refs,
-                    )
-                image_df = image_df[image_df["record_id"].isin(valid_record_ids)].copy()
-
-                if not image_df.empty:
-                    payload = pd.DataFrame(
-                        {
-                            "validation_run_id": validation_run_id,
-                            "record_id": image_df["record_id"].astype(int),
-                            "height": image_df.get("height"),
-                            "width": image_df.get("width"),
-                            "mean": image_df.get("mean"),
-                            "median": image_df.get("median"),
-                            "std": image_df.get("std"),
-                            "min": image_df.get("min"),
-                            "max": image_df.get("max"),
-                            "pixel_range": image_df.get("pixel_range"),
-                            "noise_std": image_df.get("noise_std"),
-                            "noise_ratio": image_df.get("noise_ratio"),
-                        }
-                    )
-                    self.upsert_table(payload, VALIDATION_IMAGE_STATS_TABLE)
-
-        self._delete_by_key(
-            VALIDATION_PIXEL_DISTRIBUTION_TABLE,
-            "validation_run_id",
-            validation_run_id,
-        )
-        pixel_distribution = report.get("pixel_distribution") or {}
-        bins = pixel_distribution.get("bins") or []
-        counts = pixel_distribution.get("counts") or []
-        size = min(len(bins), len(counts))
-        if size > 0:
-            pixel_df = pd.DataFrame(
-                {
-                    "validation_run_id": [validation_run_id] * size,
-                    "bin": [int(value) for value in bins[:size]],
-                    "count": [int(value) for value in counts[:size]],
-                }
+                session.add(dataset)
+                session.flush()
+            text_stats = report.get("text_statistics") or {}
+            image_stats = report.get("image_statistics") or {}
+            pixel_distribution = report.get("pixel_distribution") or {}
+            validation_run = ValidationRun(
+                dataset_id=dataset.dataset_id,
+                executed_at=self._coerce_datetime(report.get("date")),
+                sample_size=float(report.get("sample_size") or 1.0),
+                metrics_json=report.get("metrics") or [],
+                artifacts_json=report.get("artifacts") or {},
+                status="succeeded",
+                text_count=int(text_stats.get("count", 0) or 0),
+                text_total_words=int(text_stats.get("total_words", 0) or 0),
+                text_unique_words=int(text_stats.get("unique_words", 0) or 0),
+                text_avg_words=float(text_stats.get("avg_words_per_report", 0.0) or 0.0),
+                text_min_words=int(text_stats.get("min_words_per_report", 0) or 0),
+                text_max_words=int(text_stats.get("max_words_per_report", 0) or 0),
+                image_count=int(image_stats.get("count", 0) or 0),
+                image_mean_height=float(image_stats.get("mean_height", 0.0) or 0.0),
+                image_mean_width=float(image_stats.get("mean_width", 0.0) or 0.0),
+                image_mean_value=float(image_stats.get("mean_pixel_value", 0.0) or 0.0),
+                image_std_value=float(image_stats.get("std_pixel_value", 0.0) or 0.0),
+                image_mean_noise_std=float(image_stats.get("mean_noise_std", 0.0) or 0.0),
+                image_mean_noise_ratio=float(image_stats.get("mean_noise_ratio", 0.0) or 0.0),
+                pixel_bins_json=pixel_distribution.get("bins") or [],
+                pixel_counts_json=pixel_distribution.get("counts") or [],
             )
-            self.upsert_table(pixel_df, VALIDATION_PIXEL_DISTRIBUTION_TABLE)
+            session.add(validation_run)
+            session.flush()
 
     # -------------------------------------------------------------------------
     def get_validation_report(self, dataset_name: str) -> dict[str, Any] | None:
@@ -863,6 +823,21 @@ class DataSerializer:
                     ValidationRun.sample_size,
                     ValidationRun.metrics_json,
                     ValidationRun.artifacts_json,
+                    ValidationRun.text_count,
+                    ValidationRun.text_total_words,
+                    ValidationRun.text_unique_words,
+                    ValidationRun.text_avg_words,
+                    ValidationRun.text_min_words,
+                    ValidationRun.text_max_words,
+                    ValidationRun.image_count,
+                    ValidationRun.image_mean_height,
+                    ValidationRun.image_mean_width,
+                    ValidationRun.image_mean_value,
+                    ValidationRun.image_std_value,
+                    ValidationRun.image_mean_noise_std,
+                    ValidationRun.image_mean_noise_ratio,
+                    ValidationRun.pixel_bins_json,
+                    ValidationRun.pixel_counts_json,
                 )
                 .where(ValidationRun.dataset_id == dataset_id)
                 .order_by(ValidationRun.validation_run_id.desc())
@@ -870,73 +845,45 @@ class DataSerializer:
             ).first()
             if run_row is None:
                 return None
-
-            validation_run_id = int(run_row[0])
-            text_row = session.execute(
-                select(
-                    ValidationTextSummary.count,
-                    ValidationTextSummary.total_words,
-                    ValidationTextSummary.unique_words,
-                    ValidationTextSummary.avg_words_per_report,
-                    ValidationTextSummary.min_words_per_report,
-                    ValidationTextSummary.max_words_per_report,
-                ).where(ValidationTextSummary.validation_run_id == validation_run_id)
-            ).first()
-
-            image_agg = session.execute(
-                select(
-                    func.count(ValidationImageStat.record_id),
-                    func.avg(ValidationImageStat.height),
-                    func.avg(ValidationImageStat.width),
-                    func.avg(ValidationImageStat.mean),
-                    func.avg(ValidationImageStat.std),
-                    func.avg(ValidationImageStat.noise_std),
-                    func.avg(ValidationImageStat.noise_ratio),
-                ).where(ValidationImageStat.validation_run_id == validation_run_id)
-            ).first()
-
-            pixel_rows = session.execute(
-                select(
-                    ValidationPixelDistribution.bin,
-                    ValidationPixelDistribution.count,
-                )
-                .where(ValidationPixelDistribution.validation_run_id == validation_run_id)
-                .order_by(ValidationPixelDistribution.bin)
-            ).all()
         finally:
             session.close()
 
-        metrics = DataSerializer._parse_json(run_row[3], default=[])
-        artifacts = DataSerializer._parse_json(run_row[4], default={})
+        metrics = DatasetRepository._parse_json(run_row[3], default=[])
+        artifacts = DatasetRepository._parse_json(run_row[4], default={})
 
         text_statistics = None
-        if text_row is not None:
+        if run_row[5] is not None:
+            text_values = run_row[5:11]
             text_statistics = {
-                "count": int(text_row[0] or 0),
-                "total_words": int(text_row[1] or 0),
-                "unique_words": int(text_row[2] or 0),
-                "avg_words_per_report": float(text_row[3] or 0.0),
-                "min_words_per_report": int(text_row[4] or 0),
-                "max_words_per_report": int(text_row[5] or 0),
+                "count": int(text_values[0] or 0),
+                "total_words": int(text_values[1] or 0),
+                "unique_words": int(text_values[2] or 0),
+                "avg_words_per_report": float(text_values[3] or 0.0),
+                "min_words_per_report": int(text_values[4] or 0),
+                "max_words_per_report": int(text_values[5] or 0),
             }
 
         image_statistics = None
-        if image_agg is not None and int(image_agg[0] or 0) > 0:
+        image_count = run_row[11] or 0
+        if image_count is not None and int(image_count or 0) > 0:
+            image_values = run_row[11:18]
             image_statistics = {
-                "count": int(image_agg[0] or 0),
-                "mean_height": float(image_agg[1] or 0.0),
-                "mean_width": float(image_agg[2] or 0.0),
-                "mean_pixel_value": float(image_agg[3] or 0.0),
-                "std_pixel_value": float(image_agg[4] or 0.0),
-                "mean_noise_std": float(image_agg[5] or 0.0),
-                "mean_noise_ratio": float(image_agg[6] or 0.0),
+                "count": int(image_values[0] or 0),
+                "mean_height": float(image_values[1] or 0.0),
+                "mean_width": float(image_values[2] or 0.0),
+                "mean_pixel_value": float(image_values[3] or 0.0),
+                "std_pixel_value": float(image_values[4] or 0.0),
+                "mean_noise_std": float(image_values[5] or 0.0),
+                "mean_noise_ratio": float(image_values[6] or 0.0),
             }
 
         pixel_distribution = None
-        if pixel_rows:
+        pixel_bins = DatasetRepository._parse_json(run_row[18], default=[])
+        pixel_counts = DatasetRepository._parse_json(run_row[19], default=[])
+        if pixel_bins and pixel_counts:
             pixel_distribution = {
-                "bins": [int(row[0]) for row in pixel_rows],
-                "counts": [int(row[1]) for row in pixel_rows],
+                "bins": [int(value) for value in pixel_bins],
+                "counts": [int(value) for value in pixel_counts],
             }
 
         return {
@@ -1005,7 +952,7 @@ class DataSerializer:
                     Checkpoint,
                     Checkpoint.checkpoint_id == CheckpointEvaluation.checkpoint_id,
                 )
-                .where(Checkpoint.name == checkpoint_name)
+                .where(Checkpoint.name_key == normalize_key(checkpoint_name))
                 .order_by(CheckpointEvaluation.evaluation_id.desc())
                 .limit(1)
             ).first()
@@ -1014,9 +961,9 @@ class DataSerializer:
         if row is None:
             return None
 
-        metrics = DataSerializer._parse_json(row[1], default=[])
-        metric_configs = DataSerializer._parse_json(row[2], default={})
-        results = DataSerializer._parse_json(row[3], default={})
+        metrics = DatasetRepository._parse_json(row[1], default=[])
+        metric_configs = DatasetRepository._parse_json(row[2], default={})
+        results = DatasetRepository._parse_json(row[3], default={})
         return {
             "checkpoint": checkpoint_name,
             "date": self._format_datetime(row[0]),
@@ -1040,11 +987,88 @@ class DataSerializer:
                         exists().where(
                             CheckpointEvaluation.checkpoint_id
                             == Checkpoint.checkpoint_id,
-                            Checkpoint.name == checkpoint_name,
+                            Checkpoint.name_key == normalize_key(checkpoint_name),
                         )
                     )
                 ).scalar()
             )
         finally:
             session.close()
+
+    # -------------------------------------------------------------------------
+    def list_inference_history(
+        self, checkpoint: str | None = None, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        stmt = (
+            select(
+                InferenceRun.request_id,
+                InferenceRun.generation_mode,
+                InferenceRun.status,
+                InferenceRun.executed_at,
+                Checkpoint.name,
+            )
+            .join(Checkpoint, Checkpoint.checkpoint_id == InferenceRun.checkpoint_id)
+            .order_by(InferenceRun.executed_at.desc(), InferenceRun.inference_run_id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        if checkpoint:
+            stmt = stmt.where(Checkpoint.name_key == normalize_key(checkpoint))
+        with self.database.read_session() as session:
+            rows = session.execute(stmt).all()
+        return [
+            {
+                "request_id": row[0],
+                "generation_mode": row[1],
+                "status": row[2],
+                "date": self._format_datetime(row[3]),
+                "checkpoint": row[4],
+            }
+            for row in rows
+        ]
+
+    # -------------------------------------------------------------------------
+    def list_checkpoint_evaluations(
+        self, checkpoint: str | None = None, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        stmt = (
+            select(
+                CheckpointEvaluation.request_id,
+                CheckpointEvaluation.status,
+                CheckpointEvaluation.executed_at,
+                CheckpointEvaluation.metrics_json,
+                CheckpointEvaluation.results_json,
+                Checkpoint.name,
+            )
+            .join(Checkpoint, Checkpoint.checkpoint_id == CheckpointEvaluation.checkpoint_id)
+            .order_by(
+                CheckpointEvaluation.executed_at.desc(),
+                CheckpointEvaluation.evaluation_id.desc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+        if checkpoint:
+            stmt = stmt.where(Checkpoint.name_key == normalize_key(checkpoint))
+        with self.database.read_session() as session:
+            rows = session.execute(stmt).all()
+        return [
+            {
+                "request_id": row[0],
+                "status": row[1],
+                "date": self._format_datetime(row[2]),
+                "metrics": DatasetRepository._parse_json(row[3], default=[]),
+                "results": DatasetRepository._parse_json(row[4], default={}),
+                "checkpoint": row[5],
+            }
+            for row in rows
+        ]
 

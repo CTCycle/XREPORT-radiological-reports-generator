@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-06-03
+Last updated: 2026-07-14
 
 ## Layer Responsibilities
 
@@ -27,11 +27,14 @@ Location: `XREPORT/server/repositories`
 - `database/*`: backend engine creation and database initialization
 - `schemas/*`: SQLAlchemy table definitions
 - `queries/*`: data access adapters
-- `serialization/*`: dataframe to persistence mapping plus report and checkpoint storage
+- `serialization/dataset.py`: dataset, processing, and training-data persistence
+- `serialization/validation.py`: validation aggregate persistence boundary
+- `serialization/inference.py`: inference and checkpoint-history persistence boundary
+- `serialization/support.py`: shared JSON and UTC normalization
 
 ### Learning Layer
 
-Location: `XREPORT/server/learning`
+Location: `XREPORT/server/models`
 
 - Holds model training and inference implementation details.
 - Includes trainer, scheduler, dataloader, callback, and generator logic.
