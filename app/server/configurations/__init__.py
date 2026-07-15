@@ -13,6 +13,7 @@ from .settings import (
     GlobalSettings,
     JobsSettings,
     ServerSettings,
+    InferenceSettings,
 )
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "FeatureSettings",
     "JobsSettings",
     "ServerSettings",
+    "InferenceSettings",
     "get_server_settings",
     "reload_settings_for_tests",
 ]

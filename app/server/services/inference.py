@@ -12,6 +12,7 @@ from server.domain.inference import (
     CheckpointInfo,
     CheckpointsResponse,
     InferenceImage,
+    InferenceModelsResponse,
 )
 from server.domain.jobs import (
     JobStartResponse,
@@ -30,6 +31,7 @@ from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
+from server.models.inference.catalog import InferenceModelCatalog
 
 
 MAX_INFERENCE_IMAGES = 16
@@ -334,6 +336,10 @@ class InferenceService:
                 success=False,
                 message=str(e),
             )
+
+    # -------------------------------------------------------------------------
+    def get_models(self) -> InferenceModelsResponse:
+        return InferenceModelCatalog(get_server_settings().inference).list_models()
 
     # -------------------------------------------------------------------------
     def generate_reports(

@@ -39,11 +39,22 @@ class JobsSettings:
 
 ###############################################################################
 @dataclass(frozen=True)
+class InferenceSettings:
+    ollama_base_url: str
+    hf_local_only: bool
+    hf_cache_dir: str | None
+    device: str
+    max_loaded_models: int
+    model_timeout: int
+
+###############################################################################
+@dataclass(frozen=True)
 class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
     features: FeatureSettings
     jobs: JobsSettings
+    inference: InferenceSettings
 
 ###############################################################################
 def _normalize_optional_string(value: Any) -> str | None:
@@ -207,6 +218,27 @@ class JsonJobsSettings(BaseModel):
     polling_interval: float = 1.0
 
 ###############################################################################
+class JsonInferenceSettings(BaseModel):
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    hf_local_only: bool = True
+    hf_cache_dir: str | None = None
+    device: str = "auto"
+    max_loaded_models: int = Field(default=1, ge=1)
+    model_timeout: int = Field(default=600, ge=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
+        payload = dict(value) if isinstance(value, dict) else {}
+        payload["ollama_base_url"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_BASE_URL")) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
+        payload["hf_local_only"] = _normalize_bool_env(os.getenv("XREPORT_HF_LOCAL_ONLY"), default=bool(payload.get("hf_local_only", True)))
+        payload["hf_cache_dir"] = _normalize_optional_string(os.getenv("XREPORT_HF_CACHE_DIR")) or _normalize_optional_string(payload.get("hf_cache_dir"))
+        payload["device"] = _normalize_optional_string(os.getenv("XREPORT_INFERENCE_DEVICE")) or payload.get("device", "auto")
+        payload["max_loaded_models"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MAX_LOADED_MODELS"), default=int(payload.get("max_loaded_models", 1)), minimum=1)
+        payload["model_timeout"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MODEL_TIMEOUT"), default=int(payload.get("model_timeout", 600)), minimum=1)
+        return payload
+
+###############################################################################
 class JsonServerSettings(BaseModel):
     model_config = ConfigDict(
         extra="ignore",
@@ -219,6 +251,7 @@ class JsonServerSettings(BaseModel):
     global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings)
     features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
+    inference: JsonInferenceSettings = Field(default_factory=JsonInferenceSettings)
 
     # "global" is reserved, map it explicitly.
 
@@ -274,6 +307,14 @@ class JsonServerSettings(BaseModel):
                 allow_local_filesystem_access=self.features.allow_local_filesystem_access
             ),
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
+            inference=InferenceSettings(
+                ollama_base_url=self.inference.ollama_base_url,
+                hf_local_only=self.inference.hf_local_only,
+                hf_cache_dir=self.inference.hf_cache_dir,
+                device=self.inference.device,
+                max_loaded_models=self.inference.max_loaded_models,
+                model_timeout=self.inference.model_timeout,
+            ),
         )
 
     # -------------------------------------------------------------------------
@@ -283,4 +324,5 @@ class JsonServerSettings(BaseModel):
             "global": self.global_settings.model_dump(),
             "features": self.features.model_dump(),
             "jobs": self.jobs.model_dump(),
+            "inference": self.inference.model_dump(),
         }

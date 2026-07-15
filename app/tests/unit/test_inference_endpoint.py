@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from server.api.inference import InferenceEndpoint
 from server.domain.inference import InferenceImage
+from server.domain.inference import InferenceModelsResponse
 from server.domain.jobs import JobStartResponse
 from tests.conftest import run_async_in_thread
 
@@ -30,6 +31,10 @@ class InferenceServiceStub:
     # -------------------------------------------------------------------------
     def get_checkpoints(self):
         raise NotImplementedError
+
+    # -------------------------------------------------------------------------
+    def get_models(self):
+        return InferenceModelsResponse(models=[], providers={})
 
     # -------------------------------------------------------------------------
     def get_inference_job_status(self, job_id: str):
@@ -100,3 +105,9 @@ def test_inference_endpoint_converts_uploads_to_domain_images() -> None:
             size_bytes=2,
         ),
     ]
+
+
+def test_inference_endpoint_exposes_model_catalog() -> None:
+    endpoint = InferenceEndpoint(router=APIRouter(), service=InferenceServiceStub())
+
+    assert endpoint.get_models() == InferenceModelsResponse(models=[], providers={})
