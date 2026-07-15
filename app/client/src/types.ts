@@ -7,6 +7,7 @@ import {
     ProcessDatasetResponse,
 } from './types/trainingApi';
 import { ValidationResponse } from './types/validationApi';
+import type { GenerationProfile, ModelAvailability } from './types/inferenceApi';
 
 // ============================================================================
 // Dataset Page State
@@ -115,19 +116,17 @@ export interface TrainingPageState {
 // ============================================================================
 // Inference Page State
 // ============================================================================
-export type GenerationMode = 'greedy_search' | 'beam_search';
-
 export interface InferencePageState {
     images: File[];
     currentIndex: number;
     generatedReport: string;
     isGenerating: boolean;
     isCopied: boolean;
-    // Checkpoint and generation settings
-    selectedCheckpoint: string;
-    generationMode: GenerationMode;
-    checkpoints: string[];
-    isLoadingCheckpoints: boolean;
+    selectedModelRef: string;
+    generationProfile: GenerationProfile;
+    clinicalContext: string;
+    modelAvailability: ModelAvailability[];
+    isLoadingModels: boolean;
     // Per-image reports for synchronized navigation
     reports: Record<number, string>;
     // Streaming state

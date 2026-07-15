@@ -29,10 +29,6 @@ class InferenceServiceStub:
         self.captured: dict[str, object] | None = None
 
     # -------------------------------------------------------------------------
-    def get_checkpoints(self):
-        raise NotImplementedError
-
-    # -------------------------------------------------------------------------
     def get_models(self):
         return InferenceModelsResponse(models=[], providers={})
 
@@ -47,18 +43,16 @@ class InferenceServiceStub:
     # -------------------------------------------------------------------------
     def generate_reports(
         self,
-        checkpoint: str | None,
-        generation_mode: str | None,
+        model_ref: str,
+        generation_profile: str,
+        clinical_context: str,
         images: list[InferenceImage],
-        model_ref: str | None = None,
-        generation_profile: str | None = None,
     ) -> JobStartResponse:
         self.captured = {
-            "checkpoint": checkpoint,
-            "generation_mode": generation_mode,
-            "images": images,
             "model_ref": model_ref,
             "generation_profile": generation_profile,
+            "clinical_context": clinical_context,
+            "images": images,
         }
         return JobStartResponse(
             job_id="job-1",
@@ -79,8 +73,9 @@ def test_inference_endpoint_converts_uploads_to_domain_images() -> None:
 
     response = run_async_in_thread(
         endpoint.generate_reports(
-            checkpoint="checkpoint_a",
-            generation_mode="greedy_search",
+            model_ref="xreport:checkpoint_a",
+            generation_profile="deterministic",
+            clinical_context="",
             images=uploads,
         )
     )
@@ -93,8 +88,9 @@ def test_inference_endpoint_converts_uploads_to_domain_images() -> None:
         poll_interval=1.0,
     )
     assert service.captured is not None
-    assert service.captured["checkpoint"] == "checkpoint_a"
-    assert service.captured["generation_mode"] == "greedy_search"
+    assert service.captured["model_ref"] == "xreport:checkpoint_a"
+    assert service.captured["generation_profile"] == "deterministic"
+    assert service.captured["clinical_context"] == ""
     assert service.captured["images"] == [
         InferenceImage(
             filename="scan-1.png",

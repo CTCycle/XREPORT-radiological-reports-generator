@@ -9,8 +9,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from server.domain.inference import (
-    CheckpointInfo,
-    CheckpointsResponse,
+    GenerationProfile,
     InferenceImage,
     InferenceModelsResponse,
 )
@@ -27,7 +26,6 @@ from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
-from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 from server.models.inference.catalog import InferenceModelCatalog
 
@@ -262,57 +260,48 @@ class InferenceService:
         return total_bytes
 
     # -------------------------------------------------------------------------
-    def get_checkpoints(self) -> CheckpointsResponse:
-        try:
-            serializer = ModelSerializer()
-            checkpoint_names = serializer.scan_checkpoints_folder()
-
-            checkpoints = [
-                CheckpointInfo(name=name, created=None) for name in checkpoint_names
-            ]
-
-            return CheckpointsResponse(
-                checkpoints=checkpoints,
-                success=True,
-                message=f"Found {len(checkpoints)} checkpoints",
-            )
-        except Exception as e:
-            logger.error(f"Error fetching checkpoints: {e}")
-            return CheckpointsResponse(
-                checkpoints=[],
-                success=False,
-                message=str(e),
-            )
-
-    # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
         return InferenceModelCatalog(get_server_settings().inference).list_models()
 
     # -------------------------------------------------------------------------
     def generate_reports(
         self,
-        checkpoint: str | None,
-        generation_mode: str | None,
+        model_ref: str,
+        generation_profile: GenerationProfile,
+        clinical_context: str,
         images: list[InferenceImage],
-        model_ref: str | None = None,
-        generation_profile: str | None = None,
     ) -> JobStartResponse:
-        if model_ref:
-            if not model_ref.startswith("xreport:"):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Selected model provider is not yet enabled for generation",
-                )
-            checkpoint = model_ref.removeprefix("xreport:")
-            generation_mode = {
-                "deterministic": "greedy_search",
-                "concise": "greedy_search",
-                "detailed": "beam_search",
-            }.get(generation_profile or "deterministic")
-            if generation_mode is None:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported generation profile")
-        if checkpoint is None or generation_mode is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="model_ref and generation_profile are required")
+        catalog = self.get_models()
+        selected_model = next(
+            (model for model in catalog.models if model.model_ref == model_ref),
+            None,
+        )
+        if selected_model is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model is not in the local inference catalog: {model_ref}",
+            )
+        if selected_model.status != "ready":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Model is not ready: {model_ref} ({selected_model.status})",
+            )
+        if selected_model.provider != "xreport":
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=f"Generation is not implemented for provider: {selected_model.provider}",
+            )
+        if clinical_context and not selected_model.capabilities.clinical_context:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Selected model does not support clinical context",
+            )
+        checkpoint = model_ref.removeprefix("xreport:")
+        generation_mode = {
+            "deterministic": "greedy_search",
+            "concise": "greedy_search",
+            "detailed": "beam_search",
+        }[generation_profile]
         checkpoint = self.validate_generation_request(
             checkpoint=checkpoint,
             generation_mode=generation_mode,
