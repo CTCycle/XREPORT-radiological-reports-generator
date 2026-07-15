@@ -74,6 +74,22 @@
     gap: 0.35rem;
 }
 
+.app-nav-separator {
+    width: 1px;
+    height: 24px;
+    margin: 0 0.3rem;
+    background: var(--border-color);
+}
+
+.app-nav-group-label {
+    margin: 0 0.15rem 0 0.1rem;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
 .app-nav-button {
     display: inline-flex;
     align-items: center;
@@ -100,6 +116,21 @@
     background: rgba(37, 99, 235, 0.12);
 }
 
+.app-nav-button-primary {
+    color: var(--accent-color-strong);
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.app-nav-button-primary:hover {
+    color: var(--accent-color-strong);
+    background: rgba(37, 99, 235, 0.16);
+}
+
+.app-nav-button-primary.active {
+    color: #ffffff;
+    background: var(--accent-color-strong);
+}
+
 .app-nav-button:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
@@ -124,6 +155,10 @@
 
     .app-nav-list {
         min-width: max-content;
+    }
+
+    .app-nav-group-label {
+        font-size: 0.68rem;
     }
 
     .app-header-subtitle {
