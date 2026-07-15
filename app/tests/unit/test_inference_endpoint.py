@@ -47,14 +47,18 @@ class InferenceServiceStub:
     # -------------------------------------------------------------------------
     def generate_reports(
         self,
-        checkpoint: str,
-        generation_mode: str,
+        checkpoint: str | None,
+        generation_mode: str | None,
         images: list[InferenceImage],
+        model_ref: str | None = None,
+        generation_profile: str | None = None,
     ) -> JobStartResponse:
         self.captured = {
             "checkpoint": checkpoint,
             "generation_mode": generation_mode,
             "images": images,
+            "model_ref": model_ref,
+            "generation_profile": generation_profile,
         }
         return JobStartResponse(
             job_id="job-1",

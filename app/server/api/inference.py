@@ -35,8 +35,10 @@ class InferenceEndpoint:
     # -------------------------------------------------------------------------
     async def generate_reports(
         self,
-        checkpoint: str = Form(...),
-        generation_mode: str = Form(...),
+        checkpoint: str | None = Form(None),
+        generation_mode: str | None = Form(None),
+        model_ref: str | None = Form(None),
+        generation_profile: str | None = Form(None),
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
@@ -54,6 +56,8 @@ class InferenceEndpoint:
         return self.service.generate_reports(
             checkpoint=checkpoint,
             generation_mode=generation_mode,
+            model_ref=model_ref,
+            generation_profile=generation_profile,
             images=parsed_images,
         )
 
