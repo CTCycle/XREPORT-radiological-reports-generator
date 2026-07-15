@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from server.domain.inference import CheckpointsResponse, InferenceImage
+from server.domain.inference import CheckpointsResponse, InferenceImage, InferenceModelsResponse
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
@@ -27,6 +27,10 @@ class InferenceEndpoint:
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         return self.service.get_checkpoints()
+
+    # -------------------------------------------------------------------------
+    def get_models(self) -> InferenceModelsResponse:
+        return self.service.get_models()
 
     # -------------------------------------------------------------------------
     async def generate_reports(
@@ -63,6 +67,13 @@ class InferenceEndpoint:
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
+        self.router.add_api_route(
+            "/models",
+            self.get_models,
+            methods=["GET"],
+            response_model=InferenceModelsResponse,
+            status_code=status.HTTP_200_OK,
+        )
         self.router.add_api_route(
             "/checkpoints",
             self.get_checkpoints,
