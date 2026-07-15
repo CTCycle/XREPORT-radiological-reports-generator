@@ -25,8 +25,6 @@ from server.common.constants import (
 )
 from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
-from server.models.inference import TextGenerator
-from server.models.training.dataloader import XRAYDataLoader
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.model import ModelSerializer
@@ -101,74 +99,38 @@ def run_inference_job(
         logger.error("Inference job %s has no images to process", job_id)
         raise RuntimeError("No images available for inference job")
 
-    # Load model checkpoint
-    serializer = ModelSerializer()
-
     try:
-        model, _, model_metadata, _, _ = serializer.load_checkpoint(
-            checkpoint
-        )
-    except Exception as e:
-        logger.error(f"Checkpoint load failed for {checkpoint}: {e}")
-        raise RuntimeError(f"Checkpoint not found: {checkpoint}") from e
-
-    model.summary(expand_nested=True)
-    max_report_size = model_metadata.get("max_report_size", 200)
-
-    # Initialize generator with model metadata (contains tokenizer info)
-    generator = TextGenerator(model, model_metadata, max_report_size)
-    tokenizers_info = generator.load_tokenizer_and_configuration()
-    if tokenizers_info is None:
-        raise RuntimeError("Failed to load tokenizer")
-
-    tokenizer, tokenizer_config = tokenizers_info
-    vocabulary = tokenizer.get_vocab()
-
-    generator_fn = generator.generator_image_methods.get(generation_mode)
-    if generator_fn is None:
-        raise RuntimeError(f"Unknown generation mode: {generation_mode}")
-
-    reports_by_filename: dict[str, str] = {}
-    reports_ordered: list[str] = []
-    report_filenames: list[str] = []
-    total_images = len(stored_images)
-    dataloader = XRAYDataLoader(model_metadata, shuffle=False)
-
-    try:
-        for image_index, stored_image in enumerate(stored_images, start=1):
-            if get_job_manager().should_stop(job_id):
-                break
-
-            try:
-                image = dataloader.prepare_inference_image_bytes(stored_image.data)
-            except Exception as e:
-                logger.error("Inference job %s failed to decode image", job_id)
-                raise RuntimeError("Failed to decode inference image") from e
-
-            report = generator_fn(
-                tokenizer_config,
-                vocabulary,
-                image,
-                stream_callback=None,
-            )
-            reports_by_filename[stored_image.filename] = report
-            reports_ordered.append(report)
-            report_filenames.append(stored_image.filename)
+        def report_progress(
+            image_index: int,
+            total_images: int,
+            reports: dict[str, str],
+        ) -> None:
             progress = (image_index / total_images) * 100.0
             get_job_manager().update_progress(job_id, progress)
             get_job_manager().update_result(
                 job_id,
                 {
-                    "reports": dict(reports_by_filename),
-                    "reports_ordered": list(reports_ordered),
-                    "report_filenames": list(report_filenames),
-                    "count": len(reports_by_filename),
+                    "reports": dict(reports),
+                    "reports_ordered": list(reports.values()),
+                    "report_filenames": list(reports),
+                    "count": len(reports),
                     "processed_images": image_index,
                     "total_images": total_images,
                 },
             )
+
+        reports_by_filename = XReportCheckpointProvider().generate(
+            checkpoint=checkpoint,
+            generation_mode=generation_mode,
+            images=stored_images,
+            should_stop=lambda: get_job_manager().should_stop(job_id),
+            report_progress=report_progress,
+        )
     finally:
         inference_image_store.remove_job(job_id)
+
+    reports_ordered = list(reports_by_filename.values())
+    report_filenames = list(reports_by_filename)
 
     try:
         serializer = InferenceRepository()
