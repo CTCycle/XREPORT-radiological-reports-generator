@@ -14,15 +14,7 @@ class InferenceImage:
     size_bytes: int
 
 ###############################################################################
-class CheckpointInfo(BaseModel):
-    name: str
-    created: str | None = None
-
-###############################################################################
-class CheckpointsResponse(BaseModel):
-    checkpoints: list[CheckpointInfo]
-    success: bool
-    message: str
+GenerationProfile = Literal["deterministic", "concise", "detailed"]
 
 ###############################################################################
 class ModelCapabilities(BaseModel):

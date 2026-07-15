@@ -3,8 +3,8 @@ import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types
 import {
     CheckpointEvaluationReport,
     CheckpointEvaluationRequest,
-    CheckpointsResponse,
-    GenerationMode,
+    GenerationProfile,
+    InferenceModelsResponse,
 } from '../types/inferenceApi';
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -16,14 +16,14 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 /**
- * Get list of available checkpoints for inference
+ * Get the curated local inference model catalog.
  */
-export async function getInferenceCheckpoints(): Promise<{
-    result: CheckpointsResponse | null;
+export async function getInferenceModels(): Promise<{
+    result: InferenceModelsResponse | null;
     error: string | null;
 }> {
     try {
-        const response = await fetch('/api/inference/checkpoints');
+        const response = await fetch('/api/inference/models');
         if (!response.ok) {
             const body = await response.text();
             return {
@@ -31,7 +31,7 @@ export async function getInferenceCheckpoints(): Promise<{
                 error: `${response.status} ${response.statusText}: ${body}`,
             };
         }
-        const payload = await readJson<CheckpointsResponse>(response);
+        const payload = await readJson<InferenceModelsResponse>(response);
         return { result: payload, error: null };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -45,13 +45,15 @@ export async function getInferenceCheckpoints(): Promise<{
  */
 export async function generateReports(
     images: File[],
-    checkpoint: string,
-    generationMode: GenerationMode
+    modelRef: string,
+    generationProfile: GenerationProfile,
+    clinicalContext: string,
 ): Promise<{ result: JobStartResponse | null; error: string | null }> {
     try {
         const formData = new FormData();
-        formData.append('checkpoint', checkpoint);
-        formData.append('generation_mode', generationMode);
+        formData.append('model_ref', modelRef);
+        formData.append('generation_profile', generationProfile);
+        formData.append('clinical_context', clinicalContext);
 
         for (const image of images) {
             formData.append('images', image);

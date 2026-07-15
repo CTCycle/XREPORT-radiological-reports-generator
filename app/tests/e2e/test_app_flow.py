@@ -142,12 +142,13 @@ class TestInferencePage:
         expect(page.locator("h1, h2").filter(has_text="Inference")).to_be_visible()
 
     # -------------------------------------------------------------------------
-    def test_inference_page_shows_checkpoint_selector(self, page: Page, base_url: str):
-        """The Inference page should have a checkpoint selector."""
+    def test_inference_page_shows_model_selector(self, page: Page, base_url: str):
+        """The Inference page should use the local model catalog."""
         page.goto(f"{base_url}/inference")
         page.wait_for_load_state("networkidle")
 
-        expect(page.locator("#checkpoint-select")).to_be_visible()
+        expect(page.locator("#model-select")).to_be_visible()
+        expect(page.get_by_text("Research use only", exact=False)).to_be_visible()
 
     # -------------------------------------------------------------------------
     def test_inference_page_has_image_upload(self, page: Page, base_url: str):

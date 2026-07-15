@@ -6,9 +6,9 @@ import {
     TrainingConfig,
     TrainingDashboardState,
     ChartDataPoint,
-    InferencePageState,
-    GenerationMode
+    InferencePageState
 } from './types';
+import type { GenerationProfile, ModelAvailability } from './types/inferenceApi';
 import {
     DatasetNamesResponse,
     DatasetStatusResponse,
@@ -116,10 +116,11 @@ const DEFAULT_INFERENCE_STATE: InferencePageState = {
     generatedReport: '',
     isGenerating: false,
     isCopied: false,
-    selectedCheckpoint: '',
-    generationMode: 'greedy_search',
-    checkpoints: [],
-    isLoadingCheckpoints: false,
+    selectedModelRef: '',
+    generationProfile: 'deterministic',
+    clinicalContext: '',
+    modelAvailability: [],
+    isLoadingModels: false,
     reports: {},
     streamingTokens: '',
     currentStreamingIndex: -1,
@@ -408,20 +409,24 @@ export function useInferencePageState() {
         }));
     }, [setInferencePageState]);
 
-    const setSelectedCheckpoint = useCallback((checkpoint: string) => {
-        setInferencePageState(prev => ({ ...prev, selectedCheckpoint: checkpoint }));
+    const setSelectedModelRef = useCallback((modelRef: string) => {
+        setInferencePageState(prev => ({ ...prev, selectedModelRef: modelRef }));
     }, [setInferencePageState]);
 
-    const setGenerationMode = useCallback((mode: GenerationMode) => {
-        setInferencePageState(prev => ({ ...prev, generationMode: mode }));
+    const setGenerationProfile = useCallback((profile: GenerationProfile) => {
+        setInferencePageState(prev => ({ ...prev, generationProfile: profile }));
     }, [setInferencePageState]);
 
-    const setCheckpoints = useCallback((checkpoints: string[]) => {
-        setInferencePageState(prev => ({ ...prev, checkpoints }));
+    const setClinicalContext = useCallback((clinicalContext: string) => {
+        setInferencePageState(prev => ({ ...prev, clinicalContext }));
     }, [setInferencePageState]);
 
-    const setIsLoadingCheckpoints = useCallback((loading: boolean) => {
-        setInferencePageState(prev => ({ ...prev, isLoadingCheckpoints: loading }));
+    const setModelAvailability = useCallback((models: ModelAvailability[]) => {
+        setInferencePageState(prev => ({ ...prev, modelAvailability: models }));
+    }, [setInferencePageState]);
+
+    const setIsLoadingModels = useCallback((loading: boolean) => {
+        setInferencePageState(prev => ({ ...prev, isLoadingModels: loading }));
     }, [setInferencePageState]);
 
     const setReports = useCallback((reports: Record<number, string>) => {
@@ -501,10 +506,11 @@ export function useInferencePageState() {
         setIsGenerating,
         setIsCopied,
         clearImages,
-        setSelectedCheckpoint,
-        setGenerationMode,
-        setCheckpoints,
-        setIsLoadingCheckpoints,
+        setSelectedModelRef,
+        setGenerationProfile,
+        setClinicalContext,
+        setModelAvailability,
+        setIsLoadingModels,
         setReports,
         setReportForIndex,
         setStreamingTokens,
