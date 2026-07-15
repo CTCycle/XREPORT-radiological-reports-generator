@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Shared Configuration Sources
 
@@ -33,6 +33,9 @@ Last updated: 2026-07-14
 - `XREPORT_DB_SSL_CA`
 - `XREPORT_DB_CONNECT_TIMEOUT`
 - `XREPORT_DB_INSERT_BATCH_SIZE`
+- `XREPORT_OLLAMA_BASE_URL` (loopback local Ollama endpoint)
+- `XREPORT_OLLAMA_KEEP_ALIVE` (model residency passed to `/api/chat`, default `5m`)
+- `XREPORT_INFERENCE_MODEL_TIMEOUT` (generation read timeout in seconds)
 
 `VITE_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
 
@@ -51,3 +54,4 @@ SQLite ensures schema initialization at backend startup. PostgreSQL performs dat
 - Frontend calls backend routes through `/api`.
 - Vite dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
+- Ollama discovery uses local `/api/tags`; generation uses local `/api/chat` with image bytes encoded in the request. XREPORT never pulls an Ollama model automatically.

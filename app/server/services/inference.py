@@ -24,6 +24,7 @@ from server.common.constants import (
 )
 from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
+from server.models.inference.providers.ollama import OllamaProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations.startup import get_server_settings
@@ -81,8 +82,9 @@ def get_inference_image_store() -> InferenceImageStore:
 
 ###############################################################################
 def run_inference_job(
-    checkpoint: str,
-    generation_mode: str,
+    model_ref: str,
+    generation_profile: GenerationProfile,
+    clinical_context: str,
     request_id: str,
     job_id: str,
 ) -> dict[str, Any]:
@@ -117,13 +119,32 @@ def run_inference_job(
                 },
             )
 
-        reports_by_filename = XReportCheckpointProvider().generate(
-            checkpoint=checkpoint,
-            generation_mode=generation_mode,
-            images=stored_images,
-            should_stop=lambda: get_job_manager().should_stop(job_id),
-            report_progress=report_progress,
-        )
+        if model_ref.startswith("xreport:"):
+            generation_mode = {
+                "deterministic": "greedy_search",
+                "concise": "greedy_search",
+                "detailed": "beam_search",
+            }[generation_profile]
+            reports_by_filename = XReportCheckpointProvider().generate(
+                checkpoint=model_ref.removeprefix("xreport:"),
+                generation_mode=generation_mode,
+                images=stored_images,
+                should_stop=lambda: get_job_manager().should_stop(job_id),
+                report_progress=report_progress,
+            )
+        elif model_ref.startswith("ollama:"):
+            reports_by_filename = OllamaProvider(
+                get_server_settings().inference
+            ).generate(
+                model=model_ref.removeprefix("ollama:"),
+                profile=generation_profile,
+                clinical_context=clinical_context,
+                images=stored_images,
+                should_stop=lambda: get_job_manager().should_stop(job_id),
+                report_progress=report_progress,
+            )
+        else:
+            raise RuntimeError(f"Unsupported inference provider: {model_ref}")
     finally:
         inference_image_store.remove_job(job_id)
 
@@ -137,11 +158,13 @@ def run_inference_job(
                 {
                     "image": filename,
                     "report": report,
-                    "checkpoint": checkpoint,
+                    "checkpoint": model_ref.removeprefix("xreport:")
+                    if model_ref.startswith("xreport:")
+                    else model_ref,
                 }
                 for filename, report in reports_by_filename.items()
             ],
-            generation_mode=generation_mode,
+            generation_mode=generation_profile,
             request_id=request_id,
         )
     except Exception as exc:  # noqa: BLE001
@@ -286,7 +309,7 @@ class InferenceService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
-        if selected_model.provider != "xreport":
+        if selected_model.provider not in {"xreport", "ollama"}:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail=f"Generation is not implemented for provider: {selected_model.provider}",
@@ -296,17 +319,22 @@ class InferenceService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Selected model does not support clinical context",
             )
-        checkpoint = model_ref.removeprefix("xreport:")
-        generation_mode = {
-            "deterministic": "greedy_search",
-            "concise": "greedy_search",
-            "detailed": "beam_search",
-        }[generation_profile]
-        checkpoint = self.validate_generation_request(
-            checkpoint=checkpoint,
-            generation_mode=generation_mode,
-            images=images,
-        )
+        if selected_model.input_semantics == "single_image" and len(images) != 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Selected model accepts exactly one image",
+            )
+        if selected_model.provider == "xreport":
+            generation_mode = {
+                "deterministic": "greedy_search",
+                "concise": "greedy_search",
+                "detailed": "beam_search",
+            }[generation_profile]
+            self.validate_generation_request(
+                checkpoint=model_ref.removeprefix("xreport:"),
+                generation_mode=generation_mode,
+                images=images,
+            )
 
         request_id = uuid.uuid4().hex[:12]
         try:
@@ -318,8 +346,9 @@ class InferenceService:
                 job_type=self.JOB_TYPE,
                 runner=run_inference_job,
                 kwargs={
-                    "checkpoint": checkpoint,
-                    "generation_mode": generation_mode,
+                    "model_ref": model_ref,
+                    "generation_profile": generation_profile,
+                    "clinical_context": clinical_context,
                     "request_id": request_id,
                 },
             )

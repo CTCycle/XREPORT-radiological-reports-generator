@@ -12,6 +12,7 @@ class ModelSerializerStub:
 def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
         ollama_base_url="http://127.0.0.1:11434",
+        ollama_keep_alive="5m",
         hf_local_only=hf_local_only,
         hf_cache_dir=None,
         device="auto",
