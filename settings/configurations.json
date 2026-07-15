@@ -7,5 +7,13 @@
   },
   "jobs": {
     "polling_interval": 1
+  },
+  "inference": {
+    "ollama_base_url": "http://127.0.0.1:11434",
+    "hf_local_only": true,
+    "hf_cache_dir": null,
+    "device": "auto",
+    "max_loaded_models": 1,
+    "model_timeout": 600
   }
 }
