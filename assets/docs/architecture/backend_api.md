@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-06-03
+Last updated: 2026-07-15
 
 All routers are mounted under `/api`.
 
@@ -47,7 +47,7 @@ All routers are mounted under `/api`.
 
 ## Inference
 
-- `GET /api/inference/checkpoints`
+- `GET /api/inference/models`
 - `POST /api/inference/generate`
 - `GET /api/inference/jobs/{job_id}`
 - `DELETE /api/inference/jobs/{job_id}`
@@ -55,4 +55,4 @@ All routers are mounted under `/api`.
 ## Root Behavior
 
 - When `app/client/dist` is available, the backend serves SPA files from the built frontend bundle.
-- Otherwise, `GET /` redirects to `/docs`.
+- Otherwise, `GET /` redirects to `/inference`.

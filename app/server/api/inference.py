@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from server.domain.inference import CheckpointsResponse, InferenceImage, InferenceModelsResponse
+from server.domain.inference import GenerationProfile, InferenceImage, InferenceModelsResponse
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
@@ -25,20 +25,15 @@ class InferenceEndpoint:
         self.service = get_inference_service() if service is None else service
 
     # -------------------------------------------------------------------------
-    def get_checkpoints(self) -> CheckpointsResponse:
-        return self.service.get_checkpoints()
-
-    # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
         return self.service.get_models()
 
     # -------------------------------------------------------------------------
     async def generate_reports(
         self,
-        checkpoint: str | None = Form(None),
-        generation_mode: str | None = Form(None),
-        model_ref: str | None = Form(None),
-        generation_profile: str | None = Form(None),
+        model_ref: str = Form(...),
+        generation_profile: GenerationProfile = Form(...),
+        clinical_context: str = Form(...),
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
@@ -54,10 +49,9 @@ class InferenceEndpoint:
                 )
             )
         return self.service.generate_reports(
-            checkpoint=checkpoint,
-            generation_mode=generation_mode,
             model_ref=model_ref,
             generation_profile=generation_profile,
+            clinical_context=clinical_context,
             images=parsed_images,
         )
 
@@ -76,13 +70,6 @@ class InferenceEndpoint:
             self.get_models,
             methods=["GET"],
             response_model=InferenceModelsResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/checkpoints",
-            self.get_checkpoints,
-            methods=["GET"],
-            response_model=CheckpointsResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
