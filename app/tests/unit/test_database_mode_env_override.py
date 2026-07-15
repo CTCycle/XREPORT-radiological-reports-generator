@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from server.domain.settings import JsonServerSettings
+from server.configurations.settings import JsonServerSettings
 
 ###############################################################################
 @pytest.fixture(autouse=True)
 def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
-        "XREPORT_DB_EMBEDDED",
+        "XREPORT_DB_BACKEND",
         "XREPORT_DATABASE_URL",
         "XREPORT_DB_ENGINE",
         "XREPORT_DB_HOST",
@@ -29,17 +29,17 @@ def _build_database_settings():
     return settings.to_server_settings().database
 
 ###############################################################################
-def test_db_embedded_env_uses_sqlite_defaults() -> None:
+def test_sqlite_backend_is_the_default() -> None:
     settings = _build_database_settings()
 
-    assert settings.embedded_database is True
+    assert settings.backend == "sqlite"
     assert settings.engine is None
     assert settings.host is None
     assert settings.port is None
 
 ###############################################################################
 def test_external_db_uses_component_env_values(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "false")
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
     monkeypatch.setenv("XREPORT_DB_ENGINE", "postgres")
     monkeypatch.setenv("XREPORT_DB_HOST", "env-host")
     monkeypatch.setenv("XREPORT_DB_PORT", "1000")
@@ -53,7 +53,7 @@ def test_external_db_uses_component_env_values(monkeypatch: pytest.MonkeyPatch) 
 
     settings = _build_database_settings()
 
-    assert settings.embedded_database is False
+    assert settings.backend == "postgresql"
     assert settings.engine == "postgres"
     assert settings.host == "env-host"
     assert settings.port == 1000
@@ -69,7 +69,7 @@ def test_external_db_uses_component_env_values(monkeypatch: pytest.MonkeyPatch) 
 def test_external_db_merges_database_url_with_component_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "false")
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
     monkeypatch.setenv(
         "XREPORT_DATABASE_URL",
         "postgresql+psycopg://url_user:url_password@url-host:6789/url_db",
@@ -79,7 +79,7 @@ def test_external_db_merges_database_url_with_component_overrides(
 
     settings = _build_database_settings()
 
-    assert settings.embedded_database is False
+    assert settings.backend == "postgresql"
     assert settings.engine == "postgresql+psycopg"
     assert settings.host == "url-host"
     assert settings.port == 1000
@@ -89,12 +89,12 @@ def test_external_db_merges_database_url_with_component_overrides(
 
 ###############################################################################
 def test_database_json_payload_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("XREPORT_DB_EMBEDDED", "true")
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "sqlite")
 
     settings = JsonServerSettings.model_validate(
         {
             "database": {
-                "embedded_database": False,
+                "backend": "postgresql",
                 "host": "json-host",
                 "database_name": "json-db",
                 "username": "json-user",
@@ -102,6 +102,6 @@ def test_database_json_payload_is_ignored(monkeypatch: pytest.MonkeyPatch) -> No
         }
     ).to_server_settings()
 
-    assert settings.database.embedded_database is True
+    assert settings.database.backend == "sqlite"
     assert settings.database.host is None
     assert settings.database.database_name is None

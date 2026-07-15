@@ -51,7 +51,7 @@ def verify_loader():
         def __init__(self, config):
             self.pad_token = 0
 
-    import server.learning.training.dataloader as dl_module
+    import server.models.training.dataloader as dl_module
 
     # We need to monkeypatch TokenizerHandler inside the module
     dl_module.TokenizerHandler = MockHandler
