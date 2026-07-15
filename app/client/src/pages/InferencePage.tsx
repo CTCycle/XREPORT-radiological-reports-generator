@@ -5,23 +5,23 @@ import {
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
-import { GenerationMode } from '../types';
+import type { GenerationProfile } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
 import {
-    getInferenceCheckpoints,
+    getInferenceModels,
     generateReports,
     getInferenceJobStatus,
 } from '../services/inferenceService';
 
 const MAX_IMAGES = 16;
 
-function isGenerationMode(value: string): value is GenerationMode {
-    return value === 'greedy_search' || value === 'beam_search';
+function isGenerationProfile(value: string): value is GenerationProfile {
+    return value === 'deterministic' || value === 'concise' || value === 'detailed';
 }
 
-function parseGenerationMode(value: string, fallback: GenerationMode): GenerationMode {
-    return isGenerationMode(value) ? value : fallback;
+function parseGenerationProfile(value: string, fallback: GenerationProfile): GenerationProfile {
+    return isGenerationProfile(value) ? value : fallback;
 }
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
@@ -99,10 +99,11 @@ export default function InferencePage() {
         setIsGenerating,
         setIsCopied,
         clearImages,
-        setSelectedCheckpoint,
-        setGenerationMode,
-        setCheckpoints,
-        setIsLoadingCheckpoints,
+        setSelectedModelRef,
+        setGenerationProfile,
+        setClinicalContext,
+        setModelAvailability,
+        setIsLoadingModels,
         setReports,
         setStreamingTokens,
         setCurrentStreamingIndex,
@@ -110,8 +111,8 @@ export default function InferencePage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const generationJob = useAsyncJob({
-        startJob: ({ images, checkpoint, generationMode }: { images: File[]; checkpoint: string; generationMode: GenerationMode }) =>
-            generateReports(images, checkpoint, generationMode),
+        startJob: ({ images, modelRef, generationProfile, clinicalContext }: { images: File[]; modelRef: string; generationProfile: GenerationProfile; clinicalContext: string }) =>
+            generateReports(images, modelRef, generationProfile, clinicalContext),
         getStatus: getInferenceJobStatus,
         onUpdate: (status) => {
             const reportsByIndex = toReportsByIndex(status.result, state.images);
@@ -129,23 +130,23 @@ export default function InferencePage() {
             setIsGenerating(false);
         },
     });
-    // Fetch checkpoints on mount
+    // Fetch the local-only model catalog on mount.
     useEffect(() => {
-        const fetchCheckpoints = async () => {
-            setIsLoadingCheckpoints(true);
-            const { result, error } = await getInferenceCheckpoints();
-            if (result && result.success) {
-                const names = result.checkpoints.map(cp => cp.name);
-                setCheckpoints(names);
-                if (names.length > 0 && !state.selectedCheckpoint) {
-                    setSelectedCheckpoint(names[0]);
+        const fetchModels = async () => {
+            setIsLoadingModels(true);
+            const { result, error } = await getInferenceModels();
+            if (result) {
+                setModelAvailability(result.models);
+                const readyModels = result.models.filter(model => model.status === 'ready');
+                if (readyModels.length > 0 && !state.selectedModelRef) {
+                    setSelectedModelRef(readyModels[0].model_ref);
                 }
             } else if (error) {
-                console.error('Failed to fetch checkpoints:', error);
+                console.error('Failed to fetch inference models:', error);
             }
-            setIsLoadingCheckpoints(false);
+            setIsLoadingModels(false);
         };
-        fetchCheckpoints();
+        fetchModels();
     }, []);
 
     // Handle file selection
@@ -291,7 +292,7 @@ export default function InferencePage() {
 
     // Generate reports
     const handleGenerateReport = async () => {
-        if (state.images.length === 0 || !state.selectedCheckpoint) return;
+        if (state.images.length === 0 || !state.selectedModelRef) return;
 
         setIsGenerating(true);
         setStreamingTokens('');
@@ -302,8 +303,9 @@ export default function InferencePage() {
         // Call generate endpoint - now returns job_id
         const jobResult = await generationJob.start({
             images: state.images,
-            checkpoint: state.selectedCheckpoint,
-            generationMode: state.generationMode,
+            modelRef: state.selectedModelRef,
+            generationProfile: state.generationProfile,
+            clinicalContext: state.clinicalContext,
         });
 
         if (!jobResult) {
@@ -355,9 +357,10 @@ export default function InferencePage() {
                 <h1>Inference</h1>
                 <p>
                     Generate detailed radiological reports from X-ray scans using advanced AI.
-                    Simply upload your medical images, verify the selected model checkpoint in the settings bar,
+                    Upload medical images, verify the selected research model in the settings bar,
                     and click 'Generate Report' to obtain a structured analysis of the findings.
                 </p>
+                <p><strong>Research use only. Generated drafts are not clinically approved and require qualified review.</strong></p>
             </div>
 
             <div className="inference-main">
@@ -482,32 +485,45 @@ export default function InferencePage() {
                     </div>
                     <div className="panel-footer">
                         <div className="panel-control-item">
-                            <label htmlFor="checkpoint-select">Checkpoint:</label>
+                            <label htmlFor="model-select">Model:</label>
                             <select
-                                id="checkpoint-select"
-                                value={state.selectedCheckpoint}
-                                onChange={(e) => setSelectedCheckpoint(e.target.value)}
-                                disabled={state.isLoadingCheckpoints || state.isGenerating}
+                                id="model-select"
+                                value={state.selectedModelRef}
+                                onChange={(e) => setSelectedModelRef(e.target.value)}
+                                disabled={state.isLoadingModels || state.isGenerating}
                             >
-                                {state.checkpoints.length === 0 && (
-                                    <option value="">No checkpoints</option>
+                                {state.modelAvailability.length === 0 && (
+                                    <option value="">No models discovered</option>
                                 )}
-                                {state.checkpoints.map((cp) => (
-                                    <option key={cp} value={cp}>{cp}</option>
+                                {state.modelAvailability.map((model) => (
+                                    <option key={model.model_ref} value={model.model_ref} disabled={model.status !== 'ready'}>
+                                        {model.display_name} — {model.status}
+                                    </option>
                                 ))}
                             </select>
                         </div>
                         <div className="panel-control-item">
-                            <label htmlFor="mode-select">Mode:</label>
+                            <label htmlFor="profile-select">Profile:</label>
                             <select
-                                id="mode-select"
-                                value={state.generationMode}
-                                onChange={(e) => setGenerationMode(parseGenerationMode(e.target.value, state.generationMode))}
+                                id="profile-select"
+                                value={state.generationProfile}
+                                onChange={(e) => setGenerationProfile(parseGenerationProfile(e.target.value, state.generationProfile))}
                                 disabled={state.isGenerating}
                             >
-                                <option value="greedy_search">Greedy</option>
-                                <option value="beam_search">Beam</option>
+                                <option value="deterministic">Deterministic</option>
+                                <option value="concise">Concise</option>
+                                <option value="detailed">Detailed</option>
                             </select>
+                        </div>
+                        <div className="panel-control-item">
+                            <label htmlFor="clinical-context">Clinical context:</label>
+                            <textarea
+                                id="clinical-context"
+                                value={state.clinicalContext}
+                                onChange={(e) => setClinicalContext(e.target.value)}
+                                disabled={state.isGenerating || !state.modelAvailability.find(model => model.model_ref === state.selectedModelRef)?.capabilities.clinical_context}
+                                placeholder="Not supported by the selected model"
+                            />
                         </div>
                     </div>
                 </div>
@@ -525,7 +541,7 @@ export default function InferencePage() {
                             type="button"
                             className={`btn-generate ${state.isGenerating ? 'generating' : ''}`}
                             onClick={handleGenerateReport}
-                            disabled={state.images.length === 0 || state.isGenerating || !state.selectedCheckpoint}
+                            disabled={state.images.length === 0 || state.isGenerating || !state.selectedModelRef}
                         >
                             {state.isGenerating ? (
                                 <Loader2 className="loading-spinner" />
@@ -620,8 +636,8 @@ export default function InferencePage() {
                                 <p>
                                     {state.images.length === 0
                                         ? 'Upload X-ray images to generate a report'
-                                        : !state.selectedCheckpoint
-                                            ? 'Select a checkpoint to generate reports'
+                                        : !state.selectedModelRef
+                                            ? 'Select an available model to generate reports'
                                             : 'Click "Generate Report" to analyze the images'}
                                 </p>
                             </div>
