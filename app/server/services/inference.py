@@ -24,7 +24,7 @@ from server.common.constants import (
     INFERENCE_IMAGE_EXTENSIONS,
 )
 from server.common.utils.logger import logger
-from server.common.utils.security import resolve_checkpoint_path
+from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference import TextGenerator
 from server.models.training.dataloader import XRAYDataLoader
 from server.services.jobs import JobManager, get_job_manager
@@ -255,22 +255,7 @@ class InferenceService:
                 detail=f"Unsupported generation mode: {generation_mode}",
             )
 
-        try:
-            checkpoint_dir = resolve_checkpoint_path(checkpoint)
-            checkpoint = Path(checkpoint_dir).name
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(exc),
-            )
-        checkpoint_path = Path(checkpoint_dir) / "saved_model.keras"
-        if not checkpoint_path.is_file():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Checkpoint not found: {checkpoint}",
-            )
-
-        return checkpoint
+        return XReportCheckpointProvider().validate_checkpoint(checkpoint)
 
     # -------------------------------------------------------------------------
     def validate_inference_images(
