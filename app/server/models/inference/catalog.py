@@ -13,6 +13,7 @@ from server.domain.inference import (
 )
 from server.repositories.serialization.model import ModelSerializer
 from server.models.inference.providers.ollama import OllamaProvider
+from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
 CATALOG_PATH = Path(__file__).resolve().parents[4] / "settings" / "inference_models.json"
@@ -26,29 +27,34 @@ class InferenceModelCatalog:
 
     def list_models(self) -> InferenceModelsResponse:
         installed_ollama = OllamaProvider(self.settings).installed_models()
-        models = self._configured_models(installed_ollama)
+        models = self._configured_models(installed_ollama, HuggingFaceProvider(self.settings))
         models.extend(self._xreport_models())
+        huggingface_status = self._huggingface_provider_status()
+        if any(model.provider == "huggingface" and model.status == "ready" for model in models):
+            huggingface_status = ProviderAvailability(status="ready")
         return InferenceModelsResponse(
             models=models,
             providers={
                 "ollama": self._ollama_provider_status(installed_ollama),
-                "huggingface": self._huggingface_provider_status(),
+                "huggingface": huggingface_status,
                 "xreport": ProviderAvailability(status="ready"),
             },
         )
 
-    def _configured_models(self, installed_ollama: set[str] | None) -> list[ModelAvailability]:
+    def _configured_models(self, installed_ollama: set[str] | None, huggingface: HuggingFaceProvider) -> list[ModelAvailability]:
         payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
         configured = payload.get("models", [])
         if not isinstance(configured, list):
             raise ValueError("Inference model catalog must contain a models list")
-        return [self._configured_model(entry, installed_ollama) for entry in configured if isinstance(entry, dict)]
+        return [self._configured_model(entry, installed_ollama, huggingface) for entry in configured if isinstance(entry, dict)]
 
-    def _configured_model(self, entry: dict[str, Any], installed_ollama: set[str] | None) -> ModelAvailability:
+    def _configured_model(self, entry: dict[str, Any], installed_ollama: set[str] | None, huggingface: HuggingFaceProvider) -> ModelAvailability:
         provider = str(entry["provider"])
         status = "disabled" if provider == "huggingface" and not self.settings.hf_local_only else "not_installed"
         if provider == "ollama":
             status = "runtime_unavailable" if installed_ollama is None else ("ready" if entry["model_ref"].removeprefix("ollama:") in installed_ollama else "not_installed")
+        if provider == "huggingface" and self.settings.hf_local_only and huggingface.is_cached(entry["model_ref"].removeprefix("huggingface:")):
+            status = "ready"
         return ModelAvailability(
             model_ref=str(entry["model_ref"]),
             provider=provider,  # type: ignore[arg-type]
@@ -77,10 +83,7 @@ class InferenceModelCatalog:
                 status="disabled",
                 message="XREPORT_HF_LOCAL_ONLY must remain enabled for local inference.",
             )
-        return ProviderAvailability(
-            status="not_installed",
-            message="No cached Hugging Face model has been discovered yet.",
-        )
+        return ProviderAvailability(status="not_installed", message="No cached Hugging Face model has been discovered yet.")
 
     def _xreport_models(self) -> list[ModelAvailability]:
         checkpoint_names = ModelSerializer().scan_checkpoints_folder()
