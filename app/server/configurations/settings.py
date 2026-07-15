@@ -41,6 +41,7 @@ class JobsSettings:
 @dataclass(frozen=True)
 class InferenceSettings:
     ollama_base_url: str
+    ollama_keep_alive: str
     hf_local_only: bool
     hf_cache_dir: str | None
     device: str
@@ -220,6 +221,7 @@ class JsonJobsSettings(BaseModel):
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
     ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_keep_alive: str = "5m"
     hf_local_only: bool = True
     hf_cache_dir: str | None = None
     device: str = "auto"
@@ -231,6 +233,7 @@ class JsonInferenceSettings(BaseModel):
     def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
         payload = dict(value) if isinstance(value, dict) else {}
         payload["ollama_base_url"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_BASE_URL")) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
+        payload["ollama_keep_alive"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_KEEP_ALIVE")) or payload.get("ollama_keep_alive", "5m")
         payload["hf_local_only"] = _normalize_bool_env(os.getenv("XREPORT_HF_LOCAL_ONLY"), default=bool(payload.get("hf_local_only", True)))
         payload["hf_cache_dir"] = _normalize_optional_string(os.getenv("XREPORT_HF_CACHE_DIR")) or _normalize_optional_string(payload.get("hf_cache_dir"))
         payload["device"] = _normalize_optional_string(os.getenv("XREPORT_INFERENCE_DEVICE")) or payload.get("device", "auto")
@@ -309,6 +312,7 @@ class JsonServerSettings(BaseModel):
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
             inference=InferenceSettings(
                 ollama_base_url=self.inference.ollama_base_url,
+                ollama_keep_alive=self.inference.ollama_keep_alive,
                 hf_local_only=self.inference.hf_local_only,
                 hf_cache_dir=self.inference.hf_cache_dir,
                 device=self.inference.device,

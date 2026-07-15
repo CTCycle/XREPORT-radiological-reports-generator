@@ -10,6 +10,7 @@
   },
   "inference": {
     "ollama_base_url": "http://127.0.0.1:11434",
+    "ollama_keep_alive": "5m",
     "hf_local_only": true,
     "hf_cache_dir": null,
     "device": "auto",
