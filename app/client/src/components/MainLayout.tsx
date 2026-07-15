@@ -2,11 +2,12 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { BrainCircuit, FileSearch, FileStack } from 'lucide-react';
 import './MainLayout.css';
 
-const navItems = [
+const developmentNavItems = [
     { path: '/dataset', icon: FileStack, label: 'Dataset' },
     { path: '/training', icon: BrainCircuit, label: 'Training' },
-    { path: '/inference', icon: FileSearch, label: 'Inference' },
 ];
+
+const inferenceNavItem = { path: '/inference', icon: FileSearch, label: 'Inference' };
 
 export default function MainLayout() {
     return (
@@ -24,7 +25,18 @@ export default function MainLayout() {
 
                 <nav className="app-nav-bar" aria-label="Primary navigation">
                     <div className="app-nav-list">
-                        {navItems.map((item) => (
+                        <NavLink
+                            to={inferenceNavItem.path}
+                            title={inferenceNavItem.label}
+                            aria-label={inferenceNavItem.label}
+                            className={({ isActive }) => `app-nav-button app-nav-button-primary${isActive ? ' active' : ''}`}
+                        >
+                            <inferenceNavItem.icon size={16} />
+                            <span>{inferenceNavItem.label}</span>
+                        </NavLink>
+                        <span className="app-nav-separator" aria-hidden="true" />
+                        <span className="app-nav-group-label">Model development</span>
+                        {developmentNavItems.map((item) => (
                             <NavLink
                                 key={item.path}
                                 to={item.path}
