@@ -117,10 +117,10 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 
 ### 7.1 Database initialization behavior
 
-- SQLite mode (`XREPORT_DB_EMBEDDED=true`):
+- SQLite mode (`XREPORT_DB_BACKEND=sqlite`):
   - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
   - If the file already exists, startup skips initialization.
-- PostgreSQL mode (`XREPORT_DB_EMBEDDED=false`):
+- PostgreSQL mode (`XREPORT_DB_BACKEND=postgresql`):
   - Application startup never initializes PostgreSQL automatically.
   - PostgreSQL initialization is manual via `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
   - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.

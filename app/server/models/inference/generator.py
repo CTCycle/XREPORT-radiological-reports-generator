@@ -11,7 +11,7 @@ from keras import Model, ops
 from keras.utils import set_random_seed
 
 from server.common.utils.logger import logger
-from server.learning.training.dataloader import XRAYDataLoader
+from server.models.training.dataloader import XRAYDataLoader
 from server.services.processing import TokenizerHandler
 
 ###############################################################################

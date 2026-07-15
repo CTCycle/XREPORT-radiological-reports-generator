@@ -24,10 +24,10 @@ from server.common.constants import (
 )
 from server.common.utils.logger import logger
 from server.common.utils.security import resolve_checkpoint_path
-from server.learning.inference import TextGenerator
-from server.learning.training.dataloader import XRAYDataLoader
+from server.models.inference import TextGenerator
+from server.models.training.dataloader import XRAYDataLoader
 from server.services.jobs import JobManager, get_job_manager
-from server.repositories.serialization.data import DataSerializer
+from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 
@@ -169,7 +169,7 @@ def run_inference_job(
         inference_image_store.remove_job(job_id)
 
     try:
-        serializer = DataSerializer()
+        serializer = InferenceRepository()
         serializer.save_generated_reports(
             [
                 {

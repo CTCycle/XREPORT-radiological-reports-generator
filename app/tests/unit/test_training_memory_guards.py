@@ -8,9 +8,9 @@ import pytest
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
-from server.learning.device import DeviceDataLoader
-from server.learning.training.dataloader import XRAYDataLoader
-from server.learning.training.trainer import ModelTrainer
+from server.models.device import DeviceDataLoader
+from server.models.training.dataloader import XRAYDataLoader
+from server.models.training.trainer import ModelTrainer
 from server.services import processing
 
 ###############################################################################
