@@ -25,6 +25,7 @@ from server.common.constants import (
 from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.ollama import OllamaProvider
+from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations.startup import get_server_settings
@@ -79,6 +80,11 @@ class InferenceImageStore:
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
+
+###############################################################################
+@lru_cache(maxsize=1)
+def get_huggingface_provider() -> HuggingFaceProvider:
+    return HuggingFaceProvider(get_server_settings().inference)
 
 ###############################################################################
 def run_inference_job(
@@ -137,6 +143,20 @@ def run_inference_job(
                 get_server_settings().inference
             ).generate(
                 model=model_ref.removeprefix("ollama:"),
+                profile=generation_profile,
+                clinical_context=clinical_context,
+                images=stored_images,
+                should_stop=lambda: get_job_manager().should_stop(job_id),
+                report_progress=report_progress,
+            )
+        elif model_ref.startswith("huggingface:"):
+            settings = get_server_settings().inference
+            revision = settings.hf_medgemma_revision
+            if revision is None:
+                raise RuntimeError("MedGemma pinned revision is not configured")
+            reports_by_filename = get_huggingface_provider().generate(
+                repository_id=model_ref.removeprefix("huggingface:"),
+                revision=revision,
                 profile=generation_profile,
                 clinical_context=clinical_context,
                 images=stored_images,
@@ -309,7 +329,7 @@ class InferenceService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
-        if selected_model.provider not in {"xreport", "ollama"}:
+        if selected_model.provider not in {"xreport", "ollama", "huggingface"}:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail=f"Generation is not implemented for provider: {selected_model.provider}",

@@ -16,6 +16,7 @@ def _settings() -> InferenceSettings:
         ollama_keep_alive="7m",
         hf_local_only=True,
         hf_cache_dir=None,
+        hf_medgemma_revision=None,
         device="auto",
         max_loaded_models=1,
         model_timeout=30,
