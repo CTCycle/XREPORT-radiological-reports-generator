@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-06-03
+Last updated: 2026-07-16
 
 ## Reusable Patterns
 
@@ -47,7 +47,7 @@ Last updated: 2026-06-03
 
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
 - Training page: training start or resume, checkpoint management, and metrics dashboards
-- Inference page: image selection or upload, checkpoint selection, generation mode selection, and report output
+- Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable Findings/Impression drafting with copy, regenerate, and export actions
 - Dataset validation page: validation orchestration and report review
 
 ## Layout Composition
