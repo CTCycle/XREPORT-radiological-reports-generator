@@ -39,6 +39,9 @@ Last updated: 2026-07-16
 - `XREPORT_HF_LOCAL_ONLY` (must remain `true` for Hugging Face generation)
 - `XREPORT_HF_CACHE_DIR` (existing Hugging Face cache root)
 - `XREPORT_HF_MEDGEMMA_REVISION` (exact 40-character cached commit)
+- `XREPORT_MAIRA2_ENABLED` (explicit opt-in; disabled by default)
+- `XREPORT_MAIRA2_WORKER_URL` (loopback HTTP origin, default `http://127.0.0.1:5010`)
+- `XREPORT_MAIRA2_REVISION` (exact 40-character cached worker commit)
 
 `VITE_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
 
@@ -59,3 +62,4 @@ SQLite ensures schema initialization at backend startup. PostgreSQL performs dat
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
 - Ollama discovery uses local `/api/tags`; generation uses local `/api/chat` with image bytes encoded in the request. XREPORT never pulls an Ollama model automatically.
 - Hugging Face discovery and generation resolve only the configured cached MedGemma commit. Network fallback and remote code are disabled.
+- MAIRA-2 executes only in its separate loopback worker. The main backend never imports or executes MAIRA-2 custom model code.

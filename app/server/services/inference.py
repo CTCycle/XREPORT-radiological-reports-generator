@@ -27,6 +27,7 @@ from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
+from server.models.inference.providers.maira2 import Maira2Provider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations.startup import get_server_settings
@@ -36,13 +37,14 @@ from server.models.inference.catalog import InferenceModelCatalog
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
+
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 
+
 ###############################################################################
 class InferenceImageStore:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, list[InferenceImage]] = {}
@@ -77,15 +79,18 @@ class InferenceImageStore:
                 return
             self.storage.pop(request_id, None)
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
+
 
 ###############################################################################
 def report_inference_progress(
@@ -107,6 +112,7 @@ def report_inference_progress(
             "total_images": total_images,
         },
     )
+
 
 ###############################################################################
 def run_inference_job(
@@ -170,6 +176,20 @@ def run_inference_job(
                 should_stop=lambda: get_job_manager().should_stop(job_id),
                 report_progress=report_progress,
             )
+        elif model_ref.startswith("maira2:"):
+            settings = get_server_settings().inference
+            revision = settings.maira2_revision
+            if revision is None:
+                raise RuntimeError("MAIRA-2 pinned revision is not configured")
+            reports_by_filename = Maira2Provider(settings).generate(
+                repository_id=model_ref.removeprefix("maira2:"),
+                revision=revision,
+                profile=generation_profile,
+                clinical_context=clinical_context,
+                images=stored_images,
+                should_stop=lambda: get_job_manager().should_stop(job_id),
+                report_progress=report_progress,
+            )
         else:
             raise RuntimeError(f"Unsupported inference provider: {model_ref}")
     finally:
@@ -207,6 +227,7 @@ def run_inference_job(
         "report_filenames": report_filenames,
         "count": len(reports_by_filename),
     }
+
 
 ###############################################################################
 class InferenceService:
@@ -340,7 +361,12 @@ class InferenceService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
-        if selected_model.provider not in {"xreport", "ollama", "huggingface"}:
+        if selected_model.provider not in {
+            "xreport",
+            "ollama",
+            "huggingface",
+            "maira2",
+        }:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
                 detail=f"Generation is not implemented for provider: {selected_model.provider}",
@@ -429,6 +455,7 @@ class InferenceService:
             message="Cancellation requested" if success else "Job cannot be cancelled",
         )
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_service() -> InferenceService:
@@ -436,5 +463,3 @@ def get_inference_service() -> InferenceService:
         job_manager=get_job_manager(),
         inference_image_store=get_inference_image_store(),
     )
-
-
