@@ -139,7 +139,7 @@ class TestInferencePage:
         page.goto(f"{base_url}/inference")
         page.wait_for_load_state("networkidle")
 
-        expect(page.locator("h1, h2").filter(has_text="Inference")).to_be_visible()
+        expect(page.get_by_role("heading", name="Report drafting workspace")).to_be_visible()
 
     # -------------------------------------------------------------------------
     def test_inference_page_shows_model_selector(self, page: Page, base_url: str):
@@ -147,7 +147,8 @@ class TestInferencePage:
         page.goto(f"{base_url}/inference")
         page.wait_for_load_state("networkidle")
 
-        expect(page.locator("#model-select")).to_be_visible()
+        expect(page.get_by_role("complementary", name="Model catalog")).to_be_visible()
+        expect(page.get_by_placeholder("Filter models")).to_be_visible()
         expect(page.get_by_text("Research use only", exact=False)).to_be_visible()
 
     # -------------------------------------------------------------------------
@@ -158,4 +159,14 @@ class TestInferencePage:
 
         # Check for upload area
         expect(page.locator("input[type='file']")).to_be_attached()
+
+    # -------------------------------------------------------------------------
+    def test_inference_page_exposes_editable_report_sections(
+        self, page: Page, base_url: str
+    ):
+        page.goto(f"{base_url}/inference")
+        page.wait_for_load_state("networkidle")
+
+        expect(page.get_by_role("heading", name="Review draft")).to_be_visible()
+        expect(page.get_by_text("No draft yet")).to_be_visible()
 

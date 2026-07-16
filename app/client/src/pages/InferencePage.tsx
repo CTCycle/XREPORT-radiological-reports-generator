@@ -1,679 +1,265 @@
-import { useRef, DragEvent, ChangeEvent, useEffect, useMemo } from 'react';
+import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ImagePlus, ChevronLeft, ChevronRight, Trash, Trash2, FileText,
-    Sparkles, ArrowRight, Copy, Check, Loader2
+    AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download,
+    FileImage, ImagePlus, Loader2, RefreshCw, Search, Sparkles, Trash2,
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
-import type { GenerationProfile } from '../types/inferenceApi';
+import type { GenerationProfile, ModelAvailability } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
-import {
-    getInferenceModels,
-    generateReports,
-    getInferenceJobStatus,
-} from '../services/inferenceService';
+import { generateReports, getInferenceJobStatus, getInferenceModels } from '../services/inferenceService';
 
-const MAX_IMAGES = 16;
+type DraftSections = { findings: string; impression: string };
+type GenerationRequest = {
+    images: File[];
+    modelRef: string;
+    generationProfile: GenerationProfile;
+    clinicalContext: string;
+};
 
-function isGenerationProfile(value: string): value is GenerationProfile {
-    return value === 'deterministic' || value === 'concise' || value === 'detailed';
-}
-
-function parseGenerationProfile(value: string, fallback: GenerationProfile): GenerationProfile {
-    return isGenerationProfile(value) ? value : fallback;
-}
+const EMPTY_DRAFT: DraftSections = { findings: '', impression: '' };
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
     const record = asRecord(value);
-    if (!record) {
-        return undefined;
-    }
-
+    if (!record) return undefined;
     const entries = Object.entries(record);
-    if (entries.some(([, entryValue]) => readString(entryValue) === undefined)) {
-        return undefined;
-    }
-
-    return Object.fromEntries(entries.map(([key, entryValue]) => [key, readString(entryValue) ?? '']));
+    if (entries.some(([, entry]) => readString(entry) === undefined)) return undefined;
+    return Object.fromEntries(entries.map(([key, entry]) => [key, readString(entry) ?? '']));
 }
 
-function toReportsByIndex(
-    result: unknown,
-    images: File[],
-): Record<number, string> {
+function toReportsByIndex(result: unknown, images: File[]): Record<number, string> {
     const payload = asRecord(result);
-    if (!payload) {
-        return {};
-    }
-
+    if (!payload) return {};
     const reports = readStringMap(payload.reports);
-    const reportsOrdered = readStringArray(payload.reports_ordered);
-    const reportFilenames = readStringArray(payload.report_filenames);
-    const reportsByIndex: Record<number, string> = {};
+    const ordered = readStringArray(payload.reports_ordered);
+    const filenames = readStringArray(payload.report_filenames);
+    if (ordered?.length) return Object.fromEntries(ordered.map((report, index) => [index, report]));
+    if (!reports) return {};
+    const names = filenames?.length ? filenames : images.map(image => image.name);
+    const mapped = Object.fromEntries(names.flatMap((name, index) => reports[name] === undefined ? [] : [[index, reports[name]]]));
+    return Object.keys(mapped).length ? mapped : Object.fromEntries(Object.values(reports).map((report, index) => [index, report]));
+}
 
-    if (reportsOrdered && reportsOrdered.length > 0) {
-        reportsOrdered.forEach((report, index) => {
-            if (report) {
-                reportsByIndex[index] = report;
-            }
-        });
-        return reportsByIndex;
-    }
+function parseDraft(report: string): DraftSections {
+    const normalized = report.trim();
+    if (!normalized) return EMPTY_DRAFT;
+    const findingsMatch = normalized.match(/(?:^|\n)\s*(?:#{1,3}\s*)?findings\s*:?\s*([\s\S]*?)(?=\n\s*(?:#{1,3}\s*)?impression\s*:?|$)/i);
+    const impressionMatch = normalized.match(/(?:^|\n)\s*(?:#{1,3}\s*)?impression\s*:?\s*([\s\S]*)$/i);
+    if (!findingsMatch && !impressionMatch) return { findings: normalized, impression: '' };
+    return {
+        findings: findingsMatch?.[1]?.trim() ?? '',
+        impression: impressionMatch?.[1]?.trim() ?? '',
+    };
+}
 
-    if (!reports) {
-        return reportsByIndex;
-    }
+function formatDraft(draft: DraftSections): string {
+    return `Findings\n${draft.findings.trim()}\n\nImpression\n${draft.impression.trim()}`.trim();
+}
 
-    if (reportFilenames && reportFilenames.length > 0) {
-        reportFilenames.forEach((filename, index) => {
-            const report = reports[filename];
-            if (report !== undefined) {
-                reportsByIndex[index] = report;
-            }
-        });
-    } else {
-        images.forEach((image, index) => {
-            const report = reports[image.name];
-            if (report !== undefined) {
-                reportsByIndex[index] = report;
-            }
-        });
-    }
-
-    if (Object.keys(reportsByIndex).length === 0) {
-        Object.values(reports).forEach((report, index) => {
-            reportsByIndex[index] = report;
-        });
-    }
-
-    return reportsByIndex;
+function parseProfile(value: string): GenerationProfile {
+    return value === 'concise' || value === 'detailed' ? value : 'deterministic';
 }
 
 export default function InferencePage() {
     const {
-        state,
-        setImages,
-        setCurrentIndex,
-        setGeneratedReport,
-        setIsGenerating,
-        setIsCopied,
-        clearImages,
-        setSelectedModelRef,
-        setGenerationProfile,
-        setClinicalContext,
-        setModelAvailability,
-        setIsLoadingModels,
-        setReports,
-        setStreamingTokens,
-        setCurrentStreamingIndex,
+        state, setImages, setCurrentIndex, setGeneratedReport, setIsGenerating,
+        setIsCopied, clearImages, setSelectedModelRef, setGenerationProfile,
+        setClinicalContext, setModelAvailability, setIsLoadingModels, setReports,
+        setStreamingTokens, setCurrentStreamingIndex,
     } = useInferencePageState();
-
+    const [modelFilter, setModelFilter] = useState('');
+    const [providerFilter, setProviderFilter] = useState('all');
+    const [catalogError, setCatalogError] = useState<string | null>(null);
+    const [drafts, setDrafts] = useState<Record<number, DraftSections>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const selectedModel = useMemo(
+        () => state.modelAvailability.find(model => model.model_ref === state.selectedModelRef) ?? null,
+        [state.modelAvailability, state.selectedModelRef],
+    );
+    const maxImages = selectedModel?.input_semantics === 'independent_images' ? 16 : 1;
+    const activeDraft = drafts[state.currentIndex] ?? parseDraft(state.generatedReport);
+    const filteredModels = useMemo(() => {
+        const query = modelFilter.trim().toLowerCase();
+        return state.modelAvailability.filter(model =>
+            (providerFilter === 'all' || model.provider === providerFilter)
+            && (!query || `${model.display_name} ${model.description} ${model.provider}`.toLowerCase().includes(query))
+        );
+    }, [modelFilter, providerFilter, state.modelAvailability]);
+
     const generationJob = useAsyncJob({
-        startJob: ({ images, modelRef, generationProfile, clinicalContext }: { images: File[]; modelRef: string; generationProfile: GenerationProfile; clinicalContext: string }) =>
-            generateReports(images, modelRef, generationProfile, clinicalContext),
+        startJob: (request: GenerationRequest) => generateReports(
+            request.images, request.modelRef, request.generationProfile, request.clinicalContext,
+        ),
         getStatus: getInferenceJobStatus,
-        onUpdate: (status) => {
-            const reportsByIndex = toReportsByIndex(status.result, state.images);
-            if (Object.keys(reportsByIndex).length > 0) {
-                setReports(reportsByIndex);
-                if (reportsByIndex[state.currentIndex] !== undefined) {
-                    setGeneratedReport(reportsByIndex[state.currentIndex]);
-                }
-            }
+        onUpdate: status => {
+            const reports = toReportsByIndex(status.result, state.images);
+            if (!Object.keys(reports).length) return;
+            setReports(reports);
+            setDrafts(Object.fromEntries(Object.entries(reports).map(([index, report]) => [Number(index), parseDraft(report)])));
+            setGeneratedReport(reports[state.currentIndex] ?? '');
         },
-        onComplete: (status) => {
-            if (status.status === 'failed') {
-                console.error('Generation failed:', status.error);
-            }
-            setIsGenerating(false);
-        },
+        onComplete: () => setIsGenerating(false),
     });
-    // Fetch the local-only model catalog on mount.
+
     useEffect(() => {
-        const fetchModels = async () => {
+        const loadModels = async () => {
             setIsLoadingModels(true);
+            setCatalogError(null);
             const { result, error } = await getInferenceModels();
             if (result) {
                 setModelAvailability(result.models);
-                const readyModels = result.models.filter(model => model.status === 'ready');
-                if (readyModels.length > 0 && !state.selectedModelRef) {
-                    setSelectedModelRef(readyModels[0].model_ref);
-                }
-            } else if (error) {
-                console.error('Failed to fetch inference models:', error);
+                const selectedReady = result.models.some(model => model.model_ref === state.selectedModelRef && model.status === 'ready');
+                if (!selectedReady) setSelectedModelRef(result.models.find(model => model.status === 'ready')?.model_ref ?? '');
+            } else {
+                setCatalogError(error ?? 'Unable to load the local model catalog.');
             }
             setIsLoadingModels(false);
         };
-        fetchModels();
+        void loadModels();
     }, []);
 
-    // Handle file selection
-    const handleFileSelect = (files: FileList | null) => {
-        if (!files || files.length === 0) return;
-
-        const imageFiles = Array.from(files).filter(file =>
-            file.type.startsWith('image/')
-        );
-
-        if (imageFiles.length === 0) return;
-
-        const availableSlots = MAX_IMAGES - state.images.length;
-        if (availableSlots <= 0) return;
-
-        // Enforce max 16 images, append when possible
-        const limitedImages = imageFiles.slice(0, availableSlots);
-
-        if (limitedImages.length > 0) {
-            const hasExistingImages = state.images.length > 0;
-            const nextImages = hasExistingImages
-                ? [...state.images, ...limitedImages]
-                : limitedImages;
-            setImages(nextImages);
-            if (!hasExistingImages) {
-                setCurrentIndex(0);
-            }
-            setGeneratedReport('');
-            setReports({});
-            setStreamingTokens('');
-            setCurrentStreamingIndex(-1);
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-        }
-    };
-
-    // Drag and drop handlers
-    const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-    };
-
-    const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-    };
-
-    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        handleFileSelect(e.dataTransfer.files);
-    };
-
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-        handleFileSelect(e.target.files);
-    };
-
-    const openFileDialog = () => {
-        fileInputRef.current?.click();
-    };
-
-    // Navigation with synchronized report display
-    const goToIndex = (newIndex: number) => {
-        setCurrentIndex(newIndex);
-        const reportForIndex = state.reports[newIndex];
-        setGeneratedReport(reportForIndex ?? '');
-    };
-
-    const goToPrevious = () => {
-        const newIndex = Math.max(0, state.currentIndex - 1);
-        goToIndex(newIndex);
-    };
-
-    const goToNext = () => {
-        const newIndex = Math.min(state.images.length - 1, state.currentIndex + 1);
-        goToIndex(newIndex);
-    };
-
-    const reportForIndex = state.reports[state.currentIndex];
-
     useEffect(() => {
-        if (state.isGenerating && state.currentStreamingIndex === state.currentIndex) {
-            return;
-        }
-        if (reportForIndex !== undefined && reportForIndex !== state.generatedReport) {
-            setGeneratedReport(reportForIndex);
-            return;
-        }
-        if (reportForIndex === undefined && state.generatedReport) {
-            setGeneratedReport('');
-        }
-    }, [
-        reportForIndex,
-        state.currentIndex,
-        state.currentStreamingIndex,
-        state.generatedReport,
-        state.isGenerating,
-        setGeneratedReport,
-    ]);
+        const report = state.reports[state.currentIndex] ?? '';
+        setGeneratedReport(report);
+    }, [state.currentIndex, state.reports, setGeneratedReport]);
 
-    // Clear images
-    const handleClearImages = () => {
+    const resetStudy = () => {
         clearImages();
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        setDrafts({});
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleRemoveCurrentImage = () => {
-        if (state.images.length === 0) return;
-
-        const removeIndex = state.currentIndex;
-        const nextImages = state.images.filter((_, idx) => idx !== removeIndex);
-        const nextReports: Record<number, string> = {};
-
-        Object.entries(state.reports).forEach(([key, value]) => {
-            const index = Number(key);
-            if (Number.isNaN(index)) return;
-            if (index < removeIndex) {
-                nextReports[index] = value;
-            } else if (index > removeIndex) {
-                nextReports[index - 1] = value;
-            }
-        });
-
-        setImages(nextImages);
-        setReports(nextReports);
-        setStreamingTokens('');
-        setCurrentStreamingIndex(-1);
-
-        if (nextImages.length === 0) {
-            setCurrentIndex(0);
-            setGeneratedReport('');
-            return;
-        }
-
-        const nextIndex = Math.min(removeIndex, nextImages.length - 1);
-        setCurrentIndex(nextIndex);
-        if (nextReports[nextIndex]) {
-            setGeneratedReport(nextReports[nextIndex]);
-        } else {
-            setGeneratedReport('');
-        }
-    };
-
-    // Generate reports
-    const handleGenerateReport = async () => {
-        if (state.images.length === 0 || !state.selectedModelRef) return;
-
-        setIsGenerating(true);
-        setStreamingTokens('');
+    const addFiles = (files: FileList | null) => {
+        if (!files?.length) return;
+        const accepted = Array.from(files).filter(file => file.type.startsWith('image/'));
+        const next = maxImages === 1 ? accepted.slice(0, 1) : [...state.images, ...accepted].slice(0, maxImages);
+        setImages(next);
+        setCurrentIndex(0);
         setReports({});
+        setDrafts({});
         setGeneratedReport('');
-        setCurrentStreamingIndex(-1);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
-        // Call generate endpoint - now returns job_id
-        const jobResult = await generationJob.start({
+    const onDrop = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        addFiles(event.dataTransfer.files);
+    };
+
+    const generate = async () => {
+        if (!selectedModel || selectedModel.status !== 'ready' || !state.images.length) return;
+        setIsGenerating(true);
+        setReports({});
+        setDrafts({});
+        setGeneratedReport('');
+        setStreamingTokens('');
+        setCurrentStreamingIndex(-1);
+        const started = await generationJob.start({
             images: state.images,
-            modelRef: state.selectedModelRef,
+            modelRef: selectedModel.model_ref,
             generationProfile: state.generationProfile,
             clinicalContext: state.clinicalContext,
         });
-
-        if (!jobResult) {
-            console.error('Generation failed:', generationJob.error);
-            setIsGenerating(false);
-            return;
-        }
+        if (!started) setIsGenerating(false);
     };
 
-    // Copy report to clipboard
-    const copyReport = async () => {
-        if (!state.generatedReport) return;
-
-        try {
-            await navigator.clipboard.writeText(state.generatedReport);
-            setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
+    const updateDraft = (field: keyof DraftSections, value: string) => {
+        const next = { ...activeDraft, [field]: value };
+        setDrafts(previous => ({ ...previous, [state.currentIndex]: next }));
+        setGeneratedReport(formatDraft(next));
     };
 
-    // Get current image URL
+    const copyDraft = async () => {
+        await navigator.clipboard.writeText(formatDraft(activeDraft));
+        setIsCopied(true);
+        globalThis.setTimeout(() => setIsCopied(false), 1600);
+    };
+
+    const exportDraft = () => {
+        const metadata = [
+            'XREPORT — RESEARCH USE ONLY — NOT CLINICALLY APPROVED',
+            `Model: ${selectedModel?.display_name ?? 'Unknown'} (${selectedModel?.model_ref ?? 'Unknown'})`,
+            `Revision: ${selectedModel?.model_revision ?? 'Not reported'}`,
+            `Generation profile: ${state.generationProfile}`,
+            `Image: ${state.images[state.currentIndex]?.name ?? 'Unknown'}`,
+            '', formatDraft(activeDraft),
+        ].join('\n');
+        const url = URL.createObjectURL(new Blob([metadata], { type: 'text/plain;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `xreport-draft-${state.currentIndex + 1}.txt`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const currentImage = state.images[state.currentIndex] ?? null;
-    const currentImageUrl = useMemo(() => {
-        if (!currentImage) {
-            return null;
-        }
-        return URL.createObjectURL(currentImage);
-    }, [currentImage]);
-
-    useEffect(() => {
-        return () => {
-            if (currentImageUrl) {
-                URL.revokeObjectURL(currentImageUrl);
-            }
-        };
-    }, [currentImageUrl]);
-
-    // Determine what to display in report panel
-    const displayContent = state.isGenerating && state.currentStreamingIndex === state.currentIndex
-        ? state.streamingTokens
-        : reportForIndex ?? state.generatedReport ?? '';
+    const currentImageUrl = useMemo(() => currentImage ? URL.createObjectURL(currentImage) : null, [currentImage]);
+    useEffect(() => () => { if (currentImageUrl) URL.revokeObjectURL(currentImageUrl); }, [currentImageUrl]);
 
     return (
-        <div className="inference-container">
-            {/* Control Panel */}
-            <div className="inference-header">
-                <h1>Inference</h1>
-                <p>
-                    Generate detailed radiological reports from X-ray scans using advanced AI.
-                    Upload medical images, verify the selected research model in the settings bar,
-                    and click 'Generate Report' to obtain a structured analysis of the findings.
-                </p>
-                <p><strong>Research use only. Generated drafts are not clinically approved and require qualified review.</strong></p>
-            </div>
+        <main className="inference-workspace">
+            <header className="workspace-heading">
+                <div><span className="eyebrow">Local inference</span><h1>Report drafting workspace</h1><p>Prepare a study, choose a local model, and review an editable radiology draft.</p></div>
+                <div className="research-warning" role="alert"><AlertTriangle aria-hidden="true" /><div><strong>Research use only</strong><span>Models and generated drafts are not clinically approved. Qualified review and independent verification are required.</span></div></div>
+            </header>
 
-            <div className="inference-main">
-                {/* Left Column - Image Canvas */}
-                <div className="inference-panel">
-                    <div className="panel-header">
-                        <ImagePlus size={18} />
-                        <h2>X-Ray Images</h2>
-                        {state.images.length > 0 && (
-                            <span className="image-limit-badge">
-                                {state.images.length} / {MAX_IMAGES}
-                            </span>
-                        )}
+            <section className="workspace-grid">
+                <aside className="catalog-panel" aria-label="Model catalog">
+                    <div className="section-heading"><div><span className="step-number">1</span><h2>Select model</h2></div><span className="catalog-count">{filteredModels.length}</span></div>
+                    <label className="search-field"><Search aria-hidden="true" /><span className="sr-only">Filter models</span><input value={modelFilter} onChange={event => setModelFilter(event.target.value)} placeholder="Filter models" /></label>
+                    <div className="provider-tabs" aria-label="Provider filter">
+                        {['all', 'xreport', 'ollama', 'huggingface'].map(provider => <button key={provider} type="button" className={providerFilter === provider ? 'active' : ''} onClick={() => setProviderFilter(provider)}>{provider}</button>)}
                     </div>
-                    <div className="panel-content">
-                        {state.images.length === 0 ? (
-                            <div
-                                className="image-dropzone"
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                onClick={openFileDialog}
-                            >
-                                <ImagePlus className="dropzone-icon" />
-                                <div className="dropzone-text">
-                                    <div className="dropzone-title">
-                                        Drop images here or click to upload
-                                    </div>
-                                    <div className="dropzone-subtitle">
-                                        Maximum {MAX_IMAGES} X-ray images
-                                    </div>
-                                </div>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleInputChange}
-                                    className="visually-hidden-input"
-                                />
-                            </div>
-                        ) : (
-                            <div className="image-viewer">
-                                <div className="image-display">
-                                    {currentImageUrl && (
-                                        <img
-                                            src={currentImageUrl}
-                                            alt={`X-ray ${state.currentIndex + 1}`}
-                                        />
-                                    )}
-
-                                    {state.images.length > 1 && (
-                                        <>
-                                            <button
-                                                type="button"
-                                                className="nav-arrow prev"
-                                                onClick={goToPrevious}
-                                                disabled={state.currentIndex === 0}
-                                                aria-label="Previous image"
-                                            >
-                                                <ChevronLeft size={20} />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="nav-arrow next"
-                                                onClick={goToNext}
-                                                disabled={state.currentIndex === state.images.length - 1}
-                                                aria-label="Next image"
-                                            >
-                                                <ChevronRight size={20} />
-                                            </button>
-                                            <div className="image-counter">
-                                                {state.currentIndex + 1} / {state.images.length}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="image-controls">
-                                    <button
-                                        type="button"
-                                        className="btn-icon"
-                                        onClick={openFileDialog}
-                                        aria-label="Add more images"
-                                        title="Add more images"
-                                        disabled={state.images.length >= MAX_IMAGES}
-                                    >
-                                        <ImagePlus />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-icon"
-                                        onClick={handleRemoveCurrentImage}
-                                        aria-label="Remove current image"
-                                        title="Remove current image"
-                                        disabled={state.images.length === 0 || state.isGenerating}
-                                    >
-                                        <Trash />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-icon"
-                                        onClick={handleClearImages}
-                                        aria-label="Clear all images"
-                                        title="Clear all images"
-                                        disabled={state.images.length === 0 || state.isGenerating}
-                                    >
-                                        <Trash2 />
-                                    </button>
-                                </div>
-
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleInputChange}
-                                    className="visually-hidden-input"
-                                />
-                            </div>
-                        )}
+                    {state.isLoadingModels && <div className="catalog-state"><Loader2 className="spin" />Discovering local models…</div>}
+                    {catalogError && <div className="catalog-state error">{catalogError}</div>}
+                    <div className="model-list">
+                        {filteredModels.map(model => (
+                            <button type="button" key={model.model_ref} className={`model-card ${state.selectedModelRef === model.model_ref ? 'selected' : ''}`} onClick={() => setSelectedModelRef(model.model_ref)} aria-pressed={state.selectedModelRef === model.model_ref}>
+                                <span className={`status-dot ${model.status}`} aria-hidden="true" /><span className="model-card-body"><strong>{model.display_name}</strong><small>{model.provider} · {model.parameter_size ?? model.category}</small></span><span className={`status-label ${model.status}`}>{model.status.replace('_', ' ')}</span>
+                            </button>
+                        ))}
+                        {!state.isLoadingModels && !filteredModels.length && <div className="catalog-state">No models match this filter.</div>}
                     </div>
-                    <div className="panel-footer">
-                        <div className="panel-control-item">
-                            <label htmlFor="model-select">Model:</label>
-                            <select
-                                id="model-select"
-                                value={state.selectedModelRef}
-                                onChange={(e) => setSelectedModelRef(e.target.value)}
-                                disabled={state.isLoadingModels || state.isGenerating}
-                            >
-                                {state.modelAvailability.length === 0 && (
-                                    <option value="">No models discovered</option>
-                                )}
-                                {state.modelAvailability.map((model) => (
-                                    <option key={model.model_ref} value={model.model_ref} disabled={model.status !== 'ready'}>
-                                        {model.display_name} — {model.status}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="panel-control-item">
-                            <label htmlFor="profile-select">Profile:</label>
-                            <select
-                                id="profile-select"
-                                value={state.generationProfile}
-                                onChange={(e) => setGenerationProfile(parseGenerationProfile(e.target.value, state.generationProfile))}
-                                disabled={state.isGenerating}
-                            >
-                                <option value="deterministic">Deterministic</option>
-                                <option value="concise">Concise</option>
-                                <option value="detailed">Detailed</option>
-                            </select>
-                        </div>
-                        <div className="panel-control-item">
-                            <label htmlFor="clinical-context">Clinical context:</label>
-                            <textarea
-                                id="clinical-context"
-                                value={state.clinicalContext}
-                                onChange={(e) => setClinicalContext(e.target.value)}
-                                disabled={state.isGenerating || !state.modelAvailability.find(model => model.model_ref === state.selectedModelRef)?.capabilities.clinical_context}
-                                placeholder="Not supported by the selected model"
-                            />
-                        </div>
+                    {selectedModel && <ModelDetails model={selectedModel} />}
+                </aside>
+
+                <section className="study-panel" aria-label="Study preparation">
+                    <div className="section-heading"><div><span className="step-number">2</span><h2>Prepare study</h2></div>{state.images.length > 0 && <button type="button" className="text-button danger" onClick={resetStudy}><Trash2 />Clear</button>}</div>
+                    <div className="upload-zone" onDragOver={event => event.preventDefault()} onDrop={onDrop}>
+                        {currentImageUrl ? <div className="image-stage"><img src={currentImageUrl} alt={`Study image ${state.currentIndex + 1}`} /><span>{currentImage?.name}</span></div> : <button type="button" className="upload-prompt" onClick={() => fileInputRef.current?.click()}><ImagePlus /><strong>Add study image</strong><span>Drop an image here or browse local files</span></button>}
+                        <input ref={fileInputRef} className="sr-only" type="file" accept="image/*" multiple={maxImages > 1} onChange={(event: ChangeEvent<HTMLInputElement>) => addFiles(event.target.files)} />
                     </div>
-                </div>
-
-                {/* Center Column - Flow Connector */}
-                <div className="flow-panel">
-                    <div className="flow-connector">
-                        <div className="flow-arrow">
-                            <ArrowRight size={24} />
-                            <ArrowRight size={24} />
-                            <ArrowRight size={24} />
-                        </div>
-
-                        <button
-                            type="button"
-                            className={`btn-generate ${state.isGenerating ? 'generating' : ''}`}
-                            onClick={handleGenerateReport}
-                            disabled={state.images.length === 0 || state.isGenerating || !state.selectedModelRef}
-                        >
-                            {state.isGenerating ? (
-                                <Loader2 className="loading-spinner" />
-                            ) : (
-                                <Sparkles />
-                            )}
-                            <span>
-                                {state.isGenerating ? 'Generating...' : 'Generate Report'}
-                            </span>
-                        </button>
-
-                        <div className="flow-arrow">
-                            <ArrowRight size={24} />
-                            <ArrowRight size={24} />
-                            <ArrowRight size={24} />
-                        </div>
+                    <div className="study-toolbar">
+                        <button type="button" className="secondary-button" onClick={() => fileInputRef.current?.click()} disabled={!selectedModel}><ImagePlus />{state.images.length ? 'Replace / add' : 'Browse images'}</button>
+                        <span>{selectedModel?.input_semantics === 'independent_images' ? `Up to ${maxImages} independent images` : 'Single-image model'}</span>
                     </div>
-                </div>
+                    {state.images.length > 1 && <div className="image-navigation"><button type="button" aria-label="Previous image" onClick={() => setCurrentIndex(Math.max(0, state.currentIndex - 1))} disabled={state.currentIndex === 0}><ChevronLeft /></button><span>{state.currentIndex + 1} / {state.images.length}</span><button type="button" aria-label="Next image" onClick={() => setCurrentIndex(Math.min(state.images.length - 1, state.currentIndex + 1))} disabled={state.currentIndex === state.images.length - 1}><ChevronRight /></button></div>}
+                    <label className="field-label" htmlFor="clinical-context"><span>Clinical context</span><small>{selectedModel?.capabilities.clinical_context ? 'Optional context supported' : 'Not supported by selected model'}</small></label>
+                    <textarea id="clinical-context" className="context-input" value={state.clinicalContext} onChange={event => setClinicalContext(event.target.value)} disabled={!selectedModel?.capabilities.clinical_context || state.isGenerating} placeholder="Indication, relevant history, comparison details…" />
+                    <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => setGenerationProfile(parseProfile(event.target.value))} disabled={state.isGenerating}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
+                    <button type="button" className="generate-button" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Generating draft…</> : <><Sparkles />Generate draft</>}</button>
+                    {generationJob.error && <div className="generation-error" role="alert">{generationJob.error}</div>}
+                </section>
 
-                {/* Right Column - Report Viewer */}
-                <div className="inference-panel">
-                    <div className="panel-header">
-                        <div className="report-header">
-                            <div className="report-header-title">
-                                <FileText size={18} />
-                                <h2>Generated Report</h2>
-                                {state.isGenerating && state.currentStreamingIndex === state.currentIndex && (
-                                    <span className="streaming-indicator">
-                                        <Loader2 size={14} className="loading-spinner" />
-                                        Streaming...
-                                    </span>
-                                )}
-                            </div>
-                            <div className="report-header-actions">
-                                {state.images.length > 1 && (
-                                    <div className="report-nav">
-                                        <button
-                                            type="button"
-                                            className="btn-icon report-nav-btn"
-                                            onClick={goToPrevious}
-                                            aria-label="Previous report"
-                                            title="Previous report"
-                                            disabled={state.currentIndex === 0}
-                                        >
-                                            <ChevronLeft size={16} />
-                                        </button>
-                                        <span className="report-index">
-                                            {state.currentIndex + 1} / {state.images.length}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="btn-icon report-nav-btn"
-                                            onClick={goToNext}
-                                            aria-label="Next report"
-                                            title="Next report"
-                                            disabled={state.currentIndex === state.images.length - 1}
-                                        >
-                                            <ChevronRight size={16} />
-                                        </button>
-                                    </div>
-                                )}
-                                {displayContent && (
-                                    <div className="report-actions">
-                                        <button
-                                            type="button"
-                                            className="btn-icon"
-                                            onClick={copyReport}
-                                            aria-label="Copy report to clipboard"
-                                            title="Copy to clipboard"
-                                            disabled={state.isGenerating}
-                                        >
-                                            {state.isCopied ? <Check /> : <Copy />}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="panel-content">
-                        {displayContent ? (
-                            <div className="report-content">
-                                <div
-                                    className={`markdown-report ${state.isGenerating ? 'streaming' : ''}`}
-                                    dangerouslySetInnerHTML={{
-                                        __html: formatMarkdown(displayContent)
-                                    }}
-                                />
-                            </div>
-                        ) : (
-                            <div className="report-empty">
-                                <FileText />
-                                <p>
-                                    {state.images.length === 0
-                                        ? 'Upload X-ray images to generate a report'
-                                        : !state.selectedModelRef
-                                            ? 'Select an available model to generate reports'
-                                            : 'Click "Generate Report" to analyze the images'}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-        </div>
+                <section className="draft-panel" aria-label="Report draft">
+                    <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!activeDraft.findings && !activeDraft.impression}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!activeDraft.findings && !activeDraft.impression}><Download /></button></div></div>
+                    {!activeDraft.findings && !activeDraft.impression && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor"><label htmlFor="findings">Findings</label><textarea id="findings" value={activeDraft.findings} onChange={event => updateDraft('findings', event.target.value)} placeholder="Generated findings will appear here." /><label htmlFor="impression">Impression</label><textarea id="impression" value={activeDraft.impression} onChange={event => updateDraft('impression', event.target.value)} placeholder="Generated impression will appear here." /></div>}
+                    <div className="runtime-metadata"><span><strong>Model</strong>{selectedModel?.display_name ?? 'Not selected'}</span><span><strong>Provider</strong>{selectedModel?.provider ?? '—'}</span><span><strong>Revision</strong>{selectedModel?.model_revision?.slice(0, 12) ?? 'Not reported'}</span><span><strong>Profile</strong>{state.generationProfile}</span></div>
+                </section>
+            </section>
+        </main>
     );
 }
 
-// Simple markdown formatter (basic implementation)
-function formatMarkdown(text: string): string {
-    return text
-        // Headers
-        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        // Italic
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        // Code
-        .replace(/`(.*?)`/g, '<code>$1</code>')
-        // Horizontal rule
-        .replace(/^---$/gm, '<hr />')
-        // Unordered list items
-        .replace(/^- (.*$)/gm, '<li>$1</li>')
-        // Wrap consecutive list items in ul
-        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-        // Line breaks for paragraphs
-        .replace(/\n\n/g, '</p><p>')
-        // Wrap in paragraph
-        .replace(/^(.+)$/gm, (match) => {
-            if (match.startsWith('<')) return match;
-            return match;
-        });
+function ModelDetails({ model }: Readonly<{ model: ModelAvailability }>) {
+    const capabilities = [
+        model.capabilities.clinical_context && 'Clinical context',
+        model.capabilities.multiple_current_views && 'Multiple views',
+        model.capabilities.findings && 'Findings',
+        model.capabilities.impression && 'Impression',
+        model.capabilities.grounding && 'Grounding',
+    ].filter(Boolean);
+    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p><dl><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision?.slice(0, 12) ?? 'Not configured'}</dd></div></dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
 }
