@@ -11,7 +11,6 @@
       "gated": true,
       "parameter_size": "4B",
       "input_semantics": "single_image",
-      "model_revision": "main",
       "capabilities": {"clinical_context": true, "prior_report": true, "findings": true, "impression": true}
     },
     {
