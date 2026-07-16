@@ -10,6 +10,7 @@ from server.repositories.database.engine import Database
 from server.repositories.schemas import Base
 
 
+###############################################################################
 def test_postgresql_schema_contract() -> None:
     if os.getenv("XREPORT_DB_BACKEND") != "postgresql":
         pytest.fail("PostgreSQL integration tests require XREPORT_DB_BACKEND=postgresql")

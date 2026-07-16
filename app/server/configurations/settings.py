@@ -7,7 +7,6 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -23,24 +22,20 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
 class FeatureSettings:
     allow_local_filesystem_access: bool
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -57,7 +52,6 @@ class InferenceSettings:
     maira2_worker_url: str = "http://127.0.0.1:5010"
     maira2_revision: str | None = None
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class ServerSettings:
@@ -67,14 +61,12 @@ class ServerSettings:
     jobs: JobsSettings
     inference: InferenceSettings
 
-
 ###############################################################################
 def _normalize_optional_string(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
-
 
 ###############################################################################
 def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
@@ -86,7 +78,6 @@ def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     return default
-
 
 ###############################################################################
 def _normalize_int_env(
@@ -107,7 +98,6 @@ def _normalize_int_env(
     if maximum is not None and parsed > maximum:
         return default
     return parsed
-
 
 ###############################################################################
 def _database_env_payload() -> dict[str, Any]:
@@ -161,7 +151,6 @@ def _database_env_payload() -> dict[str, Any]:
         ),
     }
 
-
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
     backend: str = "sqlite"
@@ -196,6 +185,7 @@ class JsonDatabaseSettings(BaseModel):
         text = str(value).strip() if value is not None else ""
         return text or "postgres"
 
+    # -------------------------------------------------------------------------
     @field_validator("backend", mode="before")
     @classmethod
     def normalize_backend(cls, value: Any) -> str:
@@ -223,21 +213,17 @@ class JsonDatabaseSettings(BaseModel):
             )
         return self
 
-
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
     seed: int = 42
-
 
 ###############################################################################
 class JsonFeatureSettings(BaseModel):
     allow_local_filesystem_access: bool = True
 
-
 ###############################################################################
 class JsonJobsSettings(BaseModel):
     polling_interval: float = 1.0
-
 
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
@@ -253,6 +239,7 @@ class JsonInferenceSettings(BaseModel):
     maira2_worker_url: str = "http://127.0.0.1:5010"
     maira2_revision: str | None = None
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="before")
     @classmethod
     def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
@@ -297,7 +284,6 @@ class JsonInferenceSettings(BaseModel):
             os.getenv("XREPORT_MAIRA2_REVISION")
         ) or _normalize_optional_string(payload.get("maira2_revision"))
         return payload
-
 
 ###############################################################################
 class JsonServerSettings(BaseModel):

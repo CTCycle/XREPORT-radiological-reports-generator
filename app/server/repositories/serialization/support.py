@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 
+###############################################################################
 class JsonDataSupport:
     """Shared normalization for JSON payloads and UTC timestamps."""
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def parse_json(value: Any, default: Any = None) -> Any:
         if value is None:
@@ -22,6 +24,7 @@ class JsonDataSupport:
             return decoded if isinstance(decoded, (dict, list)) else default
         return default
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def now_utc() -> datetime:
         return datetime.now(timezone.utc)

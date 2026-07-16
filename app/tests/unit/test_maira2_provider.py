@@ -13,6 +13,7 @@ from server.models.inference.providers.maira2 import Maira2Provider
 REVISION = "a" * 40
 
 
+###############################################################################
 def _settings(**overrides: object) -> InferenceSettings:
     values = {
         "ollama_base_url": "http://127.0.0.1:11434",
@@ -31,6 +32,7 @@ def _settings(**overrides: object) -> InferenceSettings:
     return InferenceSettings(**values)  # type: ignore[arg-type]
 
 
+###############################################################################
 def _response(method: str, url: str, payload: dict[str, object]) -> httpx.Response:
     return httpx.Response(
         200,
@@ -39,11 +41,13 @@ def _response(method: str, url: str, payload: dict[str, object]) -> httpx.Respon
     )
 
 
+###############################################################################
 def test_provider_rejects_non_loopback_worker_url() -> None:
     with pytest.raises(ValueError, match="loopback"):
         Maira2Provider(_settings(maira2_worker_url="http://192.168.1.20:5010"))
 
 
+###############################################################################
 def test_availability_requires_matching_pinned_worker(monkeypatch) -> None:
     monkeypatch.setattr(
         httpx,
@@ -62,6 +66,7 @@ def test_availability_requires_matching_pinned_worker(monkeypatch) -> None:
     )
 
 
+###############################################################################
 def test_generation_sends_one_base64_image_and_returns_findings(monkeypatch) -> None:
     captured: dict[str, object] = {}
 

@@ -15,6 +15,7 @@ from server.models.inference.providers.huggingface import HuggingFaceProvider
 REVISION = "a" * 40
 
 
+###############################################################################
 def _settings(cache_dir: Path) -> InferenceSettings:
     return InferenceSettings(
         ollama_base_url="http://127.0.0.1:11434",
@@ -28,17 +29,22 @@ def _settings(cache_dir: Path) -> InferenceSettings:
     )
 
 
+###############################################################################
 def _png() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (1, 1), "white").save(buffer, format="PNG")
     return buffer.getvalue()
 
 
+###############################################################################
 class Inputs(dict[str, torch.Tensor]):
+
+    # -------------------------------------------------------------------------
     def to(self, *_args: object, **_kwargs: object) -> "Inputs":
         return self
 
 
+###############################################################################
 def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> None:
     cache_path = Path("assets/QA/test-huggingface-cache")
     calls: dict[str, object] = {}
@@ -104,6 +110,7 @@ def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> N
     assert reports == {"scan.png": "Findings: no acute abnormality."}
 
 
+###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:
     provider = HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache")))
 
@@ -123,6 +130,7 @@ def test_provider_rejects_unpinned_revision() -> None:
         raise AssertionError("Unpinned revision was accepted")
 
 
+###############################################################################
 def test_provider_rejects_multiple_images() -> None:
     image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
 

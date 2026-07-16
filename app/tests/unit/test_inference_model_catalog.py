@@ -4,11 +4,15 @@ from server.configurations import InferenceSettings
 from server.models.inference.catalog import InferenceModelCatalog
 
 
+###############################################################################
 class ModelSerializerStub:
+
+    # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
         return ["checkpoint_epoch_48"]
 
 
+###############################################################################
 def _settings(
     *,
     hf_local_only: bool = True,
@@ -26,6 +30,7 @@ def _settings(
     )
 
 
+###############################################################################
 def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
     monkeypatch,
 ) -> None:
@@ -51,6 +56,7 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
     assert response.providers["maira2"].status == "disabled"
 
 
+###############################################################################
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:
     monkeypatch.setattr(
         "server.models.inference.catalog.ModelSerializer",
@@ -64,6 +70,7 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
     assert response.providers["huggingface"].status == "disabled"
 
 
+###############################################################################
 def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> None:
     revision = "b" * 40
     monkeypatch.setattr(

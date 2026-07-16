@@ -5,6 +5,7 @@ from pathlib import Path
 from maira2_worker.app import WorkerRuntime
 
 
+###############################################################################
 def test_readiness_requires_exact_cached_revision(monkeypatch) -> None:
     monkeypatch.setenv("XREPORT_MAIRA2_CACHE_DIR", "C:/offline-cache")
     monkeypatch.setenv("XREPORT_MAIRA2_REVISION", "main")
@@ -17,6 +18,7 @@ def test_readiness_requires_exact_cached_revision(monkeypatch) -> None:
     assert WorkerRuntime().readiness() == ("ready", None)
 
 
+###############################################################################
 def test_worker_source_enforces_offline_local_loading() -> None:
     source = Path(__file__).parents[1] / "maira2_worker" / "app.py"
     content = source.read_text(encoding="utf-8")

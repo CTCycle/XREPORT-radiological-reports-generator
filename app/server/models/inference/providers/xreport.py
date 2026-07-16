@@ -12,9 +12,11 @@ from server.models.training.dataloader import XRAYDataLoader
 from server.repositories.serialization.model import ModelSerializer
 
 
+###############################################################################
 class XReportCheckpointProvider:
     """Runs existing XREPORT checkpoints without changing their decoding behavior."""
 
+    # -------------------------------------------------------------------------
     def validate_checkpoint(self, checkpoint: str) -> str:
         try:
             checkpoint_dir = resolve_checkpoint_path(checkpoint)
@@ -24,6 +26,7 @@ class XReportCheckpointProvider:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Checkpoint not found: {Path(checkpoint_dir).name}")
         return Path(checkpoint_dir).name
 
+    # -------------------------------------------------------------------------
     def generate(self, checkpoint: str, generation_mode: str, images: list[InferenceImage], should_stop: Callable[[], bool], report_progress: Callable[[int, int, dict[str, str]], None]) -> dict[str, str]:
         serializer = ModelSerializer()
         try:
@@ -53,5 +56,6 @@ class XReportCheckpointProvider:
             report_progress(image_index, len(images), reports)
         return reports
 
+    # -------------------------------------------------------------------------
     def unload(self) -> None:
         """Keras checkpoint models are scoped to a single generation request."""

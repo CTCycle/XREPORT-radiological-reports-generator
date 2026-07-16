@@ -25,6 +25,7 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 
+###############################################################################
 class GenerateRequest(BaseModel):
     model: Literal["microsoft/maira-2"]
     revision: str
@@ -33,7 +34,10 @@ class GenerateRequest(BaseModel):
     image: str
 
 
+###############################################################################
 class WorkerRuntime:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.cache_dir = os.getenv("XREPORT_MAIRA2_CACHE_DIR", "").strip()
         self.revision = os.getenv("XREPORT_MAIRA2_REVISION", "").strip()
@@ -41,6 +45,7 @@ class WorkerRuntime:
         self._model: Any = None
         self._processor: Any = None
 
+    # -------------------------------------------------------------------------
     def readiness(self) -> tuple[str, str | None]:
         if not REVISION_PATTERN.fullmatch(self.revision):
             return (
@@ -54,6 +59,7 @@ class WorkerRuntime:
             )
         return "ready", None
 
+    # -------------------------------------------------------------------------
     @property
     def snapshot_path(self) -> Path:
         return (
@@ -63,6 +69,7 @@ class WorkerRuntime:
             / self.revision
         )
 
+    # -------------------------------------------------------------------------
     def generate(self, request: GenerateRequest) -> str:
         ready, message = self.readiness()
         if ready != "ready":
@@ -103,6 +110,7 @@ class WorkerRuntime:
             raise RuntimeError("MAIRA-2 generated empty findings")
         return findings.strip()
 
+    # -------------------------------------------------------------------------
     def _load(self) -> tuple[Any, Any]:
         with self._lock:
             if self._model is not None:
@@ -131,6 +139,7 @@ class WorkerRuntime:
             )
             return self._model, self._processor
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _decode_image(encoded: str) -> Image.Image:
         try:
@@ -144,6 +153,7 @@ class WorkerRuntime:
         except OSError as exc:
             raise ValueError("Image payload is not a supported image") from exc
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _max_new_tokens(profile: str) -> int:
         return {"deterministic": 300, "concise": 200, "detailed": 300}[profile]
@@ -153,6 +163,7 @@ runtime = WorkerRuntime()
 app = FastAPI(title="XREPORT MAIRA-2 Worker", docs_url=None, redoc_url=None)
 
 
+###############################################################################
 def _require_loopback(request: Request) -> None:
     peer = request.client.host if request.client else ""
     try:
@@ -165,6 +176,7 @@ def _require_loopback(request: Request) -> None:
     )
 
 
+###############################################################################
 @app.get("/health")
 def health(request: Request) -> dict[str, str | None]:
     _require_loopback(request)
@@ -178,6 +190,7 @@ def health(request: Request) -> dict[str, str | None]:
     }
 
 
+###############################################################################
 @app.post("/generate")
 def generate(request: Request, payload: GenerateRequest) -> dict[str, str]:
     _require_loopback(request)
@@ -194,6 +207,7 @@ def generate(request: Request, payload: GenerateRequest) -> dict[str, str]:
     return {"findings": findings, "research_use_only": "true"}
 
 
+###############################################################################
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run the loopback-only XREPORT MAIRA-2 worker"

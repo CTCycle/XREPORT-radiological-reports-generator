@@ -16,13 +16,16 @@ MODEL_ID = "microsoft/maira-2"
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
+###############################################################################
 class Maira2Provider:
     """Client for the separately managed, loopback-only MAIRA-2 worker."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: InferenceSettings) -> None:
         self.settings = settings
         self._validate_loopback_url(settings.maira2_worker_url)
 
+    # -------------------------------------------------------------------------
     def availability(self) -> tuple[str, str | None]:
         if not self.settings.maira2_enabled:
             return "disabled", "MAIRA-2 worker integration is disabled."
@@ -56,6 +59,7 @@ class Maira2Provider:
             )
         return "ready", None
 
+    # -------------------------------------------------------------------------
     def generate(
         self,
         *,
@@ -118,10 +122,12 @@ class Maira2Provider:
         report_progress(1, 1, reports)
         return reports
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def is_pinned_revision(revision: str | None) -> bool:
         return bool(revision and REVISION_PATTERN.fullmatch(revision))
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _validate_loopback_url(url: str) -> None:
         parsed = urlsplit(url)
@@ -141,5 +147,6 @@ class Maira2Provider:
             pass
         raise ValueError("MAIRA-2 worker URL must use a loopback address")
 
+    # -------------------------------------------------------------------------
     def unload(self) -> None:
         """The isolated worker owns model lifecycle."""
