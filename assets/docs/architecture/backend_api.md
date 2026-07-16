@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 All routers are mounted under `/api`.
 
@@ -51,6 +51,8 @@ All routers are mounted under `/api`.
 - `POST /api/inference/generate`
 - `GET /api/inference/jobs/{job_id}`
 - `DELETE /api/inference/jobs/{job_id}`
+
+`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. The obsolete inference checkpoint endpoint and `checkpoint`/`generation_mode` request fields are removed. Model readiness, capabilities, and image-count limits come from `GET /api/inference/models`.
 
 ## Root Behavior
 
