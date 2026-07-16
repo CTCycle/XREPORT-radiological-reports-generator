@@ -22,12 +22,15 @@ CATALOG_PATH = (
 )
 
 
+###############################################################################
 class InferenceModelCatalog:
     """Lists only curated local models; catalog reads never download weights."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: InferenceSettings) -> None:
         self.settings = settings
 
+    # -------------------------------------------------------------------------
     def list_models(self) -> InferenceModelsResponse:
         installed_ollama = OllamaProvider(self.settings).installed_models()
         maira2 = Maira2Provider(self.settings)
@@ -57,6 +60,7 @@ class InferenceModelCatalog:
             },
         )
 
+    # -------------------------------------------------------------------------
     def _configured_models(
         self,
         installed_ollama: set[str] | None,
@@ -73,6 +77,7 @@ class InferenceModelCatalog:
             if isinstance(entry, dict)
         ]
 
+    # -------------------------------------------------------------------------
     def _configured_model(
         self,
         entry: dict[str, Any],
@@ -130,6 +135,7 @@ class InferenceModelCatalog:
             model_revision=model_revision,
         )
 
+    # -------------------------------------------------------------------------
     def _ollama_provider_status(
         self, installed_models: set[str] | None
     ) -> ProviderAvailability:
@@ -140,6 +146,7 @@ class InferenceModelCatalog:
             )
         return ProviderAvailability(status="ready")
 
+    # -------------------------------------------------------------------------
     def _huggingface_provider_status(self) -> ProviderAvailability:
         if not self.settings.hf_local_only:
             return ProviderAvailability(
@@ -158,6 +165,7 @@ class InferenceModelCatalog:
             message="No cached Hugging Face model has been discovered yet.",
         )
 
+    # -------------------------------------------------------------------------
     def _xreport_models(self) -> list[ModelAvailability]:
         checkpoint_names = ModelSerializer().scan_checkpoints_folder()
         return [

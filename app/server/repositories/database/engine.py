@@ -24,9 +24,11 @@ from server.repositories.database.utils import (
 from server.repositories.schemas import Base
 
 
+###############################################################################
 class Database:
     """Shared SQLAlchemy database implementation for SQLite and PostgreSQL."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: DatabaseSettings) -> None:
         self.db_path: Path | None = None
         self.insert_batch_size = settings.insert_batch_size
@@ -59,6 +61,7 @@ class Database:
             )
         self.session = sessionmaker(bind=self.engine, future=True, expire_on_commit=False)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _configure_sqlite(dbapi_connection: Any, _connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
@@ -70,6 +73,7 @@ class Database:
         finally:
             cursor.close()
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def read_session(self) -> Iterator[Session]:
         session = self.session()
@@ -78,6 +82,7 @@ class Database:
         finally:
             session.close()
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def transaction(self) -> Iterator[Session]:
         session = self.session()
@@ -90,12 +95,14 @@ class Database:
         finally:
             session.close()
 
+    # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:
         for cls in Base.__subclasses__():
             if getattr(cls, "__tablename__", None) == table_name:
                 return cls
         raise ValueError(f"No table class found for name {table_name}")
 
+    # -------------------------------------------------------------------------
     def load_from_database(
         self, table_name: str, limit: int | None = None, offset: int | None = None
     ) -> pd.DataFrame:
@@ -114,6 +121,7 @@ class Database:
             rows = session.execute(stmt).mappings().all()
         return pd.DataFrame([dict(row) for row in rows]).reset_index(drop=True)
 
+    # -------------------------------------------------------------------------
     def _insert_dataframe(self, df: pd.DataFrame, table_cls: Any, *, upsert: bool) -> None:
         if df.empty:
             return
@@ -149,6 +157,7 @@ class Database:
                 )
                 session.execute(stmt)
 
+    # -------------------------------------------------------------------------
     def save_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         table_cls = self.get_table_class(validate_table_name(table_name))
         records = normalize_string_columns(df).to_dict(orient="records")
@@ -156,10 +165,12 @@ class Database:
             session.execute(delete(table_cls))
             session.add_all(table_cls(**record) for record in records)
 
+    # -------------------------------------------------------------------------
     def upsert_into_database(self, df: pd.DataFrame, table_name: str) -> None:
         table_cls = self.get_table_class(validate_table_name(table_name))
         self._insert_dataframe(df, table_cls, upsert=True)
 
+    # -------------------------------------------------------------------------
     def count_rows(self, table_name: str) -> int:
         table_cls = self.get_table_class(validate_table_name(table_name))
         with self.read_session() as session:

@@ -37,14 +37,13 @@ from server.models.inference.catalog import InferenceModelCatalog
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
-
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 
-
 ###############################################################################
 class InferenceImageStore:
+
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, list[InferenceImage]] = {}
@@ -79,18 +78,15 @@ class InferenceImageStore:
                 return
             self.storage.pop(request_id, None)
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
-
 
 ###############################################################################
 def report_inference_progress(
@@ -112,7 +108,6 @@ def report_inference_progress(
             "total_images": total_images,
         },
     )
-
 
 ###############################################################################
 def run_inference_job(
@@ -227,7 +222,6 @@ def run_inference_job(
         "report_filenames": report_filenames,
         "count": len(reports_by_filename),
     }
-
 
 ###############################################################################
 class InferenceService:
@@ -454,7 +448,6 @@ class InferenceService:
             success=success,
             message="Cancellation requested" if success else "Job cannot be cancelled",
         )
-
 
 ###############################################################################
 @lru_cache(maxsize=1)

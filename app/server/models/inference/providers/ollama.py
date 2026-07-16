@@ -9,12 +9,15 @@ from server.configurations import InferenceSettings
 from server.domain.inference import GenerationProfile, InferenceImage
 
 
+###############################################################################
 class OllamaProvider:
     """Local Ollama discovery and generation; never pulls models."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: InferenceSettings) -> None:
         self.settings = settings
 
+    # -------------------------------------------------------------------------
     def installed_models(self) -> set[str] | None:
         try:
             response = httpx.get(
@@ -28,6 +31,7 @@ class OllamaProvider:
         models = payload.get("models", []) if isinstance(payload, dict) else []
         return {str(item.get("name")) for item in models if isinstance(item, dict) and item.get("name")}
 
+    # -------------------------------------------------------------------------
     def generate(
         self,
         *,
@@ -90,6 +94,7 @@ class OllamaProvider:
         report_progress(1, 1, reports)
         return reports
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _prompt(profile: GenerationProfile, clinical_context: str) -> str:
         profile_instruction = {
@@ -103,5 +108,6 @@ class OllamaProvider:
             f"{profile_instruction}\nClinical context: {context}"
         )
 
+    # -------------------------------------------------------------------------
     def unload(self) -> None:
         """Ollama owns its process-level model lifecycle."""
