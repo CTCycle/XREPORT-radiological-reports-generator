@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 ## Troubleshooting Quick Guide
 
@@ -19,10 +19,11 @@ Last updated: 2026-07-14
 ### SQLite Mode
 
 - When `XREPORT_DB_BACKEND=sqlite`, the backend initializes `XREPORT/resources/database.db` automatically on first startup if the file does not exist.
-- On later startups, initialization is skipped when the file is already present.
+- On later startups, the schema is validated. For the inference-first branch, stop the app and delete `app/resources/database.db` if startup reports legacy inference columns; the database is recreated on restart.
 
 ### PostgreSQL Mode
 
 - When `XREPORT_DB_BACKEND=postgresql`, PostgreSQL initialization uses the database values from `XREPORT/settings/.env`.
 - Run `start_on_windows.ps1`, choose `3. Initialize database`, and execute `app/scripts/initialize_database.py`.
 - The same script also works for SQLite mode, but it is normally unnecessary because first-run SQLite initialization is automatic.
+- Use a disposable PostgreSQL database for this feature branch. If legacy inference columns are reported, drop and recreate that feature database before running initialization; `create_all` is not a migration mechanism.
