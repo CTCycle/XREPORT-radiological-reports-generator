@@ -16,6 +16,9 @@
     "hf_medgemma_revision": null,
     "device": "auto",
     "max_loaded_models": 1,
-    "model_timeout": 600
+    "model_timeout": 600,
+    "maira2_enabled": false,
+    "maira2_worker_url": "http://127.0.0.1:5010",
+    "maira2_revision": null
   }
 }
