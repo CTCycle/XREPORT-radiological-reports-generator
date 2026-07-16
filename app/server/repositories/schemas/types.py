@@ -30,12 +30,14 @@ class JSONSequence(TypeDecorator):
         return value
 
 
+###############################################################################
 class UTCDateTime(TypeDecorator):
     """Store and return timezone-aware UTC datetimes on every backend."""
 
     impl = DateTime(timezone=True)
     cache_ok = True
 
+    # -------------------------------------------------------------------------
     def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None
@@ -43,6 +45,7 @@ class UTCDateTime(TypeDecorator):
             raise ValueError("UTCDateTime values must be timezone-aware")
         return value.astimezone(timezone.utc)
 
+    # -------------------------------------------------------------------------
     def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
         if value is None:
             return None

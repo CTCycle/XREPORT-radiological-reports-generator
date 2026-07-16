@@ -107,6 +107,7 @@ def test_inference_endpoint_converts_uploads_to_domain_images() -> None:
     ]
 
 
+###############################################################################
 def test_inference_endpoint_exposes_model_catalog() -> None:
     endpoint = InferenceEndpoint(router=APIRouter(), service=InferenceServiceStub())
 

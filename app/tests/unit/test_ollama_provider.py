@@ -10,6 +10,7 @@ from server.domain.inference import InferenceImage
 from server.models.inference.providers.ollama import OllamaProvider
 
 
+###############################################################################
 def _settings() -> InferenceSettings:
     return InferenceSettings(
         ollama_base_url="http://127.0.0.1:11434",
@@ -23,10 +24,12 @@ def _settings() -> InferenceSettings:
     )
 
 
+###############################################################################
 def _response(url: str, payload: dict[str, object]) -> httpx.Response:
     return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
 
 
+###############################################################################
 def test_generate_uses_chat_with_base64_image_and_keep_alive(monkeypatch) -> None:
     captured: dict[str, object] = {}
     tags_url = "http://127.0.0.1:11434/api/tags"
@@ -63,6 +66,7 @@ def test_generate_uses_chat_with_base64_image_and_keep_alive(monkeypatch) -> Non
     assert progress == [(1, 1, reports)]
 
 
+###############################################################################
 def test_generate_reports_runtime_unavailable(monkeypatch) -> None:
     def unavailable(*args: object, **kwargs: object) -> httpx.Response:
         raise httpx.ConnectError("offline")
@@ -80,6 +84,7 @@ def test_generate_reports_runtime_unavailable(monkeypatch) -> None:
         )
 
 
+###############################################################################
 def test_generate_reports_model_not_installed(monkeypatch) -> None:
     monkeypatch.setattr(
         httpx,

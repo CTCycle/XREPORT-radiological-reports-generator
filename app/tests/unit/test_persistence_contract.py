@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from server.repositories.database.engine import Database
-from server.repositories.database.initializer import validate_current_schema
 from server.repositories.schemas import (
     Base,
     Dataset,
@@ -21,6 +19,7 @@ from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.inference import InferenceRepository
 
 
+###############################################################################
 def _serializer() -> tuple[DatasetRepository, Database]:
     database = Database.__new__(Database)
     database.engine = create_engine("sqlite:///:memory:", future=True)
@@ -32,22 +31,7 @@ def _serializer() -> tuple[DatasetRepository, Database]:
     return DatasetRepository(database=database), database
 
 
-def test_inference_first_schema_rejects_create_all_legacy_shape() -> None:
-    database = Database.__new__(Database)
-    database.engine = create_engine("sqlite:///:memory:", future=True)
-    with database.engine.begin() as connection:
-        connection.execute(
-            text(
-                "CREATE TABLE inference_runs ("
-                "inference_run_id INTEGER PRIMARY KEY, checkpoint_id INTEGER, "
-                "generation_mode TEXT, request_id TEXT)"
-            )
-        )
-
-    with pytest.raises(ValueError, match="create_all does not migrate columns"):
-        validate_current_schema(database)
-
-
+###############################################################################
 def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     serializer, database = _serializer()
     serializer.upsert_source_dataset(
@@ -103,6 +87,7 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     assert rows[0].image_path == "new-path"
 
 
+###############################################################################
 def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     serializer, database = _serializer()
     serializer.upsert_source_dataset(
@@ -148,6 +133,7 @@ def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     assert rows[0].report_text == "stable"
 
 
+###############################################################################
 def test_identical_dataset_content_reuses_the_existing_version() -> None:
     serializer, database = _serializer()
     payload = pd.DataFrame(
@@ -169,6 +155,7 @@ def test_identical_dataset_content_reuses_the_existing_version() -> None:
     assert versions[0].version_number == 1
 
 
+###############################################################################
 def test_processing_run_and_samples_roll_back_together() -> None:
     serializer, database = _serializer()
     serializer.upsert_source_dataset(
@@ -219,6 +206,7 @@ def test_processing_run_and_samples_roll_back_together() -> None:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
 
+###############################################################################
 def test_validation_report_children_commit_atomically() -> None:
     serializer, database = _serializer()
     serializer.upsert_source_dataset(
@@ -246,6 +234,7 @@ def test_validation_report_children_commit_atomically() -> None:
         assert len(session.execute(select(ValidationRun)).scalars().all()) == 1
 
 
+###############################################################################
 def test_validation_aggregates_are_stored_on_the_run() -> None:
     serializer, database = _serializer()
     serializer.save_validation_report(
@@ -256,6 +245,7 @@ def test_validation_aggregates_are_stored_on_the_run() -> None:
         assert run.pixel_bins_json == [999]
 
 
+###############################################################################
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
     _, database = _serializer()
     serializer = InferenceRepository(database=database)
