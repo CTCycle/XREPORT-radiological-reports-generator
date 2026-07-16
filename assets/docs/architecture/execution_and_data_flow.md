@@ -38,7 +38,7 @@ Location: `XREPORT/server/models`
 
 - Holds model training and inference implementation details.
 - Includes trainer, scheduler, dataloader, callback, and generator logic.
-- Inference providers sit behind the catalog-selected `model_ref`. Ollama uses its loopback API, MedGemma loads only a pinned local snapshot, and MAIRA-2 custom code runs in a separate loopback-only worker process.
+- Inference providers sit behind the catalog-selected `model_ref`. Ollama uses its loopback API, and MedGemma loads only a pinned local snapshot.
 
 ### Frontend Layer
 

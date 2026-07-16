@@ -27,7 +27,6 @@ from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.models.inference.providers.maira2 import Maira2Provider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations.startup import get_server_settings
@@ -164,20 +163,6 @@ def run_inference_job(
                 raise RuntimeError("MedGemma pinned revision is not configured")
             reports_by_filename = get_huggingface_provider().generate(
                 repository_id=model_ref.removeprefix("huggingface:"),
-                revision=revision,
-                profile=generation_profile,
-                clinical_context=clinical_context,
-                images=stored_images,
-                should_stop=lambda: get_job_manager().should_stop(job_id),
-                report_progress=report_progress,
-            )
-        elif model_ref.startswith("maira2:"):
-            settings = get_server_settings().inference
-            revision = settings.maira2_revision
-            if revision is None:
-                raise RuntimeError("MAIRA-2 pinned revision is not configured")
-            reports_by_filename = Maira2Provider(settings).generate(
-                repository_id=model_ref.removeprefix("maira2:"),
                 revision=revision,
                 profile=generation_profile,
                 clinical_context=clinical_context,
@@ -359,7 +344,6 @@ class InferenceService:
             "xreport",
             "ollama",
             "huggingface",
-            "maira2",
         }:
             raise HTTPException(
                 status_code=status.HTTP_501_NOT_IMPLEMENTED,
