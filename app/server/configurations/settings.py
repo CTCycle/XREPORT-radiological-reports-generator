@@ -44,6 +44,7 @@ class InferenceSettings:
     ollama_keep_alive: str
     hf_local_only: bool
     hf_cache_dir: str | None
+    hf_medgemma_revision: str | None
     device: str
     max_loaded_models: int
     model_timeout: int
@@ -224,6 +225,7 @@ class JsonInferenceSettings(BaseModel):
     ollama_keep_alive: str = "5m"
     hf_local_only: bool = True
     hf_cache_dir: str | None = None
+    hf_medgemma_revision: str | None = None
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1)
     model_timeout: int = Field(default=600, ge=1)
@@ -236,6 +238,7 @@ class JsonInferenceSettings(BaseModel):
         payload["ollama_keep_alive"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_KEEP_ALIVE")) or payload.get("ollama_keep_alive", "5m")
         payload["hf_local_only"] = _normalize_bool_env(os.getenv("XREPORT_HF_LOCAL_ONLY"), default=bool(payload.get("hf_local_only", True)))
         payload["hf_cache_dir"] = _normalize_optional_string(os.getenv("XREPORT_HF_CACHE_DIR")) or _normalize_optional_string(payload.get("hf_cache_dir"))
+        payload["hf_medgemma_revision"] = _normalize_optional_string(os.getenv("XREPORT_HF_MEDGEMMA_REVISION")) or _normalize_optional_string(payload.get("hf_medgemma_revision"))
         payload["device"] = _normalize_optional_string(os.getenv("XREPORT_INFERENCE_DEVICE")) or payload.get("device", "auto")
         payload["max_loaded_models"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MAX_LOADED_MODELS"), default=int(payload.get("max_loaded_models", 1)), minimum=1)
         payload["model_timeout"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MODEL_TIMEOUT"), default=int(payload.get("model_timeout", 600)), minimum=1)
@@ -315,6 +318,7 @@ class JsonServerSettings(BaseModel):
                 ollama_keep_alive=self.inference.ollama_keep_alive,
                 hf_local_only=self.inference.hf_local_only,
                 hf_cache_dir=self.inference.hf_cache_dir,
+                hf_medgemma_revision=self.inference.hf_medgemma_revision,
                 device=self.inference.device,
                 max_loaded_models=self.inference.max_loaded_models,
                 model_timeout=self.inference.model_timeout,

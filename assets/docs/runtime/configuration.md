@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Shared Configuration Sources
 
@@ -36,6 +36,9 @@ Last updated: 2026-07-15
 - `XREPORT_OLLAMA_BASE_URL` (loopback local Ollama endpoint)
 - `XREPORT_OLLAMA_KEEP_ALIVE` (model residency passed to `/api/chat`, default `5m`)
 - `XREPORT_INFERENCE_MODEL_TIMEOUT` (generation read timeout in seconds)
+- `XREPORT_HF_LOCAL_ONLY` (must remain `true` for Hugging Face generation)
+- `XREPORT_HF_CACHE_DIR` (existing Hugging Face cache root)
+- `XREPORT_HF_MEDGEMMA_REVISION` (exact 40-character cached commit)
 
 `VITE_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
 
@@ -55,3 +58,4 @@ SQLite ensures schema initialization at backend startup. PostgreSQL performs dat
 - Vite dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
 - Ollama discovery uses local `/api/tags`; generation uses local `/api/chat` with image bytes encoded in the request. XREPORT never pulls an Ollama model automatically.
+- Hugging Face discovery and generation resolve only the configured cached MedGemma commit. Network fallback and remote code are disabled.
