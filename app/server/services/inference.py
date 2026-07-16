@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import threading
+import time
 import uuid
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 
@@ -87,8 +88,30 @@ def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
 
 ###############################################################################
+def report_inference_progress(
+    job_id: str,
+    image_index: int,
+    total_images: int,
+    reports: dict[str, str],
+) -> None:
+    progress = (image_index / total_images) * 100.0
+    get_job_manager().update_progress(job_id, progress)
+    get_job_manager().update_result(
+        job_id,
+        {
+            "reports": dict(reports),
+            "reports_ordered": list(reports.values()),
+            "report_filenames": list(reports),
+            "count": len(reports),
+            "processed_images": image_index,
+            "total_images": total_images,
+        },
+    )
+
+###############################################################################
 def run_inference_job(
     model_ref: str,
+    model_revision: str | None,
     generation_profile: GenerationProfile,
     clinical_context: str,
     request_id: str,
@@ -105,25 +128,9 @@ def run_inference_job(
         logger.error("Inference job %s has no images to process", job_id)
         raise RuntimeError("No images available for inference job")
 
+    started_at = time.perf_counter()
     try:
-        def report_progress(
-            image_index: int,
-            total_images: int,
-            reports: dict[str, str],
-        ) -> None:
-            progress = (image_index / total_images) * 100.0
-            get_job_manager().update_progress(job_id, progress)
-            get_job_manager().update_result(
-                job_id,
-                {
-                    "reports": dict(reports),
-                    "reports_ordered": list(reports.values()),
-                    "report_filenames": list(reports),
-                    "count": len(reports),
-                    "processed_images": image_index,
-                    "total_images": total_images,
-                },
-            )
+        report_progress = partial(report_inference_progress, job_id)
 
         if model_ref.startswith("xreport:"):
             generation_mode = {
@@ -178,14 +185,18 @@ def run_inference_job(
                 {
                     "image": filename,
                     "report": report,
-                    "checkpoint": model_ref.removeprefix("xreport:")
-                    if model_ref.startswith("xreport:")
-                    else model_ref,
                 }
                 for filename, report in reports_by_filename.items()
             ],
-            generation_mode=generation_profile,
+            provider=model_ref.partition(":")[0],
+            model_ref=model_ref,
+            model_revision=model_revision,
+            generation_profile=generation_profile,
+            generation_config={"profile": generation_profile},
+            clinical_context=clinical_context,
             request_id=request_id,
+            status="succeeded",
+            execution_time_seconds=time.perf_counter() - started_at,
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to persist generated reports for %s: %s", job_id, exc)
@@ -367,6 +378,7 @@ class InferenceService:
                 runner=run_inference_job,
                 kwargs={
                     "model_ref": model_ref,
+                    "model_revision": selected_model.model_revision,
                     "generation_profile": generation_profile,
                     "clinical_context": clinical_context,
                     "request_id": request_id,

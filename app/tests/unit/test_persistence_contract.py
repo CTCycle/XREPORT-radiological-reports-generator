@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import pandas as pd
-from sqlalchemy import create_engine, select
+import pytest
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 
 from server.repositories.database.engine import Database
+from server.repositories.database.initializer import validate_current_schema
 from server.repositories.schemas import (
     Base,
     Dataset,
@@ -16,6 +18,7 @@ from server.repositories.schemas import (
     ValidationRun,
 )
 from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.inference import InferenceRepository
 
 
 def _serializer() -> tuple[DatasetRepository, Database]:
@@ -27,6 +30,22 @@ def _serializer() -> tuple[DatasetRepository, Database]:
     database.insert_batch_size = 100
     Base.metadata.create_all(database.engine)
     return DatasetRepository(database=database), database
+
+
+def test_inference_first_schema_rejects_create_all_legacy_shape() -> None:
+    database = Database.__new__(Database)
+    database.engine = create_engine("sqlite:///:memory:", future=True)
+    with database.engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE inference_runs ("
+                "inference_run_id INTEGER PRIMARY KEY, checkpoint_id INTEGER, "
+                "generation_mode TEXT, request_id TEXT)"
+            )
+        )
+
+    with pytest.raises(ValueError, match="create_all does not migrate columns"):
+        validate_current_schema(database)
 
 
 def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
@@ -238,21 +257,36 @@ def test_validation_aggregates_are_stored_on_the_run() -> None:
 
 
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
-    serializer, database = _serializer()
+    _, database = _serializer()
+    serializer = InferenceRepository(database=database)
     serializer.save_generated_reports(
         [
-            {"image": "B.PNG", "report": "second", "checkpoint": "model"},
-            {"image": "A.PNG", "report": "first", "checkpoint": "model"},
+            {"image": "B.PNG", "report": "second"},
+            {"image": "A.PNG", "report": "first"},
         ],
-        generation_mode="greedy",
+        provider="ollama",
+        model_ref="ollama:medgemma:4b",
+        model_revision=None,
+        generation_profile="deterministic",
+        generation_config={"temperature": 0},
+        clinical_context="Cough",
         request_id="request-1",
+        status="succeeded",
+        execution_time_seconds=2.5,
     )
     serializer.save_generated_reports(
         [
-            {"image": "A.PNG", "report": "replayed", "checkpoint": "model"},
+            {"image": "A.PNG", "report": "replayed"},
         ],
-        generation_mode="greedy",
+        provider="ollama",
+        model_ref="ollama:medgemma:4b",
+        model_revision=None,
+        generation_profile="concise",
+        generation_config={"temperature": 0},
+        clinical_context="Updated",
         request_id="request-1",
+        status="succeeded",
+        execution_time_seconds=1.25,
     )
     with database.read_session() as session:
         runs = session.execute(select(InferenceRun)).scalars().all()
@@ -260,6 +294,26 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
             select(InferenceReport).order_by(InferenceReport.image_index)
         ).scalars().all()
     assert len(runs) == 1
+    assert runs[0].checkpoint_id is None
+    assert runs[0].provider == "ollama"
+    assert runs[0].model_ref == "ollama:medgemma:4b"
+    assert runs[0].generation_profile == "concise"
+    assert runs[0].clinical_context == "Updated"
+    assert runs[0].execution_time_seconds == 1.25
     assert len(reports) == 1
     assert reports[0].image_index == 0
     assert reports[0].generated_report == "replayed"
+    assert serializer.list_inference_history(model_ref="ollama:medgemma:4b") == [
+        {
+            "request_id": "request-1",
+            "provider": "ollama",
+            "model_ref": "ollama:medgemma:4b",
+            "model_revision": None,
+            "generation_profile": "concise",
+            "generation_config": {"temperature": 0},
+            "clinical_context": "Updated",
+            "status": "succeeded",
+            "execution_time_seconds": 1.25,
+            "date": runs[0].executed_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    ]

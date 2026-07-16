@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,8 +33,6 @@ from server.repositories.schemas import (
     Dataset,
     DatasetRecord,
     DatasetVersion,
-    InferenceReport,
-    InferenceRun,
     ProcessingRun,
     TrainingSample,
     ValidationRun,
@@ -706,63 +703,6 @@ class DatasetRepository(JsonDataSupport):
                 )
 
     # -------------------------------------------------------------------------
-    def save_generated_reports(
-        self,
-        reports: list[dict[str, Any]],
-        generation_mode: str = "unknown",
-        request_id: str | None = None,
-    ) -> None:
-        if not reports:
-            return
-        checkpoint = str(reports[0].get("checkpoint") or "").strip()
-        if not checkpoint:
-            raise ValueError("Generated reports payload requires checkpoint")
-
-        checkpoint_id = self._ensure_checkpoint(checkpoint)
-        normalized_request_id = str(request_id or "").strip()
-        if not normalized_request_id:
-            normalized_request_id = f"gen_{uuid.uuid4().hex[:12]}"
-        normalized_generation_mode = str(generation_mode or "").strip() or "unknown"
-
-        reports_df = pd.DataFrame(reports)
-        if "image" not in reports_df or "report" not in reports_df:
-            raise ValueError("Generated reports require image and report fields")
-        with self.database.transaction() as session:
-            run = session.execute(
-                select(InferenceRun).where(
-                    InferenceRun.request_id == normalized_request_id
-                )
-            ).scalar_one_or_none()
-            if run is None:
-                run = InferenceRun(
-                    checkpoint_id=checkpoint_id,
-                    generation_mode=normalized_generation_mode,
-                    request_id=normalized_request_id,
-                    status="succeeded",
-                    executed_at=self._now_utc(),
-                )
-                session.add(run)
-                session.flush()
-            else:
-                run.status = "succeeded"
-                session.execute(
-                    delete(InferenceReport).where(
-                        InferenceReport.inference_run_id == run.inference_run_id
-                    )
-                )
-            session.add_all(
-                InferenceReport(
-                    inference_run_id=run.inference_run_id,
-                    input_image_name=str(row.image),
-                    input_image_name_key=normalize_key(str(row.image)),
-                    image_index=index,
-                    generated_report=str(row.report),
-                    record_id=None,
-                )
-                for index, row in enumerate(reports_df.itertuples(index=False))
-            )
-
-    # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
         dataset_name = str(report.get("dataset_name") or "").strip()
         if not dataset_name:
@@ -994,42 +934,6 @@ class DatasetRepository(JsonDataSupport):
             )
         finally:
             session.close()
-
-    # -------------------------------------------------------------------------
-    def list_inference_history(
-        self, checkpoint: str | None = None, *, limit: int = 50, offset: int = 0
-    ) -> list[dict[str, Any]]:
-        if limit < 1 or limit > 500:
-            raise ValueError("limit must be between 1 and 500")
-        if offset < 0:
-            raise ValueError("offset must be >= 0")
-        stmt = (
-            select(
-                InferenceRun.request_id,
-                InferenceRun.generation_mode,
-                InferenceRun.status,
-                InferenceRun.executed_at,
-                Checkpoint.name,
-            )
-            .join(Checkpoint, Checkpoint.checkpoint_id == InferenceRun.checkpoint_id)
-            .order_by(InferenceRun.executed_at.desc(), InferenceRun.inference_run_id.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-        if checkpoint:
-            stmt = stmt.where(Checkpoint.name_key == normalize_key(checkpoint))
-        with self.database.read_session() as session:
-            rows = session.execute(stmt).all()
-        return [
-            {
-                "request_id": row[0],
-                "generation_mode": row[1],
-                "status": row[2],
-                "date": self._format_datetime(row[3]),
-                "checkpoint": row[4],
-            }
-            for row in rows
-        ]
 
     # -------------------------------------------------------------------------
     def list_checkpoint_evaluations(

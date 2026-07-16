@@ -341,14 +341,20 @@ class InferenceRun(Base):
 
     __tablename__ = "inference_runs"
     inference_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    checkpoint_id: Mapped[int] = mapped_column(
+    checkpoint_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("checkpoints.checkpoint_id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
     )
-    generation_mode: Mapped[str] = mapped_column(String, nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model_ref: Mapped[str] = mapped_column(String(512), nullable=False)
+    model_revision: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    generation_profile: Mapped[str] = mapped_column(String(32), nullable=False)
+    generation_config_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
+    clinical_context: Mapped[str | None] = mapped_column(Text, nullable=True)
     request_id: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="succeeded")
+    execution_time_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     executed_at: Mapped[datetime] = mapped_column(
         UTCDateTime(),
         nullable=False,
@@ -361,7 +367,7 @@ class InferenceRun(Base):
         ),
         UniqueConstraint("request_id", name="uq_inference_runs_request_id"),
     )
-    checkpoint: Mapped[Checkpoint] = relationship("Checkpoint", back_populates="inference_runs")
+    checkpoint: Mapped[Checkpoint | None] = relationship("Checkpoint", back_populates="inference_runs")
     reports: Mapped[list[InferenceReport]] = relationship(
         "InferenceReport",
         back_populates="inference_run",

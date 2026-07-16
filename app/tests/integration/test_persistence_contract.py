@@ -31,6 +31,22 @@ def test_postgresql_schema_contract() -> None:
         Base.metadata.create_all(database.engine)
         tables = set(inspect(database.engine).get_table_names())
         assert {"datasets", "dataset_versions", "dataset_records"} <= tables
+        inference_columns = {
+            column["name"]: column
+            for column in inspect(database.engine).get_columns("inference_runs")
+        }
+        assert {
+            "provider",
+            "model_ref",
+            "model_revision",
+            "generation_profile",
+            "generation_config_json",
+            "clinical_context",
+            "request_id",
+            "status",
+            "execution_time_seconds",
+        } <= set(inference_columns)
+        assert inference_columns["checkpoint_id"]["nullable"] is True
         with database.transaction() as session:
             session.execute(text("SELECT 1"))
     finally:

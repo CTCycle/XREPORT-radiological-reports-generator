@@ -13,6 +13,36 @@ from server.common.utils.logger import logger
 from server.repositories.schemas import Base
 
 
+INFERENCE_RUN_COLUMNS = {
+    "checkpoint_id",
+    "provider",
+    "model_ref",
+    "model_revision",
+    "generation_profile",
+    "generation_config_json",
+    "clinical_context",
+    "request_id",
+    "status",
+    "execution_time_seconds",
+    "executed_at",
+}
+
+
+def validate_current_schema(repository: Database) -> None:
+    inspector = sqlalchemy.inspect(repository.engine)
+    if not inspector.has_table("inference_runs"):
+        return
+    columns = {column["name"] for column in inspector.get_columns("inference_runs")}
+    missing = INFERENCE_RUN_COLUMNS - columns
+    if missing:
+        backend = repository.engine.dialect.name
+        raise ValueError(
+            "Database schema predates the inference-first branch. "
+            f"Recreate the {backend} database before startup; create_all does not migrate "
+            f"columns. Missing inference columns: {', '.join(sorted(missing))}"
+        )
+
+
 def _postgres_database_exists_sql() -> str:
     return "SELECT 1 FROM pg_database WHERE datname=:name"
 
@@ -72,6 +102,8 @@ def build_postgres_create_database_sql(
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = Database(settings)
     Base.metadata.create_all(repository.engine)
+    validate_current_schema(repository)
+    repository.engine.dispose()
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 ###############################################################################
@@ -113,6 +145,7 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
     normalized_settings = clone_settings_with_database(settings, target_database)
     repository = Database(normalized_settings)
     Base.metadata.create_all(repository.engine)
+    validate_current_schema(repository)
     repository.engine.dispose()
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
 
