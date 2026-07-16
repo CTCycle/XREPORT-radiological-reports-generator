@@ -48,9 +48,6 @@ class InferenceSettings:
     device: str
     max_loaded_models: int
     model_timeout: int
-    maira2_enabled: bool = False
-    maira2_worker_url: str = "http://127.0.0.1:5010"
-    maira2_revision: str | None = None
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -235,9 +232,6 @@ class JsonInferenceSettings(BaseModel):
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1)
     model_timeout: int = Field(default=600, ge=1)
-    maira2_enabled: bool = False
-    maira2_worker_url: str = "http://127.0.0.1:5010"
-    maira2_revision: str | None = None
 
     # -------------------------------------------------------------------------
     @model_validator(mode="before")
@@ -273,16 +267,6 @@ class JsonInferenceSettings(BaseModel):
             default=int(payload.get("model_timeout", 600)),
             minimum=1,
         )
-        payload["maira2_enabled"] = _normalize_bool_env(
-            os.getenv("XREPORT_MAIRA2_ENABLED"),
-            default=bool(payload.get("maira2_enabled", False)),
-        )
-        payload["maira2_worker_url"] = _normalize_optional_string(
-            os.getenv("XREPORT_MAIRA2_WORKER_URL")
-        ) or payload.get("maira2_worker_url", "http://127.0.0.1:5010")
-        payload["maira2_revision"] = _normalize_optional_string(
-            os.getenv("XREPORT_MAIRA2_REVISION")
-        ) or _normalize_optional_string(payload.get("maira2_revision"))
         return payload
 
 ###############################################################################
@@ -365,9 +349,6 @@ class JsonServerSettings(BaseModel):
                 device=self.inference.device,
                 max_loaded_models=self.inference.max_loaded_models,
                 model_timeout=self.inference.model_timeout,
-                maira2_enabled=self.inference.maira2_enabled,
-                maira2_worker_url=self.inference.maira2_worker_url,
-                maira2_revision=self.inference.maira2_revision,
             ),
         )
 

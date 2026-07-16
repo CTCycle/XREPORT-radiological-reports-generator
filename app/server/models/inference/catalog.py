@@ -14,7 +14,6 @@ from server.domain.inference import (
 from server.repositories.serialization.model import ModelSerializer
 from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.models.inference.providers.maira2 import Maira2Provider
 
 
 CATALOG_PATH = (
@@ -33,12 +32,9 @@ class InferenceModelCatalog:
     # -------------------------------------------------------------------------
     def list_models(self) -> InferenceModelsResponse:
         installed_ollama = OllamaProvider(self.settings).installed_models()
-        maira2 = Maira2Provider(self.settings)
-        maira2_status, maira2_message = maira2.availability()
         models = self._configured_models(
             installed_ollama,
             HuggingFaceProvider(self.settings),
-            maira2_status,
         )
         models.extend(self._xreport_models())
         huggingface_status = self._huggingface_provider_status()
@@ -53,10 +49,6 @@ class InferenceModelCatalog:
                 "ollama": self._ollama_provider_status(installed_ollama),
                 "huggingface": huggingface_status,
                 "xreport": ProviderAvailability(status="ready"),
-                "maira2": ProviderAvailability(
-                    status=maira2_status,  # type: ignore[arg-type]
-                    message=maira2_message,
-                ),
             },
         )
 
@@ -65,14 +57,13 @@ class InferenceModelCatalog:
         self,
         installed_ollama: set[str] | None,
         huggingface: HuggingFaceProvider,
-        maira2_status: str,
     ) -> list[ModelAvailability]:
         payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
         configured = payload.get("models", [])
         if not isinstance(configured, list):
             raise ValueError("Inference model catalog must contain a models list")
         return [
-            self._configured_model(entry, installed_ollama, huggingface, maira2_status)
+            self._configured_model(entry, installed_ollama, huggingface)
             for entry in configured
             if isinstance(entry, dict)
         ]
@@ -83,7 +74,6 @@ class InferenceModelCatalog:
         entry: dict[str, Any],
         installed_ollama: set[str] | None,
         huggingface: HuggingFaceProvider,
-        maira2_status: str,
     ) -> ModelAvailability:
         provider = str(entry["provider"])
         status = (
@@ -113,9 +103,6 @@ class InferenceModelCatalog:
                 model_revision,
             ):
                 status = "ready"
-        if provider == "maira2":
-            status = maira2_status
-            model_revision = self.settings.maira2_revision
         return ModelAvailability(
             model_ref=str(entry["model_ref"]),
             provider=provider,  # type: ignore[arg-type]

@@ -28,7 +28,7 @@ class ModelCapabilities(BaseModel):
 ###############################################################################
 class ModelAvailability(BaseModel):
     model_ref: str
-    provider: Literal["ollama", "huggingface", "xreport", "maira2"]
+    provider: Literal["ollama", "huggingface", "xreport"]
     display_name: str
     description: str
     status: Literal["ready", "not_installed", "gated", "runtime_unavailable", "incompatible", "disabled"]

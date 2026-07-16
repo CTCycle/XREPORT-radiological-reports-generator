@@ -58,7 +58,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/deployment.md`
   - Local deployment scope and runtime preparation notes.
 - `runtime/local_inference_models.md`
-  - Offline model catalog, Ollama, Hugging Face, and isolated MAIRA-2 requirements, plus research-use constraints.
+  - Offline model catalog, Ollama, Hugging Face requirements, and research-use constraints.
 
 ### UI
 

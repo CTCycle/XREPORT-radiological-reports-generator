@@ -18,7 +18,7 @@ The application runs locally as a FastAPI backend with a Vite-served web interfa
 
 ## 2. Model and Dataset (Optional)
 
-XREPORT supports its trained image-captioning checkpoints plus curated local Ollama, offline Hugging Face MedGemma, and an isolated MAIRA-2 worker. It never pulls or downloads inference models automatically.
+XREPORT supports its trained image-captioning checkpoints plus curated local Ollama and offline Hugging Face MedGemma. It never pulls or downloads inference models automatically.
 
 Supported data sources:
 - **MIMIC-CXR** (initial validation dataset)

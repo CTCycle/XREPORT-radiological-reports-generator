@@ -1,18 +1,6 @@
 {
   "models": [
     {
-      "model_ref": "maira2:microsoft/maira-2",
-      "provider": "maira2",
-      "display_name": "MAIRA-2",
-      "description": "Chest X-ray findings model running in an isolated loopback-only worker.",
-      "category": "chest_xray_specialist",
-      "research_only": true,
-      "gated": true,
-      "parameter_size": "7B",
-      "input_semantics": "single_image",
-      "capabilities": {"clinical_context": true, "findings": true, "impression": false, "grounding": false}
-    },
-    {
       "model_ref": "huggingface:google/medgemma-1.5-4b-it",
       "provider": "huggingface",
       "display_name": "MedGemma 1.5 4B",
