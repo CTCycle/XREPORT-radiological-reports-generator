@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 ## Database Backend Selection
 
@@ -15,6 +15,15 @@ From `XREPORT/settings/.env`:
 - SQLite mode ensures schema creation against the local database file.
 - PostgreSQL mode executes database and schema initialization from `.env` connection settings.
 - Additional startup validation ensures required resource directories exist.
+
+## Inference-First Branch Recreation Policy
+
+This feature branch intentionally uses a clean database recreation instead of legacy inference migrations. SQLAlchemy `create_all` creates missing tables but does not migrate existing columns. Startup validates the `inference_runs` shape and fails with a recreation instruction when it detects the legacy schema.
+
+- SQLite: stop XREPORT, delete `app/resources/database.db`, then restart or run database initialization.
+- PostgreSQL: use a disposable feature-branch database and drop/recreate that database before initialization. Do not point this branch at a database whose data must be retained.
+
+The inference-first schema makes checkpoint linkage nullable and records provider, model reference and revision, generation profile/configuration, clinical context, request ID, lifecycle status, execution timestamp, and execution duration. Generated-report persistence is owned by `InferenceRepository`.
 
 SQLite connections enable foreign-key enforcement, WAL journaling, normal
 synchronous mode, and a 30-second busy timeout. All dataframe persistence
