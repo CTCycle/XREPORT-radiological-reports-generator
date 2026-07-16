@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -22,20 +23,24 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
+
 
 ###############################################################################
 @dataclass(frozen=True)
 class FeatureSettings:
     allow_local_filesystem_access: bool
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -48,6 +53,10 @@ class InferenceSettings:
     device: str
     max_loaded_models: int
     model_timeout: int
+    maira2_enabled: bool = False
+    maira2_worker_url: str = "http://127.0.0.1:5010"
+    maira2_revision: str | None = None
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -58,12 +67,14 @@ class ServerSettings:
     jobs: JobsSettings
     inference: InferenceSettings
 
+
 ###############################################################################
 def _normalize_optional_string(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
+
 
 ###############################################################################
 def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
@@ -75,6 +86,7 @@ def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     return default
+
 
 ###############################################################################
 def _normalize_int_env(
@@ -96,6 +108,7 @@ def _normalize_int_env(
         return default
     return parsed
 
+
 ###############################################################################
 def _database_env_payload() -> dict[str, Any]:
     database_url = _normalize_optional_string(os.getenv("XREPORT_DATABASE_URL"))
@@ -112,7 +125,9 @@ def _database_env_payload() -> dict[str, Any]:
     if not engine and url_parts and url_parts.scheme:
         engine = url_parts.scheme
 
-    configured_backend = (_normalize_optional_string(os.getenv("XREPORT_DB_BACKEND")) or "sqlite").lower()
+    configured_backend = (
+        _normalize_optional_string(os.getenv("XREPORT_DB_BACKEND")) or "sqlite"
+    ).lower()
     return {
         "backend": configured_backend,
         "engine": engine or "postgres",
@@ -145,6 +160,7 @@ def _database_env_payload() -> dict[str, Any]:
             minimum=1,
         ),
     }
+
 
 ###############################################################################
 class JsonDatabaseSettings(BaseModel):
@@ -207,17 +223,21 @@ class JsonDatabaseSettings(BaseModel):
             )
         return self
 
+
 ###############################################################################
 class JsonGlobalSettings(BaseModel):
     seed: int = 42
+
 
 ###############################################################################
 class JsonFeatureSettings(BaseModel):
     allow_local_filesystem_access: bool = True
 
+
 ###############################################################################
 class JsonJobsSettings(BaseModel):
     polling_interval: float = 1.0
+
 
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
@@ -229,20 +249,55 @@ class JsonInferenceSettings(BaseModel):
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1)
     model_timeout: int = Field(default=600, ge=1)
+    maira2_enabled: bool = False
+    maira2_worker_url: str = "http://127.0.0.1:5010"
+    maira2_revision: str | None = None
 
     @model_validator(mode="before")
     @classmethod
     def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
         payload = dict(value) if isinstance(value, dict) else {}
-        payload["ollama_base_url"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_BASE_URL")) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
-        payload["ollama_keep_alive"] = _normalize_optional_string(os.getenv("XREPORT_OLLAMA_KEEP_ALIVE")) or payload.get("ollama_keep_alive", "5m")
-        payload["hf_local_only"] = _normalize_bool_env(os.getenv("XREPORT_HF_LOCAL_ONLY"), default=bool(payload.get("hf_local_only", True)))
-        payload["hf_cache_dir"] = _normalize_optional_string(os.getenv("XREPORT_HF_CACHE_DIR")) or _normalize_optional_string(payload.get("hf_cache_dir"))
-        payload["hf_medgemma_revision"] = _normalize_optional_string(os.getenv("XREPORT_HF_MEDGEMMA_REVISION")) or _normalize_optional_string(payload.get("hf_medgemma_revision"))
-        payload["device"] = _normalize_optional_string(os.getenv("XREPORT_INFERENCE_DEVICE")) or payload.get("device", "auto")
-        payload["max_loaded_models"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MAX_LOADED_MODELS"), default=int(payload.get("max_loaded_models", 1)), minimum=1)
-        payload["model_timeout"] = _normalize_int_env(os.getenv("XREPORT_INFERENCE_MODEL_TIMEOUT"), default=int(payload.get("model_timeout", 600)), minimum=1)
+        payload["ollama_base_url"] = _normalize_optional_string(
+            os.getenv("XREPORT_OLLAMA_BASE_URL")
+        ) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
+        payload["ollama_keep_alive"] = _normalize_optional_string(
+            os.getenv("XREPORT_OLLAMA_KEEP_ALIVE")
+        ) or payload.get("ollama_keep_alive", "5m")
+        payload["hf_local_only"] = _normalize_bool_env(
+            os.getenv("XREPORT_HF_LOCAL_ONLY"),
+            default=bool(payload.get("hf_local_only", True)),
+        )
+        payload["hf_cache_dir"] = _normalize_optional_string(
+            os.getenv("XREPORT_HF_CACHE_DIR")
+        ) or _normalize_optional_string(payload.get("hf_cache_dir"))
+        payload["hf_medgemma_revision"] = _normalize_optional_string(
+            os.getenv("XREPORT_HF_MEDGEMMA_REVISION")
+        ) or _normalize_optional_string(payload.get("hf_medgemma_revision"))
+        payload["device"] = _normalize_optional_string(
+            os.getenv("XREPORT_INFERENCE_DEVICE")
+        ) or payload.get("device", "auto")
+        payload["max_loaded_models"] = _normalize_int_env(
+            os.getenv("XREPORT_INFERENCE_MAX_LOADED_MODELS"),
+            default=int(payload.get("max_loaded_models", 1)),
+            minimum=1,
+        )
+        payload["model_timeout"] = _normalize_int_env(
+            os.getenv("XREPORT_INFERENCE_MODEL_TIMEOUT"),
+            default=int(payload.get("model_timeout", 600)),
+            minimum=1,
+        )
+        payload["maira2_enabled"] = _normalize_bool_env(
+            os.getenv("XREPORT_MAIRA2_ENABLED"),
+            default=bool(payload.get("maira2_enabled", False)),
+        )
+        payload["maira2_worker_url"] = _normalize_optional_string(
+            os.getenv("XREPORT_MAIRA2_WORKER_URL")
+        ) or payload.get("maira2_worker_url", "http://127.0.0.1:5010")
+        payload["maira2_revision"] = _normalize_optional_string(
+            os.getenv("XREPORT_MAIRA2_REVISION")
+        ) or _normalize_optional_string(payload.get("maira2_revision"))
         return payload
+
 
 ###############################################################################
 class JsonServerSettings(BaseModel):
@@ -252,7 +307,9 @@ class JsonServerSettings(BaseModel):
     )
 
     database: JsonDatabaseSettings = Field(
-        default_factory=lambda: JsonDatabaseSettings.model_validate(_database_env_payload())
+        default_factory=lambda: JsonDatabaseSettings.model_validate(
+            _database_env_payload()
+        )
     )
     global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings)
     features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
@@ -322,6 +379,9 @@ class JsonServerSettings(BaseModel):
                 device=self.inference.device,
                 max_loaded_models=self.inference.max_loaded_models,
                 model_timeout=self.inference.model_timeout,
+                maira2_enabled=self.inference.maira2_enabled,
+                maira2_worker_url=self.inference.maira2_worker_url,
+                maira2_revision=self.inference.maira2_revision,
             ),
         )
 

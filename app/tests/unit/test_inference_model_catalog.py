@@ -26,7 +26,9 @@ def _settings(
     )
 
 
-def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(monkeypatch) -> None:
+def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         "server.models.inference.catalog.ModelSerializer",
         ModelSerializerStub,
@@ -35,6 +37,7 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(monk
     response = InferenceModelCatalog(_settings()).list_models()
 
     assert [model.model_ref for model in response.models] == [
+        "maira2:microsoft/maira-2",
         "huggingface:google/medgemma-1.5-4b-it",
         "ollama:medgemma:4b",
         "ollama:medgemma:27b",
@@ -45,6 +48,7 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(monk
     assert response.providers["ollama"].status == "runtime_unavailable"
     assert response.providers["huggingface"].status == "incompatible"
     assert response.providers["xreport"].status == "ready"
+    assert response.providers["maira2"].status == "disabled"
 
 
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:
@@ -55,7 +59,7 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
 
     response = InferenceModelCatalog(_settings(hf_local_only=False)).list_models()
 
-    medgemma = response.models[0]
+    medgemma = response.models[1]
     assert medgemma.status == "disabled"
     assert response.providers["huggingface"].status == "disabled"
 
@@ -69,8 +73,7 @@ def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> 
     monkeypatch.setattr(
         "server.models.inference.catalog.HuggingFaceProvider.is_cached",
         lambda self, repository_id, pinned_revision: (
-            repository_id == "google/medgemma-1.5-4b-it"
-            and pinned_revision == revision
+            repository_id == "google/medgemma-1.5-4b-it" and pinned_revision == revision
         ),
     )
 
@@ -78,7 +81,7 @@ def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> 
         _settings(hf_medgemma_revision=revision)
     ).list_models()
 
-    medgemma = response.models[0]
+    medgemma = response.models[1]
     assert medgemma.status == "ready"
     assert medgemma.model_revision == revision
     assert response.providers["huggingface"].status == "ready"

@@ -14,9 +14,12 @@ from server.domain.inference import (
 from server.repositories.serialization.model import ModelSerializer
 from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
+from server.models.inference.providers.maira2 import Maira2Provider
 
 
-CATALOG_PATH = Path(__file__).resolve().parents[4] / "settings" / "inference_models.json"
+CATALOG_PATH = (
+    Path(__file__).resolve().parents[4] / "settings" / "inference_models.json"
+)
 
 
 class InferenceModelCatalog:
@@ -27,10 +30,19 @@ class InferenceModelCatalog:
 
     def list_models(self) -> InferenceModelsResponse:
         installed_ollama = OllamaProvider(self.settings).installed_models()
-        models = self._configured_models(installed_ollama, HuggingFaceProvider(self.settings))
+        maira2 = Maira2Provider(self.settings)
+        maira2_status, maira2_message = maira2.availability()
+        models = self._configured_models(
+            installed_ollama,
+            HuggingFaceProvider(self.settings),
+            maira2_status,
+        )
         models.extend(self._xreport_models())
         huggingface_status = self._huggingface_provider_status()
-        if any(model.provider == "huggingface" and model.status == "ready" for model in models):
+        if any(
+            model.provider == "huggingface" and model.status == "ready"
+            for model in models
+        ):
             huggingface_status = ProviderAvailability(status="ready")
         return InferenceModelsResponse(
             models=models,
@@ -38,31 +50,67 @@ class InferenceModelCatalog:
                 "ollama": self._ollama_provider_status(installed_ollama),
                 "huggingface": huggingface_status,
                 "xreport": ProviderAvailability(status="ready"),
+                "maira2": ProviderAvailability(
+                    status=maira2_status,  # type: ignore[arg-type]
+                    message=maira2_message,
+                ),
             },
         )
 
-    def _configured_models(self, installed_ollama: set[str] | None, huggingface: HuggingFaceProvider) -> list[ModelAvailability]:
+    def _configured_models(
+        self,
+        installed_ollama: set[str] | None,
+        huggingface: HuggingFaceProvider,
+        maira2_status: str,
+    ) -> list[ModelAvailability]:
         payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
         configured = payload.get("models", [])
         if not isinstance(configured, list):
             raise ValueError("Inference model catalog must contain a models list")
-        return [self._configured_model(entry, installed_ollama, huggingface) for entry in configured if isinstance(entry, dict)]
+        return [
+            self._configured_model(entry, installed_ollama, huggingface, maira2_status)
+            for entry in configured
+            if isinstance(entry, dict)
+        ]
 
-    def _configured_model(self, entry: dict[str, Any], installed_ollama: set[str] | None, huggingface: HuggingFaceProvider) -> ModelAvailability:
+    def _configured_model(
+        self,
+        entry: dict[str, Any],
+        installed_ollama: set[str] | None,
+        huggingface: HuggingFaceProvider,
+        maira2_status: str,
+    ) -> ModelAvailability:
         provider = str(entry["provider"])
-        status = "disabled" if provider == "huggingface" and not self.settings.hf_local_only else "not_installed"
+        status = (
+            "disabled"
+            if provider == "huggingface" and not self.settings.hf_local_only
+            else "not_installed"
+        )
         if provider == "ollama":
-            status = "runtime_unavailable" if installed_ollama is None else ("ready" if entry["model_ref"].removeprefix("ollama:") in installed_ollama else "not_installed")
+            status = (
+                "runtime_unavailable"
+                if installed_ollama is None
+                else (
+                    "ready"
+                    if entry["model_ref"].removeprefix("ollama:") in installed_ollama
+                    else "not_installed"
+                )
+            )
         model_revision = entry.get("model_revision")
         if provider == "huggingface":
             model_revision = self.settings.hf_medgemma_revision
-            if self.settings.hf_local_only and not huggingface.is_pinned_revision(model_revision):
+            if self.settings.hf_local_only and not huggingface.is_pinned_revision(
+                model_revision
+            ):
                 status = "incompatible"
             elif self.settings.hf_local_only and huggingface.is_cached(
                 entry["model_ref"].removeprefix("huggingface:"),
                 model_revision,
             ):
                 status = "ready"
+        if provider == "maira2":
+            status = maira2_status
+            model_revision = self.settings.maira2_revision
         return ModelAvailability(
             model_ref=str(entry["model_ref"]),
             provider=provider,  # type: ignore[arg-type]
@@ -76,13 +124,20 @@ class InferenceModelCatalog:
             parameter_size=entry.get("parameter_size"),
             local_size_bytes=entry.get("local_size_bytes"),
             input_semantics=entry.get("input_semantics", "single_image"),  # type: ignore[arg-type]
-            capabilities=ModelCapabilities.model_validate(entry.get("capabilities", {})),
+            capabilities=ModelCapabilities.model_validate(
+                entry.get("capabilities", {})
+            ),
             model_revision=model_revision,
         )
 
-    def _ollama_provider_status(self, installed_models: set[str] | None) -> ProviderAvailability:
+    def _ollama_provider_status(
+        self, installed_models: set[str] | None
+    ) -> ProviderAvailability:
         if installed_models is None:
-            return ProviderAvailability(status="runtime_unavailable", message="Ollama is not running at the configured local address.")
+            return ProviderAvailability(
+                status="runtime_unavailable",
+                message="Ollama is not running at the configured local address.",
+            )
         return ProviderAvailability(status="ready")
 
     def _huggingface_provider_status(self) -> ProviderAvailability:
@@ -91,12 +146,17 @@ class InferenceModelCatalog:
                 status="disabled",
                 message="XREPORT_HF_LOCAL_ONLY must remain enabled for local inference.",
             )
-        if not HuggingFaceProvider.is_pinned_revision(self.settings.hf_medgemma_revision):
+        if not HuggingFaceProvider.is_pinned_revision(
+            self.settings.hf_medgemma_revision
+        ):
             return ProviderAvailability(
                 status="incompatible",
                 message="XREPORT_HF_MEDGEMMA_REVISION must be an exact 40-character cached commit.",
             )
-        return ProviderAvailability(status="not_installed", message="No cached Hugging Face model has been discovered yet.")
+        return ProviderAvailability(
+            status="not_installed",
+            message="No cached Hugging Face model has been discovered yet.",
+        )
 
     def _xreport_models(self) -> list[ModelAvailability]:
         checkpoint_names = ModelSerializer().scan_checkpoints_folder()
