@@ -11,9 +11,11 @@ from server.repositories.schemas.normalization import normalize_key
 from server.repositories.serialization.dataset import DatasetRepository
 
 
+###############################################################################
 class InferenceRepository(DatasetRepository):
     """Persistence boundary for inference and checkpoint history."""
 
+    # -------------------------------------------------------------------------
     def save_generated_reports(
         self,
         reports: list[dict[str, str]],
@@ -75,6 +77,7 @@ class InferenceRepository(DatasetRepository):
                 for index, report in enumerate(reports)
             )
 
+    # -------------------------------------------------------------------------
     def list_inference_history(
         self, model_ref: str | None = None, *, limit: int = 50, offset: int = 0
     ) -> list[dict[str, Any]]:

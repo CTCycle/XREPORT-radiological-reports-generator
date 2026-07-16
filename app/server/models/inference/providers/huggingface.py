@@ -20,9 +20,11 @@ from server.domain.inference import GenerationProfile, InferenceImage
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
+###############################################################################
 class HuggingFaceProvider:
     """One-model, offline-only Hugging Face runtime."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, settings: InferenceSettings) -> None:
         self.settings = settings
         self._lock = threading.Lock()
@@ -30,6 +32,7 @@ class HuggingFaceProvider:
         self._model: Any = None
         self._processor: Any = None
 
+    # -------------------------------------------------------------------------
     def is_cached(self, repository_id: str, revision: str | None = None) -> bool:
         pinned_revision = revision or self.settings.hf_medgemma_revision
         if (
@@ -41,6 +44,7 @@ class HuggingFaceProvider:
         snapshot = self._snapshot_path(repository_id, pinned_revision)
         return (snapshot / "config.json").is_file()
 
+    # -------------------------------------------------------------------------
     def generate(
         self,
         *,
@@ -97,6 +101,7 @@ class HuggingFaceProvider:
         report_progress(1, 1, reports)
         return reports
 
+    # -------------------------------------------------------------------------
     def _load(self, repository_id: str, revision: str) -> tuple[Any, Any]:
         key = (repository_id, revision)
         with self._lock:
@@ -124,6 +129,7 @@ class HuggingFaceProvider:
             self._loaded_key = key
             return self._model, self._processor
 
+    # -------------------------------------------------------------------------
     def unload(self) -> None:
         self._model = None
         self._processor = None
@@ -132,10 +138,12 @@ class HuggingFaceProvider:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+    # -------------------------------------------------------------------------
     def _snapshot_path(self, repository_id: str, revision: str) -> Path:
         cache = Path(self.settings.hf_cache_dir or "")
         return cache / f"models--{repository_id.replace('/', '--')}" / "snapshots" / revision
 
+    # -------------------------------------------------------------------------
     def _device_map(self) -> str:
         if self.settings.device == "auto":
             return "auto"
@@ -143,19 +151,23 @@ class HuggingFaceProvider:
             raise RuntimeError("CUDA was requested for MedGemma but is unavailable")
         return self.settings.device
 
+    # -------------------------------------------------------------------------
     def _dtype(self) -> torch.dtype:
         if torch.cuda.is_available():
             return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         return torch.float32
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def is_pinned_revision(revision: str | None) -> bool:
         return bool(revision and REVISION_PATTERN.fullmatch(revision))
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _max_new_tokens(profile: GenerationProfile) -> int:
         return {"deterministic": 768, "concise": 384, "detailed": 1536}[profile]
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _prompt(profile: GenerationProfile, clinical_context: str) -> str:
         detail = {
