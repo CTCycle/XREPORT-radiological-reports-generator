@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 ## Layer Responsibilities
 
@@ -29,7 +29,7 @@ Location: `XREPORT/server/repositories`
 - `queries/*`: data access adapters
 - `serialization/dataset.py`: dataset, processing, and training-data persistence
 - `serialization/validation.py`: validation aggregate persistence boundary
-- `serialization/inference.py`: inference and checkpoint-history persistence boundary
+- `serialization/inference.py`: inference-run and generated-report persistence boundary
 - `serialization/support.py`: shared JSON and UTC normalization
 
 ### Learning Layer
@@ -38,6 +38,7 @@ Location: `XREPORT/server/models`
 
 - Holds model training and inference implementation details.
 - Includes trainer, scheduler, dataloader, callback, and generator logic.
+- Inference providers sit behind the catalog-selected `model_ref`. Ollama uses its loopback API, MedGemma loads only a pinned local snapshot, and MAIRA-2 custom code runs in a separate loopback-only worker process.
 
 ### Frontend Layer
 
@@ -56,6 +57,7 @@ Location: `XREPORT/client/src`
 - Long-running compute is not executed directly inside request scope.
 - Training uses managed job execution and a process worker pipeline.
 - Preparation, validation, and inference heavy tasks follow start, poll, and cancel flows.
+- Inference jobs retain uploaded images at the service boundary, publish per-request progress/results through the job manager, and persist final metadata/reports through `InferenceRepository`.
 - Database access is synchronous through SQLAlchemy engines and sessions. No async database driver is part of the current implementation.
 
 ## Architectural Constraints
