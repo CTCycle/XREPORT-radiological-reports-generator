@@ -24,8 +24,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 ### Root
 
-- `project_overview.md`
-  - Root index, navigation rules, and environment guidance.
+- `project_index.md`
+  - Documentation index, navigation rules, and environment guidance.
 
 ### Architecture
 
@@ -58,7 +58,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/deployment.md`
   - Local deployment scope and runtime preparation notes.
 - `runtime/local_inference_models.md`
-  - Offline model catalog, Ollama and Hugging Face requirements, and research-use constraints.
+  - Offline model catalog, Ollama, Hugging Face, and isolated MAIRA-2 requirements, plus research-use constraints.
 
 ### UI
 
@@ -82,7 +82,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 ## Reading Order
 
-1. Read `project_overview.md`.
+1. Read `project_index.md`.
 2. Open the smallest leaf file that answers the question.
 3. Expand to adjacent files only when the task crosses topic boundaries.
 4. Return here before jumping to a different topic branch.

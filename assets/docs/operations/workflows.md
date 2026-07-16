@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 ## Prepare A Dataset
 
@@ -31,7 +31,7 @@ Expected result:
 2. Select a ready model from the local model catalog and choose a generation profile.
 3. Submit image inputs and supported clinical context for inference.
 4. Poll job status until completion.
-5. Review generated text outputs.
+5. Edit Findings and Impression, inspect runtime/model metadata, then copy or export the reviewed draft. Regenerate when another draft is needed.
 
 Expected result:
 

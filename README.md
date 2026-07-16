@@ -9,7 +9,7 @@
 
 ## 1. Project Overview
 
-XREPORT is a client-server application that generates draft radiological reports from X-ray images.
+XREPORT is a client-server research application that generates editable draft radiological reports from X-ray images. Models and generated drafts are not clinically approved and require qualified independent review.
 It combines a FastAPI backend and a React frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
 
 The application runs locally as a FastAPI backend with a Vite-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
@@ -18,7 +18,7 @@ The application runs locally as a FastAPI backend with a Vite-served web interfa
 
 ## 2. Model and Dataset (Optional)
 
-XREPORT uses an image-captioning workflow trained via supervised learning to map X-ray findings to text report drafts.
+XREPORT supports its trained image-captioning checkpoints plus curated local Ollama, offline Hugging Face MedGemma, and an isolated MAIRA-2 worker. It never pulls or downloads inference models automatically.
 
 Supported data sources:
 - **MIMIC-CXR** (initial validation dataset)
@@ -83,10 +83,9 @@ The snapshots below were captured from the current Windows web interface at 1440
   ![Dataset management page](assets/figures/readme-dataset.png)
 - **Training workspace**: training session setup, checkpoint actions, and training dashboard.
   ![Training workspace page](assets/figures/readme-training.png)
-- **Inference workspace**: X-ray upload, checkpoint selection, and report generation panel.
-  ![Inference workspace page](assets/figures/readme-inference.png)
+- **Inference workspace**: filterable local model catalog, capability-aware study inputs, clinical context, generation profiles, and editable Findings/Impression drafting with copy, regenerate, and export actions.
 
-For a full operator guide, see `assets/docs/USER_MANUAL.md`.
+For operator guidance, see `assets/docs/operations/getting_started.md` and `assets/docs/operations/workflows.md`.
 
 ---
 
@@ -114,16 +113,16 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 - Runtime/process settings: `settings/.env`
 - Backend defaults: `settings/configurations.json`
 - Database configuration: `settings/.env`
+- Curated local inference catalog: `settings/inference_models.json`
 
 ### 7.1 Database initialization behavior
 
 - SQLite mode (`XREPORT_DB_BACKEND=sqlite`):
   - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
-  - If the file already exists, startup skips initialization.
+  - Existing schemas are validated. On this inference-first branch, a legacy inference schema must be recreated; SQLAlchemy `create_all` does not migrate columns.
 - PostgreSQL mode (`XREPORT_DB_BACKEND=postgresql`):
-  - Application startup never initializes PostgreSQL automatically.
-  - PostgreSQL initialization is manual via `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
-  - The same script can also initialize SQLite if SQLite mode is active, but this is optional because SQLite auto-initializes on first startup.
+  - Use a disposable feature-branch database and recreate it if startup reports legacy inference columns.
+  - Initialization is also available through `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
 
 See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
 

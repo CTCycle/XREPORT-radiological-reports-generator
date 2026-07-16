@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 XREPORT is a local-first client/server system for radiological report generation and model lifecycle workflows.
 
@@ -10,6 +10,7 @@ XREPORT is a local-first client/server system for radiological report generation
 - Backend: FastAPI (`app/server`)
 - Persistence: SQLite by default, PostgreSQL optional (`app/server/repositories/database`)
 - Long-running execution: job manager with start, poll, and cancel contracts (`app/server/services/jobs.py`)
+- Local inference: catalog-selected XREPORT checkpoints, Ollama, offline Hugging Face MedGemma, and an opt-in isolated MAIRA-2 worker
 
 ## Implementation-Relevant Repository Structure
 
@@ -29,6 +30,7 @@ XREPORT is a local-first client/server system for radiological report generation
 │  ├─ .env.example
 │  └─ configurations.json
 └─ app/
+   ├─ maira2_worker/
    ├─ resources/
    ├─ scripts/
    │  └─ initialize_database.py
