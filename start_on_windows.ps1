@@ -176,6 +176,7 @@ function Import-XReportEnvironment {
         RELOAD = 'false'
         OPTIONAL_DEPENDENCIES = 'false'
         BACKEND_VISIBLE = 'false'
+        always_rebuild = 'false'
     }
 
     if (-not (Test-Path -LiteralPath $EnvFile)) {
@@ -203,7 +204,10 @@ function Import-XReportEnvironment {
 }
 
 function Install-Dependencies {
-    param([hashtable]$Settings)
+    param(
+        [hashtable]$Settings,
+        [switch]$BuildFrontend
+    )
 
     Write-Step 'Synchronizing Python dependencies'
     $syncArgs = @('sync', '--python', $PythonExe)
@@ -220,8 +224,10 @@ function Install-Dependencies {
     $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) { @('ci') } else { @('install') }
     Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $ClientDir
 
-    Write-Step 'Building frontend'
-    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+    if ($BuildFrontend) {
+        Write-Step 'Building frontend'
+        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+    }
 }
 
 function Stop-PortListener {
@@ -249,7 +255,7 @@ function Get-PortProcessId {
 function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-XReportEnvironment
-    Install-Dependencies -Settings $settings
+    Install-Dependencies -Settings $settings -BuildFrontend:($settings.always_rebuild -eq 'true')
     Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
     Stop-PortListener -Port ([int]$settings.UI_PORT)
 
