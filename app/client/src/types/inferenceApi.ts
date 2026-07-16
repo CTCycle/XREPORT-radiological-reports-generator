@@ -3,7 +3,7 @@ export type ModelStatus = 'ready' | 'not_installed' | 'gated' | 'runtime_unavail
 
 export interface ModelAvailability {
     model_ref: string;
-    provider: 'ollama' | 'huggingface' | 'xreport' | 'maira2';
+    provider: 'ollama' | 'huggingface' | 'xreport';
     display_name: string;
     description: string;
     status: ModelStatus;

@@ -22,5 +22,4 @@ Last updated: 2026-07-16
 - Local filesystem browsing is feature-gated by `features.allow_local_filesystem_access`.
 - Ollama models must already be installed in the configured local runtime. Catalog discovery and generation do not pull or download models.
 - Hugging Face MedGemma requires a previously cached snapshot and an exact commit in `XREPORT_HF_MEDGEMMA_REVISION`; `main`, tags, and network resolution are rejected.
-- MAIRA-2 is disabled by default and can run only through the separate loopback-IP worker with a matching exact cached revision. The worker forces offline Hugging Face/Transformers modes and is never started automatically.
 - All inference models and generated drafts are for research use only and are not clinically approved.
