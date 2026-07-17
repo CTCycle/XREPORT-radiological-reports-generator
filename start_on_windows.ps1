@@ -176,7 +176,7 @@ function Import-XReportEnvironment {
         RELOAD = 'false'
         OPTIONAL_DEPENDENCIES = 'false'
         BACKEND_VISIBLE = 'false'
-        always_rebuild = 'false'
+        ALWAYS_REBUILD = 'false'
     }
 
     if (-not (Test-Path -LiteralPath $EnvFile)) {
@@ -255,7 +255,7 @@ function Get-PortProcessId {
 function Invoke-Launch {
     Ensure-PortableRuntimes
     $settings = Import-XReportEnvironment
-    Install-Dependencies -Settings $settings -BuildFrontend:($settings.always_rebuild -eq 'true')
+    Install-Dependencies -Settings $settings -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true')
     Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
     Stop-PortListener -Port ([int]$settings.UI_PORT)
 
