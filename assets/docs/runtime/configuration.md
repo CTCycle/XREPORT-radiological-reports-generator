@@ -18,7 +18,7 @@ Last updated: 2026-07-16
 - `RELOAD`
 - `BACKEND_VISIBLE`
 - `OPTIONAL_DEPENDENCIES`
-- `always_rebuild` (set to `true` to rebuild the frontend whenever the Windows
+- `ALWAYS_REBUILD` (set to `true` to rebuild the frontend whenever the Windows
   launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
 - `KERAS_BACKEND`

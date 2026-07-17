@@ -20,8 +20,8 @@ The menu can:
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, opens the browser, and then exits the menu.
 
-Set `always_rebuild=true` in `settings/.env` to rebuild the frontend during
-application launch. The default `always_rebuild=false` skips that startup
+Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
+application launch. The default `ALWAYS_REBUILD=false` skips that startup
 build; the install/update option continues to build the frontend.
 
 ## Manual Backend And Frontend
