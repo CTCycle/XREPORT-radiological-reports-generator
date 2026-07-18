@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from server.common.utils.logger import logger
-from server.services.jobs import get_job_manager
 
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
@@ -24,13 +23,11 @@ class TrainingInterruptCallback(Callback):
     def __init__(
         self,
         worker: Any | None = None,
-        job_id: str | None = None,
         stop_event: Any | None = None,
     ) -> None:
         super().__init__()
         self.should_stop = False
         self.worker = worker
-        self.job_id = job_id
         self.stop_event = stop_event
         self.stop_logged = False
         self.model: keras.Model
@@ -52,9 +49,7 @@ class TrainingInterruptCallback(Callback):
             return True
         if self.stop_event is not None and self.stop_event.is_set():
             return True
-        if self.job_id is None:
-            return False
-        return get_job_manager().should_stop(self.job_id)
+        return False
 
     # -------------------------------------------------------------------------
     def apply_stop_if_requested(self) -> None:
@@ -136,7 +131,7 @@ class TrainingProgressCallback(Callback):
         logs = logs or {}
 
         # Calculate progress based on current epoch and batch position
-        steps_per_epoch = self.params.get("steps", 1)
+        steps_per_epoch = int((self.params or {}).get("steps") or 1)
         epoch_progress = (batch + 1) / steps_per_epoch
         total_epochs_to_run = max(1, self.total_epochs - self.from_epoch)
         completed_epochs = self.current_epoch_index - self.from_epoch
@@ -291,7 +286,7 @@ class RealTimeMetricsCallback(Callback):
         self.global_batch_index = epoch + 1
         self.epoch_boundaries.append(self.global_batch_index)
 
-        point = {"batch": self.global_batch_index}
+        point: dict[str, float | int] = {"batch": self.global_batch_index}
         for key, value in logs.items():
             point[key] = float(value)
             self.available_batch_metrics.add(key)

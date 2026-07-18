@@ -115,7 +115,7 @@ class PreparationRepository:
             result = session.execute(
                 delete(Dataset).where(Dataset.name_key == normalize_key(dataset_name))
             )
-            rowcount = int(result.rowcount or 0)
+            rowcount = int(getattr(result, "rowcount", 0) or 0)
             if rowcount > 0:
                 session.commit()
             return rowcount

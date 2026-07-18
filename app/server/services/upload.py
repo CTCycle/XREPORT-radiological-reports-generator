@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import HTTPException, status
+from server.services.errors import (
+    BadRequestError,
+    PayloadTooLargeError,
+    ServiceError,
+)
 
 from server.common.utils.logger import logger
 from server.common.utils.security import sanitize_dataset_name
@@ -15,11 +19,6 @@ from server.domain.training import DatasetUploadResponse
 
 MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
-###############################################################################
-def _sanitize_filename(filename: str) -> str:
-    return Path(filename.replace("\\", "/")).name
-
-###############################################################################
 class UploadState:
     """Encapsulates temporary dataset storage."""
 
@@ -56,29 +55,25 @@ class UploadService:
     # -------------------------------------------------------------------------
     def upload_dataset(self, filename: str, contents: bytes) -> DatasetUploadResponse:
         if not filename:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="No file provided",
             )
 
-        filename = _sanitize_filename(filename.strip())
+        filename = Path(filename.strip().replace("\\", "/")).name
         if not filename:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="Invalid file name",
             )
         ext = Path(filename).suffix.lower()
 
         if ext not in {".csv", ".xlsx"}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"Invalid file type: {ext}. Only .csv and .xlsx files are allowed",
             )
 
         try:
             if len(contents) > MAX_DATASET_UPLOAD_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                raise PayloadTooLargeError(
                     detail=(
                         "Dataset payload exceeds "
                         f"{MAX_DATASET_UPLOAD_BYTES // (1024 * 1024)} MB limit"
@@ -116,12 +111,11 @@ class UploadService:
                 columns=list(df.columns),
                 message=f"Successfully parsed {filename}",
             )
-        except HTTPException:
+        except ServiceError:
             raise
         except Exception as e:
             logger.exception(f"Failed to parse dataset file: {filename}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"Failed to parse file: {str(e)}",
             ) from e
 

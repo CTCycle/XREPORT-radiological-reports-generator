@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-
-from fastapi import HTTPException, status
+from typing import Any
 
 from server.common.utils.security import resolve_checkpoint_path
 from server.domain.inference import InferenceImage
 from server.models.inference import TextGenerator
 from server.models.training.dataloader import XRAYDataLoader
-from server.repositories.serialization.model import ModelSerializer
 
 
 ###############################################################################
@@ -21,18 +19,23 @@ class XReportCheckpointProvider:
         try:
             checkpoint_dir = resolve_checkpoint_path(checkpoint)
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise ValueError(str(exc)) from exc
         if not (Path(checkpoint_dir) / "saved_model.keras").is_file():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Checkpoint not found: {Path(checkpoint_dir).name}")
+            raise FileNotFoundError(
+                f"Checkpoint not found: {Path(checkpoint_dir).name}"
+            )
         return Path(checkpoint_dir).name
 
     # -------------------------------------------------------------------------
-    def generate(self, checkpoint: str, generation_mode: str, images: list[InferenceImage], should_stop: Callable[[], bool], report_progress: Callable[[int, int, dict[str, str]], None]) -> dict[str, str]:
-        serializer = ModelSerializer()
-        try:
-            model, _, model_metadata, _, _ = serializer.load_checkpoint(checkpoint)
-        except Exception as exc:  # noqa: BLE001
-            raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
+    def generate(
+        self,
+        model: Any,
+        model_metadata: dict[str, Any],
+        generation_mode: str,
+        images: list[InferenceImage],
+        should_stop: Callable[[], bool],
+        report_progress: Callable[[int, int, dict[str, str]], None],
+    ) -> dict[str, str]:
         model.summary(expand_nested=True)
         generator = TextGenerator(model, model_metadata, model_metadata.get("max_report_size", 200))
         tokenizers_info = generator.load_tokenizer_and_configuration()

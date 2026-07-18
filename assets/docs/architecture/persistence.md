@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-07-16
+Last updated: 2026-07-18
 
 ## Database Backend Selection
 
@@ -25,6 +25,8 @@ This feature branch intentionally uses a clean database recreation instead of le
 
 The inference-first schema makes checkpoint linkage nullable and records provider, model reference and revision, generation profile/configuration, clinical context, request ID, lifecycle status, execution timestamp, and execution duration. Generated-report persistence is owned by `InferenceRepository`.
 
+`DatasetRepository`, `ValidationRepository`, and `InferenceRepository` are independent domain repositories. They share only focused `RepositorySupport` primitives for database injection, sessions, generic table operations, date/JSON normalization, and dataset/checkpoint lookup; none inherits another domain repository.
+
 SQLite connections enable foreign-key enforcement, WAL journaling, normal
 synchronous mode, and a 30-second busy timeout. All dataframe persistence
 batches now run inside one transaction and roll back together on failure.
@@ -38,6 +40,8 @@ Core persisted entities include:
 - validation runs plus text and image aggregates plus pixel distributions
 - checkpoints and checkpoint evaluations
 - inference runs and generated reports
+
+Persistence ownership is singular: dataset versioning, processing, and training samples belong to `DatasetRepository`; validation runs, validation aggregates, and checkpoint evaluations belong to `ValidationRepository`; inference runs and generated reports belong to `InferenceRepository`.
 
 Dataset and record logical identities use normalized Unicode NFKC, trimmed,
 case-folded keys. Each source import is an immutable `dataset_versions` snapshot:

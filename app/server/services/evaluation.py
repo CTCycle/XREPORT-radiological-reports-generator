@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from numbers import Real
 from typing import Any
 
 import numpy as np
@@ -170,6 +171,8 @@ class CheckpointEvaluator:
 
         # Calculate corpus BLEU score
         bleu_score = corpus_bleu(references, hypotheses)
+        if not isinstance(bleu_score, Real):
+            raise TypeError("BLEU calculation returned a non-numeric result")
         logger.info(f"BLEU score: {bleu_score:.4f}")
 
         return float(bleu_score)

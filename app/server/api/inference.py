@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, File, Form, UploadFile, status
 
 from server.domain.inference import GenerationProfile, InferenceImage, InferenceModelsResponse
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
-###############################################################################
-def _sanitize_filename(filename: str) -> str:
-    return Path(filename.replace("\\", "/")).name
-
-###############################################################################
 class InferenceEndpoint:
 
     # -------------------------------------------------------------------------
@@ -38,7 +31,7 @@ class InferenceEndpoint:
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
         for image in images:
-            filename = _sanitize_filename((image.filename or "").strip())
+            filename = (image.filename or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
             content = await image.read()
             parsed_images.append(
                 InferenceImage(
