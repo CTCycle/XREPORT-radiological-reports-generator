@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from server.repositories.database.engine import Database
 from server.repositories.schemas import (
     Base,
+    CheckpointEvaluation,
     Dataset,
     DatasetRecord,
     DatasetVersion,
@@ -17,6 +18,7 @@ from server.repositories.schemas import (
 )
 from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.inference import InferenceRepository
+from server.repositories.serialization.validation import ValidationRepository
 
 
 ###############################################################################
@@ -208,8 +210,8 @@ def test_processing_run_and_samples_roll_back_together() -> None:
 
 ###############################################################################
 def test_validation_report_children_commit_atomically() -> None:
-    serializer, database = _serializer()
-    serializer.upsert_source_dataset(
+    dataset_repository, database = _serializer()
+    dataset_repository.upsert_source_dataset(
         pd.DataFrame(
             [
                 {
@@ -221,7 +223,7 @@ def test_validation_report_children_commit_atomically() -> None:
             ]
         )
     )
-    serializer.save_validation_report(
+    ValidationRepository(database=database).save_validation_report(
         {
             "dataset_name": "Chest",
             "sample_size": 1.0,
@@ -236,13 +238,39 @@ def test_validation_report_children_commit_atomically() -> None:
 
 ###############################################################################
 def test_validation_aggregates_are_stored_on_the_run() -> None:
-    serializer, database = _serializer()
-    serializer.save_validation_report(
+    _, database = _serializer()
+    ValidationRepository(database=database).save_validation_report(
         {"dataset_name": "Chest", "metrics": [], "pixel_distribution": {"bins": [999], "counts": [1]}}
     )
     with database.read_session() as session:
         run = session.execute(select(ValidationRun)).scalar_one()
         assert run.pixel_bins_json == [999]
+
+
+###############################################################################
+def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
+    _, database = _serializer()
+    repository = ValidationRepository(database=database)
+    repository.save_checkpoint_evaluation_report(
+        {
+            "checkpoint": "checkpoint-1",
+            "metrics": ["bleu_score"],
+            "metric_configs": {"bleu_score": {"data_fraction": 0.5}},
+            "results": {"bleu_score": 0.75},
+        }
+    )
+
+    with database.read_session() as session:
+        evaluations = session.execute(select(CheckpointEvaluation)).scalars().all()
+
+    assert len(evaluations) == 1
+    assert repository.get_checkpoint_evaluation_report("checkpoint-1") == {
+        "checkpoint": "checkpoint-1",
+        "date": evaluations[0].executed_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "metrics": ["bleu_score"],
+        "metric_configs": {"bleu_score": {"data_fraction": 0.5}},
+        "results": {"bleu_score": 0.75},
+    }
 
 
 ###############################################################################

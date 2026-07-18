@@ -6,7 +6,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException, status
+from server.services.errors import (
+    BadRequestError,
+    ConflictError,
+    InternalServiceError,
+    NotFoundError,
+)
 
 from server.domain.training import (
     CheckpointInfo,
@@ -32,7 +37,7 @@ from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.common.path import CHECKPOINTS_DIR
 from server.configurations.startup import get_server_settings
-from server.models.training.worker import (
+from server.services.training_worker import (
     ProcessWorker,
     run_resume_training_process,
     run_training_process,
@@ -358,8 +363,7 @@ class TrainingService:
     ) -> JobStartResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=initialization_error,
             )
 
@@ -408,21 +412,18 @@ class TrainingService:
         try:
             checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
         try:
             checkpoint_path = resolve_checkpoint_path(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
         checkpoint_path_obj = Path(checkpoint_path)
         if not checkpoint_path_obj.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
@@ -432,8 +433,7 @@ class TrainingService:
                 checkpoint_path
             )
         except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=f"Failed to load checkpoint metadata: {exc}",
             ) from exc
 
@@ -449,36 +449,31 @@ class TrainingService:
         try:
             checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
 
         if self.training_state.state.get("is_training"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Cannot delete checkpoints while training is active",
             )
 
         try:
             checkpoint_path = resolve_checkpoint_path(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
         checkpoint_path_obj = Path(checkpoint_path)
         if not checkpoint_path_obj.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
         try:
             shutil.rmtree(checkpoint_path_obj)
         except OSError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=f"Failed to delete checkpoint: {exc}",
             ) from exc
 
@@ -506,8 +501,7 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Training is already in progress",
             )
 
@@ -525,16 +519,14 @@ class TrainingService:
             dataset_name=dataset_name,
         )
         if not stored_metadata:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
         train_data, validation_data, _ = serializer.load_training_data(
             dataset_name=dataset_name
         )
         if train_data.empty and validation_data.empty:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
 
@@ -561,8 +553,7 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Training is already in progress",
             )
 
@@ -572,38 +563,33 @@ class TrainingService:
 
         stored_metadata = serializer.load_training_data(only_metadata=True)
         if not stored_metadata:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=self.NO_TRAINING_DATA_MESSAGE,
             )
 
         try:
             checkpoint = validate_checkpoint_name(request.checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
 
         try:
             checkpoint_path = resolve_checkpoint_path(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
         checkpoint_path_obj = Path(checkpoint_path)
         if not checkpoint_path_obj.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Checkpoint not found: {checkpoint}",
             )
 
         try:
             _, _, session = modser.load_training_configuration(checkpoint_path_obj)
         except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=f"Failed to load checkpoint metadata: {exc}",
             ) from exc
 
@@ -635,8 +621,7 @@ class TrainingService:
     def get_training_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
         return JobStatusResponse(**job_status)
@@ -645,8 +630,7 @@ class TrainingService:
     def cancel_training_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
 

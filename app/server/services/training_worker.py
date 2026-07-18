@@ -27,8 +27,13 @@ from server.repositories.serialization.model import ModelSerializer
 
 ###############################################################################
 class ProcessLike(Protocol):
-    pid: int | None
-    exitcode: int | None
+    @property
+    def pid(self) -> int | None: ...
+
+    @property
+    def exitcode(self) -> int | None: ...
+
+    def start(self) -> None: ...
 
     # -------------------------------------------------------------------------
     def is_alive(self) -> bool: ...
@@ -105,7 +110,7 @@ class ProcessWorker:
     ) -> None:
         if self.process is not None and self.process.is_alive():
             raise RuntimeError("Worker process is already running")
-        self.process = self.ctx.Process(
+        process = self.ctx.Process(
             target=process_target,
             kwargs={
                 "target": target,
@@ -114,7 +119,8 @@ class ProcessWorker:
             },
             daemon=False,
         )
-        self.process.start()
+        self.process = process
+        process.start()
 
     # -------------------------------------------------------------------------
     def stop(self) -> None:

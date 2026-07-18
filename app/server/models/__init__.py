@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from server.models.device import DeviceConfig
-from server.services.processing import (
+from server.models.training.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,

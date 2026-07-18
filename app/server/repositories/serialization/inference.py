@@ -8,11 +8,11 @@ from sqlalchemy import delete, select
 
 from server.repositories.schemas import InferenceReport, InferenceRun
 from server.repositories.schemas.normalization import normalize_key
-from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.support import RepositorySupport
 
 
 ###############################################################################
-class InferenceRepository(DatasetRepository):
+class InferenceRepository(RepositorySupport):
     """Persistence boundary for inference and checkpoint history."""
 
     # -------------------------------------------------------------------------

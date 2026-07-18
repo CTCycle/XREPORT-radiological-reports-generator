@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from server.api.inference import router as inference_router
+from server.api.errors import register_service_error_handlers
 from server.api.preparation import router as preparation_router
 from server.api.training import router as training_router
 from server.api.upload import router as upload_router
@@ -84,6 +85,7 @@ def create_app() -> FastAPI:
         description=FASTAPI_DESCRIPTION,
         lifespan=app_lifespan,
     )
+    register_service_error_handlers(application)
 
     for router in (
         upload_router,

@@ -7,7 +7,15 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 
-from fastapi import HTTPException, status
+from server.services.errors import (
+    BadRequestError,
+    ConflictError,
+    InternalServiceError,
+    NotFoundError,
+    PayloadTooLargeError,
+    ServiceError,
+    UnsupportedOperationError,
+)
 
 from server.domain.inference import (
     GenerationProfile,
@@ -29,8 +37,9 @@ from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
+from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
-from server.models.inference.catalog import InferenceModelCatalog
+from server.services.inference_catalog import InferenceModelCatalog
 
 
 MAX_INFERENCE_IMAGES = 16
@@ -138,8 +147,16 @@ def run_inference_job(
                 "concise": "greedy_search",
                 "detailed": "beam_search",
             }[generation_profile]
+            checkpoint = model_ref.removeprefix("xreport:")
+            try:
+                model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
+                    checkpoint
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
             reports_by_filename = XReportCheckpointProvider().generate(
-                checkpoint=model_ref.removeprefix("xreport:"),
+                model=model,
+                model_metadata=model_metadata,
                 generation_mode=generation_mode,
                 images=stored_images,
                 should_stop=lambda: get_job_manager().should_stop(job_id),
@@ -227,8 +244,7 @@ class InferenceService:
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
         return job_status
@@ -237,8 +253,7 @@ class InferenceService:
     def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=detail,
             )
         return job_status
@@ -251,25 +266,27 @@ class InferenceService:
         images: list[InferenceImage],
     ) -> str:
         if len(images) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="No images provided",
             )
 
         if len(images) > MAX_INFERENCE_IMAGES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"Maximum {MAX_INFERENCE_IMAGES} images allowed",
             )
 
         allowed_modes = {"greedy_search", "beam_search"}
         if generation_mode not in allowed_modes:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"Unsupported generation mode: {generation_mode}",
             )
 
-        return XReportCheckpointProvider().validate_checkpoint(checkpoint)
+        try:
+            return XReportCheckpointProvider().validate_checkpoint(checkpoint)
+        except FileNotFoundError as exc:
+            raise NotFoundError(detail=str(exc)) from exc
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
 
     # -------------------------------------------------------------------------
     def validate_inference_images(
@@ -280,8 +297,7 @@ class InferenceService:
         for image in images:
             filename = _sanitize_filename(image.filename.strip())
             if not filename:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                raise BadRequestError(
                     detail="Image upload missing filename",
                 )
             content_type = image.content_type or ""
@@ -290,21 +306,18 @@ class InferenceService:
                 content_type not in INFERENCE_IMAGE_CONTENT_TYPES
                 and extension not in INFERENCE_IMAGE_EXTENSIONS
             ):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                raise BadRequestError(
                     detail=f"Unsupported image type: {content_type or extension}",
                 )
 
             if len(image.data) == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
+                raise BadRequestError(
                     detail=f"Empty image payload: {filename}",
                 )
 
             total_bytes += len(image.data)
             if total_bytes > MAX_TOTAL_IMAGE_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                raise PayloadTooLargeError(
                     detail=(
                         "Total image payload exceeds "
                         f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
@@ -331,13 +344,11 @@ class InferenceService:
             None,
         )
         if selected_model is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
         if selected_model.status != "ready":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
         if selected_model.provider not in {
@@ -345,18 +356,15 @@ class InferenceService:
             "ollama",
             "huggingface",
         }:
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            raise UnsupportedOperationError(
                 detail=f"Generation is not implemented for provider: {selected_model.provider}",
             )
         if clinical_context and not selected_model.capabilities.clinical_context:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="Selected model does not support clinical context",
             )
         if selected_model.input_semantics == "single_image" and len(images) != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="Selected model accepts exactly one image",
             )
         if selected_model.provider == "xreport":
@@ -403,14 +411,13 @@ class InferenceService:
                 poll_interval=get_server_settings().jobs.polling_interval,
             )
 
-        except HTTPException:
+        except ServiceError:
             self.inference_image_store.remove_request(request_id)
             raise
         except Exception as e:
             self.inference_image_store.remove_request(request_id)
             logger.error(f"Error starting inference job: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail=str(e),
             ) from e
 
