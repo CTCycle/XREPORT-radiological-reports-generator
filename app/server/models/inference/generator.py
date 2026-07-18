@@ -12,7 +12,7 @@ from keras.utils import set_random_seed
 
 from server.common.utils.logger import logger
 from server.models.training.dataloader import XRAYDataLoader
-from server.services.processing import TokenizerHandler
+from server.models.training.processing import TokenizerHandler
 
 ###############################################################################
 def normalize_beam_score(

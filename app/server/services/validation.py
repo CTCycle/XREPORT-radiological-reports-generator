@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -111,17 +112,27 @@ class DatasetValidator:
 
         # Get record identifiers
         if "image" in self.dataset.columns:
-            names = self.dataset["image"].astype(str).tolist()
+            image_series = self.dataset["image"]
+            if not isinstance(image_series, pd.Series):
+                raise ValueError("Dataset contains duplicate image columns")
+            names = image_series.astype(str).tolist()
         else:
             names = [f"record_{i}" for i in range(len(self.dataset))]
         if "record_id" in self.dataset.columns:
-            record_ids = pd.to_numeric(
-                self.dataset["record_id"], errors="coerce"
-            ).tolist()
+            record_id_series = self.dataset["record_id"]
+            if not isinstance(record_id_series, pd.Series):
+                raise ValueError("Dataset contains duplicate record_id columns")
+            numeric_record_ids = pd.to_numeric(record_id_series, errors="coerce")
+            if not isinstance(numeric_record_ids, pd.Series):
+                raise TypeError("Record identifier conversion did not return a Series")
+            record_ids: list[Any] = numeric_record_ids.tolist()
         else:
             record_ids = [None for _ in range(len(self.dataset))]
 
-        image_paths = self.dataset["path"].tolist()
+        path_series = self.dataset["path"]
+        if not isinstance(path_series, pd.Series):
+            raise ValueError("Dataset contains duplicate path columns")
+        image_paths = path_series.tolist()
 
         # Aggregate collectors
         heights: list[int] = []

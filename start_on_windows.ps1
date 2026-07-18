@@ -361,20 +361,52 @@ function Uninstall-Application {
     Write-Ok 'Application runtimes and generated dependencies removed; settings and user data were preserved'
 }
 
+function Write-MenuRule {
+    param([ConsoleColor]$Color = [ConsoleColor]::DarkCyan)
+    Write-Host ('  ' + ('-' * 68)) -ForegroundColor $Color
+}
+
+function Write-MenuItem {
+    param(
+        [Parameter(Mandatory = $true)][string]$Number,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [ConsoleColor]$NumberColor = [ConsoleColor]::Cyan
+    )
+
+    Write-Host '  '
+    Write-Host "  $Number  " -NoNewline -ForegroundColor $NumberColor
+    Write-Host $Label -ForegroundColor White
+    Write-Host "       $Description" -ForegroundColor DarkGray
+}
+
 function Show-Menu {
     Clear-Host
-    Write-Host '========================================='
-    Write-Host '    XREPORT -- Radiological Reports Generator'
-    Write-Host '========================================='
-    Write-Host '1.  Launch application'
-    Write-Host '2.  Install / update dependencies'
-    Write-Host '3.  Initialize database'
-    Write-Host '4.  Run test suite'
-    Write-Host '5.  Remove logs'
-    Write-Host '6.  Clear cache'
-    Write-Host '7.  Uninstall application'
-    Write-Host '8.  Exit'
-    Write-Host '========================================='
+    Write-Host ''
+    Write-Host '  XREPORT' -ForegroundColor Cyan -NoNewline
+    Write-Host '  /  RADIOLOGICAL REPORTS' -ForegroundColor White
+    Write-Host '  Local workspace console' -ForegroundColor DarkGray
+    Write-MenuRule
+
+    Write-Host '  APPLICATION' -ForegroundColor DarkCyan
+    Write-MenuItem -Number '01' -Label 'Launch application' -Description 'Start the API and frontend preview'
+    Write-MenuItem -Number '02' -Label 'Install / update dependencies' -Description 'Synchronize Python and frontend packages'
+
+    Write-Host ''
+    Write-Host '  DATA & QUALITY' -ForegroundColor DarkCyan
+    Write-MenuItem -Number '03' -Label 'Initialize database' -Description 'Reset and seed the local database'
+    Write-MenuItem -Number '04' -Label 'Run test suite' -Description 'Execute the project validation suite'
+
+    Write-Host ''
+    Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
+    Write-MenuItem -Number '05' -Label 'Remove logs' -Description 'Delete generated application log files'
+    Write-MenuItem -Number '06' -Label 'Clear cache' -Description 'Remove Python and dependency caches'
+    Write-MenuItem -Number '07' -Label 'Uninstall application' -Description 'Remove generated runtimes and dependencies' -NumberColor Yellow
+
+    Write-Host ''
+    Write-MenuRule -Color DarkGray
+    Write-MenuItem -Number '08' -Label 'Exit' -Description 'Close the XREPORT console' -NumberColor DarkGray
+    Write-Host ''
 }
 
 while ($true) {

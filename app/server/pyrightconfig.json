@@ -1,6 +1,7 @@
 {
   "include": ["api", "common", "configurations", "domain", "models", "repositories", "services"],
   "exclude": [".venv"],
+  "extraPaths": [".."],
   "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.14",

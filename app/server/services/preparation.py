@@ -6,7 +6,13 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import HTTPException, status
+from server.services.errors import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    InternalServiceError,
+    NotFoundError,
+)
 
 from server.repositories.database import get_database
 from server.domain.training import (
@@ -41,7 +47,7 @@ from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
 from server.configurations import ServerSettings
-from server.services.processing import (
+from server.models.training.processing import (
     TextSanitizer,
     TokenizerHandler,
     TrainValidationSplit,
@@ -239,8 +245,7 @@ class PreparationService:
     def ensure_local_filesystem_access(self) -> None:
         if self.allow_local_filesystem_access:
             return
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+        raise ForbiddenError(
             detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
         )
 
@@ -267,32 +272,33 @@ class PreparationService:
         image_column: str,
         dataset_name: str,
     ) -> pd.DataFrame:
-        db_df = matched[[image_column, "text", "_path"]].copy()
-        db_df = db_df.rename(
+        db_df = matched.loc[:, [image_column, "text", "_path"]].copy()
+        db_df.rename(
             columns={
                 image_column: "image_name",
                 "text": "report_text",
                 "_path": "image_path",
-            }
+            },
+            inplace=True,
         )
         db_df["dataset_name"] = dataset_name
         db_df["row_order"] = range(1, len(db_df) + 1)
-        return db_df[
+        return db_df.loc[
+            :,
             [
                 "dataset_name",
                 "image_name",
                 "report_text",
                 "image_path",
                 "row_order",
-            ]
-        ]
+            ],
+        ].copy()
 
     # -------------------------------------------------------------------------
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
         return job_status
@@ -361,15 +367,13 @@ class PreparationService:
     ) -> ProcessingMetadataResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
 
         latest_metadata = self.repository.get_processing_metadata(dataset_name)
         if not isinstance(latest_metadata, dict) or not latest_metadata:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail="No processing metadata found",
             )
 
@@ -388,14 +392,12 @@ class PreparationService:
     def delete_dataset(self, dataset_name: str) -> DeleteResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
         deleted_count = self.repository.delete_dataset(dataset_name)
         if deleted_count <= 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Dataset not found: {dataset_name}",
             )
 
@@ -464,31 +466,27 @@ class PreparationService:
         # Validate folder path
         directory_path = Path(folder_path)
         if not directory_path.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"Invalid image folder path: {folder_path}",
             )
 
         # Scan for images
         image_paths = scan_image_folder(folder_path)
         if not image_paths:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=f"No valid images found in: {folder_path}",
             )
 
         # Check if we have an uploaded dataset
         if self.upload_state.is_empty():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
             )
 
         # Get the most recently uploaded dataset
         latest_upload = self.upload_state.get_latest()
         if latest_upload is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
             )
 
@@ -541,8 +539,7 @@ class PreparationService:
                 )
             except Exception as e:
                 logger.exception("Failed to save data to database")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                raise InternalServiceError(
                     detail=f"Failed to save data to database: {str(e)}",
                 ) from e
 
@@ -561,8 +558,7 @@ class PreparationService:
     def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         """Process the loaded dataset: sanitize text, tokenize, and split into train/val sets."""
         if self.job_manager.is_job_running("dataset_processing"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Dataset processing is already in progress",
             )
 
@@ -570,8 +566,7 @@ class PreparationService:
         configuration["seed"] = self.server_settings.global_settings.seed
         dataset_name = configuration.get("dataset_name", "").strip()
         if not dataset_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
 
@@ -583,8 +578,7 @@ class PreparationService:
             dataset_name=dataset_name,
         )
         if dataset.empty:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Dataset not found: {dataset_name}",
             )
 
@@ -599,8 +593,7 @@ class PreparationService:
 
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail="Failed to initialize dataset processing job",
             )
 
@@ -655,14 +648,12 @@ class PreparationService:
         # Validate path exists
         directory_path = Path(path)
         if not directory_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Path not found: {path}",
             )
 
         if not directory_path.is_dir():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Path is not a directory: {path}",
             )
 
@@ -720,8 +711,7 @@ class PreparationService:
         self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="Image index must be >= 1",
             )
         dataset = self.repository.get_dataset_by_name(dataset_name)
@@ -732,8 +722,7 @@ class PreparationService:
         )
 
         if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Image index {index} not found in dataset {dataset_name}",
             )
 
@@ -759,8 +748,7 @@ class PreparationService:
         self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail="Image index must be >= 1",
             )
         dataset = self.repository.get_dataset_by_name(dataset_name)
@@ -771,8 +759,7 @@ class PreparationService:
         )
 
         if not row:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Image index {index} not found in dataset {dataset_name}",
             )
 
@@ -780,8 +767,7 @@ class PreparationService:
 
         if not path or not Path(path).exists():
             # Elegant warning message as requested
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Source file not found at {path}",
             )
 

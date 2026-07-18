@@ -79,12 +79,13 @@ def resolve_conflict_columns(
 
 ###############################################################################
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
-    string_columns = [
-        column
-        for column in df.columns
-        if pd.api.types.is_string_dtype(df[column])
-        or is_string_object_column(df[column])
-    ]
+    string_columns: list[str] = []
+    for column in df.columns:
+        series = df[column]
+        if not isinstance(series, pd.Series):
+            raise ValueError(f"Duplicate dataframe column is not supported: {column}")
+        if pd.api.types.is_string_dtype(series) or is_string_object_column(series):
+            string_columns.append(str(column))
     if not string_columns:
         return df
     normalized = df.copy()

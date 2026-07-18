@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from server.configurations import InferenceSettings
-from server.models.inference.catalog import InferenceModelCatalog
+from server.services.inference_catalog import InferenceModelCatalog
 
 
 ###############################################################################
@@ -35,7 +35,7 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "server.models.inference.catalog.ModelSerializer",
+        "server.services.inference_catalog.ModelSerializer",
         ModelSerializerStub,
     )
 
@@ -57,7 +57,7 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
 ###############################################################################
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:
     monkeypatch.setattr(
-        "server.models.inference.catalog.ModelSerializer",
+        "server.services.inference_catalog.ModelSerializer",
         ModelSerializerStub,
     )
 
@@ -72,11 +72,11 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
 def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> None:
     revision = "b" * 40
     monkeypatch.setattr(
-        "server.models.inference.catalog.ModelSerializer",
+        "server.services.inference_catalog.ModelSerializer",
         ModelSerializerStub,
     )
     monkeypatch.setattr(
-        "server.models.inference.catalog.HuggingFaceProvider.is_cached",
+        "server.services.inference_catalog.HuggingFaceProvider.is_cached",
         lambda self, repository_id, pinned_revision: (
             repository_id == "google/medgemma-1.5-4b-it" and pinned_revision == revision
         ),

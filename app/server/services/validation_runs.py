@@ -4,7 +4,12 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Any
 
-from fastapi import HTTPException, status
+from server.services.errors import (
+    BadRequestError,
+    ConflictError,
+    InternalServiceError,
+    NotFoundError,
+)
 import pandas as pd
 
 from server.domain.validation import (
@@ -23,6 +28,7 @@ from server.common.utils.security import validate_checkpoint_name
 from server.services.jobs import JobManager, get_job_manager
 from server.services.validation import DatasetValidator
 from server.repositories.serialization.validation import ValidationRepository
+from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 from server.models.training.dataloader import XRAYDataLoader
@@ -64,7 +70,8 @@ def run_validation_job(
     """Blocking validation function that runs in background thread."""
     jm = get_job_manager()
 
-    serializer = ValidationRepository()
+    dataset_repository = DatasetRepository()
+    validation_repository = ValidationRepository()
 
     sample_size = request_data.get("sample_size", 1.0)
     # Access server_settings carefully if inside thread, but here we pass request_data.
@@ -81,7 +88,7 @@ def run_validation_job(
     if jm.should_stop(job_id):
         return {}
 
-    dataset = serializer.load_source_dataset(
+    dataset = dataset_repository.load_source_dataset(
         sample_size=sample_size,
         seed=seed,
         dataset_name=dataset_name,
@@ -112,7 +119,7 @@ def run_validation_job(
             dataset_name = "default"
 
     # Validate that stored image paths exist
-    dataset = serializer.validate_img_paths(dataset)
+    dataset = dataset_repository.validate_img_paths(dataset)
 
     if dataset.empty:
         return {
@@ -225,7 +232,7 @@ def run_validation_job(
         "artifacts": None,
         "image_records": image_records,
     }
-    serializer.save_validation_report(report_payload)
+    validation_repository.save_validation_report(report_payload)
 
     return result
 
@@ -285,7 +292,7 @@ def run_checkpoint_evaluation_job(
 
     validation_data = None
     if "evaluation_report" in metrics or "bleu_score" in metrics:
-        data_serializer = ValidationRepository()
+        data_serializer = DatasetRepository()
         _, validation_data, _ = data_serializer.load_training_data()
         if isinstance(validation_data, pd.DataFrame) and validation_data.empty:
             logger.warning("No validation data available for checkpoint evaluation")
@@ -399,8 +406,7 @@ class ValidationService:
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
         """Run validation analytics on the current dataset."""
         if self.job_manager.is_job_running("validation"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Validation is already in progress",
             )
 
@@ -420,8 +426,7 @@ class ValidationService:
 
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail="Failed to initialize validation job",
             )
 
@@ -440,8 +445,7 @@ class ValidationService:
         serializer = ValidationRepository()
         report = serializer.get_validation_report(dataset_name)
         if report is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"No validation report found for dataset: {dataset_name}",
             )
         return ValidationReportResponse(**report)
@@ -453,15 +457,13 @@ class ValidationService:
         try:
             checkpoint_name = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
         serializer = ValidationRepository()
         report = serializer.get_checkpoint_evaluation_report(checkpoint_name)
         if report is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"No evaluation report found for checkpoint: {checkpoint_name}",
             )
         return CheckpointEvaluationReportResponse(**report)
@@ -473,16 +475,14 @@ class ValidationService:
     ) -> JobStartResponse:
         """Evaluate a model checkpoint using selected metrics."""
         if self.job_manager.is_job_running("checkpoint_evaluation"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+            raise ConflictError(
                 detail="Checkpoint evaluation is already in progress",
             )
 
         try:
             checkpoint_name = validate_checkpoint_name(request.checkpoint)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BadRequestError(
                 detail=str(exc),
             ) from exc
 
@@ -500,8 +500,7 @@ class ValidationService:
 
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise InternalServiceError(
                 detail="Failed to initialize checkpoint evaluation job",
             )
 
@@ -517,8 +516,7 @@ class ValidationService:
     async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
         return JobStatusResponse(**job_status)
@@ -527,8 +525,7 @@ class ValidationService:
     async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail=f"Job not found: {job_id}",
             )
 

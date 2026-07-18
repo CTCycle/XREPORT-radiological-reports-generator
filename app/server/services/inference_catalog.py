@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
+from server.common.path import SETTINGS_DIR
 from server.configurations import InferenceSettings
 from server.domain.inference import (
     InferenceModelsResponse,
@@ -16,9 +16,7 @@ from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
-CATALOG_PATH = (
-    Path(__file__).resolve().parents[4] / "settings" / "inference_models.json"
-)
+CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
 
 
 ###############################################################################
@@ -103,23 +101,25 @@ class InferenceModelCatalog:
                 model_revision,
             ):
                 status = "ready"
-        return ModelAvailability(
-            model_ref=str(entry["model_ref"]),
-            provider=provider,  # type: ignore[arg-type]
-            display_name=str(entry["display_name"]),
-            description=str(entry["description"]),
-            status=status,  # type: ignore[arg-type]
-            category=str(entry["category"]),
-            recommended=bool(entry.get("recommended", False)),
-            research_only=bool(entry.get("research_only", True)),
-            gated=bool(entry.get("gated", False)),
-            parameter_size=entry.get("parameter_size"),
-            local_size_bytes=entry.get("local_size_bytes"),
-            input_semantics=entry.get("input_semantics", "single_image"),  # type: ignore[arg-type]
-            capabilities=ModelCapabilities.model_validate(
-                entry.get("capabilities", {})
-            ),
-            model_revision=model_revision,
+        return ModelAvailability.model_validate(
+            {
+                "model_ref": str(entry["model_ref"]),
+                "provider": provider,
+                "display_name": str(entry["display_name"]),
+                "description": str(entry["description"]),
+                "status": status,
+                "category": str(entry["category"]),
+                "recommended": bool(entry.get("recommended", False)),
+                "research_only": bool(entry.get("research_only", True)),
+                "gated": bool(entry.get("gated", False)),
+                "parameter_size": entry.get("parameter_size"),
+                "local_size_bytes": entry.get("local_size_bytes"),
+                "input_semantics": entry.get("input_semantics", "single_image"),
+                "capabilities": ModelCapabilities.model_validate(
+                    entry.get("capabilities", {})
+                ),
+                "model_revision": model_revision,
+            }
         )
 
     # -------------------------------------------------------------------------
