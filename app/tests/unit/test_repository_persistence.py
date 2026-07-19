@@ -20,7 +20,6 @@ from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.validation import ValidationRepository
 
-
 ###############################################################################
 def _serializer() -> tuple[DatasetRepository, Database]:
     database = Database.__new__(Database)
@@ -31,7 +30,6 @@ def _serializer() -> tuple[DatasetRepository, Database]:
     database.insert_batch_size = 100
     Base.metadata.create_all(database.engine)
     return DatasetRepository(database=database), database
-
 
 ###############################################################################
 def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
@@ -88,7 +86,6 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     assert rows[0].report_text == "new"
     assert rows[0].image_path == "new-path"
 
-
 ###############################################################################
 def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     serializer, database = _serializer()
@@ -134,7 +131,6 @@ def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     assert len(rows) == 1
     assert rows[0].report_text == "stable"
 
-
 ###############################################################################
 def test_identical_dataset_content_reuses_the_existing_version() -> None:
     serializer, database = _serializer()
@@ -155,7 +151,6 @@ def test_identical_dataset_content_reuses_the_existing_version() -> None:
         versions = session.execute(select(DatasetVersion)).scalars().all()
     assert len(versions) == 1
     assert versions[0].version_number == 1
-
 
 ###############################################################################
 def test_processing_run_and_samples_roll_back_together() -> None:
@@ -207,7 +202,6 @@ def test_processing_run_and_samples_roll_back_together() -> None:
     with database.read_session() as session:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
-
 ###############################################################################
 def test_validation_report_children_commit_atomically() -> None:
     dataset_repository, database = _serializer()
@@ -235,7 +229,6 @@ def test_validation_report_children_commit_atomically() -> None:
     with database.read_session() as session:
         assert len(session.execute(select(ValidationRun)).scalars().all()) == 1
 
-
 ###############################################################################
 def test_validation_aggregates_are_stored_on_the_run() -> None:
     _, database = _serializer()
@@ -245,7 +238,6 @@ def test_validation_aggregates_are_stored_on_the_run() -> None:
     with database.read_session() as session:
         run = session.execute(select(ValidationRun)).scalar_one()
         assert run.pixel_bins_json == [999]
-
 
 ###############################################################################
 def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
@@ -271,7 +263,6 @@ def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
         "metric_configs": {"bleu_score": {"data_fraction": 0.5}},
         "results": {"bleu_score": 0.75},
     }
-
 
 ###############################################################################
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
