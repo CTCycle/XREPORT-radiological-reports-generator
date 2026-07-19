@@ -17,7 +17,6 @@ from server.repositories.database.utils import validate_sql_identifier, validate
 from server.repositories.schemas import Checkpoint, Dataset
 from server.repositories.schemas.normalization import normalize_key
 
-
 ###############################################################################
 class RepositorySupport:
     """Shared database primitives for independent persistence repositories."""

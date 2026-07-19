@@ -27,7 +27,6 @@ INFERENCE_RUN_COLUMNS = {
     "executed_at",
 }
 
-
 ###############################################################################
 def validate_current_schema(repository: Database) -> None:
     inspector = sqlalchemy.inspect(repository.engine)
@@ -43,11 +42,9 @@ def validate_current_schema(repository: Database) -> None:
             f"columns. Missing inference columns: {', '.join(sorted(missing))}"
         )
 
-
 ###############################################################################
 def _postgres_database_exists_sql() -> str:
     return "SELECT 1 FROM pg_database WHERE datname=:name"
-
 
 ###############################################################################
 def _create_database_sql(database_name: str) -> str:

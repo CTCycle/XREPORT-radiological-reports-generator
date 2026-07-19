@@ -29,7 +29,6 @@ class JSONSequence(TypeDecorator):
     def process_result_value(self, value: Any, dialect: Any) -> Any:
         return value
 
-
 ###############################################################################
 class UTCDateTime(TypeDecorator):
     """Store and return timezone-aware UTC datetimes on every backend."""

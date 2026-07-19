@@ -14,7 +14,6 @@ from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 REVISION = "a" * 40
 
-
 ###############################################################################
 def _settings(cache_dir: Path) -> InferenceSettings:
     return InferenceSettings(
@@ -28,13 +27,11 @@ def _settings(cache_dir: Path) -> InferenceSettings:
         model_timeout=600,
     )
 
-
 ###############################################################################
 def _png() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (1, 1), "white").save(buffer, format="PNG")
     return buffer.getvalue()
-
 
 ###############################################################################
 class Inputs(dict[str, torch.Tensor]):
@@ -42,7 +39,6 @@ class Inputs(dict[str, torch.Tensor]):
     # -------------------------------------------------------------------------
     def to(self, *_args: object, **_kwargs: object) -> "Inputs":
         return self
-
 
 ###############################################################################
 def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> None:
@@ -109,7 +105,6 @@ def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> N
     assert model.generate.call_args.kwargs["do_sample"] is False
     assert reports == {"scan.png": "Findings: no acute abnormality."}
 
-
 ###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:
     provider = HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache")))
@@ -128,7 +123,6 @@ def test_provider_rejects_unpinned_revision() -> None:
         assert "pinned 40-character revision" in str(exc)
     else:
         raise AssertionError("Unpinned revision was accepted")
-
 
 ###############################################################################
 def test_provider_rejects_multiple_images() -> None:

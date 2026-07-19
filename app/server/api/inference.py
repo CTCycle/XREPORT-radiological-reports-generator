@@ -6,6 +6,7 @@ from server.domain.inference import GenerationProfile, InferenceImage, Inference
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
+###############################################################################
 class InferenceEndpoint:
 
     # -------------------------------------------------------------------------

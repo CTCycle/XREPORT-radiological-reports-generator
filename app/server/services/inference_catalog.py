@@ -18,7 +18,6 @@ from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
 
-
 ###############################################################################
 class InferenceModelCatalog:
     """Lists only curated local models; catalog reads never download weights."""

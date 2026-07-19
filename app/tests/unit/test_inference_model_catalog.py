@@ -3,14 +3,12 @@ from __future__ import annotations
 from server.configurations import InferenceSettings
 from server.services.inference_catalog import InferenceModelCatalog
 
-
 ###############################################################################
 class ModelSerializerStub:
 
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
         return ["checkpoint_epoch_48"]
-
 
 ###############################################################################
 def _settings(
@@ -28,7 +26,6 @@ def _settings(
         max_loaded_models=1,
         model_timeout=600,
     )
-
 
 ###############################################################################
 def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
@@ -53,7 +50,6 @@ def test_catalog_lists_only_curated_refs_and_discovered_xreport_checkpoints(
     assert response.providers["huggingface"].status == "incompatible"
     assert response.providers["xreport"].status == "ready"
 
-
 ###############################################################################
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -66,7 +62,6 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
     medgemma = response.models[0]
     assert medgemma.status == "disabled"
     assert response.providers["huggingface"].status == "disabled"
-
 
 ###############################################################################
 def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> None:

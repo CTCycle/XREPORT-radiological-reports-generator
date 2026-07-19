@@ -114,7 +114,6 @@ class DatasetRecord(Base):
         back_populates="record",
     )
 
-
 ###############################################################################
 class DatasetVersion(Base):
     """Immutable snapshot of one logical imported dataset."""
@@ -412,12 +411,10 @@ class InferenceReport(Base):
         "DatasetRecord", back_populates="inference_reports"
     )
 
-
 ###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
-
 
 ###############################################################################
 @event.listens_for(DatasetRecord, "before_insert")
@@ -425,7 +422,6 @@ def _populate_image_name_key(
     _mapper: Any, _connection: Any, target: DatasetRecord
 ) -> None:
     target.image_name_key = normalize_key(target.image_name)
-
 
 ###############################################################################
 @event.listens_for(Checkpoint, "before_insert")

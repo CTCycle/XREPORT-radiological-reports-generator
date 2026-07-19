@@ -9,7 +9,6 @@ from server.domain.inference import InferenceImage
 from server.models.inference import TextGenerator
 from server.models.training.dataloader import XRAYDataLoader
 
-
 ###############################################################################
 class XReportCheckpointProvider:
     """Runs existing XREPORT checkpoints without changing their decoding behavior."""
