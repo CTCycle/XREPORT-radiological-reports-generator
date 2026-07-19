@@ -20,7 +20,6 @@ def test_openapi_schema_generation_and_prefixes() -> None:
     for prefix in expected_prefixes:
         assert any(path.startswith(prefix) for path in paths), f"Missing prefix: {prefix}"
 
-
 ###############################################################################
 def test_stable_api_routes_declare_response_models() -> None:
     file_response_path = "/api/preparation/dataset/{dataset_name}/images/{index}/content"
@@ -32,7 +31,6 @@ def test_stable_api_routes_declare_response_models() -> None:
         and route.response_model is None
     }
     assert routes_without_models == {file_response_path}
-
 
 ###############################################################################
 def test_inference_multipart_contract_excludes_legacy_fields() -> None:

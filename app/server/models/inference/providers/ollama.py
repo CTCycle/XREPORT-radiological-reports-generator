@@ -8,7 +8,6 @@ import httpx
 from server.configurations import InferenceSettings
 from server.domain.inference import GenerationProfile, InferenceImage
 
-
 ###############################################################################
 class OllamaProvider:
     """Local Ollama discovery and generation; never pulls models."""

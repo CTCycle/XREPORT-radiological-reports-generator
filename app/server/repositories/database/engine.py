@@ -23,7 +23,6 @@ from server.repositories.database.utils import (
 )
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 class Database:
     """Shared SQLAlchemy database implementation for SQLite and PostgreSQL."""
