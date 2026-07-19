@@ -2,14 +2,12 @@
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 def _minimal_png() -> bytes:
     return bytes.fromhex(
         "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de"
         "0000000c4944415408d763f8ffff3f0005fe02fedccc59e70000000049454e44ae426082"
     )
-
 
 ###############################################################################
 class TestInferenceEndpoints:

@@ -19,7 +19,6 @@ from server.domain.inference import GenerationProfile, InferenceImage
 
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
-
 ###############################################################################
 class HuggingFaceProvider:
     """One-model, offline-only Hugging Face runtime."""

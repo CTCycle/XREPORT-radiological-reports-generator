@@ -24,35 +24,40 @@ from server.services.errors import (
 APP_ROOT = Path(__file__).resolve().parents[2]
 SERVER_ROOT = APP_ROOT / "server"
 
-
 ###############################################################################
 class BackendStructureVisitor(ast.NodeVisitor):
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.function_depth = 0
         self.local_imports: list[int] = []
         self.nested_functions: list[int] = []
 
+    # -------------------------------------------------------------------------
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._visit_function(node)
 
+    # -------------------------------------------------------------------------
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self._visit_function(node)
 
+    # -------------------------------------------------------------------------
     def visit_Import(self, node: ast.Import) -> None:
         if self.function_depth:
             self.local_imports.append(node.lineno)
 
+    # -------------------------------------------------------------------------
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if self.function_depth:
             self.local_imports.append(node.lineno)
 
+    # -------------------------------------------------------------------------
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         if self.function_depth:
             self.nested_functions.append(node.lineno)
         self.function_depth += 1
         self.generic_visit(node)
         self.function_depth -= 1
-
 
 ###############################################################################
 def test_backend_module_boundaries_and_python_constraints() -> None:
@@ -114,7 +119,6 @@ def test_backend_module_boundaries_and_python_constraints() -> None:
 
     assert violations == []
 
-
 ###############################################################################
 def test_obsolete_compatibility_modules_are_absent() -> None:
     obsolete_paths = [
@@ -123,7 +127,6 @@ def test_obsolete_compatibility_modules_are_absent() -> None:
         SERVER_ROOT / "models" / "inference" / "catalog.py",
     ]
     assert [path for path in obsolete_paths if path.exists()] == []
-
 
 ###############################################################################
 @pytest.mark.parametrize(

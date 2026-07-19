@@ -9,7 +9,6 @@ from server.configurations import InferenceSettings
 from server.domain.inference import InferenceImage
 from server.models.inference.providers.ollama import OllamaProvider
 
-
 ###############################################################################
 def _settings() -> InferenceSettings:
     return InferenceSettings(
@@ -23,11 +22,9 @@ def _settings() -> InferenceSettings:
         model_timeout=30,
     )
 
-
 ###############################################################################
 def _response(url: str, payload: dict[str, object]) -> httpx.Response:
     return httpx.Response(200, json=payload, request=httpx.Request("GET", url))
-
 
 ###############################################################################
 def test_generate_uses_chat_with_base64_image_and_keep_alive(monkeypatch) -> None:
@@ -65,7 +62,6 @@ def test_generate_uses_chat_with_base64_image_and_keep_alive(monkeypatch) -> Non
     assert reports == {"scan.png": "Findings: clear."}
     assert progress == [(1, 1, reports)]
 
-
 ###############################################################################
 def test_generate_reports_runtime_unavailable(monkeypatch) -> None:
     def unavailable(*args: object, **kwargs: object) -> httpx.Response:
@@ -82,7 +78,6 @@ def test_generate_reports_runtime_unavailable(monkeypatch) -> None:
             should_stop=lambda: False,
             report_progress=lambda *_: None,
         )
-
 
 ###############################################################################
 def test_generate_reports_model_not_installed(monkeypatch) -> None:

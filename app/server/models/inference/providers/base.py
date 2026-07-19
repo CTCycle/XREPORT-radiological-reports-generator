@@ -4,7 +4,6 @@ from typing import Protocol
 
 from server.domain.inference import ModelAvailability
 
-
 ###############################################################################
 class InferenceProvider(Protocol):
     """Stable boundary between the inference service and a model runtime."""
