@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 
 ## Purpose
 
@@ -34,7 +34,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `architecture/backend_api.md`
   - Mounted routers and endpoint catalog.
 - `architecture/execution_and_data_flow.md`
-  - Layer responsibilities, job model, and async versus sync behavior.
+  - Domain, service, repository, provider, job model, and async versus sync behavior.
 - `architecture/persistence.md`
   - Database mode selection, initialization behavior, and artifact locations.
 
@@ -54,7 +54,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/startup.md`
   - Windows launcher, manual startup, and test procedures.
 - `runtime/configuration.md`
-  - Shared configuration sources, environment variables, and interoperability.
+  - Shared configuration sources, environment variables, inference controls, and interoperability.
 - `runtime/deployment.md`
   - Local deployment scope and runtime preparation notes.
 - `runtime/local_inference_models.md`

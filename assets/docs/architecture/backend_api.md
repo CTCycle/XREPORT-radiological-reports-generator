@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 
 All routers are mounted under `/api`.
 
@@ -52,9 +52,13 @@ All routers are mounted under `/api`.
 - `GET /api/inference/jobs/{job_id}`
 - `DELETE /api/inference/jobs/{job_id}`
 
-`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. The obsolete inference checkpoint endpoint and `checkpoint`/`generation_mode` request fields are removed. Model readiness, capabilities, and image-count limits come from `GET /api/inference/models`.
+`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. The obsolete inference checkpoint endpoint and `checkpoint`/`generation_mode` request fields are removed. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+
+The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
+
+Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. The mapping includes 400, 403, 404, 409, 413, 500, and 501 responses.
 
 ## Root Behavior
 
 - When `app/client/dist` is available, the backend serves SPA files from the built frontend bundle.
-- Otherwise, `GET /` redirects to `/inference`.
+- Otherwise, `GET /` redirects to FastAPI's `/docs` endpoint.

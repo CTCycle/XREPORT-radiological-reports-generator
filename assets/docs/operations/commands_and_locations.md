@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-07-11
+Last updated: 2026-07-20
 
 ## Primary Commands
 
@@ -38,4 +38,7 @@ Last updated: 2026-07-11
 - runtime data root: `app/resources`
 - SQLite database file: `app/resources/database.db`
 - checkpoints: `app/resources/checkpoints`
+- model cache/artifacts: `app/resources/models`
+- tokenizer resources: `app/resources/tokenizers`
+- report templates: `app/resources/templates`
 - logs: `app/resources/logs`
