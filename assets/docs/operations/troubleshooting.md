@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 
 ## Troubleshooting Quick Guide
 
@@ -10,9 +10,17 @@ Last updated: 2026-07-16
 - jobs stay running too long:
   - poll the status endpoint and inspect backend logs in `XREPORT/resources/logs`
 - missing artifacts or checkpoints:
-  - confirm write permissions and paths under `XREPORT/resources`
+  - confirm write permissions and paths under `app/resources`
 - first run is slow:
   - expected when dependencies and runtimes are being initialized
+- model unavailable:
+  - inspect `GET /api/inference/models` for provider and model status
+  - Ollama models must already be installed and the local runtime must be reachable
+  - Hugging Face requires a cached snapshot and an exact configured commit
+- startup validation failure:
+  - verify `settings/configurations.json` exists
+  - check write permissions under `app/resources`
+  - set `XREPORT_TAURI_MODE=false` unless a built frontend is present
 
 ## Database Initialization
 
