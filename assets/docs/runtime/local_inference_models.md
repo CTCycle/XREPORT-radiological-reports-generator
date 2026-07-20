@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 
 ## Safety Scope
 
@@ -8,7 +8,9 @@ All catalog models and generated reports are for research use only. They are not
 
 ## Catalog Contract
 
-`GET /api/inference/models` lists curated model references and their local availability. XREPORT never automatically pulls or downloads model weights. Generation accepts `model_ref`, `generation_profile`, `clinical_context`, and image uploads.
+`GET /api/inference/models` lists curated model references, provider status, local availability, input semantics, capabilities, and revisions. The catalog combines entries from `settings/inference_models.json` with XREPORT checkpoints discovered under the checkpoints resource directory. XREPORT never automatically pulls or downloads model weights. Generation accepts `model_ref`, `generation_profile`, `clinical_context`, and image uploads.
+
+The supported provider prefixes are `xreport:`, `ollama:`, and `huggingface:`. XREPORT checkpoints support independent images (up to 16 per request); the curated Ollama and Hugging Face entries currently support one image per request. The service also enforces a 64 MiB total image-payload limit.
 
 ## Ollama
 
