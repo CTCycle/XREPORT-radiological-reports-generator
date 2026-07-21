@@ -76,7 +76,7 @@ function MetricChart({ title, data, metrics, epochBoundaries, fallbackColor }: M
                             borderRadius: '8px',
                             color: '#0f172a',
                         }}
-                        labelFormatter={(value) => `Epoch ${Math.round(value)}`}
+                        labelFormatter={(value) => `Epoch ${Math.round(Number(value))}`}
                     />
                     <Legend />
                     {epochBoundaries.map((boundary, index) => (
