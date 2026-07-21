@@ -293,7 +293,7 @@ function Invoke-Launch {
 function Invoke-InstallOrUpdate {
     Ensure-PortableRuntimes
     $settings = Import-XReportEnvironment
-    Install-Dependencies -Settings $settings
+    Install-Dependencies -Settings $settings -BuildFrontend
     Write-Step 'Pruning uv cache'
     Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Ok 'Dependencies installed and frontend built successfully'
