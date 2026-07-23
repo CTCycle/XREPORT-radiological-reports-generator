@@ -22,5 +22,4 @@ Last updated: 2026-07-20
 - Local filesystem browsing is feature-gated by `features.allow_local_filesystem_access`.
 - Ollama models must already be installed in the configured local runtime. Catalog discovery and generation do not pull or download models.
 - Hugging Face MedGemma requires a previously cached snapshot and an exact commit in `XREPORT_HF_MEDGEMMA_REVISION`; `main`, tags, and network resolution are rejected.
-- When `XREPORT_TAURI_MODE=true`, startup requires the built frontend index; otherwise the backend can run without a frontend build and exposes FastAPI docs at `/docs` from `/`.
 - All inference models and generated drafts are for research use only and are not clinically approved.

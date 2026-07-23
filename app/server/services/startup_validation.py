@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from server.common.path import (
     CHECKPOINTS_DIR,
-    CLIENT_INDEX_FILE_PATH,
     CONFIGURATION_FILE_PATH,
     LOGS_DIR,
     MODELS_DIR,
@@ -15,11 +13,6 @@ from server.common.path import (
 )
 from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
-
-###############################################################################
-def _tauri_mode_enabled() -> bool:
-    value = os.getenv("XREPORT_TAURI_MODE", "false").strip().lower()
-    return value in {"1", "true", "yes", "on"}
 
 ###############################################################################
 def _ensure_directory(path: Path) -> None:
@@ -42,14 +35,7 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
     ):
         _ensure_directory(directory)
 
-    if _tauri_mode_enabled() and not CLIENT_INDEX_FILE_PATH.is_file():
-        raise RuntimeError(
-            "Tauri mode requires a built frontend at "
-            f"{CLIENT_INDEX_FILE_PATH}."
-        )
-
     logger.info(
-        "Startup validations completed (database_backend=%s, tauri_mode=%s)",
+        "Startup validations completed (database_backend=%s)",
         resolved_settings.database.backend,
-        _tauri_mode_enabled(),
     )

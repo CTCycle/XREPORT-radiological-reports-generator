@@ -240,31 +240,31 @@ class JsonInferenceSettings(BaseModel):
     def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
         payload = dict(value) if isinstance(value, dict) else {}
         payload["ollama_base_url"] = _normalize_optional_string(
-            os.getenv("XREPORT_OLLAMA_BASE_URL")
+            os.getenv("OLLAMA_BASE_URL")
         ) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
         payload["ollama_keep_alive"] = _normalize_optional_string(
-            os.getenv("XREPORT_OLLAMA_KEEP_ALIVE")
+            os.getenv("OLLAMA_KEEP_ALIVE")
         ) or payload.get("ollama_keep_alive", "5m")
         payload["hf_local_only"] = _normalize_bool_env(
-            os.getenv("XREPORT_HF_LOCAL_ONLY"),
+            os.getenv("HF_LOCAL_ONLY"),
             default=bool(payload.get("hf_local_only", True)),
         )
         payload["hf_cache_dir"] = _normalize_optional_string(
-            os.getenv("XREPORT_HF_CACHE_DIR")
+            os.getenv("HF_CACHE_DIR")
         ) or _normalize_optional_string(payload.get("hf_cache_dir"))
         payload["hf_medgemma_revision"] = _normalize_optional_string(
-            os.getenv("XREPORT_HF_MEDGEMMA_REVISION")
+            os.getenv("HF_MEDGEMMA_REVISION")
         ) or _normalize_optional_string(payload.get("hf_medgemma_revision"))
         payload["device"] = _normalize_optional_string(
-            os.getenv("XREPORT_INFERENCE_DEVICE")
+            os.getenv("INFERENCE_DEVICE")
         ) or payload.get("device", "auto")
         payload["max_loaded_models"] = _normalize_int_env(
-            os.getenv("XREPORT_INFERENCE_MAX_LOADED_MODELS"),
+            os.getenv("INFERENCE_MAX_LOADED_MODELS"),
             default=int(payload.get("max_loaded_models", 1)),
             minimum=1,
         )
         payload["model_timeout"] = _normalize_int_env(
-            os.getenv("XREPORT_INFERENCE_MODEL_TIMEOUT"),
+            os.getenv("INFERENCE_MODEL_TIMEOUT"),
             default=int(payload.get("model_timeout", 600)),
             minimum=1,
         )
