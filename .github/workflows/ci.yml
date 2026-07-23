@@ -51,12 +51,12 @@ jobs:
 
       - name: Run PostgreSQL persistence tests
         env:
-          XREPORT_DB_BACKEND: postgresql
-          XREPORT_DB_HOST: 127.0.0.1
-          XREPORT_DB_PORT: 5432
-          XREPORT_DB_NAME: xreport
-          XREPORT_DB_USERNAME: xreport
-          XREPORT_DB_PASSWORD: xreport
+          EMBEDDED_DATABASE: false
+          DATABASE_HOST: 127.0.0.1
+          DATABASE_PORT: 5432
+          DATABASE_NAME: xreport
+          DATABASE_USERNAME: xreport
+          DATABASE_PASSWORD: xreport
         run: app/server/.venv/bin/python -m pytest app/tests/integration -q
 
       - name: Setup Node.js

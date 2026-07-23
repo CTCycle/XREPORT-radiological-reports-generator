@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -59,18 +61,31 @@ LOCAL_FILESYSTEM_DISABLED_ERROR = (
 )
 
 ###############################################################################
-def scan_image_folder(folder_path: str) -> list[str]:
+def _iter_image_paths(folder_path: str) -> Iterator[Path]:
     directory_path = Path(folder_path)
     if not directory_path.is_dir():
-        return []
+        return
 
-    image_paths = [
-        str(file_path)
-        for file_path in directory_path.rglob("*")
-        if file_path.is_file() and file_path.suffix.lower() in VALID_IMAGE_EXTENSIONS
+    for root, _, filenames in os.walk(directory_path):
+        for filename in filenames:
+            if Path(filename).suffix.lower() in VALID_IMAGE_EXTENSIONS:
+                yield Path(root) / filename
+
+###############################################################################
+def scan_image_folder(
+    folder_path: str,
+    required_stems: set[str] | None = None,
+) -> list[str]:
+    required = {stem.casefold() for stem in required_stems} if required_stems else None
+    return [
+        str(image_path)
+        for image_path in _iter_image_paths(folder_path)
+        if required is None or image_path.stem.casefold() in required
     ]
 
-    return image_paths
+###############################################################################
+def count_image_files(folder_path: str) -> int:
+    return sum(1 for _ in _iter_image_paths(folder_path))
 
 ###############################################################################
 def get_windows_drives() -> list[str]:
@@ -86,12 +101,13 @@ def get_windows_drives() -> list[str]:
 def count_images_in_folder(folder_path: str) -> int:
     """Quick count of image files in a folder (non-recursive for speed)."""
     try:
-        directory_path = Path(folder_path)
-        return sum(
-            1
-            for item in directory_path.iterdir()
-            if item.is_file() and item.suffix.lower() in VALID_IMAGE_EXTENSIONS
-        )
+        with os.scandir(folder_path) as entries:
+            return sum(
+                1
+                for entry in entries
+                if entry.is_file()
+                and Path(entry.name).suffix.lower() in VALID_IMAGE_EXTENSIONS
+            )
     except OSError:
         return 0
 
@@ -436,8 +452,7 @@ class PreparationService:
                 message=f"Path is not a directory: {folder_path}",
             )
 
-        image_paths = scan_image_folder(folder_path)
-        image_count = len(image_paths)
+        image_count = count_image_files(folder_path)
 
         if image_count == 0:
             return ImagePathResponse(
@@ -470,13 +485,6 @@ class PreparationService:
                 detail=f"Invalid image folder path: {folder_path}",
             )
 
-        # Scan for images
-        image_paths = scan_image_folder(folder_path)
-        if not image_paths:
-            raise BadRequestError(
-                detail=f"No valid images found in: {folder_path}",
-            )
-
         # Check if we have an uploaded dataset
         if self.upload_state.is_empty():
             raise BadRequestError(
@@ -498,24 +506,33 @@ class PreparationService:
         if sample_size < 1.0:
             df = df.sample(frac=sample_size, random_state=seed)
 
-        images_mapping = self.build_images_mapping(image_paths)
-
         image_column = self.get_image_column_name(list(df.columns))
+        total_images = count_image_files(folder_path)
+        if total_images == 0:
+            raise BadRequestError(
+                detail=f"No valid images found in: {folder_path}",
+            )
 
         if image_column is None:
             # Just return stats without matching
             logger.warning("No image column found in dataset for matching")
             return LoadDatasetResponse(
                 success=True,
-                total_images=len(image_paths),
+                total_images=total_images,
                 matched_records=0,
                 unmatched_records=len(df),
-                message=f"Loaded {len(image_paths)} images and {len(df)} records. No image column found for matching.",
+                message=f"Loaded {total_images} images and {len(df)} records. No image column found for matching.",
             )
 
+        required_stems = {
+            Path(str(value)).stem for value in df[image_column].tolist()
+        }
+        image_paths = scan_image_folder(folder_path, required_stems=required_stems)
+        images_mapping = self.build_images_mapping(image_paths)
+
         # Match records to image paths
-        df["_path"] = (
-            df[image_column].astype(str).str.split(".").str[0].map(images_mapping)
+        df["_path"] = df[image_column].map(
+            lambda value: images_mapping.get(Path(str(value)).stem)
         )
         matched = df.dropna(subset=["_path"])
         unmatched = len(df) - len(matched)
@@ -548,10 +565,13 @@ class PreparationService:
 
         return LoadDatasetResponse(
             success=True,
-            total_images=len(image_paths),
+            total_images=total_images,
             matched_records=len(matched),
             unmatched_records=unmatched,
-            message=f"Successfully loaded dataset with {len(matched)} matched records",
+            message=(
+                f"Successfully loaded dataset with {len(matched)} matched records "
+                f"from {total_images} images"
+            ),
         )
 
     # -------------------------------------------------------------------------

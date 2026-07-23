@@ -5,6 +5,8 @@ import types
 from typing import Any
 
 import pytest
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
@@ -89,6 +91,29 @@ def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     assert not isinstance(model.fit_validation_data, types.GeneratorType)
     assert model.fit_steps_per_epoch == 3
     assert model.fit_validation_steps == 2
+
+###############################################################################
+def test_model_trainer_preserves_native_torch_dataloaders_for_keras() -> None:
+    trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
+    model = FakeModel()
+    train_data = DataLoader(
+        TensorDataset(torch.zeros((2, 1)), torch.zeros((2, 1))),
+        batch_size=1,
+    )
+    validation_data = DataLoader(
+        TensorDataset(torch.zeros((2, 1)), torch.zeros((2, 1))),
+        batch_size=1,
+    )
+
+    trainer.train_model(
+        model=model,
+        train_data=train_data,
+        validation_data=validation_data,
+        checkpoint_path=".",
+    )
+
+    assert model.fit_x is train_data
+    assert model.fit_validation_data is validation_data
 
 ###############################################################################
 def test_xray_dataloader_init_does_not_load_tokenizer(
