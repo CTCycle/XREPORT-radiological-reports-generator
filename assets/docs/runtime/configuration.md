@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-07-20
+Last updated: 2026-07-23
 
 ## Shared Configuration Sources
 
@@ -22,19 +22,19 @@ Last updated: 2026-07-20
   launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
 - `KERAS_BACKEND`
-- `XREPORT_DB_BACKEND` (`sqlite` or `postgresql`)
-- `XREPORT_DATABASE_URL`
-- `XREPORT_DB_ENGINE` (`postgres`, `postgresql`, `postgresql+psycopg`, or
+- `EMBEDDED_DATABASE` (`true` for SQLite or `false` for PostgreSQL)
+- `DATABASE_URL`
+- `DATABASE_ENGINE` (`postgres`, `postgresql`, `postgresql+psycopg`, or
   `postgresql+psycopg2` when external mode is selected)
-- `XREPORT_DB_HOST`
-- `XREPORT_DB_PORT`
-- `XREPORT_DB_NAME`
-- `XREPORT_DB_USERNAME`
-- `XREPORT_DB_PASSWORD`
-- `XREPORT_DB_SSL`
-- `XREPORT_DB_SSL_CA`
-- `XREPORT_DB_CONNECT_TIMEOUT`
-- `XREPORT_DB_INSERT_BATCH_SIZE`
+- `DATABASE_HOST`
+- `DATABASE_PORT`
+- `DATABASE_NAME`
+- `DATABASE_USERNAME`
+- `DATABASE_PASSWORD`
+- `DATABASE_SSL`
+- `DATABASE_SSL_CA`
+- `DATABASE_CONNECT_TIMEOUT`
+- `DATABASE_INSERT_BATCH_SIZE`
 - `XREPORT_OLLAMA_BASE_URL` (loopback local Ollama endpoint)
 - `XREPORT_OLLAMA_KEEP_ALIVE` (model residency passed to `/api/chat`, default `5m`)
 - `XREPORT_INFERENCE_MODEL_TIMEOUT` (generation read timeout in seconds)
@@ -49,11 +49,10 @@ Last updated: 2026-07-20
 
 ## Database Mode Switch
 
-- `XREPORT_DB_BACKEND=sqlite` selects SQLite.
-- `XREPORT_DB_BACKEND=postgresql` selects PostgreSQL and requires the external
+- `EMBEDDED_DATABASE=true` selects SQLite.
+- `EMBEDDED_DATABASE=false` selects PostgreSQL and requires the external
   connection settings below.
-There is no secondary embedded-database switch; `XREPORT_DB_BACKEND` is the
-strict selector.
+`EMBEDDED_DATABASE` is the strict database-mode selector.
 
 SQLite ensures schema initialization at backend startup. PostgreSQL performs database and schema initialization during backend startup using `.env` connection settings.
 
