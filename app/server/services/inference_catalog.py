@@ -138,14 +138,14 @@ class InferenceModelCatalog:
         if not self.settings.hf_local_only:
             return ProviderAvailability(
                 status="disabled",
-                message="XREPORT_HF_LOCAL_ONLY must remain enabled for local inference.",
+                message="HF_LOCAL_ONLY must remain enabled for local inference.",
             )
         if not HuggingFaceProvider.is_pinned_revision(
             self.settings.hf_medgemma_revision
         ):
             return ProviderAvailability(
                 status="incompatible",
-                message="XREPORT_HF_MEDGEMMA_REVISION must be an exact 40-character cached commit.",
+                message="HF_MEDGEMMA_REVISION must be an exact 40-character cached commit.",
             )
         return ProviderAvailability(
             status="not_installed",

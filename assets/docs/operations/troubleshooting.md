@@ -20,7 +20,6 @@ Last updated: 2026-07-23
 - startup validation failure:
   - verify `settings/configurations.json` exists
   - check write permissions under `app/resources`
-  - set `XREPORT_TAURI_MODE=false` unless a built frontend is present
 
 ## Database Initialization
 

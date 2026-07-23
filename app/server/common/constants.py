@@ -5,8 +5,6 @@ from __future__ import annotations
 FASTAPI_ROOT_ENDPOINT = "/"
 FASTAPI_DOCS_ENDPOINT = "/docs"
 FASTAPI_API_PREFIX = "/api"
-FASTAPI_ASSETS_ENDPOINT = "/assets"
-FASTAPI_SPA_FALLBACK_ENDPOINT = "/{full_path:path}"
 
 # [FASTAPI METADATA]
 ###############################################################################

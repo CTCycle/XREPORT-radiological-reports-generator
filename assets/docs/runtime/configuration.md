@@ -43,7 +43,6 @@ Last updated: 2026-07-23
 - `XREPORT_HF_MEDGEMMA_REVISION` (exact 40-character cached commit)
 - `XREPORT_INFERENCE_MAX_LOADED_MODELS` (minimum 1; default comes from static inference configuration)
 - `XREPORT_INFERENCE_MODEL_TIMEOUT` (generation/model-operation timeout in seconds)
-- `XREPORT_TAURI_MODE` (when `true`, startup requires a built frontend bundle)
 
 `VITE_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
 
