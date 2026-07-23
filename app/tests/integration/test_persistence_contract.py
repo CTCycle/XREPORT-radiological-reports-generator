@@ -11,16 +11,16 @@ from server.repositories.schemas import Base
 
 ###############################################################################
 def test_postgresql_schema_contract() -> None:
-    if os.getenv("XREPORT_DB_BACKEND") != "postgresql":
-        pytest.skip("PostgreSQL integration tests require XREPORT_DB_BACKEND=postgresql")
+    if os.getenv("EMBEDDED_DATABASE", "true").lower() != "false":
+        pytest.skip("PostgreSQL integration tests require EMBEDDED_DATABASE=false")
     settings = DatabaseSettings(
         backend="postgresql",
         engine="postgresql+psycopg",
-        host=os.environ["XREPORT_DB_HOST"],
-        port=int(os.environ["XREPORT_DB_PORT"]),
-        database_name=os.environ["XREPORT_DB_NAME"],
-        username=os.environ["XREPORT_DB_USERNAME"],
-        password=os.environ["XREPORT_DB_PASSWORD"],
+        host=os.environ["DATABASE_HOST"],
+        port=int(os.environ["DATABASE_PORT"]),
+        database_name=os.environ["DATABASE_NAME"],
+        username=os.environ["DATABASE_USERNAME"],
+        password=os.environ["DATABASE_PASSWORD"],
         ssl=False,
         ssl_ca=None,
         connect_timeout=10,

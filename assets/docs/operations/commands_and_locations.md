@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-07-20
+Last updated: 2026-07-23
 
 ## Primary Commands
 
@@ -31,7 +31,7 @@ Last updated: 2026-07-20
 - end-to-end dataset preparation to training to inference to validation workflow
 - long-running operations with start, poll, and cancel behavior
 - local web runtime with a consolidated Windows launcher and maintenance menu
-- SQLite by default with optional PostgreSQL mode selected by `XREPORT_DB_BACKEND`
+- SQLite by default with optional PostgreSQL mode selected by `EMBEDDED_DATABASE`
 
 ## Data And Output Locations
 
