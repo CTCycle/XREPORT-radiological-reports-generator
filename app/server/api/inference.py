@@ -27,7 +27,7 @@ class InferenceEndpoint:
         self,
         model_ref: str = Form(...),
         generation_profile: GenerationProfile = Form(...),
-        clinical_context: str = Form(...),
+        clinical_context: str = Form(""),
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
