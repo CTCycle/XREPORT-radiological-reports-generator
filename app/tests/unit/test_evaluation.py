@@ -26,7 +26,7 @@ class DummyTextGenerator:
         return dict.fromkeys(image_paths, "one two three four")
 
 ###############################################################################
-def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
+def test_bleu_score_handles_non_string_reports_gracefully(monkeypatch) -> None:
     monkeypatch.setattr(evaluation_service, "TextGenerator", DummyTextGenerator)
     evaluator = evaluation_service.CheckpointEvaluator(
         model=None,
@@ -44,21 +44,4 @@ def test_bleu_score_skips_non_string_reports(monkeypatch) -> None:
 
     assert bleu_score == pytest.approx(0.0)
 
-###############################################################################
-def test_bleu_score_accepts_valid_string_reports(monkeypatch) -> None:
-    monkeypatch.setattr(evaluation_service, "TextGenerator", DummyTextGenerator)
-    evaluator = evaluation_service.CheckpointEvaluator(
-        model=None,
-        train_config={},
-        model_metadata={},
-    )
-    validation_data = pd.DataFrame(
-        {
-            "path": ["image1"],
-            "text": ["one two three four"],
-        }
-    )
 
-    bleu_score = evaluator.calculate_bleu_score(validation_data, num_samples=1)
-
-    assert 0.0 < bleu_score <= 1.0

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from server.configurations.management import ConfigurationManager
+from server.configurations.settings import JsonServerSettings
 
 ###############################################################################
 def _configuration_payload() -> dict[str, object]:
@@ -136,3 +137,34 @@ def test_configuration_manager_raises_when_json_root_is_not_object(tmp_path) -> 
     config_path.write_text(json.dumps([1, 2, 3]), encoding="utf-8")
     with pytest.raises(RuntimeError, match="Configuration must be a JSON object"):
         ConfigurationManager(config_path=str(config_path))
+
+
+def test_database_defaults_are_sqlite() -> None:
+    settings = JsonServerSettings.model_validate({}).to_server_settings().database
+
+    assert settings.backend == "sqlite"
+    assert settings.engine is None
+    assert settings.host is None
+    assert settings.port is None
+
+
+def test_database_url_merge_with_component_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
+    monkeypatch.setenv(
+        "XREPORT_DATABASE_URL",
+        "postgresql+psycopg://url_user:url_password@url-host:6789/url_db",
+    )
+    monkeypatch.setenv("XREPORT_DB_PORT", "1000")
+    monkeypatch.setenv("XREPORT_DB_PASSWORD", "env_password")
+
+    settings = JsonServerSettings.model_validate({}).to_server_settings().database
+
+    assert settings.backend == "postgresql"
+    assert settings.engine == "postgresql+psycopg"
+    assert settings.host == "url-host"
+    assert settings.port == 1000
+    assert settings.database_name == "url_db"
+    assert settings.username == "url_user"
+    assert settings.password == "env_password"
