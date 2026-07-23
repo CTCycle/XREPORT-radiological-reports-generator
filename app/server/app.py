@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,6 +30,7 @@ from server.common.path import (
     CLIENT_INDEX_FILE_PATH,
 )
 from server.configurations import get_server_settings
+from server.domain.health import HealthResponse
 from server.repositories.database.initializer import initialize_database
 from server.services.startup_validation import run_startup_validations
 
@@ -66,6 +67,17 @@ def redirect_root_to_docs() -> RedirectResponse:
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
 
 ###############################################################################
+def health_check(request: Request) -> HealthResponse:
+    settings = getattr(request.app.state, "server_settings", None)
+    runtime_mode = settings.database.backend if settings is not None else "unknown"
+    return HealthResponse(
+        status="ok",
+        application=FASTAPI_TITLE,
+        version=FASTAPI_VERSION,
+        runtime_mode=runtime_mode,
+    )
+
+###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
@@ -95,6 +107,13 @@ def create_app() -> FastAPI:
         inference_router,
     ):
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
+    application.add_api_route(
+        "/api/health",
+        health_check,
+        methods=["GET"],
+        response_model=HealthResponse,
+        include_in_schema=False,
+    )
 
     if _client_build_available():
         if CLIENT_ASSETS_DIR.is_dir():
