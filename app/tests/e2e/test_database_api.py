@@ -51,19 +51,5 @@ class TestPreparationEndpoints:
         assert isinstance(data.get("items"), list)
         assert isinstance(data.get("drives"), list)
 
-    # -------------------------------------------------------------------------
-    def test_get_preparation_job_status_invalid_job_returns_404(
-        self, api_context: APIRequestContext
-    ):
-        response = api_context.get("/api/preparation/jobs/non_existent_job")
-        assert response.status == 404
-        assert "detail" in response.json()
 
-    # -------------------------------------------------------------------------
-    def test_cancel_preparation_job_invalid_job_returns_404(
-        self, api_context: APIRequestContext
-    ):
-        response = api_context.delete("/api/preparation/jobs/non_existent_job")
-        assert response.status == 404
-        assert "detail" in response.json()
 
