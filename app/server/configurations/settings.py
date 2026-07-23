@@ -98,7 +98,7 @@ def _normalize_int_env(
 
 ###############################################################################
 def _database_env_payload() -> dict[str, Any]:
-    database_url = _normalize_optional_string(os.getenv("XREPORT_DATABASE_URL"))
+    database_url = _normalize_optional_string(os.getenv("DATABASE_URL"))
     url_parts = urlsplit(database_url) if database_url else None
     url_username = url_parts.username if url_parts else None
     url_password = url_parts.password if url_parts else None
@@ -108,41 +108,42 @@ def _database_env_payload() -> dict[str, Any]:
     if url_parts:
         url_database_name = _normalize_optional_string(url_parts.path.lstrip("/"))
 
-    engine = _normalize_optional_string(os.getenv("XREPORT_DB_ENGINE"))
+    engine = _normalize_optional_string(os.getenv("DATABASE_ENGINE"))
     if not engine and url_parts and url_parts.scheme:
         engine = url_parts.scheme
 
-    configured_backend = (
-        _normalize_optional_string(os.getenv("XREPORT_DB_BACKEND")) or "sqlite"
-    ).lower()
+    embedded_database = _normalize_bool_env(
+        os.getenv("EMBEDDED_DATABASE"),
+        default=True,
+    )
     return {
-        "backend": configured_backend,
+        "backend": "sqlite" if embedded_database else "postgresql",
         "engine": engine or "postgres",
-        "host": _normalize_optional_string(os.getenv("XREPORT_DB_HOST")) or url_host,
+        "host": _normalize_optional_string(os.getenv("DATABASE_HOST")) or url_host,
         "port": _normalize_int_env(
-            os.getenv("XREPORT_DB_PORT"),
+            os.getenv("DATABASE_PORT"),
             default=url_port or 5432,
             minimum=1,
             maximum=65535,
         ),
-        "database_name": _normalize_optional_string(os.getenv("XREPORT_DB_NAME"))
+        "database_name": _normalize_optional_string(os.getenv("DATABASE_NAME"))
         or url_database_name,
-        "username": _normalize_optional_string(os.getenv("XREPORT_DB_USERNAME"))
+        "username": _normalize_optional_string(os.getenv("DATABASE_USERNAME"))
         or _normalize_optional_string(url_username),
-        "password": _normalize_optional_string(os.getenv("XREPORT_DB_PASSWORD"))
+        "password": _normalize_optional_string(os.getenv("DATABASE_PASSWORD"))
         or _normalize_optional_string(url_password),
         "ssl": _normalize_bool_env(
-            os.getenv("XREPORT_DB_SSL"),
+            os.getenv("DATABASE_SSL"),
             default=False,
         ),
-        "ssl_ca": _normalize_optional_string(os.getenv("XREPORT_DB_SSL_CA")),
+        "ssl_ca": _normalize_optional_string(os.getenv("DATABASE_SSL_CA")),
         "connect_timeout": _normalize_int_env(
-            os.getenv("XREPORT_DB_CONNECT_TIMEOUT"),
+            os.getenv("DATABASE_CONNECT_TIMEOUT"),
             default=30,
             minimum=1,
         ),
         "insert_batch_size": _normalize_int_env(
-            os.getenv("XREPORT_DB_INSERT_BATCH_SIZE"),
+            os.getenv("DATABASE_INSERT_BATCH_SIZE"),
             default=1000,
             minimum=1,
         ),
@@ -197,11 +198,11 @@ class JsonDatabaseSettings(BaseModel):
 
         missing: list[str] = []
         if not self.host:
-            missing.append("XREPORT_DB_HOST or XREPORT_DATABASE_URL")
+            missing.append("DATABASE_HOST or DATABASE_URL")
         if not self.database_name:
-            missing.append("XREPORT_DB_NAME or XREPORT_DATABASE_URL")
+            missing.append("DATABASE_NAME or DATABASE_URL")
         if not self.username:
-            missing.append("XREPORT_DB_USERNAME or XREPORT_DATABASE_URL")
+            missing.append("DATABASE_USERNAME or DATABASE_URL")
 
         if missing:
             joined = ", ".join(missing)

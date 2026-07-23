@@ -1,13 +1,13 @@
 # XREPORT Persistence
 
-Last updated: 2026-07-18
+Last updated: 2026-07-23
 
 ## Database Backend Selection
 
 From `XREPORT/settings/.env`:
 
-- `XREPORT_DB_BACKEND=sqlite`: SQLite using `XREPORT/resources/database.db`
-- `XREPORT_DB_BACKEND=postgresql`: PostgreSQL using configured engine, host, port, database name, user, password, and SSL settings
+- `EMBEDDED_DATABASE=true`: SQLite using `XREPORT/resources/database.db`
+- `EMBEDDED_DATABASE=false`: PostgreSQL using configured engine, host, port, database name, user, password, and SSL settings
 
 ## Initialization Behavior
 

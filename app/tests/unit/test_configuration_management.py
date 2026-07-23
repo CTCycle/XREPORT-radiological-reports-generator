@@ -19,18 +19,18 @@ def _configuration_payload() -> dict[str, object]:
 @pytest.fixture(autouse=True)
 def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
-        "XREPORT_DB_BACKEND",
-        "XREPORT_DATABASE_URL",
-        "XREPORT_DB_ENGINE",
-        "XREPORT_DB_HOST",
-        "XREPORT_DB_PORT",
-        "XREPORT_DB_NAME",
-        "XREPORT_DB_USERNAME",
-        "XREPORT_DB_PASSWORD",
-        "XREPORT_DB_SSL",
-        "XREPORT_DB_SSL_CA",
-        "XREPORT_DB_CONNECT_TIMEOUT",
-        "XREPORT_DB_INSERT_BATCH_SIZE",
+        "EMBEDDED_DATABASE",
+        "DATABASE_URL",
+        "DATABASE_ENGINE",
+        "DATABASE_HOST",
+        "DATABASE_PORT",
+        "DATABASE_NAME",
+        "DATABASE_USERNAME",
+        "DATABASE_PASSWORD",
+        "DATABASE_SSL",
+        "DATABASE_SSL_CA",
+        "DATABASE_CONNECT_TIMEOUT",
+        "DATABASE_INSERT_BATCH_SIZE",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -59,12 +59,12 @@ def test_configuration_manager_resolves_database_from_env(
 ) -> None:
     config_path = tmp_path / "configurations.json"
     config_path.write_text(json.dumps(_configuration_payload()), encoding="utf-8")
-    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
-    monkeypatch.setenv("XREPORT_DB_HOST", "env-host")
-    monkeypatch.setenv("XREPORT_DB_PORT", "15432")
-    monkeypatch.setenv("XREPORT_DB_NAME", "env-db")
-    monkeypatch.setenv("XREPORT_DB_USERNAME", "env-user")
-    monkeypatch.setenv("XREPORT_DB_PASSWORD", "env-password")
+    monkeypatch.setenv("EMBEDDED_DATABASE", "false")
+    monkeypatch.setenv("DATABASE_HOST", "env-host")
+    monkeypatch.setenv("DATABASE_PORT", "15432")
+    monkeypatch.setenv("DATABASE_NAME", "env-db")
+    monkeypatch.setenv("DATABASE_USERNAME", "env-user")
+    monkeypatch.setenv("DATABASE_PASSWORD", "env-password")
 
     manager = ConfigurationManager(config_path=str(config_path))
 
@@ -93,7 +93,7 @@ def test_configuration_manager_ignores_database_block_in_json(
         }
     }
     config_path.write_text(json.dumps(payload), encoding="utf-8")
-    monkeypatch.setenv("XREPORT_DB_BACKEND", "sqlite")
+    monkeypatch.setenv("EMBEDDED_DATABASE", "true")
 
     manager = ConfigurationManager(config_path=str(config_path))
 
@@ -151,13 +151,13 @@ def test_database_defaults_are_sqlite() -> None:
 def test_database_url_merge_with_component_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("XREPORT_DB_BACKEND", "postgresql")
+    monkeypatch.setenv("EMBEDDED_DATABASE", "false")
     monkeypatch.setenv(
-        "XREPORT_DATABASE_URL",
+        "DATABASE_URL",
         "postgresql+psycopg://url_user:url_password@url-host:6789/url_db",
     )
-    monkeypatch.setenv("XREPORT_DB_PORT", "1000")
-    monkeypatch.setenv("XREPORT_DB_PASSWORD", "env_password")
+    monkeypatch.setenv("DATABASE_PORT", "1000")
+    monkeypatch.setenv("DATABASE_PASSWORD", "env_password")
 
     settings = JsonServerSettings.model_validate({}).to_server_settings().database
 

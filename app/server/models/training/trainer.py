@@ -5,6 +5,7 @@ from typing import Any
 
 from keras import Model
 from keras.utils import set_random_seed
+from torch.utils.data import DataLoader
 
 from server.common.utils.logger import logger
 from server.models.device import DeviceConfig, DeviceDataLoader
@@ -15,6 +16,15 @@ from server.models.callbacks import (
 
 ###############################################################################
 class ModelTrainer:
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _prepare_fit_data(data: Any, device: Any) -> Any:
+        # Keras 3's Torch backend recognizes native DataLoader instances. Keep
+        # the device wrapper for generic finite iterables used by unit callers.
+        if isinstance(data, DataLoader):
+            return data
+        return DeviceDataLoader(data, device)
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -50,8 +60,8 @@ class ModelTrainer:
         logger.info(f"Starting training for {total_epochs} epochs")
 
         device = DeviceConfig(self.configuration).set_device()
-        train_data = DeviceDataLoader(train_data, device)
-        validation_data = DeviceDataLoader(validation_data, device)
+        train_data = self._prepare_fit_data(train_data, device)
+        validation_data = self._prepare_fit_data(validation_data, device)
 
         session = model.fit(
             train_data,
@@ -96,8 +106,8 @@ class ModelTrainer:
         logger.info(f"Resuming training from epoch {from_epoch} to {total_epochs}")
 
         device = DeviceConfig(self.configuration).set_device()
-        train_data = DeviceDataLoader(train_data, device)
-        validation_data = DeviceDataLoader(validation_data, device)
+        train_data = self._prepare_fit_data(train_data, device)
+        validation_data = self._prepare_fit_data(validation_data, device)
 
         new_session = model.fit(
             train_data,

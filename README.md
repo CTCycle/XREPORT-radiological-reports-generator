@@ -117,10 +117,10 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 
 ### 7.1 Database initialization behavior
 
-- SQLite mode (`XREPORT_DB_BACKEND=sqlite`):
+- SQLite mode (`EMBEDDED_DATABASE=true`):
   - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
   - Existing schemas are validated. On this inference-first branch, a legacy inference schema must be recreated; SQLAlchemy `create_all` does not migrate columns.
-- PostgreSQL mode (`XREPORT_DB_BACKEND=postgresql`):
+- PostgreSQL mode (`EMBEDDED_DATABASE=false`):
   - Use a disposable feature-branch database and recreate it if startup reports legacy inference columns.
   - Initialization is also available through `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
 
