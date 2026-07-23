@@ -46,4 +46,4 @@ app\tests\run_tests.bat
 
 The test launcher uses the prepared backend environment and starts required local services when they are not already running.
 
-On backend startup, the application initializes the selected database, verifies the tracked configuration file, and creates required resource directories for logs, models, tokenizers, checkpoints, and templates. Tauri mode additionally requires the built frontend index.
+On backend startup, the application initializes the selected database, verifies the tracked configuration file, and creates required resource directories for logs, models, tokenizers, checkpoints, and templates.
