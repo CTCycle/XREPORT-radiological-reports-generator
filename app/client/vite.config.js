@@ -42,7 +42,7 @@ const buildProxy = (apiBase, apiTarget) => {
 }
 
 export default defineConfig(({ mode }) => {
-    const envDir = path.resolve(__dirname, '../settings')
+    const envDir = path.resolve(__dirname, '../../settings')
     const clientEnv = loadEnv(mode, __dirname, '')
     const settingsEnv = loadEnv(mode, envDir, '')
     const env = { ...process.env, ...clientEnv, ...settingsEnv }
