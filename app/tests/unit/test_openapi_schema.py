@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
 
 from server.app import app
 
@@ -31,6 +32,19 @@ def test_stable_api_routes_declare_response_models() -> None:
         and route.response_model is None
     }
     assert routes_without_models == {file_response_path}
+
+###############################################################################
+def test_health_endpoint_returns_backend_json() -> None:
+    with TestClient(app) as client:
+        response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "application": "XREPORT Backend",
+        "version": "1.0.0",
+        "runtime_mode": "sqlite",
+    }
 
 ###############################################################################
 def test_inference_multipart_contract_excludes_legacy_fields() -> None:

@@ -33,7 +33,8 @@ class InferenceModelCatalog:
             installed_ollama,
             HuggingFaceProvider(self.settings),
         )
-        models.extend(self._xreport_models())
+        xreport_models = self._xreport_models()
+        models.extend(xreport_models)
         huggingface_status = self._huggingface_provider_status()
         if any(
             model.provider == "huggingface" and model.status == "ready"
@@ -45,7 +46,7 @@ class InferenceModelCatalog:
             providers={
                 "ollama": self._ollama_provider_status(installed_ollama),
                 "huggingface": huggingface_status,
-                "xreport": ProviderAvailability(status="ready"),
+                "xreport": self._xreport_provider_status(xreport_models),
             },
         )
 
@@ -149,6 +150,18 @@ class InferenceModelCatalog:
         return ProviderAvailability(
             status="not_installed",
             message="No cached Hugging Face model has been discovered yet.",
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _xreport_provider_status(
+        models: list[ModelAvailability],
+    ) -> ProviderAvailability:
+        if models:
+            return ProviderAvailability(status="ready")
+        return ProviderAvailability(
+            status="not_installed",
+            message="No complete XREPORT checkpoints have been discovered yet.",
         )
 
     # -------------------------------------------------------------------------

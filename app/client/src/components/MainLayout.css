@@ -150,11 +150,14 @@
 
     .app-nav-bar {
         padding: 0.3rem 0.9rem;
-        overflow-x: auto;
+        overflow-x: visible;
     }
 
     .app-nav-list {
-        min-width: max-content;
+        display: flex;
+        flex-wrap: wrap;
+        min-width: 0;
+        row-gap: 0.2rem;
     }
 
     .app-nav-group-label {

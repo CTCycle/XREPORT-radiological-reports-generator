@@ -114,11 +114,13 @@ class ModelSerializer:
         model_folders = []
         for entry in CHECKPOINTS_DIR.iterdir():
             if entry.is_dir():
-                has_keras = any(
-                    child.suffix == ".keras" and child.is_file()
-                    for child in entry.iterdir()
+                required_files = (
+                    entry / "saved_model.keras",
+                    entry / "configuration" / "configuration.json",
+                    entry / "configuration" / "metadata.json",
+                    entry / "configuration" / "session_history.json",
                 )
-                if has_keras:
+                if all(path.is_file() for path in required_files):
                     model_folders.append(entry.name)
 
         return model_folders

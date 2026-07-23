@@ -784,8 +784,9 @@ export default function DatasetPage() {
                                     <h4 className="config-panel-title">Configurations</h4>
                                     <div className="config-grid-compact-vertical">
                                         <div className="form-group">
-                                            <label className="form-label">Sample Size (0-1)</label>
+                                            <label className="form-label" htmlFor="dataset-sample-size">Sample Size (0-1)</label>
                                             <input
+                                                id="dataset-sample-size"
                                                 type="number"
                                                 step="0.05"
                                                 min="0.01"
@@ -796,8 +797,9 @@ export default function DatasetPage() {
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Val Split (0-1)</label>
+                                            <label className="form-label" htmlFor="dataset-validation-size">Val Split (0-1)</label>
                                             <input
+                                                id="dataset-validation-size"
                                                 type="number"
                                                 step="0.05"
                                                 max="1.0"
@@ -807,8 +809,9 @@ export default function DatasetPage() {
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Max Report Size</label>
+                                            <label className="form-label" htmlFor="dataset-max-report-size">Max Report Size</label>
                                             <input
+                                                id="dataset-max-report-size"
                                                 type="number"
                                                 className="form-input"
                                                 value={state.config.maxReportSize}
@@ -816,8 +819,9 @@ export default function DatasetPage() {
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Tokenizer</label>
+                                            <label className="form-label" htmlFor="dataset-tokenizer">Tokenizer</label>
                                             <select
+                                                id="dataset-tokenizer"
                                                 className="form-select"
                                                 value={state.config.tokenizer}
                                                 onChange={(e) => handleConfigChange('tokenizer', e.target.value)}
@@ -828,8 +832,9 @@ export default function DatasetPage() {
                                             </select>
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Dataset Name (Optional)</label>
+                                            <label className="form-label" htmlFor="dataset-name">Dataset Name (Optional)</label>
                                             <input
+                                                id="dataset-name"
                                                 type="text"
                                                 className="form-input"
                                                 placeholder="Default: source name"

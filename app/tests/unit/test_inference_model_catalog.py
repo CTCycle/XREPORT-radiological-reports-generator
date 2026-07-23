@@ -10,6 +10,12 @@ class ModelSerializerStub:
     def scan_checkpoints_folder(self) -> list[str]:
         return ["checkpoint_epoch_48"]
 
+
+class EmptyModelSerializerStub:
+    # -------------------------------------------------------------------------
+    def scan_checkpoints_folder(self) -> list[str]:
+        return []
+
 ###############################################################################
 def _settings(
     *,
@@ -62,6 +68,21 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
     medgemma = response.models[0]
     assert medgemma.status == "disabled"
     assert response.providers["huggingface"].status == "disabled"
+
+
+def test_catalog_marks_xreport_unavailable_without_complete_checkpoints(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "server.services.inference_catalog.ModelSerializer",
+        EmptyModelSerializerStub,
+    )
+
+    response = InferenceModelCatalog(_settings()).list_models()
+
+    assert not any(model.provider == "xreport" for model in response.models)
+    assert response.providers["xreport"].status == "not_installed"
+    assert response.providers["xreport"].message == (
+        "No complete XREPORT checkpoints have been discovered yet."
+    )
 
 ###############################################################################
 def test_catalog_exposes_only_exact_cached_huggingface_revision(monkeypatch) -> None:
