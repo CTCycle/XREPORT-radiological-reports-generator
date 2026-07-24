@@ -11,7 +11,9 @@ class ModelSerializerStub:
         return ["checkpoint_epoch_48"]
 
 
+###############################################################################
 class EmptyModelSerializerStub:
+
     # -------------------------------------------------------------------------
     def scan_checkpoints_folder(self) -> list[str]:
         return []
@@ -70,6 +72,7 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
     assert response.providers["huggingface"].status == "disabled"
 
 
+###############################################################################
 def test_catalog_marks_xreport_unavailable_without_complete_checkpoints(monkeypatch) -> None:
     monkeypatch.setattr(
         "server.services.inference_catalog.ModelSerializer",
