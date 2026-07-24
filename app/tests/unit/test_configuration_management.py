@@ -139,6 +139,7 @@ def test_configuration_manager_raises_when_json_root_is_not_object(tmp_path) -> 
         ConfigurationManager(config_path=str(config_path))
 
 
+###############################################################################
 def test_database_defaults_are_sqlite() -> None:
     settings = JsonServerSettings.model_validate({}).to_server_settings().database
 
@@ -148,6 +149,7 @@ def test_database_defaults_are_sqlite() -> None:
     assert settings.port is None
 
 
+###############################################################################
 def test_database_url_merge_with_component_overrides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

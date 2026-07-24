@@ -19,6 +19,7 @@ from server.services.errors import (
 )
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("error_type", "expected_status"),
     [

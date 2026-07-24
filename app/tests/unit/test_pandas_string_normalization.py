@@ -4,6 +4,7 @@ import importlib.util
 from server.common.path import SERVER_DIR
 
 
+###############################################################################
 def load_normalize_string_columns():
     module_path = SERVER_DIR / "repositories" / "database" / "utils.py"
     spec = importlib.util.spec_from_file_location("xreport_query_common", module_path)
@@ -17,6 +18,7 @@ def load_normalize_string_columns():
 normalize_string_columns = load_normalize_string_columns()
 
 
+###############################################################################
 def test_normalize_string_columns_converts_string_dtype_to_object() -> None:
     dataframe = pd.DataFrame({"name": ["alpha", None]})
 
@@ -27,6 +29,7 @@ def test_normalize_string_columns_converts_string_dtype_to_object() -> None:
     assert normalized.loc[1, "name"] is None
 
 
+###############################################################################
 def test_normalize_string_columns_ignores_mixed_object_column() -> None:
     dataframe = pd.DataFrame({"payload": pd.Series(["alpha", pd.NA, 3], dtype=object)})
 
