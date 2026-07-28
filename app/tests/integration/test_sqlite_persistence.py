@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 def test_sqlite_schema_contract() -> None:
     engine = create_engine("sqlite:///:memory:", future=True)
