@@ -6,7 +6,6 @@ from pathlib import Path
 
 from server.repositories.serialization.model import ModelSerializer
 
-
 ###############################################################################
 def test_scan_checkpoints_requires_complete_serialized_checkpoint(monkeypatch) -> None:
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as temporary_directory:
