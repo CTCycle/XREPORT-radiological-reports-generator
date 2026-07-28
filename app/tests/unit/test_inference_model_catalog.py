@@ -10,7 +10,6 @@ class ModelSerializerStub:
     def scan_checkpoints_folder(self) -> list[str]:
         return ["checkpoint_epoch_48"]
 
-
 ###############################################################################
 class EmptyModelSerializerStub:
 
@@ -70,7 +69,6 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
     medgemma = response.models[0]
     assert medgemma.status == "disabled"
     assert response.providers["huggingface"].status == "disabled"
-
 
 ###############################################################################
 def test_catalog_marks_xreport_unavailable_without_complete_checkpoints(monkeypatch) -> None:
