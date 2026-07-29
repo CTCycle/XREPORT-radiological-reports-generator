@@ -26,6 +26,7 @@ build/
 .coverage
 htmlcov/
 app/server/uv.lock
+
 # Node / JS
 **/node_modules/
 **/dist/
@@ -45,6 +46,7 @@ yarn.lock
 Thumbs.db
 
 # Misc
+*.env
 *.lock
 *.log
 *.db*
