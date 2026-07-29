@@ -174,7 +174,6 @@ function Import-XReportEnvironment {
         UI_HOST = '127.0.0.1'
         UI_PORT = '8001'
         RELOAD = 'false'
-        OPTIONAL_DEPENDENCIES = 'false'
         BACKEND_VISIBLE = 'false'
         ALWAYS_REBUILD = 'false'
     }
@@ -206,12 +205,14 @@ function Import-XReportEnvironment {
 function Install-Dependencies {
     param(
         [hashtable]$Settings,
-        [switch]$BuildFrontend
+        [switch]$BuildFrontend,
+        [ValidateSet('Standard', 'Development')]
+        [string]$InstallationType = 'Standard'
     )
 
     Write-Step 'Synchronizing Python dependencies'
     $syncArgs = @('sync', '--python', $PythonExe)
-    if ($Settings.OPTIONAL_DEPENDENCIES -eq 'true') { $syncArgs += '--all-extras' }
+    if ($InstallationType -eq 'Development') { $syncArgs += '--all-extras' }
     try {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     } catch {
@@ -291,7 +292,7 @@ function Invoke-Launch {
     if (-not (Test-DependenciesReady)) {
         Write-Step 'Required application environments are missing or unusable; installing dependencies.'
         Ensure-PortableRuntimes
-        Install-Dependencies -Settings $settings -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true')
+        Install-Dependencies -Settings $settings -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -InstallationType 'Standard'
     }
     else {
         Write-Ok 'Application environments are ready; skipped dependency installation.'
@@ -331,12 +332,22 @@ function Invoke-Launch {
 }
 
 function Invoke-InstallOrUpdate {
+    $installationType = Read-InstallationType
     Ensure-PortableRuntimes
     $settings = Import-XReportEnvironment
-    Install-Dependencies -Settings $settings -BuildFrontend
+    Install-Dependencies -Settings $settings -BuildFrontend -InstallationType $installationType
     Write-Step 'Pruning uv cache'
     Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Ok 'Dependencies installed and frontend built successfully'
+}
+
+function Read-InstallationType {
+    $selection = (Read-Host 'Installation type [1=Development, 2=Standard]').Trim()
+    switch ($selection) {
+        '1' { return 'Development' }
+        '2' { return 'Standard' }
+        default { throw 'Invalid installation type. Enter 1 for Development or 2 for Standard.' }
+    }
 }
 
 function Invoke-InitializeDatabase {

@@ -17,7 +17,6 @@ Last updated: 2026-07-23
 - `VITE_API_BASE_URL`
 - `RELOAD`
 - `BACKEND_VISIBLE`
-- `OPTIONAL_DEPENDENCIES`
 - `ALWAYS_REBUILD` (set to `true` to rebuild the frontend whenever the Windows
   launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
