@@ -1,47 +1,61 @@
 .main-layout {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     width: 100%;
+    height: 100vh;
     min-height: 100vh;
+    overflow: hidden;
     background: var(--bg-primary);
 }
 
 .main-layout-chrome {
+    display: flex;
+    flex: 0 0 208px;
+    flex-direction: column;
+    width: 208px;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    min-height: 100vh;
+    overflow-y: auto;
     background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
     z-index: 20;
 }
 
-.app-header-bar {
+.app-nav-bar {
     display: flex;
-    align-items: center;
-    min-height: 64px;
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid var(--border-color);
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.25rem 1rem;
 }
 
-.app-header-brand {
+.app-nav-brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.75rem;
     min-width: 0;
+    margin: 0 0 3rem;
+    padding: 0 0.35rem;
 }
 
-.app-header-logo {
+.app-nav-logo {
     width: 34px;
     height: 34px;
     border-radius: 8px;
     flex: 0 0 auto;
 }
 
-.app-header-titles {
+.app-nav-titles {
     display: flex;
     flex-direction: column;
     min-width: 0;
 }
 
-.app-header-title {
+.app-nav-title {
     margin: 0;
     font-size: 1.1rem;
     line-height: 1.1;
@@ -50,7 +64,7 @@
     text-transform: uppercase;
 }
 
-.app-header-subtitle {
+.app-nav-subtitle {
     margin: 0.12rem 0 0;
     font-size: 0.72rem;
     line-height: 1.1;
@@ -60,29 +74,24 @@
     text-overflow: ellipsis;
 }
 
-.app-nav-bar {
-    min-height: 46px;
-    padding: 0.35rem 1.5rem;
-    display: flex;
-    align-items: center;
-}
-
 .app-nav-list {
-    display: inline-flex;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: flex-start;
+    width: 100%;
     gap: 0.35rem;
 }
 
 .app-nav-separator {
-    width: 1px;
-    height: 24px;
-    margin: 0 0.3rem;
+    width: 100%;
+    height: 1px;
+    margin: 0.35rem 0 0.5rem;
     background: var(--border-color);
 }
 
 .app-nav-group-label {
-    margin: 0 0.15rem 0 0.1rem;
+    margin: 0.15rem 0.7rem 0.2rem;
     color: var(--text-secondary);
     font-size: 0.72rem;
     font-weight: 700;
@@ -91,9 +100,11 @@
 }
 
 .app-nav-button {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 0.45rem;
+    justify-content: flex-start;
+    width: 100%;
     padding: 0.45rem 0.7rem;
     border: none;
     border-radius: 9px;
@@ -136,35 +147,73 @@
     box-shadow: var(--focus-ring);
 }
 
+.app-nav-settings {
+    margin-top: auto;
+}
+
 .main-layout-content {
     flex: 1;
+    height: 100vh;
+    min-width: 0;
     overflow: auto;
     background-color: var(--bg-primary);
     color: var(--text-primary);
 }
 
 @media (max-width: 720px) {
-    .app-header-bar {
-        padding: 0.65rem 0.9rem;
+    .main-layout {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+
+    .main-layout-chrome {
+        flex: none;
+        width: 100%;
+        position: relative;
+        height: auto;
+        min-height: auto;
+        overflow: visible;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .app-nav-bar {
-        padding: 0.3rem 0.9rem;
-        overflow-x: visible;
+        padding: 0.65rem 0.9rem;
+    }
+
+    .app-nav-brand {
+        margin-bottom: 0.8rem;
     }
 
     .app-nav-list {
         display: flex;
+        flex-direction: row;
         flex-wrap: wrap;
         min-width: 0;
         row-gap: 0.2rem;
+    }
+
+    .app-nav-separator {
+        width: 1px;
+        height: 24px;
+        margin: 0 0.3rem;
+    }
+
+    .app-nav-button {
+        width: auto;
     }
 
     .app-nav-group-label {
         font-size: 0.68rem;
     }
 
-    .app-header-subtitle {
+    .app-nav-subtitle {
         display: none;
+    }
+
+    .main-layout-content {
+        height: auto;
+        overflow: visible;
     }
 }

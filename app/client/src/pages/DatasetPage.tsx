@@ -105,6 +105,7 @@ export default function DatasetPage() {
         onComplete: (status, parsedResult) => {
             setIsProcessing(false);
             if (status.status === 'completed' && parsedResult) {
+                setUploadError(null);
                 setProcessingResult(parsedResult);
                 return;
             }
@@ -277,7 +278,7 @@ export default function DatasetPage() {
 
         const jobResult = await processingJob.start({
             dataset_name: selectedNames[0],
-            custom_name: state.config.datasetName,
+            custom_name: state.config.datasetName?.trim() || undefined,
             sample_size: state.config.sampleSize,
             validation_size: state.config.validationSize,
             tokenizer: state.config.tokenizer,
@@ -515,11 +516,6 @@ export default function DatasetPage() {
 
     return (
         <div className="dataset-container">
-            <div className="header">
-                <h1>Dataset Management</h1>
-                <p>Upload, process, and evaluate your datasets</p>
-            </div>
-
             <div className="layout-rows">
                 {/* Row 1: Data Upload Only */}
                 <div className="layout-row row-datasource">
@@ -586,29 +582,35 @@ export default function DatasetPage() {
                             </div>
 
                             <div className="load-dataset-section">
-                                <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={handleLoadDataset}
-                                    disabled={state.isLoading}
-                                >
-                                    {state.isLoading ? (
-                                        <><Loader size={14} className="spin" /> Loading...</>
-                                    ) : (
-                                        'Load Dataset'
+                                <p className="load-dataset-description">
+                                    Load a dataset from the selected source to make it available for processing.
+                                </p>
+
+                                <div className="load-dataset-actions">
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={handleLoadDataset}
+                                        disabled={state.isLoading}
+                                    >
+                                        {state.isLoading ? (
+                                            <><Loader size={14} className="spin" /> Loading...</>
+                                        ) : (
+                                            'Load Dataset'
+                                        )}
+                                    </button>
+
+                                    {state.uploadError && (
+                                        <div className="upload-status error">
+                                            <AlertCircle size={14} /> {state.uploadError}
+                                        </div>
                                     )}
-                                </button>
 
-                                {state.uploadError && (
-                                    <div className="upload-status error">
-                                        <AlertCircle size={14} /> {state.uploadError}
-                                    </div>
-                                )}
-
-                                {state.loadResult?.success && (
-                                    <div className="upload-status success">
-                                        <CheckCircle size={14} /> Loaded {state.loadResult.matched_records} records ({state.loadResult.total_images} images)
-                                    </div>
-                                )}
+                                    {state.loadResult?.success && (
+                                        <div className="upload-status success">
+                                            <CheckCircle size={14} /> Loaded {state.loadResult.matched_records} records ({state.loadResult.total_images} images)
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -617,9 +619,16 @@ export default function DatasetPage() {
                 {/* Row 2: Dataset Processing */}
                 <div className="layout-row">
                     <div className="section">
-                        <div className="section-title">
-                            <Sliders size={18} />
-                            <span>Dataset Processing</span>
+                        <div className="section-title processing-section-title">
+                            <div className="section-title-label">
+                                <Sliders size={18} />
+                                <span>Dataset Processing</span>
+                            </div>
+                            {state.processingResult?.success && (
+                                <div className="upload-status success processing-header-status">
+                                    <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val
+                                </div>
+                            )}
                         </div>
 
                         {/* Dataset Processing Split View */}
@@ -859,11 +868,6 @@ export default function DatasetPage() {
                                         </button>
                                     </div>
 
-                                    {state.processingResult?.success && (
-                                        <div className="upload-status success text-right">
-                                            <CheckCircle size={14} /> Processed: {state.processingResult.train_samples} train, {state.processingResult.validation_samples} val
-                                        </div>
-                                    )}
                                     {state.processingResult === undefined && state.uploadError && state.uploadError.includes("Tokenization") && (
                                         <div className="upload-status error text-right">
                                             <AlertCircle size={14} /> {state.uploadError}

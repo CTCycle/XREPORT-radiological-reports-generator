@@ -39,6 +39,15 @@
     overflow: hidden;
 }
 
+.training-panel.collapsed {
+    grid-template-columns: 1fr;
+}
+
+.training-panel.collapsed .panel-collapsible-content,
+.training-panel.collapsed .panel-right {
+    display: none;
+}
+
 
 
 .panel-left {
@@ -61,6 +70,36 @@
     display: flex;
     align-items: flex-start;
     gap: 1rem;
+}
+
+.panel-collapse-toggle {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.panel-collapse-toggle:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: #eef2ff;
+}
+
+.panel-collapse-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.panel-collapsible-content {
+    min-height: 0;
 }
 
 .panel-header h3 {
@@ -457,7 +496,7 @@ input[type="checkbox"] {
 .training-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: rgba(15, 23, 42, 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -473,7 +512,7 @@ input[type="checkbox"] {
     display: flex;
     flex-direction: column;
     box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
-    border: 1px solid var(--border-color);
+    border: 1px solid #b7c8dd;
 }
 
 .training-wizard-header {
@@ -481,7 +520,8 @@ input[type="checkbox"] {
     justify-content: space-between;
     align-items: flex-start;
     padding: 1.1rem 1.4rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #b7c8dd;
+    background: #f8fbff;
     gap: 1rem;
 }
 
@@ -533,24 +573,24 @@ input[type="checkbox"] {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+    border: 1px solid #b7c8dd;
+    color: #435a76;
     display: grid;
     place-items: center;
     font-size: 0.75rem;
     font-weight: 600;
-    background: #fff;
+    background: #f2f6fb;
 }
 
 .wizard-step-dot.active {
-    border-color: var(--accent-color);
-    background: rgba(59, 130, 246, 0.15);
-    color: var(--accent-color);
+    border-color: var(--accent-color-strong);
+    background: #dbeafe;
+    color: var(--accent-color-strong);
 }
 
 .wizard-step-label {
     font-size: 0.78rem;
-    color: var(--text-secondary);
+    color: #435a76;
     font-weight: 500;
 }
 
@@ -561,7 +601,7 @@ input[type="checkbox"] {
 .wizard-step-line {
     flex: 1;
     height: 1px;
-    background: var(--border-color);
+    background: #b7c8dd;
     margin-left: 0.5rem;
 }
 
@@ -572,6 +612,7 @@ input[type="checkbox"] {
 .training-wizard-body {
     padding: 1rem 1.4rem 1.4rem;
     overflow-y: auto;
+    background: #fbfdff;
 }
 
 /* Wizard Page - Compact Style */
@@ -590,7 +631,7 @@ input[type="checkbox"] {
     color: var(--text-primary);
     margin-bottom: 1rem;
     padding-bottom: 0.25rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid #b7c8dd;
 }
 
 /* Force clean styling for form groups inside wizard to remove "contours" */
@@ -606,14 +647,14 @@ input[type="checkbox"] {
 
 .training-wizard-modal .form-label {
     font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: 500;
+    color: #405775;
+    font-weight: 600;
 }
 
 .training-wizard-modal .form-input,
 .training-wizard-modal .form-select {
-    background: #fff;
-    border: 1px solid var(--border-color);
+    background: #f7faff;
+    border: 1px solid #b7c8dd;
     border-radius: 4px;
     padding: 0.35rem 0.5rem;
     font-size: 0.85rem;
@@ -636,6 +677,7 @@ input[type="checkbox"] {
     background: transparent;
     border: none;
     padding: 0;
+    color: var(--text-primary);
 }
 
 .training-wizard-modal .form-checkbox:hover {
@@ -659,8 +701,8 @@ input[type="checkbox"] {
 }
 
 .wizard-device-panel {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
+    background: #eef4fb;
+    border: 1px solid #b7c8dd;
     border-radius: 12px;
     padding: 0.9rem 1rem;
 }
@@ -750,7 +792,8 @@ input[type="checkbox"] {
 }
 
 .training-wizard-footer {
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #b7c8dd;
+    background: #f1f5fb;
     padding: 0.9rem 1.4rem 1.2rem;
     display: flex;
     flex-direction: column;

@@ -51,6 +51,7 @@ export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = n
     }, []);
 
     useEffect(() => {
+        mountedRef.current = true;
         return () => {
             mountedRef.current = false;
             stopPolling();

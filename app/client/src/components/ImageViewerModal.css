@@ -15,7 +15,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-secondary);
     z-index: 10;
@@ -84,7 +84,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem;
+    min-height: 0;
+    padding: 0.5rem;
     height: 100%;
 }
 
@@ -115,12 +116,14 @@
 
 .image-display-area {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    margin: 0 1rem;
+    margin: 0 0.5rem;
 }
 
 .viewer-image {
@@ -147,9 +150,9 @@
 
 .viewer-footer {
     border-top: 1px solid var(--border-color);
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.25rem;
     background: var(--bg-secondary);
-    min-height: 100px;
+    min-height: 0;
     max-height: 30%;
     overflow-y: auto;
 }
