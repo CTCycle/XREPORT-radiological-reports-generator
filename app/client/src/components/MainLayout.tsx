@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { BrainCircuit, FileSearch, FileStack } from 'lucide-react';
+import { BrainCircuit, FileSearch, FileStack, Settings } from 'lucide-react';
 import './MainLayout.css';
 
 const developmentNavItems = [
@@ -13,17 +13,14 @@ export default function MainLayout() {
     return (
         <div className="main-layout">
             <div className="main-layout-chrome">
-                <header className="app-header-bar">
-                    <div className="app-header-brand">
-                        <img className="app-header-logo" src="/favicon.png" alt="XREPORT logo" />
-                        <div className="app-header-titles">
-                            <h1 className="app-header-title">XREPORT</h1>
-                            <p className="app-header-subtitle">Radiological Reports Generator</p>
+                <nav className="app-nav-bar" aria-label="Primary navigation">
+                    <div className="app-nav-brand">
+                        <img className="app-nav-logo" src="/favicon.png" alt="XREPORT logo" />
+                        <div className="app-nav-titles">
+                            <h1 className="app-nav-title">XREPORT</h1>
+                            <p className="app-nav-subtitle">Radiological Reports Generator</p>
                         </div>
                     </div>
-                </header>
-
-                <nav className="app-nav-bar" aria-label="Primary navigation">
                     <div className="app-nav-list">
                         <NavLink
                             to={inferenceNavItem.path}
@@ -49,6 +46,16 @@ export default function MainLayout() {
                             </NavLink>
                         ))}
                     </div>
+                    <button
+                        type="button"
+                        className="app-nav-button app-nav-settings"
+                        title="Settings"
+                        aria-label="Settings"
+                        disabled
+                    >
+                        <Settings size={16} />
+                        <span>Settings</span>
+                    </button>
                 </nav>
             </div>
 

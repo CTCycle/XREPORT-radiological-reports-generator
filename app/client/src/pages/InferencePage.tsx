@@ -201,7 +201,7 @@ export default function InferencePage() {
     return (
         <main className="inference-workspace">
             <header className="workspace-heading">
-                <div><span className="eyebrow">Local inference</span><h1>Report drafting workspace</h1><p>Prepare a study, choose a local model, and review an editable radiology draft.</p></div>
+                <div><h1>Report drafting workspace</h1><p>Prepare a study, choose a local model, and review an editable radiology draft.</p></div>
                 <div className="research-warning" role="alert"><AlertTriangle aria-hidden="true" /><div><strong>Research use only</strong><span>Models and generated drafts are not clinically approved. Qualified review and independent verification are required.</span></div></div>
             </header>
 
