@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ChevronDown,
+    ChevronUp,
     Info,
     Play,
     RefreshCw,
@@ -242,6 +244,7 @@ export default function TrainingPage() {
     const [evaluationReportError, setEvaluationReportError] = useState<string | null>(null);
     const [evaluationReportResult, setEvaluationReportResult] = useState<CheckpointEvaluationReport | null>(null);
     const [evaluationReportProgress, setEvaluationReportProgress] = useState<number | null>(null);
+    const [collapsedPanels, setCollapsedPanels] = useState({ newSession: false, resume: false });
     const [evaluationReportStatus, setEvaluationReportStatus] = useState<
         'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | null
     >(null);
@@ -994,13 +997,24 @@ export default function TrainingPage() {
             </div>
 
             <div className="training-panels">
-                <div className="training-panel">
+                <div className={`training-panel ${collapsedPanels.newSession ? 'collapsed' : ''}`}>
                     <div className="panel-left">
                         <div className="panel-header">
                             <div>
                                 <h3>New Training Session</h3>
                                 <p>Select a processed dataset to configure your next run.</p>
                             </div>
+                            <button
+                                className="panel-collapse-toggle"
+                                type="button"
+                                aria-expanded={!collapsedPanels.newSession}
+                                aria-controls="new-training-session-content"
+                                aria-label={collapsedPanels.newSession ? 'Expand new training session' : 'Collapse new training session'}
+                                title={collapsedPanels.newSession ? 'Expand section' : 'Collapse section'}
+                                onClick={() => setCollapsedPanels((current) => ({ ...current, newSession: !current.newSession }))}
+                            >
+                                {collapsedPanels.newSession ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </button>
                             <IconActionButton
                                 className="panel-refresh"
                                 onClick={fetchDatasets}
@@ -1011,7 +1025,8 @@ export default function TrainingPage() {
                             </IconActionButton>
                         </div>
 
-                        <div className="panel-list">
+                        <div className="panel-collapsible-content" id="new-training-session-content">
+                            <div className="panel-list">
                             {datasets.length === 0 && (
                                 <div className="panel-empty">No datasets available yet.</div>
                             )}
@@ -1050,6 +1065,7 @@ export default function TrainingPage() {
                                     </div>
                                 );
                             })}
+                            </div>
                         </div>
                     </div>
 
@@ -1086,13 +1102,24 @@ export default function TrainingPage() {
                     </div>
                 </div>
 
-                <div className="training-panel">
+                <div className={`training-panel ${collapsedPanels.resume ? 'collapsed' : ''}`}>
                     <div className="panel-left">
                         <div className="panel-header">
                             <div>
                                 <h3>Resume Training</h3>
                                 <p>Pick a checkpoint to continue training from a saved state.</p>
                             </div>
+                            <button
+                                className="panel-collapse-toggle"
+                                type="button"
+                                aria-expanded={!collapsedPanels.resume}
+                                aria-controls="resume-training-content"
+                                aria-label={collapsedPanels.resume ? 'Expand resume training' : 'Collapse resume training'}
+                                title={collapsedPanels.resume ? 'Expand section' : 'Collapse section'}
+                                onClick={() => setCollapsedPanels((current) => ({ ...current, resume: !current.resume }))}
+                            >
+                                {collapsedPanels.resume ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            </button>
                             <IconActionButton
                                 className="panel-refresh"
                                 onClick={fetchCheckpoints}
@@ -1102,7 +1129,8 @@ export default function TrainingPage() {
                                 <RefreshCw size={16} />
                             </IconActionButton>
                         </div>
-                        <div className="panel-list">
+                        <div className="panel-collapsible-content" id="resume-training-content">
+                            <div className="panel-list">
                             {checkpoints.length === 0 && (
                                 <div className="panel-empty">No checkpoints available yet.</div>
                             )}
@@ -1150,6 +1178,7 @@ export default function TrainingPage() {
                                     </div>
                                 );
                             })}
+                            </div>
                         </div>
                     </div>
 
