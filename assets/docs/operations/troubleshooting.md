@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-07-23
+Last updated: 2026-08-01
 
 ## Troubleshooting Quick Guide
 
@@ -15,7 +15,7 @@ Last updated: 2026-07-23
   - expected when dependencies and runtimes are being initialized
 - model unavailable:
   - inspect `GET /api/inference/models` for provider and model status
-  - Ollama models must already be installed and the local runtime must be reachable
+  - Hugging Face model snapshots must already be cached at the exact revision declared in `settings/inference_models.json`
   - Hugging Face requires a cached snapshot and an exact configured commit
 - startup validation failure:
   - verify `settings/configurations.json` exists

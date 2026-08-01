@@ -16,6 +16,8 @@ from server.common.path import ENCODERS_DIR
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):
 
+    ENCODER_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
+
     # -------------------------------------------------------------------------
     def __init__(
         self, freeze_layers: bool = False, embedding_dims: int = 256, **kwargs
@@ -27,7 +29,10 @@ class BeitXRayImageEncoder(layers.Layer):
 
         # Load the pretrained BEiT model
         beit_model = AutoModel.from_pretrained(
-            self.encoder_name, cache_dir=ENCODERS_DIR
+            self.encoder_name,
+            revision=self.ENCODER_REVISION,
+            cache_dir=ENCODERS_DIR,
+            local_files_only=True,
         )
         if self.freeze_layers is True:
             for param in beit_model.parameters():

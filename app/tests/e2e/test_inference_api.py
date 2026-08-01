@@ -20,10 +20,14 @@ class TestInferenceEndpoints:
         payload = response.json()
         assert isinstance(payload["models"], list)
         assert isinstance(payload["providers"], dict)
+        assert "ollama" not in payload["providers"]
+        assert set(payload["providers"]).issubset({"huggingface", "xreport"})
         for model in payload["models"]:
             assert model["model_ref"]
             assert model["status"]
             assert model["research_only"] is True
+            assert model["max_current_images"] >= 1
+            assert isinstance(model["output_sections"], list)
 
     # -------------------------------------------------------------------------
     def test_generate_requires_catalog_request_fields(

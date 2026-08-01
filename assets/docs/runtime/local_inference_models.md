@@ -1,32 +1,36 @@
 # Local Inference Models
 
-Last updated: 2026-07-20
+Last updated: 2026-08-01
 
 ## Safety Scope
 
-All catalog models and generated reports are for research use only. They are not clinically approved, and every draft requires independent review, clinical correlation, and verification by qualified personnel.
+All catalogue models and generated reports are for research use only. They are not clinically approved, and every draft requires independent review, clinical correlation, and verification by qualified personnel.
 
-## Catalog Contract
+## Catalogue Contract
 
-`GET /api/inference/models` lists curated model references, provider status, local availability, input semantics, capabilities, and revisions. The catalog combines entries from `settings/inference_models.json` with XREPORT checkpoints discovered under the checkpoints resource directory. XREPORT never automatically pulls or downloads model weights. Generation accepts `model_ref`, `generation_profile`, `clinical_context`, and image uploads.
+`GET /api/inference/models` lists curated model references, provider status, local availability, input semantics, explicit output sections, processor metadata, and pinned revisions. The catalogue combines `settings/inference_models.json` with XREPORT checkpoints discovered under the checkpoints resource directory. XREPORT never downloads weights automatically.
 
-The supported provider prefixes are `xreport:`, `ollama:`, and `huggingface:`. XREPORT checkpoints support independent images (up to 16 per request); the curated Ollama and Hugging Face entries currently support one image per request. The service also enforces a 64 MiB total image-payload limit.
+The normal external path is one embedded Hugging Face Transformers provider. It does not require Ollama, llama.cpp, vLLM, or a separate model server. The service keeps one embedded model loaded at a time and unloads it before switching revisions.
 
-## Ollama
+The supported provider prefixes are `xreport:` and `huggingface:`. XREPORT checkpoints support up to 16 independent current images and retain their trained BEiT `224×224×3` preprocessing. Each external catalogue entry declares its own current-image limit and processor contract.
 
-- XREPORT checks the configured loopback runtime through `/api/tags`.
-- Generation uses `/api/chat`, base64 image content, explicit timeouts, and the configured keep-alive value.
-- Only curated, already installed model references can run.
-- The current curated Ollama models accept one image per request.
+## Embedded Hugging Face Transformers
 
-## Hugging Face MedGemma
+- Every entry declares a repository, exact 40-character commit revision, model loader, processor loader, adapter, dtype, quantization policy, prompt profile, output sections, and capability flags.
+- The runtime uses `local_files_only=true`; it never resolves mutable refs or downloads weights during catalogue reads or generation.
+- `trust_remote_code=true` is accepted only for an individually approved, revision-pinned manifest entry.
+- Uploaded images are decoded with EXIF orientation applied, converted to RGB when needed, and passed to the selected processor at their original decoded resolution. The processor owns resizing, padding, cropping, rescaling, and normalization.
+- Inference metadata records each image's original width and height plus the processed tensor dimensions returned by the processor.
+- The catalogue does not mark a candidate `ready` until a real chest X-ray has produced non-empty, clinically structured report text. The MedGemma entry remains a candidate until that validation is recorded in the manifest.
 
-- Repository: `google/medgemma-1.5-4b-it`.
-- Access terms must be accepted and the snapshot cached outside XREPORT before use.
-- Set `XREPORT_HF_CACHE_DIR` to the existing cache root.
-- Set `XREPORT_HF_MEDGEMMA_REVISION` to the exact 40-character cached commit.
-- XREPORT uses `local_files_only=True`, `trust_remote_code=False`, and no network fallback.
-- The runtime keeps at most one Hugging Face model loaded, uses `torch.inference_mode()`, and releases model memory when switching.
-- MedGemma requests accept exactly one image.
+### MedGemma 1.5 4B
 
-If the revision is missing, mutable, or absent from the cache, the catalog reports the model as unavailable rather than attempting a download.
+Repository: `google/medgemma-1.5-4b-it`.
+
+Access requires acceptance of the Health AI Developer Foundation terms of use. The terms are shown in the model catalogue. Set `HF_CACHE_DIR` to the existing local cache root. The pinned revision is maintained in `settings/inference_models.json`, not in environment configuration.
+
+MedGemma is validated primarily for single-image tasks in this integration, so its current-image limit remains one and its output contract explicitly includes Findings and Impression. XReport does not synthesize or relabel sections for models whose manifest does not provide them.
+
+## Custom XREPORT checkpoint
+
+The custom XReport checkpoint is a separate Keras report generator. Its image path uses `BeitXRayImageEncoder` with the `microsoft/beit-base-patch16-224` encoder contract and deterministic 224-pixel preprocessing. This fixed path must remain unchanged unless the model is retrained.

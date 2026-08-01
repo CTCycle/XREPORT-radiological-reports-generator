@@ -33,7 +33,6 @@ from server.common.constants import (
 )
 from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
-from server.models.inference.providers.ollama import OllamaProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
@@ -102,6 +101,7 @@ def report_inference_progress(
     image_index: int,
     total_images: int,
     reports: dict[str, str],
+    inference_metadata: list[dict[str, Any]] | None = None,
 ) -> None:
     progress = (image_index / total_images) * 100.0
     get_job_manager().update_progress(job_id, progress)
@@ -116,11 +116,17 @@ def report_inference_progress(
             "total_images": total_images,
         },
     )
+    if inference_metadata is not None:
+        get_job_manager().update_result(
+            job_id,
+            {"inference_metadata": inference_metadata},
+        )
 
 ###############################################################################
 def run_inference_job(
     model_ref: str,
     model_revision: str | None,
+    model_manifest: dict[str, Any] | None,
     generation_profile: GenerationProfile,
     clinical_context: str,
     request_id: str,
@@ -162,25 +168,12 @@ def run_inference_job(
                 should_stop=lambda: get_job_manager().should_stop(job_id),
                 report_progress=report_progress,
             )
-        elif model_ref.startswith("ollama:"):
-            reports_by_filename = OllamaProvider(
-                get_server_settings().inference
-            ).generate(
-                model=model_ref.removeprefix("ollama:"),
-                profile=generation_profile,
-                clinical_context=clinical_context,
-                images=stored_images,
-                should_stop=lambda: get_job_manager().should_stop(job_id),
-                report_progress=report_progress,
-            )
         elif model_ref.startswith("huggingface:"):
-            settings = get_server_settings().inference
-            revision = settings.hf_medgemma_revision
-            if revision is None:
-                raise RuntimeError("MedGemma pinned revision is not configured")
+            if model_manifest is None:
+                raise RuntimeError("Hugging Face model manifest is missing")
             reports_by_filename = get_huggingface_provider().generate(
                 repository_id=model_ref.removeprefix("huggingface:"),
-                revision=revision,
+                manifest=model_manifest,
                 profile=generation_profile,
                 clinical_context=clinical_context,
                 images=stored_images,
@@ -197,6 +190,8 @@ def run_inference_job(
 
     try:
         serializer = InferenceRepository()
+        job_snapshot = get_job_manager().get_job_status(job_id) or {}
+        job_result = job_snapshot.get("result") or {}
         serializer.save_generated_reports(
             [
                 {
@@ -209,7 +204,10 @@ def run_inference_job(
             model_ref=model_ref,
             model_revision=model_revision,
             generation_profile=generation_profile,
-            generation_config={"profile": generation_profile},
+            generation_config={
+                "profile": generation_profile,
+                "inference_metadata": job_result.get("inference_metadata", []),
+            },
             clinical_context=clinical_context,
             request_id=request_id,
             status="succeeded",
@@ -353,7 +351,6 @@ class InferenceService:
             )
         if selected_model.provider not in {
             "xreport",
-            "ollama",
             "huggingface",
         }:
             raise UnsupportedOperationError(
@@ -363,9 +360,12 @@ class InferenceService:
             raise BadRequestError(
                 detail="Selected model does not support clinical context",
             )
-        if selected_model.input_semantics == "single_image" and len(images) != 1:
+        if len(images) > selected_model.max_current_images:
             raise BadRequestError(
-                detail="Selected model accepts exactly one image",
+                detail=(
+                    "Selected model accepts at most "
+                    f"{selected_model.max_current_images} current image(s)"
+                ),
             )
         if selected_model.provider == "xreport":
             generation_mode = {
@@ -391,6 +391,10 @@ class InferenceService:
                 kwargs={
                     "model_ref": model_ref,
                     "model_revision": selected_model.model_revision,
+                    "model_manifest": {
+                        **selected_model.model_dump(mode="json"),
+                        "revision": selected_model.model_revision,
+                    },
                     "generation_profile": generation_profile,
                     "clinical_context": clinical_context,
                     "request_id": request_id,

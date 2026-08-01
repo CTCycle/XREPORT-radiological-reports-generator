@@ -5,42 +5,43 @@ from io import BytesIO
 from pathlib import Path
 import re
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import torch
 from huggingface_hub import snapshot_download
-from PIL import Image
-from transformers import AutoModelForImageTextToText, AutoProcessor
+from PIL import Image, ImageOps
 
 from server.configurations import InferenceSettings
 from server.domain.inference import GenerationProfile, InferenceImage
+from server.models.inference.providers.adapters import ADAPTERS, StandardImageTextAdapter
 
 
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+ProgressCallback = Callable[
+    [int, int, dict[str, str], list[dict[str, Any]] | None],
+    None,
+]
 
 ###############################################################################
 class HuggingFaceProvider:
-    """One-model, offline-only Hugging Face runtime."""
+    """One-model, offline-only, manifest-driven Transformers runtime."""
 
     # -------------------------------------------------------------------------
     def __init__(self, settings: InferenceSettings) -> None:
         self.settings = settings
-        self._lock = threading.Lock()
-        self._loaded_key: tuple[str, str] | None = None
+        self._lock = threading.RLock()
+        self._loaded_key: tuple[str, str, str, str, str] | None = None
         self._model: Any = None
         self._processor: Any = None
+        self._adapter: StandardImageTextAdapter | None = None
 
     # -------------------------------------------------------------------------
-    def is_cached(self, repository_id: str, revision: str | None = None) -> bool:
-        pinned_revision = revision or self.settings.hf_medgemma_revision
-        if (
-            not isinstance(pinned_revision, str)
-            or not self.is_pinned_revision(pinned_revision)
-            or not self.settings.hf_cache_dir
-        ):
+    def is_cached(self, repository_id: str, revision: str | None) -> bool:
+        if not self.is_pinned_revision(revision) or not self.settings.hf_cache_dir:
             return False
-        snapshot = self._snapshot_path(repository_id, pinned_revision)
+        assert isinstance(revision, str)
+        snapshot = self._snapshot_path(repository_id, revision)
         return (snapshot / "config.json").is_file()
 
     # -------------------------------------------------------------------------
@@ -48,64 +49,77 @@ class HuggingFaceProvider:
         self,
         *,
         repository_id: str,
-        revision: str,
+        manifest: Mapping[str, Any],
         profile: GenerationProfile,
         clinical_context: str,
         images: list[InferenceImage],
         should_stop: Callable[[], bool],
-        report_progress: Callable[[int, int, dict[str, str]], None],
+        report_progress: ProgressCallback,
     ) -> dict[str, str]:
-        if not self.settings.hf_local_only:
-            raise RuntimeError("Hugging Face generation requires local-only mode")
-        if not self.is_pinned_revision(revision):
-            raise RuntimeError("MedGemma requires a pinned 40-character revision")
-        if len(images) != 1:
-            raise ValueError("MedGemma accepts exactly one image")
+        normalized = self.validate_manifest(repository_id, manifest)
+        max_images = int(normalized["max_current_images"])
+        if len(images) > max_images:
+            raise ValueError(
+                f"{repository_id} accepts at most {max_images} current image(s)"
+            )
+        if not images:
+            raise ValueError("At least one image is required")
         if should_stop():
             return {}
 
-        model, processor = self._load(repository_id, revision)
-        image = Image.open(BytesIO(images[0].data)).convert("RGB")
-        messages = [{
-            "role": "user",
-            "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": self._prompt(profile, clinical_context)},
-            ],
-        }]
-        inputs = processor.apply_chat_template(
-            messages,
-            add_generation_prompt=True,
-            tokenize=True,
-            return_dict=True,
-            return_tensors="pt",
-        )
-        inputs = inputs.to(model.device, dtype=self._dtype())
-        input_length = inputs["input_ids"].shape[-1]
-        with torch.inference_mode():
-            output = model.generate(
-                **inputs,
-                max_new_tokens=self._max_new_tokens(profile),
-                do_sample=False,
-            )
-        report = processor.decode(
-            output[0][input_length:],
-            skip_special_tokens=True,
-        ).strip()
-        if not report:
-            raise RuntimeError("MedGemma returned an empty report")
-        if should_stop():
-            return {}
-        reports = {images[0].filename: report}
-        report_progress(1, 1, reports)
-        return reports
+        with self._lock:
+            model, processor, adapter = self._load(normalized)
+            reports: dict[str, str] = {}
+            metadata: list[dict[str, Any]] = []
+            for image_index, stored_image in enumerate(images, start=1):
+                if should_stop():
+                    break
+                image, original_dimensions = self._decode_image(stored_image.data)
+                prompt = adapter.prompt(profile, clinical_context)
+                inputs, input_length = adapter.build_inputs(processor, image, prompt)
+                processed_dimensions = adapter.processed_dimensions(inputs)
+                if hasattr(inputs, "to"):
+                    inputs = inputs.to(model.device)
+                with torch.inference_mode():
+                    output = model.generate(
+                        **inputs,
+                        max_new_tokens=self._max_new_tokens(profile),
+                        do_sample=False,
+                    )
+                report = adapter.decode(processor, output, input_length=input_length)
+                if not report:
+                    raise RuntimeError(
+                        f"{repository_id} returned an empty report for {stored_image.filename}"
+                    )
+                reports[stored_image.filename] = report
+                metadata.append({
+                    "filename": stored_image.filename,
+                    "original_dimensions": {
+                        "width": original_dimensions[0],
+                        "height": original_dimensions[1],
+                    },
+                    "processed_tensor_dimensions": processed_dimensions,
+                    "processor_loader": normalized["processor_loader"],
+                    "model_loader": normalized["model_loader"],
+                    "adapter": normalized["adapter"],
+                })
+                report_progress(image_index, len(images), reports, metadata)
+            return reports
 
     # -------------------------------------------------------------------------
-    def _load(self, repository_id: str, revision: str) -> tuple[Any, Any]:
-        key = (repository_id, revision)
+    def _load(
+        self,
+        manifest: Mapping[str, Any],
+    ) -> tuple[Any, Any, StandardImageTextAdapter]:
+        repository_id = str(manifest["repository_id"])
+        revision = str(manifest["revision"])
+        adapter_name = str(manifest["adapter"])
+        processor_loader = str(manifest["processor_loader"])
+        model_loader = str(manifest["model_loader"])
+        key = (repository_id, revision, adapter_name, processor_loader, model_loader)
         with self._lock:
-            if self._loaded_key == key and self._model is not None:
-                return self._model, self._processor
+            if self._loaded_key == key and self._model is not None and self._adapter:
+                return self._model, self._processor, self._adapter
             self.unload()
             snapshot_path = snapshot_download(
                 repo_id=repository_id,
@@ -113,25 +127,38 @@ class HuggingFaceProvider:
                 cache_dir=self.settings.hf_cache_dir,
                 local_files_only=True,
             )
+            adapter_type = ADAPTERS[adapter_name]
+            adapter = adapter_type()
             load_options = {
                 "local_files_only": True,
-                "trust_remote_code": False,
+                "trust_remote_code": bool(manifest["trust_remote_code"]),
             }
-            self._processor = AutoProcessor.from_pretrained(snapshot_path, **load_options)
-            self._model = AutoModelForImageTextToText.from_pretrained(
+            processor = adapter.load_processor(
                 snapshot_path,
-                dtype=self._dtype(),
-                device_map=self._device_map(),
-                **load_options,
+                processor_loader=processor_loader,
+                load_options=load_options,
             )
-            self._model.eval()
+            model = adapter.load_model(
+                snapshot_path,
+                model_loader=model_loader,
+                load_options={
+                    **load_options,
+                    "dtype": self._dtype(str(manifest["preferred_dtype"])),
+                    "device_map": self._device_map(),
+                },
+            )
+            model.eval()
             self._loaded_key = key
-            return self._model, self._processor
+            self._model = model
+            self._processor = processor
+            self._adapter = adapter
+            return model, processor, adapter
 
     # -------------------------------------------------------------------------
     def unload(self) -> None:
         self._model = None
         self._processor = None
+        self._adapter = None
         self._loaded_key = None
         gc.collect()
         if torch.cuda.is_available():
@@ -147,11 +174,18 @@ class HuggingFaceProvider:
         if self.settings.device == "auto":
             return "auto"
         if self.settings.device == "cuda" and not torch.cuda.is_available():
-            raise RuntimeError("CUDA was requested for MedGemma but is unavailable")
+            raise RuntimeError("CUDA was requested for Hugging Face inference but is unavailable")
         return self.settings.device
 
     # -------------------------------------------------------------------------
-    def _dtype(self) -> torch.dtype:
+    @staticmethod
+    def _dtype(preferred_dtype: str) -> torch.dtype:
+        if preferred_dtype == "float32":
+            return torch.float32
+        if preferred_dtype == "float16":
+            return torch.float16
+        if preferred_dtype == "bfloat16":
+            return torch.bfloat16
         if torch.cuda.is_available():
             return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         return torch.float32
@@ -162,21 +196,64 @@ class HuggingFaceProvider:
         return bool(revision and REVISION_PATTERN.fullmatch(revision))
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _max_new_tokens(profile: GenerationProfile) -> int:
-        return {"deterministic": 768, "concise": 384, "detailed": 1536}[profile]
+    @classmethod
+    def validate_manifest(
+        cls,
+        repository_id: str,
+        manifest: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        normalized = dict(manifest)
+        normalized["repository_id"] = repository_id
+        revision = normalized.get("revision")
+        if not cls.is_pinned_revision(revision):
+            raise RuntimeError(
+                f"{repository_id} requires a pinned 40-character revision"
+            )
+        if normalized.get("trust_remote_code") and not normalized.get(
+            "remote_code_approved", False
+        ):
+            raise RuntimeError(
+                f"Remote code is not approved for pinned repository {repository_id}"
+            )
+        adapter_name = str(normalized.get("adapter", "standard_image_text"))
+        if adapter_name not in ADAPTERS:
+            raise RuntimeError(f"Unsupported Hugging Face adapter: {adapter_name}")
+        normalized["adapter"] = adapter_name
+        normalized["model_loader"] = str(normalized.get("model_loader", "image_text_to_text"))
+        normalized["processor_loader"] = str(normalized.get("processor_loader", "auto"))
+        if normalized["model_loader"] not in {"image_text_to_text", "causal_lm"}:
+            raise RuntimeError(
+                f"Unsupported Transformers model loader: {normalized['model_loader']}"
+            )
+        if normalized["processor_loader"] not in {"auto", "image"}:
+            raise RuntimeError(
+                f"Unsupported Transformers processor loader: {normalized['processor_loader']}"
+            )
+        normalized["max_current_images"] = int(normalized.get("max_current_images", 1))
+        if normalized["max_current_images"] < 1:
+            raise RuntimeError("max_current_images must be at least 1")
+        normalized["preferred_dtype"] = str(normalized.get("preferred_dtype", "auto"))
+        if normalized["preferred_dtype"] not in {
+            "auto", "float32", "float16", "bfloat16"
+        }:
+            raise RuntimeError(
+                f"Unsupported preferred dtype: {normalized['preferred_dtype']}"
+            )
+        return normalized
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _prompt(profile: GenerationProfile, clinical_context: str) -> str:
-        detail = {
-            "deterministic": "Use a consistent and conservative structure.",
-            "concise": "Keep Findings and Impression concise.",
-            "detailed": "Provide detailed Findings and Impression sections.",
-        }[profile]
-        context = clinical_context.strip() or "No clinical context supplied."
-        return (
-            "Draft a radiology report for research use only. The output is preliminary, "
-            f"not clinically approved, and requires qualified review. {detail}\n"
-            f"Clinical context: {context}"
-        )
+    def _decode_image(data: bytes) -> tuple[Image.Image, tuple[int, int]]:
+        try:
+            with Image.open(BytesIO(data)) as decoded:
+                oriented = ImageOps.exif_transpose(decoded)
+                oriented.load()
+                image = oriented.convert("RGB")
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("Failed to decode inference image") from exc
+        return image, image.size
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _max_new_tokens(profile: GenerationProfile) -> int:
+        return {"deterministic": 768, "concise": 384, "detailed": 1536}[profile]

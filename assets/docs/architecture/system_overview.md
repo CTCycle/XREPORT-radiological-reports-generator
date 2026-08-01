@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-08-01
 
 XREPORT is a local-first client/server system for radiological report generation and model lifecycle workflows.
 
@@ -11,7 +11,7 @@ XREPORT is a local-first client/server system for radiological report generation
 - Backend contracts: domain models (`app/server/domain`), services (`app/server/services`), and repositories (`app/server/repositories`)
 - Persistence: SQLite by default, PostgreSQL optional (`app/server/repositories/database`)
 - Long-running execution: job manager with start, poll, and cancel contracts (`app/server/services/jobs.py`)
-- Local inference: catalog-selected XREPORT checkpoints, Ollama, and offline Hugging Face MedGemma
+- Local inference: catalog-selected XREPORT checkpoints and the embedded offline Hugging Face Transformers provider
 - Startup validation: database initialization plus required resource-directory checks (`app/server/services/startup_validation.py`)
 
 ## Implementation-Relevant Repository Structure
