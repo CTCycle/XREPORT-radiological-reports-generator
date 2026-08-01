@@ -78,7 +78,7 @@ export default function InferencePage() {
         () => state.modelAvailability.find(model => model.model_ref === state.selectedModelRef) ?? null,
         [state.modelAvailability, state.selectedModelRef],
     );
-    const maxImages = selectedModel?.input_semantics === 'independent_images' ? 16 : 1;
+    const maxImages = selectedModel?.max_current_images ?? 1;
     const activeDraft = drafts[state.currentIndex] ?? parseDraft(state.generatedReport);
     const filteredModels = useMemo(() => {
         const query = modelFilter.trim().toLowerCase();
@@ -210,7 +210,7 @@ export default function InferencePage() {
                     <div className="section-heading"><div><span className="step-number">1</span><h2>Select model</h2></div><span className="catalog-count">{filteredModels.length}</span></div>
                     <label className="search-field"><Search aria-hidden="true" /><span className="sr-only">Filter models</span><input value={modelFilter} onChange={event => setModelFilter(event.target.value)} placeholder="Filter models" /></label>
                     <div className="provider-tabs" aria-label="Provider filter">
-                        {['all', 'xreport', 'ollama', 'huggingface'].map(provider => <button key={provider} type="button" className={providerFilter === provider ? 'active' : ''} onClick={() => setProviderFilter(provider)}>{provider}</button>)}
+                        {['all', 'xreport', 'huggingface'].map(provider => <button key={provider} type="button" className={providerFilter === provider ? 'active' : ''} onClick={() => setProviderFilter(provider)}>{provider}</button>)}
                     </div>
                     {state.isLoadingModels && <div className="catalog-state"><Loader2 className="spin" />Discovering local models…</div>}
                     {catalogError && <div className="catalog-state error">{catalogError}</div>}
@@ -245,7 +245,10 @@ export default function InferencePage() {
 
                 <section className="draft-panel" aria-label="Report draft">
                     <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!activeDraft.findings && !activeDraft.impression}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!activeDraft.findings && !activeDraft.impression}><Download /></button></div></div>
-                    {!activeDraft.findings && !activeDraft.impression && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor"><label htmlFor="findings">Findings</label><textarea id="findings" value={activeDraft.findings} onChange={event => updateDraft('findings', event.target.value)} placeholder="Generated findings will appear here." /><label htmlFor="impression">Impression</label><textarea id="impression" value={activeDraft.impression} onChange={event => updateDraft('impression', event.target.value)} placeholder="Generated impression will appear here." /></div>}
+                    {!activeDraft.findings && !activeDraft.impression && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor">
+                        {selectedModel?.output_sections.includes('findings') && <><label htmlFor="findings">Findings</label><textarea id="findings" value={activeDraft.findings} onChange={event => updateDraft('findings', event.target.value)} placeholder="Generated findings will appear here." /></>}
+                        {selectedModel?.output_sections.includes('impression') && <><label htmlFor="impression">Impression</label><textarea id="impression" value={activeDraft.impression} onChange={event => updateDraft('impression', event.target.value)} placeholder="Generated impression will appear here." /></>}
+                    </div>}
                     <div className="runtime-metadata"><span><strong>Model</strong>{selectedModel?.display_name ?? 'Not selected'}</span><span><strong>Provider</strong>{selectedModel?.provider ?? '—'}</span><span><strong>Revision</strong>{selectedModel?.model_revision?.slice(0, 12) ?? 'Not reported'}</span><span><strong>Profile</strong>{state.generationProfile}</span></div>
                 </section>
             </section>
@@ -261,5 +264,5 @@ function ModelDetails({ model }: Readonly<{ model: ModelAvailability }>) {
         model.capabilities.impression && 'Impression',
         model.capabilities.grounding && 'Grounding',
     ].filter(Boolean);
-    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p><dl><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision?.slice(0, 12) ?? 'Not configured'}</dd></div></dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
+    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p>{model.status_message && <p className="catalog-state">{model.status_message}</p>}<dl><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision?.slice(0, 12) ?? 'Not configured'}</dd></div>{model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}</dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
 }

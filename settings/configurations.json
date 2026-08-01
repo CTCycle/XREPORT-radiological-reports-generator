@@ -9,11 +9,8 @@
     "polling_interval": 1
   },
   "inference": {
-    "ollama_base_url": "http://127.0.0.1:11434",
-    "ollama_keep_alive": "5m",
     "hf_local_only": true,
     "hf_cache_dir": null,
-    "hf_medgemma_revision": null,
     "device": "auto",
     "max_loaded_models": 1,
     "model_timeout": 600

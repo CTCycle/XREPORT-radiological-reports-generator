@@ -6,7 +6,7 @@ from typing import Any, cast
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image
+from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
@@ -118,7 +118,7 @@ class XRAYDataLoader:
         inference_transforms = self._get_transforms(training=False)
 
         with Image.open(image_path) as img:
-            image = img.convert("RGB")
+            image = ImageOps.exif_transpose(img).convert("RGB")
             image_tensor = cast(torch.Tensor, inference_transforms(image))
 
         return image_tensor.detach().cpu().numpy()
@@ -128,7 +128,7 @@ class XRAYDataLoader:
         inference_transforms = self._get_transforms(training=False)
 
         with Image.open(io.BytesIO(image_bytes)) as img:
-            image = img.convert("RGB")
+            image = ImageOps.exif_transpose(img).convert("RGB")
             image_tensor = cast(torch.Tensor, inference_transforms(image))
 
         return image_tensor.detach().cpu().numpy()
