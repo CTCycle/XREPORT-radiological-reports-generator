@@ -3,10 +3,11 @@ export type ModelStatus = 'ready' | 'not_installed' | 'gated' | 'runtime_unavail
 
 export interface ModelAvailability {
     model_ref: string;
-    provider: 'ollama' | 'huggingface' | 'xreport';
+    provider: 'huggingface' | 'xreport';
     display_name: string;
     description: string;
     status: ModelStatus;
+    status_message: string | null;
     category: string;
     recommended: boolean;
     research_only: boolean;
@@ -23,6 +24,19 @@ export interface ModelAvailability {
         grounding: boolean;
     };
     model_revision: string | null;
+    model_loader: string | null;
+    processor_loader: string | null;
+    adapter: string | null;
+    trust_remote_code: boolean;
+    remote_code_approved: boolean;
+    output_sections: string[];
+    max_current_images: number;
+    supports_prior_images: boolean;
+    supports_clinical_context: boolean;
+    preferred_dtype: string;
+    quantization: string[];
+    prompt_profile: string | null;
+    license: string | null;
 }
 
 export interface InferenceModelsResponse {

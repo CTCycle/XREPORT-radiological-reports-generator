@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+
+from PIL import Image, ImageOps
 
 from server.common.utils.security import resolve_checkpoint_path
 from server.domain.inference import InferenceImage
@@ -33,7 +36,10 @@ class XReportCheckpointProvider:
         generation_mode: str,
         images: list[InferenceImage],
         should_stop: Callable[[], bool],
-        report_progress: Callable[[int, int, dict[str, str]], None],
+        report_progress: Callable[
+            [int, int, dict[str, str], list[dict[str, Any]] | None],
+            None,
+        ],
     ) -> dict[str, str]:
         model.summary(expand_nested=True)
         generator = TextGenerator(model, model_metadata, model_metadata.get("max_report_size", 200))
@@ -47,6 +53,7 @@ class XReportCheckpointProvider:
         reports: dict[str, str] = {}
         vocabulary = tokenizer.get_vocab()
         dataloader = XRAYDataLoader(model_metadata, shuffle=False)
+        inference_metadata: list[dict[str, Any]] = []
         for image_index, stored_image in enumerate(images, start=1):
             if should_stop():
                 break
@@ -55,7 +62,21 @@ class XReportCheckpointProvider:
             except Exception as exc:  # noqa: BLE001
                 raise RuntimeError("Failed to decode inference image") from exc
             reports[stored_image.filename] = generator_fn(tokenizer_config, vocabulary, image, stream_callback=None)
-            report_progress(image_index, len(images), reports)
+            with Image.open(BytesIO(stored_image.data)) as decoded:
+                oriented = ImageOps.exif_transpose(decoded)
+                original_width, original_height = oriented.size
+            inference_metadata.append({
+                "filename": stored_image.filename,
+                "original_dimensions": {
+                    "width": original_width,
+                    "height": original_height,
+                },
+                "processed_tensor_dimensions": [int(dimension) for dimension in image.shape],
+                "processor_loader": "fixed_224",
+                "model_loader": "keras_checkpoint",
+                "adapter": "xreport_beit",
+            })
+            report_progress(image_index, len(images), reports, inference_metadata)
         return reports
 
     # -------------------------------------------------------------------------

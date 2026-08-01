@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-07-20
+Last updated: 2026-08-01
 
 ## Purpose
 
@@ -58,7 +58,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/deployment.md`
   - Local deployment scope and runtime preparation notes.
 - `runtime/local_inference_models.md`
-  - Offline model catalog, Ollama, Hugging Face requirements, and research-use constraints.
+  - Embedded Hugging Face model catalogue, XREPORT checkpoints, and research-use constraints.
 
 ### UI
 
