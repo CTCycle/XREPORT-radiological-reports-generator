@@ -273,8 +273,8 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
             {"image": "B.PNG", "report": "second"},
             {"image": "A.PNG", "report": "first"},
         ],
-        provider="ollama",
-        model_ref="ollama:medgemma:4b",
+        provider="huggingface",
+        model_ref="huggingface:google/medgemma-1.5-4b-it",
         model_revision=None,
         generation_profile="deterministic",
         generation_config={"temperature": 0},
@@ -287,8 +287,8 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
         [
             {"image": "A.PNG", "report": "replayed"},
         ],
-        provider="ollama",
-        model_ref="ollama:medgemma:4b",
+        provider="huggingface",
+        model_ref="huggingface:google/medgemma-1.5-4b-it",
         model_revision=None,
         generation_profile="concise",
         generation_config={"temperature": 0},
@@ -304,19 +304,19 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
         ).scalars().all()
     assert len(runs) == 1
     assert runs[0].checkpoint_id is None
-    assert runs[0].provider == "ollama"
-    assert runs[0].model_ref == "ollama:medgemma:4b"
+    assert runs[0].provider == "huggingface"
+    assert runs[0].model_ref == "huggingface:google/medgemma-1.5-4b-it"
     assert runs[0].generation_profile == "concise"
     assert runs[0].clinical_context == "Updated"
     assert runs[0].execution_time_seconds == 1.25
     assert len(reports) == 1
     assert reports[0].image_index == 0
     assert reports[0].generated_report == "replayed"
-    assert serializer.list_inference_history(model_ref="ollama:medgemma:4b") == [
+    assert serializer.list_inference_history(model_ref="huggingface:google/medgemma-1.5-4b-it") == [
         {
             "request_id": "request-1",
-            "provider": "ollama",
-            "model_ref": "ollama:medgemma:4b",
+            "provider": "huggingface",
+            "model_ref": "huggingface:google/medgemma-1.5-4b-it",
             "model_revision": None,
             "generation_profile": "concise",
             "generation_config": {"temperature": 0},

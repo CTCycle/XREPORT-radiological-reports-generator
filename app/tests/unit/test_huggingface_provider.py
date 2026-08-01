@@ -17,11 +17,8 @@ REVISION = "a" * 40
 ###############################################################################
 def _settings(cache_dir: Path) -> InferenceSettings:
     return InferenceSettings(
-        ollama_base_url="http://127.0.0.1:11434",
-        ollama_keep_alive="5m",
         hf_local_only=True,
         hf_cache_dir=str(cache_dir),
-        hf_medgemma_revision=REVISION,
         device="cpu",
         max_loaded_models=1,
         model_timeout=600,
@@ -30,7 +27,7 @@ def _settings(cache_dir: Path) -> InferenceSettings:
 ###############################################################################
 def _png() -> bytes:
     buffer = BytesIO()
-    Image.new("RGB", (1, 1), "white").save(buffer, format="PNG")
+    Image.new("RGB", (3, 2), "white").save(buffer, format="PNG")
     return buffer.getvalue()
 
 ###############################################################################
@@ -41,16 +38,30 @@ class Inputs(dict[str, torch.Tensor]):
         return self
 
 ###############################################################################
-def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> None:
+def _manifest() -> dict[str, object]:
+    return {
+        "revision": REVISION,
+        "model_loader": "image_text_to_text",
+        "processor_loader": "auto",
+        "adapter": "medgemma",
+        "trust_remote_code": False,
+        "remote_code_approved": False,
+        "max_current_images": 1,
+        "preferred_dtype": "float32",
+    }
+
+###############################################################################
+def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch) -> None:
     cache_path = Path("assets/QA/test-huggingface-cache")
     calls: dict[str, object] = {}
     model = MagicMock()
     model.device = torch.device("cpu")
     model.generate.return_value = torch.tensor([[1, 2, 3]])
     processor = MagicMock()
-    processor.apply_chat_template.return_value = Inputs(
-        {"input_ids": torch.tensor([[1, 2]])}
-    )
+    processor.apply_chat_template.return_value = Inputs({
+        "input_ids": torch.tensor([[1, 2]]),
+        "pixel_values": torch.zeros((1, 3, 896, 896)),
+    })
     processor.decode.return_value = "Findings: no acute abnormality."
 
     def snapshot_download(**kwargs: object) -> str:
@@ -70,22 +81,23 @@ def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> N
         snapshot_download,
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.huggingface.AutoProcessor.from_pretrained",
+        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         load_processor,
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.huggingface.AutoModelForImageTextToText.from_pretrained",
+        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         load_model,
     )
+    progress: list[tuple[object, ...]] = []
 
     reports = HuggingFaceProvider(_settings(cache_path)).generate(
         repository_id="google/medgemma-1.5-4b-it",
-        revision=REVISION,
+        manifest=_manifest(),
         profile="deterministic",
         clinical_context="Cough",
         images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
         should_stop=lambda: False,
-        report_progress=lambda *_: None,
+        report_progress=lambda *values: progress.append(values),
     )
 
     assert calls["snapshot"] == {
@@ -104,18 +116,28 @@ def test_generate_loads_exact_cached_revision_without_download(monkeypatch) -> N
         assert options["trust_remote_code"] is False
     assert model.generate.call_args.kwargs["do_sample"] is False
     assert reports == {"scan.png": "Findings: no acute abnormality."}
+    assert progress[0][3] == [{
+        "filename": "scan.png",
+        "original_dimensions": {"width": 3, "height": 2},
+        "processed_tensor_dimensions": [1, 3, 896, 896],
+        "processor_loader": "auto",
+        "model_loader": "image_text_to_text",
+        "adapter": "medgemma",
+    }]
 
 ###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:
-    provider = HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache")))
+    manifest = _manifest()
+    manifest["revision"] = "main"
+    image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
 
     try:
-        provider.generate(
+        HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache"))).generate(
             repository_id="google/medgemma-1.5-4b-it",
-            revision="main",
+            manifest=manifest,
             profile="deterministic",
             clinical_context="",
-            images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
+            images=[image],
             should_stop=lambda: False,
             report_progress=lambda *_: None,
         )
@@ -131,7 +153,7 @@ def test_provider_rejects_multiple_images() -> None:
     try:
         HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache"))).generate(
             repository_id="google/medgemma-1.5-4b-it",
-            revision=REVISION,
+            manifest=_manifest(),
             profile="detailed",
             clinical_context="",
             images=[image, image],
@@ -139,6 +161,6 @@ def test_provider_rejects_multiple_images() -> None:
             report_progress=lambda *_: None,
         )
     except ValueError as exc:
-        assert "exactly one image" in str(exc)
+        assert "at most 1" in str(exc)
     else:
         raise AssertionError("Multiple images were accepted")

@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-07-20
+Last updated: 2026-08-01
 
 ## Layer Responsibilities
 
@@ -49,7 +49,7 @@ Location: `app/server/models`
 
 - Holds model training and inference implementation details.
 - Includes preprocessing/tokenization, trainer, scheduler, dataloader, callback, and generator logic.
-- Inference providers sit behind the catalog-selected `model_ref`. Ollama uses its loopback API, and MedGemma loads only a pinned local snapshot.
+- Inference providers sit behind the catalog-selected `model_ref`. External models use one manifest-driven embedded Hugging Face Transformers runtime; custom XREPORT checkpoints retain their dedicated Keras/BEiT path.
 - The catalog reads `settings/inference_models.json`, reports provider/model availability and capabilities, and never downloads weights.
 - Model modules do not import services or repositories; required artifacts and cancellation state are injected by services.
 

@@ -40,11 +40,8 @@ class JobsSettings:
 ###############################################################################
 @dataclass(frozen=True)
 class InferenceSettings:
-    ollama_base_url: str
-    ollama_keep_alive: str
     hf_local_only: bool
     hf_cache_dir: str | None
-    hf_medgemma_revision: str | None
     device: str
     max_loaded_models: int
     model_timeout: int
@@ -225,13 +222,10 @@ class JsonJobsSettings(BaseModel):
 
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
-    ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_keep_alive: str = "5m"
     hf_local_only: bool = True
     hf_cache_dir: str | None = None
-    hf_medgemma_revision: str | None = None
     device: str = "auto"
-    max_loaded_models: int = Field(default=1, ge=1)
+    max_loaded_models: int = Field(default=1, ge=1, le=1)
     model_timeout: int = Field(default=600, ge=1)
 
     # -------------------------------------------------------------------------
@@ -239,12 +233,6 @@ class JsonInferenceSettings(BaseModel):
     @classmethod
     def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
         payload = dict(value) if isinstance(value, dict) else {}
-        payload["ollama_base_url"] = _normalize_optional_string(
-            os.getenv("OLLAMA_BASE_URL")
-        ) or payload.get("ollama_base_url", "http://127.0.0.1:11434")
-        payload["ollama_keep_alive"] = _normalize_optional_string(
-            os.getenv("OLLAMA_KEEP_ALIVE")
-        ) or payload.get("ollama_keep_alive", "5m")
         payload["hf_local_only"] = _normalize_bool_env(
             os.getenv("HF_LOCAL_ONLY"),
             default=bool(payload.get("hf_local_only", True)),
@@ -252,9 +240,6 @@ class JsonInferenceSettings(BaseModel):
         payload["hf_cache_dir"] = _normalize_optional_string(
             os.getenv("HF_CACHE_DIR")
         ) or _normalize_optional_string(payload.get("hf_cache_dir"))
-        payload["hf_medgemma_revision"] = _normalize_optional_string(
-            os.getenv("HF_MEDGEMMA_REVISION")
-        ) or _normalize_optional_string(payload.get("hf_medgemma_revision"))
         payload["device"] = _normalize_optional_string(
             os.getenv("INFERENCE_DEVICE")
         ) or payload.get("device", "auto")
@@ -262,6 +247,7 @@ class JsonInferenceSettings(BaseModel):
             os.getenv("INFERENCE_MAX_LOADED_MODELS"),
             default=int(payload.get("max_loaded_models", 1)),
             minimum=1,
+            maximum=1,
         )
         payload["model_timeout"] = _normalize_int_env(
             os.getenv("INFERENCE_MODEL_TIMEOUT"),
@@ -342,11 +328,8 @@ class JsonServerSettings(BaseModel):
             ),
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
             inference=InferenceSettings(
-                ollama_base_url=self.inference.ollama_base_url,
-                ollama_keep_alive=self.inference.ollama_keep_alive,
                 hf_local_only=self.inference.hf_local_only,
                 hf_cache_dir=self.inference.hf_cache_dir,
-                hf_medgemma_revision=self.inference.hf_medgemma_revision,
                 device=self.inference.device,
                 max_loaded_models=self.inference.max_loaded_models,
                 model_timeout=self.inference.model_timeout,
