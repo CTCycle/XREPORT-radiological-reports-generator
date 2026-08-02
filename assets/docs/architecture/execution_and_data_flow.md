@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 ## Layer Responsibilities
 
@@ -49,7 +49,7 @@ Location: `app/server/models`
 
 - Holds model training and inference implementation details.
 - Includes preprocessing/tokenization, trainer, scheduler, dataloader, callback, and generator logic.
-- Inference providers sit behind the catalog-selected `model_ref`. External models use one manifest-driven embedded Hugging Face Transformers runtime; custom XREPORT checkpoints retain their dedicated Keras/BEiT path.
+- Inference providers sit behind the catalog-selected `model_ref`. External models use one manifest-driven embedded Hugging Face Transformers runtime; custom XREPORT checkpoints retain their dedicated Keras/BEiT path. A shared runtime lock serializes model residency across both paths and unloads Hugging Face state before an XREPORT checkpoint or another Hugging Face key is loaded.
 - The catalog reads `settings/inference_models.json`, reports provider/model availability and capabilities, and never downloads weights.
 - Model modules do not import services or repositories; required artifacts and cancellation state are injected by services.
 
@@ -70,9 +70,13 @@ Location: `app/client/src`
 - Long-running compute is not executed directly inside request scope.
 - Training uses the service-owned managed process worker pipeline.
 - Preparation, validation, and inference heavy tasks follow start, poll, and cancel flows.
-- Inference jobs retain uploaded images at the service boundary, publish per-request progress/results through the job manager, and persist final metadata/reports through `InferenceRepository`.
+- Inference jobs retain uploaded images at the service boundary, publish per-request progress/results through the job manager, and persist final metadata/reports through `InferenceRepository`. Result payloads keep the exact `reports` mapping and add declared `display_sections` plus provenance containing provider, model/ref/revision, loaders, adapter, prompt/generation profiles, clinical context, image dimensions, and processed tensor dimensions.
 - Uploaded image bytes are linked to the job by an internal request ID and removed when the job completes, is cancelled, or fails to start.
 - Database access is synchronous through SQLAlchemy engines and sessions. No async database driver is part of the current implementation.
+
+## Hugging Face generation contract
+
+Manifest entries are strict, SHA-pinned, cache-only contracts. Required files and at least one non-empty weight-file alternative must exist in the exact snapshot. Remote code is rejected unless the manifest explicitly approves it. Generation has deterministic profile limits, an `INFERENCE_MODEL_TIMEOUT` deadline, and cooperative job cancellation; cancelled or timed-out partial output is not persisted. EXIF orientation and RGB conversion occur before processor calls, while integer token dtypes are preserved when floating image tensors are moved to the model device and dtype.
 
 ## Architectural Constraints
 

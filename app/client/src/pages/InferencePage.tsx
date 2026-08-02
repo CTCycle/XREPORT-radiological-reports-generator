@@ -5,12 +5,12 @@ import {
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
-import type { GenerationProfile, ModelAvailability } from '../types/inferenceApi';
+import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
 import { generateReports, getInferenceJobStatus, getInferenceModels } from '../services/inferenceService';
 
-type DraftSections = { findings: string; impression: string };
+type DraftSections = Partial<Record<OutputSection, string>>;
 type GenerationRequest = {
     images: File[];
     modelRef: string;
@@ -18,7 +18,13 @@ type GenerationRequest = {
     clinicalContext: string;
 };
 
-const EMPTY_DRAFT: DraftSections = { findings: '', impression: '' };
+const EMPTY_DRAFT: DraftSections = {};
+
+const SECTION_LABELS: Record<OutputSection, string> = {
+    raw_report: 'Raw report',
+    findings: 'Findings',
+    impression: 'Impression',
+};
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
     const record = asRecord(value);
@@ -26,6 +32,23 @@ function readStringMap(value: unknown): Record<string, string> | undefined {
     const entries = Object.entries(record);
     if (entries.some(([, entry]) => readString(entry) === undefined)) return undefined;
     return Object.fromEntries(entries.map(([key, entry]) => [key, readString(entry) ?? '']));
+}
+
+function readSectionMap(value: unknown, images: File[]): Record<number, DraftSections> {
+    const payload = asRecord(value);
+    if (!payload) return {};
+    const filenames = readStringArray(payload.report_filenames) ?? images.map(image => image.name);
+    const byFilename = asRecord(payload.display_sections);
+    if (!byFilename) return {};
+    return Object.fromEntries(filenames.flatMap((filename, index) => {
+        const sections = asRecord(byFilename[filename]);
+        if (!sections) return [];
+        const normalized = Object.fromEntries(Object.entries(sections).flatMap(([key, raw]) => {
+            const text = readString(raw);
+            return text === undefined ? [] : [[key, text]];
+        })) as DraftSections;
+        return Object.keys(normalized).length ? [[index, normalized]] : [];
+    }));
 }
 
 function toReportsByIndex(result: unknown, images: File[]): Record<number, string> {
@@ -41,20 +64,24 @@ function toReportsByIndex(result: unknown, images: File[]): Record<number, strin
     return Object.keys(mapped).length ? mapped : Object.fromEntries(Object.values(reports).map((report, index) => [index, report]));
 }
 
-function parseDraft(report: string): DraftSections {
+function parseDeclaredDraft(report: string, outputSections: OutputSection[]): DraftSections {
     const normalized = report.trim();
     if (!normalized) return EMPTY_DRAFT;
+    if (outputSections.includes('raw_report')) return { raw_report: report };
     const findingsMatch = normalized.match(/(?:^|\n)\s*(?:#{1,3}\s*)?findings\s*:?\s*([\s\S]*?)(?=\n\s*(?:#{1,3}\s*)?impression\s*:?|$)/i);
     const impressionMatch = normalized.match(/(?:^|\n)\s*(?:#{1,3}\s*)?impression\s*:?\s*([\s\S]*)$/i);
-    if (!findingsMatch && !impressionMatch) return { findings: normalized, impression: '' };
-    return {
-        findings: findingsMatch?.[1]?.trim() ?? '',
-        impression: impressionMatch?.[1]?.trim() ?? '',
-    };
+    const draft: DraftSections = {};
+    if (outputSections.includes('findings')) draft.findings = findingsMatch?.[1]?.trim() ?? (outputSections.length === 1 ? normalized : '');
+    if (outputSections.includes('impression')) draft.impression = impressionMatch?.[1]?.trim() ?? (outputSections.length === 1 ? normalized : '');
+    return draft;
 }
 
-function formatDraft(draft: DraftSections): string {
-    return `Findings\n${draft.findings.trim()}\n\nImpression\n${draft.impression.trim()}`.trim();
+function formatDeclaredDraft(draft: DraftSections, outputSections: OutputSection[]): string {
+        if (outputSections.includes('raw_report')) return draft.raw_report ?? '';
+    return outputSections
+        .map(section => `${SECTION_LABELS[section]}\n${draft[section]?.trim() ?? ''}`)
+        .join('\n\n')
+        .trim();
 }
 
 function parseProfile(value: string): GenerationProfile {
@@ -72,6 +99,7 @@ export default function InferencePage() {
     const [providerFilter, setProviderFilter] = useState('all');
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<number, DraftSections>>({});
+    const [generationProvenance, setGenerationProvenance] = useState<Record<string, string>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedModel = useMemo(
@@ -79,7 +107,9 @@ export default function InferencePage() {
         [state.modelAvailability, state.selectedModelRef],
     );
     const maxImages = selectedModel?.max_current_images ?? 1;
-    const activeDraft = drafts[state.currentIndex] ?? parseDraft(state.generatedReport);
+    const outputSections = selectedModel?.output_sections ?? [];
+    const activeDraft = drafts[state.currentIndex] ?? parseDeclaredDraft(state.generatedReport, outputSections);
+    const hasActiveDraft = Object.values(activeDraft).some(value => Boolean(value?.trim()));
     const filteredModels = useMemo(() => {
         const query = modelFilter.trim().toLowerCase();
         return state.modelAvailability.filter(model =>
@@ -97,7 +127,20 @@ export default function InferencePage() {
             const reports = toReportsByIndex(status.result, state.images);
             if (!Object.keys(reports).length) return;
             setReports(reports);
-            setDrafts(Object.fromEntries(Object.entries(reports).map(([index, report]) => [Number(index), parseDraft(report)])));
+            const provenance = asRecord(status.result?.provenance);
+            if (provenance) {
+                setGenerationProvenance(Object.fromEntries(
+                    ['provider', 'model_ref', 'model_revision', 'adapter', 'generation_profile']
+                        .flatMap(key => {
+                            const value = readString(provenance[key]);
+                            return value === undefined ? [] : [[key, value]];
+                        }),
+                ));
+            }
+            const sectionDrafts = readSectionMap(status.result, state.images);
+            setDrafts(Object.fromEntries(Object.entries(reports).map(([index, report]) => [
+                Number(index), sectionDrafts[Number(index)] ?? parseDeclaredDraft(report, outputSections),
+            ])));
             setGeneratedReport(reports[state.currentIndex] ?? '');
         },
         onComplete: () => setIsGenerating(false),
@@ -125,21 +168,40 @@ export default function InferencePage() {
         setGeneratedReport(report);
     }, [state.currentIndex, state.reports, setGeneratedReport]);
 
+    const selectModel = (model: ModelAvailability) => {
+        setSelectedModelRef(model.model_ref);
+        if (state.images.length > model.max_current_images) {
+            setImages(state.images.slice(0, model.max_current_images));
+            setCurrentIndex(0);
+        }
+        if (!model.capabilities.clinical_context && state.clinicalContext) {
+            setClinicalContext('');
+        }
+        setReports({});
+        setDrafts({});
+        setGeneratedReport('');
+        setGenerationProvenance({});
+    };
+
     const resetStudy = () => {
         clearImages();
         setDrafts({});
+        setReports({});
+        setGeneratedReport('');
+        setGenerationProvenance({});
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const addFiles = (files: FileList | null) => {
-        if (!files?.length) return;
+        if (state.isGenerating || !files?.length) return;
         const accepted = Array.from(files).filter(file => file.type.startsWith('image/'));
-        const next = maxImages === 1 ? accepted.slice(0, 1) : [...state.images, ...accepted].slice(0, maxImages);
+        const next = maxImages === 1 ? accepted.slice(0, 1) : [...state.images, ...accepted].slice(0, Math.min(maxImages, 16));
         setImages(next);
         setCurrentIndex(0);
         setReports({});
         setDrafts({});
         setGeneratedReport('');
+        setGenerationProvenance({});
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -148,31 +210,42 @@ export default function InferencePage() {
         addFiles(event.dataTransfer.files);
     };
 
+    const changeProfile = (profile: GenerationProfile) => {
+        if (hasActiveDraft) {
+            setReports({});
+            setDrafts({});
+            setGeneratedReport('');
+            setGenerationProvenance({});
+        }
+        setGenerationProfile(profile);
+    };
+
     const generate = async () => {
         if (!selectedModel || selectedModel.status !== 'ready' || !state.images.length) return;
         setIsGenerating(true);
         setReports({});
         setDrafts({});
         setGeneratedReport('');
+        setGenerationProvenance({});
         setStreamingTokens('');
         setCurrentStreamingIndex(-1);
         const started = await generationJob.start({
             images: state.images,
             modelRef: selectedModel.model_ref,
             generationProfile: state.generationProfile,
-            clinicalContext: state.clinicalContext,
+            clinicalContext: selectedModel.capabilities.clinical_context ? state.clinicalContext : '',
         });
         if (!started) setIsGenerating(false);
     };
 
-    const updateDraft = (field: keyof DraftSections, value: string) => {
+    const updateDraft = (field: OutputSection, value: string) => {
         const next = { ...activeDraft, [field]: value };
         setDrafts(previous => ({ ...previous, [state.currentIndex]: next }));
-        setGeneratedReport(formatDraft(next));
+        setGeneratedReport(formatDeclaredDraft(next, outputSections));
     };
 
     const copyDraft = async () => {
-        await navigator.clipboard.writeText(formatDraft(activeDraft));
+        await navigator.clipboard.writeText(formatDeclaredDraft(activeDraft, outputSections));
         setIsCopied(true);
         globalThis.setTimeout(() => setIsCopied(false), 1600);
     };
@@ -180,11 +253,13 @@ export default function InferencePage() {
     const exportDraft = () => {
         const metadata = [
             'XREPORT — RESEARCH USE ONLY — NOT CLINICALLY APPROVED',
-            `Model: ${selectedModel?.display_name ?? 'Unknown'} (${selectedModel?.model_ref ?? 'Unknown'})`,
-            `Revision: ${selectedModel?.model_revision ?? 'Not reported'}`,
-            `Generation profile: ${state.generationProfile}`,
+            `Model: ${generationProvenance.model_ref ?? selectedModel?.display_name ?? 'Unknown'} (${generationProvenance.model_ref ?? selectedModel?.model_ref ?? 'Unknown'})`,
+            `Provider: ${generationProvenance.provider ?? selectedModel?.provider ?? 'Not reported'}`,
+            `Revision: ${generationProvenance.model_revision ?? selectedModel?.model_revision ?? 'Not reported'}`,
+            `Generation profile: ${generationProvenance.generation_profile ?? state.generationProfile}`,
             `Image: ${state.images[state.currentIndex]?.name ?? 'Unknown'}`,
-            '', formatDraft(activeDraft),
+            `Adapter: ${selectedModel?.adapter ?? 'Not reported'}`,
+            '', formatDeclaredDraft(activeDraft, outputSections),
         ].join('\n');
         const url = URL.createObjectURL(new Blob([metadata], { type: 'text/plain;charset=utf-8' }));
         const link = document.createElement('a');
@@ -216,7 +291,7 @@ export default function InferencePage() {
                     {catalogError && <div className="catalog-state error">{catalogError}</div>}
                     <div className="model-list">
                         {filteredModels.map(model => (
-                            <button type="button" key={model.model_ref} className={`model-card ${state.selectedModelRef === model.model_ref ? 'selected' : ''}`} onClick={() => setSelectedModelRef(model.model_ref)} aria-pressed={state.selectedModelRef === model.model_ref}>
+                            <button type="button" key={model.model_ref} className={`model-card ${state.selectedModelRef === model.model_ref ? 'selected' : ''}`} onClick={() => selectModel(model)} aria-pressed={state.selectedModelRef === model.model_ref} disabled={state.isGenerating}>
                                 <span className={`status-dot ${model.status}`} aria-hidden="true" /><span className="model-card-body"><strong>{model.display_name}</strong><small>{model.provider} · {model.parameter_size ?? model.category}</small></span><span className={`status-label ${model.status}`}>{model.status.replace('_', ' ')}</span>
                             </button>
                         ))}
@@ -226,30 +301,29 @@ export default function InferencePage() {
                 </aside>
 
                 <section className="study-panel" aria-label="Study preparation">
-                    <div className="section-heading"><div><span className="step-number">2</span><h2>Prepare study</h2></div>{state.images.length > 0 && <button type="button" className="text-button danger" onClick={resetStudy}><Trash2 />Clear</button>}</div>
+                    <div className="section-heading"><div><span className="step-number">2</span><h2>Prepare study</h2></div>{state.images.length > 0 && <button type="button" className="text-button danger" onClick={resetStudy} disabled={state.isGenerating}><Trash2 />Clear</button>}</div>
                     <div className="upload-zone" onDragOver={event => event.preventDefault()} onDrop={onDrop}>
-                        {currentImageUrl ? <div className="image-stage"><img src={currentImageUrl} alt={`Study image ${state.currentIndex + 1}`} /><span>{currentImage?.name}</span></div> : <button type="button" className="upload-prompt" onClick={() => fileInputRef.current?.click()}><ImagePlus /><strong>Add study image</strong><span>Drop an image here or browse local files</span></button>}
+                        {currentImageUrl ? <div className="image-stage"><img src={currentImageUrl} alt={`Study image ${state.currentIndex + 1}`} /><span>{currentImage?.name}</span></div> : <button type="button" className="upload-prompt" onClick={() => fileInputRef.current?.click()} disabled={state.isGenerating || !selectedModel}><ImagePlus /><strong>Add study image</strong><span>Drop an image here or browse local files</span></button>}
                         <input ref={fileInputRef} className="sr-only" type="file" accept="image/*" multiple={maxImages > 1} onChange={(event: ChangeEvent<HTMLInputElement>) => addFiles(event.target.files)} />
                     </div>
                     <div className="study-toolbar">
-                        <button type="button" className="secondary-button" onClick={() => fileInputRef.current?.click()} disabled={!selectedModel}><ImagePlus />{state.images.length ? 'Replace / add' : 'Browse images'}</button>
-                        <span>{selectedModel?.input_semantics === 'independent_images' ? `Up to ${maxImages} independent images` : 'Single-image model'}</span>
+                        <button type="button" className="secondary-button" onClick={() => fileInputRef.current?.click()} disabled={!selectedModel || state.isGenerating}><ImagePlus />{state.images.length ? 'Replace / add' : 'Browse images'}</button>
+                        <span>{selectedModel?.input_semantics === 'independent_images' ? `Up to ${maxImages} independent images` : `Up to ${maxImages} current image${maxImages === 1 ? '' : 's'}`}</span>
                     </div>
                     {state.images.length > 1 && <div className="image-navigation"><button type="button" aria-label="Previous image" onClick={() => setCurrentIndex(Math.max(0, state.currentIndex - 1))} disabled={state.currentIndex === 0}><ChevronLeft /></button><span>{state.currentIndex + 1} / {state.images.length}</span><button type="button" aria-label="Next image" onClick={() => setCurrentIndex(Math.min(state.images.length - 1, state.currentIndex + 1))} disabled={state.currentIndex === state.images.length - 1}><ChevronRight /></button></div>}
                     <label className="field-label" htmlFor="clinical-context"><span>Clinical context</span><small>{selectedModel?.capabilities.clinical_context ? 'Optional context supported' : 'Not supported by selected model'}</small></label>
                     <textarea id="clinical-context" className="context-input" value={state.clinicalContext} onChange={event => setClinicalContext(event.target.value)} disabled={!selectedModel?.capabilities.clinical_context || state.isGenerating} placeholder="Indication, relevant history, comparison details…" />
-                    <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => setGenerationProfile(parseProfile(event.target.value))} disabled={state.isGenerating}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
+                    <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => changeProfile(parseProfile(event.target.value))} disabled={state.isGenerating || hasActiveDraft}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
                     <button type="button" className="generate-button" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Generating draft…</> : <><Sparkles />Generate draft</>}</button>
                     {generationJob.error && <div className="generation-error" role="alert">{generationJob.error}</div>}
                 </section>
 
                 <section className="draft-panel" aria-label="Report draft">
-                    <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!activeDraft.findings && !activeDraft.impression}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!activeDraft.findings && !activeDraft.impression}><Download /></button></div></div>
-                    {!activeDraft.findings && !activeDraft.impression && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor">
-                        {selectedModel?.output_sections.includes('findings') && <><label htmlFor="findings">Findings</label><textarea id="findings" value={activeDraft.findings} onChange={event => updateDraft('findings', event.target.value)} placeholder="Generated findings will appear here." /></>}
-                        {selectedModel?.output_sections.includes('impression') && <><label htmlFor="impression">Impression</label><textarea id="impression" value={activeDraft.impression} onChange={event => updateDraft('impression', event.target.value)} placeholder="Generated impression will appear here." /></>}
+                    <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!hasActiveDraft}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!hasActiveDraft}><Download /></button></div></div>
+                    {!hasActiveDraft && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor">
+                        {outputSections.map(section => <div key={section} className="declared-section"><label htmlFor={`report-${section}`}>{SECTION_LABELS[section]}</label><textarea id={`report-${section}`} value={activeDraft[section] ?? ''} onChange={event => updateDraft(section, event.target.value)} placeholder={`${SECTION_LABELS[section]} will appear here.`} /></div>)}
                     </div>}
-                    <div className="runtime-metadata"><span><strong>Model</strong>{selectedModel?.display_name ?? 'Not selected'}</span><span><strong>Provider</strong>{selectedModel?.provider ?? '—'}</span><span><strong>Revision</strong>{selectedModel?.model_revision?.slice(0, 12) ?? 'Not reported'}</span><span><strong>Profile</strong>{state.generationProfile}</span></div>
+                    <div className="runtime-metadata"><span><strong>Model</strong>{generationProvenance.model_ref ?? selectedModel?.display_name ?? 'Not selected'}</span><span><strong>Provider</strong>{generationProvenance.provider ?? selectedModel?.provider ?? '—'}</span><span><strong>Revision</strong>{generationProvenance.model_revision ?? selectedModel?.model_revision ?? 'Not reported'}</span><span><strong>Adapter</strong>{generationProvenance.adapter ?? selectedModel?.adapter ?? 'Not reported'}</span><span><strong>Profile</strong>{generationProvenance.generation_profile ?? state.generationProfile}</span><span><strong>Output</strong>{outputSections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</span></div>
                 </section>
             </section>
         </main>
@@ -264,5 +338,5 @@ function ModelDetails({ model }: Readonly<{ model: ModelAvailability }>) {
         model.capabilities.impression && 'Impression',
         model.capabilities.grounding && 'Grounding',
     ].filter(Boolean);
-    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p>{model.status_message && <p className="catalog-state">{model.status_message}</p>}<dl><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision?.slice(0, 12) ?? 'Not configured'}</dd></div>{model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}</dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
+    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p>{model.status_message && <p className="catalog-state">{model.status_message}</p>}<dl><div><dt>Status</dt><dd>{model.status.replace('_', ' ')}</dd></div><div><dt>Validation</dt><dd>{model.validation_status}</dd></div><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision ?? 'Not configured'}</dd></div><div><dt>Adapter</dt><dd>{model.adapter ?? 'Not reported'}</dd></div><div><dt>Loader</dt><dd>{model.model_loader ?? 'Not reported'} / {model.processor_loader ?? 'Not reported'}</dd></div><div><dt>Output</dt><dd>{model.output_sections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</dd></div>{model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}</dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
 }

@@ -43,6 +43,7 @@ from server.services.inference_catalog import InferenceModelCatalog
 
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
+_INFERENCE_RUNTIME_LOCK = threading.RLock()
 
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
@@ -102,6 +103,8 @@ def report_inference_progress(
     total_images: int,
     reports: dict[str, str],
     inference_metadata: list[dict[str, Any]] | None = None,
+    display_sections: dict[str, dict[str, str]] | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> None:
     progress = (image_index / total_images) * 100.0
     get_job_manager().update_progress(job_id, progress)
@@ -121,6 +124,13 @@ def report_inference_progress(
             job_id,
             {"inference_metadata": inference_metadata},
         )
+    if display_sections is not None:
+        get_job_manager().update_result(
+            job_id,
+            {"display_sections": display_sections},
+        )
+    if provenance is not None:
+        get_job_manager().update_result(job_id, {"provenance": provenance})
 
 ###############################################################################
 def run_inference_job(
@@ -144,46 +154,87 @@ def run_inference_job(
         raise RuntimeError("No images available for inference job")
 
     started_at = time.perf_counter()
+    persisted_provenance: dict[str, Any] = {}
     try:
         report_progress = partial(report_inference_progress, job_id)
 
+        display_sections: dict[str, dict[str, str]] = {}
+        provenance: dict[str, Any] = {
+            "provider": model_ref.partition(":")[0],
+            "model_ref": model_ref,
+            "model_revision": model_revision,
+            "generation_profile": generation_profile,
+            "clinical_context": clinical_context,
+            "research_only": True,
+        }
+
         if model_ref.startswith("xreport:"):
-            generation_mode = {
-                "deterministic": "greedy_search",
-                "concise": "greedy_search",
-                "detailed": "beam_search",
-            }[generation_profile]
-            checkpoint = model_ref.removeprefix("xreport:")
-            try:
-                model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
-                    checkpoint
-                )
-            except Exception as exc:  # noqa: BLE001
-                raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
-            reports_by_filename = XReportCheckpointProvider().generate(
-                model=model,
-                model_metadata=model_metadata,
-                generation_mode=generation_mode,
-                images=stored_images,
-                should_stop=lambda: get_job_manager().should_stop(job_id),
-                report_progress=report_progress,
-            )
+            with _INFERENCE_RUNTIME_LOCK:
+                if get_job_manager().should_stop(job_id):
+                    reports_by_filename = {}
+                else:
+                    get_huggingface_provider().unload()
+                    generation_mode = {
+                        "deterministic": "greedy_search",
+                        "concise": "greedy_search",
+                        "detailed": "beam_search",
+                    }[generation_profile]
+                    checkpoint = model_ref.removeprefix("xreport:")
+                    try:
+                        model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
+                            checkpoint
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
+                    reports_by_filename = XReportCheckpointProvider().generate(
+                        model=model,
+                        model_metadata=model_metadata,
+                        generation_mode=generation_mode,
+                        images=stored_images,
+                        should_stop=lambda: get_job_manager().should_stop(job_id),
+                        report_progress=report_progress,
+                    )
+                    del model
+            display_sections = {
+                filename: {"raw_report": report}
+                for filename, report in reports_by_filename.items()
+            }
+            provenance.update({
+                "adapter": "xreport_beit",
+                "model_loader": "keras_checkpoint",
+                "processor_loader": "fixed_224",
+            })
         elif model_ref.startswith("huggingface:"):
             if model_manifest is None:
                 raise RuntimeError("Hugging Face model manifest is missing")
-            reports_by_filename = get_huggingface_provider().generate(
-                repository_id=model_ref.removeprefix("huggingface:"),
-                manifest=model_manifest,
-                profile=generation_profile,
-                clinical_context=clinical_context,
-                images=stored_images,
-                should_stop=lambda: get_job_manager().should_stop(job_id),
-                report_progress=report_progress,
-            )
+            with _INFERENCE_RUNTIME_LOCK:
+                generation = get_huggingface_provider().generate(
+                    repository_id=model_ref.removeprefix("huggingface:"),
+                    manifest=model_manifest,
+                    profile=generation_profile,
+                    clinical_context=clinical_context,
+                    images=stored_images,
+                    should_stop=lambda: get_job_manager().should_stop(job_id),
+                    report_progress=report_progress,
+                )
+            reports_by_filename = generation.reports
+            display_sections = generation.display_sections
+            provenance = generation.provenance
+            provenance["input_images"] = generation.metadata
         else:
             raise RuntimeError(f"Unsupported inference provider: {model_ref}")
     finally:
         inference_image_store.remove_job(job_id)
+
+    if get_job_manager().should_stop(job_id) or not reports_by_filename:
+        return {
+            "reports": {},
+            "reports_ordered": [],
+            "report_filenames": [],
+            "count": 0,
+            "display_sections": {},
+            "provenance": provenance,
+        }
 
     reports_ordered = list(reports_by_filename.values())
     report_filenames = list(reports_by_filename)
@@ -192,6 +243,9 @@ def run_inference_job(
         serializer = InferenceRepository()
         job_snapshot = get_job_manager().get_job_status(job_id) or {}
         job_result = job_snapshot.get("result") or {}
+        persisted_provenance = dict(job_result.get("provenance", provenance))
+        if "input_images" not in persisted_provenance:
+            persisted_provenance["input_images"] = job_result.get("inference_metadata", [])
         serializer.save_generated_reports(
             [
                 {
@@ -207,6 +261,8 @@ def run_inference_job(
             generation_config={
                 "profile": generation_profile,
                 "inference_metadata": job_result.get("inference_metadata", []),
+                "display_sections": job_result.get("display_sections", display_sections),
+                "provenance": persisted_provenance,
             },
             clinical_context=clinical_context,
             request_id=request_id,
@@ -221,6 +277,8 @@ def run_inference_job(
         "reports_ordered": reports_ordered,
         "report_filenames": report_filenames,
         "count": len(reports_by_filename),
+        "display_sections": display_sections,
+        "provenance": persisted_provenance or provenance,
     }
 
 ###############################################################################

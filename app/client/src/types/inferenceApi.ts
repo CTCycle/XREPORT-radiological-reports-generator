@@ -1,5 +1,7 @@
 export type GenerationProfile = 'deterministic' | 'concise' | 'detailed';
-export type ModelStatus = 'ready' | 'not_installed' | 'gated' | 'runtime_unavailable' | 'incompatible' | 'disabled';
+export type ModelStatus = 'ready' | 'not_installed' | 'unvalidated' | 'gated' | 'runtime_unavailable' | 'incompatible' | 'disabled';
+export type OutputSection = 'raw_report' | 'findings' | 'impression';
+export type ValidationStatus = 'blocked' | 'incompatible' | 'disabled' | 'pending' | 'passed';
 
 export interface ModelAvailability {
     model_ref: string;
@@ -8,6 +10,9 @@ export interface ModelAvailability {
     description: string;
     status: ModelStatus;
     status_message: string | null;
+    enabled: boolean;
+    validation_status: ValidationStatus;
+    validation_message: string | null;
     category: string;
     recommended: boolean;
     research_only: boolean;
@@ -29,7 +34,7 @@ export interface ModelAvailability {
     adapter: string | null;
     trust_remote_code: boolean;
     remote_code_approved: boolean;
-    output_sections: string[];
+    output_sections: OutputSection[];
     max_current_images: number;
     supports_prior_images: boolean;
     supports_clinical_context: boolean;
@@ -37,6 +42,17 @@ export interface ModelAvailability {
     quantization: string[];
     prompt_profile: string | null;
     license: string | null;
+    resource_policy: {
+        max_snapshot_size_bytes: number | null;
+        reason: string | null;
+    };
+    runtime_constraints: {
+        min_transformers: string | null;
+        max_transformers_exclusive: string | null;
+        required_modules: string[];
+    };
+    processor_repository_id: string | null;
+    processor_revision: string | null;
 }
 
 export interface InferenceModelsResponse {
