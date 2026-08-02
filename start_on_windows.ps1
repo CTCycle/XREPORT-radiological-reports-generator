@@ -170,9 +170,9 @@ function Ensure-PortableRuntimes {
 function Import-XReportEnvironment {
     $values = @{
         FASTAPI_HOST = '127.0.0.1'
-        FASTAPI_PORT = '8000'
+        FASTAPI_PORT = '5003'
         UI_HOST = '127.0.0.1'
-        UI_PORT = '8001'
+        UI_PORT = '8003'
         RELOAD = 'false'
         BACKEND_VISIBLE = 'false'
         ALWAYS_REBUILD = 'false'

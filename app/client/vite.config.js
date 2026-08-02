@@ -48,11 +48,11 @@ export default defineConfig(({ mode }) => {
     const env = { ...process.env, ...clientEnv, ...settingsEnv }
 
     const apiHost = env.FASTAPI_HOST || '127.0.0.1'
-    const apiPort = env.FASTAPI_PORT || '8000'
+    const apiPort = env.FASTAPI_PORT || '5003'
     const apiTarget = `http://${apiHost}:${apiPort}`
 
     const uiHost = env.UI_HOST || '127.0.0.1'
-    const uiPort = Number.parseInt(env.UI_PORT || '5173', 10)
+    const uiPort = Number.parseInt(env.UI_PORT || '8003', 10)
     const apiBase = normalizeApiBase(env.VITE_API_BASE_URL || '/api')
 
     return {
