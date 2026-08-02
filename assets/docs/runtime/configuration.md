@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 ## Shared Configuration Sources
 
@@ -56,5 +56,6 @@ SQLite ensures schema initialization at backend startup. PostgreSQL performs dat
 - Frontend calls backend routes through `/api`.
 - Vite dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
-- Hugging Face discovery and generation resolve only the per-model cached commit declared in `settings/inference_models.json`. Network fallback is disabled, and remote code is allowed only for individually approved manifest entries.
-- The inference catalog combines configured Hugging Face entries with discovered XREPORT checkpoints. Only catalog entries with `ready` status can be submitted for generation.
+- Hugging Face discovery and generation resolve only the per-model cached commit declared in `settings/inference_models.json`. Network fallback is disabled, and remote code is allowed only for individually approved manifest entries. `HF_CACHE_DIR` is intentionally unset by default; this produces configured but unavailable entries without downloading anything.
+- The inference catalog combines all five configured Hugging Face entries with discovered XREPORT checkpoints. It reports disabled, incompatible, gated, missing-cache, unvalidated-cache, and ready states with reasons. Only catalog entries with `ready` status can be submitted for generation.
+- A ready Hugging Face entry requires an exact-revision real-inference receipt under `assets/QA/inference_validation/`; a manifest status flag or file-presence check cannot promote it. Use `app/scripts/validate_inference_model.py` with `KERAS_BACKEND=torch` when a complete snapshot and appropriate fixture already exist.

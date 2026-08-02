@@ -90,7 +90,7 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
     )
     progress: list[tuple[object, ...]] = []
 
-    reports = HuggingFaceProvider(_settings(cache_path)).generate(
+    result = HuggingFaceProvider(_settings(cache_path)).generate(
         repository_id="google/medgemma-1.5-4b-it",
         manifest=_manifest(),
         profile="deterministic",
@@ -115,15 +115,26 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         assert options["local_files_only"] is True
         assert options["trust_remote_code"] is False
     assert model.generate.call_args.kwargs["do_sample"] is False
-    assert reports == {"scan.png": "Findings: no acute abnormality."}
-    assert progress[0][3] == [{
+    assert result.reports == {"scan.png": "Findings: no acute abnormality."}
+    assert result.display_sections == {"scan.png": {"raw_report": "Findings: no acute abnormality."}}
+    assert {
+        key: progress[0][3][0][key]
+        for key in (
+            "filename",
+            "original_dimensions",
+            "processed_tensor_dimensions",
+            "processor_loader",
+            "model_loader",
+            "adapter",
+        )
+    } == {
         "filename": "scan.png",
         "original_dimensions": {"width": 3, "height": 2},
         "processed_tensor_dimensions": [1, 3, 896, 896],
         "processor_loader": "auto",
         "model_loader": "image_text_to_text",
         "adapter": "medgemma",
-    }]
+    }
 
 ###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:

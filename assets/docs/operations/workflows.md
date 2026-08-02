@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-07-16
+Last updated: 2026-08-02
 
 ## Prepare A Dataset
 
@@ -27,15 +27,21 @@ Expected result:
 
 ## Generate Reports
 
-1. Open the Inference page.
-2. Select a ready model from the local model catalog and choose a generation profile.
-3. Submit image inputs and supported clinical context for inference.
-4. Poll job status until completion.
-5. Edit Findings and Impression, inspect runtime/model metadata, then copy or export the reviewed draft. Regenerate when another draft is needed.
+1. Open the Inference page and review the research-use warning.
+2. Select a model and read its exact status reason, revision, adapter, loader, and declared output sections. Only `ready` models can run.
+3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
+4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation.
+5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
 
 Expected result:
 
 - research-use-only draft reports are generated for qualified review; models and outputs are not clinically approved
+- the four unsuitable catalogue candidates remain visible with actionable unavailable reasons
+- no network fallback, gated-access flow, weight download, or manifest promotion occurs during this workflow
+
+## Validate a cached model
+
+Use `app/scripts/validate_inference_model.py` only with a complete exact snapshot and a public/de-identified fixture. The cache-only command runs provider and job-compatible result checks, validates declared sections and exact raw-text persistence using temporary recording, and writes metadata under `assets/QA/`. A deferred run is expected when `HF_CACHE_DIR` is unset; it does not change catalogue readiness.
 
 ## Validate Quality
 
