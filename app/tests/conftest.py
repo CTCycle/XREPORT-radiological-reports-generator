@@ -38,14 +38,14 @@ UI_BASE_URL = _resolve_base_url(
     host_env="UI_HOST",
     port_env="UI_PORT",
     fallback_host="127.0.0.1",
-    fallback_port="7861",
+    fallback_port="8003",
 )
 API_BASE_URL = _resolve_base_url(
     explicit_url_env="APP_TEST_BACKEND_URL",
     host_env="FASTAPI_HOST",
     port_env="FASTAPI_PORT",
     fallback_host="127.0.0.1",
-    fallback_port="8000",
+    fallback_port="5003",
 )
 
 ###############################################################################
