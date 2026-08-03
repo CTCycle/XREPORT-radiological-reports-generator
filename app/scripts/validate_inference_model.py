@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
+import mimetypes
 from pathlib import Path
 import sys
-import mimetypes
 
 APP_DIR = Path(__file__).resolve().parents[1]
 if str(APP_DIR) not in sys.path:
@@ -48,6 +49,21 @@ def _arguments() -> argparse.Namespace:
         "--profile", choices=("deterministic", "concise", "detailed"), default="deterministic"
     )
     parser.add_argument("--clinical-context", default="")
+    parser.add_argument(
+        "--fixture-provenance",
+        default="",
+        help="Public dataset accession, release, or URL; required for real validation.",
+    )
+    parser.add_argument(
+        "--fixture-deidentification",
+        default="",
+        help="Explicit de-identification statement; required for real validation.",
+    )
+    parser.add_argument(
+        "--fixture-sha256",
+        default="",
+        help="Expected SHA-256 hash of the supplied bytes; required for real validation.",
+    )
     return parser.parse_args()
 
 
@@ -60,6 +76,34 @@ def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     path = RUN_LOG_DIR / f"{_slug(model_ref)}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
+
+
+def _fixture_metadata(
+    image_path: Path,
+    data: bytes,
+    *,
+    provenance: str,
+    deidentification: str,
+    expected_sha256: str,
+) -> dict[str, str]:
+    fixture_provenance = provenance.strip()
+    fixture_deidentification = deidentification.strip()
+    actual_sha256 = hashlib.sha256(data).hexdigest()
+    if not fixture_provenance:
+        raise SystemExit("Fixture provenance must identify a public source or dataset accession.")
+    if not fixture_deidentification:
+        raise SystemExit("Fixture de-identification provenance must be stated explicitly.")
+    if expected_sha256.strip().lower() != actual_sha256:
+        raise SystemExit(
+            "Fixture SHA-256 does not match the supplied image bytes: "
+            f"expected {expected_sha256}, computed {actual_sha256}"
+        )
+    return {
+        "filename": image_path.name,
+        "provenance": fixture_provenance,
+        "de_identification": fixture_deidentification,
+        "sha256": actual_sha256,
+    }
 
 
 def main() -> int:
@@ -83,23 +127,43 @@ def main() -> int:
         path = _write_run_log(args.model_ref, payload)
         print(json.dumps({**payload, "log": str(path.relative_to(ROOT_DIR))}, indent=2))
         return 2
+    manifest = selected.model_dump(mode="json")
+    configured_manifest = InferenceManifest.model_validate(
+        json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    )
+    manifest_entry = next(
+        (entry for entry in configured_manifest.models if entry.model_ref == selected.model_ref),
+        None,
+    )
+    if manifest_entry is None:
+        payload = {
+            "status": "deferred",
+            "model_ref": selected.model_ref,
+            "revision": selected.model_revision,
+            "catalog_status": selected.status,
+            "reason": "The selected Hugging Face catalogue entry is absent from the configured manifest.",
+            "weights_downloaded": False,
+        }
+        path = _write_run_log(args.model_ref, payload)
+        print(json.dumps({**payload, "log": str(path.relative_to(ROOT_DIR))}, indent=2))
+        return 2
     if not args.image.is_file():
         raise SystemExit(f"Fixture does not exist: {args.image}")
 
     data = args.image.read_bytes()
+    fixture = _fixture_metadata(
+        args.image,
+        data,
+        provenance=args.fixture_provenance,
+        deidentification=args.fixture_deidentification,
+        expected_sha256=args.fixture_sha256,
+    )
     content_type = mimetypes.guess_type(args.image.name)[0] or "application/octet-stream"
     image = InferenceImage(
         filename=args.image.name,
         content_type=content_type,
         data=data,
         size_bytes=len(data),
-    )
-    manifest = selected.model_dump(mode="json")
-    configured_manifest = InferenceManifest.model_validate(
-        json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    )
-    manifest_entry = next(
-        entry for entry in configured_manifest.models if entry.model_ref == selected.model_ref
     )
     class RecordingRepository:
         saved_reports: list[dict[str, str]] = []
@@ -197,7 +261,7 @@ def main() -> int:
         "model_ref": selected.model_ref,
         "revision": selected.model_revision,
         "contract_hash": validation_contract_hash(manifest_entry),
-        "fixture": args.image.name,
+        "fixture": fixture,
         "reports": reports,
         "display_sections": display_sections,
         "provenance": provenance,
