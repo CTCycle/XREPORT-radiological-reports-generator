@@ -50,6 +50,28 @@ def _manifest() -> dict[str, object]:
         "preferred_dtype": "float32",
     }
 
+
+def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
+    monkeypatch.setattr(
+        "server.models.inference.providers.huggingface.snapshot_download",
+        lambda **_kwargs: "snapshot",
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        lambda _path, **_kwargs: processor,
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        lambda _path, **_kwargs: model,
+    )
+
+
+def _processor_inputs() -> Inputs:
+    return Inputs({
+        "input_ids": torch.tensor([[1, 2]]),
+        "pixel_values": torch.zeros((1, 3, 8, 9)),
+    })
+
 ###############################################################################
 def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch) -> None:
     cache_path = Path("assets/QA/test-huggingface-cache")
@@ -175,3 +197,126 @@ def test_provider_rejects_multiple_images() -> None:
         assert "at most 1" in str(exc)
     else:
         raise AssertionError("Multiple images were accepted")
+
+
+###############################################################################
+def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> None:
+    model = MagicMock()
+    model.device = torch.device("cpu")
+    processor = MagicMock()
+    processor.apply_chat_template.return_value = _processor_inputs()
+    stop_requested = False
+
+    def generate(**_kwargs):
+        nonlocal stop_requested
+        stop_requested = True
+        return torch.tensor([[1, 2, 3]])
+
+    model.generate.side_effect = generate
+    processor.decode.return_value = "Partial report"
+    _patch_runtime(monkeypatch, model, processor)
+    progress: list[object] = []
+
+    result = HuggingFaceProvider(_settings(Path("cache"))).generate(
+        repository_id="google/medgemma-1.5-4b-it",
+        manifest=_manifest(),
+        profile="deterministic",
+        clinical_context="",
+        images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
+        should_stop=lambda: stop_requested,
+        report_progress=lambda *values: progress.append(values),
+    )
+
+    assert result.reports == {}
+    assert result.display_sections == {}
+    assert result.metadata == []
+    assert progress == []
+
+
+###############################################################################
+def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> None:
+    model = MagicMock()
+    model.device = torch.device("cpu")
+    model.generate.return_value = torch.tensor([[1, 2, 3]])
+    processor = MagicMock()
+    processor.apply_chat_template.return_value = _processor_inputs()
+    processor.decode.return_value = "Report text"
+    _patch_runtime(monkeypatch, model, processor)
+
+    image = Image.new("L", (2, 3), 128)
+    exif = image.getexif()
+    exif[274] = 6
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG", exif=exif.tobytes())
+
+    progress: list[tuple[object, ...]] = []
+    result = HuggingFaceProvider(_settings(Path("cache"))).generate(
+        repository_id="google/medgemma-1.5-4b-it",
+        manifest=_manifest(),
+        profile="deterministic",
+        clinical_context="",
+        images=[InferenceImage(filename="scan.jpg", content_type="image/jpeg", data=buffer.getvalue(), size_bytes=69)],
+        should_stop=lambda: False,
+        report_progress=lambda *values: progress.append(values),
+    )
+
+    messages = processor.apply_chat_template.call_args.args[0]
+    processed_image = messages[0]["content"][0]["image"]
+    assert processed_image.mode == "RGB"
+    assert processed_image.size == (3, 2)
+    assert result.metadata[0]["original_dimensions"] == {"width": 3, "height": 2}
+    assert result.metadata[0]["processed_tensor_dimensions"] == [1, 3, 8, 9]
+    assert progress
+
+
+###############################################################################
+def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch) -> None:
+    model_a = MagicMock()
+    model_b = MagicMock()
+    processor_a = MagicMock()
+    processor_b = MagicMock()
+    models = [model_a, model_b]
+    processors = [processor_a, processor_b]
+    monkeypatch.setattr(
+        "server.models.inference.providers.huggingface.snapshot_download",
+        lambda **_kwargs: "snapshot",
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        lambda _path, **_kwargs: processors.pop(0),
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        lambda _path, **_kwargs: models.pop(0),
+    )
+    provider = HuggingFaceProvider(_settings(Path("cache")))
+    manifest_a = {
+        **_manifest(),
+        "repository_id": "model-a",
+        "revision": "a" * 40,
+    }
+    manifest_b = {
+        **_manifest(),
+        "repository_id": "model-b",
+        "revision": "b" * 40,
+    }
+
+    loaded_a = provider._load(manifest_a)
+    assert loaded_a[0] is model_a
+    loaded_b = provider._load(manifest_b)
+    assert loaded_b[0] is model_b
+    assert provider._model is model_b
+    assert provider._loaded_key == (
+        "model-b",
+        "b" * 40,
+        "medgemma",
+        "auto",
+        "image_text_to_text",
+    )
+
+    provider.unload()
+
+    assert provider._loaded_key is None
+    assert provider._model is None
+    assert provider._processor is None
+    assert provider._adapter is None

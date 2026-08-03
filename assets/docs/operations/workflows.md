@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Prepare A Dataset
 
@@ -41,7 +41,7 @@ Expected result:
 
 ## Validate a cached model
 
-Use `app/scripts/validate_inference_model.py` only with a complete exact snapshot and a public/de-identified fixture. The cache-only command runs provider and job-compatible result checks, validates declared sections and exact raw-text persistence using temporary recording, and writes metadata under `assets/QA/`. A deferred run is expected when `HF_CACHE_DIR` is unset; it does not change catalogue readiness.
+Use `app/scripts/validate_inference_model.py` only with a complete exact snapshot and a public/de-identified fixture. Supply the fixture provenance, de-identification statement, and matching SHA-256 with the command; no fixture or patient data is bundled. The cache-only command runs provider and job-compatible result checks, validates declared sections and exact raw-text persistence using temporary recording, and writes metadata under `assets/QA/`. A deferred run is expected when `HF_CACHE_DIR` is unset; it does not change catalogue readiness.
 
 ## Validate Quality
 
