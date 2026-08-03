@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Safety Scope
 
@@ -51,10 +51,28 @@ Run the cache-only validator with an existing public/de-identified fixture:
 
 ```powershell
 $env:KERAS_BACKEND = "torch"
-app/server/.venv/Scripts/python.exe app/scripts/validate_inference_model.py --image C:/path/to/cxr.png
+$sha256 = (Get-FileHash C:/path/to/cxr.png -Algorithm SHA256).Hash.ToLower()
+app/server/.venv/Scripts/python.exe app/scripts/validate_inference_model.py `
+  --image C:/path/to/cxr.png `
+  --fixture-provenance "Public dataset name, accession/release, or URL" `
+  --fixture-deidentification "Public release states that the image is de-identified; no direct identifiers present" `
+  --fixture-sha256 $sha256
 ```
 
-The command writes only JSON logs/receipts under `assets/QA/`; it never downloads weights or promotes the manifest. With the current unset `HF_CACHE_DIR`, validation is deferred and the ready count remains zero.
+No public or de-identified fixture is bundled with XREPORT, and no patient data belongs in this repository. The validator therefore requires the caller to provide the fixture's provenance and de-identification statement together with the exact SHA-256 of the supplied bytes. A successful receipt records only this fixture metadata:
+
+```json
+{
+  "fixture": {
+    "filename": "cxr.png",
+    "provenance": "Public dataset name, accession/release, or URL",
+    "de_identification": "Public release states that the image is de-identified; no direct identifiers present",
+    "sha256": "<64 lowercase hexadecimal characters>"
+  }
+}
+```
+
+The `sha256` value must match the bytes read by the validator; it is not a model or report hash. The command writes only JSON logs/receipts under `assets/QA/`; it never downloads weights or promotes the manifest. With the current unset `HF_CACHE_DIR`, validation is deferred and the ready count remains zero.
 
 ## Custom XREPORT checkpoint
 

@@ -58,6 +58,8 @@ def test_catalog_lists_all_configured_models_and_xreport_refs(monkeypatch) -> No
     assert [model.status for model in response.models[:5]] == [
         "gated", "incompatible", "disabled", "disabled", "not_installed"
     ]
+    xreport = response.models[-1]
+    assert xreport.output_sections == ["raw_report"]
 
 ###############################################################################
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:
