@@ -8,7 +8,10 @@ import { useInferencePageState } from '../AppStateContext';
 import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
-import { cancelInferenceJob, generateReports, getInferenceJobStatus, getInferenceModels } from '../services/inferenceService';
+import {
+    cancelInferenceJob, checkInferenceModelUpdate, generateReports,
+    getInferenceJobStatus, getInferenceModels, maintainInferenceModel,
+} from '../services/inferenceService';
 
 type DraftSections = Partial<Record<OutputSection, string>>;
 type GenerationRequest = {
@@ -100,6 +103,8 @@ export default function InferencePage() {
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<number, DraftSections>>({});
     const [generationProvenance, setGenerationProvenance] = useState<Record<string, string>>({});
+    const [installationLifecycle, setInstallationLifecycle] = useState<Record<string, unknown> | null>(null);
+    const [catalogRefresh, setCatalogRefresh] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedModel = useMemo(
@@ -110,6 +115,7 @@ export default function InferencePage() {
     const outputSections = selectedModel?.output_sections ?? [];
     const activeDraft = drafts[state.currentIndex] ?? parseDeclaredDraft(state.generatedReport, outputSections);
     const hasActiveDraft = Object.values(activeDraft).some(value => Boolean(value?.trim()));
+    const canGenerate = Boolean(selectedModel && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(selectedModel.status));
     const filteredModels = useMemo(() => {
         const query = modelFilter.trim().toLowerCase();
         return state.modelAvailability.filter(model =>
@@ -125,6 +131,7 @@ export default function InferencePage() {
         getStatus: getInferenceJobStatus,
         cancelJob: cancelInferenceJob,
         onUpdate: status => {
+            setInstallationLifecycle(asRecord(status.result?.lifecycle) ?? null);
             const reports = toReportsByIndex(status.result, state.images);
             if (!Object.keys(reports).length) return;
             setReports(reports);
@@ -144,7 +151,10 @@ export default function InferencePage() {
             ])));
             setGeneratedReport(reports[state.currentIndex] ?? '');
         },
-        onComplete: () => setIsGenerating(false),
+        onComplete: () => {
+            setIsGenerating(false);
+            setCatalogRefresh(value => value + 1);
+        },
         onError: () => setIsGenerating(false),
     });
 
@@ -155,15 +165,15 @@ export default function InferencePage() {
             const { result, error } = await getInferenceModels();
             if (result) {
                 setModelAvailability(result.models);
-                const selectedReady = result.models.some(model => model.model_ref === state.selectedModelRef && model.status === 'ready');
-                if (!selectedReady) setSelectedModelRef(result.models.find(model => model.status === 'ready')?.model_ref ?? '');
+                const selectedUsable = result.models.some(model => model.model_ref === state.selectedModelRef && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(model.status));
+                if (!selectedUsable) setSelectedModelRef(result.models[0]?.model_ref ?? '');
             } else {
                 setCatalogError(error ?? 'Unable to load the local model catalog.');
             }
             setIsLoadingModels(false);
         };
         void loadModels();
-    }, []);
+    }, [catalogRefresh]);
 
     useEffect(() => {
         const report = state.reports[state.currentIndex] ?? '';
@@ -223,7 +233,7 @@ export default function InferencePage() {
     };
 
     const generate = async () => {
-        if (!selectedModel || selectedModel.status !== 'ready' || !state.images.length) return;
+        if (!selectedModel || !canGenerate || !state.images.length) return;
         setIsGenerating(true);
         setReports({});
         setDrafts({});
@@ -299,7 +309,7 @@ export default function InferencePage() {
                         ))}
                         {!state.isLoadingModels && !filteredModels.length && <div className="catalog-state">No models match this filter.</div>}
                     </div>
-                    {selectedModel && <ModelDetails model={selectedModel} />}
+                    {selectedModel && <ModelDetails model={selectedModel} onRefresh={() => setCatalogRefresh(value => value + 1)} />}
                 </aside>
 
                 <section className="study-panel" aria-label="Study preparation">
@@ -316,14 +326,15 @@ export default function InferencePage() {
                     <label className="field-label" htmlFor="clinical-context"><span>Clinical context</span><small>{selectedModel?.capabilities.clinical_context ? 'Optional context supported' : 'Not supported by selected model'}</small></label>
                     <textarea id="clinical-context" className="context-input" value={state.clinicalContext} onChange={event => setClinicalContext(event.target.value)} disabled={!selectedModel?.capabilities.clinical_context || state.isGenerating} placeholder="Indication, relevant history, comparison details…" />
                     <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => changeProfile(parseProfile(event.target.value))} disabled={state.isGenerating || hasActiveDraft}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
-                    <button type="button" className="generate-button" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Generating draft…</> : <><Sparkles />Generate draft</>}</button>
+                    {state.isGenerating && installationLifecycle && <div className="installation-progress" role="status"><strong>{readString(installationLifecycle.message) ?? 'Preparing model…'}</strong><span>{readString(installationLifecycle.phase) ?? 'working'}{readString(installationLifecycle.current_file) ? ` · ${readString(installationLifecycle.current_file)}` : ''}</span>{typeof installationLifecycle.downloaded_bytes === 'number' && typeof installationLifecycle.total_bytes === 'number' && installationLifecycle.total_bytes > 0 && <span>{Math.round(installationLifecycle.downloaded_bytes / 1024 / 1024)} / {Math.round(installationLifecycle.total_bytes / 1024 / 1024)} MiB</span>}</div>}
+                    <button type="button" className="generate-button" onClick={() => void generate()} disabled={!canGenerate || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Preparing and generating…</> : selectedModel?.status === 'ready' ? <><Sparkles />Generate draft</> : <><Sparkles />Prepare model and generate</>}</button>
                     {state.isGenerating && <button type="button" className="secondary-button" onClick={() => void generationJob.cancel()} disabled={!generationJob.jobId}>Cancel generation</button>}
                     {generationJob.error && <div className="generation-error" role="alert">{generationJob.error}</div>}
                 </section>
 
                 <section className="draft-panel" aria-label="Report draft">
-                    <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!hasActiveDraft}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!hasActiveDraft}><Download /></button></div></div>
-                    {!hasActiveDraft && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose a ready model and add an image to begin.</span></div> : <div className="draft-editor">
+                    <div className="section-heading"><div><span className="step-number">3</span><h2>Review draft</h2></div><div className="draft-actions"><button type="button" aria-label="Regenerate draft" title="Regenerate" onClick={() => void generate()} disabled={!canGenerate || !state.images.length || state.isGenerating}><RefreshCw /></button><button type="button" aria-label="Copy draft" title="Copy" onClick={() => void copyDraft()} disabled={!hasActiveDraft}>{state.isCopied ? <Check /> : <Copy />}</button><button type="button" aria-label="Export draft" title="Export text" onClick={exportDraft} disabled={!hasActiveDraft}><Download /></button></div></div>
+                    {!hasActiveDraft && !state.isGenerating ? <div className="draft-empty"><FileImage /><strong>No draft yet</strong><span>Choose the model and add an image to download, prepare, and generate a report.</span></div> : <div className="draft-editor">
                         {outputSections.map(section => <div key={section} className="declared-section"><label htmlFor={`report-${section}`}>{SECTION_LABELS[section]}</label><textarea id={`report-${section}`} value={activeDraft[section] ?? ''} onChange={event => updateDraft(section, event.target.value)} placeholder={`${SECTION_LABELS[section]} will appear here.`} /></div>)}
                     </div>}
                     <div className="runtime-metadata"><span><strong>Model</strong>{generationProvenance.model_ref ?? selectedModel?.display_name ?? 'Not selected'}</span><span><strong>Provider</strong>{generationProvenance.provider ?? selectedModel?.provider ?? '—'}</span><span><strong>Revision</strong>{generationProvenance.model_revision ?? selectedModel?.model_revision ?? 'Not reported'}</span><span><strong>Adapter</strong>{generationProvenance.adapter ?? selectedModel?.adapter ?? 'Not reported'}</span><span><strong>Profile</strong>{generationProvenance.generation_profile ?? state.generationProfile}</span><span><strong>Output</strong>{outputSections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</span></div>
@@ -333,7 +344,11 @@ export default function InferencePage() {
     );
 }
 
-function ModelDetails({ model }: Readonly<{ model: ModelAvailability }>) {
+function ModelDetails({ model, onRefresh }: Readonly<{ model: ModelAvailability; onRefresh: () => void }>) {
+    const [maintenanceMessage, setMaintenanceMessage] = useState<string | null>(null);
+    const [maintenanceBusy, setMaintenanceBusy] = useState(false);
+    const [updateRevision, setUpdateRevision] = useState<string | null>(null);
+    const [updateAvailable, setUpdateAvailable] = useState(model.update_available);
     const capabilities = [
         model.capabilities.clinical_context && 'Clinical context',
         model.capabilities.multiple_current_views && 'Multiple views',
@@ -341,5 +356,32 @@ function ModelDetails({ model }: Readonly<{ model: ModelAvailability }>) {
         model.capabilities.impression && 'Impression',
         model.capabilities.grounding && 'Grounding',
     ].filter(Boolean);
-    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p>{model.status_message && <p className="catalog-state">{model.status_message}</p>}<dl><div><dt>Status</dt><dd>{model.status.replace('_', ' ')}</dd></div><div><dt>Validation</dt><dd>{model.validation_status}</dd></div><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.model_revision ?? 'Not configured'}</dd></div><div><dt>Adapter</dt><dd>{model.adapter ?? 'Not reported'}</dd></div><div><dt>Loader</dt><dd>{model.model_loader ?? 'Not reported'} / {model.processor_loader ?? 'Not reported'}</dd></div><div><dt>Output</dt><dd>{model.output_sections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</dd></div>{model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}</dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div></div>;
+    const checkUpdate = async () => {
+        setMaintenanceBusy(true);
+        const result = await checkInferenceModelUpdate(model.model_ref);
+        setUpdateRevision(result.result?.latest_revision ?? null);
+        setUpdateAvailable(Boolean(result.result?.update_available));
+        setMaintenanceMessage(result.error ?? (result.result?.update_available ? `Update available: ${result.result.latest_revision}` : 'No newer revision reported.'));
+        setMaintenanceBusy(false);
+        onRefresh();
+    };
+    const runMaintenance = async (action: 'repair' | 'reinstall' | 'download_update') => {
+        setMaintenanceBusy(true);
+        setMaintenanceMessage(`${action.replace('_', ' ')} started…`);
+        const started = await maintainInferenceModel(model.model_ref, action, action === 'download_update' ? updateRevision ?? undefined : undefined);
+        if (started.error || !started.result) {
+            setMaintenanceMessage(started.error ?? 'Unable to start maintenance.');
+            setMaintenanceBusy(false);
+            return;
+        }
+        let status = await getInferenceJobStatus(started.result.job_id);
+        while (status.result && (status.result.status === 'pending' || status.result.status === 'running')) {
+            await new Promise(resolve => globalThis.setTimeout(resolve, 1000));
+            status = await getInferenceJobStatus(started.result.job_id);
+        }
+        setMaintenanceMessage(status.error ?? status.result?.error ?? 'Model maintenance completed. Generate a report to validate a candidate revision.');
+        setMaintenanceBusy(false);
+        onRefresh();
+    };
+    return <div className="model-details"><div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div><h3>{model.display_name}</h3><p>{model.description}</p>{model.status_message && <p className="catalog-state">{model.status_message}</p>}<dl><div><dt>Status</dt><dd>{model.status.replace('_', ' ')}</dd></div><div><dt>Installation</dt><dd>{model.installation_state} · {model.integrity_status}</dd></div><div><dt>Validation</dt><dd>{model.validation_status}</dd></div><div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div><div><dt>Revision</dt><dd>{model.active_revision ?? model.model_revision ?? 'Not configured'}</dd></div><div><dt>Path</dt><dd>{model.local_path ?? 'Will be created under app/resources'}</dd></div><div><dt>Adapter</dt><dd>{model.adapter ?? 'Not reported'}</dd></div><div><dt>Loader</dt><dd>{model.model_loader ?? 'Not reported'} / {model.processor_loader ?? 'Not reported'}</dd></div><div><dt>Output</dt><dd>{model.output_sections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</dd></div>{model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}</dl><div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div>{model.provider === 'huggingface' && <div className="maintenance-controls"><button type="button" className="secondary-button" onClick={() => void checkUpdate()} disabled={maintenanceBusy}>Check for updates</button>{model.available_actions.includes('repair') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('repair')} disabled={maintenanceBusy}>Repair installation</button>}{model.available_actions.includes('reinstall') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('reinstall')} disabled={maintenanceBusy}>Reinstall model</button>}{updateRevision && updateAvailable && <button type="button" className="secondary-button" onClick={() => void runMaintenance('download_update')} disabled={maintenanceBusy}>Download update</button>}{maintenanceMessage && <span role="status">{maintenanceMessage}</span>}</div>}</div>;
 }

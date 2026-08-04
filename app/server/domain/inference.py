@@ -26,6 +26,7 @@ class ProviderGenerationResult:
 GenerationProfile = Literal["deterministic", "concise", "detailed"]
 OutputSection = Literal["raw_report", "findings", "impression"]
 ValidationStatus = Literal["blocked", "incompatible", "disabled", "pending", "passed"]
+InstallationState = Literal["not_installed", "staged", "active", "corrupt", "failed"]
 
 _REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
@@ -180,6 +181,16 @@ class ModelAvailability(BaseModel):
     )
     processor_repository_id: str | None = None
     processor_revision: str | None = None
+    required_files: list[str] = Field(default_factory=list)
+    weight_file_sets: list[list[str]] = Field(default_factory=list)
+    installation_state: InstallationState = "not_installed"
+    local_path: str | None = None
+    active_revision: str | None = None
+    candidate_revision: str | None = None
+    integrity_status: str = "unknown"
+    cloud_assessment: dict[str, object] | None = None
+    update_available: bool = False
+    available_actions: list[str] = Field(default_factory=list)
 
 ###############################################################################
 class ProviderAvailability(BaseModel):
@@ -190,3 +201,24 @@ class ProviderAvailability(BaseModel):
 class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
+
+
+class ModelUpdateCheckResponse(BaseModel):
+    model_ref: str
+    repository_id: str
+    installed_revision: str | None = None
+    latest_revision: str | None = None
+    update_available: bool = False
+    source: str
+    checked_at: str
+    error: str | None = None
+
+
+class ModelUpdateCheckRequest(BaseModel):
+    model_ref: str
+
+
+class ModelMaintenanceRequest(BaseModel):
+    model_ref: str
+    action: Literal["repair", "reinstall", "download_update"]
+    revision: str | None = None
