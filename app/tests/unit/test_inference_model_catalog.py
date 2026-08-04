@@ -129,7 +129,7 @@ def test_catalog_does_not_mark_unvalidated_cached_candidate_ready(monkeypatch) -
 def test_catalog_requires_exact_contract_receipt_for_ready(monkeypatch, tmp_path: Path) -> None:
     payload = json.loads(inference_catalog.CATALOG_PATH.read_text(encoding="utf-8"))
     nathan = next(model for model in payload["models"] if model["adapter"] == "generate_cxr_blip")
-    nathan["validation_status"] = "passed"
+    nathan["validation_status"] = "pending"
     nathan["validation_message"] = None
     manifest_path = tmp_path / "inference_models.json"
     manifest_path.write_text(json.dumps(payload), encoding="utf-8")
