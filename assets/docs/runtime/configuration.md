@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 
 ## Shared Configuration Sources
 
@@ -49,7 +49,11 @@ Last updated: 2026-08-02
   connection settings below.
 `EMBEDDED_DATABASE` is the strict database-mode selector.
 
-SQLite ensures schema initialization at backend startup. PostgreSQL performs database and schema initialization during backend startup using `.env` connection settings.
+SQLite checks the database file at backend startup and initializes only a
+missing file. Existing SQLite files are not recreated, reseeded, or
+cross-validated. PostgreSQL startup only verifies a connection to the
+configured database; use option `3` in `start_on_windows.ps1` for explicit
+database and schema initialization.
 
 ## Interoperability
 

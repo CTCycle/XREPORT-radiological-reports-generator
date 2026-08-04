@@ -7,6 +7,7 @@ set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
+set "PYTEST_BASETEMP=%PROJECT_ROOT%\.pytest-tmp"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
@@ -105,7 +106,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning >nul 2>&1
     set "STARTED_BACKEND=1"
   )
 
@@ -138,7 +139,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
       )
 
       echo [INFO] Starting frontend preview server...
-      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT%
+      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT% >nul 2>&1
       set "STARTED_FRONTEND=1"
     )
   )
@@ -170,7 +171,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short %*
+"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %*
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"

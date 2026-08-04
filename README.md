@@ -117,12 +117,15 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
 
 ### 7.1 Database initialization behavior
 
+- On backend startup, a missing `settings/.env` is copied from
+  `settings/.env.example`. An existing `settings/.env` is never overwritten,
+  and `.env` files are excluded by `.gitignore`.
 - SQLite mode (`EMBEDDED_DATABASE=true`):
   - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
-  - Existing schemas are validated. On this inference-first branch, a legacy inference schema must be recreated; SQLAlchemy `create_all` does not migrate columns.
+  - If the file already exists, startup does not recreate, reset, reseed, or cross-validate it.
 - PostgreSQL mode (`EMBEDDED_DATABASE=false`):
-  - Use a disposable feature-branch database and recreate it if startup reports legacy inference columns.
-  - Initialization is also available through `start_on_windows.ps1` option `3`, which runs `app/scripts/initialize_database.py`.
+  - Normal startup only verifies a connection to the configured database and never creates or initializes it.
+  - Select option `3` in `start_on_windows.ps1` to create the configured database and schema explicitly.
 
 See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
 

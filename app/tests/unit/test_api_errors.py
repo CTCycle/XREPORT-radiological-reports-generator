@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import json
 
 import pytest
 from fastapi import Request
 
+from tests.conftest import run_async_in_thread
 from server.api.errors import handle_service_error
 from server.services.errors import (
     BadRequestError,
@@ -35,7 +35,9 @@ def test_service_error_handler_preserves_http_contract(
     error_type: type[ServiceError], expected_status: int
 ) -> None:
     request = Request({"type": "http", "method": "GET", "path": "/"})
-    response = asyncio.run(handle_service_error(request, error_type("stable detail")))
+    response = run_async_in_thread(
+        handle_service_error(request, error_type("stable detail"))
+    )
 
     assert response.status_code == expected_status
     assert json.loads(response.body) == {"detail": "stable detail"}

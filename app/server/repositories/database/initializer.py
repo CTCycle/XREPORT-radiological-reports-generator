@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import urllib.parse
 
 import sqlalchemy
@@ -7,40 +8,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
 from server.configurations import DatabaseSettings, get_server_settings
+from server.common.path import DATABASE_FILE_PATH
 from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.common.utils.logger import logger
 from server.repositories.schemas import Base
-
-
-INFERENCE_RUN_COLUMNS = {
-    "checkpoint_id",
-    "provider",
-    "model_ref",
-    "model_revision",
-    "generation_profile",
-    "generation_config_json",
-    "clinical_context",
-    "request_id",
-    "status",
-    "execution_time_seconds",
-    "executed_at",
-}
-
-###############################################################################
-def validate_current_schema(repository: Database) -> None:
-    inspector = sqlalchemy.inspect(repository.engine)
-    if not inspector.has_table("inference_runs"):
-        return
-    columns = {column["name"] for column in inspector.get_columns("inference_runs")}
-    missing = INFERENCE_RUN_COLUMNS - columns
-    if missing:
-        backend = repository.engine.dialect.name
-        raise ValueError(
-            "Database schema predates the inference-first branch. "
-            f"Recreate the {backend} database before startup; create_all does not migrate "
-            f"columns. Missing inference columns: {', '.join(sorted(missing))}"
-        )
 
 ###############################################################################
 def _postgres_database_exists_sql() -> str:
@@ -100,14 +72,22 @@ def build_postgres_create_database_sql(
 
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
+    if DATABASE_FILE_PATH.is_file():
+        logger.info(
+            "SQLite database already exists at %s; skipping initialization",
+            DATABASE_FILE_PATH,
+        )
+        return
+
     repository = Database(settings)
-    Base.metadata.create_all(repository.engine)
-    validate_current_schema(repository)
-    repository.engine.dispose()
+    try:
+        Base.metadata.create_all(repository.engine)
+    finally:
+        repository.engine.dispose()
     logger.info("Initialized SQLite database at %s", repository.db_path)
 
 ###############################################################################
-def ensure_postgres_database(settings: DatabaseSettings) -> str:
+def initialize_postgres_database(settings: DatabaseSettings) -> str:
     if not settings.host:
         raise ValueError("Database host is required for PostgreSQL initialization.")
     if not settings.username:
@@ -144,19 +124,26 @@ def ensure_postgres_database(settings: DatabaseSettings) -> str:
 
     normalized_settings = clone_settings_with_database(settings, target_database)
     repository = Database(normalized_settings)
-    Base.metadata.create_all(repository.engine)
-    validate_current_schema(repository)
-    repository.engine.dispose()
+    try:
+        Base.metadata.create_all(repository.engine)
+    finally:
+        repository.engine.dispose()
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
 
     return target_database
 
 ###############################################################################
-def run_database_initialization(settings: DatabaseSettings) -> None:
-    if settings.backend == "sqlite":
-        initialize_sqlite_database(settings)
-        return
+def verify_postgres_connection(settings: DatabaseSettings) -> None:
+    repository = Database(settings)
+    try:
+        with repository.engine.connect() as connection:
+            connection.execute(sqlalchemy.text("SELECT 1"))
+    finally:
+        repository.engine.dispose()
+    logger.info("Verified PostgreSQL connection to %s", settings.database_name)
 
+###############################################################################
+def _validate_postgres_engine(settings: DatabaseSettings) -> None:
     engine_name = normalize_postgres_engine(settings.engine).lower()
     if engine_name not in {
         "postgres",
@@ -166,16 +153,46 @@ def run_database_initialization(settings: DatabaseSettings) -> None:
     }:
         raise ValueError(f"Unsupported database engine: {settings.engine}")
 
-    ensure_postgres_database(settings)
+###############################################################################
+def run_database_initialization(settings: DatabaseSettings) -> None:
+    if settings.backend == "sqlite":
+        initialize_sqlite_database(settings)
+        return
+
+    _validate_postgres_engine(settings)
+    initialize_postgres_database(settings)
+
+###############################################################################
+def _run_database_action(
+    action: str,
+    operation: Callable[[], None],
+) -> None:
+    try:
+        operation()
+    except (SQLAlchemyError, ValueError) as exc:
+        logger.error("%s failed: %s", action, exc)
+        raise RuntimeError(f"{action} failed.") from exc
+    except Exception as exc:
+        logger.exception("Unexpected error during %s.", action.lower())
+        raise RuntimeError(f"Unexpected error during {action.lower()}.") from exc
 
 ###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings().database
-    try:
-        run_database_initialization(resolved_settings)
-    except (SQLAlchemyError, ValueError) as exc:
-        logger.error("Database initialization failed: %s", exc)
-        raise RuntimeError("Database initialization failed.") from exc
-    except Exception as exc:
-        logger.exception("Unexpected error during database initialization.")
-        raise RuntimeError("Unexpected error during database initialization.") from exc
+    _run_database_action(
+        "Database initialization",
+        lambda: run_database_initialization(resolved_settings),
+    )
+
+###############################################################################
+def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
+    resolved_settings = settings or get_server_settings().database
+    if resolved_settings.backend == "sqlite":
+        def operation() -> None:
+            initialize_sqlite_database(resolved_settings)
+    else:
+        def operation() -> None:
+            _validate_postgres_engine(resolved_settings)
+            verify_postgres_connection(resolved_settings)
+
+    _run_database_action("Database startup check", operation)
