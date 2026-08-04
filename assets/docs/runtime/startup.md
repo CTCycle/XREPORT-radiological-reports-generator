@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-07-20
+Last updated: 2026-08-03
 
 ## Windows Local Launcher
 
@@ -19,6 +19,10 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, opens the browser, and then exits the menu.
+
+At backend startup, a missing `settings/.env` is created from
+`settings/.env.example`. Existing environment files are preserved and ignored
+by Git.
 
 Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
 application launch. The default `ALWAYS_REBUILD=false` skips that startup
@@ -46,4 +50,8 @@ app\tests\run_tests.bat
 
 The test launcher uses the prepared backend environment and starts required local services when they are not already running.
 
-On backend startup, the application initializes the selected database, verifies the tracked configuration file, and creates required resource directories for logs, models, tokenizers, checkpoints, and templates.
+On backend startup, SQLite initializes only when its database file is missing.
+PostgreSQL is checked with a connection-only probe and must have been
+initialized explicitly through launcher option `3`. Startup also verifies the
+tracked configuration file and creates required resource directories for logs,
+models, tokenizers, checkpoints, and templates.

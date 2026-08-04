@@ -7,7 +7,7 @@ from threading import Lock
 
 from dotenv import load_dotenv
 
-from ..common.path import ENV_FILE_PATH
+from ..common.path import ENV_EXAMPLE_FILE_PATH, ENV_FILE_PATH
 from ..common.utils.logger import logger
 
 ###############################################################################
@@ -22,17 +22,38 @@ def _environment_state() -> _EnvironmentState:
     return _EnvironmentState()
 
 ###############################################################################
-def load_environment(*, force: bool = False) -> Path | None:
-    state = _environment_state()
-    env_path = ENV_FILE_PATH
-    with state.lock:
-        if state.loaded and not force:
-            return env_path if env_path.exists() else None
+def ensure_environment_file() -> Path:
+    if ENV_FILE_PATH.exists():
+        return ENV_FILE_PATH
 
-        if env_path.exists():
-            load_dotenv(dotenv_path=env_path, override=True)
-        else:
-            logger.warning(".env file not found at: %s", env_path)
+    if not ENV_EXAMPLE_FILE_PATH.is_file():
+        raise FileNotFoundError(
+            f"Environment template not found: {ENV_EXAMPLE_FILE_PATH}"
+        )
+
+    ENV_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    created = False
+    try:
+        with ENV_FILE_PATH.open("xb") as destination:
+            destination.write(ENV_EXAMPLE_FILE_PATH.read_bytes())
+        created = True
+    except FileExistsError:
+        # Another process created the file after the existence check. Preserve it.
+        pass
+
+    if created:
+        logger.info("Created environment file from template at %s", ENV_FILE_PATH)
+    return ENV_FILE_PATH
+
+
+def load_environment(*, force: bool = False) -> Path:
+    state = _environment_state()
+    with state.lock:
+        env_path = ensure_environment_file()
+        if state.loaded and not force:
+            return env_path
+
+        load_dotenv(dotenv_path=env_path, override=True)
 
         state.loaded = True
-        return env_path if env_path.exists() else None
+        return env_path

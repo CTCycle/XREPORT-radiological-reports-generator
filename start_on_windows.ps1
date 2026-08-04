@@ -178,15 +178,15 @@ function Import-XReportEnvironment {
         ALWAYS_REBUILD = 'false'
     }
 
-    if (-not (Test-Path -LiteralPath $EnvFile)) {
+    $environmentSource = $EnvFile
+    if (-not (Test-Path -LiteralPath $environmentSource)) {
         if (-not (Test-Path -LiteralPath $EnvExample)) {
             throw "Missing environment template: $EnvExample"
         }
-        Copy-Item -LiteralPath $EnvExample -Destination $EnvFile
-        Write-Info "Created first-launch settings file: $EnvFile"
+        $environmentSource = $EnvExample
     }
 
-    foreach ($line in Get-Content -LiteralPath $EnvFile) {
+    foreach ($line in Get-Content -LiteralPath $environmentSource) {
         $trimmed = $line.Trim()
         if (-not $trimmed -or $trimmed.StartsWith('#') -or $trimmed.StartsWith(';') -or -not $trimmed.Contains('=')) {
             continue
@@ -354,10 +354,20 @@ function Invoke-InitializeDatabase {
     Ensure-PortableRuntimes
     Initialize-Environment
     if (-not (Test-Path -LiteralPath $InitDatabaseScript)) { throw "Missing database script: $InitDatabaseScript" }
-    Invoke-Checked -FilePath $UvExe -ArgumentList @(
-        'run', '--project', 'app/server', '--python', $PythonExe, 'python',
-        'app/scripts/initialize_database.py', '--drop-existing', '--seed-catalogs', '--force-reseed-catalogs'
-    ) -WorkingDirectory $RepoRoot
+    $previousPythonPath = $env:PYTHONPATH
+    $env:PYTHONPATH = Join-Path $RepoRoot 'app'
+    try {
+        Invoke-Checked -FilePath $UvExe -ArgumentList @(
+            'run', '--project', 'app/server', '--python', $PythonExe, 'python',
+            'app/scripts/initialize_database.py'
+        ) -WorkingDirectory $RepoRoot
+    } finally {
+        if ($null -eq $previousPythonPath) {
+            Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+        } else {
+            $env:PYTHONPATH = $previousPythonPath
+        }
+    }
     Write-Ok 'Database initialization completed'
 }
 
@@ -445,7 +455,7 @@ function Show-Menu {
 
     Write-Host ''
     Write-Host '  DATA & QUALITY' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '03' -Label 'Initialize database' -Description 'Reset and seed the local database'
+    Write-MenuItem -Number '03' -Label 'Initialize database' -Description 'Initialize the configured database'
     Write-MenuItem -Number '04' -Label 'Run test suite' -Description 'Execute the project validation suite'
 
     Write-Host ''
