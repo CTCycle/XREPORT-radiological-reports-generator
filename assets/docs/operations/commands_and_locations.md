@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-07-23
+Last updated: 2026-08-04
 
 ## Primary Commands
 
@@ -16,7 +16,7 @@ Last updated: 2026-07-23
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest app/tests -v --tb=short`
+- `app/server/.venv/Scripts/python.exe -m pytest app/tests -v --tb=short --basetemp .pytest-tmp`
 
 ## Usage Best Practices
 
