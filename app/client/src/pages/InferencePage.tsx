@@ -8,7 +8,7 @@ import { useInferencePageState } from '../AppStateContext';
 import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
-import { generateReports, getInferenceJobStatus, getInferenceModels } from '../services/inferenceService';
+import { cancelInferenceJob, generateReports, getInferenceJobStatus, getInferenceModels } from '../services/inferenceService';
 
 type DraftSections = Partial<Record<OutputSection, string>>;
 type GenerationRequest = {
@@ -123,6 +123,7 @@ export default function InferencePage() {
             request.images, request.modelRef, request.generationProfile, request.clinicalContext,
         ),
         getStatus: getInferenceJobStatus,
+        cancelJob: cancelInferenceJob,
         onUpdate: status => {
             const reports = toReportsByIndex(status.result, state.images);
             if (!Object.keys(reports).length) return;
@@ -144,6 +145,7 @@ export default function InferencePage() {
             setGeneratedReport(reports[state.currentIndex] ?? '');
         },
         onComplete: () => setIsGenerating(false),
+        onError: () => setIsGenerating(false),
     });
 
     useEffect(() => {
@@ -315,6 +317,7 @@ export default function InferencePage() {
                     <textarea id="clinical-context" className="context-input" value={state.clinicalContext} onChange={event => setClinicalContext(event.target.value)} disabled={!selectedModel?.capabilities.clinical_context || state.isGenerating} placeholder="Indication, relevant history, comparison details…" />
                     <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => changeProfile(parseProfile(event.target.value))} disabled={state.isGenerating || hasActiveDraft}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
                     <button type="button" className="generate-button" onClick={() => void generate()} disabled={!selectedModel || selectedModel.status !== 'ready' || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Generating draft…</> : <><Sparkles />Generate draft</>}</button>
+                    {state.isGenerating && <button type="button" className="secondary-button" onClick={() => void generationJob.cancel()} disabled={!generationJob.jobId}>Cancel generation</button>}
                     {generationJob.error && <div className="generation-error" role="alert">{generationJob.error}</div>}
                 </section>
 

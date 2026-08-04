@@ -128,6 +128,7 @@ def main() -> int:
         print(json.dumps({**payload, "log": str(path.relative_to(ROOT_DIR))}, indent=2))
         return 2
     manifest = selected.model_dump(mode="json")
+    manifest["revision"] = selected.model_revision
     configured_manifest = InferenceManifest.model_validate(
         json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     )
