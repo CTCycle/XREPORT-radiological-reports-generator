@@ -2,80 +2,51 @@
 
 Last updated: 2026-08-04
 
-## Safety Scope
+## Safety scope
 
-All catalogue models and generated reports are for research use only. They are not clinically approved, and every draft requires independent review, clinical correlation, and verification by qualified personnel.
+All catalogue models and generated reports are for research use only. They are not clinically approved and require independent review.
 
-## Catalogue Contract
+## Supported catalogue
 
-`GET /api/inference/models` lists curated model references, provider status, local availability, input semantics, explicit output sections, processor metadata, and pinned revisions. The catalogue combines `settings/inference_models.json` with XREPORT checkpoints discovered under the checkpoints resource directory. XREPORT never downloads weights automatically.
+`GET /api/inference/models` lists the public `huggingface:nathansutton/generate-cxr` model plus any complete custom `xreport:` checkpoints discovered under `app/resources/checkpoints`. The external model accepts one chest X-ray and an optional indication and returns one complete raw report. It is the only external option advertised as runnable.
 
-The normal external path is one embedded Hugging Face Transformers provider. It does not require Ollama, llama.cpp, vLLM, or a separate model server. The service keeps one embedded model loaded at a time and unloads it before switching revisions.
+MedGemma was removed because it is gated and cannot be installed anonymously. MAIRA-2 was removed because it is gated, outside the supported Transformers range, and does not provide this application's complete report contract. CheXagent Impression was removed because it produces impression-only output and requires an unsupported custom stack. CXRMate-2 was removed because its large custom-code runtime is not implemented or approved here.
 
-The supported provider prefixes are `xreport:` and `huggingface:`. XREPORT checkpoints support up to 16 independent current images and retain their trained BEiT `224×224×3` preprocessing. Each external catalogue entry declares its own current-image limit and processor contract.
+## Project-local lifecycle
 
-## Embedded Hugging Face Transformers
+The backend derives the portable application root and creates this structure at startup:
 
-- Every entry declares a repository, exact 40-character commit revision, model loader, processor loader, adapter, dtype, quantization policy, prompt profile, output sections, and capability flags.
-- The runtime uses `local_files_only=true`; it never resolves mutable refs or downloads weights during catalogue reads or generation.
-- `trust_remote_code=true` is accepted only for an individually approved, revision-pinned manifest entry.
-- Uploaded images are decoded with EXIF orientation applied, converted to RGB when needed, and passed to the selected processor at their original decoded resolution. The processor owns resizing, padding, cropping, rescaling, and normalization.
-- Inference metadata records each image's original width and height plus the processed tensor dimensions returned by the processor.
-- The catalogue resolves `disabled`, `incompatible`, `gated`, `not_installed`, `unvalidated`, and `ready` states with explicit reasons. A Hugging Face model is `ready` only when its exact snapshot is complete, its runtime contract is valid, and an exact-revision receipt under `assets/QA/inference_validation/` records real inference. A manifest status flag alone is not evidence.
-
-### MedGemma 1.5 4B
-
-Repository: `google/medgemma-1.5-4b-it`.
-
-Access requires acceptance of the Health AI Developer Foundations terms of use. The terms are shown in the model catalogue. Set `HF_CACHE_DIR` to the existing local cache root. The pinned revision is maintained in `settings/inference_models.json`, not in environment configuration.
-
-MedGemma is retained as a standard loader path but remains gated and unvalidated. Its output contract is `raw_report`; XREPORT does not synthesize Findings or Impression sections for models whose manifest does not provide them.
-
-### Configured Hugging Face catalogue
-
-| Model | Exact revision | License | Loader / adapter | Contract | Initial state |
-| --- | --- | --- | --- | --- | --- |
-| MedGemma 1.5 4B | `91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b` | Health AI Developer Foundations terms | `AutoModelForImageTextToText` + `AutoProcessor` / `medgemma` | one image, raw report, BF16, gated terms | `gated` |
-| MAIRA-2 | `795a2b1cd4a310624b4e3d14b5a23e41fd273deb` | MSRLA | metadata-only causal-LM/custom processor | frontal+lateral findings; remote code unapproved; Transformers `<4.52` | `incompatible` |
-| CheXagent Impression | `4053d2f16626c1c355aa2b08c4c047beed98f94d` | CC-BY-4.0 | metadata-only custom path; pinned StanfordAIMI processor `8f19b53a2eceda4c33b0acec6c81fbc293ad80d0` | one image, impression | `disabled` |
-| CXRMate-2 | `aa8e2d16470e20671acf049687b4707c9bf2f2b5` | Apache-2.0 | metadata-only custom causal-LM/processor | findings and impression; remote code unapproved | `disabled` |
-| generate-cxr | `6609ed3b711769816141f0f6fdaa88310e1ea0cb` | Apache-2.0 | `BlipForConditionalGeneration` + `BlipProcessor` / `generate_cxr_blip` | one image, raw report, `indication:` prefix, FP32, max 512-token sequence | `not_installed` |
-
-Only the standard MedGemma adapter path and the focused public BLIP adapter are implemented. No model weights, gated terms, auxiliary repositories, or model-specific dependency stacks are added.
-
-### BLIP `generate-cxr`
-
-The adapter calls `BlipProcessor(images=image, text="indication:" + indication, return_tensors="pt")` and decodes the complete encoder-decoder sequence. It does not remove prompt tokens. Reports are rejected when empty or malformed, and the exact decoded text is persisted unchanged. Display editors use only sections declared by the manifest.
-
-Run the cache-only validator with an existing public/de-identified fixture:
-
-```powershell
-$env:KERAS_BACKEND = "torch"
-$sha256 = (Get-FileHash C:/path/to/cxr.png -Algorithm SHA256).Hash.ToLower()
-app/server/.venv/Scripts/python.exe app/scripts/validate_inference_model.py `
-  --image C:/path/to/cxr.png `
-  --fixture-provenance "Public dataset name, accession/release, or URL" `
-  --fixture-deidentification "Public release states that the image is de-identified; no direct identifiers present" `
-  --fixture-sha256 $sha256
+```text
+app/resources/
+├── checkpoints/
+├── models/
+│   ├── huggingface/
+│   │   ├── installed/<model>/<revision>/
+│   │   ├── staging/<operation>/<model>/<revision>/
+│   │   ├── rollback/<model>/<revision-or-operation>/
+│   │   ├── metadata/<model>.json
+│   │   └── hub-cache/
+│   ├── tokenizers/
+│   ├── XRAYEncoder/
+│   ├── torch/
+│   └── keras/
+├── templates/
+├── logs/
+└── database.db
 ```
 
-No public or de-identified fixture is bundled with XREPORT, and no patient data belongs in this repository. The validator therefore requires the caller to provide the fixture's provenance and de-identification statement together with the exact SHA-256 of the supplied bytes. A successful receipt records only this fixture metadata:
+`HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are application-owned compatibility settings. User-level cache variables are ignored, and local model loading always uses the verified snapshot path with `local_files_only=true`.
 
-```json
-{
-  "fixture": {
-    "filename": "cxr.png",
-    "provenance": "Public dataset name, accession/release, or URL",
-    "de_identification": "Public release states that the image is de-identified; no direct identifiers present",
-    "sha256": "<64 lowercase hexadecimal characters>"
-  }
-}
-```
+On first Generate, the service validates the uploaded image, records the cloud assessment, and starts a cancellable background installation. The exact manifest revision and approved files are downloaded to staging. File sizes, SHA-256 values, configuration, processor initialization, and model initialization are checked before a candidate can be used. A candidate is promoted to `installed` only after it produces a non-empty report for the current study. Cancellation and network errors leave resumable staging files and metadata but never expose them as active.
 
-The `sha256` value must match the bytes read by the validator; it is not a model or report hash. The command writes only JSON logs/receipts under `assets/QA/`; it never downloads weights or promotes the manifest. With the current unset `HF_CACHE_DIR`, validation is deferred and the ready count remains zero.
+The active revision is reused on later Generate calls and after restart without a network lookup or download. Existing working revisions are never replaced automatically. The model details panel exposes Check for updates, Repair installation, Reinstall model, and Download update. Updates are staged beside the active revision and the old revision is retained under `rollback` until a successful real inference activates the candidate.
 
-## Custom XREPORT checkpoint
+## Maintenance API
 
-The custom XReport checkpoint is a separate Keras report generator. Its image path uses `BeitXRayImageEncoder` with the `microsoft/beit-base-patch16-224` encoder contract and deterministic 224-pixel preprocessing. This fixed path must remain unchanged unless the model is retrained.
+- `POST /api/inference/models/check-update` with `{ "model_ref": "huggingface:nathansutton/generate-cxr" }` checks the current upstream commit on demand.
+- `POST /api/inference/models/maintenance` accepts `repair`, `reinstall`, or `download_update` and returns a normal background job contract.
+- Job status results include a typed `lifecycle` object with phase, status text, current file, byte/file progress, revision, and project-relative paths.
 
-Before a custom checkpoint request is queued, XREPORT verifies the model archive, all three saved JSON configuration files, and the JSON contents. Invalid or incomplete checkpoints are rejected before background execution. A generated custom report must also contain non-empty, non-control text; otherwise the job fails instead of persisting an empty draft. The inference page exposes cancellation for active jobs and clears the generating state when polling fails.
+## Custom XREPORT
+
+XREPORT discovery remains separate and only complete trained checkpoints are selectable. The repository currently has no trained custom XReport checkpoint; incomplete training fixtures are not advertised as usable and do not block external model validation.

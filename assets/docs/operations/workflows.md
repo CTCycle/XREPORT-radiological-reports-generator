@@ -28,7 +28,7 @@ Expected result:
 ## Generate Reports
 
 1. Open the Inference page and review the research-use warning.
-2. Select a model and read its exact status reason, revision, adapter, loader, and declared output sections. Only `ready` models can run.
+2. Select a model and read its exact installation state, revision, adapter, loader, and declared output sections. `generate-cxr` can be submitted while `not_installed`; Generate will prepare it in the background.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
 4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop.
 5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
@@ -36,12 +36,12 @@ Expected result:
 Expected result:
 
 - research-use-only draft reports are generated for qualified review; models and outputs are not clinically approved
-- the four unsuitable catalogue candidates remain visible with actionable unavailable reasons
-- no network fallback, gated-access flow, weight download, or manifest promotion occurs during this workflow
+- only supported report-generating models are visible; the unavailable custom XREPORT checkpoint is shown through the provider status
+- first-use installation reports cloud assessment, download, verification, loading, generation, and activation without blocking the UI
 
-## Validate a cached model
+## Validate a local model
 
-Use `app/scripts/validate_inference_model.py` only with a complete exact snapshot and a public/de-identified fixture. Supply the fixture provenance, de-identification statement, and matching SHA-256 with the command; no fixture or patient data is bundled. The cache-only command runs provider and job-compatible result checks, validates declared sections and exact raw-text persistence using temporary recording, and writes metadata under `assets/QA/`. A deferred run is expected when `HF_CACHE_DIR` is unset; it does not change catalogue readiness.
+Use the real Generate flow with a public/de-identified chest X-ray. The first run installs the exact pinned revision into `app/resources/models/huggingface`, records metadata and provenance under `assets/QA/` when capturing validation evidence, and generates a real report. A subsequent run must reuse the active snapshot without another download.
 
 ## Validate Quality
 

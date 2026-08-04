@@ -2,232 +2,12 @@
   "schema_version": 2,
   "models": [
     {
-      "model_ref": "huggingface:google/medgemma-1.5-4b-it",
-      "repository_id": "google/medgemma-1.5-4b-it",
-      "provider": "huggingface",
-      "enabled": true,
-      "display_name": "MedGemma 1.5 4B",
-      "description": "Gated medical vision-language model retained as a research-only candidate; no local validation has been recorded.",
-      "category": "medical_generalist",
-      "recommended": false,
-      "research_only": true,
-      "gated": true,
-      "license": "Health AI Developer Foundations terms of use",
-      "parameter_size": "4B",
-      "revision": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
-      "model_loader": "image_text_to_text",
-      "processor_loader": "auto",
-      "adapter": "medgemma",
-      "prompt_profile": "medgemma-research-report",
-      "output_sections": ["raw_report"],
-      "input_semantics": "single_image",
-      "max_current_images": 1,
-      "supports_clinical_context": true,
-      "supports_prior_images": false,
-      "preferred_dtype": "bfloat16",
-      "quantization": ["none"],
-      "trust_remote_code": false,
-      "remote_code_approved": false,
-      "validation_status": "blocked",
-      "validation_message": "Access is gated by the Health AI Developer Foundations terms; no gated-access or download path is enabled here.",
-      "resource_policy": {
-        "max_snapshot_size_bytes": 9000000000,
-        "reason": "Do not add or fetch the gated snapshot in this repository."
-      },
-      "runtime_constraints": {
-        "required_modules": []
-      },
-      "required_files": [
-        "config.json",
-        "preprocessor_config.json",
-        "processor_config.json",
-        "tokenizer_config.json"
-      ],
-      "weight_file_sets": [
-        ["model.safetensors.index.json", "model-00001-of-00002.safetensors", "model-00002-of-00002.safetensors"]
-      ],
-      "capabilities": {
-        "clinical_context": true,
-        "prior_report": false,
-        "multiple_current_views": false,
-        "findings": false,
-        "impression": false,
-        "grounding": false
-      }
-    },
-    {
-      "model_ref": "huggingface:microsoft/maira-2",
-      "repository_id": "microsoft/maira-2",
-      "provider": "huggingface",
-      "enabled": true,
-      "display_name": "MAIRA-2",
-      "description": "Gated research-only grounded chest-X-ray model; its documented Transformers range is incompatible with the installed runtime.",
-      "category": "chest_xray_report_generation",
-      "recommended": false,
-      "research_only": true,
-      "gated": true,
-      "license": "MSRLA",
-      "parameter_size": "7B",
-      "revision": "795a2b1cd4a310624b4e3d14b5a23e41fd273deb",
-      "model_loader": "causal_lm",
-      "processor_loader": "auto",
-      "adapter": "maira2",
-      "prompt_profile": "maira2-nongrounded-findings",
-      "output_sections": ["findings"],
-      "input_semantics": "single_study",
-      "max_current_images": 2,
-      "supports_clinical_context": true,
-      "supports_prior_images": false,
-      "preferred_dtype": "float32",
-      "quantization": ["none"],
-      "trust_remote_code": true,
-      "remote_code_approved": false,
-      "validation_status": "incompatible",
-      "validation_message": "The model card requires Transformers >=4.48,<4.52; XREPORT runs Transformers 4.57.3. The gated 25.6 GiB snapshot is not acquired.",
-      "resource_policy": {
-        "max_snapshot_size_bytes": 27000000000,
-        "reason": "Do not add a gated 7B snapshot or version-specific runtime stack."
-      },
-      "runtime_constraints": {
-        "min_transformers": "4.48",
-        "max_transformers_exclusive": "4.52",
-        "required_modules": []
-      },
-      "required_files": [
-        "config.json",
-        "preprocessor_config.json",
-        "processor_config.json",
-        "tokenizer_config.json"
-      ],
-      "weight_file_sets": [
-        ["model.safetensors.index.json", "model-00001-of-00006.safetensors", "model-00002-of-00006.safetensors", "model-00003-of-00006.safetensors", "model-00004-of-00006.safetensors", "model-00005-of-00006.safetensors", "model-00006-of-00006.safetensors"]
-      ],
-      "capabilities": {
-        "clinical_context": true,
-        "prior_report": true,
-        "multiple_current_views": true,
-        "findings": true,
-        "impression": false,
-        "grounding": true
-      }
-    },
-    {
-      "model_ref": "huggingface:erjui/CheXagent-2-3b-srrg-impression",
-      "repository_id": "erjui/CheXagent-2-3b-srrg-impression",
-      "provider": "huggingface",
-      "enabled": false,
-      "display_name": "CheXagent-2 3B — Impression",
-      "description": "Single-image research model that declares an Impression-only structured-report contract, disabled because its pinned processor/code chain requires heavyweight absent dependencies.",
-      "category": "chest_xray_report_generation",
-      "recommended": false,
-      "research_only": true,
-      "gated": false,
-      "license": "CC-BY-4.0",
-      "parameter_size": "3B",
-      "revision": "4053d2f16626c1c355aa2b08c4c047beed98f94d",
-      "model_loader": "causal_lm",
-      "processor_loader": "auto",
-      "adapter": "chexagent_impression",
-      "prompt_profile": "chexagent-impression",
-      "output_sections": ["impression"],
-      "input_semantics": "single_image",
-      "max_current_images": 1,
-      "supports_clinical_context": false,
-      "supports_prior_images": false,
-      "preferred_dtype": "bfloat16",
-      "quantization": ["none"],
-      "trust_remote_code": true,
-      "remote_code_approved": false,
-      "validation_status": "disabled",
-      "validation_message": "Disabled by the lean runtime policy; the model's processor/code chain is pinned to StanfordAIMI/CheXagent-2-3b and requires absent modules such as albumentations, flash_attn, pyarrow, and tensorflow.",
-      "resource_policy": {
-        "max_snapshot_size_bytes": 7000000000,
-        "reason": "Do not install the auxiliary custom-code dependency stack."
-      },
-      "runtime_constraints": {
-        "required_modules": ["albumentations", "einops", "flash_attn", "pyarrow", "tensorflow"]
-      },
-      "required_files": [
-        "config.json",
-        "tokenizer_config.json",
-        "training_adapter_config.json"
-      ],
-      "weight_file_sets": [
-        ["model.safetensors.index.json", "model-00001-of-00002.safetensors", "model-00002-of-00002.safetensors"]
-      ],
-      "processor_repository_id": "StanfordAIMI/CheXagent-2-3b",
-      "processor_revision": "8f19b53a2eceda4c33b0acec6c81fbc293ad80d0",
-      "capabilities": {
-        "clinical_context": false,
-        "prior_report": false,
-        "multiple_current_views": false,
-        "findings": false,
-        "impression": true,
-        "grounding": false
-      }
-    },
-    {
-      "model_ref": "huggingface:aehrc/cxrmate-2",
-      "repository_id": "aehrc/cxrmate-2",
-      "provider": "huggingface",
-      "enabled": false,
-      "display_name": "CXRMate-2",
-      "description": "Custom-code chest-X-ray report generator with native Findings and Impression splitting, disabled by the lean resource and dependency policy.",
-      "category": "chest_xray_report_generation",
-      "recommended": false,
-      "research_only": true,
-      "gated": false,
-      "license": "Apache-2.0",
-      "parameter_size": "3B",
-      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
-      "model_loader": "causal_lm",
-      "processor_loader": "auto",
-      "adapter": "cxrmate2",
-      "prompt_profile": "cxrmate2-native-study",
-      "output_sections": ["findings", "impression"],
-      "input_semantics": "single_study",
-      "max_current_images": 1,
-      "supports_clinical_context": true,
-      "supports_prior_images": true,
-      "preferred_dtype": "float32",
-      "quantization": ["none"],
-      "trust_remote_code": true,
-      "remote_code_approved": false,
-      "validation_status": "disabled",
-      "validation_message": "Disabled by the lean runtime policy; the pinned custom-code model is about 12.4 GiB and requires absent pydicom support.",
-      "resource_policy": {
-        "max_snapshot_size_bytes": 14000000000,
-        "reason": "Do not add a large custom-code model or new dependency stack."
-      },
-      "runtime_constraints": {
-        "min_transformers": "4.57.1",
-        "required_modules": ["pydicom"]
-      },
-      "required_files": [
-        "config.json",
-        "preprocessor_config.json",
-        "processor_config.json",
-        "generation_config.json"
-      ],
-      "weight_file_sets": [
-        ["model.safetensors.index.json", "model-00001-of-00003.safetensors", "model-00002-of-00003.safetensors", "model-00003-of-00003.safetensors"]
-      ],
-      "capabilities": {
-        "clinical_context": true,
-        "prior_report": true,
-        "multiple_current_views": true,
-        "findings": true,
-        "impression": true,
-        "grounding": false
-      }
-    },
-    {
       "model_ref": "huggingface:nathansutton/generate-cxr",
       "repository_id": "nathansutton/generate-cxr",
       "provider": "huggingface",
       "enabled": true,
       "display_name": "generate-cxr BLIP",
-      "description": "Public Apache-2.0 BLIP chest-X-ray report generator using the model card's indication-prefixed input contract; requires a local pinned snapshot and real smoke validation.",
+      "description": "Public Apache-2.0 BLIP model that generates a complete chest-X-ray radiology report from one image and an optional clinical indication.",
       "category": "chest_xray_report_generation",
       "recommended": true,
       "research_only": true,
@@ -249,10 +29,10 @@
       "trust_remote_code": false,
       "remote_code_approved": false,
       "validation_status": "pending",
-      "validation_message": "No matching local snapshot or actual-model smoke evidence is currently recorded.",
+      "validation_message": "The public revision is installed and marked ready only after integrity verification and real local report generation.",
       "resource_policy": {
         "max_snapshot_size_bytes": 4000000000,
-        "reason": "Use only an existing local cache; never download from the application."
+        "reason": "Download only the required configuration, processor, tokenizer, and safetensors files into app/resources."
       },
       "runtime_constraints": {
         "required_modules": []
@@ -266,8 +46,7 @@
         "vocab.txt"
       ],
       "weight_file_sets": [
-        ["model.safetensors"],
-        ["pytorch_model.bin"]
+        ["model.safetensors"]
       ],
       "capabilities": {
         "clinical_context": true,
