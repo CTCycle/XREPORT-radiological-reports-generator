@@ -126,10 +126,7 @@ class InferenceModelCatalog:
                 ):
                     status = "not_installed"
                     status_message = "The pinned snapshot is not available in the configured local cache."
-                elif status != "incompatible" and (
-                    entry.validation_status != "passed"
-                    or not self._has_validation_evidence(entry)
-                ):
+                elif status != "incompatible" and not self._has_validation_evidence(entry):
                     status = "unvalidated"
                     status_message = entry.validation_message or "The cached snapshot has no exact-revision real-inference validation receipt."
                 elif status != "incompatible":
