@@ -156,7 +156,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     set /a ATTEMPTS+=1
-    timeout /t 1 /nobreak >nul
+    timeout /t 1 /nobreak >nul 2>&1
     goto wait_loop
   )
 
@@ -164,7 +164,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     curl -s --max-time 2 "%APP_TEST_FRONTEND_URL%" >nul 2>&1
     if errorlevel 1 (
       set /a ATTEMPTS+=1
-      timeout /t 1 /nobreak >nul
+      timeout /t 1 /nobreak >nul 2>&1
       goto wait_loop
     )
   )
@@ -228,10 +228,10 @@ echo.
 
 :cleanup
 if "%STARTED_BACKEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%FASTAPI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%FASTAPI_PORT% "') do taskkill /PID %%P /T /F >nul 2>&1
 )
 if "%STARTED_FRONTEND%"=="1" (
-  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /F >nul 2>&1
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /T /F >nul 2>&1
 )
 
 exit /b %TEST_RESULT%
