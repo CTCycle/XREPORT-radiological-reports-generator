@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 
 ## Troubleshooting Quick Guide
 
@@ -26,11 +26,12 @@ Last updated: 2026-08-01
 ### SQLite Mode
 
 - When `EMBEDDED_DATABASE=true`, the backend initializes `XREPORT/resources/database.db` automatically on first startup if the file does not exist.
-- On later startups, the schema is validated. For the inference-first branch, stop the app and delete `app/resources/database.db` if startup reports legacy inference columns; the database is recreated on restart.
+- On later startups, only the file existence check is performed. Existing data is not recreated, reset, reseeded, or schema-validated.
+- The launcher option `3` can be used to manually trigger the same idempotent SQLite initialization.
 
 ### PostgreSQL Mode
 
-- When `EMBEDDED_DATABASE=false`, PostgreSQL initialization uses the database values from `XREPORT/settings/.env`.
-- Run `start_on_windows.ps1`, choose `3. Initialize database`, and execute `app/scripts/initialize_database.py`.
-- The same script also works for SQLite mode, but it is normally unnecessary because first-run SQLite initialization is automatic.
-- Use a disposable PostgreSQL database for this feature branch. If legacy inference columns are reported, drop and recreate that feature database before running initialization; `create_all` is not a migration mechanism.
+- When `EMBEDDED_DATABASE=false`, normal startup only checks the configured PostgreSQL connection and does not create or initialize anything.
+- Run `start_on_windows.ps1`, choose `3. Initialize database`, and execute the explicit initialization before launching the application.
+- The same command also works for SQLite mode and is safe when the SQLite file already exists.
+- Invalid, unavailable, or not-yet-initialized PostgreSQL connections fail startup with a database startup error; correct the connection settings or run the explicit initialization command.

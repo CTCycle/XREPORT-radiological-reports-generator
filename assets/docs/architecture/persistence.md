@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-07-23
+Last updated: 2026-08-03
 
 ## Database Backend Selection
 
@@ -11,19 +11,23 @@ From `XREPORT/settings/.env`:
 
 ## Initialization Behavior
 
-- Backend startup performs database initialization before serving requests.
-- SQLite mode ensures schema creation against the local database file.
-- PostgreSQL mode executes database and schema initialization from `.env` connection settings.
+- Backend startup uses one shared lifecycle entrypoint before serving requests.
+- If `settings/.env` is missing, it is copied from `settings/.env.example`; an
+  existing environment file is never overwritten.
+- SQLite startup checks only whether `app/resources/database.db` exists. A
+  missing file is initialized once; an existing file is not recreated, reset,
+  reseeded, or schema-validated.
+- PostgreSQL startup performs only a connection check against the configured
+  database. Database and schema creation are explicit through option `3` in
+  `start_on_windows.ps1`.
+- The repository has no applicable database seed routine; initialization only
+  creates the existing schema.
 - Additional startup validation ensures required resource directories exist.
 
-## Inference-First Branch Recreation Policy
-
-This feature branch intentionally uses a clean database recreation instead of legacy inference migrations. SQLAlchemy `create_all` creates missing tables but does not migrate existing columns. Startup validates the `inference_runs` shape and fails with a recreation instruction when it detects the legacy schema.
-
-- SQLite: stop XREPORT, delete `app/resources/database.db`, then restart or run database initialization.
-- PostgreSQL: use a disposable feature-branch database and drop/recreate that database before initialization. Do not point this branch at a database whose data must be retained.
-
-The inference-first schema makes checkpoint linkage nullable and records provider, model reference and revision, generation profile/configuration, clinical context, request ID, lifecycle status, execution timestamp, and execution duration. Generated-report persistence is owned by `InferenceRepository`.
+The current schema records provider, model reference and revision, generation
+profile/configuration, clinical context, request ID, lifecycle status,
+execution timestamp, and execution duration. Generated-report persistence is
+owned by `InferenceRepository`.
 
 `DatasetRepository`, `ValidationRepository`, and `InferenceRepository` are independent domain repositories. They share only focused `RepositorySupport` primitives for database injection, sessions, generic table operations, date/JSON normalization, and dataset/checkpoint lookup; none inherits another domain repository.
 
