@@ -14,6 +14,7 @@ interface UseAsyncJobOptions<TStartArgs extends unknown[], TParsedResult> {
     parseResult?: (result: Record<string, unknown> | null, status: JobStatusResponse) => TParsedResult;
     onUpdate?: (status: JobStatusResponse, parsedResult?: TParsedResult) => void;
     onComplete?: (status: JobStatusResponse, parsedResult?: TParsedResult) => void;
+    onError?: (error: string) => void;
 }
 
 interface UseAsyncJobState<TParsedResult> {
@@ -32,7 +33,7 @@ interface UseAsyncJobState<TParsedResult> {
 export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = never>(
     options: UseAsyncJobOptions<TStartArgs, TParsedResult>
 ): UseAsyncJobState<TParsedResult> {
-    const { startJob, getStatus, cancelJob, parseResult, onUpdate, onComplete } = options;
+    const { startJob, getStatus, cancelJob, parseResult, onUpdate, onComplete, onError } = options;
 
     const [jobId, setJobId] = useState<string | null>(null);
     const [status, setStatus] = useState<JobLifecycleStatus | null>(null);
@@ -114,12 +115,13 @@ export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = n
                 }
                 setError(pollError);
                 setStatus('failed');
+                onError?.(pollError);
             },
             pollIntervalMs,
         );
 
         return startedJob;
-    }, [applyStatus, getStatus, onComplete, startJob, stopPolling]);
+    }, [applyStatus, getStatus, onComplete, onError, startJob, stopPolling]);
 
     const attach = useCallback((
         existingJobId: string,
@@ -151,10 +153,11 @@ export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = n
                 }
                 setError(pollError);
                 setStatus('failed');
+                onError?.(pollError);
             },
             pollIntervalMs,
         );
-    }, [applyStatus, getStatus, onComplete, stopPolling]);
+    }, [applyStatus, getStatus, onComplete, onError, stopPolling]);
 
     const cancel = useCallback(async () => {
         if (!cancelJob || !jobId) {

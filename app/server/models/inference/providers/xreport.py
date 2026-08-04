@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import zipfile
 from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
@@ -22,11 +24,30 @@ class XReportCheckpointProvider:
             checkpoint_dir = resolve_checkpoint_path(checkpoint)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
-        if not (Path(checkpoint_dir) / "saved_model.keras").is_file():
+        checkpoint_path = Path(checkpoint_dir)
+        model_path = checkpoint_path / "saved_model.keras"
+        required_files = (
+            model_path,
+            checkpoint_path / "configuration" / "configuration.json",
+            checkpoint_path / "configuration" / "metadata.json",
+            checkpoint_path / "configuration" / "session_history.json",
+        )
+        if not all(path.is_file() for path in required_files):
             raise FileNotFoundError(
-                f"Checkpoint not found: {Path(checkpoint_dir).name}"
+                f"Checkpoint is incomplete: {checkpoint_path.name}"
             )
-        return Path(checkpoint_dir).name
+        if not zipfile.is_zipfile(model_path):
+            raise ValueError(
+                f"Checkpoint contains an invalid Keras archive: {checkpoint_path.name}"
+            )
+        try:
+            for configuration_file in required_files[1:]:
+                json.loads(configuration_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"Checkpoint contains invalid configuration: {checkpoint_path.name}"
+            ) from exc
+        return checkpoint_path.name
 
     # -------------------------------------------------------------------------
     def generate(
@@ -61,7 +82,17 @@ class XReportCheckpointProvider:
                 image = dataloader.prepare_inference_image_bytes(stored_image.data)
             except Exception as exc:  # noqa: BLE001
                 raise RuntimeError("Failed to decode inference image") from exc
-            reports[stored_image.filename] = generator_fn(tokenizer_config, vocabulary, image, stream_callback=None)
+            report = generator_fn(tokenizer_config, vocabulary, image, stream_callback=None)
+            if (
+                not report.strip()
+                or "\x00" in report
+                or not any(character.isalnum() for character in report)
+            ):
+                raise RuntimeError(
+                    "XREPORT checkpoint returned an empty or malformed report "
+                    f"for {stored_image.filename}"
+                )
+            reports[stored_image.filename] = report
             with Image.open(BytesIO(stored_image.data)) as decoded:
                 oriented = ImageOps.exif_transpose(decoded)
                 original_width, original_height = oriented.size

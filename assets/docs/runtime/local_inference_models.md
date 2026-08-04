@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 ## Safety Scope
 
@@ -77,3 +77,5 @@ The `sha256` value must match the bytes read by the validator; it is not a model
 ## Custom XREPORT checkpoint
 
 The custom XReport checkpoint is a separate Keras report generator. Its image path uses `BeitXRayImageEncoder` with the `microsoft/beit-base-patch16-224` encoder contract and deterministic 224-pixel preprocessing. This fixed path must remain unchanged unless the model is retrained.
+
+Before a custom checkpoint request is queued, XREPORT verifies the model archive, all three saved JSON configuration files, and the JSON contents. Invalid or incomplete checkpoints are rejected before background execution. A generated custom report must also contain non-empty, non-control text; otherwise the job fails instead of persisting an empty draft. The inference page exposes cancellation for active jobs and clears the generating state when polling fails.

@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 ## Prepare A Dataset
 
@@ -30,7 +30,7 @@ Expected result:
 1. Open the Inference page and review the research-use warning.
 2. Select a model and read its exact status reason, revision, adapter, loader, and declared output sections. Only `ready` models can run.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
-4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation.
+4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop.
 5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
 
 Expected result:
