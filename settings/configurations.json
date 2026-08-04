@@ -10,7 +10,6 @@
   },
   "inference": {
     "hf_local_only": true,
-    "hf_cache_dir": null,
     "device": "auto",
     "max_loaded_models": 1,
     "model_timeout": 600

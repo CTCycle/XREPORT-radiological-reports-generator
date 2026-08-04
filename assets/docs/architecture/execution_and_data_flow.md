@@ -50,7 +50,7 @@ Location: `app/server/models`
 - Holds model training and inference implementation details.
 - Includes preprocessing/tokenization, trainer, scheduler, dataloader, callback, and generator logic.
 - Inference providers sit behind the catalog-selected `model_ref`. External models use one manifest-driven embedded Hugging Face Transformers runtime; custom XREPORT checkpoints retain their dedicated Keras/BEiT path. A shared runtime lock serializes model residency across both paths and unloads Hugging Face state before an XREPORT checkpoint or another Hugging Face key is loaded.
-- The catalog reads `settings/inference_models.json`, reports provider/model availability and capabilities, and never downloads weights.
+- The catalog reads `settings/inference_models.json` and reports installation state. First-use download is owned by the background inference job, not by catalog reads.
 - Model modules do not import services or repositories; required artifacts and cancellation state are injected by services.
 
 ### Frontend Layer
@@ -76,7 +76,7 @@ Location: `app/client/src`
 
 ## Hugging Face generation contract
 
-Manifest entries are strict, SHA-pinned, cache-only contracts. Required files and at least one non-empty weight-file alternative must exist in the exact snapshot. Remote code is rejected unless the manifest explicitly approves it. Generation has deterministic profile limits, an `INFERENCE_MODEL_TIMEOUT` deadline, and cooperative job cancellation; cancelled or timed-out partial output is not persisted. EXIF orientation and RGB conversion occur before processor calls, while integer token dtypes are preserved when floating image tensors are moved to the model device and dtype.
+Manifest entries are strict, SHA-pinned contracts. Required files and at least one non-empty weight-file alternative are downloaded into project-local staging, then verified before activation. Remote code is rejected unless the manifest explicitly approves it. Generation has deterministic profile limits, an `INFERENCE_MODEL_TIMEOUT` deadline, and cooperative job cancellation; cancelled or timed-out partial output is not persisted. EXIF orientation and RGB conversion occur before processor calls, while integer token dtypes are preserved when floating image tensors are moved to the model device and dtype.
 
 ## Architectural Constraints
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from typing import Any
+
+from server.common.path import HF_HUB_CACHE_DIR
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -223,7 +225,7 @@ class JsonJobsSettings(BaseModel):
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
     hf_local_only: bool = True
-    hf_cache_dir: str | None = None
+    hf_cache_dir: str = str(HF_HUB_CACHE_DIR)
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1, le=1)
     model_timeout: int = Field(default=600, ge=1)
@@ -237,9 +239,10 @@ class JsonInferenceSettings(BaseModel):
             os.getenv("HF_LOCAL_ONLY"),
             default=bool(payload.get("hf_local_only", True)),
         )
-        payload["hf_cache_dir"] = _normalize_optional_string(
-            os.getenv("HF_CACHE_DIR")
-        ) or _normalize_optional_string(payload.get("hf_cache_dir"))
+        # The application owns the cache location. Preserve this field only as
+        # an internal compatibility value for provider construction; user or
+        # process environment values are intentionally ignored.
+        payload["hf_cache_dir"] = str(HF_HUB_CACHE_DIR)
         payload["device"] = _normalize_optional_string(
             os.getenv("INFERENCE_DEVICE")
         ) or payload.get("device", "auto")

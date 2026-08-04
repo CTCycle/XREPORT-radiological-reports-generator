@@ -19,6 +19,7 @@ from server.domain.inference import (
 )
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.repositories.serialization.model import ModelSerializer
+from server.services.model_installation import ModelInstallationManager
 
 
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
@@ -91,6 +92,13 @@ class InferenceModelCatalog:
     ) -> ModelAvailability:
         status = "not_installed"
         status_message: str | None = None
+        installation = ModelInstallationManager()
+        inspected = installation.inspect(entry.model_dump(mode="json"))
+        metadata = inspected["metadata"]
+        installation_state = str(inspected["state"])
+        local_path = inspected["active_path"]
+        active_revision = inspected["active_revision"]
+        candidate_revision = inspected["candidate_revision"]
         if not self.settings.hf_local_only:
             status = "disabled"
             status_message = "HF_LOCAL_ONLY must remain enabled for local inference."
@@ -110,28 +118,18 @@ class InferenceModelCatalog:
                         entry.repository_id,
                         entry.model_dump(mode="json"),
                     )
-                if status != "incompatible" and entry.gated and not huggingface.is_cached(
-                    entry.repository_id,
-                    entry.revision,
-                    required_files=entry.required_files,
-                    weight_file_sets=entry.weight_file_sets,
-                ):
-                    status = "gated"
-                    status_message = "The pinned snapshot is not available; access terms must be accepted outside XREPORT."
-                elif status != "incompatible" and not huggingface.is_cached(
-                    entry.repository_id,
-                    entry.revision,
-                    required_files=entry.required_files,
-                    weight_file_sets=entry.weight_file_sets,
-                ):
-                    status = "not_installed"
-                    status_message = "The pinned snapshot is not available in the configured local cache."
-                elif status != "incompatible" and not self._has_validation_evidence(entry):
-                    status = "unvalidated"
-                    status_message = entry.validation_message or "The cached snapshot has no exact-revision real-inference validation receipt."
-                elif status != "incompatible":
+                if status != "incompatible" and installation_state == "active" and local_path:
                     status = "ready"
                     status_message = None
+                elif status != "incompatible" and installation_state == "staged":
+                    status = "unvalidated"
+                    status_message = "A verified candidate is installed and must pass real inference before activation."
+                elif status != "incompatible" and installation_state in {"corrupt", "failed"}:
+                    status = "runtime_unavailable"
+                    status_message = str(metadata.get("last_error") or "The local installation needs repair.")
+                elif status != "incompatible":
+                    status = "not_installed"
+                    status_message = "The model will be downloaded into the project-local resources directory on first Generate."
             except (KeyError, TypeError, ValueError, RuntimeError) as exc:
                 status = "incompatible"
                 status_message = str(exc)
@@ -154,7 +152,7 @@ class InferenceModelCatalog:
             "local_size_bytes": entry.local_size_bytes,
             "input_semantics": entry.input_semantics,
             "capabilities": entry.capabilities,
-            "model_revision": entry.revision,
+            "model_revision": active_revision or entry.revision,
             "model_loader": entry.model_loader,
             "processor_loader": entry.processor_loader,
             "adapter": entry.adapter,
@@ -172,6 +170,21 @@ class InferenceModelCatalog:
             "runtime_constraints": entry.runtime_constraints,
             "processor_repository_id": entry.processor_repository_id,
             "processor_revision": entry.processor_revision,
+            "required_files": entry.required_files,
+            "weight_file_sets": entry.weight_file_sets,
+            "installation_state": installation_state if installation_state in {"not_installed", "staged", "active", "corrupt", "failed"} else "not_installed",
+            "local_path": str(local_path.relative_to(ROOT_DIR).as_posix()) if local_path else None,
+            "active_revision": active_revision,
+            "candidate_revision": candidate_revision,
+            "integrity_status": str(inspected["integrity"]),
+            "cloud_assessment": metadata.get("cloud_assessment"),
+            "update_available": bool((metadata.get("update_check") or {}).get("update_available")),
+            "available_actions": (
+                ["check_updates", "reinstall", "download_update"]
+                if installation_state == "active"
+                else ["repair"] if installation_state in {"staged", "corrupt", "failed"}
+                else []
+            ),
         })
 
     # -------------------------------------------------------------------------

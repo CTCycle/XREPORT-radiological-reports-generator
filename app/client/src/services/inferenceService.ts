@@ -5,6 +5,8 @@ import {
     CheckpointEvaluationRequest,
     GenerationProfile,
     InferenceModelsResponse,
+    ModelMaintenanceAction,
+    ModelUpdateCheckResponse,
 } from '../types/inferenceApi';
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -36,6 +38,41 @@ export async function getInferenceModels(): Promise<{
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return { result: null, error: message };
+    }
+}
+
+export async function checkInferenceModelUpdate(modelRef: string): Promise<{
+    result: ModelUpdateCheckResponse | null;
+    error: string | null;
+}> {
+    try {
+        const response = await fetch('/api/inference/models/check-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model_ref: modelRef }),
+        });
+        if (!response.ok) return { result: null, error: `${response.status} ${response.statusText}: ${await response.text()}` };
+        return { result: await readJson<ModelUpdateCheckResponse>(response), error: null };
+    } catch (err) {
+        return { result: null, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+export async function maintainInferenceModel(
+    modelRef: string,
+    action: ModelMaintenanceAction,
+    revision?: string,
+): Promise<{ result: JobStartResponse | null; error: string | null }> {
+    try {
+        const response = await fetch('/api/inference/models/maintenance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model_ref: modelRef, action, revision }),
+        });
+        if (!response.ok) return { result: null, error: `${response.status} ${response.statusText}: ${await response.text()}` };
+        return { result: await readJson<JobStartResponse>(response), error: null };
+    } catch (err) {
+        return { result: null, error: err instanceof Error ? err.message : String(err) };
     }
 }
 

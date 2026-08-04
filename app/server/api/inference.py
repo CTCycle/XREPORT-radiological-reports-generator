@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from server.domain.inference import GenerationProfile, InferenceImage, InferenceModelsResponse
+from server.domain.inference import (
+    GenerationProfile,
+    InferenceImage,
+    InferenceModelsResponse,
+    ModelMaintenanceRequest,
+    ModelUpdateCheckRequest,
+    ModelUpdateCheckResponse,
+)
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
 
@@ -21,6 +28,16 @@ class InferenceEndpoint:
     # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
         return self.service.get_models()
+
+    def check_model_update(self, request: ModelUpdateCheckRequest) -> ModelUpdateCheckResponse:
+        return self.service.get_model_update(request.model_ref)
+
+    def maintain_model(self, request: ModelMaintenanceRequest) -> JobStartResponse:
+        return self.service.start_model_maintenance(
+            model_ref=request.model_ref,
+            action=request.action,
+            revision=request.revision,
+        )
 
     # -------------------------------------------------------------------------
     async def generate_reports(
@@ -65,6 +82,20 @@ class InferenceEndpoint:
             methods=["GET"],
             response_model=InferenceModelsResponse,
             status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/models/check-update",
+            self.check_model_update,
+            methods=["POST"],
+            response_model=ModelUpdateCheckResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/models/maintenance",
+            self.maintain_model,
+            methods=["POST"],
+            response_model=JobStartResponse,
+            status_code=status.HTTP_202_ACCEPTED,
         )
         self.router.add_api_route(
             "/generate",

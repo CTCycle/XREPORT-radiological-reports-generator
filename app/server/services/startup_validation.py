@@ -10,6 +10,14 @@ from server.common.path import (
     RESOURCES_DIR,
     TEMPLATES_DIR,
     TOKENIZERS_DIR,
+    HF_HUB_CACHE_DIR,
+    HF_INSTALLED_DIR,
+    HF_METADATA_DIR,
+    HF_ROLLBACK_DIR,
+    HF_STAGING_DIR,
+    HUGGINGFACE_MODELS_DIR,
+    KERAS_CACHE_DIR,
+    TORCH_CACHE_DIR,
 )
 from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
@@ -32,6 +40,14 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
         TOKENIZERS_DIR,
         CHECKPOINTS_DIR,
         TEMPLATES_DIR,
+        HUGGINGFACE_MODELS_DIR,
+        HF_HUB_CACHE_DIR,
+        HF_INSTALLED_DIR,
+        HF_METADATA_DIR,
+        HF_ROLLBACK_DIR,
+        HF_STAGING_DIR,
+        TORCH_CACHE_DIR,
+        KERAS_CACHE_DIR,
     ):
         _ensure_directory(directory)
 

@@ -18,7 +18,7 @@ The application runs locally as a FastAPI backend with a Vite-served web interfa
 
 ## 2. Model and Dataset (Optional)
 
-XREPORT supports its trained image-captioning checkpoints plus an embedded, offline Hugging Face Transformers catalogue. It never pulls or downloads inference models automatically and does not require a separate model server for normal operation.
+XREPORT supports its trained image-captioning checkpoints plus an embedded Hugging Face Transformers catalogue. The public `generate-cxr` report model is downloaded on first Generate into the project-local `app/resources` cache, verified, and reused offline on subsequent launches; no separate model server is required.
 
 Supported data sources:
 - **MIMIC-CXR** (initial validation dataset)

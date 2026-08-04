@@ -21,6 +21,7 @@ from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
     InferenceModelsResponse,
+    ModelUpdateCheckResponse,
 )
 from server.domain.jobs import (
     JobStartResponse,
@@ -39,6 +40,12 @@ from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
+from server.services.model_installation import (
+    InstallationCancelled,
+    InstallationError,
+    InstallationTarget,
+    ModelInstallationManager,
+)
 
 
 MAX_INFERENCE_IMAGES = 16
@@ -96,6 +103,34 @@ def get_inference_image_store() -> InferenceImageStore:
 def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
 
+
+@lru_cache(maxsize=1)
+def get_model_installation_manager() -> ModelInstallationManager:
+    return ModelInstallationManager()
+
+
+def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
+    phase = str(payload.get("phase", "working"))
+    weights = {
+        "checking": (0.0, 5.0),
+        "downloading": (5.0, 70.0),
+        "verifying": (70.0, 82.0),
+        "verified": (82.0, 86.0),
+        "loading": (86.0, 94.0),
+        "generating": (94.0, 99.0),
+        "activating": (99.0, 100.0),
+        "completed": (100.0, 100.0),
+    }
+    start, end = weights.get(phase, (0.0, 100.0))
+    downloaded = payload.get("downloaded_bytes")
+    total = payload.get("total_bytes")
+    if phase == "downloading" and isinstance(downloaded, (int, float)) and isinstance(total, (int, float)) and total:
+        progress = start + (end - start) * min(1.0, max(0.0, downloaded / total))
+    else:
+        progress = start
+    get_job_manager().update_progress(job_id, progress)
+    get_job_manager().update_result(job_id, {"lifecycle": payload})
+
 ###############################################################################
 def report_inference_progress(
     job_id: str,
@@ -106,8 +141,19 @@ def report_inference_progress(
     display_sections: dict[str, dict[str, str]] | None = None,
     provenance: dict[str, Any] | None = None,
 ) -> None:
-    progress = (image_index / total_images) * 100.0
+    progress = 94.0 + ((image_index / total_images) * 5.0)
     get_job_manager().update_progress(job_id, progress)
+    get_job_manager().update_result(
+        job_id,
+        {
+            "lifecycle": {
+                "phase": "generating",
+                "message": f"Generating report {image_index} of {total_images}",
+                "processed_images": image_index,
+                "total_images": total_images,
+            },
+        },
+    )
     get_job_manager().update_result(
         job_id,
         {
@@ -207,20 +253,118 @@ def run_inference_job(
         elif model_ref.startswith("huggingface:"):
             if model_manifest is None:
                 raise RuntimeError("Hugging Face model manifest is missing")
+            repository_id = model_ref.removeprefix("huggingface:")
+            installation_manager = get_model_installation_manager()
+            effective_manifest = dict(model_manifest)
+            effective_manifest["repository_id"] = repository_id
+            # Older internal callers can provide a provider-only manifest for
+            # persistence/timeout tests.  The supported catalog always carries
+            # the complete installation contract; only that contract triggers
+            # the managed download lifecycle.
+            installation_contract_present = bool(
+                effective_manifest.get("required_files")
+                and effective_manifest.get("weight_file_sets")
+            )
+            target: InstallationTarget | None = None
+            if installation_contract_present:
+                target = (
+                    installation_manager.candidate_target(effective_manifest)
+                    or installation_manager.active_target(effective_manifest)
+                )
+            cloud_assessment: dict[str, Any] | None = None
+            if target is None and installation_contract_present:
+                report_installation_lifecycle(job_id, {
+                    "phase": "checking",
+                    "message": "Checking whether a free cloud inference route is available",
+                    "model_ref": model_ref,
+                })
+                cloud_assessment = installation_manager.assess_cloud(repository_id)
+                report_installation_lifecycle(job_id, {
+                    "phase": "checking",
+                    "message": cloud_assessment["reason"],
+                    "cloud_assessment": cloud_assessment,
+                })
+                revision = str(effective_manifest["revision"])
+                try:
+                    target = installation_manager.stage(
+                        manifest=effective_manifest,
+                        revision=revision,
+                        should_stop=lambda: get_job_manager().should_stop(job_id),
+                        report_progress=partial(report_installation_lifecycle, job_id),
+                    )
+                except (InstallationCancelled, InstallationError) as exc:
+                    installation_manager.record_error(
+                        repository_id,
+                        str(exc),
+                        state="failed",
+                        interrupted=(
+                            isinstance(exc, InstallationCancelled)
+                            or installation_manager.is_resumable_error(str(exc))
+                        ),
+                    )
+                    raise
+            if target is None and installation_contract_present:
+                raise RuntimeError("Model installation did not produce a usable snapshot")
+            effective_revision = model_revision
+            if installation_contract_present and target is not None:
+                effective_manifest["revision"] = target.revision
+                effective_manifest["local_snapshot_path"] = str(target.path)
+                effective_revision = target.revision
+                report_installation_lifecycle(job_id, {
+                    "phase": "loading",
+                    "message": "Loading the verified local model snapshot",
+                    "revision": effective_revision,
+                    "local_path": installation_manager.relative_path(target.path),
+                })
             with _INFERENCE_RUNTIME_LOCK:
                 generation = get_huggingface_provider().generate(
-                    repository_id=model_ref.removeprefix("huggingface:"),
-                    manifest=model_manifest,
+                    repository_id=repository_id,
+                    manifest=effective_manifest,
                     profile=generation_profile,
                     clinical_context=clinical_context,
                     images=stored_images,
                     should_stop=lambda: get_job_manager().should_stop(job_id),
                     report_progress=report_progress,
                 )
+            installation_manager.record_success(repository_id, inference=True)
             reports_by_filename = generation.reports
             display_sections = generation.display_sections
             provenance = generation.provenance
             provenance["input_images"] = generation.metadata
+            if installation_contract_present and target is not None:
+                provenance["installation"] = {
+                    "state": "candidate" if target.candidate else "active",
+                    "revision": effective_revision,
+                    "local_path": installation_manager.relative_path(target.path),
+                    "cloud_assessment": cloud_assessment,
+                }
+            if installation_contract_present and target is not None and target.candidate and reports_by_filename:
+                report_installation_lifecycle(job_id, {
+                    "phase": "activating",
+                    "message": "Activating the verified revision after successful inference",
+                    "revision": effective_revision,
+                })
+                activated = installation_manager.activate(
+                    manifest=effective_manifest,
+                    target=target,
+                )
+                provenance["installation"]["state"] = "active"
+                provenance["installation"]["local_path"] = activated.get(
+                    "active_relative_path",
+                    provenance["installation"]["local_path"],
+                )
+            if installation_contract_present and target is not None:
+                completed_path = provenance.get("installation", {}).get(
+                    "local_path",
+                    installation_manager.relative_path(target.path),
+                )
+                report_installation_lifecycle(job_id, {
+                    "phase": "completed",
+                    "message": "Model loaded and report generated",
+                    "revision": effective_revision,
+                    "local_path": completed_path,
+                })
+            model_revision = effective_revision
         else:
             raise RuntimeError(f"Unsupported inference provider: {model_ref}")
     finally:
@@ -280,6 +424,49 @@ def run_inference_job(
         "display_sections": display_sections,
         "provenance": persisted_provenance or provenance,
     }
+
+
+def run_model_maintenance_job(
+    *,
+    model_ref: str,
+    manifest: dict[str, Any],
+    action: str,
+    revision: str,
+    job_id: str,
+) -> dict[str, Any]:
+    manager = get_model_installation_manager()
+    repository_id = model_ref.removeprefix("huggingface:")
+    try:
+        candidate = manager.stage(
+            manifest={**manifest, "revision": revision},
+            revision=revision,
+            should_stop=lambda: get_job_manager().should_stop(job_id),
+            report_progress=partial(report_installation_lifecycle, job_id),
+            operation_id=None,
+            force_download=action == "reinstall",
+        )
+        return {
+            "lifecycle": {
+                "phase": "verified",
+                "message": "Candidate model is verified and ready for validation through Generate",
+                "revision": candidate.revision,
+                "local_path": manager.relative_path(candidate.path),
+                "action": action,
+            },
+            "candidate_revision": candidate.revision,
+            "candidate_path": manager.relative_path(candidate.path),
+        }
+    except (InstallationCancelled, InstallationError) as exc:
+        manager.record_error(
+            repository_id,
+            str(exc),
+            state="failed",
+            interrupted=(
+                isinstance(exc, InstallationCancelled)
+                or manager.is_resumable_error(str(exc))
+            ),
+        )
+        raise
 
 ###############################################################################
 class InferenceService:
@@ -386,6 +573,57 @@ class InferenceService:
     def get_models(self) -> InferenceModelsResponse:
         return InferenceModelCatalog(get_server_settings().inference).list_models()
 
+    def get_model_update(self, model_ref: str) -> ModelUpdateCheckResponse:
+        selected = next((model for model in self.get_models().models if model.model_ref == model_ref), None)
+        if selected is None or selected.provider != "huggingface":
+            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+        result = get_model_installation_manager().check_update(
+            model_ref.removeprefix("huggingface:"),
+        )
+        return ModelUpdateCheckResponse(**result)
+
+    def start_model_maintenance(
+        self,
+        *,
+        model_ref: str,
+        action: str,
+        revision: str | None,
+    ) -> JobStartResponse:
+        catalog = self.get_models()
+        selected = next((model for model in catalog.models if model.model_ref == model_ref), None)
+        if selected is None:
+            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+        if selected.provider != "huggingface":
+            raise UnsupportedOperationError(detail="Maintenance is only available for Hugging Face models")
+        if action not in {"repair", "reinstall", "download_update"}:
+            raise BadRequestError(detail=f"Unsupported model maintenance action: {action}")
+        manifest = selected.model_dump(mode="json")
+        manifest["repository_id"] = model_ref.removeprefix("huggingface:")
+        configured_revision = str(manifest["model_revision"])
+        target_revision = revision or configured_revision
+        if len(target_revision) != 40 or any(character not in "0123456789abcdef" for character in target_revision):
+            raise BadRequestError(detail="Maintenance revision must be a 40-character commit SHA")
+        if action == "download_update" and revision is None:
+            raise BadRequestError(detail="download_update requires the revision returned by check-update")
+        job_id = self.job_manager.start_job(
+            job_type="model_maintenance",
+            runner=run_model_maintenance_job,
+            kwargs={
+                "model_ref": model_ref,
+                "manifest": manifest,
+                "action": action,
+                "revision": target_revision,
+            },
+        )
+        status = self.get_job_status_or_500(job_id, "Failed to initialize model maintenance job")
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=status["job_type"],
+            status=status["status"],
+            message=f"Model {action} started for {model_ref}",
+            poll_interval=get_server_settings().jobs.polling_interval,
+        )
+
     # -------------------------------------------------------------------------
     def generate_reports(
         self,
@@ -403,7 +641,7 @@ class InferenceService:
             raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
-        if selected_model.status != "ready":
+        if selected_model.status not in {"ready", "not_installed", "unvalidated", "runtime_unavailable"}:
             raise ConflictError(
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
@@ -425,6 +663,7 @@ class InferenceService:
                     f"{selected_model.max_current_images} current image(s)"
                 ),
             )
+        self.validate_inference_images(images)
         if selected_model.provider == "xreport":
             generation_mode = {
                 "deterministic": "greedy_search",
@@ -439,7 +678,6 @@ class InferenceService:
 
         request_id = uuid.uuid4().hex[:12]
         try:
-            self.validate_inference_images(images)
             self.inference_image_store.store(request_id, images)
 
             # Start background job

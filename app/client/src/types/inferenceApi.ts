@@ -53,12 +53,41 @@ export interface ModelAvailability {
     };
     processor_repository_id: string | null;
     processor_revision: string | null;
+    required_files: string[];
+    weight_file_sets: string[][];
+    installation_state: 'not_installed' | 'staged' | 'active' | 'corrupt' | 'failed';
+    local_path: string | null;
+    active_revision: string | null;
+    candidate_revision: string | null;
+    integrity_status: string;
+    cloud_assessment: {
+        checked_at?: string;
+        source?: string;
+        free_cloud_available?: boolean;
+        reason?: string;
+        error?: string | null;
+    } | null;
+    update_available: boolean;
+    available_actions: string[];
 }
 
 export interface InferenceModelsResponse {
     models: ModelAvailability[];
     providers: Record<string, { status: ModelStatus; message: string | null }>;
 }
+
+export interface ModelUpdateCheckResponse {
+    model_ref: string;
+    repository_id: string;
+    installed_revision: string | null;
+    latest_revision: string | null;
+    update_available: boolean;
+    source: string;
+    checked_at: string;
+    error: string | null;
+}
+
+export type ModelMaintenanceAction = 'repair' | 'reinstall' | 'download_update';
 
 export interface CheckpointEvaluationRequest {
     checkpoint: string;
