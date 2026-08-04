@@ -15,6 +15,7 @@ from PIL import Image, ImageOps
 from transformers import StoppingCriteria, StoppingCriteriaList
 
 from server.configurations import InferenceSettings
+from server.common.path import ROOT_DIR
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
@@ -226,12 +227,22 @@ class HuggingFaceProvider:
             if self._loaded_key == key and self._model is not None and self._adapter:
                 return self._model, self._processor, self._adapter
             self.unload()
-            snapshot_path = snapshot_download(
-                repo_id=repository_id,
-                revision=revision,
-                cache_dir=self.settings.hf_cache_dir,
-                local_files_only=True,
-            )
+            configured_snapshot = manifest.get("local_snapshot_path")
+            if configured_snapshot:
+                snapshot_path = Path(str(configured_snapshot)).resolve()
+                try:
+                    snapshot_path.relative_to(ROOT_DIR.resolve())
+                except ValueError as exc:
+                    raise RuntimeError("Model snapshot must be inside the project resources") from exc
+                if not snapshot_path.is_dir():
+                    raise RuntimeError(f"Verified local model snapshot is missing: {snapshot_path}")
+            else:
+                snapshot_path = snapshot_download(
+                    repo_id=repository_id,
+                    revision=revision,
+                    cache_dir=self.settings.hf_cache_dir,
+                    local_files_only=True,
+                )
             adapter_type = ADAPTERS[adapter_name]
             adapter = adapter_type()
             load_options = {
@@ -239,12 +250,12 @@ class HuggingFaceProvider:
                 "trust_remote_code": bool(manifest["trust_remote_code"]),
             }
             processor = adapter.load_processor(
-                snapshot_path,
+                str(snapshot_path),
                 processor_loader=processor_loader,
                 load_options=load_options,
             )
             model = adapter.load_model(
-                snapshot_path,
+                str(snapshot_path),
                 model_loader=model_loader,
                 load_options={
                     **load_options,

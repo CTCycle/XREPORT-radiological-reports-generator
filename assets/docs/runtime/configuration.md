@@ -35,7 +35,6 @@ Last updated: 2026-08-03
 - `DATABASE_CONNECT_TIMEOUT`
 - `DATABASE_INSERT_BATCH_SIZE`
 - `HF_LOCAL_ONLY` (must remain `true` for embedded Hugging Face generation)
-- `HF_CACHE_DIR` (existing Hugging Face cache root)
 - `INFERENCE_DEVICE` (for example, `auto` or `cuda`)
 - `INFERENCE_MAX_LOADED_MODELS` (must remain `1`; the embedded provider keeps one model resident)
 - `INFERENCE_MODEL_TIMEOUT` (generation/model-operation timeout in seconds)
@@ -60,6 +59,6 @@ database and schema initialization.
 - Frontend calls backend routes through `/api`.
 - Vite dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
-- Hugging Face discovery and generation resolve only the per-model cached commit declared in `settings/inference_models.json`. Network fallback is disabled, and remote code is allowed only for individually approved manifest entries. `HF_CACHE_DIR` is intentionally unset by default; this produces configured but unavailable entries without downloading anything.
-- The inference catalog combines all five configured Hugging Face entries with discovered XREPORT checkpoints. It reports disabled, incompatible, gated, missing-cache, unvalidated-cache, and ready states with reasons. Only catalog entries with `ready` status can be submitted for generation.
-- A ready Hugging Face entry requires an exact-revision real-inference receipt under `assets/QA/inference_validation/`; a manifest status flag or file-presence check cannot promote it. Use `app/scripts/validate_inference_model.py` with `KERAS_BACKEND=torch` when a complete snapshot and appropriate fixture already exist.
+- The application derives the portable root from the deployed folder structure and owns all model caches under `app/resources/models`. `HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the backend at startup; hostile or stale user-level cache variables are ignored.
+- The external catalogue contains only `nathansutton/generate-cxr`, a public image-to-complete-report model. Its first Generate action performs a cloud assessment, then downloads the pinned revision into `app/resources/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
+- Installed metadata is stored in `app/resources/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.
