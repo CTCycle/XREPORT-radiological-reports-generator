@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,19 @@ from server.domain.validation import (
     TextStatistics,
 )
 from server.common.utils.logger import logger
+
+###############################################################################
+@dataclass(frozen=True)
+class ImageMeasurement:
+    height: int
+    width: int
+    mean: float
+    median: float
+    std: float
+    minimum: float
+    maximum: float
+    noise_std: float
+    noise_ratio: float
 
 ###############################################################################
 class DatasetValidator:
@@ -81,36 +95,48 @@ class DatasetValidator:
 
         Returns tuple of (aggregate stats for dashboard, per-record DataFrame for DB).
         """
-        empty_df = pd.DataFrame(
-            columns=[
-                "record_id",
-                "dataset_name",
-                "name",
-                "height",
-                "width",
-                "mean",
-                "median",
-                "std",
-                "min",
-                "max",
-                "pixel_range",
-                "noise_std",
-                "noise_ratio",
-            ]
-        )
-
         if "path" not in self.dataset.columns or self.dataset.empty:
-            return ImageStatistics(
-                count=0,
-                mean_height=0.0,
-                mean_width=0.0,
-                mean_pixel_value=0.0,
-                std_pixel_value=0.0,
-                mean_noise_std=0.0,
-                mean_noise_ratio=0.0,
-            ), empty_df
+            return self._empty_image_statistics(), self._empty_image_records()
 
-        # Get record identifiers
+        names, record_ids, image_paths = self._image_identifiers()
+        measurements: list[ImageMeasurement] = []
+        records: list[dict[str, Any]] = []
+        total_images = len(image_paths)
+        for idx, path in enumerate(image_paths):
+            measurement = self._measure_image(path)
+            if measurement is None:
+                continue
+            measurements.append(measurement)
+            records.append(
+                {
+                    "record_id": record_ids[idx],
+                    "dataset_name": self.dataset_name,
+                    "name": names[idx],
+                    "height": measurement.height,
+                    "width": measurement.width,
+                    "mean": measurement.mean,
+                    "median": measurement.median,
+                    "std": measurement.std,
+                    "min": measurement.minimum,
+                    "max": measurement.maximum,
+                    "pixel_range": measurement.maximum - measurement.minimum,
+                    "noise_std": measurement.noise_std,
+                    "noise_ratio": measurement.noise_ratio,
+                }
+            )
+            self._report_image_progress(
+                idx,
+                total_images,
+                progress_callback,
+            )
+
+        if not measurements:
+            return self._empty_image_statistics(), self._empty_image_records()
+        return self._aggregate_image_statistics(measurements), pd.DataFrame(records)
+
+    def _image_identifiers(
+        self,
+    ) -> tuple[list[str], list[Any], list[Any]]:
         if "image" in self.dataset.columns:
             image_series = self.dataset["image"]
             if not isinstance(image_series, pd.Series):
@@ -128,112 +154,89 @@ class DatasetValidator:
             record_ids: list[Any] = numeric_record_ids.tolist()
         else:
             record_ids = [None for _ in range(len(self.dataset))]
-
         path_series = self.dataset["path"]
         if not isinstance(path_series, pd.Series):
             raise ValueError("Dataset contains duplicate path columns")
-        image_paths = path_series.tolist()
+        return names, record_ids, path_series.tolist()
 
-        # Aggregate collectors
-        heights: list[int] = []
-        widths: list[int] = []
-        means: list[float] = []
-        stds: list[float] = []
-        noise_stds: list[float] = []
-        noise_ratios: list[float] = []
+    @staticmethod
+    def _empty_image_records() -> pd.DataFrame:
+        return pd.DataFrame(columns=[
+            "record_id", "dataset_name", "name", "height", "width", "mean",
+            "median", "std", "min", "max", "pixel_range", "noise_std", "noise_ratio",
+        ])
 
-        # Per-record data for database
-        records: list[dict] = []
-
-        valid_count = 0
-        total_images = len(image_paths)
-        log_interval = max(1, total_images // 10)  # Log every 10%
-
-        for idx, path in enumerate(image_paths):
-            if not Path(path).exists():
-                continue
-
-            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-            if img is None:
-                continue
-
-            h, w = img.shape
-            heights.append(h)
-            widths.append(w)
-
-            mean_val = float(np.mean(img))
-            std_val = float(np.std(img))
-            min_val = float(np.min(img))
-            max_val = float(np.max(img))
-            median_val = float(np.median(img))
-            pixel_range = max_val - min_val
-
-            means.append(mean_val)
-            stds.append(std_val)
-
-            # Estimate noise
-            blurred = cv2.GaussianBlur(img, (3, 3), 0)
-            noise = img.astype(np.float32) - blurred.astype(np.float32)
-            noise_std = float(np.std(noise))
-            noise_ratio = noise_std / (std_val + 1e-9)
-
-            noise_stds.append(noise_std)
-            noise_ratios.append(noise_ratio)
-
-            # Build per-record entry
-            records.append(
-                {
-                    "record_id": record_ids[idx],
-                    "dataset_name": self.dataset_name,
-                    "name": names[idx],
-                    "height": h,
-                    "width": w,
-                    "mean": mean_val,
-                    "median": median_val,
-                    "std": std_val,
-                    "min": min_val,
-                    "max": max_val,
-                    "pixel_range": pixel_range,
-                    "noise_std": noise_std,
-                    "noise_ratio": noise_ratio,
-                }
-            )
-
-            valid_count += 1
-
-            # Log progress every 10%
-            if (idx + 1) % log_interval == 0 or (idx + 1) == total_images:
-                progress = ((idx + 1) / total_images) * 100
-                logger.info(
-                    f"  Image statistics progress: {idx + 1}/{total_images} ({progress:.0f}%)"
-                )
-                if progress_callback:
-                    progress_callback((idx + 1) / total_images)
-
-        per_record_df = pd.DataFrame(records)
-
-        if valid_count == 0:
-            return ImageStatistics(
-                count=0,
-                mean_height=0.0,
-                mean_width=0.0,
-                mean_pixel_value=0.0,
-                std_pixel_value=0.0,
-                mean_noise_std=0.0,
-                mean_noise_ratio=0.0,
-            ), empty_df
-
-        aggregate_stats = ImageStatistics(
-            count=valid_count,
-            mean_height=float(np.mean(heights)),
-            mean_width=float(np.mean(widths)),
-            mean_pixel_value=float(np.mean(means)),
-            std_pixel_value=float(np.mean(stds)),
-            mean_noise_std=float(np.mean(noise_stds)),
-            mean_noise_ratio=float(np.mean(noise_ratios)),
+    @staticmethod
+    def _empty_image_statistics() -> ImageStatistics:
+        return ImageStatistics(
+            count=0,
+            mean_height=0.0,
+            mean_width=0.0,
+            mean_pixel_value=0.0,
+            std_pixel_value=0.0,
+            mean_noise_std=0.0,
+            mean_noise_ratio=0.0,
         )
 
-        return aggregate_stats, per_record_df
+    @staticmethod
+    def _measure_image(path: Any) -> ImageMeasurement | None:
+        if not Path(path).exists():
+            return None
+        image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            return None
+        height, width = image.shape
+        mean = float(np.mean(image))
+        std = float(np.std(image))
+        minimum = float(np.min(image))
+        maximum = float(np.max(image))
+        blurred = cv2.GaussianBlur(image, (3, 3), 0)
+        noise = image.astype(np.float32) - blurred.astype(np.float32)
+        noise_std = float(np.std(noise))
+        return ImageMeasurement(
+            height=height,
+            width=width,
+            mean=mean,
+            median=float(np.median(image)),
+            std=std,
+            minimum=minimum,
+            maximum=maximum,
+            noise_std=noise_std,
+            noise_ratio=noise_std / (std + 1e-9),
+        )
+
+    @staticmethod
+    def _report_image_progress(
+        index: int,
+        total_images: int,
+        progress_callback: Callable[[float], None] | None,
+    ) -> None:
+        log_interval = max(1, total_images // 10)
+        if (index + 1) % log_interval != 0 and index + 1 != total_images:
+            return
+        progress = (index + 1) / total_images
+        logger.info(
+            "  Image statistics progress: %s/%s (%0.f%%)",
+            index + 1,
+            total_images,
+            progress * 100,
+        )
+        if progress_callback:
+            progress_callback(progress)
+
+    @staticmethod
+    def _aggregate_image_statistics(
+        measurements: list[ImageMeasurement],
+    ) -> ImageStatistics:
+        return ImageStatistics(
+            count=len(measurements),
+            mean_height=float(np.mean([item.height for item in measurements])),
+            mean_width=float(np.mean([item.width for item in measurements])),
+            mean_pixel_value=float(np.mean([item.mean for item in measurements])),
+            std_pixel_value=float(np.mean([item.std for item in measurements])),
+            mean_noise_std=float(np.mean([item.noise_std for item in measurements])),
+            mean_noise_ratio=float(np.mean([item.noise_ratio for item in measurements])),
+        )
 
     # -------------------------------------------------------------------------
     def calculate_pixel_distribution(

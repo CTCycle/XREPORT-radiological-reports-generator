@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import os
 from typing import Any
 
-from server.common.path import HF_HUB_CACHE_DIR
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -43,7 +42,6 @@ class JobsSettings:
 @dataclass(frozen=True)
 class InferenceSettings:
     hf_local_only: bool
-    hf_cache_dir: str | None
     device: str
     max_loaded_models: int
     model_timeout: int
@@ -225,7 +223,6 @@ class JsonJobsSettings(BaseModel):
 ###############################################################################
 class JsonInferenceSettings(BaseModel):
     hf_local_only: bool = True
-    hf_cache_dir: str = str(HF_HUB_CACHE_DIR)
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1, le=1)
     model_timeout: int = Field(default=600, ge=1)
@@ -239,10 +236,6 @@ class JsonInferenceSettings(BaseModel):
             os.getenv("HF_LOCAL_ONLY"),
             default=bool(payload.get("hf_local_only", True)),
         )
-        # The application owns the cache location. Preserve this field only as
-        # an internal compatibility value for provider construction; user or
-        # process environment values are intentionally ignored.
-        payload["hf_cache_dir"] = str(HF_HUB_CACHE_DIR)
         payload["device"] = _normalize_optional_string(
             os.getenv("INFERENCE_DEVICE")
         ) or payload.get("device", "auto")
@@ -332,7 +325,6 @@ class JsonServerSettings(BaseModel):
             jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
             inference=InferenceSettings(
                 hf_local_only=self.inference.hf_local_only,
-                hf_cache_dir=self.inference.hf_cache_dir,
                 device=self.inference.device,
                 max_loaded_models=self.inference.max_loaded_models,
                 model_timeout=self.inference.model_timeout,

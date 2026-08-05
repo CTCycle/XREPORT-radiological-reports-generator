@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import MagicMock
 
 from PIL import Image
@@ -9,16 +8,16 @@ import torch
 
 from server.configurations import InferenceSettings
 from server.domain.inference import InferenceImage
+from server.models.inference.providers.adapters import MedGemmaAdapter
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
 REVISION = "a" * 40
 
 ###############################################################################
-def _settings(cache_dir: Path) -> InferenceSettings:
+def _settings() -> InferenceSettings:
     return InferenceSettings(
         hf_local_only=True,
-        hf_cache_dir=str(cache_dir),
         device="cpu",
         max_loaded_models=1,
         model_timeout=600,
@@ -53,8 +52,9 @@ def _manifest() -> dict[str, object]:
 
 def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
     monkeypatch.setattr(
-        "server.models.inference.providers.huggingface.snapshot_download",
-        lambda **_kwargs: "snapshot",
+        HuggingFaceProvider,
+        "_load",
+        lambda _self, _manifest: (model, processor, MedGemmaAdapter()),
     )
     monkeypatch.setattr(
         "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
@@ -73,8 +73,9 @@ def _processor_inputs() -> Inputs:
     })
 
 ###############################################################################
-def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch) -> None:
-    cache_path = Path("assets/QA/test-huggingface-cache")
+def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch, tmp_path) -> None:
+    snapshot_path = tmp_path / "snapshot"
+    snapshot_path.mkdir()
     calls: dict[str, object] = {}
     model = MagicMock()
     model.device = torch.device("cpu")
@@ -86,10 +87,6 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
     })
     processor.decode.return_value = "Findings: no acute abnormality."
 
-    def snapshot_download(**kwargs: object) -> str:
-        calls["snapshot"] = kwargs
-        return str(cache_path / "snapshot")
-
     def load_processor(path: str, **kwargs: object) -> MagicMock:
         calls["processor"] = (path, kwargs)
         return processor
@@ -98,10 +95,6 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         calls["model"] = (path, kwargs)
         return model
 
-    monkeypatch.setattr(
-        "server.models.inference.providers.huggingface.snapshot_download",
-        snapshot_download,
-    )
     monkeypatch.setattr(
         "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         load_processor,
@@ -112,9 +105,9 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
     )
     progress: list[tuple[object, ...]] = []
 
-    result = HuggingFaceProvider(_settings(cache_path)).generate(
+    result = HuggingFaceProvider(_settings()).generate(
         repository_id="google/medgemma-1.5-4b-it",
-        manifest=_manifest(),
+        manifest={**_manifest(), "local_snapshot_path": str(snapshot_path.resolve())},
         profile="deterministic",
         clinical_context="Cough",
         images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
@@ -122,12 +115,6 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         report_progress=lambda *values: progress.append(values),
     )
 
-    assert calls["snapshot"] == {
-        "repo_id": "google/medgemma-1.5-4b-it",
-        "revision": REVISION,
-        "cache_dir": str(cache_path),
-        "local_files_only": True,
-    }
     processor_call = calls["processor"]
     model_call = calls["model"]
     assert isinstance(processor_call, tuple)
@@ -165,7 +152,7 @@ def test_provider_rejects_unpinned_revision() -> None:
     image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
 
     try:
-        HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache"))).generate(
+        HuggingFaceProvider(_settings()).generate(
             repository_id="google/medgemma-1.5-4b-it",
             manifest=manifest,
             profile="deterministic",
@@ -184,7 +171,7 @@ def test_provider_rejects_multiple_images() -> None:
     image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
 
     try:
-        HuggingFaceProvider(_settings(Path("assets/QA/test-huggingface-cache"))).generate(
+        HuggingFaceProvider(_settings()).generate(
             repository_id="google/medgemma-1.5-4b-it",
             manifest=_manifest(),
             profile="detailed",
@@ -217,7 +204,7 @@ def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> N
     _patch_runtime(monkeypatch, model, processor)
     progress: list[object] = []
 
-    result = HuggingFaceProvider(_settings(Path("cache"))).generate(
+    result = HuggingFaceProvider(_settings()).generate(
         repository_id="google/medgemma-1.5-4b-it",
         manifest=_manifest(),
         profile="deterministic",
@@ -250,7 +237,7 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
     image.save(buffer, format="JPEG", exif=exif.tobytes())
 
     progress: list[tuple[object, ...]] = []
-    result = HuggingFaceProvider(_settings(Path("cache"))).generate(
+    result = HuggingFaceProvider(_settings()).generate(
         repository_id="google/medgemma-1.5-4b-it",
         manifest=_manifest(),
         profile="deterministic",
@@ -270,17 +257,13 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
 
 
 ###############################################################################
-def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch) -> None:
+def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch, tmp_path) -> None:
     model_a = MagicMock()
     model_b = MagicMock()
     processor_a = MagicMock()
     processor_b = MagicMock()
     models = [model_a, model_b]
     processors = [processor_a, processor_b]
-    monkeypatch.setattr(
-        "server.models.inference.providers.huggingface.snapshot_download",
-        lambda **_kwargs: "snapshot",
-    )
     monkeypatch.setattr(
         "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         lambda _path, **_kwargs: processors.pop(0),
@@ -289,16 +272,22 @@ def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch) 
         "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         lambda _path, **_kwargs: models.pop(0),
     )
-    provider = HuggingFaceProvider(_settings(Path("cache")))
+    provider = HuggingFaceProvider(_settings())
+    snapshot_a = tmp_path / "snapshot-a"
+    snapshot_b = tmp_path / "snapshot-b"
+    snapshot_a.mkdir()
+    snapshot_b.mkdir()
     manifest_a = {
         **_manifest(),
         "repository_id": "model-a",
         "revision": "a" * 40,
+        "local_snapshot_path": str(snapshot_a),
     }
     manifest_b = {
         **_manifest(),
         "repository_id": "model-b",
         "revision": "b" * 40,
+        "local_snapshot_path": str(snapshot_b),
     }
 
     loaded_a = provider._load(manifest_a)
