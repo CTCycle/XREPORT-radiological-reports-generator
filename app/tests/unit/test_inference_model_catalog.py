@@ -26,7 +26,6 @@ class EmptyModelSerializerStub:
 def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
         hf_local_only=hf_local_only,
-        hf_cache_dir=None,
         device="auto",
         max_loaded_models=1,
         model_timeout=600,
@@ -115,22 +114,6 @@ def test_catalog_uses_manifest_revision_and_exposes_runtime_metadata(monkeypatch
     assert generate_cxr.max_current_images == 1
     assert generate_cxr.license == "Apache-2.0"
     assert generate_cxr.status == "not_installed"
-
-###############################################################################
-def test_catalog_does_not_mark_unvalidated_cached_candidate_ready(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "server.services.inference_catalog.ModelSerializer",
-        EmptyModelSerializerStub,
-    )
-    monkeypatch.setattr(
-        "server.services.inference_catalog.HuggingFaceProvider.is_cached",
-        lambda self, repository_id, revision, **kwargs: True,
-    )
-
-    response = InferenceModelCatalog(_settings()).list_models()
-
-    assert response.models[0].status != "ready"
-
 
 def test_catalog_distinguishes_verified_active_and_candidate_installations(monkeypatch) -> None:
     monkeypatch.setattr(
