@@ -136,6 +136,7 @@ def run_validation_job(
     return result
 
 
+###############################################################################
 def _run_validation_metrics(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
@@ -173,6 +174,7 @@ def _run_validation_metrics(
     return result, image_records
 
 
+###############################################################################
 def _load_validation_dataset(
     repository: DatasetRepository,
     sample_size: Any,
@@ -186,6 +188,7 @@ def _load_validation_dataset(
     )
 
 
+###############################################################################
 def _resolve_dataset_name(dataset: pd.DataFrame, dataset_name: Any) -> str:
     if dataset_name:
         return str(dataset_name)
@@ -196,6 +199,7 @@ def _resolve_dataset_name(dataset: pd.DataFrame, dataset_name: Any) -> str:
     return "default"
 
 
+###############################################################################
 def _run_text_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
@@ -215,6 +219,7 @@ def _run_text_validation_metric(
     }
 
 
+###############################################################################
 def _run_image_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
@@ -248,6 +253,7 @@ def _run_image_validation_metric(
     }, image_records
 
 
+###############################################################################
 def _run_pixel_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
@@ -268,6 +274,7 @@ def _run_pixel_validation_metric(
     return {"bins": pixel_dist.bins, "counts": pixel_dist.counts}
 
 
+###############################################################################
 def _save_validation_report(
     repository: ValidationRepository,
     dataset_name: str,
@@ -360,6 +367,7 @@ def run_checkpoint_evaluation_job(
     }
 
 
+###############################################################################
 def _run_checkpoint_metrics(
     evaluator: CheckpointEvaluator,
     train_config: Any,
@@ -404,6 +412,7 @@ def _run_checkpoint_metrics(
     return results, resolved_metric_configs
 
 
+###############################################################################
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
 ) -> tuple[Any, Any, Any] | None:
@@ -416,6 +425,7 @@ def _load_checkpoint_for_evaluation(
     return model, train_config, model_metadata
 
 
+###############################################################################
 def _load_checkpoint_validation_data(
     metrics: Any,
 ) -> pd.DataFrame | None:
@@ -429,6 +439,7 @@ def _load_checkpoint_validation_data(
     return repository.validate_img_paths(validation_data)
 
 
+###############################################################################
 def _run_evaluation_report_metric(
     evaluator: CheckpointEvaluator,
     train_config: Any,
@@ -454,6 +465,7 @@ def _run_evaluation_report_metric(
     }, {"data_fraction": evaluation_fraction}
 
 
+###############################################################################
 def _run_bleu_metric(
     evaluator: CheckpointEvaluator,
     validation_data: pd.DataFrame | None,
@@ -474,6 +486,7 @@ def _run_bleu_metric(
     return evaluator.calculate_bleu_score(validation_data, num_samples=bleu_samples), config
 
 
+###############################################################################
 def _save_checkpoint_evaluation_report(
     checkpoint: str,
     metrics: Any,

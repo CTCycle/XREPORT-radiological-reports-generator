@@ -11,6 +11,7 @@ import server.services.inference as inference_service
 from server.services.jobs import JobManager
 
 
+###############################################################################
 def _image() -> InferenceImage:
     return InferenceImage(
         filename="scan.png",
@@ -20,6 +21,7 @@ def _image() -> InferenceImage:
     )
 
 
+###############################################################################
 def _setup_job(
     manager: JobManager,
     image_store: InferenceImageStore,
@@ -36,6 +38,7 @@ def _setup_job(
     image_store.link_job(job_id, request_id)
 
 
+###############################################################################
 def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> None:
     monkeypatch.setattr(inference_service, "get_job_manager", lambda: manager)
     monkeypatch.setattr(
@@ -43,7 +46,11 @@ def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> N
         "get_inference_image_store",
         lambda: image_store,
     )
+
+    ###############################################################################
     class RuntimeStub:
+
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs):
             generation = provider.generate(**kwargs)
             return ProviderGenerationResult(
@@ -57,6 +64,7 @@ def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> N
     monkeypatch.setattr(inference_service, "InferenceRepository", lambda: repository)
 
 
+###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch) -> None:
     manager = JobManager()
     image_store = InferenceImageStore()
@@ -64,7 +72,10 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
     request_id = "request-cancelled"
     _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
 
+    ###############################################################################
     class CancellingProvider:
+
+        # -------------------------------------------------------------------------
         def generate(self, **_kwargs):
             manager.cancel_job(job_id)
             return ProviderGenerationResult(
@@ -92,6 +103,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
     assert image_store.get(request_id) is None
 
 
+###############################################################################
 def test_timeout_does_not_persist_reports(monkeypatch) -> None:
     manager = JobManager()
     image_store = InferenceImageStore()

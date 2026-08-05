@@ -50,6 +50,7 @@ def _manifest() -> dict[str, object]:
     }
 
 
+###############################################################################
 def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
     monkeypatch.setattr(
         HuggingFaceProvider,
@@ -66,6 +67,7 @@ def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
     )
 
 
+###############################################################################
 def _processor_inputs() -> Inputs:
     return Inputs({
         "input_ids": torch.tensor([[1, 2]]),
@@ -185,7 +187,6 @@ def test_provider_rejects_multiple_images() -> None:
     else:
         raise AssertionError("Multiple images were accepted")
 
-
 ###############################################################################
 def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> None:
     model = MagicMock()
@@ -218,7 +219,6 @@ def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> N
     assert result.display_sections == {}
     assert result.metadata == []
     assert progress == []
-
 
 ###############################################################################
 def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> None:
@@ -254,7 +254,6 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
     assert result.metadata[0]["original_dimensions"] == {"width": 3, "height": 2}
     assert result.metadata[0]["processed_tensor_dimensions"] == [1, 3, 8, 9]
     assert progress
-
 
 ###############################################################################
 def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch, tmp_path) -> None:

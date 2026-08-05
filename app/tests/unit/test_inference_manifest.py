@@ -7,6 +7,7 @@ from server.domain.inference import InferenceManifest
 from server.services.inference_runtime import InferenceRuntimeCoordinator
 
 
+###############################################################################
 def _entry() -> dict[str, object]:
     return {
         "model_ref": "huggingface:nathansutton/generate-cxr",
@@ -32,6 +33,7 @@ def _entry() -> dict[str, object]:
     }
 
 
+###############################################################################
 def test_manifest_rejects_unknown_nested_fields() -> None:
     entry = _entry()
     entry["runtime_constraints"] = {"required_modules": [], "typo": True}
@@ -40,6 +42,7 @@ def test_manifest_rejects_unknown_nested_fields() -> None:
         InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
 
 
+###############################################################################
 def test_manifest_rejects_empty_weight_alternative() -> None:
     entry = _entry()
     entry["weight_file_sets"] = [[]]
@@ -48,6 +51,7 @@ def test_manifest_rejects_empty_weight_alternative() -> None:
         InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
 
 
+###############################################################################
 def test_runtime_rejects_provider_only_manifest() -> None:
     with pytest.raises(RuntimeError, match="manifest is incomplete"):
         InferenceRuntimeCoordinator._require_complete_manifest(

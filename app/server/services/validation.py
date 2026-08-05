@@ -134,6 +134,7 @@ class DatasetValidator:
             return self._empty_image_statistics(), self._empty_image_records()
         return self._aggregate_image_statistics(measurements), pd.DataFrame(records)
 
+    # -------------------------------------------------------------------------
     def _image_identifiers(
         self,
     ) -> tuple[list[str], list[Any], list[Any]]:
@@ -159,6 +160,7 @@ class DatasetValidator:
             raise ValueError("Dataset contains duplicate path columns")
         return names, record_ids, path_series.tolist()
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _empty_image_records() -> pd.DataFrame:
         return pd.DataFrame(columns=[
@@ -166,6 +168,7 @@ class DatasetValidator:
             "median", "std", "min", "max", "pixel_range", "noise_std", "noise_ratio",
         ])
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _empty_image_statistics() -> ImageStatistics:
         return ImageStatistics(
@@ -178,6 +181,7 @@ class DatasetValidator:
             mean_noise_ratio=0.0,
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _measure_image(path: Any) -> ImageMeasurement | None:
         if not Path(path).exists():
@@ -205,6 +209,7 @@ class DatasetValidator:
             noise_ratio=noise_std / (std + 1e-9),
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _report_image_progress(
         index: int,
@@ -224,6 +229,7 @@ class DatasetValidator:
         if progress_callback:
             progress_callback(progress)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _aggregate_image_statistics(
         measurements: list[ImageMeasurement],
