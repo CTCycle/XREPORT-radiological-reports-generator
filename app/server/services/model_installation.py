@@ -12,11 +12,10 @@ import uuid
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from huggingface_hub import HfApi, snapshot_download
+from huggingface_hub import HfApi
 import requests
 
 from server.common.path import (
-    HF_HUB_CACHE_DIR,
     HF_INSTALLED_DIR,
     HF_METADATA_DIR,
     HF_ROLLBACK_DIR,
@@ -27,7 +26,6 @@ from server.common.path import (
 
 REVISION_PATTERN = r"^[0-9a-f]{40}$"
 ProgressCallback = Callable[[dict[str, Any]], None]
-ORIGINAL_SNAPSHOT_DOWNLOAD = snapshot_download
 
 
 class InstallationCancelled(RuntimeError):
@@ -286,6 +284,210 @@ class ModelInstallationManager:
             return None
         return max(candidates, key=lambda path: path.stat().st_mtime)
 
+    def cleanup_staging(self, repository_id: str) -> int:
+        """Remove partial staging without touching installed model data.
+
+        First-use installs without an active revision remain resumable. Once a
+        verified active revision exists, a canceled maintenance/reinstall
+        partial is an orphan and can be safely removed. A verified candidate
+        recorded in metadata is preserved for activation.
+        """
+        metadata = self.read_metadata(repository_id)
+        candidate = metadata.get("candidate")
+        candidate_path = (
+            self._absolute(candidate.get("relative_path"))
+            if isinstance(candidate, dict)
+            else None
+        )
+        removed = 0
+        if not HF_STAGING_DIR.exists():
+            return removed
+        model_slug = _slug(repository_id)
+        for operation_root in HF_STAGING_DIR.iterdir():
+            model_root = operation_root / model_slug
+            if not model_root.is_dir() or model_root.is_symlink():
+                continue
+            for revision_root in model_root.iterdir():
+                if not revision_root.is_dir() or revision_root.is_symlink():
+                    continue
+                if candidate_path and revision_root.resolve() == candidate_path.resolve():
+                    continue
+                shutil.rmtree(revision_root)
+                removed += 1
+            if model_root.exists() and not any(model_root.iterdir()):
+                model_root.rmdir()
+            if operation_root.exists() and not any(operation_root.iterdir()):
+                operation_root.rmdir()
+        return removed
+
+    @staticmethod
+    def _approved_files(
+        remote: Mapping[str, Any],
+        manifest: Mapping[str, Any],
+        repository_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        if remote.get("status") != "available":
+            raise InstallationError(
+                f"Unable to resolve files for {repository_id}: "
+                f"{remote.get('error', 'Hub metadata unavailable')}"
+            )
+        approved = set(ModelInstallationManager._allow_patterns(manifest))
+        files = {
+            name: details
+            for name, details in remote.get("files", {}).items()
+            if name in approved
+        }
+        if not files:
+            raise InstallationError("The model repository contains no approved files.")
+        return files
+
+    @staticmethod
+    def _recover_cached_partials(
+        target: Path,
+        files: Mapping[str, Mapping[str, Any]],
+    ) -> None:
+        for cached_partial in target.rglob("*.incomplete"):
+            if ".cache" not in cached_partial.parts:
+                continue
+            for name, details in files.items():
+                expected_hash = str(details.get("sha256") or "")
+                if expected_hash and expected_hash in cached_partial.name:
+                    destination = target / f"{name}.incomplete"
+                    if not destination.exists():
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        os.replace(cached_partial, destination)
+                    break
+
+    @staticmethod
+    def _clean_unapproved_files(
+        target: Path,
+        files: Mapping[str, Mapping[str, Any]],
+    ) -> None:
+        allowed = set(files) | {f"{name}.incomplete" for name in files}
+        for existing in target.rglob("*"):
+            if existing.is_file() and existing.relative_to(target).as_posix() not in allowed:
+                existing.unlink()
+        cache_dir = target / ".cache"
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir, ignore_errors=True)
+
+    @staticmethod
+    def _report_download_progress(
+        *,
+        payload: dict[str, Any],
+        should_stop: Callable[[], bool],
+        report_progress: ProgressCallback,
+    ) -> None:
+        if should_stop():
+            raise InstallationCancelled("Model download cancelled")
+        report_progress(payload)
+
+    @staticmethod
+    def _open_download_response(
+        *,
+        url: str,
+        headers: dict[str, str],
+        start: int,
+        partial: Path,
+        name: str,
+    ) -> tuple[requests.Response, int]:
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                stream=True,
+                allow_redirects=True,
+                timeout=(30, 60),
+            )
+            response.raise_for_status()
+            if start and response.status_code == 200:
+                start = 0
+                partial.unlink(missing_ok=True)
+            if start and response.status_code != 206:
+                raise InstallationError(
+                    f"Hub did not honour resume for {name} (HTTP {response.status_code})"
+                )
+            return response, start
+        except requests.RequestException as exc:
+            raise InstallationError(f"Model download failed for {name}: {exc}") from exc
+
+    def _download_file(
+        self,
+        *,
+        repository_id: str,
+        revision: str,
+        name: str,
+        details: Mapping[str, Any],
+        target: Path,
+        file_index: int,
+        completed_files: int,
+        total_files: int,
+        downloaded_total: int,
+        total_bytes: int,
+        should_stop: Callable[[], bool],
+        report_progress: ProgressCallback,
+        force_download: bool,
+    ) -> int:
+        destination = target / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        partial = destination.with_name(f"{destination.name}.incomplete")
+        expected_size = details.get("size")
+        if force_download:
+            destination.unlink(missing_ok=True)
+            partial.unlink(missing_ok=True)
+        if destination.is_file() and (
+            expected_size is None or destination.stat().st_size == expected_size
+        ):
+            return destination.stat().st_size
+        destination.unlink(missing_ok=True)
+        start = partial.stat().st_size if partial.is_file() else 0
+        if expected_size is not None and start > expected_size:
+            partial.unlink()
+            start = 0
+        url = (
+            f"https://huggingface.co/{repository_id}/resolve/"
+            f"{revision}/{name}?download=true"
+        )
+        headers = {"Range": f"bytes={start}-"} if start else {}
+        try:
+            response, start = self._open_download_response(
+                url=url,
+                headers=headers,
+                start=start,
+                partial=partial,
+                name=name,
+            )
+            with partial.open("ab" if start else "wb") as stream:
+                downloaded_file = start
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    if not chunk:
+                        continue
+                    stream.write(chunk)
+                    downloaded_file += len(chunk)
+                    self._report_download_progress(
+                        payload={
+                            "phase": "downloading",
+                            "message": f"Downloading {name}",
+                            "current_file": name,
+                            "file_index": file_index,
+                            "files_completed": completed_files,
+                            "total_files": total_files,
+                            "downloaded_bytes": downloaded_total + downloaded_file,
+                            "total_bytes": total_bytes,
+                        },
+                        should_stop=should_stop,
+                        report_progress=report_progress,
+                    )
+            response.close()
+        except InstallationCancelled:
+            raise
+        if expected_size is not None and partial.stat().st_size != expected_size:
+            raise InstallationError(
+                f"Incomplete download for {name}: {partial.stat().st_size} of {expected_size} bytes"
+            )
+        os.replace(partial, destination)
+        return destination.stat().st_size
+
     def _download(
         self,
         *,
@@ -298,163 +500,52 @@ class ModelInstallationManager:
         force_download: bool = False,
     ) -> None:
         target.mkdir(parents=True, exist_ok=True)
-
-        def callback(payload: dict[str, Any]) -> None:
-            if should_stop():
-                raise InstallationCancelled("Model download cancelled")
-            report_progress(payload)
-
         try:
             if should_stop():
                 raise InstallationCancelled("Model download cancelled")
-            # Keep the snapshot_download seam for deterministic unit tests, but
-            # use an application-owned HTTP downloader in production.  The Hub
-            # snapshot helper can block indefinitely on large Xet files before
-            # its progress callback runs, which makes cancellation unusable.
-            if snapshot_download is not ORIGINAL_SNAPSHOT_DOWNLOAD:
-                snapshot_download(
-                    repo_id=repository_id,
-                    revision=revision,
-                    local_dir=str(target),
-                    cache_dir=str(HF_HUB_CACHE_DIR),
-                    allow_patterns=self._allow_patterns(manifest),
-                    local_files_only=False,
-                    token=False,
-                    max_workers=4,
-                    force_download=force_download,
-                )
-                return
-
-            remote = self._remote_metadata(repository_id, revision)
-            if remote.get("status") != "available":
-                raise InstallationError(
-                    f"Unable to resolve files for {repository_id}: "
-                    f"{remote.get('error', 'Hub metadata unavailable')}"
-                )
-            approved = set(self._allow_patterns(manifest))
-            files = {
-                name: details
-                for name, details in remote.get("files", {}).items()
-                if name in approved
-            }
-            if not files:
-                raise InstallationError("The model repository contains no approved files.")
-
-            # Recover any Hub-managed partial weight from a previous interrupted
-            # attempt, then remove sidecars and unrelated files.  Only approved
-            # artifacts and resumable partials are allowed in staging.
-            for cached_partial in target.rglob("*.incomplete"):
-                if ".cache" not in cached_partial.parts:
-                    continue
-                for name, details in files.items():
-                    expected_hash = str(details.get("sha256") or "")
-                    if expected_hash and expected_hash in cached_partial.name:
-                        destination_partial = target / (name + ".incomplete")
-                        if not destination_partial.exists():
-                            destination_partial.parent.mkdir(parents=True, exist_ok=True)
-                            os.replace(cached_partial, destination_partial)
-                        break
-            for existing in target.rglob("*"):
-                if not existing.is_file():
-                    continue
-                relative = existing.relative_to(target).as_posix()
-                if relative in files or relative in {f"{name}.incomplete" for name in files}:
-                    continue
-                existing.unlink()
-            cache_dir = target / ".cache"
-            if cache_dir.exists():
-                shutil.rmtree(cache_dir, ignore_errors=True)
-
+            files = self._approved_files(
+                self._remote_metadata(repository_id, revision),
+                manifest,
+                repository_id,
+            )
+            self._recover_cached_partials(target, files)
+            self._clean_unapproved_files(target, files)
             total_bytes = sum(
                 int(details["size"])
                 for details in files.values()
                 if details.get("size") is not None
             )
-            completed_files = 0
             downloaded_total = 0
+            completed_files = 0
             for index, (name, details) in enumerate(sorted(files.items()), start=1):
-                callback({
-                    "phase": "downloading",
-                    "message": f"Downloading {name}",
-                    "current_file": name,
-                    "files_completed": completed_files,
-                    "total_files": len(files),
-                    "downloaded_bytes": downloaded_total,
-                    "total_bytes": total_bytes,
-                })
-                destination = target / name
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                partial = destination.with_name(destination.name + ".incomplete")
-                expected_size = details.get("size")
-                if force_download:
-                    destination.unlink(missing_ok=True)
-                    partial.unlink(missing_ok=True)
-                if destination.is_file() and (
-                    expected_size is None or destination.stat().st_size == expected_size
-                ):
-                    downloaded_total += destination.stat().st_size
-                    completed_files += 1
-                    continue
-                if destination.exists():
-                    destination.unlink()
-                start = partial.stat().st_size if partial.is_file() else 0
-                if expected_size is not None and start > expected_size:
-                    partial.unlink()
-                    start = 0
-                url = (
-                    f"https://huggingface.co/{repository_id}/resolve/"
-                    f"{revision}/{name}?download=true"
+                self._report_download_progress(
+                    payload={
+                        "phase": "downloading",
+                        "message": f"Downloading {name}",
+                        "current_file": name,
+                        "files_completed": completed_files,
+                        "total_files": len(files),
+                        "downloaded_bytes": downloaded_total,
+                        "total_bytes": total_bytes,
+                    },
+                    should_stop=should_stop,
+                    report_progress=report_progress,
                 )
-                headers = {"Range": f"bytes={start}-"} if start else {}
-                try:
-                    response = requests.get(
-                        url,
-                        headers=headers,
-                        stream=True,
-                        allow_redirects=True,
-                        timeout=(30, 60),
-                    )
-                    response.raise_for_status()
-                    if start and response.status_code == 200:
-                        # The server ignored the range. Restart safely rather
-                        # than appending a duplicate full response.
-                        start = 0
-                        partial.unlink(missing_ok=True)
-                    if start and response.status_code != 206:
-                        raise InstallationError(
-                            f"Hub did not honour resume for {name} (HTTP {response.status_code})"
-                        )
-                    mode = "ab" if start else "wb"
-                    with partial.open(mode) as stream:
-                        downloaded_file = start
-                        for chunk in response.iter_content(chunk_size=1024 * 1024):
-                            if not chunk:
-                                continue
-                            if should_stop():
-                                raise InstallationCancelled("Model download cancelled")
-                            stream.write(chunk)
-                            downloaded_file += len(chunk)
-                            callback({
-                                "phase": "downloading",
-                                "message": f"Downloading {name}",
-                                "current_file": name,
-                                "file_index": index,
-                                "files_completed": completed_files,
-                                "total_files": len(files),
-                                "downloaded_bytes": downloaded_total + downloaded_file,
-                                "total_bytes": total_bytes,
-                            })
-                    response.close()
-                except InstallationCancelled:
-                    raise
-                except requests.RequestException as exc:
-                    raise InstallationError(f"Model download failed for {name}: {exc}") from exc
-                if expected_size is not None and partial.stat().st_size != expected_size:
-                    raise InstallationError(
-                        f"Incomplete download for {name}: {partial.stat().st_size} of {expected_size} bytes"
-                    )
-                os.replace(partial, destination)
-                downloaded_total += destination.stat().st_size
+                downloaded_total += self._download_file(
+                    repository_id=repository_id,
+                    revision=revision,
+                    name=name,
+                    details=details,
+                    target=target,
+                    file_index=index,
+                    completed_files=completed_files,
+                    total_files=len(files),
+                    downloaded_total=downloaded_total,
+                    total_bytes=total_bytes,
+                    should_stop=should_stop,
+                    report_progress=report_progress,
+                    force_download=force_download,
+                )
                 completed_files += 1
         except InstallationCancelled:
             raise
@@ -616,6 +707,10 @@ class ModelInstallationManager:
                 "last_error": None,
             }
             self._write_metadata(repository_id, metadata)
+            # The candidate has now moved to installed. Any other partial
+            # operation for this repository is stale and must not survive a
+            # successful activation.
+            self.cleanup_staging(repository_id)
             return metadata
 
     def record_success(
@@ -675,6 +770,11 @@ class ModelInstallationManager:
                 },
             },
         )
+        # A working active revision makes a canceled maintenance/reinstall
+        # partial unnecessary. First-use installs without an active revision
+        # intentionally retain staging so the next attempt can resume.
+        if preserves_active:
+            self.cleanup_staging(repository_id)
 
     def check_update(self, repository_id: str) -> dict[str, Any]:
         metadata = self.read_metadata(repository_id)

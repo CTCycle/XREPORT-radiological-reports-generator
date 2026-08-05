@@ -112,6 +112,34 @@ def count_images_in_folder(folder_path: str) -> int:
         return 0
 
 ###############################################################################
+def _save_processed_dataset(
+    serializer: DatasetRepository,
+    configuration: dict[str, Any],
+    training_data: pd.DataFrame,
+    dataset_name: str,
+    source_dataset_name: str,
+    vocabulary_size: int,
+) -> None:
+    metadata_for_hash = {
+        "dataset_name": dataset_name,
+        "seed": configuration.get("seed", 42),
+        "sample_size": configuration.get("sample_size", 1.0),
+        "validation_size": configuration.get("validation_size", 0.2),
+        "vocabulary_size": vocabulary_size,
+        "max_report_size": configuration.get("max_report_size", 200),
+        "tokenizer": configuration.get("tokenizer", None),
+        "source_dataset": source_dataset_name,
+    }
+    hashcode = serializer.generate_hashcode(metadata_for_hash)
+    serializer.save_training_data(
+        configuration,
+        training_data,
+        vocabulary_size,
+        hashcode,
+    )
+    logger.info("Preprocessed data saved to database with hash: %s", hashcode)
+
+###############################################################################
 def run_process_dataset_job(
     configuration: dict[str, Any],
     job_id: str,
@@ -191,23 +219,14 @@ def run_process_dataset_job(
 
     # Step 5: Save processed data and metadata to database
     try:
-        metadata_for_hash = {
-            "dataset_name": dataset_name,
-            "seed": configuration.get("seed", 42),
-            "sample_size": configuration.get("sample_size", 1.0),
-            "validation_size": configuration.get("validation_size", 0.2),
-            "vocabulary_size": vocabulary_size,
-            "max_report_size": configuration.get("max_report_size", 200),
-            "tokenizer": configuration.get("tokenizer", None),
-            # Source dataset is metadata, not processing config, but good to include if it affects reproducibility
-            "source_dataset": source_dataset_name,
-        }
-        hashcode = serializer.generate_hashcode(metadata_for_hash)
-
-        serializer.save_training_data(
-            configuration, training_data, vocabulary_size, hashcode
+        _save_processed_dataset(
+            serializer,
+            configuration,
+            training_data,
+            dataset_name,
+            source_dataset_name,
+            vocabulary_size,
         )
-        logger.info(f"Preprocessed data saved to database with hash: {hashcode}")
     except RuntimeError as e:
         # Schema mismatch or other runtime errors - use the clean message directly
         logger.error(f"Database error: {e}")

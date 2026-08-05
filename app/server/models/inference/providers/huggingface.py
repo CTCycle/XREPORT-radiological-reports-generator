@@ -10,7 +10,6 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 import torch
-from huggingface_hub import snapshot_download
 from PIL import Image, ImageOps
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -57,30 +56,6 @@ class HuggingFaceProvider:
         self._adapter: StandardImageTextAdapter | None = None
 
     # -------------------------------------------------------------------------
-    def is_cached(
-        self,
-        repository_id: str,
-        revision: str | None,
-        *,
-        required_files: list[str] | None = None,
-        weight_file_sets: list[list[str]] | None = None,
-    ) -> bool:
-        if not self.is_pinned_revision(revision) or not self.settings.hf_cache_dir:
-            return False
-        assert isinstance(revision, str)
-        snapshot = self._snapshot_path(repository_id, revision)
-        required = required_files or ["config.json"]
-        if any(not (snapshot / path).is_file() for path in required):
-            return False
-        if weight_file_sets:
-            if not any(
-                all((snapshot / path).is_file() for path in alternatives)
-                for alternatives in weight_file_sets
-            ):
-                return False
-        return True
-
-    # -------------------------------------------------------------------------
     def generate(
         self,
         *,
@@ -93,96 +68,44 @@ class HuggingFaceProvider:
         report_progress: ProgressCallback,
     ) -> ProviderGenerationResult:
         normalized = self.validate_manifest(repository_id, manifest)
-        max_images = int(normalized["max_current_images"])
-        if len(images) > max_images:
-            raise ValueError(
-                f"{repository_id} accepts at most {max_images} current image(s)"
-            )
-        if not images:
-            raise ValueError("At least one image is required")
+        self._validate_images(repository_id, normalized, images)
         if should_stop():
-            return ProviderGenerationResult(
-                reports={},
-                display_sections={},
-                metadata=[],
-                provenance=self._provenance(normalized, profile, clinical_context),
-            )
+            return self._empty_result(normalized, profile, clinical_context)
 
         deadline = time.monotonic() + self.settings.model_timeout
         with self._lock:
             if should_stop():
-                return ProviderGenerationResult(
-                    reports={},
-                    display_sections={},
-                    metadata=[],
-                    provenance=self._provenance(normalized, profile, clinical_context),
+                return self._empty_result(
+                    normalized,
+                    profile,
+                    clinical_context,
                 )
             model, processor, adapter = self._load(normalized)
-            if time.monotonic() >= deadline:
-                raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
+            self._check_deadline(repository_id, deadline)
             reports: dict[str, str] = {}
             display_sections: dict[str, dict[str, str]] = {}
             metadata: list[dict[str, Any]] = []
             for image_index, stored_image in enumerate(images, start=1):
                 if should_stop() or time.monotonic() >= deadline:
                     break
-                image, original_dimensions = self._decode_image(stored_image.data)
-                prompt = adapter.prompt(profile, clinical_context)
-                inputs, input_length = adapter.build_inputs(processor, image, prompt)
-                processed_dimensions = adapter.processed_dimensions(inputs)
-                inputs = self._move_inputs(inputs, model)
-                with torch.inference_mode():
-                    output = model.generate(
-                        **inputs,
-                        **adapter.generation_kwargs(profile),
-                        stopping_criteria=StoppingCriteriaList([
-                            _InferenceStoppingCriteria(should_stop, deadline),
-                        ]),
-                    )
-                if should_stop():
-                    return ProviderGenerationResult(
-                        reports={},
-                        display_sections={},
-                        metadata=[],
-                        provenance=self._provenance(normalized, profile, clinical_context),
-                    )
-                if time.monotonic() >= deadline:
-                    raise TimeoutError(
-                        f"{repository_id} inference exceeded the configured timeout"
-                    )
-                report = adapter.decode(processor, output, input_length=input_length)
-                normalized_report = report.strip()
-                if (
-                    not normalized_report
-                    or "\x00" in report
-                    or not any(character.isalnum() for character in normalized_report)
-                ):
-                    raise RuntimeError(
-                        f"{repository_id} returned an empty or malformed report for {stored_image.filename}"
-                    )
-                reports[stored_image.filename] = report
-                display_sections[stored_image.filename] = adapter.display_sections(
-                    report,
-                    [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+                generated = self._generate_image(
+                    repository_id=repository_id,
+                    normalized=normalized,
+                    profile=profile,
+                    clinical_context=clinical_context,
+                    stored_image=stored_image,
+                    model=model,
+                    processor=processor,
+                    adapter=adapter,
+                    should_stop=should_stop,
+                    deadline=deadline,
                 )
-                metadata.append({
-                    "filename": stored_image.filename,
-                    "original_dimensions": {
-                        "width": original_dimensions[0],
-                        "height": original_dimensions[1],
-                    },
-                    "processed_tensor_dimensions": processed_dimensions,
-                    "processor_loader": normalized["processor_loader"],
-                    "model_loader": normalized["model_loader"],
-                    "adapter": normalized["adapter"],
-                    "prompt_profile": normalized.get("prompt_profile"),
-                    "provider": "huggingface",
-                    "model_ref": f"huggingface:{repository_id}",
-                    "model_revision": normalized["revision"],
-                    "generation_profile": profile,
-                    "clinical_context": clinical_context,
-                    "research_only": bool(normalized.get("research_only", True)),
-                })
+                if generated is None:
+                    return self._empty_result(normalized, profile, clinical_context)
+                report, image_metadata, sections = generated
+                reports[stored_image.filename] = report
+                display_sections[stored_image.filename] = sections
+                metadata.append(image_metadata)
                 report_progress(
                     image_index,
                     len(images),
@@ -191,16 +114,13 @@ class HuggingFaceProvider:
                     display_sections,
                 )
             if should_stop():
-                provenance = self._provenance(normalized, profile, clinical_context)
-                provenance["input_images"] = []
-                return ProviderGenerationResult(
-                    reports={},
-                    display_sections={},
-                    metadata=[],
-                    provenance=provenance,
+                return self._empty_result(
+                    normalized,
+                    profile,
+                    clinical_context,
+                    include_input_images=True,
                 )
-            if time.monotonic() >= deadline:
-                raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
+            self._check_deadline(repository_id, deadline)
             if not reports:
                 raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
             provenance = self._provenance(normalized, profile, clinical_context)
@@ -210,6 +130,118 @@ class HuggingFaceProvider:
                 display_sections=display_sections,
                 metadata=metadata,
                 provenance=provenance,
+            )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _validate_images(
+        repository_id: str,
+        manifest: Mapping[str, Any],
+        images: list[InferenceImage],
+    ) -> None:
+        max_images = int(manifest["max_current_images"])
+        if len(images) > max_images:
+            raise ValueError(
+                f"{repository_id} accepts at most {max_images} current image(s)"
+            )
+        if not images:
+            raise ValueError("At least one image is required")
+
+    @staticmethod
+    def _empty_result(
+        manifest: Mapping[str, Any],
+        profile: GenerationProfile,
+        clinical_context: str,
+        *,
+        include_input_images: bool = False,
+    ) -> ProviderGenerationResult:
+        provenance = HuggingFaceProvider._provenance(
+            manifest, profile, clinical_context
+        )
+        if include_input_images:
+            provenance["input_images"] = []
+        return ProviderGenerationResult(
+            reports={},
+            display_sections={},
+            metadata=[],
+            provenance=provenance,
+        )
+
+    @staticmethod
+    def _check_deadline(repository_id: str, deadline: float) -> None:
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
+
+    def _generate_image(
+        self,
+        *,
+        repository_id: str,
+        normalized: Mapping[str, Any],
+        profile: GenerationProfile,
+        clinical_context: str,
+        stored_image: InferenceImage,
+        model: Any,
+        processor: Any,
+        adapter: StandardImageTextAdapter,
+        should_stop: Callable[[], bool],
+        deadline: float,
+    ) -> tuple[str, dict[str, Any], dict[str, str]] | None:
+        image, original_dimensions = self._decode_image(stored_image.data)
+        prompt = adapter.prompt(profile, clinical_context)
+        inputs, input_length = adapter.build_inputs(processor, image, prompt)
+        processed_dimensions = adapter.processed_dimensions(inputs)
+        inputs = self._move_inputs(inputs, model)
+        with torch.inference_mode():
+            output = model.generate(
+                **inputs,
+                **adapter.generation_kwargs(profile),
+                stopping_criteria=StoppingCriteriaList([
+                    _InferenceStoppingCriteria(should_stop, deadline),
+                ]),
+            )
+        if should_stop():
+            return None
+        self._check_deadline(repository_id, deadline)
+        report = adapter.decode(processor, output, input_length=input_length)
+        self._validate_report(repository_id, stored_image, report)
+        metadata = {
+            "filename": stored_image.filename,
+            "original_dimensions": {
+                "width": original_dimensions[0],
+                "height": original_dimensions[1],
+            },
+            "processed_tensor_dimensions": processed_dimensions,
+            "processor_loader": normalized["processor_loader"],
+            "model_loader": normalized["model_loader"],
+            "adapter": normalized["adapter"],
+            "prompt_profile": normalized.get("prompt_profile"),
+            "provider": "huggingface",
+            "model_ref": f"huggingface:{repository_id}",
+            "model_revision": normalized["revision"],
+            "generation_profile": profile,
+            "clinical_context": clinical_context,
+            "research_only": bool(normalized.get("research_only", True)),
+        }
+        sections = adapter.display_sections(
+            report,
+            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+        )
+        return report, metadata, sections
+
+    @staticmethod
+    def _validate_report(
+        repository_id: str,
+        stored_image: InferenceImage,
+        report: str,
+    ) -> None:
+        normalized_report = report.strip()
+        if (
+            not normalized_report
+            or "\x00" in report
+            or not any(character.isalnum() for character in normalized_report)
+        ):
+            raise RuntimeError(
+                f"{repository_id} returned an empty or malformed report for {stored_image.filename}"
             )
 
     # -------------------------------------------------------------------------
@@ -237,12 +269,7 @@ class HuggingFaceProvider:
                 if not snapshot_path.is_dir():
                     raise RuntimeError(f"Verified local model snapshot is missing: {snapshot_path}")
             else:
-                snapshot_path = snapshot_download(
-                    repo_id=repository_id,
-                    revision=revision,
-                    cache_dir=self.settings.hf_cache_dir,
-                    local_files_only=True,
-                )
+                raise RuntimeError("Verified local model snapshot path is missing")
             adapter_type = ADAPTERS[adapter_name]
             adapter = adapter_type()
             load_options = {
@@ -280,11 +307,6 @@ class HuggingFaceProvider:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-
-    # -------------------------------------------------------------------------
-    def _snapshot_path(self, repository_id: str, revision: str) -> Path:
-        cache = Path(self.settings.hf_cache_dir or "")
-        return cache / f"models--{repository_id.replace('/', '--')}" / "snapshots" / revision
 
     # -------------------------------------------------------------------------
     def _device_map(self) -> str:

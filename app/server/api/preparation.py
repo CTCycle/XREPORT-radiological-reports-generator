@@ -94,7 +94,7 @@ class PreparationEndpoint:
         return self.service.get_dataset_image_metadata(dataset_name, index)
 
     # -------------------------------------------------------------------------
-    def get_dataset_image_content(self, dataset_name: str, index: int):
+    def get_dataset_image_content(self, dataset_name: str, index: int) -> FileResponse:
         path = self.service.get_dataset_image_content(dataset_name, index)
         return FileResponse(path)
 

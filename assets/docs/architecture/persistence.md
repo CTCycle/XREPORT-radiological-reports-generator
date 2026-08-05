@@ -1,17 +1,17 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-03
+Last updated: 2026-08-05
 
 ## Database Backend Selection
 
-From `XREPORT/settings/.env`:
+From `settings/.env`:
 
-- `EMBEDDED_DATABASE=true`: SQLite using `XREPORT/resources/database.db`
+- `EMBEDDED_DATABASE=true`: SQLite using `app/resources/database.db`
 - `EMBEDDED_DATABASE=false`: PostgreSQL using configured engine, host, port, database name, user, password, and SSL settings
 
 ## Initialization Behavior
 
-- Backend startup uses one shared lifecycle entrypoint before serving requests.
+- Backend startup calls the startup service, which coordinates repository database preparation and resource validation before serving requests.
 - If `settings/.env` is missing, it is copied from `settings/.env.example`; an
   existing environment file is never overwritten.
 - SQLite startup checks only whether `app/resources/database.db` exists. A
@@ -60,7 +60,7 @@ restricting database deletion while evaluations or inference runs reference it.
 
 ## Non-Database Artifacts
 
-- checkpoints and model artifacts under `XREPORT/resources/checkpoints` and `XREPORT/resources/models`
-- logs under `XREPORT/resources/logs`
-- templates under `XREPORT/resources/templates`
-- tokenizer resources under `XREPORT/resources/tokenizers`
+- checkpoints and model artifacts under `app/resources/checkpoints` and `app/resources/models`
+- logs under `app/resources/logs`
+- templates under `app/resources/templates`
+- tokenizer resources under `app/resources/tokenizers`

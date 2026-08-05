@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 ## Safety scope
 
@@ -35,9 +35,9 @@ app/resources/
 └── database.db
 ```
 
-`HF_HOME`, `HF_HUB_CACHE`, `TRANSFORMERS_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are application-owned compatibility settings. User-level cache variables are ignored, and local model loading always uses the verified snapshot path with `local_files_only=true`.
+`HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are application-owned cache settings. Deprecated or user-level cache variables are cleared, and local model loading always uses the verified snapshot path with `local_files_only=true`.
 
-On first Generate, the service validates the uploaded image, records the cloud assessment, and starts a cancellable background installation. The exact manifest revision and approved files are downloaded to staging. File sizes, SHA-256 values, configuration, processor initialization, and model initialization are checked before a candidate can be used. A candidate is promoted to `installed` only after it produces a non-empty report for the current study. Cancellation and network errors leave resumable staging files and metadata but never expose them as active.
+On first Generate, the service validates the uploaded image, records the cloud assessment, and starts a cancellable background installation. The exact manifest revision and approved files are downloaded to staging. File sizes, SHA-256 values, configuration, processor initialization, and model initialization are checked before a candidate can be used. A candidate is promoted to `installed` only after it produces a non-empty report for the current study. Cancellation and network errors during first-use installation leave resumable staging files and metadata but never expose them as active. If a working active revision already exists, a canceled maintenance or reinstall operation discards its partial staging immediately; retries start clean while the active revision remains available.
 
 The active revision is reused on later Generate calls and after restart without a network lookup or download. Existing working revisions are never replaced automatically. The model details panel exposes Check for updates, Repair installation, Reinstall model, and Download update. Updates are staged beside the active revision and the old revision is retained under `rollback` until a successful real inference activates the candidate.
 

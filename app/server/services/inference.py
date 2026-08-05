@@ -37,20 +37,18 @@ from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
-from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
+from server.services.inference_runtime import InferenceRuntimeCoordinator
 from server.services.model_installation import (
     InstallationCancelled,
     InstallationError,
-    InstallationTarget,
     ModelInstallationManager,
 )
 
 
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
-_INFERENCE_RUNTIME_LOCK = threading.RLock()
 
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
@@ -107,6 +105,14 @@ def get_huggingface_provider() -> HuggingFaceProvider:
 @lru_cache(maxsize=1)
 def get_model_installation_manager() -> ModelInstallationManager:
     return ModelInstallationManager()
+
+
+@lru_cache(maxsize=1)
+def get_inference_runtime() -> InferenceRuntimeCoordinator:
+    return InferenceRuntimeCoordinator(
+        huggingface_provider=get_huggingface_provider(),
+        installation_manager=get_model_installation_manager(),
+    )
 
 
 def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
@@ -203,170 +209,23 @@ def run_inference_job(
     persisted_provenance: dict[str, Any] = {}
     try:
         report_progress = partial(report_inference_progress, job_id)
-
-        display_sections: dict[str, dict[str, str]] = {}
-        provenance: dict[str, Any] = {
-            "provider": model_ref.partition(":")[0],
-            "model_ref": model_ref,
-            "model_revision": model_revision,
-            "generation_profile": generation_profile,
-            "clinical_context": clinical_context,
-            "research_only": True,
-        }
-
-        if model_ref.startswith("xreport:"):
-            with _INFERENCE_RUNTIME_LOCK:
-                if get_job_manager().should_stop(job_id):
-                    reports_by_filename = {}
-                else:
-                    get_huggingface_provider().unload()
-                    generation_mode = {
-                        "deterministic": "greedy_search",
-                        "concise": "greedy_search",
-                        "detailed": "beam_search",
-                    }[generation_profile]
-                    checkpoint = model_ref.removeprefix("xreport:")
-                    try:
-                        model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
-                            checkpoint
-                        )
-                    except Exception as exc:  # noqa: BLE001
-                        raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
-                    reports_by_filename = XReportCheckpointProvider().generate(
-                        model=model,
-                        model_metadata=model_metadata,
-                        generation_mode=generation_mode,
-                        images=stored_images,
-                        should_stop=lambda: get_job_manager().should_stop(job_id),
-                        report_progress=report_progress,
-                    )
-                    del model
-            display_sections = {
-                filename: {"raw_report": report}
-                for filename, report in reports_by_filename.items()
-            }
-            provenance.update({
-                "adapter": "xreport_beit",
-                "model_loader": "keras_checkpoint",
-                "processor_loader": "fixed_224",
-            })
-        elif model_ref.startswith("huggingface:"):
-            if model_manifest is None:
-                raise RuntimeError("Hugging Face model manifest is missing")
-            repository_id = model_ref.removeprefix("huggingface:")
-            installation_manager = get_model_installation_manager()
-            effective_manifest = dict(model_manifest)
-            effective_manifest["repository_id"] = repository_id
-            # Older internal callers can provide a provider-only manifest for
-            # persistence/timeout tests.  The supported catalog always carries
-            # the complete installation contract; only that contract triggers
-            # the managed download lifecycle.
-            installation_contract_present = bool(
-                effective_manifest.get("required_files")
-                and effective_manifest.get("weight_file_sets")
-            )
-            target: InstallationTarget | None = None
-            if installation_contract_present:
-                target = (
-                    installation_manager.candidate_target(effective_manifest)
-                    or installation_manager.active_target(effective_manifest)
-                )
-            cloud_assessment: dict[str, Any] | None = None
-            if target is None and installation_contract_present:
-                report_installation_lifecycle(job_id, {
-                    "phase": "checking",
-                    "message": "Checking whether a free cloud inference route is available",
-                    "model_ref": model_ref,
-                })
-                cloud_assessment = installation_manager.assess_cloud(repository_id)
-                report_installation_lifecycle(job_id, {
-                    "phase": "checking",
-                    "message": cloud_assessment["reason"],
-                    "cloud_assessment": cloud_assessment,
-                })
-                revision = str(effective_manifest["revision"])
-                try:
-                    target = installation_manager.stage(
-                        manifest=effective_manifest,
-                        revision=revision,
-                        should_stop=lambda: get_job_manager().should_stop(job_id),
-                        report_progress=partial(report_installation_lifecycle, job_id),
-                    )
-                except (InstallationCancelled, InstallationError) as exc:
-                    installation_manager.record_error(
-                        repository_id,
-                        str(exc),
-                        state="failed",
-                        interrupted=(
-                            isinstance(exc, InstallationCancelled)
-                            or installation_manager.is_resumable_error(str(exc))
-                        ),
-                    )
-                    raise
-            if target is None and installation_contract_present:
-                raise RuntimeError("Model installation did not produce a usable snapshot")
-            effective_revision = model_revision
-            if installation_contract_present and target is not None:
-                effective_manifest["revision"] = target.revision
-                effective_manifest["local_snapshot_path"] = str(target.path)
-                effective_revision = target.revision
-                report_installation_lifecycle(job_id, {
-                    "phase": "loading",
-                    "message": "Loading the verified local model snapshot",
-                    "revision": effective_revision,
-                    "local_path": installation_manager.relative_path(target.path),
-                })
-            with _INFERENCE_RUNTIME_LOCK:
-                generation = get_huggingface_provider().generate(
-                    repository_id=repository_id,
-                    manifest=effective_manifest,
-                    profile=generation_profile,
-                    clinical_context=clinical_context,
-                    images=stored_images,
-                    should_stop=lambda: get_job_manager().should_stop(job_id),
-                    report_progress=report_progress,
-                )
-            installation_manager.record_success(repository_id, inference=True)
-            reports_by_filename = generation.reports
-            display_sections = generation.display_sections
-            provenance = generation.provenance
-            provenance["input_images"] = generation.metadata
-            if installation_contract_present and target is not None:
-                provenance["installation"] = {
-                    "state": "candidate" if target.candidate else "active",
-                    "revision": effective_revision,
-                    "local_path": installation_manager.relative_path(target.path),
-                    "cloud_assessment": cloud_assessment,
-                }
-            if installation_contract_present and target is not None and target.candidate and reports_by_filename:
-                report_installation_lifecycle(job_id, {
-                    "phase": "activating",
-                    "message": "Activating the verified revision after successful inference",
-                    "revision": effective_revision,
-                })
-                activated = installation_manager.activate(
-                    manifest=effective_manifest,
-                    target=target,
-                )
-                provenance["installation"]["state"] = "active"
-                provenance["installation"]["local_path"] = activated.get(
-                    "active_relative_path",
-                    provenance["installation"]["local_path"],
-                )
-            if installation_contract_present and target is not None:
-                completed_path = provenance.get("installation", {}).get(
-                    "local_path",
-                    installation_manager.relative_path(target.path),
-                )
-                report_installation_lifecycle(job_id, {
-                    "phase": "completed",
-                    "message": "Model loaded and report generated",
-                    "revision": effective_revision,
-                    "local_path": completed_path,
-                })
-            model_revision = effective_revision
-        else:
-            raise RuntimeError(f"Unsupported inference provider: {model_ref}")
+        execution = get_inference_runtime().generate(
+            model_ref=model_ref,
+            model_revision=model_revision,
+            model_manifest=model_manifest,
+            generation_profile=generation_profile,
+            clinical_context=clinical_context,
+            images=stored_images,
+            should_stop=partial(get_job_manager().should_stop, job_id),
+            report_progress=report_progress,
+            report_lifecycle=partial(report_installation_lifecycle, job_id),
+        )
+        reports_by_filename = execution.reports
+        display_sections = execution.display_sections
+        provenance = execution.provenance
+        reported_revision = provenance.get("model_revision")
+        if isinstance(reported_revision, str):
+            model_revision = reported_revision
     finally:
         inference_image_store.remove_job(job_id)
 

@@ -21,6 +21,7 @@ from server.common.path import (
 )
 from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
+from server.repositories.database.initializer import prepare_database_for_startup
 
 ###############################################################################
 def _ensure_directory(path: Path) -> None:
@@ -29,6 +30,8 @@ def _ensure_directory(path: Path) -> None:
 ###############################################################################
 def run_startup_validations(settings: ServerSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings()
+
+    prepare_database_for_startup(resolved_settings.database)
 
     if not CONFIGURATION_FILE_PATH.is_file():
         raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE_PATH}")

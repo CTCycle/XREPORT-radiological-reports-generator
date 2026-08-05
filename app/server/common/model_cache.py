@@ -31,14 +31,14 @@ def configure_model_cache() -> Path:
     ):
         path.mkdir(parents=True, exist_ok=True)
 
-    # Environment variables are set by the application as a compatibility layer
-    # for libraries that read cache locations at import time. They are never the
-    # source of truth and are deliberately overwritten on every startup.
+    # Environment variables are adapters for third-party libraries. The project
+    # paths above remain the source of truth and are deliberately overwritten on
+    # every startup.
     os.environ["HF_HOME"] = str(HUGGINGFACE_MODELS_DIR)
     os.environ["HF_HUB_CACHE"] = str(HF_HUB_CACHE_DIR)
-    os.environ["TRANSFORMERS_CACHE"] = str(HF_HUB_CACHE_DIR)
     os.environ["TORCH_HOME"] = str(TORCH_CACHE_DIR)
     os.environ["KERAS_HOME"] = str(KERAS_CACHE_DIR)
     os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
     os.environ.pop("HF_CACHE_DIR", None)
+    os.environ.pop("TRANSFORMERS_CACHE", None)
     return HUGGINGFACE_MODELS_DIR

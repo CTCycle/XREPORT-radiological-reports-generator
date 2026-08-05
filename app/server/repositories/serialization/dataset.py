@@ -7,7 +7,7 @@ from typing import Any, Literal, overload
 
 import pandas as pd
 from sqlalchemy import func, select
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import Session, aliased
 
 from server.common.constants import (
     DATASET_RECORDS_TABLE,
@@ -309,14 +309,12 @@ class DatasetRepository(RepositorySupport):
         ].copy()
         return train_data, val_data, metadata
 
-    # -------------------------------------------------------------------------
-    def save_training_data(
+    def _prepare_training_payload(
         self,
         configuration: dict[str, Any],
         training_data: pd.DataFrame,
-        vocabulary_size: int | None = None,
-        hashcode: str | None = None,
-    ) -> None:
+        hashcode: str | None,
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series, str, str]:
         if training_data.empty:
             raise ValueError("Training dataset is empty; nothing to save.")
         if not hashcode:
@@ -360,70 +358,146 @@ class DatasetRepository(RepositorySupport):
             raise ValueError(
                 f"Training payload has {invalid_split_count} rows with invalid split values"
             )
+        return training_payload, record_ids, normalized_split, dataset_name, source_dataset
+
+    def _get_or_create_datasets(
+        self,
+        session: Session,
+        names: tuple[str, str],
+    ) -> dict[str, Dataset]:
+        datasets: dict[str, Dataset] = {}
+        for name in names:
+            key = normalize_key(name)
+            row = session.execute(
+                select(Dataset).where(Dataset.name_key == key)
+            ).scalar_one_or_none()
+            if row is None:
+                row = Dataset(name=name, name_key=key, created_at=self._now_utc())
+                session.add(row)
+                session.flush()
+            datasets[key] = row
+        return datasets
+
+    def _validate_training_records(
+        self,
+        session: Session,
+        source_dataset_id: int,
+        source_dataset: str,
+        record_ids: pd.Series,
+    ) -> None:
+        latest_source_version = session.execute(
+            select(DatasetVersion.dataset_version_id)
+            .where(DatasetVersion.dataset_id == source_dataset_id)
+            .order_by(DatasetVersion.version_number.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        source_records = session.execute(
+            select(DatasetRecord.record_id).where(
+                DatasetRecord.dataset_id == source_dataset_id,
+                DatasetRecord.dataset_version_id == latest_source_version,
+            )
+        ).all()
+        if not source_records:
+            raise ValueError(f"No source records found for dataset: {source_dataset}")
+        source_record_ids = {int(row[0]) for row in source_records}
+        invalid_record_ids = int(
+            (~record_ids.astype(int).isin(list(source_record_ids))).sum()
+        )
+        if invalid_record_ids:
+            raise ValueError(
+                f"Training payload has {invalid_record_ids} rows referencing records outside source dataset"
+            )
+
+    def _create_processing_run(
+        self,
+        session: Session,
+        configuration: dict[str, Any],
+        *,
+        dataset_id: int,
+        source_dataset_id: int,
+        hashcode: str,
+        vocabulary_size: int | None,
+    ) -> ProcessingRun:
+        run = ProcessingRun(
+            dataset_id=dataset_id,
+            source_dataset_id=source_dataset_id,
+            config_hash=hashcode,
+            executed_at=self._now_utc(),
+            seed=int(configuration.get("seed", 42)),
+            sample_size=float(configuration.get("sample_size", 1.0)),
+            validation_size=float(configuration.get("validation_size", 0.2)),
+            split_seed=int(configuration.get("split_seed", 42)),
+            vocabulary_size=vocabulary_size,
+            max_report_size=int(configuration.get("max_report_size", 200)),
+            tokenizer=str(configuration.get("tokenizer") or ""),
+        )
+        session.add(run)
+        session.flush()
+        return run
+
+    @staticmethod
+    def _save_training_samples(
+        session: Session,
+        processing_run_id: int,
+        training_payload: pd.DataFrame,
+        normalized_split: pd.Series,
+    ) -> None:
+        training_records = training_payload.assign(
+            split=normalized_split
+        ).to_dict("records")
+        session.add_all(
+            TrainingSample(
+                processing_run_id=processing_run_id,
+                record_id=int(row["record_id"]),
+                split=str(row["split"]),
+                tokens_json=row["tokens"],
+            )
+            for row in training_records
+        )
+
+    # -------------------------------------------------------------------------
+    def save_training_data(
+        self,
+        configuration: dict[str, Any],
+        training_data: pd.DataFrame,
+        vocabulary_size: int | None = None,
+        hashcode: str | None = None,
+    ) -> None:
+        (
+            training_payload,
+            record_ids,
+            normalized_split,
+            dataset_name,
+            source_dataset,
+        ) = self._prepare_training_payload(configuration, training_data, hashcode)
 
         backend = self.database
         with backend.transaction() as session:
-            datasets: dict[str, Dataset] = {}
-            for name in (dataset_name, source_dataset):
-                key = normalize_key(name)
-                row = session.execute(
-                    select(Dataset).where(Dataset.name_key == key)
-                ).scalar_one_or_none()
-                if row is None:
-                    row = Dataset(name=name, name_key=key, created_at=self._now_utc())
-                    session.add(row)
-                    session.flush()
-                datasets[key] = row
+            datasets = self._get_or_create_datasets(
+                session,
+                (dataset_name, source_dataset),
+            )
             dataset_id = datasets[normalize_key(dataset_name)].dataset_id
             source_dataset_id = datasets[normalize_key(source_dataset)].dataset_id
-            latest_source_version = session.execute(
-                select(DatasetVersion.dataset_version_id)
-                .where(DatasetVersion.dataset_id == source_dataset_id)
-                .order_by(DatasetVersion.version_number.desc())
-                .limit(1)
-            ).scalar_one_or_none()
-            source_records = session.execute(
-                select(DatasetRecord.record_id).where(
-                    DatasetRecord.dataset_id == source_dataset_id,
-                    DatasetRecord.dataset_version_id == latest_source_version,
-                )
-            ).all()
-            if not source_records:
-                raise ValueError(f"No source records found for dataset: {source_dataset}")
-            source_record_ids = {int(row[0]) for row in source_records}
-            invalid_record_ids = int(
-                (~record_ids.astype(int).isin(list(source_record_ids))).sum()
+            self._validate_training_records(
+                session,
+                source_dataset_id,
+                source_dataset,
+                record_ids,
             )
-            if invalid_record_ids:
-                raise ValueError(
-                    f"Training payload has {invalid_record_ids} rows referencing records outside source dataset"
-                )
-            run = ProcessingRun(
+            run = self._create_processing_run(
+                session,
+                configuration,
                 dataset_id=dataset_id,
                 source_dataset_id=source_dataset_id,
-                config_hash=hashcode,
-                executed_at=self._now_utc(),
-                seed=int(configuration.get("seed", 42)),
-                sample_size=float(configuration.get("sample_size", 1.0)),
-                validation_size=float(configuration.get("validation_size", 0.2)),
-                split_seed=int(configuration.get("split_seed", 42)),
+                hashcode=str(hashcode),
                 vocabulary_size=vocabulary_size,
-                max_report_size=int(configuration.get("max_report_size", 200)),
-                tokenizer=str(configuration.get("tokenizer") or ""),
             )
-            session.add(run)
-            session.flush()
-            training_records = training_payload.assign(
-                split=normalized_split
-            ).to_dict("records")
-            session.add_all(
-                TrainingSample(
-                    processing_run_id=run.processing_run_id,
-                    record_id=int(row["record_id"]),
-                    split=str(row["split"]),
-                    tokens_json=row["tokens"],
-                )
-                for row in training_records
+            self._save_training_samples(
+                session,
+                run.processing_run_id,
+                training_payload,
+                normalized_split,
             )
 
     # -------------------------------------------------------------------------

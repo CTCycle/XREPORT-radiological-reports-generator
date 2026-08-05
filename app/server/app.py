@@ -22,7 +22,6 @@ from server.common.constants import (
 )
 from server.configurations import get_server_settings
 from server.domain.health import HealthResponse
-from server.repositories.database.initializer import prepare_database_for_startup
 from server.services.startup_validation import run_startup_validations
 
 ###############################################################################
@@ -45,7 +44,6 @@ def health_check(request: Request) -> HealthResponse:
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     settings = get_server_settings()
 
-    prepare_database_for_startup(settings.database)
     run_startup_validations(settings)
 
     application.state.server_settings = settings

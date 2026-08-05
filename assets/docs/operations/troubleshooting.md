@@ -1,14 +1,14 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-08-03
+Last updated: 2026-08-05
 
 ## Troubleshooting Quick Guide
 
 - UI not reachable:
-  - check `UI_HOST` and `UI_PORT` in `XREPORT/settings/.env`
+  - check `UI_HOST` and `UI_PORT` in `settings/.env`
   - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
 - jobs stay running too long:
-  - poll the status endpoint and inspect backend logs in `XREPORT/resources/logs`
+  - poll the status endpoint and inspect backend logs in `app/resources/logs`
 - missing artifacts or checkpoints:
   - confirm write permissions and paths under `app/resources`
 - first run is slow:
@@ -25,7 +25,7 @@ Last updated: 2026-08-03
 
 ### SQLite Mode
 
-- When `EMBEDDED_DATABASE=true`, the backend initializes `XREPORT/resources/database.db` automatically on first startup if the file does not exist.
+- When `EMBEDDED_DATABASE=true`, the backend initializes `app/resources/database.db` automatically on first startup if the file does not exist.
 - On later startups, only the file existence check is performed. Existing data is not recreated, reset, reseeded, or schema-validated.
 - The launcher option `3` can be used to manually trigger the same idempotent SQLite initialization.
 
