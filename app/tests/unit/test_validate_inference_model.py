@@ -10,6 +10,7 @@ import pytest
 from scripts import validate_inference_model
 
 
+###############################################################################
 def test_fixture_metadata_requires_matching_hash_and_records_no_image_data() -> None:
     data = b"public-deidentified-fixture"
     digest = hashlib.sha256(data).hexdigest()
@@ -39,6 +40,7 @@ def test_fixture_metadata_requires_matching_hash_and_records_no_image_data() -> 
         )
 
 
+###############################################################################
 def test_non_huggingface_model_returns_deferred_without_manifest_lookup(monkeypatch, capsys) -> None:
     selected = SimpleNamespace(
         model_ref="xreport:checkpoint_epoch_48",

@@ -33,6 +33,7 @@ ProgressCallback = Callable[
 class _InferenceStoppingCriteria(StoppingCriteria):
     """Stop generation cooperatively when cancellation or the deadline fires."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, should_stop: Callable[[], bool], deadline: float) -> None:
         self.should_stop = should_stop
         self.deadline = deadline
@@ -147,6 +148,7 @@ class HuggingFaceProvider:
         if not images:
             raise ValueError("At least one image is required")
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _empty_result(
         manifest: Mapping[str, Any],
@@ -167,11 +169,13 @@ class HuggingFaceProvider:
             provenance=provenance,
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _check_deadline(repository_id: str, deadline: float) -> None:
         if time.monotonic() >= deadline:
             raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
 
+    # -------------------------------------------------------------------------
     def _generate_image(
         self,
         *,
@@ -228,6 +232,7 @@ class HuggingFaceProvider:
         )
         return report, metadata, sections
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _validate_report(
         repository_id: str,

@@ -12,6 +12,7 @@ BACKEND_ROOT = Path(__file__).parents[2] / "server"
 FILE_RESPONSE_PATH = "/api/preparation/dataset/{dataset_name}/images/{index}/content"
 
 
+###############################################################################
 def _backend_files() -> list[Path]:
     return [
         path
@@ -20,13 +21,17 @@ def _backend_files() -> list[Path]:
     ]
 
 
+###############################################################################
 def _imported_module(node: ast.Import | ast.ImportFrom) -> str:
     if isinstance(node, ast.Import):
         return node.names[0].name
     return node.module or ""
 
 
+###############################################################################
 class _StructureVisitor(ast.NodeVisitor):
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.imports_inside_scopes: list[ast.Import | ast.ImportFrom] = []
         self.nested_functions: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
@@ -34,19 +39,23 @@ class _StructureVisitor(ast.NodeVisitor):
         self._function_depth = 0
         self._class_depth = 0
 
+    # -------------------------------------------------------------------------
     def visit_Import(self, node: ast.Import) -> None:
         if self._function_depth or self._class_depth:
             self.imports_inside_scopes.append(node)
 
+    # -------------------------------------------------------------------------
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if self._function_depth or self._class_depth:
             self.imports_inside_scopes.append(node)
 
+    # -------------------------------------------------------------------------
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self._class_depth += 1
         self.generic_visit(node)
         self._class_depth -= 1
 
+    # -------------------------------------------------------------------------
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._function_depth:
             self.nested_functions.append(node)
@@ -54,6 +63,7 @@ class _StructureVisitor(ast.NodeVisitor):
         self.generic_visit(node)
         self._function_depth -= 1
 
+    # -------------------------------------------------------------------------
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         if self._function_depth:
             self.nested_functions.append(node)
@@ -61,16 +71,19 @@ class _StructureVisitor(ast.NodeVisitor):
         self.generic_visit(node)
         self._function_depth -= 1
 
+    # -------------------------------------------------------------------------
     def visit_Assign(self, node: ast.Assign) -> None:
         if self._is_module_lock_call(node.value) and self._class_depth == 0:
             self.module_lock_assignments.append(node)
         self.generic_visit(node)
 
+    # -------------------------------------------------------------------------
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         if node.value is not None and self._is_module_lock_call(node.value):
             self.module_lock_assignments.append(node)
         self.generic_visit(node)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _is_module_lock_call(node: ast.expr) -> bool:
         return (
@@ -82,6 +95,7 @@ class _StructureVisitor(ast.NodeVisitor):
         )
 
 
+###############################################################################
 def test_backend_structure_has_explicit_top_level_dependencies() -> None:
     violations: list[str] = []
     for path in _backend_files():
@@ -120,6 +134,7 @@ def test_backend_structure_has_explicit_top_level_dependencies() -> None:
     assert not violations, "\n".join(violations)
 
 
+###############################################################################
 def test_backend_response_model_exception_is_only_file_response() -> None:
     routes_without_models = {
         route.path

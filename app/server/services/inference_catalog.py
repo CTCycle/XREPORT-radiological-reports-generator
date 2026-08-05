@@ -26,6 +26,7 @@ CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
 VALIDATION_RECEIPTS_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
 
+###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     contract = {
         "repository_id": entry.repository_id,
@@ -51,7 +52,6 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     }
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
-
 
 ###############################################################################
 class InferenceModelCatalog:

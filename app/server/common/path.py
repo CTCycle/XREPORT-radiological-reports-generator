@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 
 
+###############################################################################
 def _resolve_root() -> Path:
     """Resolve the portable application root without falling back to user caches."""
     candidates: list[Path] = [Path(__file__).resolve(), Path.cwd(), Path(sys.executable).resolve()]

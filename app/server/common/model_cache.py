@@ -16,6 +16,7 @@ from server.common.path import (
 )
 
 
+###############################################################################
 def configure_model_cache() -> Path:
     """Configure all supported model libraries to use project-local storage."""
     for path in (

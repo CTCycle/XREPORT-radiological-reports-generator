@@ -7,7 +7,6 @@ from server.services.inference_catalog import InferenceModelCatalog
 from server.services.model_installation import ModelInstallationManager
 from server.common.path import ROOT_DIR
 
-
 ###############################################################################
 class ModelSerializerStub:
 
@@ -32,6 +31,7 @@ def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     )
 
 
+###############################################################################
 @pytest.fixture(autouse=True)
 def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep catalog unit tests independent from a real local model install."""
@@ -115,6 +115,7 @@ def test_catalog_uses_manifest_revision_and_exposes_runtime_metadata(monkeypatch
     assert generate_cxr.license == "Apache-2.0"
     assert generate_cxr.status == "not_installed"
 
+###############################################################################
 def test_catalog_distinguishes_verified_active_and_candidate_installations(monkeypatch) -> None:
     monkeypatch.setattr(
         "server.services.inference_catalog.ModelSerializer",

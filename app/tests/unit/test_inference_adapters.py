@@ -9,6 +9,7 @@ from server.models.inference.providers.adapters import BlipCxrAdapter
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
+###############################################################################
 def test_blip_uses_indication_prefix_and_full_sequence_decode() -> None:
     adapter = BlipCxrAdapter()
     processor = MagicMock()
@@ -33,6 +34,7 @@ def test_blip_uses_indication_prefix_and_full_sequence_decode() -> None:
     assert adapter.generation_kwargs("detailed")["max_length"] == 512
 
 
+###############################################################################
 def test_move_inputs_casts_float_tensors_without_changing_token_dtype() -> None:
     model = MagicMock()
     model.device = torch.device("cpu")

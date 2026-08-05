@@ -46,6 +46,7 @@ def ensure_environment_file() -> Path:
     return ENV_FILE_PATH
 
 
+###############################################################################
 def load_environment(*, force: bool = False) -> Path:
     state = _environment_state()
     with state.lock:

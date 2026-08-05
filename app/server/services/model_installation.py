@@ -28,14 +28,17 @@ REVISION_PATTERN = r"^[0-9a-f]{40}$"
 ProgressCallback = Callable[[dict[str, Any]], None]
 
 
+###############################################################################
 class InstallationCancelled(RuntimeError):
     """Raised when the user cancels a download or maintenance operation."""
 
 
+###############################################################################
 class InstallationError(RuntimeError):
     """Raised when a model cannot be installed or verified safely."""
 
 
+###############################################################################
 @dataclass(frozen=True)
 class InstallationTarget:
     repository_id: str
@@ -45,10 +48,12 @@ class InstallationTarget:
     operation_id: str | None = None
 
 
+###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
 
 
+###############################################################################
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -57,33 +62,40 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+###############################################################################
 class ModelInstallationManager:
     """Owns project-local Hugging Face snapshots and their lifecycle metadata."""
 
     _locks: dict[str, threading.RLock] = {}
     _locks_guard = threading.Lock()
 
+    # -------------------------------------------------------------------------
     def __init__(self, *, api: HfApi | None = None) -> None:
         self.api = api or HfApi(endpoint="https://huggingface.co")
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _lock_for(cls, repository_id: str) -> threading.RLock:
         with cls._locks_guard:
             return cls._locks.setdefault(repository_id, threading.RLock())
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _metadata_path(repository_id: str) -> Path:
         return HF_METADATA_DIR / f"{_slug(repository_id)}.json"
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _relative(path: Path) -> str:
         return path.resolve().relative_to(ROOT_DIR.resolve()).as_posix()
 
+    # -------------------------------------------------------------------------
     @classmethod
     def relative_path(cls, path: Path) -> str:
         """Return a portable path suitable for API responses and metadata."""
         return cls._relative(path)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _absolute(relative_path: str | None) -> Path | None:
         if not relative_path:
@@ -95,6 +107,7 @@ class ModelInstallationManager:
             raise InstallationError("Model metadata points outside the application root") from exc
         return path
 
+    # -------------------------------------------------------------------------
     def read_metadata(self, repository_id: str) -> dict[str, Any]:
         path = self._metadata_path(repository_id)
         try:
@@ -122,6 +135,7 @@ class ModelInstallationManager:
             }
         return payload
 
+    # -------------------------------------------------------------------------
     def _write_metadata(self, repository_id: str, payload: Mapping[str, Any]) -> None:
         target = self._metadata_path(repository_id)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -132,6 +146,7 @@ class ModelInstallationManager:
         )
         os.replace(temporary, target)
 
+    # -------------------------------------------------------------------------
     def inspect(self, manifest: Mapping[str, Any]) -> dict[str, Any]:
         repository_id = str(manifest["repository_id"])
         metadata = self.read_metadata(repository_id)
@@ -173,6 +188,7 @@ class ModelInstallationManager:
             ),
         }
 
+    # -------------------------------------------------------------------------
     def active_target(self, manifest: Mapping[str, Any]) -> InstallationTarget | None:
         inspected = self.inspect(manifest)
         path = inspected["active_path"]
@@ -182,6 +198,7 @@ class ModelInstallationManager:
         self.verify_snapshot(path, manifest, inspected["metadata"].get("file_manifest"))
         return InstallationTarget(str(manifest["repository_id"]), str(revision), path, False)
 
+    # -------------------------------------------------------------------------
     def candidate_target(self, manifest: Mapping[str, Any]) -> InstallationTarget | None:
         inspected = self.inspect(manifest)
         path = inspected["candidate_path"]
@@ -198,10 +215,12 @@ class ModelInstallationManager:
             str(candidate.get("operation_id")) if candidate.get("operation_id") else None,
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _required_files(manifest: Mapping[str, Any]) -> list[str]:
         return [str(path) for path in manifest.get("required_files", [])]
 
+    # -------------------------------------------------------------------------
     def _has_required_files(self, path: Path, manifest: Mapping[str, Any]) -> bool:
         required = self._required_files(manifest)
         if any(not (path / item).is_file() for item in required):
@@ -212,6 +231,7 @@ class ModelInstallationManager:
             for group in weight_sets
         )
 
+    # -------------------------------------------------------------------------
     def verify_snapshot(
         self,
         snapshot: Path,
@@ -236,6 +256,7 @@ class ModelInstallationManager:
                     raise InstallationError(f"Checkpoint integrity mismatch: {relative}")
         return {"files": files, "total_bytes": total_bytes}
 
+    # -------------------------------------------------------------------------
     def _remote_metadata(self, repository_id: str, revision: str) -> dict[str, Any]:
         try:
             info = self.api.model_info(
@@ -259,6 +280,7 @@ class ModelInstallationManager:
         except Exception as exc:  # noqa: BLE001
             return {"status": "unavailable", "error": str(exc)[:200], "files": {}}
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _allow_patterns(manifest: Mapping[str, Any]) -> list[str]:
         patterns = {str(item) for item in manifest.get("required_files", [])}
@@ -272,6 +294,7 @@ class ModelInstallationManager:
         patterns.add("generation_config.json")
         return sorted(patterns)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _resumable_target(repository_id: str, revision: str) -> Path | None:
         slug = _slug(repository_id)
@@ -284,6 +307,7 @@ class ModelInstallationManager:
             return None
         return max(candidates, key=lambda path: path.stat().st_mtime)
 
+    # -------------------------------------------------------------------------
     def cleanup_staging(self, repository_id: str) -> int:
         """Remove partial staging without touching installed model data.
 
@@ -320,6 +344,7 @@ class ModelInstallationManager:
                 operation_root.rmdir()
         return removed
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _approved_files(
         remote: Mapping[str, Any],
@@ -341,6 +366,7 @@ class ModelInstallationManager:
             raise InstallationError("The model repository contains no approved files.")
         return files
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _recover_cached_partials(
         target: Path,
@@ -358,6 +384,7 @@ class ModelInstallationManager:
                         os.replace(cached_partial, destination)
                     break
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _clean_unapproved_files(
         target: Path,
@@ -371,6 +398,7 @@ class ModelInstallationManager:
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _report_download_progress(
         *,
@@ -382,6 +410,7 @@ class ModelInstallationManager:
             raise InstallationCancelled("Model download cancelled")
         report_progress(payload)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _open_download_response(
         *,
@@ -411,6 +440,7 @@ class ModelInstallationManager:
         except requests.RequestException as exc:
             raise InstallationError(f"Model download failed for {name}: {exc}") from exc
 
+    # -------------------------------------------------------------------------
     def _download_file(
         self,
         *,
@@ -488,6 +518,7 @@ class ModelInstallationManager:
         os.replace(partial, destination)
         return destination.stat().st_size
 
+    # -------------------------------------------------------------------------
     def _download(
         self,
         *,
@@ -554,6 +585,7 @@ class ModelInstallationManager:
         except Exception as exc:  # noqa: BLE001
             raise InstallationError(f"Model download failed: {exc}") from exc
 
+    # -------------------------------------------------------------------------
     def stage(
         self,
         *,
@@ -646,6 +678,7 @@ class ModelInstallationManager:
             })
             return InstallationTarget(repository_id, revision, target, True, operation_id)
 
+    # -------------------------------------------------------------------------
     def activate(
         self,
         *,
@@ -713,6 +746,7 @@ class ModelInstallationManager:
             self.cleanup_staging(repository_id)
             return metadata
 
+    # -------------------------------------------------------------------------
     def record_success(
         self,
         repository_id: str,
@@ -731,6 +765,7 @@ class ModelInstallationManager:
             updates["last_successful_inference"] = now
         self._write_metadata(repository_id, {**metadata, **updates})
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def is_resumable_error(error: str) -> bool:
         """Return whether an installation failure can safely resume staging."""
@@ -739,6 +774,7 @@ class ModelInstallationManager:
             return False
         return any(marker in message for marker in ("cancelled", "download failed", "incomplete download"))
 
+    # -------------------------------------------------------------------------
     def record_error(
         self,
         repository_id: str,
@@ -776,6 +812,7 @@ class ModelInstallationManager:
         if preserves_active:
             self.cleanup_staging(repository_id)
 
+    # -------------------------------------------------------------------------
     def check_update(self, repository_id: str) -> dict[str, Any]:
         metadata = self.read_metadata(repository_id)
         installed_revision = metadata.get("active_revision")
@@ -808,6 +845,7 @@ class ModelInstallationManager:
         self._write_metadata(repository_id, metadata)
         return result
 
+    # -------------------------------------------------------------------------
     def assess_cloud(self, repository_id: str) -> dict[str, Any]:
         """Record whether a model has a qualifying free cloud route.
 

@@ -29,9 +29,11 @@ class InferenceEndpoint:
     def get_models(self) -> InferenceModelsResponse:
         return self.service.get_models()
 
+    # -------------------------------------------------------------------------
     def check_model_update(self, request: ModelUpdateCheckRequest) -> ModelUpdateCheckResponse:
         return self.service.get_model_update(request.model_ref)
 
+    # -------------------------------------------------------------------------
     def maintain_model(self, request: ModelMaintenanceRequest) -> JobStartResponse:
         return self.service.start_model_maintenance(
             model_ref=request.model_ref,

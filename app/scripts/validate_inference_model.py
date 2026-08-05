@@ -41,6 +41,7 @@ RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
 
+###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model-ref", default="huggingface:nathansutton/generate-cxr")
@@ -67,10 +68,12 @@ def _arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+###############################################################################
 def _slug(model_ref: str) -> str:
     return model_ref.removeprefix("huggingface:").replace("/", "__")
 
 
+###############################################################################
 def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     RUN_LOG_DIR.mkdir(parents=True, exist_ok=True)
     path = RUN_LOG_DIR / f"{_slug(model_ref)}.json"
@@ -78,6 +81,7 @@ def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     return path
 
 
+###############################################################################
 def _fixture_metadata(
     image_path: Path,
     data: bytes,
@@ -106,6 +110,7 @@ def _fixture_metadata(
     }
 
 
+###############################################################################
 def main() -> int:
     args = _arguments()
     settings = get_server_settings().inference
@@ -166,10 +171,13 @@ def main() -> int:
         data=data,
         size_bytes=len(data),
     )
+
+    ###############################################################################
     class RecordingRepository:
         saved_reports: list[dict[str, str]] = []
         generation_config: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def save_generated_reports(self, reports: list[dict[str, str]], **kwargs: object) -> None:
             self.saved_reports = list(reports)
             generation_config = kwargs.get("generation_config")

@@ -17,6 +17,7 @@ REVISION = "a" * 40
 NEXT_REVISION = "b" * 40
 
 
+###############################################################################
 def _manifest(revision: str = REVISION) -> dict[str, object]:
     return {
         "repository_id": "example/report-model",
@@ -26,11 +27,15 @@ def _manifest(revision: str = REVISION) -> dict[str, object]:
     }
 
 
+###############################################################################
 class FakeApi:
+
+    # -------------------------------------------------------------------------
     def __init__(self, revision: str = REVISION) -> None:
         self.revision = revision
         self.calls: list[dict[str, object]] = []
 
+    # -------------------------------------------------------------------------
     def model_info(self, repository_id: str, **kwargs: object) -> SimpleNamespace:
         self.calls.append({"repository_id": repository_id, **kwargs})
         siblings = [
@@ -45,28 +50,35 @@ class FakeApi:
         return SimpleNamespace(sha=self.revision, siblings=siblings)
 
 
+###############################################################################
 class CompleteResponse:
     status_code = 200
 
+    # -------------------------------------------------------------------------
     def __init__(self, body: bytes) -> None:
         self.body = body
 
+    # -------------------------------------------------------------------------
     def raise_for_status(self) -> None:
         return None
 
+    # -------------------------------------------------------------------------
     def iter_content(self, chunk_size: int) -> list[bytes]:
         del chunk_size
         return [self.body]
 
+    # -------------------------------------------------------------------------
     def close(self) -> None:
         return None
 
 
+###############################################################################
 def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
     filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return CompleteResponse(b"ok" if filename == "model.safetensors" else b"{}")
 
 
+###############################################################################
 @pytest.fixture
 def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     root = tmp_path / "portable"
@@ -81,6 +93,7 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     return root
 
 
+###############################################################################
 def test_stage_downloads_only_approved_files_and_writes_verified_metadata(
     manager_paths: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -115,6 +128,7 @@ def test_stage_downloads_only_approved_files_and_writes_verified_metadata(
     assert metadata["candidate"]["relative_path"].startswith("app/resources/models/huggingface/staging/")
 
 
+###############################################################################
 def test_stage_reuses_partial_staging_directory_after_interruption(
     manager_paths: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -141,6 +155,7 @@ def test_stage_reuses_partial_staging_directory_after_interruption(
     assert target.path == partial
 
 
+###############################################################################
 def test_http_downloader_resumes_partial_files_and_reports_progress(
     manager_paths: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -157,18 +172,23 @@ def test_http_downloader_resumes_partial_files_and_reports_progress(
     partial.write_bytes(b"o")
     calls: list[dict[str, object]] = []
 
+    ###############################################################################
     class FakeResponse:
         status_code = 206
 
+        # -------------------------------------------------------------------------
         def __init__(self, body: bytes) -> None:
             self.body = body
 
+        # -------------------------------------------------------------------------
         def raise_for_status(self) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         def iter_content(self, chunk_size: int) -> list[bytes]:
             return [self.body]
 
+        # -------------------------------------------------------------------------
         def close(self) -> None:
             return None
 
@@ -192,6 +212,7 @@ def test_http_downloader_resumes_partial_files_and_reports_progress(
     assert any(item.get("downloaded_bytes") == 2 for item in progress)
 
 
+###############################################################################
 def test_activation_promotes_candidate_and_keeps_previous_active_for_rollback(
     manager_paths: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -210,6 +231,7 @@ def test_activation_promotes_candidate_and_keeps_previous_active_for_rollback(
     assert (installation_module.HF_ROLLBACK_DIR / "example__report-model").exists()
 
 
+###############################################################################
 def test_corrupt_active_snapshot_is_rejected(manager_paths: Path) -> None:
     manager = ModelInstallationManager(api=FakeApi())
     installed = installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
@@ -228,10 +250,12 @@ def test_corrupt_active_snapshot_is_rejected(manager_paths: Path) -> None:
         manager.active_target(_manifest())
 
 
+###############################################################################
 def test_cancellation_is_distinguished_from_download_failure() -> None:
     assert InstallationCancelled.__name__ != InstallationError.__name__
 
 
+###############################################################################
 def test_failed_maintenance_preserves_working_active_revision(manager_paths: Path) -> None:
     manager = ModelInstallationManager(api=FakeApi())
     installed = installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
@@ -260,6 +284,7 @@ def test_failed_maintenance_preserves_working_active_revision(manager_paths: Pat
     assert not partial.exists()
 
 
+###############################################################################
 def test_failed_first_use_keeps_resumable_staging(manager_paths: Path) -> None:
     manager = ModelInstallationManager(api=FakeApi())
     partial = installation_module.HF_STAGING_DIR / "first-use-op" / "example__report-model" / REVISION
