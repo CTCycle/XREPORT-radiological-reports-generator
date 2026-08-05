@@ -16,7 +16,6 @@ from transformers import (
 
 from server.domain.inference import GenerationProfile
 
-
 ###############################################################################
 class StandardImageTextAdapter:
     """Adapter for standard Transformers multimodal chat-style models."""
@@ -151,11 +150,9 @@ class StandardImageTextAdapter:
             return None
         return [int(dimension) for dimension in shape]
 
-
 ###############################################################################
 class MedGemmaAdapter(StandardImageTextAdapter):
     """MedGemma's standard processor with a research-only report prompt."""
-
 
 ###############################################################################
 class BlipCxrAdapter(StandardImageTextAdapter):

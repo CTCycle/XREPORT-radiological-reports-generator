@@ -25,9 +25,11 @@ LifecycleCallback = Callable[[dict[str, Any]], None]
 ProgressCallback = Callable[..., None]
 
 
+###############################################################################
 class InferenceRuntimeCoordinator:
     """Serializes resident model use across the supported inference providers."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         *,
@@ -38,6 +40,7 @@ class InferenceRuntimeCoordinator:
         self.installation_manager = installation_manager
         self.lock = threading.RLock()
 
+    # -------------------------------------------------------------------------
     def generate(
         self,
         *,
@@ -75,6 +78,7 @@ class InferenceRuntimeCoordinator:
             )
         raise RuntimeError(f"Unsupported inference provider: {model_ref}")
 
+    # -------------------------------------------------------------------------
     def _generate_xreport(
         self,
         *,
@@ -137,6 +141,7 @@ class InferenceRuntimeCoordinator:
             provenance=provenance,
         )
 
+    # -------------------------------------------------------------------------
     def _generate_huggingface(
         self,
         *,
@@ -220,6 +225,7 @@ class InferenceRuntimeCoordinator:
             provenance=provenance,
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _require_complete_manifest(manifest: dict[str, Any]) -> None:
         required_fields = {
@@ -243,6 +249,7 @@ class InferenceRuntimeCoordinator:
                 "Hugging Face model manifest must define required files and weight alternatives"
             )
 
+    # -------------------------------------------------------------------------
     def _resolve_target(
         self,
         *,

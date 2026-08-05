@@ -102,11 +102,13 @@ def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_model_installation_manager() -> ModelInstallationManager:
     return ModelInstallationManager()
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_runtime() -> InferenceRuntimeCoordinator:
     return InferenceRuntimeCoordinator(
@@ -115,6 +117,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
     )
 
 
+###############################################################################
 def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
     phase = str(payload.get("phase", "working"))
     weights = {
@@ -285,6 +288,7 @@ def run_inference_job(
     }
 
 
+###############################################################################
 def run_model_maintenance_job(
     *,
     model_ref: str,
@@ -432,6 +436,7 @@ class InferenceService:
     def get_models(self) -> InferenceModelsResponse:
         return InferenceModelCatalog(get_server_settings().inference).list_models()
 
+    # -------------------------------------------------------------------------
     def get_model_update(self, model_ref: str) -> ModelUpdateCheckResponse:
         selected = next((model for model in self.get_models().models if model.model_ref == model_ref), None)
         if selected is None or selected.provider != "huggingface":
@@ -441,6 +446,7 @@ class InferenceService:
         )
         return ModelUpdateCheckResponse(**result)
 
+    # -------------------------------------------------------------------------
     def start_model_maintenance(
         self,
         *,

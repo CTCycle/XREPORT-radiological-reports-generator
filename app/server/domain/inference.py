@@ -203,6 +203,7 @@ class InferenceModelsResponse(BaseModel):
     providers: dict[str, ProviderAvailability]
 
 
+###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
     model_ref: str
     repository_id: str
@@ -214,10 +215,12 @@ class ModelUpdateCheckResponse(BaseModel):
     error: str | None = None
 
 
+###############################################################################
 class ModelUpdateCheckRequest(BaseModel):
     model_ref: str
 
 
+###############################################################################
 class ModelMaintenanceRequest(BaseModel):
     model_ref: str
     action: Literal["repair", "reinstall", "download_update"]
