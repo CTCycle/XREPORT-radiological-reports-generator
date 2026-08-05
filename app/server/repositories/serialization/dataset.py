@@ -309,6 +309,7 @@ class DatasetRepository(RepositorySupport):
         ].copy()
         return train_data, val_data, metadata
 
+    # -------------------------------------------------------------------------
     def _prepare_training_payload(
         self,
         configuration: dict[str, Any],
@@ -360,6 +361,7 @@ class DatasetRepository(RepositorySupport):
             )
         return training_payload, record_ids, normalized_split, dataset_name, source_dataset
 
+    # -------------------------------------------------------------------------
     def _get_or_create_datasets(
         self,
         session: Session,
@@ -378,6 +380,7 @@ class DatasetRepository(RepositorySupport):
             datasets[key] = row
         return datasets
 
+    # -------------------------------------------------------------------------
     def _validate_training_records(
         self,
         session: Session,
@@ -408,6 +411,7 @@ class DatasetRepository(RepositorySupport):
                 f"Training payload has {invalid_record_ids} rows referencing records outside source dataset"
             )
 
+    # -------------------------------------------------------------------------
     def _create_processing_run(
         self,
         session: Session,
@@ -435,6 +439,7 @@ class DatasetRepository(RepositorySupport):
         session.flush()
         return run
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _save_training_samples(
         session: Session,
