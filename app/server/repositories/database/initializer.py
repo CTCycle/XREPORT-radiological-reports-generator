@@ -165,10 +165,11 @@ def run_database_initialization(settings: DatabaseSettings) -> None:
 ###############################################################################
 def _run_database_action(
     action: str,
-    operation: Callable[[], None],
+    operation: Callable[[DatabaseSettings], object],
+    settings: DatabaseSettings,
 ) -> None:
     try:
-        operation()
+        operation(settings)
     except (SQLAlchemyError, ValueError) as exc:
         logger.error("%s failed: %s", action, exc)
         raise RuntimeError(f"{action} failed.") from exc
@@ -181,18 +182,25 @@ def initialize_database(settings: DatabaseSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings().database
     _run_database_action(
         "Database initialization",
-        lambda: run_database_initialization(resolved_settings),
+        run_database_initialization,
+        resolved_settings,
     )
+
+###############################################################################
+def _prepare_sqlite_startup(settings: DatabaseSettings) -> None:
+    initialize_sqlite_database(settings)
+
+###############################################################################
+def _prepare_postgres_startup(settings: DatabaseSettings) -> None:
+    _validate_postgres_engine(settings)
+    verify_postgres_connection(settings)
 
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings().database
-    if resolved_settings.backend == "sqlite":
-        def operation() -> None:
-            initialize_sqlite_database(resolved_settings)
-    else:
-        def operation() -> None:
-            _validate_postgres_engine(resolved_settings)
-            verify_postgres_connection(resolved_settings)
-
-    _run_database_action("Database startup check", operation)
+    operation = (
+        _prepare_sqlite_startup
+        if resolved_settings.backend == "sqlite"
+        else _prepare_postgres_startup
+    )
+    _run_database_action("Database startup check", operation, resolved_settings)

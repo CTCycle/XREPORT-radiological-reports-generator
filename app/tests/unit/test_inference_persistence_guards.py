@@ -43,7 +43,17 @@ def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> N
         "get_inference_image_store",
         lambda: image_store,
     )
-    monkeypatch.setattr(inference_service, "get_huggingface_provider", lambda: provider)
+    class RuntimeStub:
+        def generate(self, **kwargs):
+            generation = provider.generate(**kwargs)
+            return ProviderGenerationResult(
+                reports=generation.reports,
+                display_sections=generation.display_sections,
+                metadata=generation.metadata,
+                provenance=generation.provenance,
+            )
+
+    monkeypatch.setattr(inference_service, "get_inference_runtime", lambda: RuntimeStub())
     monkeypatch.setattr(inference_service, "InferenceRepository", lambda: repository)
 
 

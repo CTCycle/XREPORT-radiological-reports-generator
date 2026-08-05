@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from server.domain.inference import InferenceManifest
+from server.services.inference_runtime import InferenceRuntimeCoordinator
 
 
 def _entry() -> dict[str, object]:
@@ -45,3 +46,10 @@ def test_manifest_rejects_empty_weight_alternative() -> None:
 
     with pytest.raises(ValidationError):
         InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
+
+
+def test_runtime_rejects_provider_only_manifest() -> None:
+    with pytest.raises(RuntimeError, match="manifest is incomplete"):
+        InferenceRuntimeCoordinator._require_complete_manifest(
+            {"revision": "6" * 40}
+        )
