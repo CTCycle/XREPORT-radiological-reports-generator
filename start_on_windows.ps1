@@ -303,16 +303,25 @@ function Invoke-Launch {
     if (-not (Test-Path -LiteralPath $VenvPython)) {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
-    $reloadArgs = if ($settings.RELOAD -eq 'true') { ' --reload' } else { '' }
-    $backendArgs = "-m uvicorn server.app:app --app-dir `"$(Join-Path $RepoRoot 'app')`" --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT)$reloadArgs --log-level info"
+    $backendArgs = @(
+        '-m'
+        'uvicorn'
+        'server.app:app'
+        '--app-dir'
+        ('"{0}"' -f (Join-Path $RepoRoot 'app'))
+        '--host'
+        $settings.FASTAPI_HOST
+        '--port'
+        $settings.FASTAPI_PORT
+    )
+    if ($settings.RELOAD -eq 'true') {
+        $backendArgs += '--reload'
+    }
+    $backendArgs += @('--log-level', 'info')
 
     Write-Step 'Starting backend'
-    if ($settings.BACKEND_VISIBLE -eq 'true') {
-        $visibleCommand = "`"$VenvPython`" $backendArgs"
-        Start-Process -FilePath 'cmd.exe' -ArgumentList '/k', $visibleCommand -WorkingDirectory $RepoRoot | Out-Null
-    } else {
-        Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle Hidden | Out-Null
-    }
+    $backendWindowStyle = if ($settings.BACKEND_VISIBLE -eq 'true') { 'Normal' } else { 'Hidden' }
+    Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle $backendWindowStyle | Out-Null
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
     Write-Step "Waiting for backend health at $healthUrl"
@@ -335,6 +344,7 @@ function Invoke-InstallOrUpdate {
     $installationType = Read-InstallationType
     Ensure-PortableRuntimes
     $settings = Import-XReportEnvironment
+    Stop-PortListener -Port ([int]$settings.UI_PORT)
     Install-Dependencies -Settings $settings -BuildFrontend -InstallationType $installationType
     Write-Step 'Pruning uv cache'
     Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue

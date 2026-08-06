@@ -312,9 +312,6 @@ export default function InferencePage() {
                     <h1>Turn a radiograph into a draft report</h1>
                     <p>Select a local model, provide the study, then review the generated text before it leaves the workspace.</p>
                 </div>
-                <div className="workflow-summary" aria-label="Inference workflow">
-                    <span><b>1</b> Prepare model</span><span><b>2</b> Add radiograph</span><span><b>3</b> Review report</span>
-                </div>
             </header>
 
             <div className="research-warning" role="alert">
