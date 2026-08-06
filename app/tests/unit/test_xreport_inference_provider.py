@@ -11,7 +11,6 @@ from server.domain.inference import InferenceImage
 from server.models.inference.providers import xreport
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 
-
 ###############################################################################
 def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
     configuration_dir = checkpoint_dir / "configuration"
@@ -24,7 +23,6 @@ def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
             archive.writestr("metadata.json", "{}")
     else:
         model_path.write_bytes(b"not-a-keras-archive")
-
 
 ###############################################################################
 def test_validate_checkpoint_rejects_incomplete_or_corrupt_archives(
@@ -43,7 +41,6 @@ def test_validate_checkpoint_rejects_incomplete_or_corrupt_archives(
     with pytest.raises(ValueError, match="invalid Keras archive"):
         XReportCheckpointProvider().validate_checkpoint("corrupt")
 
-
 ###############################################################################
 def test_validate_checkpoint_accepts_complete_keras_archive(
     monkeypatch: pytest.MonkeyPatch,
@@ -54,7 +51,6 @@ def test_validate_checkpoint_accepts_complete_keras_archive(
     monkeypatch.setattr(xreport, "resolve_checkpoint_path", lambda name: str(tmp_path / name))
 
     assert XReportCheckpointProvider().validate_checkpoint("complete") == "complete"
-
 
 ###############################################################################
 def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatch) -> None:

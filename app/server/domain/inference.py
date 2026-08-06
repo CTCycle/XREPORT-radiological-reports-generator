@@ -202,7 +202,6 @@ class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
 
-
 ###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
     model_ref: str
@@ -214,11 +213,9 @@ class ModelUpdateCheckResponse(BaseModel):
     checked_at: str
     error: str | None = None
 
-
 ###############################################################################
 class ModelUpdateCheckRequest(BaseModel):
     model_ref: str
-
 
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):

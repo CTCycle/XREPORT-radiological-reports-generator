@@ -6,7 +6,6 @@ from pydantic import ValidationError
 from server.domain.inference import InferenceManifest
 from server.services.inference_runtime import InferenceRuntimeCoordinator
 
-
 ###############################################################################
 def _entry() -> dict[str, object]:
     return {
@@ -32,7 +31,6 @@ def _entry() -> dict[str, object]:
         "weight_file_sets": [["model.safetensors"]],
     }
 
-
 ###############################################################################
 def test_manifest_rejects_unknown_nested_fields() -> None:
     entry = _entry()
@@ -41,7 +39,6 @@ def test_manifest_rejects_unknown_nested_fields() -> None:
     with pytest.raises(ValidationError):
         InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
 
-
 ###############################################################################
 def test_manifest_rejects_empty_weight_alternative() -> None:
     entry = _entry()
@@ -49,7 +46,6 @@ def test_manifest_rejects_empty_weight_alternative() -> None:
 
     with pytest.raises(ValidationError):
         InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
-
 
 ###############################################################################
 def test_runtime_rejects_provider_only_manifest() -> None:

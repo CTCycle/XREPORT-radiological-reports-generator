@@ -9,7 +9,6 @@ import pytest
 
 from scripts import validate_inference_model
 
-
 ###############################################################################
 def test_fixture_metadata_requires_matching_hash_and_records_no_image_data() -> None:
     data = b"public-deidentified-fixture"
@@ -38,7 +37,6 @@ def test_fixture_metadata_requires_matching_hash_and_records_no_image_data() -> 
             deidentification="De-identified public release",
             expected_sha256="0" * 64,
         )
-
 
 ###############################################################################
 def test_non_huggingface_model_returns_deferred_without_manifest_lookup(monkeypatch, capsys) -> None:

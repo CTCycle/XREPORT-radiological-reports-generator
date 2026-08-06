@@ -30,7 +30,6 @@ def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
         model_timeout=600,
     )
 
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
