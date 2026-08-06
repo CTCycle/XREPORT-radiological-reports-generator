@@ -9,7 +9,7 @@
 
 .workspace-heading {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: end;
     gap: var(--space-6);
 }
@@ -35,7 +35,7 @@
 }
 
 .workspace-title h1 {
-    max-width: 720px;
+    max-width: none;
     margin: 0;
     font-size: clamp(1.8rem, 3.2vw, 2.65rem);
     line-height: 1.08;
@@ -43,37 +43,10 @@
 }
 
 .workspace-title p {
-    max-width: 650px;
+    max-width: none;
     margin: var(--space-3) 0 0;
     color: var(--text-secondary);
     font-size: var(--text-base);
-}
-
-.workflow-summary {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1px;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    background: var(--border-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.workflow-summary span {
-    display: grid;
-    gap: 3px;
-    min-width: 0;
-    padding: var(--space-3);
-    background: var(--bg-secondary);
-    color: var(--text-secondary);
-    font-size: var(--text-xs);
-    line-height: 1.25;
-}
-
-.workflow-summary b {
-    color: var(--accent-color-strong);
-    font-size: var(--text-sm);
 }
 
 .research-warning {
@@ -947,10 +920,6 @@ textarea:disabled {
 @media (max-width: 640px) {
     .inference-workspace {
         padding: var(--space-3);
-    }
-
-    .workflow-summary {
-        grid-template-columns: 1fr;
     }
 
     .step-header,
