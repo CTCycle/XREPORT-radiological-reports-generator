@@ -435,10 +435,9 @@ function Write-MenuItem {
         [ConsoleColor]$NumberColor = [ConsoleColor]::Cyan
     )
 
-    Write-Host '  '
-    Write-Host "  $Number  " -NoNewline -ForegroundColor $NumberColor
-    Write-Host $Label -ForegroundColor White
-    Write-Host "       $Description" -ForegroundColor DarkGray
+    Write-Host ("  [{0}] " -f $Number) -NoNewline -ForegroundColor $NumberColor
+    Write-Host $Label.PadRight(31) -NoNewline -ForegroundColor White
+    Write-Host $Description -ForegroundColor DarkGray
 }
 
 function Show-Menu {
@@ -450,29 +449,29 @@ function Show-Menu {
     Write-MenuRule
 
     Write-Host '  APPLICATION' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '01' -Label 'Launch application' -Description 'Start the API and frontend preview'
-    Write-MenuItem -Number '02' -Label 'Install / update dependencies' -Description 'Synchronize Python and frontend packages'
+    Write-MenuItem -Number '1' -Label 'Launch application' -Description 'Start local services'
+    Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Description 'Sync runtimes + packages'
 
     Write-Host ''
     Write-Host '  DATA & QUALITY' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '03' -Label 'Initialize database' -Description 'Initialize the configured database'
-    Write-MenuItem -Number '04' -Label 'Run test suite' -Description 'Execute the project validation suite'
+    Write-MenuItem -Number '3' -Label 'Initialize database' -Description 'Prepare local data store'
+    Write-MenuItem -Number '4' -Label 'Run test suite' -Description 'Execute project checks'
 
     Write-Host ''
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '05' -Label 'Remove logs' -Description 'Delete generated application log files'
-    Write-MenuItem -Number '06' -Label 'Clear cache' -Description 'Remove Python and dependency caches'
-    Write-MenuItem -Number '07' -Label 'Uninstall application' -Description 'Remove generated runtimes and dependencies' -NumberColor Yellow
+    Write-MenuItem -Number '5' -Label 'Remove logs' -Description 'Delete application logs'
+    Write-MenuItem -Number '6' -Label 'Clear cache' -Description 'Remove temporary caches'
+    Write-MenuItem -Number '7' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
 
     Write-Host ''
     Write-MenuRule -Color DarkGray
-    Write-MenuItem -Number '08' -Label 'Exit' -Description 'Close the XREPORT console' -NumberColor DarkGray
+    Write-MenuItem -Number '8' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
 }
 
 while ($true) {
     Show-Menu
-    $selection = (Read-Host 'Select an option (1-8)').Trim()
+    $selection = (Read-Host '  Select an option (1-8)').Trim()
     if ($selection -notmatch '^[1-8]$') {
         Write-Warn 'Invalid option. Enter a number from 1 to 8.'
         [void](Read-Host 'Press Enter to continue')
