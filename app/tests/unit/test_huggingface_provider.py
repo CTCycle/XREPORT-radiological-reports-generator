@@ -49,7 +49,6 @@ def _manifest() -> dict[str, object]:
         "preferred_dtype": "float32",
     }
 
-
 ###############################################################################
 def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
     monkeypatch.setattr(
@@ -65,7 +64,6 @@ def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
         "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         lambda _path, **_kwargs: model,
     )
-
 
 ###############################################################################
 def _processor_inputs() -> Inputs:

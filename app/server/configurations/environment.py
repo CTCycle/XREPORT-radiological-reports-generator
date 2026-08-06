@@ -45,7 +45,6 @@ def ensure_environment_file() -> Path:
         logger.info("Created environment file from template at %s", ENV_FILE_PATH)
     return ENV_FILE_PATH
 
-
 ###############################################################################
 def load_environment(*, force: bool = False) -> Path:
     state = _environment_state()
