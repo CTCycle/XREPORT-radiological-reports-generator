@@ -25,7 +25,6 @@ from server.services.model_installation import ModelInstallationManager
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
 VALIDATION_RECEIPTS_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
-
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     contract = {

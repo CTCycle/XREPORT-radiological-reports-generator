@@ -10,7 +10,6 @@ from server.services.inference import InferenceImageStore, run_inference_job
 import server.services.inference as inference_service
 from server.services.jobs import JobManager
 
-
 ###############################################################################
 def _image() -> InferenceImage:
     return InferenceImage(
@@ -19,7 +18,6 @@ def _image() -> InferenceImage:
         data=b"fixture",
         size_bytes=7,
     )
-
 
 ###############################################################################
 def _setup_job(
@@ -36,7 +34,6 @@ def _setup_job(
     )
     image_store.store(request_id, [_image()])
     image_store.link_job(job_id, request_id)
-
 
 ###############################################################################
 def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> None:
@@ -62,7 +59,6 @@ def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> N
 
     monkeypatch.setattr(inference_service, "get_inference_runtime", lambda: RuntimeStub())
     monkeypatch.setattr(inference_service, "InferenceRepository", lambda: repository)
-
 
 ###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch) -> None:
@@ -101,7 +97,6 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
     assert result["reports"] == {}
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
-
 
 ###############################################################################
 def test_timeout_does_not_persist_reports(monkeypatch) -> None:

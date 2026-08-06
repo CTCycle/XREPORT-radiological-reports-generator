@@ -16,7 +16,6 @@ from server.services.model_installation import (
 REVISION = "a" * 40
 NEXT_REVISION = "b" * 40
 
-
 ###############################################################################
 def _manifest(revision: str = REVISION) -> dict[str, object]:
     return {
@@ -25,7 +24,6 @@ def _manifest(revision: str = REVISION) -> dict[str, object]:
         "required_files": ["config.json", "tokenizer.json"],
         "weight_file_sets": [["model.safetensors"]],
     }
-
 
 ###############################################################################
 class FakeApi:
@@ -49,7 +47,6 @@ class FakeApi:
         ]
         return SimpleNamespace(sha=self.revision, siblings=siblings)
 
-
 ###############################################################################
 class CompleteResponse:
     status_code = 200
@@ -71,12 +68,10 @@ class CompleteResponse:
     def close(self) -> None:
         return None
 
-
 ###############################################################################
 def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
     filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return CompleteResponse(b"ok" if filename == "model.safetensors" else b"{}")
-
 
 ###############################################################################
 @pytest.fixture
@@ -91,7 +86,6 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     for path in (resources, installation_module.HF_STAGING_DIR, installation_module.HF_INSTALLED_DIR):
         path.mkdir(parents=True, exist_ok=True)
     return root
-
 
 ###############################################################################
 def test_stage_downloads_only_approved_files_and_writes_verified_metadata(
@@ -127,7 +121,6 @@ def test_stage_downloads_only_approved_files_and_writes_verified_metadata(
     assert metadata["candidate"]["revision"] == REVISION
     assert metadata["candidate"]["relative_path"].startswith("app/resources/models/huggingface/staging/")
 
-
 ###############################################################################
 def test_stage_reuses_partial_staging_directory_after_interruption(
     manager_paths: Path,
@@ -153,7 +146,6 @@ def test_stage_reuses_partial_staging_directory_after_interruption(
     )
     assert seen
     assert target.path == partial
-
 
 ###############################################################################
 def test_http_downloader_resumes_partial_files_and_reports_progress(
@@ -211,7 +203,6 @@ def test_http_downloader_resumes_partial_files_and_reports_progress(
     assert any(call.get("headers") == {"Range": "bytes=1-"} for call in calls)
     assert any(item.get("downloaded_bytes") == 2 for item in progress)
 
-
 ###############################################################################
 def test_activation_promotes_candidate_and_keeps_previous_active_for_rollback(
     manager_paths: Path,
@@ -229,7 +220,6 @@ def test_activation_promotes_candidate_and_keeps_previous_active_for_rollback(
     assert metadata["active_revision"] == NEXT_REVISION
     assert metadata["rollback"]["revision"] == REVISION
     assert (installation_module.HF_ROLLBACK_DIR / "example__report-model").exists()
-
 
 ###############################################################################
 def test_corrupt_active_snapshot_is_rejected(manager_paths: Path) -> None:
@@ -249,11 +239,9 @@ def test_corrupt_active_snapshot_is_rejected(manager_paths: Path) -> None:
     with pytest.raises(InstallationError, match="integrity mismatch"):
         manager.active_target(_manifest())
 
-
 ###############################################################################
 def test_cancellation_is_distinguished_from_download_failure() -> None:
     assert InstallationCancelled.__name__ != InstallationError.__name__
-
 
 ###############################################################################
 def test_failed_maintenance_preserves_working_active_revision(manager_paths: Path) -> None:
@@ -282,7 +270,6 @@ def test_failed_maintenance_preserves_working_active_revision(manager_paths: Pat
     assert metadata["active_revision"] == REVISION
     assert metadata["interruption"]["resumable"] is True
     assert not partial.exists()
-
 
 ###############################################################################
 def test_failed_first_use_keeps_resumable_staging(manager_paths: Path) -> None:

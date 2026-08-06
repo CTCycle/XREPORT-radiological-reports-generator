@@ -10,7 +10,6 @@ import server.repositories.database.initializer as initializer
 from server.configurations.settings import DatabaseSettings
 from server.repositories.schemas import Base
 
-
 ###############################################################################
 def _sqlite_settings() -> DatabaseSettings:
     return DatabaseSettings(
@@ -26,7 +25,6 @@ def _sqlite_settings() -> DatabaseSettings:
         connect_timeout=30,
         insert_batch_size=1000,
     )
-
 
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:
@@ -44,12 +42,10 @@ def _postgres_settings() -> DatabaseSettings:
         insert_batch_size=1000,
     )
 
-
 ###############################################################################
 def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
     monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
     monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
-
 
 ###############################################################################
 def test_missing_sqlite_database_is_created_with_schema(tmp_path, monkeypatch) -> None:
@@ -66,7 +62,6 @@ def test_missing_sqlite_database_is_created_with_schema(tmp_path, monkeypatch) -
         )
     finally:
         engine.dispose()
-
 
 ###############################################################################
 def test_existing_sqlite_database_is_not_reinitialized_or_validated(
@@ -88,7 +83,6 @@ def test_existing_sqlite_database_is_not_reinitialized_or_validated(
 
     assert database_path.read_bytes() == sentinel
 
-
 ###############################################################################
 def test_postgres_startup_only_verifies_connection(monkeypatch) -> None:
     settings = _postgres_settings()
@@ -109,7 +103,6 @@ def test_postgres_startup_only_verifies_connection(monkeypatch) -> None:
 
     assert calls == ["verify"]
 
-
 ###############################################################################
 def test_postgres_startup_connection_failure_is_sanitized(monkeypatch) -> None:
     settings = _postgres_settings()
@@ -128,7 +121,6 @@ def test_postgres_startup_connection_failure_is_sanitized(monkeypatch) -> None:
         initializer.prepare_database_for_startup(settings)
 
     assert "password" not in str(exc_info.value).lower()
-
 
 ###############################################################################
 def test_postgres_initialization_is_only_reached_by_manual_entrypoint(monkeypatch) -> None:

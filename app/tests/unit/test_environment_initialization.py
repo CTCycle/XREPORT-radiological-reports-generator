@@ -6,14 +6,12 @@ import pytest
 
 import server.configurations.environment as environment
 
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_environment_state() -> None:
     environment._environment_state.cache_clear()
     yield
     environment._environment_state.cache_clear()
-
 
 ###############################################################################
 def _configure_environment_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
@@ -24,7 +22,6 @@ def _configure_environment_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(environment, "ENV_FILE_PATH", env_path)
     monkeypatch.setattr(environment, "ENV_EXAMPLE_FILE_PATH", example_path)
     return env_path, example_path
-
 
 ###############################################################################
 def test_load_environment_creates_missing_env_from_template(tmp_path, monkeypatch) -> None:
@@ -39,7 +36,6 @@ def test_load_environment_creates_missing_env_from_template(tmp_path, monkeypatc
     assert env_path.read_bytes() == contents
     assert os.environ["XREPORT_TEST_ENV"] == "from-template"
 
-
 ###############################################################################
 def test_load_environment_preserves_existing_env(tmp_path, monkeypatch) -> None:
     env_path, example_path = _configure_environment_paths(tmp_path, monkeypatch)
@@ -52,7 +48,6 @@ def test_load_environment_preserves_existing_env(tmp_path, monkeypatch) -> None:
 
     assert env_path.read_bytes() == existing_contents
     assert os.environ["XREPORT_TEST_ENV"] == "existing"
-
 
 ###############################################################################
 def test_load_environment_requires_template_when_env_is_missing(tmp_path, monkeypatch) -> None:

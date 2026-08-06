@@ -135,7 +135,6 @@ def run_validation_job(
     )
     return result
 
-
 ###############################################################################
 def _run_validation_metrics(
     validator: DatasetValidator,
@@ -173,7 +172,6 @@ def _run_validation_metrics(
         jm.update_progress(job_id, current_progress)
     return result, image_records
 
-
 ###############################################################################
 def _load_validation_dataset(
     repository: DatasetRepository,
@@ -187,7 +185,6 @@ def _load_validation_dataset(
         dataset_name=dataset_name,
     )
 
-
 ###############################################################################
 def _resolve_dataset_name(dataset: pd.DataFrame, dataset_name: Any) -> str:
     if dataset_name:
@@ -197,7 +194,6 @@ def _resolve_dataset_name(dataset: pd.DataFrame, dataset_name: Any) -> str:
     if "dataset_name" in dataset.columns and not dataset.empty:
         return str(dataset["dataset_name"].iloc[0])
     return "default"
-
 
 ###############################################################################
 def _run_text_validation_metric(
@@ -217,7 +213,6 @@ def _run_text_validation_metric(
         "min_words_per_report": text_stats.min_words_per_report,
         "max_words_per_report": text_stats.max_words_per_report,
     }
-
 
 ###############################################################################
 def _run_image_validation_metric(
@@ -252,7 +247,6 @@ def _run_image_validation_metric(
         "mean_noise_ratio": image_stats.mean_noise_ratio,
     }, image_records
 
-
 ###############################################################################
 def _run_pixel_validation_metric(
     validator: DatasetValidator,
@@ -272,7 +266,6 @@ def _run_pixel_validation_metric(
     )
     logger.info("[3/3] Pixel distribution complete")
     return {"bins": pixel_dist.bins, "counts": pixel_dist.counts}
-
 
 ###############################################################################
 def _save_validation_report(
@@ -366,7 +359,6 @@ def run_checkpoint_evaluation_job(
         "results": results,
     }
 
-
 ###############################################################################
 def _run_checkpoint_metrics(
     evaluator: CheckpointEvaluator,
@@ -411,7 +403,6 @@ def _run_checkpoint_metrics(
         jm.update_progress(job_id, 90.0)
     return results, resolved_metric_configs
 
-
 ###############################################################################
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
@@ -423,7 +414,6 @@ def _load_checkpoint_for_evaluation(
     except FileNotFoundError:
         return None
     return model, train_config, model_metadata
-
 
 ###############################################################################
 def _load_checkpoint_validation_data(
@@ -437,7 +427,6 @@ def _load_checkpoint_validation_data(
         logger.warning("No validation data available for checkpoint evaluation")
         return validation_data
     return repository.validate_img_paths(validation_data)
-
 
 ###############################################################################
 def _run_evaluation_report_metric(
@@ -464,7 +453,6 @@ def _run_evaluation_report_metric(
         "accuracy": eval_results.get("accuracy"),
     }, {"data_fraction": evaluation_fraction}
 
-
 ###############################################################################
 def _run_bleu_metric(
     evaluator: CheckpointEvaluator,
@@ -484,7 +472,6 @@ def _run_bleu_metric(
         bleu_samples = max(1, int(len(validation_data) * bleu_fraction))
     config = {"data_fraction": bleu_fraction, "num_samples": bleu_samples}
     return evaluator.calculate_bleu_score(validation_data, num_samples=bleu_samples), config
-
 
 ###############################################################################
 def _save_checkpoint_evaluation_report(

@@ -101,12 +101,10 @@ def get_inference_image_store() -> InferenceImageStore:
 def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(get_server_settings().inference)
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_model_installation_manager() -> ModelInstallationManager:
     return ModelInstallationManager()
-
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -115,7 +113,6 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
         huggingface_provider=get_huggingface_provider(),
         installation_manager=get_model_installation_manager(),
     )
-
 
 ###############################################################################
 def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
@@ -286,7 +283,6 @@ def run_inference_job(
         "display_sections": display_sections,
         "provenance": persisted_provenance or provenance,
     }
-
 
 ###############################################################################
 def run_model_maintenance_job(

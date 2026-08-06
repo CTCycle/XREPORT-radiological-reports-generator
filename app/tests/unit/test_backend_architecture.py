@@ -11,7 +11,6 @@ from server.app import app
 BACKEND_ROOT = Path(__file__).parents[2] / "server"
 FILE_RESPONSE_PATH = "/api/preparation/dataset/{dataset_name}/images/{index}/content"
 
-
 ###############################################################################
 def _backend_files() -> list[Path]:
     return [
@@ -20,13 +19,11 @@ def _backend_files() -> list[Path]:
         if ".venv" not in path.parts and "__pycache__" not in path.parts
     ]
 
-
 ###############################################################################
 def _imported_module(node: ast.Import | ast.ImportFrom) -> str:
     if isinstance(node, ast.Import):
         return node.names[0].name
     return node.module or ""
-
 
 ###############################################################################
 class _StructureVisitor(ast.NodeVisitor):
@@ -94,7 +91,6 @@ class _StructureVisitor(ast.NodeVisitor):
             and node.func.value.id in {"threading", "asyncio"}
         )
 
-
 ###############################################################################
 def test_backend_structure_has_explicit_top_level_dependencies() -> None:
     violations: list[str] = []
@@ -132,7 +128,6 @@ def test_backend_structure_has_explicit_top_level_dependencies() -> None:
             if forbidden:
                 violations.append(f"{path}: forbidden import {imported} at line {node.lineno}")
     assert not violations, "\n".join(violations)
-
 
 ###############################################################################
 def test_backend_response_model_exception_is_only_file_response() -> None:

@@ -40,7 +40,6 @@ import server.services.inference as inference_service  # noqa: E402
 RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
-
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -67,11 +66,9 @@ def _arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 ###############################################################################
 def _slug(model_ref: str) -> str:
     return model_ref.removeprefix("huggingface:").replace("/", "__")
-
 
 ###############################################################################
 def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
@@ -79,7 +76,6 @@ def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     path = RUN_LOG_DIR / f"{_slug(model_ref)}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
-
 
 ###############################################################################
 def _fixture_metadata(
@@ -108,7 +104,6 @@ def _fixture_metadata(
         "de_identification": fixture_deidentification,
         "sha256": actual_sha256,
     }
-
 
 ###############################################################################
 def main() -> int:

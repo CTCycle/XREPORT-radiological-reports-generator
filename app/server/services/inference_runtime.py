@@ -24,7 +24,6 @@ StopCallback = Callable[[], bool]
 LifecycleCallback = Callable[[dict[str, Any]], None]
 ProgressCallback = Callable[..., None]
 
-
 ###############################################################################
 class InferenceRuntimeCoordinator:
     """Serializes resident model use across the supported inference providers."""
