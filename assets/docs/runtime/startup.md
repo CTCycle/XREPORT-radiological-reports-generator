@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-03
+Last updated: 2026-08-06
 
 ## Windows Local Launcher
 
@@ -19,6 +19,12 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, opens the browser, and then exits the menu.
+
+The install/update option prepares the portable runtimes before requesting an
+installation profile:
+
+- `Development` includes Ruff, Pyright, and pytest.
+- `Standard` installs runtime dependencies only.
 
 At backend startup, a missing `settings/.env` is created from
 `settings/.env.example`. Existing environment files are preserved and ignored
