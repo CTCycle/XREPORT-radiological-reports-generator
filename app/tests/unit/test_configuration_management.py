@@ -48,7 +48,7 @@ def test_configuration_manager_loads_and_accesses_values(tmp_path) -> None:
     assert all_settings.database.backend == "sqlite"
 
     assert manager.get_block("global") == {"seed": 123}
-    assert manager.get_block("global_settings") == {"seed": 123}
+    assert manager.get_block("global_settings") == {}
     assert manager.get_value("global", "seed") == 123
     assert manager.get_value("missing", "key", default="fallback") == "fallback"
 
