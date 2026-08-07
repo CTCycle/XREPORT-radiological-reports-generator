@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-07-20
+Last updated: 2026-08-07
 
 All routers are mounted under `/api`.
 
@@ -48,6 +48,8 @@ All routers are mounted under `/api`.
 ## Inference
 
 - `GET /api/inference/models`
+- `POST /api/inference/models/check-update`
+- `POST /api/inference/models/maintenance`
 - `POST /api/inference/generate`
 - `GET /api/inference/jobs/{job_id}`
 - `DELETE /api/inference/jobs/{job_id}`
@@ -57,6 +59,12 @@ All routers are mounted under `/api`.
 The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
 
 Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. The mapping includes 400, 403, 404, 409, 413, 500, and 501 responses.
+
+## Health
+
+- `GET /api/health`
+
+The health response reports the backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
 
 ## Root Behavior
 
