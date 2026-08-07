@@ -256,7 +256,7 @@ class JsonInferenceSettings(BaseModel):
 class JsonServerSettings(BaseModel):
     model_config = ConfigDict(
         extra="ignore",
-        populate_by_name=True,
+        populate_by_name=False,
     )
 
     database: JsonDatabaseSettings = Field(
@@ -264,22 +264,19 @@ class JsonServerSettings(BaseModel):
             _database_env_payload()
         )
     )
-    global_settings: JsonGlobalSettings = Field(default_factory=JsonGlobalSettings)
+    global_settings: JsonGlobalSettings = Field(
+        default_factory=JsonGlobalSettings,
+        alias="global",
+    )
     features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
     jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
     inference: JsonInferenceSettings = Field(default_factory=JsonInferenceSettings)
 
-    # "global" is reserved, map it explicitly.
-
     # -------------------------------------------------------------------------
     @model_validator(mode="before")
     @classmethod
-    def map_global_alias(cls, value: Any) -> Any:
-        if not isinstance(value, dict):
-            return value
-        mapped = dict(value)
-        if "global" in mapped and "global_settings" not in mapped:
-            mapped["global_settings"] = mapped.get("global", {})
+    def apply_environment_database(cls, value: Any) -> Any:
+        mapped = dict(value) if isinstance(value, dict) else {}
         mapped["database"] = _database_env_payload()
         return mapped
 

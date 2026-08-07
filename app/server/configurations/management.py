@@ -56,8 +56,6 @@ class ConfigurationManager:
     # -------------------------------------------------------------------------
     def get_block(self, name: str) -> dict[str, Any]:
         normalized = name.strip().lower()
-        if normalized == "global_settings":
-            normalized = "global"
 
         with self._lock:
             if self._json_settings is None:

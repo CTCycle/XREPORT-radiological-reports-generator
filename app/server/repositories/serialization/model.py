@@ -89,7 +89,7 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def load_training_configuration(
         self, path: str | Path
-    ) -> tuple[dict, dict, dict]:
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         checkpoint_path = Path(path)
         configuration_path = checkpoint_path / "configuration"
         config_path = configuration_path / "configuration.json"

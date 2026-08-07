@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 from sqlalchemy import case, delete, exists, func, select
+from sqlalchemy.engine import Row
 
 from server.repositories.database import Database
 from server.repositories.serialization.dataset import DatasetRepository
@@ -30,7 +34,7 @@ class PreparationRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def get_dataset_names(self):
+    def get_dataset_names(self) -> Sequence[Row[Any]]:
         latest_versions = (
             select(
                 DatasetVersion.dataset_id,
@@ -67,7 +71,7 @@ class PreparationRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def get_processed_dataset_names(self):
+    def get_processed_dataset_names(self) -> Sequence[Row[Any]]:
         latest_runs = (
             select(
                 ProcessingRun.dataset_id.label("dataset_id"),
@@ -98,7 +102,7 @@ class PreparationRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def get_processing_metadata(self, dataset_name: str):
+    def get_processing_metadata(self, dataset_name: str) -> dict[str, Any] | None:
         serializer = DatasetRepository()
         metadata = serializer.load_training_data(
             only_metadata=True,
@@ -123,7 +127,7 @@ class PreparationRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def get_dataset_by_name(self, dataset_name: str):
+    def get_dataset_by_name(self, dataset_name: str) -> Dataset | None:
         session = self.database.session()
         try:
             return session.execute(
@@ -164,7 +168,9 @@ class PreparationRepository:
             session.close()
 
     # -------------------------------------------------------------------------
-    def get_record_at_index(self, dataset_id: int, index: int):
+    def get_record_at_index(
+        self, dataset_id: int, index: int
+    ) -> Row[tuple[str, str, str]] | None:
         latest_versions = (
             select(
                 DatasetVersion.dataset_id,
