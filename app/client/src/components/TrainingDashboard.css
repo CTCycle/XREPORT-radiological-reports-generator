@@ -287,7 +287,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 260px;
+    height: 160px;
     color: var(--text-secondary);
     font-size: 0.9rem;
     background: rgba(148, 163, 184, 0.1);
@@ -335,5 +335,5 @@
     padding: 0.75rem;
     font-size: 0.8rem;
     color: var(--text-secondary);
-    min-height: 200px;
+    min-height: 96px;
 }
