@@ -27,7 +27,6 @@ SERVER_DIR = APP_DIR / "server"
 SETTINGS_DIR = ROOT_DIR / "settings"
 SHARED_DIR = APP_DIR / "shared"
 TESTS_DIR = APP_DIR / "tests"
-XREPORT_DIR = APP_DIR / "XREPORT"
 
 LOGS_DIR = RESOURCES_DIR / "logs"
 MODELS_DIR = RESOURCES_DIR / "models"
