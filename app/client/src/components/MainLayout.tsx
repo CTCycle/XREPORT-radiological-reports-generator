@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useLayoutEffect, useRef } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { BrainCircuit, FileSearch, FileStack, Settings } from 'lucide-react';
 import './MainLayout.css';
 
@@ -10,6 +11,16 @@ const developmentNavItems = [
 const inferenceNavItem = { path: '/inference', icon: FileSearch, label: 'Inference' };
 
 export default function MainLayout() {
+    const location = useLocation();
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTop = 0;
+            contentRef.current.scrollLeft = 0;
+        }
+    }, [location.pathname]);
+
     return (
         <div className="main-layout">
             <div className="main-layout-chrome">
@@ -59,7 +70,7 @@ export default function MainLayout() {
                 </nav>
             </div>
 
-            <div className="main-layout-content">
+            <div ref={contentRef} className="main-layout-content">
                 <Outlet />
             </div>
         </div>

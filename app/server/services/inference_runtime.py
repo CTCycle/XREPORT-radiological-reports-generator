@@ -78,6 +78,28 @@ class InferenceRuntimeCoordinator:
         raise RuntimeError(f"Unsupported inference provider: {model_ref}")
 
     # -------------------------------------------------------------------------
+    def delete_local(
+        self,
+        repository_id: str,
+        manifest: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Unload an idle public model and delete only its local snapshot."""
+        acquired = self.lock.acquire(blocking=False)
+        if not acquired:
+            raise InstallationError(
+                "The model is currently in use; wait for inference to finish before deleting local files."
+            )
+        try:
+            self.huggingface_provider.unload()
+            return self.installation_manager.delete_local(
+                repository_id,
+                processor_repository_id=(manifest or {}).get("processor_repository_id"),
+                processor_revision=(manifest or {}).get("processor_revision"),
+            )
+        finally:
+            self.lock.release()
+
+    # -------------------------------------------------------------------------
     def _generate_xreport(
         self,
         *,
@@ -160,24 +182,26 @@ class InferenceRuntimeCoordinator:
         effective_manifest = dict(model_manifest)
         effective_manifest["repository_id"] = repository_id
         self._require_complete_manifest(effective_manifest)
-        target, cloud_assessment = self._resolve_target(
-            repository_id=repository_id,
-            manifest=effective_manifest,
-            should_stop=should_stop,
-            report_lifecycle=report_lifecycle,
-            model_ref=model_ref,
-        )
-        effective_manifest["revision"] = target.revision
-        effective_manifest["local_snapshot_path"] = str(target.path)
-        effective_revision = target.revision
-        report_lifecycle({
-            "phase": "loading",
-            "message": "Loading the verified local model snapshot",
-            "revision": effective_revision,
-            "local_path": self.installation_manager.relative_path(target.path),
-        })
-
         with self.lock:
+            # Hold the residency lock across resolution, loading, generation,
+            # and candidate activation so delete_local cannot race an active
+            # inference job after it has staged a snapshot.
+            target, cloud_assessment = self._resolve_target(
+                repository_id=repository_id,
+                manifest=effective_manifest,
+                should_stop=should_stop,
+                report_lifecycle=report_lifecycle,
+                model_ref=model_ref,
+            )
+            effective_manifest["revision"] = target.revision
+            effective_manifest["local_snapshot_path"] = str(target.path)
+            effective_revision = target.revision
+            report_lifecycle({
+                "phase": "loading",
+                "message": "Loading the verified local model snapshot",
+                "revision": effective_revision,
+                "local_path": self.installation_manager.relative_path(target.path),
+            })
             generation = self.huggingface_provider.generate(
                 repository_id=repository_id,
                 manifest=effective_manifest,
@@ -187,42 +211,42 @@ class InferenceRuntimeCoordinator:
                 should_stop=should_stop,
                 report_progress=report_progress,
             )
-        self.installation_manager.record_success(repository_id, inference=True)
-        provenance = dict(generation.provenance)
-        provenance["input_images"] = generation.metadata
-        provenance["installation"] = {
-            "state": "candidate" if target.candidate else "active",
-            "revision": effective_revision,
-            "local_path": self.installation_manager.relative_path(target.path),
-            "cloud_assessment": cloud_assessment,
-        }
-        if target.candidate and generation.reports:
-            report_lifecycle({
-                "phase": "activating",
-                "message": "Activating the verified revision after successful inference",
+            self.installation_manager.record_success(repository_id, inference=True)
+            provenance = dict(generation.provenance)
+            provenance["input_images"] = generation.metadata
+            provenance["installation"] = {
+                "state": "candidate" if target.candidate else "active",
                 "revision": effective_revision,
+                "local_path": self.installation_manager.relative_path(target.path),
+                "cloud_assessment": cloud_assessment,
+            }
+            if target.candidate and generation.reports:
+                report_lifecycle({
+                    "phase": "activating",
+                    "message": "Activating the verified revision after successful inference",
+                    "revision": effective_revision,
+                })
+                activated = self.installation_manager.activate(
+                    manifest=effective_manifest,
+                    target=target,
+                )
+                provenance["installation"]["state"] = "active"
+                provenance["installation"]["local_path"] = activated.get(
+                    "active_relative_path",
+                    provenance["installation"]["local_path"],
+                )
+            report_lifecycle({
+                "phase": "completed",
+                "message": "Model loaded and report generated",
+                "revision": effective_revision,
+                "local_path": provenance["installation"]["local_path"],
             })
-            activated = self.installation_manager.activate(
-                manifest=effective_manifest,
-                target=target,
+            return ProviderGenerationResult(
+                reports=generation.reports,
+                display_sections=generation.display_sections,
+                metadata=generation.metadata,
+                provenance=provenance,
             )
-            provenance["installation"]["state"] = "active"
-            provenance["installation"]["local_path"] = activated.get(
-                "active_relative_path",
-                provenance["installation"]["local_path"],
-            )
-        report_lifecycle({
-            "phase": "completed",
-            "message": "Model loaded and report generated",
-            "revision": effective_revision,
-            "local_path": provenance["installation"]["local_path"],
-        })
-        return ProviderGenerationResult(
-            reports=generation.reports,
-            display_sections=generation.display_sections,
-            metadata=generation.metadata,
-            provenance=provenance,
-        )
 
     # -------------------------------------------------------------------------
     @staticmethod

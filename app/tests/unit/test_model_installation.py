@@ -83,7 +83,15 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     monkeypatch.setattr(installation_module, "HF_INSTALLED_DIR", resources / "models" / "huggingface" / "installed")
     monkeypatch.setattr(installation_module, "HF_ROLLBACK_DIR", resources / "models" / "huggingface" / "rollback")
     monkeypatch.setattr(installation_module, "HF_METADATA_DIR", resources / "models" / "huggingface" / "metadata")
-    for path in (resources, installation_module.HF_STAGING_DIR, installation_module.HF_INSTALLED_DIR):
+    monkeypatch.setattr(installation_module, "HF_HUB_CACHE_DIR", resources / "models" / "huggingface" / "hub")
+    for path in (
+        resources,
+        installation_module.HF_STAGING_DIR,
+        installation_module.HF_INSTALLED_DIR,
+        installation_module.HF_ROLLBACK_DIR,
+        installation_module.HF_METADATA_DIR,
+        installation_module.HF_HUB_CACHE_DIR,
+    ):
         path.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -281,3 +289,38 @@ def test_failed_first_use_keeps_resumable_staging(manager_paths: Path) -> None:
     manager.record_error("example/report-model", "cancelled", interrupted=True)
 
     assert partial.exists()
+
+###############################################################################
+def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
+    manager_paths: Path,
+) -> None:
+    manager = ModelInstallationManager(api=FakeApi())
+    slug = "example__report-model"
+    installed = installation_module.HF_INSTALLED_DIR / slug / REVISION
+    rollback = installation_module.HF_ROLLBACK_DIR / slug / ("b" * 40)
+    staged = installation_module.HF_STAGING_DIR / "operation" / slug / REVISION
+    cache = installation_module.HF_HUB_CACHE_DIR / "models--example--report-model" / "snapshots" / REVISION
+    unrelated = installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION
+    for path in (installed, rollback, staged, cache, unrelated):
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "model.safetensors").write_bytes(b"owned" if path != unrelated else b"keep")
+    manager._write_metadata(
+        "example/report-model",
+        {
+            "repository_id": "example/report-model",
+            "state": "active",
+            "active_revision": REVISION,
+            "active_relative_path": manager.relative_path(installed),
+        },
+    )
+
+    deleted = manager.delete_local("example/report-model")
+
+    assert deleted["state"] == "not_installed"
+    assert deleted["bytes_freed"] > 0
+    assert not installed.parent.exists()
+    assert not rollback.parent.exists()
+    assert not staged.parent.exists()
+    assert not cache.parent.parent.exists()
+    assert not manager._metadata_path("example/report-model").exists()
+    assert unrelated.exists()

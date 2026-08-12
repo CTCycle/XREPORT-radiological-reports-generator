@@ -28,7 +28,7 @@ Expected result:
 ## Generate Reports
 
 1. Open the Inference page and review the research-use warning.
-2. Select a model and read its exact installation state, revision, adapter, loader, and declared output sections. `generate-cxr` can be submitted while `not_installed`; Generate will prepare it in the background.
+2. Select one of the five Public Models or a locally trained Custom XReport Model. Read the anatomy scope, demand, approximate size, licence/access badge, exact revision, adapter, loader, and declared output sections. A public model can be Downloaded explicitly or submitted while `not_downloaded`; Generate will prepare it in the background.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
 4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop.
 5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
@@ -36,7 +36,7 @@ Expected result:
 Expected result:
 
 - research-use-only draft reports are generated for qualified review; models and outputs are not clinically approved
-- only supported report-generating models are visible; the unavailable custom XREPORT checkpoint is shown through the provider status
+- exactly five pinned public report-generating models are visible in their own section; complete custom XREPORT checkpoints are shown separately and are never public downloads
 - first-use installation reports cloud assessment, download, verification, loading, generation, and activation without blocking the UI
 
 ## Validate a local model

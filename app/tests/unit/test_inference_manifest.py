@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -9,22 +12,22 @@ from server.services.inference_runtime import InferenceRuntimeCoordinator
 ###############################################################################
 def _entry() -> dict[str, object]:
     return {
-        "model_ref": "huggingface:nathansutton/generate-cxr",
-        "repository_id": "nathansutton/generate-cxr",
+        "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+        "repository_id": "aehrc/cxrmate-multi-tf",
         "provider": "huggingface",
         "enabled": True,
-        "display_name": "generate-cxr",
+        "display_name": "CXRMate Multi TF",
         "description": "test",
         "category": "test",
         "license": "Apache-2.0",
         "revision": "6" * 40,
-        "model_loader": "blip_conditional_generation",
-        "processor_loader": "blip",
-        "adapter": "generate_cxr_blip",
-        "prompt_profile": "indication_prefix",
-        "output_sections": ["raw_report"],
-        "input_semantics": "single_image",
-        "max_current_images": 1,
+        "model_loader": "auto_model",
+        "processor_loader": "auto",
+        "adapter": "cxrmate_multi",
+        "prompt_profile": "cxrmate-multi",
+        "output_sections": ["findings", "impression"],
+        "input_semantics": "single_study",
+        "max_current_images": 16,
         "quantization": ["none"],
         "validation_status": "pending",
         "required_files": ["config.json"],
@@ -37,7 +40,7 @@ def test_manifest_rejects_unknown_nested_fields() -> None:
     entry["runtime_constraints"] = {"required_modules": [], "typo": True}
 
     with pytest.raises(ValidationError):
-        InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
+        InferenceManifest.model_validate({"schema_version": 3, "models": [entry] * 5})
 
 ###############################################################################
 def test_manifest_rejects_empty_weight_alternative() -> None:
@@ -45,7 +48,7 @@ def test_manifest_rejects_empty_weight_alternative() -> None:
     entry["weight_file_sets"] = [[]]
 
     with pytest.raises(ValidationError):
-        InferenceManifest.model_validate({"schema_version": 2, "models": [entry]})
+        InferenceManifest.model_validate({"schema_version": 3, "models": [entry] * 5})
 
 ###############################################################################
 def test_runtime_rejects_provider_only_manifest() -> None:
@@ -53,3 +56,21 @@ def test_runtime_rejects_provider_only_manifest() -> None:
         InferenceRuntimeCoordinator._require_complete_manifest(
             {"revision": "6" * 40}
         )
+
+###############################################################################
+def test_embedded_catalog_is_exactly_five_unique_sha_pinned_public_models() -> None:
+    catalog_path = Path(__file__).parents[3] / "settings" / "inference_models.json"
+    payload = json.loads(catalog_path.resolve().read_text(encoding="utf-8"))
+    manifest = InferenceManifest.model_validate(payload)
+
+    assert manifest.schema_version == 3
+    assert len(manifest.models) == 5
+    assert len({entry.model_ref for entry in manifest.models}) == 5
+    assert all(len(entry.revision) == 40 for entry in manifest.models)
+    assert {entry.adapter for entry in manifest.models} == {
+        "cxrmate_multi",
+        "cxrmate_ed",
+        "chexone",
+        "cxrmate2",
+        "medgemma",
+    }

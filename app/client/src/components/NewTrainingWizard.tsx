@@ -93,8 +93,9 @@ export default function NewTrainingWizard({
                             <div className="wizard-2col-panel">
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label">Encoders</label>
+                                        <label htmlFor="training-wizard-encoders" className="form-label">Encoders</label>
                                         <input
+                                            id="training-wizard-encoders"
                                             type="number"
                                             className="form-input"
                                             value={config.numEncoders}
@@ -102,8 +103,9 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Decoders</label>
+                                        <label htmlFor="training-wizard-decoders" className="form-label">Decoders</label>
                                         <input
+                                            id="training-wizard-decoders"
                                             type="number"
                                             className="form-input"
                                             value={config.numDecoders}
@@ -111,8 +113,9 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Embedding Dims</label>
+                                        <label htmlFor="training-wizard-embedding-dims" className="form-label">Embedding Dims</label>
                                         <input
+                                            id="training-wizard-embedding-dims"
                                             type="number"
                                             step="8"
                                             className="form-input"
@@ -121,8 +124,9 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Attention Heads</label>
+                                        <label htmlFor="training-wizard-attention-heads" className="form-label">Attention Heads</label>
                                         <input
+                                            id="training-wizard-attention-heads"
                                             type="number"
                                             className="form-input"
                                             value={config.attnHeads}
@@ -132,8 +136,9 @@ export default function NewTrainingWizard({
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label">Temperature</label>
+                                        <label htmlFor="training-wizard-temperature" className="form-label">Temperature</label>
                                         <input
+                                            id="training-wizard-temperature"
                                             type="number"
                                             step="0.05"
                                             className="form-input"
@@ -173,7 +178,7 @@ export default function NewTrainingWizard({
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label form-label-transparent">Shuffle</label>
+                                        <label htmlFor="training-wizard-shuffle-buffer" className="form-label form-label-transparent">Buffer size</label>
                                         <div className="wizard-inline-row">
                                             <FormCheckbox
                                                 checked={config.shuffleWithBuffer}
@@ -183,6 +188,7 @@ export default function NewTrainingWizard({
                                             />
                                             {config.shuffleWithBuffer && (
                                                 <input
+                                                    id="training-wizard-shuffle-buffer"
                                                     type="number"
                                                     step="10"
                                                     className="form-input shuffle-buffer-input"
@@ -207,8 +213,9 @@ export default function NewTrainingWizard({
                             <div className="wizard-2col-panel">
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label">Epochs</label>
+                                        <label htmlFor="training-wizard-epochs" className="form-label">Epochs</label>
                                         <input
+                                            id="training-wizard-epochs"
                                             type="number"
                                             className="form-input"
                                             value={config.epochs}
@@ -216,8 +223,9 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Batch Size</label>
+                                        <label htmlFor="training-wizard-batch-size" className="form-label">Batch Size</label>
                                         <input
+                                            id="training-wizard-batch-size"
                                             type="number"
                                             className="form-input"
                                             value={config.batchSize}
@@ -249,8 +257,9 @@ export default function NewTrainingWizard({
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">Target Learning Rate</label>
+                                        <label htmlFor="training-wizard-target-learning-rate" className="form-label">Target Learning Rate</label>
                                         <input
+                                            id="training-wizard-target-learning-rate"
                                             type="number"
                                             step="0.0001"
                                             className="form-input"
@@ -262,8 +271,9 @@ export default function NewTrainingWizard({
                                 </div>
                                 <div className="wizard-col">
                                     <div className="form-group">
-                                        <label className="form-label">Warmup Steps</label>
+                                        <label htmlFor="training-wizard-warmup-steps" className="form-label">Warmup Steps</label>
                                         <input
+                                            id="training-wizard-warmup-steps"
                                             type="number"
                                             className="form-input"
                                             value={config.warmupSteps}
@@ -307,8 +317,9 @@ export default function NewTrainingWizard({
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Dataloader Workers</label>
+                                            <label htmlFor="training-wizard-dataloader-workers" className="form-label">Dataloader Workers</label>
                                             <input
+                                                id="training-wizard-dataloader-workers"
                                                 type="number"
                                                 min={0}
                                                 className="form-input"
@@ -320,8 +331,9 @@ export default function NewTrainingWizard({
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Prefetch Factor</label>
+                                            <label htmlFor="training-wizard-prefetch-factor" className="form-label">Prefetch Factor</label>
                                             <input
+                                                id="training-wizard-prefetch-factor"
                                                 type="number"
                                                 min={1}
                                                 className="form-input"
@@ -361,8 +373,9 @@ export default function NewTrainingWizard({
                                                     onChange={(checked) => onConfigChange('jitCompile', checked)}
                                                 />
                                                 <div className="form-group">
-                                                    <label className="form-label">Backend</label>
+                                                    <label htmlFor="training-wizard-jit-backend" className="form-label">Backend</label>
                                                     <select
+                                                        id="training-wizard-jit-backend"
                                                         className="form-select"
                                                         value={config.jitBackend}
                                                         onChange={(e) => onConfigChange('jitBackend', e.target.value)}
@@ -388,8 +401,9 @@ export default function NewTrainingWizard({
                                                     onChange={(checked) => onConfigChange('useGpu', checked)}
                                                 />
                                                 <div className="form-group">
-                                                    <label className="form-label">Device</label>
+                                                    <label htmlFor="training-wizard-gpu-device" className="form-label">Device</label>
                                                     <select
+                                                        id="training-wizard-gpu-device"
                                                         className="form-select"
                                                         value={selectedGpuId}
                                                         onChange={(e) => onConfigChange(
@@ -421,8 +435,9 @@ export default function NewTrainingWizard({
                             </div>
 
                             <div className="form-group checkpoint-name-group">
-                                <label className="form-label">Training Checkpoint Name</label>
+                                <label htmlFor="training-wizard-checkpoint-name" className="form-label">Training Checkpoint Name</label>
                                 <input
+                                    id="training-wizard-checkpoint-name"
                                     type="text"
                                     className="form-input highlight-input"
                                     placeholder="e.g. My_Experiment_v1 (Optional)"

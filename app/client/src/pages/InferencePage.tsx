@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
-import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
+import type { GenerationProfile, LegacyLocalModel, ModelAvailability, OutputSection } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
 import {
@@ -99,12 +99,14 @@ export default function InferencePage() {
         setStreamingTokens, setCurrentStreamingIndex,
     } = useInferencePageState();
     const [modelFilter, setModelFilter] = useState('');
-    const [providerFilter, setProviderFilter] = useState('all');
     const [catalogError, setCatalogError] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<number, DraftSections>>({});
     const [generationProvenance, setGenerationProvenance] = useState<Record<string, string>>({});
     const [installationLifecycle, setInstallationLifecycle] = useState<Record<string, unknown> | null>(null);
     const [catalogRefresh, setCatalogRefresh] = useState(0);
+    const [legacyLocalModels, setLegacyLocalModels] = useState<LegacyLocalModel[]>([]);
+    const [legacyBusy, setLegacyBusy] = useState<string | null>(null);
+    const [legacyMessage, setLegacyMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedModel = useMemo(
@@ -123,10 +125,11 @@ export default function InferencePage() {
     const filteredModels = useMemo(() => {
         const query = modelFilter.trim().toLowerCase();
         return state.modelAvailability.filter(model =>
-            (providerFilter === 'all' || model.provider === providerFilter)
-            && (!query || `${model.display_name} ${model.description} ${model.provider}`.toLowerCase().includes(query))
+            (!query || `${model.display_name} ${model.description} ${model.provider} ${model.origin} ${model.anatomy_coverage}`.toLowerCase().includes(query))
         );
-    }, [modelFilter, providerFilter, state.modelAvailability]);
+    }, [modelFilter, state.modelAvailability]);
+    const publicModels = filteredModels.filter(model => model.origin === 'public');
+    const customModels = filteredModels.filter(model => model.origin === 'custom');
 
     const generationJob = useAsyncJob({
         startJob: (request: GenerationRequest) => generateReports(
@@ -172,6 +175,7 @@ export default function InferencePage() {
             const { result, error } = await getInferenceModels();
             if (result) {
                 setModelAvailability(result.models);
+                setLegacyLocalModels(result.legacy_local_models ?? []);
                 const selectedUsable = result.models.some(model => model.model_ref === state.selectedModelRef && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(model.status));
                 if (!selectedUsable) setSelectedModelRef(result.models[0]?.model_ref ?? '');
             } else {
@@ -181,6 +185,28 @@ export default function InferencePage() {
         };
         void loadModels();
     }, [catalogRefresh]);
+
+    const reclaimLegacyLocalModel = async (model: LegacyLocalModel) => {
+        if (!globalThis.confirm(`Delete ${model.display_name}? This only removes the retired local snapshot.`)) return;
+        setLegacyBusy(model.model_ref);
+        setLegacyMessage('Reclaiming retired local model storage…');
+        const started = await maintainInferenceModel(model.model_ref, 'delete_local');
+        if (started.error || !started.result) {
+            setLegacyMessage(started.error ?? 'Unable to start local cleanup.');
+            setLegacyBusy(null);
+            return;
+        }
+        let status = await getInferenceJobStatus(started.result.job_id);
+        while (status.result && (status.result.status === 'pending' || status.result.status === 'running')) {
+            const lifecycle = asRecord(status.result.result?.lifecycle);
+            setLegacyMessage(readString(lifecycle?.message) ?? 'Reclaiming retired local model storage…');
+            await new Promise(resolve => globalThis.setTimeout(resolve, 500));
+            status = await getInferenceJobStatus(started.result.job_id);
+        }
+        setLegacyMessage(status.error ?? (status.result?.status === 'completed' ? 'Retired local storage removed.' : 'Local cleanup failed.'));
+        setLegacyBusy(null);
+        setCatalogRefresh(value => value + 1);
+    };
 
     useEffect(() => {
         const report = state.reports[state.currentIndex] ?? '';
@@ -266,7 +292,7 @@ export default function InferencePage() {
             generationProfile: state.generationProfile,
             clinicalContext: selectedModel.capabilities.clinical_context ? state.clinicalContext : '',
         });
-        if (!started) setIsGenerating(false);
+        if (!started.job) setIsGenerating(false);
     };
 
     const updateDraft = (field: OutputSection, value: string) => {
@@ -327,21 +353,31 @@ export default function InferencePage() {
                     </div>
                     <div className="model-selection">
                         <aside className="catalog-panel" aria-label="Model catalog">
-                            <div className="catalog-heading"><div><strong>Available models</strong><span>{filteredModels.length} shown</span></div></div>
-                            <label className="search-field"><Search aria-hidden="true" /><span className="sr-only">Filter models</span><input value={modelFilter} onChange={event => setModelFilter(event.target.value)} placeholder="Filter by name or provider" /></label>
-                            <div className="provider-tabs" aria-label="Provider filter">
-                                {['all', 'xreport', 'huggingface'].map(provider => <button key={provider} type="button" className={providerFilter === provider ? 'active' : ''} onClick={() => setProviderFilter(provider)}>{provider}</button>)}
-                            </div>
+                            <div className="catalog-heading"><div><strong>Model catalogue</strong><span>{filteredModels.length} shown · {publicModels.length} public · {customModels.length} custom</span></div></div>
+                            <label className="search-field"><Search aria-hidden="true" /><span className="sr-only">Filter models</span><input value={modelFilter} onChange={event => setModelFilter(event.target.value)} placeholder="Filter by model, anatomy, or origin" /></label>
                             {state.isLoadingModels && <div className="catalog-state"><Loader2 className="spin" />Discovering local models…</div>}
                             {catalogError && <div className="catalog-state error" role="alert">{catalogError}</div>}
-                            <div className="model-list">
-                                {filteredModels.map(model => (
-                                    <button type="button" key={model.model_ref} className={`model-card ${state.selectedModelRef === model.model_ref ? 'selected' : ''}`} onClick={() => selectModel(model)} aria-pressed={state.selectedModelRef === model.model_ref} disabled={state.isGenerating}>
-                                        <span className={`status-dot ${model.status}`} aria-hidden="true" /><span className="model-card-body"><strong>{model.display_name}</strong><small>{model.provider} · {model.parameter_size ?? model.category}</small></span><span className={`status-label ${model.status}`}>{model.status.replace('_', ' ')}</span>
-                                    </button>
-                                ))}
-                                {!state.isLoadingModels && !filteredModels.length && <div className="catalog-state">No models match this filter.</div>}
+                            <div className="model-groups">
+                                <section className="model-group" aria-labelledby="public-models-heading">
+                                    <div className="model-group-heading"><strong id="public-models-heading">Public Models</strong><span>{publicModels.length} available in the catalogue</span></div>
+                                    <div className="model-list">
+                                        {publicModels.map(model => <ModelCard key={model.model_ref} model={model} selected={state.selectedModelRef === model.model_ref} onSelect={selectModel} disabled={state.isGenerating} />)}
+                                        {!state.isLoadingModels && !publicModels.length && <div className="catalog-state">No public models match this filter.</div>}
+                                    </div>
+                                </section>
+                                <section className="model-group" aria-labelledby="custom-models-heading">
+                                    <div className="model-group-heading"><strong id="custom-models-heading">Custom XReport Models</strong><span>{customModels.length ? 'Trained locally' : 'No complete checkpoints discovered'}</span></div>
+                                    <div className="model-list">
+                                        {customModels.map(model => <ModelCard key={model.model_ref} model={model} selected={state.selectedModelRef === model.model_ref} onSelect={selectModel} disabled={state.isGenerating} />)}
+                                        {!state.isLoadingModels && !customModels.length && <div className="catalog-state compact">Train an XReport checkpoint to make it available here.</div>}
+                                    </div>
+                                </section>
                             </div>
+                            {legacyLocalModels.map(model => <div className="legacy-storage-notice" key={model.model_ref} role="status">
+                                <div><strong>Retired local model storage</strong><span>{model.display_name} · {formatBytes(model.bytes_reclaimable)} can be reclaimed without changing the catalogue.</span></div>
+                                <button type="button" className="text-button danger" onClick={() => void reclaimLegacyLocalModel(model)} disabled={legacyBusy !== null}>{legacyBusy === model.model_ref ? <><Loader2 className="spin" />Reclaiming…</> : <><Trash2 />Reclaim storage</>}</button>
+                            </div>)}
+                            {legacyMessage && <span className="catalog-state compact" role="status">{legacyMessage}</span>}
                         </aside>
                         {selectedModel ? <ModelDetails model={selectedModel} onRefresh={() => setCatalogRefresh(value => value + 1)} /> : <div className="model-details model-details-empty"><strong>Select a model to inspect its contract.</strong><span>The local catalog reports readiness, installation, validation, and supported inputs here.</span></div>}
                     </div>
@@ -371,7 +407,7 @@ export default function InferencePage() {
                             <textarea id="clinical-context" className="context-input" value={state.clinicalContext} onChange={event => setClinicalContext(event.target.value)} disabled={!selectedModel?.capabilities.clinical_context || state.isGenerating} placeholder="Indication, relevant history, comparison details…" />
                             <div className="generation-controls"><label htmlFor="profile-select">Generation profile</label><select id="profile-select" value={state.generationProfile} onChange={event => changeProfile(parseProfile(event.target.value))} disabled={state.isGenerating || hasActiveDraft}><option value="deterministic">Deterministic</option><option value="concise">Concise</option><option value="detailed">Detailed</option></select></div>
                             {state.isGenerating && <div className="generation-progress" role="status" aria-live="polite"><div className="progress-heading"><span>{readString(installationLifecycle?.message) ?? 'Preparing and generating…'}</span><strong>{Math.round(generationJob.progress)}%</strong></div><div className="progress-track"><span style={{ width: `${Math.min(100, Math.max(0, generationJob.progress))}%` }} /></div>{installationLifecycle && <span className="progress-detail">{readString(installationLifecycle.phase) ?? generationJob.status ?? 'working'}{readString(installationLifecycle.current_file) ? ` · ${readString(installationLifecycle.current_file)}` : ''}{typeof installationLifecycle.downloaded_bytes === 'number' && typeof installationLifecycle.total_bytes === 'number' && installationLifecycle.total_bytes > 0 ? ` · ${Math.round(installationLifecycle.downloaded_bytes / 1024 / 1024)} / ${Math.round(installationLifecycle.total_bytes / 1024 / 1024)} MiB` : ''}</span>}</div>}
-                            <button type="button" className="generate-button" onClick={() => void generate()} disabled={!canGenerate || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Preparing and generating…</> : selectedModel?.status === 'ready' ? <><Sparkles />Generate draft</> : <><Sparkles />Prepare model and generate</>}</button>
+                            <button type="button" className="generate-button" onClick={() => void generate()} disabled={!canGenerate || !state.images.length || state.isGenerating}>{state.isGenerating ? <><Loader2 className="spin" />Preparing and generating…</> : selectedModel?.status === 'ready' ? <><Sparkles />Generate draft</> : <><Sparkles />Download and generate</>}</button>
                             {state.isGenerating && <button type="button" className="secondary-button cancel-button" onClick={() => void generationJob.cancel()} disabled={!generationJob.jobId}>Cancel generation</button>}
                             {generationJob.error && <div className="generation-error" role="alert"><strong>Generation could not complete</strong><span>{generationJob.error}</span></div>}
                         </div>
@@ -393,9 +429,28 @@ export default function InferencePage() {
     );
 }
 
+function ModelCard({ model, selected, onSelect, disabled }: Readonly<{
+    model: ModelAvailability;
+    selected: boolean;
+    onSelect: (model: ModelAvailability) => void;
+    disabled: boolean;
+}>) {
+    return (
+        <button type="button" className={`model-card ${selected ? 'selected' : ''}`} onClick={() => onSelect(model)} aria-pressed={selected} disabled={disabled}>
+            <span className={`status-dot ${model.status}`} aria-hidden="true" />
+            <span className="model-card-body">
+                <strong>{model.display_name}</strong>
+                <small>{model.origin === 'custom' ? 'Custom XReport' : `${model.parameter_label ?? model.parameter_size ?? 'Public model'} · ${model.anatomy_coverage.replace(/_/g, ' ')}`}</small>
+            </span>
+            <span className={`status-label ${model.status}`}>{model.local_state.replace(/_/g, ' ')}</span>
+        </button>
+    );
+}
+
 function ModelDetails({ model, onRefresh }: Readonly<{ model: ModelAvailability; onRefresh: () => void }>) {
     const [maintenanceMessage, setMaintenanceMessage] = useState<string | null>(null);
     const [maintenanceBusy, setMaintenanceBusy] = useState(false);
+    const [maintenanceProgress, setMaintenanceProgress] = useState(0);
     const [updateRevision, setUpdateRevision] = useState<string | null>(null);
     const [updateAvailable, setUpdateAvailable] = useState(model.update_available);
     const capabilities = [
@@ -414,8 +469,10 @@ function ModelDetails({ model, onRefresh }: Readonly<{ model: ModelAvailability;
         setMaintenanceBusy(false);
         onRefresh();
     };
-    const runMaintenance = async (action: 'repair' | 'reinstall' | 'download_update') => {
+    const runMaintenance = async (action: 'download' | 'repair' | 'reinstall' | 'download_update' | 'delete_local') => {
+        if (action === 'delete_local' && !globalThis.confirm(`Delete the local files for ${model.display_name}? The catalogue entry will remain available.`)) return;
         setMaintenanceBusy(true);
+        setMaintenanceProgress(0);
         setMaintenanceMessage(`${action.replace('_', ' ')} started…`);
         const started = await maintainInferenceModel(model.model_ref, action, action === 'download_update' ? updateRevision ?? undefined : undefined);
         if (started.error || !started.result) {
@@ -425,17 +482,23 @@ function ModelDetails({ model, onRefresh }: Readonly<{ model: ModelAvailability;
         }
         let status = await getInferenceJobStatus(started.result.job_id);
         while (status.result && (status.result.status === 'pending' || status.result.status === 'running')) {
+            setMaintenanceProgress(status.result.progress ?? 0);
+            const lifecycle = asRecord(status.result.result?.lifecycle);
+            const lifecycleMessage = readString(lifecycle?.message);
+            if (lifecycleMessage) setMaintenanceMessage(lifecycleMessage);
             await new Promise(resolve => globalThis.setTimeout(resolve, 1000));
             status = await getInferenceJobStatus(started.result.job_id);
         }
-        setMaintenanceMessage(status.error ?? status.result?.error ?? 'Model maintenance completed. Generate a report to validate a candidate revision.');
+        setMaintenanceProgress(status.result?.progress ?? 100);
+        const failure = asRecord(status.result?.result?.failure);
+        setMaintenanceMessage(status.error ?? readString(failure?.message) ?? status.result?.error ?? (action === 'delete_local' ? 'Local files deleted. The public model remains in the catalogue.' : 'Model maintenance completed. Generate a report to validate a candidate revision.'));
         setMaintenanceBusy(false);
         onRefresh();
     };
     return (
         <div className="model-details">
             <div className="model-details-top">
-                <div><span className="provider-pill">{model.provider}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div>
+                <div><span className="provider-pill">{model.origin === 'custom' ? 'Custom XReport' : 'Public model'}</span>{model.recommended && <span className="recommended-pill">Recommended</span>}</div>
                 <span className={`status-badge ${model.status}`}>{model.status.replace(/_/g, ' ')}</span>
             </div>
             <h3>{model.display_name}</h3>
@@ -444,18 +507,38 @@ function ModelDetails({ model, onRefresh }: Readonly<{ model: ModelAvailability;
             {model.validation_message && <p className="model-note">{model.validation_message}</p>}
             <dl className="model-meta-grid">
                 <div><dt>Status</dt><dd>{model.status.replace(/_/g, ' ')}</dd></div>
+                <div><dt>Local state</dt><dd>{model.local_state.replace(/_/g, ' ')}</dd></div>
                 <div><dt>Installation</dt><dd>{model.installation_state} · {model.integrity_status}</dd></div>
                 <div><dt>Validation</dt><dd>{model.validation_status}</dd></div>
+                <div><dt>Anatomy</dt><dd>{model.anatomy_coverage.replace(/_/g, ' ')}</dd></div>
+                <div><dt>Hardware demand</dt><dd>{model.hardware_demand.replace(/_/g, ' ')}</dd></div>
                 <div><dt>Input</dt><dd>{model.input_semantics.replace(/_/g, ' ')}</dd></div>
                 <div><dt>Revision</dt><dd className="wrap-value" title={model.active_revision ?? model.model_revision ?? undefined}>{model.active_revision ?? model.model_revision ?? 'Not configured'}</dd></div>
                 <div><dt>Adapter</dt><dd>{model.adapter ?? 'Not reported'}</dd></div>
                 <div><dt>Loader</dt><dd className="wrap-value">{model.model_loader ?? 'Not reported'} / {model.processor_loader ?? 'Not reported'}</dd></div>
                 <div><dt>Output</dt><dd>{model.output_sections.map(section => SECTION_LABELS[section]).join(', ') || 'Not declared'}</dd></div>
+                {model.download_size_bytes !== null && <div><dt>Download size</dt><dd>{formatBytes(model.download_size_bytes)}</dd></div>}
                 {model.license && <div><dt>Licence</dt><dd>{model.license}</dd></div>}
             </dl>
             <div className="model-path"><span>Local snapshot</span><code title={model.local_path ?? undefined}>{model.local_path ?? 'Will be created under app/resources'}</code></div>
             <div className="capability-list">{capabilities.map(capability => <span key={String(capability)}>{capability}</span>)}</div>
-            {model.provider === 'huggingface' && <div className="maintenance-controls"><button type="button" className="secondary-button" onClick={() => void checkUpdate()} disabled={maintenanceBusy}>Check for updates</button>{model.available_actions.includes('repair') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('repair')} disabled={maintenanceBusy}>Repair installation</button>}{model.available_actions.includes('reinstall') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('reinstall')} disabled={maintenanceBusy}>{maintenanceBusy ? 'Working…' : 'Reinstall model'}</button>}{updateRevision && updateAvailable && <button type="button" className="secondary-button" onClick={() => void runMaintenance('download_update')} disabled={maintenanceBusy}>Download update</button>}{maintenanceMessage && <span role="status">{maintenanceMessage}</span>}</div>}
+            {model.origin === 'public' && <div className="maintenance-controls">
+                {model.access_policy === 'gated' && model.access_url && <a className="text-button" href={model.access_url} target="_blank" rel="noreferrer">Open model access page</a>}
+                {model.available_actions.includes('download') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('download')} disabled={maintenanceBusy || !model.can_download}>{maintenanceBusy ? 'Downloading…' : 'Download model'}</button>}
+                <button type="button" className="secondary-button" onClick={() => void checkUpdate()} disabled={maintenanceBusy}>Check for updates</button>
+                {model.available_actions.includes('repair') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('repair')} disabled={maintenanceBusy}>Repair installation</button>}
+                {model.available_actions.includes('reinstall') && <button type="button" className="secondary-button" onClick={() => void runMaintenance('reinstall')} disabled={maintenanceBusy}>{maintenanceBusy ? 'Working…' : 'Reinstall model'}</button>}
+                {updateRevision && updateAvailable && <button type="button" className="secondary-button" onClick={() => void runMaintenance('download_update')} disabled={maintenanceBusy}>Download update</button>}
+                {model.can_delete_local && <button type="button" className="text-button danger" onClick={() => void runMaintenance('delete_local')} disabled={maintenanceBusy}><Trash2 />Delete local files</button>}
+                {maintenanceBusy && <div className="maintenance-progress" role="status"><span style={{ width: `${maintenanceProgress}%` }} /></div>}
+                {maintenanceMessage && <span role="status">{maintenanceMessage}</span>}
+            </div>}
         </div>
     );
+}
+
+function formatBytes(value: number): string {
+    if (value < 1024 * 1024) return `${Math.round(value / 1024)} KiB`;
+    if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(0)} MiB`;
+    return `${(value / 1024 / 1024 / 1024).toFixed(1)} GiB`;
 }

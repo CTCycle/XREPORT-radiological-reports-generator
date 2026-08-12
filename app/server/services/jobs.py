@@ -164,10 +164,46 @@ class JobManager:
                 state.update(status="cancelled", completed_at=monotonic())
                 logger.info("Job %s cancelled during execution", job_id)
                 return
-            error_msg = str(exc).split("\n")[0][:200]
-            state.update(status="failed", error=error_msg, completed_at=monotonic())
-            logger.error("Job %s failed: %s", job_id, error_msg)
+            failure = self._failure_payload(exc)
+            with state.lock:
+                merged_failure = {**(state.result or {}), "failure": failure}
+            state.update(
+                status="failed",
+                error=failure["message"],
+                result=merged_failure,
+                completed_at=monotonic(),
+            )
+            logger.error("Job %s failed [%s]: %s", job_id, failure["code"], failure["message"])
             logger.debug("Job %s error details", job_id, exc_info=True)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _failure_payload(exc: Exception) -> dict[str, Any]:
+        message = str(exc).split("\n")[0][:300]
+        lowered = message.lower()
+        code = "inference_failed"
+        phase = "inference"
+        recoverable = True
+        if "accepted model terms" in lowered or "valid local token" in lowered:
+            code, phase = "access_required", "download"
+        elif "download" in lowered or "hub" in lowered:
+            code, phase = "download_failed", "download"
+        elif "integrity" in lowered or "hash mismatch" in lowered or "size mismatch" in lowered:
+            code, phase = "integrity_failed", "verify"
+        elif "required runtime modules" in lowered or "requires the qwen" in lowered:
+            code, phase = "runtime_dependency_missing", "loading"
+        elif "cuda" in lowered or "out of memory" in lowered or "memory" in lowered:
+            code, phase = "hardware_insufficient", "loading"
+        elif "snapshot" in lowered or "checkpoint" in lowered:
+            code, phase = "model_load_failed", "loading"
+        elif "cancel" in lowered:
+            code, phase, recoverable = "cancelled", "working", True
+        return {
+            "code": code,
+            "message": message,
+            "phase": phase,
+            "recoverable": recoverable,
+        }
 
     # -------------------------------------------------------------------------
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
