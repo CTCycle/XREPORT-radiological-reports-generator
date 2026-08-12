@@ -17,7 +17,6 @@ import requests
 
 from server.common.path import (
     HF_INSTALLED_DIR,
-    HF_HUB_CACHE_DIR,
     HF_METADATA_DIR,
     HF_ROLLBACK_DIR,
     HF_STAGING_DIR,
@@ -279,8 +278,7 @@ class ModelInstallationManager:
                 item = str(item)
                 if item.endswith(".safetensors") or item.endswith(".index.json"):
                     patterns.add(item)
-        # Keep generation config when a repository supplies it, but never pull
-        # the duplicate PyTorch .bin weight from generate-cxr.
+        # Keep generation config when a repository supplies it.
         patterns.add("generation_config.json")
         return sorted(patterns)
 
@@ -331,55 +329,6 @@ class ModelInstallationManager:
             if operation_root.exists() and not any(operation_root.iterdir()):
                 operation_root.rmdir()
         return removed
-
-    @staticmethod
-    def _tree_size(path: Path) -> int:
-        """Compatibility wrapper for callers that used the installation manager."""
-        return ModelStorageLifecycle._tree_size(path)
-
-    @staticmethod
-    def _remove_tree(path: Path) -> int:
-        """Compatibility wrapper for callers that used the installation manager."""
-        return ModelStorageLifecycle._remove_tree(path, root_dir=ROOT_DIR)
-
-    def delete_local(
-        self,
-        repository_id: str,
-        *,
-        processor_repository_id: str | None = None,
-        processor_revision: str | None = None,
-    ) -> dict[str, Any]:
-        """Delete only validated files owned by one public repository."""
-        return ModelStorageLifecycle(
-            self,
-            root_dir=ROOT_DIR,
-            installed_dir=HF_INSTALLED_DIR,
-            hub_cache_dir=HF_HUB_CACHE_DIR,
-            metadata_dir=HF_METADATA_DIR,
-            rollback_dir=HF_ROLLBACK_DIR,
-            staging_dir=HF_STAGING_DIR,
-        ).delete_local(
-            repository_id,
-            processor_repository_id=processor_repository_id,
-            processor_revision=processor_revision,
-        )
-
-    def discover_legacy_local_models(
-        self,
-        configured_repository_ids: set[str],
-    ) -> list[dict[str, Any]]:
-        """Find retained snapshots from the retired public catalogue."""
-        return ModelStorageLifecycle(
-            self,
-            root_dir=ROOT_DIR,
-            installed_dir=HF_INSTALLED_DIR,
-            hub_cache_dir=HF_HUB_CACHE_DIR,
-            metadata_dir=HF_METADATA_DIR,
-            rollback_dir=HF_ROLLBACK_DIR,
-            staging_dir=HF_STAGING_DIR,
-        ).discover_legacy_local_models(
-            configured_repository_ids
-        )
 
     @staticmethod
     def _approved_files(
@@ -991,8 +940,3 @@ class ModelInstallationManager:
         metadata = self.read_metadata(repository_id)
         self._write_metadata(repository_id, {**metadata, "cloud_assessment": assessment})
         return assessment
-
-
-# Imported after the manager definition because the storage lifecycle delegates
-# back to this manager for locks, metadata, and safe project-relative paths.
-from server.services.model_storage import ModelStorageLifecycle  # noqa: E402

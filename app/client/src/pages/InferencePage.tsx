@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import './InferencePage.css';
 import { useInferencePageState } from '../AppStateContext';
-import type { GenerationProfile, LegacyLocalModel, ModelAvailability, OutputSection } from '../types/inferenceApi';
+import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
 import { useAsyncJob } from '../hooks/useAsyncJob';
 import { asRecord, readString, readStringArray } from '../common/parsers';
 import {
@@ -104,9 +104,6 @@ export default function InferencePage() {
     const [generationProvenance, setGenerationProvenance] = useState<Record<string, string>>({});
     const [installationLifecycle, setInstallationLifecycle] = useState<Record<string, unknown> | null>(null);
     const [catalogRefresh, setCatalogRefresh] = useState(0);
-    const [legacyLocalModels, setLegacyLocalModels] = useState<LegacyLocalModel[]>([]);
-    const [legacyBusy, setLegacyBusy] = useState<string | null>(null);
-    const [legacyMessage, setLegacyMessage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedModel = useMemo(
@@ -175,7 +172,6 @@ export default function InferencePage() {
             const { result, error } = await getInferenceModels();
             if (result) {
                 setModelAvailability(result.models);
-                setLegacyLocalModels(result.legacy_local_models ?? []);
                 const selectedUsable = result.models.some(model => model.model_ref === state.selectedModelRef && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(model.status));
                 if (!selectedUsable) setSelectedModelRef(result.models[0]?.model_ref ?? '');
             } else {
@@ -185,28 +181,6 @@ export default function InferencePage() {
         };
         void loadModels();
     }, [catalogRefresh]);
-
-    const reclaimLegacyLocalModel = async (model: LegacyLocalModel) => {
-        if (!globalThis.confirm(`Delete ${model.display_name}? This only removes the retired local snapshot.`)) return;
-        setLegacyBusy(model.model_ref);
-        setLegacyMessage('Reclaiming retired local model storage…');
-        const started = await maintainInferenceModel(model.model_ref, 'delete_local');
-        if (started.error || !started.result) {
-            setLegacyMessage(started.error ?? 'Unable to start local cleanup.');
-            setLegacyBusy(null);
-            return;
-        }
-        let status = await getInferenceJobStatus(started.result.job_id);
-        while (status.result && (status.result.status === 'pending' || status.result.status === 'running')) {
-            const lifecycle = asRecord(status.result.result?.lifecycle);
-            setLegacyMessage(readString(lifecycle?.message) ?? 'Reclaiming retired local model storage…');
-            await new Promise(resolve => globalThis.setTimeout(resolve, 500));
-            status = await getInferenceJobStatus(started.result.job_id);
-        }
-        setLegacyMessage(status.error ?? (status.result?.status === 'completed' ? 'Retired local storage removed.' : 'Local cleanup failed.'));
-        setLegacyBusy(null);
-        setCatalogRefresh(value => value + 1);
-    };
 
     useEffect(() => {
         const report = state.reports[state.currentIndex] ?? '';
@@ -373,11 +347,6 @@ export default function InferencePage() {
                                     </div>
                                 </section>
                             </div>
-                            {legacyLocalModels.map(model => <div className="legacy-storage-notice" key={model.model_ref} role="status">
-                                <div><strong>Retired local model storage</strong><span>{model.display_name} · {formatBytes(model.bytes_reclaimable)} can be reclaimed without changing the catalogue.</span></div>
-                                <button type="button" className="text-button danger" onClick={() => void reclaimLegacyLocalModel(model)} disabled={legacyBusy !== null}>{legacyBusy === model.model_ref ? <><Loader2 className="spin" />Reclaiming…</> : <><Trash2 />Reclaim storage</>}</button>
-                            </div>)}
-                            {legacyMessage && <span className="catalog-state compact" role="status">{legacyMessage}</span>}
                         </aside>
                         {selectedModel ? <ModelDetails model={selectedModel} onRefresh={() => setCatalogRefresh(value => value + 1)} /> : <div className="model-details model-details-empty"><strong>Select a model to inspect its contract.</strong><span>The local catalog reports readiness, installation, validation, and supported inputs here.</span></div>}
                     </div>
