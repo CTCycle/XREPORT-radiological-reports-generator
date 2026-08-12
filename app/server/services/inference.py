@@ -294,8 +294,18 @@ def run_model_maintenance_job(
     job_id: str,
 ) -> dict[str, Any]:
     manager = get_model_installation_manager()
-    repository_id = model_ref.removeprefix("huggingface:")
+    repository_id = model_ref.removeprefix("legacy:huggingface:").removeprefix("huggingface:")
     try:
+        if action == "delete_local":
+            deleted = get_inference_runtime().delete_local(repository_id, manifest)
+            payload = {
+                "phase": "completed",
+                "message": "Local model files deleted; the public catalogue entry remains available.",
+                "action": action,
+                **deleted,
+            }
+            report_installation_lifecycle(job_id, payload)
+            return {"lifecycle": payload, **deleted}
         candidate = manager.stage(
             manifest={**manifest, "revision": revision},
             revision=revision,
@@ -453,19 +463,32 @@ class InferenceService:
         catalog = self.get_models()
         selected = next((model for model in catalog.models if model.model_ref == model_ref), None)
         if selected is None:
-            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
-        if selected.provider != "huggingface":
+            if action != "delete_local" or not model_ref.startswith("legacy:huggingface:"):
+                raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+            legacy_repository_id = model_ref.removeprefix("legacy:huggingface:")
+            legacy_models = get_model_installation_manager().discover_legacy_local_models(set())
+            if not any(item.get("repository_id") == legacy_repository_id for item in legacy_models):
+                raise NotFoundError(detail=f"Retired local model storage was not found: {model_ref}")
+            manifest = {"repository_id": legacy_repository_id}
+            configured_revision = "0" * 40
+        elif selected.provider != "huggingface":
             raise UnsupportedOperationError(detail="Maintenance is only available for Hugging Face models")
-        if action not in {"repair", "reinstall", "download_update"}:
+        else:
+            manifest = selected.model_dump(mode="json")
+            manifest["repository_id"] = model_ref.removeprefix("huggingface:")
+            configured_revision = str(manifest["model_revision"])
+        if action not in {"download", "repair", "reinstall", "download_update", "delete_local"}:
             raise BadRequestError(detail=f"Unsupported model maintenance action: {action}")
-        manifest = selected.model_dump(mode="json")
-        manifest["repository_id"] = model_ref.removeprefix("huggingface:")
-        configured_revision = str(manifest["model_revision"])
         target_revision = revision or configured_revision
-        if len(target_revision) != 40 or any(character not in "0123456789abcdef" for character in target_revision):
+        if action != "delete_local" and (
+            len(target_revision) != 40
+            or any(character not in "0123456789abcdef" for character in target_revision)
+        ):
             raise BadRequestError(detail="Maintenance revision must be a 40-character commit SHA")
         if action == "download_update" and revision is None:
             raise BadRequestError(detail="download_update requires the revision returned by check-update")
+        if action == "delete_local":
+            target_revision = configured_revision
         job_id = self.job_manager.start_job(
             job_type="model_maintenance",
             runner=run_model_maintenance_job,

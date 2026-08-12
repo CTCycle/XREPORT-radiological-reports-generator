@@ -1,5 +1,6 @@
 export type GenerationProfile = 'deterministic' | 'concise' | 'detailed';
-export type ModelStatus = 'ready' | 'not_installed' | 'unvalidated' | 'gated' | 'runtime_unavailable' | 'incompatible' | 'disabled';
+export type ModelStatus = 'ready' | 'not_installed' | 'unvalidated' | 'downloading' | 'gated' | 'runtime_unavailable' | 'incompatible' | 'disabled';
+export type LocalModelState = 'not_downloaded' | 'downloading' | 'downloaded_unvalidated' | 'ready' | 'failed';
 export type OutputSection = 'raw_report' | 'findings' | 'impression';
 export type ValidationStatus = 'blocked' | 'incompatible' | 'disabled' | 'pending' | 'passed';
 
@@ -17,7 +18,15 @@ export interface ModelAvailability {
     recommended: boolean;
     research_only: boolean;
     gated: boolean;
+    origin: 'public' | 'custom';
+    access_policy: 'open' | 'gated';
+    access_url: string | null;
+    anatomy_coverage: string;
+    coverage_note: string | null;
+    hardware_demand: 'low' | 'moderate' | 'high' | 'very_high';
+    parameter_label: string | null;
     parameter_size: string | null;
+    download_size_bytes: number | null;
     local_size_bytes: number | null;
     input_semantics: 'single_image' | 'independent_images' | 'single_study';
     capabilities: {
@@ -53,9 +62,14 @@ export interface ModelAvailability {
     };
     processor_repository_id: string | null;
     processor_revision: string | null;
+    processor_files: string[];
+    processor_target_prefix: string;
     required_files: string[];
     weight_file_sets: string[][];
-    installation_state: 'not_installed' | 'staged' | 'active' | 'corrupt' | 'failed';
+    installation_state: 'not_installed' | 'staged' | 'active' | 'corrupt' | 'failed' | 'downloading';
+    local_state: LocalModelState;
+    can_download: boolean;
+    can_delete_local: boolean;
     local_path: string | null;
     active_revision: string | null;
     candidate_revision: string | null;
@@ -74,6 +88,14 @@ export interface ModelAvailability {
 export interface InferenceModelsResponse {
     models: ModelAvailability[];
     providers: Record<string, { status: ModelStatus; message: string | null }>;
+    legacy_local_models: LegacyLocalModel[];
+}
+
+export interface LegacyLocalModel {
+    model_ref: string;
+    repository_id: string;
+    display_name: string;
+    bytes_reclaimable: number;
 }
 
 export interface ModelUpdateCheckResponse {
@@ -87,7 +109,7 @@ export interface ModelUpdateCheckResponse {
     error: string | null;
 }
 
-export type ModelMaintenanceAction = 'repair' | 'reinstall' | 'download_update';
+export type ModelMaintenanceAction = 'download' | 'repair' | 'reinstall' | 'download_update' | 'delete_local';
 
 export interface CheckpointEvaluationRequest {
     checkpoint: string;

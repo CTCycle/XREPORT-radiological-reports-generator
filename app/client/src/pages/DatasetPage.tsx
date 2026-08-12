@@ -276,7 +276,7 @@ export default function DatasetPage() {
         setUploadError(null);
         setProcessingResult(null);
 
-        const jobResult = await processingJob.start({
+        const jobStart = await processingJob.start({
             dataset_name: selectedNames[0],
             custom_name: state.config.datasetName?.trim() || undefined,
             sample_size: state.config.sampleSize,
@@ -285,9 +285,9 @@ export default function DatasetPage() {
             max_report_size: state.config.maxReportSize,
         });
 
-        if (!jobResult) {
+        if (!jobStart.job) {
             setIsProcessing(false);
-            setUploadError(processingJob.error || 'Failed to start processing job');
+            setUploadError(jobStart.error || processingJob.error || 'Failed to start processing job');
             return;
         }
     };
