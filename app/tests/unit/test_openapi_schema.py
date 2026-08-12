@@ -47,7 +47,7 @@ def test_health_endpoint_returns_backend_json() -> None:
     }
 
 ###############################################################################
-def test_inference_multipart_contract_excludes_legacy_fields() -> None:
+def test_inference_multipart_contract_excludes_removed_fields() -> None:
     schema = app.openapi()
     request_schema = schema["paths"]["/api/inference/generate"]["post"][
         "requestBody"
@@ -63,3 +63,12 @@ def test_inference_multipart_contract_excludes_legacy_fields() -> None:
     }
     assert "checkpoint" not in properties
     assert "generation_mode" not in properties
+
+###############################################################################
+def test_runtime_openapi_exposes_current_model_maintenance_paths() -> None:
+    paths = app.openapi()["paths"]
+
+    assert "/api/inference/models" in paths
+    assert "/api/inference/models/check-update" in paths
+    assert "/api/inference/models/maintenance" in paths
+    assert "/api/inference/checkpoints" not in paths

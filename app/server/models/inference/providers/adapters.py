@@ -15,14 +15,11 @@ from torchvision import transforms
 from torchvision.transforms.functional import pil_to_tensor
 from transformers import (
     AutoFeatureExtractor,
-    AutoImageProcessor,
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForImageTextToText,
     AutoProcessor,
     AutoTokenizer,
-    BlipForConditionalGeneration,
-    BlipProcessor,
 )
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.utils.hub import HF_MODULES_CACHE
@@ -143,7 +140,7 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     CXRMate Multi's published ``prepare_inputs_for_generation`` forwards only
     ``past_key_values``. Transformers 4.57+ requires a cache position when a
     cache is present, so the decoder otherwise receives ``None`` and fails
-    before the first generated token. This instance-local shim leaves the
+    before the first generated token. This instance-local bridge leaves the
     verified snapshot untouched and is safe to apply once per loaded model.
     """
     decoder = getattr(model, "decoder", None)
@@ -158,11 +155,11 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
     """Keep the published CXRMate-ED decoder compatible with DynamicCache.
 
-    The archived remote code expects a legacy tuple whose first layer contains
+    The published remote code expects a legacy tuple whose first layer contains
     a key tensor. Transformers 4.57 can hand it a cache whose first layer is
     ``(None, None)`` while still carrying the usable cache object. We provide
-    the legacy method with a shape-only view for its prefix-length calculation
-    and put the original cache back into the returned model inputs.
+    the decoder with a shape-only view for its prefix-length calculation and
+    put the original cache back into the returned model inputs.
     """
     if getattr(model, "_xreport_ed_cache_compat", False):
         return
@@ -180,8 +177,20 @@ class StandardImageTextAdapter:
     supports_study = False
 
     # -------------------------------------------------------------------------
-    def generate_study(self, **kwargs: Any) -> StudyGeneration:
-        del kwargs
+    def generate_study(
+        self,
+        *,
+        model: Any,
+        processor: Any,
+        images: list[StudyImage],
+        profile: GenerationProfile,
+        clinical_context: str,
+        move_inputs: MoveInputs,
+        stopping_criteria: StoppingCriteriaValue,
+        output_sections: list[str],
+    ) -> StudyGeneration:
+        del model, processor, images, profile, clinical_context
+        del move_inputs, stopping_criteria, output_sections
         raise NotImplementedError("This adapter generates one image at a time")
 
     # -------------------------------------------------------------------------
@@ -192,11 +201,9 @@ class StandardImageTextAdapter:
         processor_loader: str,
         load_options: dict[str, Any],
     ) -> Any:
-        if processor_loader == "auto":
-            return AutoProcessor.from_pretrained(snapshot_path, **load_options)
-        if processor_loader == "image":
-            return AutoImageProcessor.from_pretrained(snapshot_path, **load_options)
-        raise ValueError(f"Unsupported Transformers processor loader: {processor_loader}")
+        if processor_loader != "auto":
+            raise ValueError(f"Unsupported Transformers processor loader: {processor_loader}")
+        return AutoProcessor.from_pretrained(snapshot_path, **load_options)
 
     # -------------------------------------------------------------------------
     def load_model(
@@ -210,7 +217,6 @@ class StandardImageTextAdapter:
             "auto_model": AutoModel,
             "image_text_to_text": AutoModelForImageTextToText,
             "causal_lm": AutoModelForCausalLM,
-            "blip_conditional_generation": BlipForConditionalGeneration,
         }
         loader = loaders.get(model_loader)
         if loader is None:
@@ -773,57 +779,10 @@ class MedGemmaAdapter(ChatVisionStudyAdapter):
         )
 
 
-###############################################################################
-class BlipCxrAdapter(StandardImageTextAdapter):
-    """Compatibility adapter retained for historical fixture tests."""
-
-    def load_processor(
-        self,
-        snapshot_path: str,
-        *,
-        processor_loader: str,
-        load_options: dict[str, Any],
-    ) -> Any:
-        if processor_loader != "blip":
-            raise ValueError(f"BLIP requires the blip processor loader, got {processor_loader}")
-        return BlipProcessor.from_pretrained(snapshot_path, **load_options)
-
-    def build_inputs(
-        self,
-        processor: Any,
-        image: Image.Image,
-        prompt: str,
-    ) -> tuple[Any, int]:
-        inputs = processor(images=image, text=prompt, return_tensors="pt")
-        input_ids = inputs.get("input_ids") if isinstance(inputs, Mapping) else None
-        input_length = int(input_ids.shape[-1]) if input_ids is not None else 0
-        return inputs, input_length
-
-    @staticmethod
-    def prompt(profile: GenerationProfile, clinical_context: str) -> str:
-        del profile
-        return f"indication:{clinical_context.strip()}"
-
-    @staticmethod
-    def generation_kwargs(profile: GenerationProfile) -> dict[str, Any]:
-        return {
-            "max_length": {"deterministic": 512, "concise": 256, "detailed": 512}[profile],
-            "do_sample": False,
-        }
-
-    def decode(self, processor: Any, output: Any, *, input_length: int) -> str:
-        del input_length
-        if not hasattr(processor, "decode"):
-            raise RuntimeError("BLIP processor cannot decode generated output")
-        return str(processor.decode(output[0], skip_special_tokens=True))
-
-
 ADAPTERS: dict[str, type[StandardImageTextAdapter]] = {
-    "standard_image_text": StandardImageTextAdapter,
     "medgemma": MedGemmaAdapter,
     "chexone": CheXOneAdapter,
     "cxrmate_multi": CXRMateMultiAdapter,
     "cxrmate_ed": CXRMateEDAdapter,
     "cxrmate2": CXRMate2Adapter,
-    "generate_cxr_blip": BlipCxrAdapter,
 }

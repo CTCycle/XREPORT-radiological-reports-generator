@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING, Any
@@ -8,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 from server.common.path import (
     HF_HUB_CACHE_DIR,
     HF_INSTALLED_DIR,
-    HF_METADATA_DIR,
     HF_ROLLBACK_DIR,
     HF_STAGING_DIR,
     ROOT_DIR,
@@ -24,9 +22,7 @@ def _slug(repository_id: str) -> str:
 
 
 class ModelStorageLifecycle:
-    """Deletion and retired-snapshot discovery for public model storage."""
-
-    LEGACY_RETIRED_REPOSITORIES = {"nathansutton/generate-cxr"}
+    """Owns deletion and reclaim accounting for public model storage."""
 
     def __init__(
         self,
@@ -35,7 +31,6 @@ class ModelStorageLifecycle:
         root_dir: Path = ROOT_DIR,
         installed_dir: Path = HF_INSTALLED_DIR,
         hub_cache_dir: Path = HF_HUB_CACHE_DIR,
-        metadata_dir: Path = HF_METADATA_DIR,
         rollback_dir: Path = HF_ROLLBACK_DIR,
         staging_dir: Path = HF_STAGING_DIR,
     ) -> None:
@@ -43,7 +38,6 @@ class ModelStorageLifecycle:
         self.root_dir = root_dir
         self.installed_dir = installed_dir
         self.hub_cache_dir = hub_cache_dir
-        self.metadata_dir = metadata_dir
         self.rollback_dir = rollback_dir
         self.staging_dir = staging_dir
 
@@ -138,44 +132,3 @@ class ModelStorageLifecycle:
                 "bytes_freed": bytes_freed,
                 "deleted_paths": deleted_paths,
             }
-
-    def discover_legacy_local_models(
-        self,
-        configured_repository_ids: set[str],
-    ) -> list[dict[str, Any]]:
-        """Find retained, allowlisted snapshots from the retired catalogue."""
-        legacy: list[dict[str, Any]] = []
-        for metadata_path in sorted(self.metadata_dir.glob("*.json")):
-            try:
-                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            if not isinstance(metadata, dict):
-                continue
-            repository_id = metadata.get("repository_id")
-            if not isinstance(repository_id, str):
-                continue
-            if repository_id in configured_repository_ids:
-                continue
-            if repository_id not in self.LEGACY_RETIRED_REPOSITORIES:
-                continue
-            slug = _slug(repository_id)
-            owned_paths = [
-                self.installed_dir / slug,
-                self.rollback_dir / slug,
-                self.hub_cache_dir / f"models--{repository_id.replace('/', '--')}",
-                self.hub_cache_dir / f"models--{slug}",
-                metadata_path,
-            ]
-            owned_paths.extend(operation_root / slug for operation_root in self.staging_dir.glob("*"))
-            existing = [path for path in owned_paths if path.exists()]
-            if not existing:
-                continue
-            bytes_reclaimable = sum(self._tree_size(path) for path in existing)
-            legacy.append({
-                "model_ref": f"legacy:huggingface:{repository_id}",
-                "repository_id": repository_id,
-                "display_name": "Retired generate-cxr local snapshot",
-                "bytes_reclaimable": bytes_reclaimable,
-            })
-        return legacy

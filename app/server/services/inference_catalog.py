@@ -13,7 +13,6 @@ from server.domain.inference import (
     InferenceManifest,
     InferenceManifestEntry,
     InferenceModelsResponse,
-    LegacyLocalModel,
     ModelAvailability,
     ModelCapabilities,
     ProviderAvailability,
@@ -71,21 +70,12 @@ class InferenceModelCatalog:
         models = self._configured_models(huggingface)
         xreport_models = self._xreport_models()
         models.extend(xreport_models)
-        configured_repositories = {
-            model.model_ref.removeprefix("huggingface:")
-            for model in models
-            if model.origin == "public"
-        }
-        legacy_local_models = ModelInstallationManager().discover_legacy_local_models(
-            configured_repositories,
-        )
         return InferenceModelsResponse(
             models=models,
             providers={
                 "huggingface": self._huggingface_provider_status(models),
                 "xreport": self._xreport_provider_status(xreport_models),
             },
-            legacy_local_models=[LegacyLocalModel.model_validate(item) for item in legacy_local_models],
         )
 
     # -------------------------------------------------------------------------
