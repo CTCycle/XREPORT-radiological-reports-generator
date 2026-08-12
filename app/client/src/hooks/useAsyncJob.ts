@@ -24,7 +24,7 @@ interface UseAsyncJobState<TParsedResult> {
     error: string | null;
     result: TParsedResult | undefined;
     isRunning: boolean;
-    start: (...args: unknown[]) => Promise<JobStartResponse | null>;
+    start: (...args: unknown[]) => Promise<{ job: JobStartResponse | null; error: string | null }>;
     attach: (existingJobId: string, pollIntervalSeconds?: number, initialStatus?: JobLifecycleStatus) => void;
     cancel: () => Promise<boolean>;
     reset: () => void;
@@ -83,13 +83,14 @@ export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = n
         const { result: startedJob, error: startError } = await startJob(...(args as TStartArgs));
 
         if (!mountedRef.current) {
-            return null;
+            return { job: null, error: null };
         }
 
         if (startError || !startedJob) {
-            setError(startError ?? 'Failed to start job');
+            const errorMessage = startError ?? 'Failed to start job';
+            setError(errorMessage);
             setStatus('failed');
-            return null;
+            return { job: null, error: errorMessage };
         }
 
         setJobId(startedJob.job_id);
@@ -120,7 +121,7 @@ export function useAsyncJob<TStartArgs extends unknown[] = [], TParsedResult = n
             pollIntervalMs,
         );
 
-        return startedJob;
+        return { job: startedJob, error: null };
     }, [applyStatus, getStatus, onComplete, onError, startJob, stopPolling]);
 
     const attach = useCallback((

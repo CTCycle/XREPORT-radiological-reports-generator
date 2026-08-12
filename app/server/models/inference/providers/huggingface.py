@@ -4,6 +4,7 @@ import gc
 from io import BytesIO
 from pathlib import Path
 import re
+import shutil
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -12,6 +13,7 @@ from typing import Any
 import torch
 from PIL import Image, ImageOps
 from transformers import StoppingCriteria, StoppingCriteriaList
+from transformers.utils.hub import HF_MODULES_CACHE
 
 from server.configurations import InferenceSettings
 from server.common.path import ROOT_DIR
@@ -20,7 +22,12 @@ from server.domain.inference import (
     InferenceImage,
     ProviderGenerationResult,
 )
-from server.models.inference.providers.adapters import ADAPTERS, StandardImageTextAdapter
+from server.models.inference.providers.adapters import (
+    ADAPTERS,
+    StandardImageTextAdapter,
+    StudyGeneration,
+    StudyImage,
+)
 
 
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -57,7 +64,7 @@ class HuggingFaceProvider:
         self._adapter: StandardImageTextAdapter | None = None
 
     # -------------------------------------------------------------------------
-    def generate(
+    def generate(  # noqa: C901
         self,
         *,
         repository_id: str,
@@ -86,7 +93,42 @@ class HuggingFaceProvider:
             reports: dict[str, str] = {}
             display_sections: dict[str, dict[str, str]] = {}
             metadata: list[dict[str, Any]] = []
+            if adapter.supports_study:
+                generated = self._generate_study(
+                    repository_id=repository_id,
+                    normalized=normalized,
+                    profile=profile,
+                    clinical_context=clinical_context,
+                    stored_images=images,
+                    model=model,
+                    processor=processor,
+                    adapter=adapter,
+                    should_stop=should_stop,
+                    deadline=deadline,
+                )
+                if generated is None:
+                    return self._empty_result(normalized, profile, clinical_context)
+                study_filename = images[0].filename
+                reports[study_filename] = generated.report
+                display_sections[study_filename] = generated.display_sections
+                metadata.extend(generated.metadata)
+                if should_stop():
+                    return self._empty_result(
+                        normalized,
+                        profile,
+                        clinical_context,
+                        include_input_images=True,
+                    )
+                report_progress(
+                    len(images),
+                    len(images),
+                    reports,
+                    metadata,
+                    display_sections,
+                )
             for image_index, stored_image in enumerate(images, start=1):
+                if adapter.supports_study:
+                    break
                 if should_stop() or time.monotonic() >= deadline:
                     break
                 generated = self._generate_image(
@@ -104,6 +146,13 @@ class HuggingFaceProvider:
                 if generated is None:
                     return self._empty_result(normalized, profile, clinical_context)
                 report, image_metadata, sections = generated
+                if should_stop():
+                    return self._empty_result(
+                        normalized,
+                        profile,
+                        clinical_context,
+                        include_input_images=True,
+                    )
                 reports[stored_image.filename] = report
                 display_sections[stored_image.filename] = sections
                 metadata.append(image_metadata)
@@ -126,12 +175,80 @@ class HuggingFaceProvider:
                 raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
             provenance = self._provenance(normalized, profile, clinical_context)
             provenance["input_images"] = metadata
+            provenance["report_scope"] = "study" if adapter.supports_study else "image"
             return ProviderGenerationResult(
                 reports=reports,
                 display_sections=display_sections,
                 metadata=metadata,
                 provenance=provenance,
             )
+
+    # -------------------------------------------------------------------------
+    def _generate_study(
+        self,
+        *,
+        repository_id: str,
+        normalized: Mapping[str, Any],
+        profile: GenerationProfile,
+        clinical_context: str,
+        stored_images: list[InferenceImage],
+        model: Any,
+        processor: Any,
+        adapter: StandardImageTextAdapter,
+        should_stop: Callable[[], bool],
+        deadline: float,
+    ) -> StudyGeneration | None:
+        if should_stop():
+            return None
+        study_images: list[StudyImage] = []
+        for stored_image in stored_images:
+            image, original_dimensions = self._decode_image(stored_image.data)
+            study_images.append(
+                StudyImage(
+                    stored=stored_image,
+                    image=image,
+                    original_dimensions=original_dimensions,
+                )
+            )
+        generated = adapter.generate_study(
+            model=model,
+            processor=processor,
+            images=study_images,
+            profile=profile,
+            clinical_context=clinical_context,
+            move_inputs=self._move_inputs,
+            stopping_criteria=StoppingCriteriaList([
+                _InferenceStoppingCriteria(should_stop, deadline),
+            ]),
+            output_sections=[
+                str(section)
+                for section in normalized.get("output_sections", ["raw_report"])
+            ],
+        )
+        if should_stop():
+            return None
+        self._check_deadline(repository_id, deadline)
+        self._validate_report(repository_id, stored_images[0], generated.report)
+        self._validate_display_sections(
+            repository_id,
+            stored_images[0],
+            generated.display_sections,
+            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+        )
+        for item in generated.metadata:
+            item.update({
+                "processor_loader": normalized["processor_loader"],
+                "model_loader": normalized["model_loader"],
+                "adapter": normalized["adapter"],
+                "prompt_profile": normalized.get("prompt_profile"),
+                "provider": "huggingface",
+                "model_ref": f"huggingface:{repository_id}",
+                "model_revision": normalized["revision"],
+                "generation_profile": profile,
+                "clinical_context": clinical_context,
+                "research_only": bool(normalized.get("research_only", True)),
+            })
+        return generated
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -230,6 +347,12 @@ class HuggingFaceProvider:
             report,
             [str(section) for section in normalized.get("output_sections", ["raw_report"])],
         )
+        self._validate_display_sections(
+            repository_id,
+            stored_image,
+            sections,
+            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+        )
         return report, metadata, sections
 
     # -------------------------------------------------------------------------
@@ -247,6 +370,24 @@ class HuggingFaceProvider:
         ):
             raise RuntimeError(
                 f"{repository_id} returned an empty or malformed report for {stored_image.filename}"
+            )
+        words = re.findall(r"[A-Za-z0-9]+", normalized_report.lower())
+        if len(words) >= 24 and len(set(words)) / len(words) < 0.12:
+            raise RuntimeError(
+                f"{repository_id} returned a pathologically repetitive report for {stored_image.filename}"
+            )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _validate_display_sections(
+        repository_id: str,
+        stored_image: InferenceImage,
+        sections: Mapping[str, str],
+        output_sections: list[str],
+    ) -> None:
+        if any(not str(sections.get(section, "")).strip() for section in output_sections):
+            raise RuntimeError(
+                f"{repository_id} returned incomplete report sections for {stored_image.filename}"
             )
 
     # -------------------------------------------------------------------------
@@ -281,6 +422,12 @@ class HuggingFaceProvider:
                 "local_files_only": True,
                 "trust_remote_code": bool(manifest["trust_remote_code"]),
             }
+            if load_options["trust_remote_code"]:
+                self._prepare_verified_remote_code_cache(
+                    snapshot_path,
+                    revision,
+                    manifest.get("required_files", []),
+                )
             processor = adapter.load_processor(
                 str(snapshot_path),
                 processor_loader=processor_loader,
@@ -301,6 +448,46 @@ class HuggingFaceProvider:
             self._processor = processor
             self._adapter = adapter
             return model, processor, adapter
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _prepare_verified_remote_code_cache(
+        snapshot_path: Path,
+        revision: str,
+        required_files: Any,
+    ) -> None:
+        """Populate Transformers' dynamic-module cache from verified files only.
+
+        Transformers copies relative remote-code imports into a separate
+        dynamic-module cache. Some older model cards omit transitive imports
+        during that copy, which later causes a local-only load to fail. The
+        manifest is the allowlist: only its verified remote-code files and the
+        small JSON assets they load relative to ``__file__`` are copied, and no
+        Hub lookup or user-level cache is consulted.
+        """
+        cache_root = Path(HF_MODULES_CACHE).resolve()
+        if not cache_root.is_relative_to(ROOT_DIR.resolve()):
+            raise RuntimeError("Transformers remote-code cache must remain inside the project resources")
+        module_path = cache_root / "transformers_modules" / f"_{revision}"
+        module_path.mkdir(parents=True, exist_ok=True)
+        init_file = module_path / "__init__.py"
+        if not init_file.exists():
+            init_file.write_text("", encoding="utf-8")
+        for filename in required_files:
+            relative = Path(str(filename))
+            if relative.suffix not in {".py", ".json"} or relative.is_absolute() or ".." in relative.parts:
+                continue
+            source = (snapshot_path / relative).resolve()
+            try:
+                source.relative_to(snapshot_path.resolve())
+            except ValueError as exc:
+                raise RuntimeError("Remote-code manifest points outside the verified snapshot") from exc
+            if not source.is_file():
+                raise RuntimeError(f"Verified remote-code file is missing: {relative.as_posix()}")
+            destination = module_path / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if not destination.exists() or not destination.samefile(source):
+                shutil.copyfile(source, destination)
 
     # -------------------------------------------------------------------------
     def unload(self) -> None:
@@ -383,6 +570,7 @@ class HuggingFaceProvider:
         normalized["model_loader"] = str(normalized.get("model_loader", "image_text_to_text"))
         normalized["processor_loader"] = str(normalized.get("processor_loader", "auto"))
         if normalized["model_loader"] not in {
+            "auto_model",
             "image_text_to_text",
             "causal_lm",
             "blip_conditional_generation",

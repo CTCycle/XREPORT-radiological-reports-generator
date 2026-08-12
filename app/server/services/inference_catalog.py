@@ -13,6 +13,7 @@ from server.domain.inference import (
     InferenceManifest,
     InferenceManifestEntry,
     InferenceModelsResponse,
+    LegacyLocalModel,
     ModelAvailability,
     ModelCapabilities,
     ProviderAvailability,
@@ -30,6 +31,8 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     contract = {
         "repository_id": entry.repository_id,
         "revision": entry.revision,
+        "anatomy_coverage": entry.anatomy_coverage,
+        "hardware_demand": entry.hardware_demand,
         "model_loader": entry.model_loader,
         "processor_loader": entry.processor_loader,
         "adapter": entry.adapter,
@@ -44,6 +47,8 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "max_current_images": entry.max_current_images,
         "processor_repository_id": entry.processor_repository_id,
         "processor_revision": entry.processor_revision,
+        "processor_files": entry.processor_files,
+        "processor_target_prefix": entry.processor_target_prefix,
         "required_files": entry.required_files,
         "weight_file_sets": entry.weight_file_sets,
         "trust_remote_code": entry.trust_remote_code,
@@ -66,12 +71,21 @@ class InferenceModelCatalog:
         models = self._configured_models(huggingface)
         xreport_models = self._xreport_models()
         models.extend(xreport_models)
+        configured_repositories = {
+            model.model_ref.removeprefix("huggingface:")
+            for model in models
+            if model.origin == "public"
+        }
+        legacy_local_models = ModelInstallationManager().discover_legacy_local_models(
+            configured_repositories,
+        )
         return InferenceModelsResponse(
             models=models,
             providers={
                 "huggingface": self._huggingface_provider_status(models),
                 "xreport": self._xreport_provider_status(xreport_models),
             },
+            legacy_local_models=[LegacyLocalModel.model_validate(item) for item in legacy_local_models],
         )
 
     # -------------------------------------------------------------------------
@@ -92,6 +106,7 @@ class InferenceModelCatalog:
         status = "not_installed"
         status_message: str | None = None
         installation = ModelInstallationManager()
+        has_validation_evidence = self._has_validation_evidence(entry)
         inspected = installation.inspect(entry.model_dump(mode="json"))
         metadata = inspected["metadata"]
         installation_state = str(inspected["state"])
@@ -104,9 +119,6 @@ class InferenceModelCatalog:
         elif not entry.enabled:
             status = "disabled"
             status_message = entry.validation_message or "This model is disabled by policy."
-        elif entry.gated and entry.validation_status == "blocked":
-            status = "gated"
-            status_message = entry.validation_message or "This model requires accepted access terms."
         else:
             try:
                 status_message = self._runtime_constraint_message(entry)
@@ -123,12 +135,19 @@ class InferenceModelCatalog:
                 elif status != "incompatible" and installation_state == "staged":
                     status = "unvalidated"
                     status_message = "A verified candidate is installed and must pass real inference before activation."
+                elif status != "incompatible" and installation_state == "downloading":
+                    status = "downloading"
+                    status_message = "A local model download is in progress."
                 elif status != "incompatible" and installation_state in {"corrupt", "failed"}:
                     status = "runtime_unavailable"
                     status_message = str(metadata.get("last_error") or "The local installation needs repair.")
                 elif status != "incompatible":
                     status = "not_installed"
-                    status_message = "The model will be downloaded into the project-local resources directory on first Generate."
+                    status_message = (
+                        entry.validation_message
+                        if entry.gated
+                        else "The model will be downloaded into the project-local resources directory on first Generate."
+                    )
             except (KeyError, TypeError, ValueError, RuntimeError) as exc:
                 status = "incompatible"
                 status_message = str(exc)
@@ -136,18 +155,28 @@ class InferenceModelCatalog:
         return ModelAvailability.model_validate({
             "model_ref": entry.model_ref,
             "provider": entry.provider,
+            "origin": "public",
             "display_name": entry.display_name,
             "description": entry.description,
             "status": status,
             "status_message": status_message,
             "enabled": entry.enabled,
-            "validation_status": entry.validation_status,
-            "validation_message": entry.validation_message,
+            "validation_status": "passed" if has_validation_evidence else entry.validation_status,
+            "validation_message": (
+                None if has_validation_evidence else entry.validation_message
+            ),
             "category": entry.category,
             "recommended": entry.recommended,
             "research_only": entry.research_only,
             "gated": entry.gated,
+            "access_policy": entry.access_policy,
+            "access_url": entry.access_url,
+            "anatomy_coverage": entry.anatomy_coverage,
+            "coverage_note": entry.coverage_note,
+            "hardware_demand": entry.hardware_demand,
+            "parameter_label": entry.parameter_label,
             "parameter_size": entry.parameter_size,
+            "download_size_bytes": entry.download_size_bytes or entry.local_size_bytes,
             "local_size_bytes": entry.local_size_bytes,
             "input_semantics": entry.input_semantics,
             "capabilities": entry.capabilities,
@@ -169,9 +198,20 @@ class InferenceModelCatalog:
             "runtime_constraints": entry.runtime_constraints,
             "processor_repository_id": entry.processor_repository_id,
             "processor_revision": entry.processor_revision,
+            "processor_files": entry.processor_files,
+            "processor_target_prefix": entry.processor_target_prefix,
             "required_files": entry.required_files,
             "weight_file_sets": entry.weight_file_sets,
-            "installation_state": installation_state if installation_state in {"not_installed", "staged", "active", "corrupt", "failed"} else "not_installed",
+            "installation_state": installation_state if installation_state in {"not_installed", "staged", "active", "corrupt", "failed", "downloading"} else "not_installed",
+            "local_state": {
+                "active": "ready",
+                "staged": "downloaded_unvalidated",
+                "downloading": "downloading",
+                "corrupt": "failed",
+                "failed": "failed",
+            }.get(installation_state, "not_downloaded"),
+            "can_download": installation_state != "active" and entry.enabled and status not in {"disabled", "incompatible"},
+            "can_delete_local": installation_state in {"active", "staged", "corrupt", "failed", "downloading"},
             "local_path": str(local_path.relative_to(ROOT_DIR).as_posix()) if local_path else None,
             "active_revision": active_revision,
             "candidate_revision": candidate_revision,
@@ -179,10 +219,10 @@ class InferenceModelCatalog:
             "cloud_assessment": metadata.get("cloud_assessment"),
             "update_available": bool((metadata.get("update_check") or {}).get("update_available")),
             "available_actions": (
-                ["check_updates", "reinstall", "download_update"]
+                ["check_updates", "reinstall", "download_update", "delete_local"]
                 if installation_state == "active"
-                else ["repair"] if installation_state in {"staged", "corrupt", "failed"}
-                else []
+                else ["repair", "delete_local"] if installation_state in {"staged", "corrupt", "failed", "downloading"}
+                else ["download"] if status not in {"disabled", "incompatible"} else []
             ),
         })
 
@@ -233,10 +273,11 @@ class InferenceModelCatalog:
             "ready": 0,
             "unvalidated": 1,
             "not_installed": 2,
-            "gated": 3,
-            "runtime_unavailable": 4,
-            "incompatible": 5,
-            "disabled": 6,
+            "downloading": 3,
+            "gated": 4,
+            "runtime_unavailable": 5,
+            "incompatible": 6,
+            "disabled": 7,
         }[status]
 
     # -------------------------------------------------------------------------
@@ -325,6 +366,7 @@ class InferenceModelCatalog:
             ModelAvailability(
                 model_ref=f"xreport:{checkpoint_name}",
                 provider="xreport",
+                origin="custom",
                 display_name=checkpoint_name,
                 description=(
                     "Local XREPORT checkpoint using the fixed BEiT 224x224x3 "
@@ -341,6 +383,13 @@ class InferenceModelCatalog:
                 adapter="xreport_beit",
                 output_sections=["raw_report"],
                 max_current_images=16,
+                anatomy_coverage="custom_training_data",
+                coverage_note="Coverage depends on the data used by this XREPORT training run.",
+                hardware_demand="moderate",
+                parameter_label="Custom checkpoint",
+                local_state="ready",
+                can_download=False,
+                can_delete_local=False,
             )
             for checkpoint_name in sorted(checkpoint_names, reverse=True)
         ]

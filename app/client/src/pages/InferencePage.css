@@ -194,6 +194,57 @@
     font-size: var(--text-xs);
 }
 
+.model-groups {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+    max-height: 470px;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.model-group {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.model-group-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: 2px 2px 0;
+}
+
+.model-group-heading span {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+    text-align: right;
+}
+
+.legacy-storage-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid color-mix(in srgb, var(--warning-color) 35%, var(--border-color));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--bg-secondary));
+}
+
+.legacy-storage-notice > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.legacy-storage-notice span {
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
 .search-field {
     display: flex;
     align-items: center;
@@ -310,7 +361,8 @@
 
 .status-dot.runtime_unavailable,
 .status-dot.not_installed,
-.status-dot.unvalidated {
+.status-dot.unvalidated,
+.status-dot.downloading {
     background: var(--warning-color);
 }
 
@@ -345,6 +397,12 @@
 
 .catalog-state.error {
     color: var(--error-color);
+}
+
+.catalog-state.compact {
+    min-height: 44px;
+    padding: var(--space-2);
+    font-size: var(--text-xs);
 }
 
 .model-details {
@@ -500,6 +558,22 @@
     color: var(--text-secondary);
     font-size: var(--text-xs);
     overflow-wrap: anywhere;
+}
+
+.maintenance-progress {
+    flex: 1 1 100%;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--border-color);
+}
+
+.maintenance-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-color);
+    transition: width 0.2s ease;
 }
 
 .study-layout {
