@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-07
+Last updated: 2026-08-12
 
 ## Safety scope
 
@@ -73,11 +73,6 @@ only that public repository's active, candidate/staging, rollback, metadata, and
 model-specific Hub-cache paths. The response reports bytes reclaimed. The JSON
 catalogue and all custom XREPORT checkpoints remain untouched, so the same
 public card returns to `not_downloaded` and can be downloaded again.
-
-An installed snapshot for the retired `nathansutton/generate-cxr` entry is
-detected as legacy local storage. It is not shown as a sixth selectable model
-and is never deleted automatically; the catalogue provides a one-time explicit
-reclaim action.
 
 ## Gated MedGemma access
 

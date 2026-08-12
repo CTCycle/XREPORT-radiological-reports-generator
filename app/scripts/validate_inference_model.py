@@ -43,7 +43,7 @@ RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model-ref", default="huggingface:nathansutton/generate-cxr")
+    parser.add_argument("--model-ref", required=True, help="Configured model reference to validate")
     parser.add_argument("--image", type=Path, required=True)
     parser.add_argument(
         "--profile", choices=("deterministic", "concise", "detailed"), default="deterministic"
