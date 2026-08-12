@@ -18,6 +18,7 @@ from server.services.model_installation import (
     InstallationTarget,
     ModelInstallationManager,
 )
+from server.services.model_storage import ModelStorageLifecycle
 
 
 StopCallback = Callable[[], bool]
@@ -34,9 +35,11 @@ class InferenceRuntimeCoordinator:
         *,
         huggingface_provider: HuggingFaceProvider,
         installation_manager: ModelInstallationManager,
+        storage_lifecycle: ModelStorageLifecycle | None = None,
     ) -> None:
         self.huggingface_provider = huggingface_provider
         self.installation_manager = installation_manager
+        self.storage_lifecycle = storage_lifecycle or ModelStorageLifecycle(installation_manager)
         self.lock = threading.RLock()
 
     # -------------------------------------------------------------------------
@@ -91,7 +94,7 @@ class InferenceRuntimeCoordinator:
             )
         try:
             self.huggingface_provider.unload()
-            return self.installation_manager.delete_local(
+            return self.storage_lifecycle.delete_local(
                 repository_id,
                 processor_repository_id=(manifest or {}).get("processor_repository_id"),
                 processor_revision=(manifest or {}).get("processor_revision"),

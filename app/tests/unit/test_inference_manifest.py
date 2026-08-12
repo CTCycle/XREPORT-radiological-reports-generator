@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from server.domain.inference import InferenceManifest
+from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.inference_runtime import InferenceRuntimeCoordinator
 
 ###############################################################################
@@ -28,6 +29,7 @@ def _entry() -> dict[str, object]:
         "output_sections": ["findings", "impression"],
         "input_semantics": "single_study",
         "max_current_images": 16,
+        "preferred_dtype": "auto",
         "quantization": ["none"],
         "validation_status": "pending",
         "required_files": ["config.json"],
@@ -74,3 +76,34 @@ def test_embedded_catalog_is_exactly_five_unique_sha_pinned_public_models() -> N
         "cxrmate2",
         "medgemma",
     }
+
+###############################################################################
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("adapter", "generate_cxr_blip"),
+        ("model_loader", "blip_conditional_generation"),
+        ("processor_loader", "blip"),
+    ],
+)
+def test_provider_rejects_retired_manifest_identifiers(field: str, value: str) -> None:
+    manifest = _entry()
+    manifest[field] = value
+
+    with pytest.raises(RuntimeError, match="Unsupported"):
+        HuggingFaceProvider.validate_manifest(
+            "aehrc/cxrmate-multi-tf",
+            manifest,
+        )
+
+###############################################################################
+@pytest.mark.parametrize("field", ["adapter", "model_loader", "processor_loader", "max_current_images", "preferred_dtype"])
+def test_provider_requires_complete_manifest_fields(field: str) -> None:
+    manifest = _entry()
+    del manifest[field]
+
+    with pytest.raises(RuntimeError, match="missing required field"):
+        HuggingFaceProvider.validate_manifest(
+            "aehrc/cxrmate-multi-tf",
+            manifest,
+        )

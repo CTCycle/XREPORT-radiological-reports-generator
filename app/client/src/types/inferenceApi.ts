@@ -88,14 +88,6 @@ export interface ModelAvailability {
 export interface InferenceModelsResponse {
     models: ModelAvailability[];
     providers: Record<string, { status: ModelStatus; message: string | null }>;
-    legacy_local_models: LegacyLocalModel[];
-}
-
-export interface LegacyLocalModel {
-    model_ref: string;
-    repository_id: string;
-    display_name: string;
-    bytes_reclaimable: number;
 }
 
 export interface ModelUpdateCheckResponse {

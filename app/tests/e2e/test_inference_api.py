@@ -20,6 +20,7 @@ class TestInferenceEndpoints:
         payload = response.json()
         assert isinstance(payload["models"], list)
         assert isinstance(payload["providers"], dict)
+        assert "legacy_local_models" not in payload
         assert "ollama" not in payload["providers"]
         assert set(payload["providers"]).issubset({"huggingface", "xreport"})
         for model in payload["models"]:
@@ -28,6 +29,21 @@ class TestInferenceEndpoints:
             assert model["research_only"] is True
             assert model["max_current_images"] >= 1
             assert isinstance(model["output_sections"], list)
+
+    # -------------------------------------------------------------------------
+    def test_maintenance_rejects_retired_model_reference(
+        self, api_context: APIRequestContext
+    ) -> None:
+        response = api_context.post(
+            "/api/inference/models/maintenance",
+            data={
+                "model_ref": "legacy:huggingface:nathansutton/generate-cxr",
+                "action": "delete_local",
+            },
+        )
+
+        assert response.status == 404
+        assert "catalog" in response.json()["detail"]
 
     # -------------------------------------------------------------------------
     def test_generate_requires_catalog_request_fields(

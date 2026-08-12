@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-07
+Last updated: 2026-08-12
 
 All routers are mounted under `/api`.
 
@@ -55,6 +55,8 @@ All routers are mounted under `/api`.
 - `DELETE /api/inference/jobs/{job_id}`
 
 `POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. The obsolete inference checkpoint endpoint and `checkpoint`/`generation_mode` request fields are removed. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+
+`GET /api/inference/models` returns only the current `models` and `providers` fields. Model maintenance accepts references from that current catalogue; retired or unknown references return 404.
 
 The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
 

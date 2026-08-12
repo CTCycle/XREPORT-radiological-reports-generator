@@ -11,6 +11,7 @@ from server.services.model_installation import (
     InstallationError,
     ModelInstallationManager,
 )
+from server.services.model_storage import ModelStorageLifecycle
 
 
 REVISION = "a" * 40
@@ -83,14 +84,13 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     monkeypatch.setattr(installation_module, "HF_INSTALLED_DIR", resources / "models" / "huggingface" / "installed")
     monkeypatch.setattr(installation_module, "HF_ROLLBACK_DIR", resources / "models" / "huggingface" / "rollback")
     monkeypatch.setattr(installation_module, "HF_METADATA_DIR", resources / "models" / "huggingface" / "metadata")
-    monkeypatch.setattr(installation_module, "HF_HUB_CACHE_DIR", resources / "models" / "huggingface" / "hub")
     for path in (
         resources,
         installation_module.HF_STAGING_DIR,
         installation_module.HF_INSTALLED_DIR,
         installation_module.HF_ROLLBACK_DIR,
         installation_module.HF_METADATA_DIR,
-        installation_module.HF_HUB_CACHE_DIR,
+        resources / "models" / "huggingface" / "hub",
     ):
         path.mkdir(parents=True, exist_ok=True)
     return root
@@ -299,7 +299,8 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     installed = installation_module.HF_INSTALLED_DIR / slug / REVISION
     rollback = installation_module.HF_ROLLBACK_DIR / slug / ("b" * 40)
     staged = installation_module.HF_STAGING_DIR / "operation" / slug / REVISION
-    cache = installation_module.HF_HUB_CACHE_DIR / "models--example--report-model" / "snapshots" / REVISION
+    hub_cache = manager_paths / "app" / "resources" / "models" / "huggingface" / "hub"
+    cache = hub_cache / "models--example--report-model" / "snapshots" / REVISION
     unrelated = installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION
     for path in (installed, rollback, staged, cache, unrelated):
         path.mkdir(parents=True, exist_ok=True)
@@ -314,7 +315,14 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
         },
     )
 
-    deleted = manager.delete_local("example/report-model")
+    deleted = ModelStorageLifecycle(
+        manager,
+        root_dir=installation_module.ROOT_DIR,
+        installed_dir=installation_module.HF_INSTALLED_DIR,
+        hub_cache_dir=hub_cache,
+        rollback_dir=installation_module.HF_ROLLBACK_DIR,
+        staging_dir=installation_module.HF_STAGING_DIR,
+    ).delete_local("example/report-model")
 
     assert deleted["state"] == "not_installed"
     assert deleted["bytes_freed"] > 0

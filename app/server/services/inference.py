@@ -294,7 +294,7 @@ def run_model_maintenance_job(
     job_id: str,
 ) -> dict[str, Any]:
     manager = get_model_installation_manager()
-    repository_id = model_ref.removeprefix("legacy:huggingface:").removeprefix("huggingface:")
+    repository_id = model_ref.removeprefix("huggingface:")
     try:
         if action == "delete_local":
             deleted = get_inference_runtime().delete_local(repository_id, manifest)
@@ -463,20 +463,12 @@ class InferenceService:
         catalog = self.get_models()
         selected = next((model for model in catalog.models if model.model_ref == model_ref), None)
         if selected is None:
-            if action != "delete_local" or not model_ref.startswith("legacy:huggingface:"):
-                raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
-            legacy_repository_id = model_ref.removeprefix("legacy:huggingface:")
-            legacy_models = get_model_installation_manager().discover_legacy_local_models(set())
-            if not any(item.get("repository_id") == legacy_repository_id for item in legacy_models):
-                raise NotFoundError(detail=f"Retired local model storage was not found: {model_ref}")
-            manifest = {"repository_id": legacy_repository_id}
-            configured_revision = "0" * 40
-        elif selected.provider != "huggingface":
+            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+        if selected.provider != "huggingface":
             raise UnsupportedOperationError(detail="Maintenance is only available for Hugging Face models")
-        else:
-            manifest = selected.model_dump(mode="json")
-            manifest["repository_id"] = model_ref.removeprefix("huggingface:")
-            configured_revision = str(manifest["model_revision"])
+        manifest = selected.model_dump(mode="json")
+        manifest["repository_id"] = model_ref.removeprefix("huggingface:")
+        configured_revision = str(manifest["model_revision"])
         if action not in {"download", "repair", "reinstall", "download_update", "delete_local"}:
             raise BadRequestError(detail=f"Unsupported model maintenance action: {action}")
         target_revision = revision or configured_revision

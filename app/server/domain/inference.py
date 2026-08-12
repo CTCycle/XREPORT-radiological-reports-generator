@@ -103,18 +103,13 @@ class InferenceManifestEntry(BaseModel):
         "auto_model",
         "image_text_to_text",
         "causal_lm",
-        "blip_conditional_generation",
     ]
-    processor_loader: Literal["auto", "image", "blip"]
+    processor_loader: Literal["auto"]
     adapter: Literal[
         "medgemma",
-        "generate_cxr_blip",
-        "standard_image_text",
         "chexone",
         "cxrmate_multi",
         "cxrmate_ed",
-        "maira2",
-        "chexagent_impression",
         "cxrmate2",
     ]
     prompt_profile: str
@@ -123,7 +118,7 @@ class InferenceManifestEntry(BaseModel):
     max_current_images: int = Field(ge=1, le=16)
     supports_clinical_context: bool = False
     supports_prior_images: bool = False
-    preferred_dtype: Literal["auto", "float32", "float16", "bfloat16"] = "auto"
+    preferred_dtype: Literal["auto", "float32", "float16", "bfloat16"]
     quantization: list[str] = Field(min_length=1)
     trust_remote_code: bool = False
     remote_code_approved: bool = False
@@ -288,21 +283,9 @@ class ProviderAvailability(BaseModel):
     message: str | None = None
 
 ###############################################################################
-class LegacyLocalModel(BaseModel):
-    """A retired public snapshot retained only for explicit disk reclamation."""
-
-    model_ref: str
-    repository_id: str
-    display_name: str
-    bytes_reclaimable: int = Field(ge=0)
-
-    model_config = {"extra": "forbid", "strict": True}
-
-###############################################################################
 class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
-    legacy_local_models: list[LegacyLocalModel] = Field(default_factory=list)
 
 ###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
