@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 import re
 from typing import Literal
 
@@ -26,7 +27,24 @@ class ProviderGenerationResult:
 GenerationProfile = Literal["deterministic", "concise", "detailed"]
 OutputSection = Literal["raw_report", "findings", "impression"]
 ValidationStatus = Literal["blocked", "incompatible", "disabled", "pending", "passed"]
-InstallationState = Literal["not_installed", "staged", "active", "corrupt", "failed"]
+InstallationState = Literal[
+    "not_installed",
+    "staged",
+    "active",
+    "corrupt",
+    "failed",
+    "downloading",
+]
+LocalModelState = Literal[
+    "not_downloaded",
+    "downloading",
+    "downloaded_unvalidated",
+    "ready",
+    "failed",
+]
+ModelOrigin = Literal["public", "custom"]
+HardwareDemand = Literal["low", "moderate", "high", "very_high"]
+AccessPolicy = Literal["open", "gated"]
 
 _REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
@@ -70,16 +88,31 @@ class InferenceManifestEntry(BaseModel):
     recommended: bool = False
     research_only: bool = True
     gated: bool = False
+    access_policy: AccessPolicy = "open"
+    access_url: str | None = None
+    anatomy_coverage: str = "chest_xray"
+    coverage_note: str | None = None
+    hardware_demand: HardwareDemand = "moderate"
+    parameter_label: str | None = None
     license: str
     parameter_size: str | None = None
+    download_size_bytes: int | None = Field(default=None, ge=0)
     local_size_bytes: int | None = Field(default=None, ge=0)
     revision: str
-    model_loader: Literal["image_text_to_text", "causal_lm", "blip_conditional_generation"]
+    model_loader: Literal[
+        "auto_model",
+        "image_text_to_text",
+        "causal_lm",
+        "blip_conditional_generation",
+    ]
     processor_loader: Literal["auto", "image", "blip"]
     adapter: Literal[
         "medgemma",
         "generate_cxr_blip",
         "standard_image_text",
+        "chexone",
+        "cxrmate_multi",
+        "cxrmate_ed",
         "maira2",
         "chexagent_impression",
         "cxrmate2",
@@ -101,6 +134,8 @@ class InferenceManifestEntry(BaseModel):
         default_factory=ModelRuntimeConstraints
     )
     required_files: list[str] = Field(min_length=1)
+    processor_files: list[str] = Field(default_factory=list)
+    processor_target_prefix: str = "processor"
     weight_file_sets: list[list[str]] = Field(min_length=1)
     processor_repository_id: str | None = None
     processor_revision: str | None = None
@@ -128,6 +163,22 @@ class InferenceManifestEntry(BaseModel):
             raise ValueError(
                 "processor_repository_id and processor_revision must be provided together"
             )
+        if any(
+            not item
+            or Path(item).is_absolute()
+            or ".." in Path(item).parts
+            or Path(item).name != item
+            for item in self.processor_files
+        ):
+            raise ValueError("processor_files must contain only repository filenames")
+        prefix = Path(self.processor_target_prefix)
+        if (
+            not self.processor_target_prefix
+            or prefix.is_absolute()
+            or ".." in prefix.parts
+            or prefix.name != self.processor_target_prefix
+        ):
+            raise ValueError("processor_target_prefix must be a safe relative directory")
         if any(not group for group in self.weight_file_sets):
             raise ValueError("weight_file_sets must contain no empty alternatives")
         if self.remote_code_approved and not self.trust_remote_code:
@@ -137,18 +188,36 @@ class InferenceManifestEntry(BaseModel):
 
 ###############################################################################
 class InferenceManifest(BaseModel):
-    schema_version: Literal[2]
-    models: list[InferenceManifestEntry] = Field(min_length=1, max_length=5)
+    schema_version: Literal[3]
+    models: list[InferenceManifestEntry] = Field(min_length=5, max_length=5)
 
     model_config = {"extra": "forbid", "strict": True}
+
+    # -------------------------------------------------------------------------
+    def model_post_init(self, __context: object) -> None:
+        refs = [entry.model_ref for entry in self.models]
+        if len(set(refs)) != len(refs):
+            raise ValueError("The public inference catalogue cannot contain duplicate model refs")
+        if any(entry.provider != "huggingface" for entry in self.models):
+            raise ValueError("The public inference catalogue may contain only Hugging Face models")
 
 ###############################################################################
 class ModelAvailability(BaseModel):
     model_ref: str
     provider: Literal["huggingface", "xreport"]
+    origin: ModelOrigin = "public"
     display_name: str
     description: str
-    status: Literal["ready", "not_installed", "unvalidated", "gated", "runtime_unavailable", "incompatible", "disabled"]
+    status: Literal[
+        "ready",
+        "not_installed",
+        "unvalidated",
+        "downloading",
+        "gated",
+        "runtime_unavailable",
+        "incompatible",
+        "disabled",
+    ]
     status_message: str | None = None
     enabled: bool = True
     validation_status: ValidationStatus = "pending"
@@ -157,7 +226,14 @@ class ModelAvailability(BaseModel):
     recommended: bool = False
     research_only: bool = True
     gated: bool = False
+    access_policy: AccessPolicy = "open"
+    access_url: str | None = None
+    anatomy_coverage: str = "chest_xray"
+    coverage_note: str | None = None
+    hardware_demand: HardwareDemand = "moderate"
+    parameter_label: str | None = None
     parameter_size: str | None = None
+    download_size_bytes: int | None = Field(default=None, ge=0)
     local_size_bytes: int | None = None
     input_semantics: Literal["single_image", "independent_images", "single_study"]
     capabilities: ModelCapabilities
@@ -181,9 +257,14 @@ class ModelAvailability(BaseModel):
     )
     processor_repository_id: str | None = None
     processor_revision: str | None = None
+    processor_files: list[str] = Field(default_factory=list)
+    processor_target_prefix: str = "processor"
     required_files: list[str] = Field(default_factory=list)
     weight_file_sets: list[list[str]] = Field(default_factory=list)
     installation_state: InstallationState = "not_installed"
+    local_state: LocalModelState = "not_downloaded"
+    can_download: bool = False
+    can_delete_local: bool = False
     local_path: str | None = None
     active_revision: str | None = None
     candidate_revision: str | None = None
@@ -194,13 +275,34 @@ class ModelAvailability(BaseModel):
 
 ###############################################################################
 class ProviderAvailability(BaseModel):
-    status: Literal["ready", "not_installed", "unvalidated", "gated", "runtime_unavailable", "incompatible", "disabled"]
+    status: Literal[
+        "ready",
+        "not_installed",
+        "unvalidated",
+        "downloading",
+        "gated",
+        "runtime_unavailable",
+        "incompatible",
+        "disabled",
+    ]
     message: str | None = None
+
+###############################################################################
+class LegacyLocalModel(BaseModel):
+    """A retired public snapshot retained only for explicit disk reclamation."""
+
+    model_ref: str
+    repository_id: str
+    display_name: str
+    bytes_reclaimable: int = Field(ge=0)
+
+    model_config = {"extra": "forbid", "strict": True}
 
 ###############################################################################
 class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
+    legacy_local_models: list[LegacyLocalModel] = Field(default_factory=list)
 
 ###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
@@ -220,5 +322,5 @@ class ModelUpdateCheckRequest(BaseModel):
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):
     model_ref: str
-    action: Literal["repair", "reinstall", "download_update"]
+    action: Literal["download", "repair", "reinstall", "download_update", "delete_local"]
     revision: str | None = None

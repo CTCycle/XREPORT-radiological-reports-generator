@@ -50,7 +50,7 @@ def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 ###############################################################################
-def test_catalog_lists_only_supported_external_model_and_xreport_refs(monkeypatch) -> None:
+def test_catalog_lists_exactly_five_public_models_and_custom_refs(monkeypatch) -> None:
     monkeypatch.setattr(
         "server.services.inference_catalog.ModelSerializer",
         ModelSerializerStub,
@@ -58,8 +58,12 @@ def test_catalog_lists_only_supported_external_model_and_xreport_refs(monkeypatc
 
     response = InferenceModelCatalog(_settings()).list_models()
 
-    assert [model.model_ref for model in response.models] == [
-        "huggingface:nathansutton/generate-cxr",
+    public = [model for model in response.models if model.origin == "public"]
+    assert len(public) == 5
+    assert {model.provider for model in public} == {"huggingface"}
+    assert all(model.access_policy in {"open", "gated"} for model in public)
+    assert all(model.anatomy_coverage for model in public)
+    assert [model.model_ref for model in response.models if model.origin == "custom"] == [
         "xreport:checkpoint_epoch_48",
     ]
     assert "ollama" not in response.providers
@@ -67,7 +71,7 @@ def test_catalog_lists_only_supported_external_model_and_xreport_refs(monkeypatc
     assert response.providers["xreport"].status == "ready"
     assert response.models[0].status == "not_installed"
     assert response.models[0].installation_state == "not_installed"
-    assert response.models[0].available_actions == []
+    assert response.models[0].available_actions == ["download"]
     xreport = response.models[-1]
     assert xreport.output_sections == ["raw_report"]
 
@@ -80,8 +84,9 @@ def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -
 
     response = InferenceModelCatalog(_settings(hf_local_only=False)).list_models()
 
-    generate_cxr = next(model for model in response.models if model.model_ref.endswith("nathansutton/generate-cxr"))
-    assert generate_cxr.status == "disabled"
+    public = [model for model in response.models if model.origin == "public"]
+    assert len(public) == 5
+    assert all(model.status == "disabled" for model in public)
     assert response.providers["huggingface"].status == "disabled"
 
 ###############################################################################
@@ -104,15 +109,16 @@ def test_catalog_uses_manifest_revision_and_exposes_runtime_metadata(monkeypatch
     )
     response = InferenceModelCatalog(_settings()).list_models()
 
-    generate_cxr = next(model for model in response.models if model.model_ref.endswith("nathansutton/generate-cxr"))
-    assert generate_cxr.model_revision == "6609ed3b711769816141f0f6fdaa88310e1ea0cb"
-    assert generate_cxr.model_loader == "blip_conditional_generation"
-    assert generate_cxr.processor_loader == "blip"
-    assert generate_cxr.adapter == "generate_cxr_blip"
-    assert generate_cxr.output_sections == ["raw_report"]
-    assert generate_cxr.max_current_images == 1
-    assert generate_cxr.license == "Apache-2.0"
-    assert generate_cxr.status == "not_installed"
+    cxrmate_multi = next(model for model in response.models if model.model_ref.endswith("aehrc/cxrmate-multi-tf"))
+    assert cxrmate_multi.model_revision == "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+    assert cxrmate_multi.model_loader == "auto_model"
+    assert cxrmate_multi.processor_loader == "auto"
+    assert cxrmate_multi.adapter == "cxrmate_multi"
+    assert cxrmate_multi.output_sections == ["findings", "impression"]
+    assert cxrmate_multi.max_current_images == 16
+    assert cxrmate_multi.license == "Apache-2.0"
+    assert cxrmate_multi.hardware_demand == "low"
+    assert cxrmate_multi.status == "not_installed"
 
 ###############################################################################
 def test_catalog_distinguishes_verified_active_and_candidate_installations(monkeypatch) -> None:

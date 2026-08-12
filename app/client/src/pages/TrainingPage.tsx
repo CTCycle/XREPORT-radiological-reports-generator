@@ -596,8 +596,8 @@ export default function TrainingPage() {
 
     const startPolling = useCallback(async (request: TrainingJobStartRequest) => {
         const started = await trainingJob.start(request);
-        if (started) {
-            startStatusPolling(started.poll_interval);
+        if (started.job) {
+            startStatusPolling(started.job.poll_interval);
         }
         return started;
     }, [startStatusPolling, trainingJob]);
@@ -751,13 +751,13 @@ export default function TrainingPage() {
         const startResult = await startPolling({ kind: 'start', config });
         setIsLoading(false);
 
-        if (!startResult) {
-            setNewTrainingError(trainingJob.error || 'Training failed');
+        if (!startResult.job) {
+            setNewTrainingError(startResult.error || trainingJob.error || 'Training failed');
             console.error('Training failed:', trainingJob.error);
             return;
         }
         setIsNewWizardOpen(false);
-        appendLogLine(`Training job started (ID: ${startResult.job_id}).`);
+        appendLogLine(`Training job started (ID: ${startResult.job.job_id}).`);
     };
 
     const handleResumeTraining = async () => {
@@ -774,13 +774,13 @@ export default function TrainingPage() {
         });
         setIsLoading(false);
 
-        if (!startResult) {
-            setResumeTrainingError(trainingJob.error || 'Resume training failed');
+        if (!startResult.job) {
+            setResumeTrainingError(startResult.error || trainingJob.error || 'Resume training failed');
             console.error('Resume training failed:', trainingJob.error);
             return;
         }
         setIsResumeWizardOpen(false);
-        appendLogLine(`Resume job started (ID: ${startResult.job_id}).`);
+        appendLogLine(`Resume job started (ID: ${startResult.job.job_id}).`);
     };
 
     const handleEvaluationConfirm = async (payload: {

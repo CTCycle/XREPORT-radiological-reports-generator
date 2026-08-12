@@ -73,15 +73,15 @@ export default function DatasetValidationPage() {
         setValidationError(null);
         setValidationResult(null);
 
-        const jobResult = await validationJob.start({
+        const jobStart = await validationJob.start({
             dataset_name: datasetName || 'default',
             metrics,
             sample_size: config.evalSampleSize,
         });
 
-        if (!jobResult) {
+        if (!jobStart.job) {
             setIsValidating(false);
-            setValidationError(validationJob.error || 'Failed to start validation job');
+            setValidationError(jobStart.error || validationJob.error || 'Failed to start validation job');
             return;
         }
     };
