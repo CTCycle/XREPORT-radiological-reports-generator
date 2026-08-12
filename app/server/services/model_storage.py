@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from server.common.path import (
     HF_HUB_CACHE_DIR,
@@ -11,10 +11,7 @@ from server.common.path import (
     HF_STAGING_DIR,
     ROOT_DIR,
 )
-from server.services.model_installation import InstallationError
-
-if TYPE_CHECKING:
-    from server.services.model_installation import ModelInstallationManager
+from server.services.model_installation import InstallationError, ModelInstallationManager
 
 
 def _slug(repository_id: str) -> str:
