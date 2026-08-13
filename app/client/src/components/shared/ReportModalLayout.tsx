@@ -32,10 +32,16 @@ export default function ReportModalLayout({
 
     return (
         <div className="modal-backdrop" onClick={onClose}>
-            <div className="report-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+                className="report-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="report-modal-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="report-header">
                     <div>
-                        <h3>{title}</h3>
+                        <h3 id="report-modal-title">{title}</h3>
                         <p className="report-subtitle">
                             {subtitleLabel}: <strong>{subtitleValue}</strong>
                         </p>

@@ -20,10 +20,15 @@ export default function TrainingWizardModal({
 }: TrainingWizardModalProps) {
     return (
         <div className="training-modal-backdrop">
-            <div className="training-wizard-modal">
+            <div
+                className="training-wizard-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="training-wizard-title"
+            >
                 <div className="training-wizard-header">
                     <div>
-                        <h3>{title}</h3>
+                        <h3 id="training-wizard-title">{title}</h3>
                         {subtitle}
                     </div>
                     <button className="training-wizard-close" onClick={onClose} aria-label="Close wizard">
