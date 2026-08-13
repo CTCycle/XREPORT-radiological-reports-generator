@@ -118,10 +118,16 @@ export default function ImageViewerModal({ isOpen, datasetName, onClose }: Image
 
     return (
         <div className="modal-backdrop" onClick={onClose}>
-            <div className="viewer-modal" onClick={e => e.stopPropagation()}>
+            <div
+                className="viewer-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="image-viewer-title"
+                onClick={e => e.stopPropagation()}
+            >
                 <div className="viewer-header">
                     <div className="viewer-title">
-                        <h3>Image Viewer</h3>
+                        <h3 id="image-viewer-title">Image Viewer</h3>
                         <p className="viewer-subtitle">
                             Dataset: <strong>{datasetName}</strong>
                             {totalImages > 0 && <span className="viewer-counter"> • {currentIndex} / {totalImages}</span>}
