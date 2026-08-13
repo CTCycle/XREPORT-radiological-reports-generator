@@ -106,8 +106,11 @@ export default function DatasetValidationPage() {
                 <div className="validation-config-panel validation-config-layout">
                     <div className="validation-config-row">
                         <div className="form-group validation-config-min-width">
-                            <label className="form-label">Evaluation Sample Size (0-1)</label>
+                            <label htmlFor="dataset-validation-sample-size" className="form-label">
+                                Evaluation Sample Size (0-1)
+                            </label>
                             <input
+                                id="dataset-validation-sample-size"
                                 type="number"
                                 step="0.05"
                                 min="0.01"

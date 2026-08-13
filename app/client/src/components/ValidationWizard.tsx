@@ -73,10 +73,16 @@ export default function ValidationWizard({
 
     return (
         <div className="modal-backdrop" onClick={onClose}>
-            <div className="wizard-modal" onClick={(e) => e.stopPropagation()}>
+            <div
+                className="wizard-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="validation-wizard-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="wizard-header">
                     <div>
-                        <h3>Validation Wizard</h3>
+                        <h3 id="validation-wizard-title">Validation Wizard</h3>
                         <p className="wizard-subtitle">Dataset: <strong>{datasetLabel}</strong></p>
                     </div>
                     <button type="button" className="wizard-close" onClick={onClose} aria-label="Close validation wizard">
@@ -98,8 +104,9 @@ export default function ValidationWizard({
                     </button>
 
                     <div className={`config-input-group ${validateFullDataset ? 'disabled' : ''}`}>
-                        <span>Fraction:</span>
+                        <label htmlFor="validation-wizard-fraction">Fraction:</label>
                         <input
+                            id="validation-wizard-fraction"
                             type="number"
                             min="0.01"
                             max="1.0"
