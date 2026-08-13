@@ -14,13 +14,16 @@ from server.common.path import (
 from server.services.model_installation import InstallationError, ModelInstallationManager
 
 
+###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
 
 
+###############################################################################
 class ModelStorageLifecycle:
     """Owns deletion and reclaim accounting for public model storage."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         manager: ModelInstallationManager,
@@ -38,12 +41,14 @@ class ModelStorageLifecycle:
         self.rollback_dir = rollback_dir
         self.staging_dir = staging_dir
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _tree_size(path: Path) -> int:
         if not path.exists():
             return 0
         return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _remove_tree(path: Path, *, root_dir: Path = ROOT_DIR) -> int:
         resolved = path.resolve()
@@ -58,6 +63,7 @@ class ModelStorageLifecycle:
             resolved.unlink(missing_ok=True)
         return size
 
+    # -------------------------------------------------------------------------
     def delete_local(  # noqa: C901
         self,
         repository_id: str,

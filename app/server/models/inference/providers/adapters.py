@@ -28,6 +28,7 @@ from server.common.path import ROOT_DIR
 from server.domain.inference import GenerationProfile, InferenceImage
 
 
+###############################################################################
 @dataclass(frozen=True)
 class StudyImage:
     stored: InferenceImage
@@ -35,6 +36,7 @@ class StudyImage:
     original_dimensions: tuple[int, int]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class StudyGeneration:
     report: str
@@ -49,10 +51,12 @@ StoppingCriteriaValue = Any
 class _LegacyDecoderPrepareInputs:
     """Callable compatibility wrapper for CXRMate Multi's old decoder API."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, original: Callable[..., Any]) -> None:
         self.original = original
         self.__wrapped__ = original
 
+    # -------------------------------------------------------------------------
     def __call__(
         self,
         input_ids: Any,
@@ -73,17 +77,21 @@ class _LegacyDecoderPrepareInputs:
         return self.original(input_ids, *args, past_key_values=past_key_values, **kwargs)
 
 
+###############################################################################
 class _LegacyCacheView:
     """Shape-only legacy view used by the archived CXRMate-ED decoder."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, past_key_values: Any, input_ids: Any, inferred_length: int) -> None:
         self.past_key_values = past_key_values
         self.input_ids = input_ids
         self.inferred_length = inferred_length
 
+    # -------------------------------------------------------------------------
     def __len__(self) -> int:
         return len(self.past_key_values)
 
+    # -------------------------------------------------------------------------
     def __getitem__(self, index: int) -> Any:
         value = self.past_key_values[index]
         if index == 0 and isinstance(value, (tuple, list)) and value:
@@ -97,17 +105,21 @@ class _LegacyCacheView:
             return (fake, *value[1:])
         return value
 
+    # -------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
         return getattr(self.past_key_values, name)
 
 
+###############################################################################
 class _CXRMateEDPrepareInputs:
     """Callable compatibility wrapper for CXRMate-ED's archived cache API."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, original: Callable[..., Any]) -> None:
         self.original = original
         self.__wrapped__ = original
 
+    # -------------------------------------------------------------------------
     def __call__(
         self,
         input_ids: Any,
@@ -132,7 +144,6 @@ class _CXRMateEDPrepareInputs:
             result["past_key_values"] = past_key_values
         return result
 
-
 ###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     """Bridge old remote-code decoders to Transformers' cache-position API.
@@ -152,6 +163,7 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     decoder._xreport_cache_compat = True
 
 
+###############################################################################
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
     """Keep the published CXRMate-ED decoder compatible with DynamicCache.
 
@@ -321,13 +333,13 @@ class StandardImageTextAdapter:
             return None
         return [int(dimension) for dimension in shape]
 
-
 ###############################################################################
 class ChatVisionStudyAdapter(StandardImageTextAdapter):
     """Study adapter for image-text-to-text models using chat templates."""
 
     supports_study = True
 
+    # -------------------------------------------------------------------------
     def generate_study(
         self,
         *,
@@ -386,11 +398,11 @@ class ChatVisionStudyAdapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
-
 ###############################################################################
 class CheXOneAdapter(ChatVisionStudyAdapter):
     """CheXOne's Qwen2.5-VL processor with the published multi-image path."""
 
+    # -------------------------------------------------------------------------
     def load_processor(
         self,
         snapshot_path: str,
@@ -405,6 +417,7 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             **load_options,
         )
 
+    # -------------------------------------------------------------------------
     def generate_study(self, **kwargs: Any) -> StudyGeneration:
         model = kwargs["model"]
         processor = kwargs["processor"]
@@ -456,13 +469,13 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             metadata=[self._metadata(item, processor, inputs) for item in images],
         )
 
-
 ###############################################################################
 class CXRMateMultiAdapter(StandardImageTextAdapter):
     """Published CXRMate multi-view encoder-decoder preprocessing contract."""
 
     supports_study = True
 
+    # -------------------------------------------------------------------------
     def load_processor(
         self,
         snapshot_path: str,
@@ -475,6 +488,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             "image_processor": AutoFeatureExtractor.from_pretrained(snapshot_path, **load_options),
         }
 
+    # -------------------------------------------------------------------------
     def load_model(
         self,
         snapshot_path: str,
@@ -484,6 +498,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
     ) -> Any:
         return AutoModel.from_pretrained(snapshot_path, **load_options)
 
+    # -------------------------------------------------------------------------
     def generate_study(
         self,
         *,
@@ -535,6 +550,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             metadata=[self._metadata(item, moved["pixel_values"]) for item in images],
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _metadata(item: StudyImage, tensor: torch.Tensor) -> dict[str, Any]:
         return {
@@ -548,13 +564,13 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
-
 ###############################################################################
 class CXRMateEDAdapter(StandardImageTextAdapter):
     """Published CXRMate-ED image-only/context-aware study preprocessing."""
 
     supports_study = True
 
+    # -------------------------------------------------------------------------
     def load_model(
         self,
         snapshot_path: str,
@@ -626,6 +642,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             model.to("cuda")
         return model
 
+    # -------------------------------------------------------------------------
     def load_processor(
         self,
         snapshot_path: str,
@@ -635,6 +652,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
     ) -> Any:
         return AutoTokenizer.from_pretrained(snapshot_path, **load_options)
 
+    # -------------------------------------------------------------------------
     def generate_study(
         self,
         *,
@@ -698,6 +716,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             metadata=[self._metadata(item, batch) for item in images],
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _metadata(item: StudyImage, tensor: torch.Tensor) -> dict[str, Any]:
         return {
@@ -711,13 +730,13 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
-
 ###############################################################################
 class CXRMate2Adapter(StandardImageTextAdapter):
     """Published CXRMate-2 processor and findings/impression decoder."""
 
     supports_study = True
 
+    # -------------------------------------------------------------------------
     def generate_study(
         self,
         *,
@@ -750,6 +769,7 @@ class CXRMate2Adapter(StandardImageTextAdapter):
             metadata=[self._metadata(item, processed) for item in images],
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _metadata(item: StudyImage, inputs: Any) -> dict[str, Any]:
         dimensions = StandardImageTextAdapter.processed_dimensions(inputs)
@@ -764,11 +784,11 @@ class CXRMate2Adapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
-
 ###############################################################################
 class MedGemmaAdapter(ChatVisionStudyAdapter):
     """MedGemma's standard processor with a research-only report prompt."""
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def prompt(profile: GenerationProfile, clinical_context: str) -> str:
         return (
