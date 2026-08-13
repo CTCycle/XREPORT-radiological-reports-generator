@@ -194,7 +194,16 @@ class ModelInstallationManager:
         revision = inspected["active_revision"]
         if not path or not revision:
             return None
-        self.verify_snapshot(path, manifest, inspected["metadata"].get("file_manifest"))
+        try:
+            self.verify_snapshot(path, manifest, inspected["metadata"].get("file_manifest"))
+        except InstallationError as exc:
+            self.record_error(
+                str(manifest["repository_id"]),
+                str(exc),
+                state="corrupt",
+                preserve_active=False,
+            )
+            raise
         return InstallationTarget(str(manifest["repository_id"]), str(revision), path, False)
 
     # -------------------------------------------------------------------------
@@ -869,10 +878,13 @@ class ModelInstallationManager:
         *,
         state: str = "failed",
         interrupted: bool = False,
+        preserve_active: bool = True,
     ) -> None:
         metadata = self.read_metadata(repository_id)
         active_path = self._absolute(metadata.get("active_relative_path"))
         preserves_active = bool(
+            preserve_active
+            and
             metadata.get("active_revision")
             and active_path
             and active_path.is_dir()
@@ -884,7 +896,11 @@ class ModelInstallationManager:
                 # A failed repair/reinstall must never hide or replace a
                 # working active revision.
                 "state": "active" if preserves_active else state,
-                "integrity": "verified" if preserves_active else metadata.get("integrity", "unknown"),
+                "integrity": (
+                    "verified"
+                    if preserves_active
+                    else "failed" if state == "corrupt" else metadata.get("integrity", "unknown")
+                ),
                 "last_error": error[:500],
                 "interruption": {
                     "at": datetime.now(timezone.utc).isoformat(),

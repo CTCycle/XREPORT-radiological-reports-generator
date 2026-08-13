@@ -246,6 +246,10 @@ def test_corrupt_active_snapshot_is_rejected(manager_paths: Path) -> None:
     manager._write_metadata("example/report-model", metadata)
     with pytest.raises(InstallationError, match="integrity mismatch"):
         manager.active_target(_manifest())
+    metadata = manager.read_metadata("example/report-model")
+    assert metadata["state"] == "corrupt"
+    assert metadata["integrity"] == "failed"
+    assert metadata["last_error"] == "Checkpoint integrity mismatch: model.safetensors"
 
 ###############################################################################
 def test_cancellation_is_distinguished_from_download_failure() -> None:
