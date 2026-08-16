@@ -9,7 +9,7 @@ def test_model_cache_bootstrap_overwrites_hostile_global_cache_values(monkeypatc
     monkeypatch.setenv("HF_CACHE_DIR", r"C:\Users\Public\global-hf")
     monkeypatch.setenv("HF_HOME", r"C:\Users\Public\global-hf-home")
     monkeypatch.setenv("HF_HUB_CACHE", r"C:\Users\Public\global-hub")
-    monkeypatch.setenv("TRANSFORMERS_CACHE", r"C:\Users\Public\legacy-transformers")
+    monkeypatch.setenv("TRANSFORMERS_CACHE", r"C:\Users\Public\external-transformers")
 
     model_cache.configure_model_cache()
 

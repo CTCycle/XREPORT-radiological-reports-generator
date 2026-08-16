@@ -20,9 +20,8 @@ class TestInferenceEndpoints:
         payload = response.json()
         assert isinstance(payload["models"], list)
         assert isinstance(payload["providers"], dict)
-        assert "legacy_local_models" not in payload
-        assert "ollama" not in payload["providers"]
-        assert set(payload["providers"]).issubset({"huggingface", "xreport"})
+        assert set(payload) == {"models", "providers"}
+        assert set(payload["providers"]) == {"huggingface", "xreport"}
         for model in payload["models"]:
             assert model["model_ref"]
             assert model["status"]
@@ -31,13 +30,13 @@ class TestInferenceEndpoints:
             assert isinstance(model["output_sections"], list)
 
     # -------------------------------------------------------------------------
-    def test_maintenance_rejects_retired_model_reference(
+    def test_maintenance_rejects_unknown_model_reference(
         self, api_context: APIRequestContext
     ) -> None:
         response = api_context.post(
             "/api/inference/models/maintenance",
             data={
-                "model_ref": "legacy:huggingface:nathansutton/generate-cxr",
+                "model_ref": "xreport:not-in-the-catalog",
                 "action": "delete_local",
             },
         )

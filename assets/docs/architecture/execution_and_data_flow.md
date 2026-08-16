@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-08-05
+Last updated: 2026-08-16
 
 ## Layer Responsibilities
 
@@ -38,7 +38,6 @@ Location: `app/server/repositories`
 
 - `database/*`: backend engine creation and database initialization
 - `schemas/*`: SQLAlchemy table definitions
-- `queries/*`: data access adapters
 - `serialization/dataset.py`: dataset, processing, and training-data persistence
 - `serialization/validation.py`: validation aggregates and checkpoint-evaluation persistence
 - `serialization/inference.py`: inference-run and generated-report persistence boundary

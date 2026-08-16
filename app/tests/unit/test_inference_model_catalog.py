@@ -66,10 +66,9 @@ def test_catalog_lists_exactly_five_public_models_and_custom_refs(monkeypatch) -
     assert [model.model_ref for model in response.models if model.origin == "custom"] == [
         "xreport:checkpoint_epoch_48",
     ]
-    assert "ollama" not in response.providers
+    assert set(response.providers) == {"huggingface", "xreport"}
     assert response.providers["huggingface"].status == "not_installed"
     assert response.providers["xreport"].status == "ready"
-    assert "legacy_local_models" not in response.model_dump()
     assert response.models[0].status == "not_installed"
     assert response.models[0].installation_state == "not_installed"
     assert response.models[0].available_actions == ["download"]
