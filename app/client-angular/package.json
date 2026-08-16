@@ -1,0 +1,43 @@
+{
+  "name": "client-angular",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --proxy-config src/proxy.conf.cjs",
+    "dev": "ng serve --proxy-config src/proxy.conf.cjs",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "preview": "ng serve --configuration production --proxy-config src/proxy.conf.cjs",
+    "test": "ng test --watch=false",
+    "test:unit": "ng test --watch=false",
+    "lint": "ng lint"
+  },
+  "private": true,
+  "packageManager": "npm@10.9.8",
+  "dependencies": {
+    "@angular/cdk": "^22.1.2",
+    "@angular/common": "^22.0.0",
+    "@angular/compiler": "^22.0.0",
+    "@angular/core": "^22.0.0",
+    "@angular/forms": "^22.0.0",
+    "@angular/platform-browser": "^22.0.0",
+    "@angular/router": "^22.0.0",
+    "@ng-icons/core": "^35.0.1",
+    "@ng-icons/lucide": "^35.0.1",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.0.5",
+    "@angular/cli": "^22.0.5",
+    "@angular/compiler-cli": "^22.0.0",
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "22.1.0",
+    "eslint": "^10.6.0",
+    "jsdom": "^28.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "8.62.1",
+    "vitest": "^4.0.8"
+  }
+}
