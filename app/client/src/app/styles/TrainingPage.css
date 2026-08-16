@@ -998,3 +998,111 @@ input[type="checkbox"] {
 .shuffle-buffer-input {
     width: 80px;
 }
+
+.training-charts-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.training-chart {
+    display: block;
+    width: 100%;
+    min-height: 220px;
+    color: var(--text-secondary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.chart-legend i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+}
+
+.training-logs-empty {
+    padding: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.training-wizard-steps {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding: 0.75rem 0 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.training-wizard-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.35rem 0.55rem;
+    border-radius: 0.5rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.training-wizard-step span {
+    display: inline-grid;
+    place-items: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.training-wizard-step.active {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.training-wizard-step.active span {
+    color: #fff;
+    background: var(--accent-primary);
+}
+
+.training-wizard-body {
+    min-height: 18rem;
+    padding-top: 0.35rem;
+}
+
+.training-wizard-actions {
+    gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .training-wizard-modal { width: min(94vw, 42rem); }
+    .training-wizard-steps { gap: 0.15rem; }
+    .training-wizard-step { padding-inline: 0.35rem; font-size: 0.8rem; }
+    .training-wizard-body { min-height: 22rem; }
+}
+
+@media (max-width: 900px) {
+    .training-charts-container {
+        grid-template-columns: 1fr;
+    }
+}
