@@ -10,9 +10,9 @@
 ## 1. Project Overview
 
 XREPORT is a client-server research application that generates editable draft radiological reports from X-ray images. Models and generated drafts are not clinically approved and require qualified independent review.
-It combines a FastAPI backend and a React frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
+It combines a FastAPI backend and an Angular 22 frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
 
-The application runs locally as a FastAPI backend with a Vite-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
+The application runs locally as a FastAPI backend with an Angular-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
 
 ---
 

@@ -6,7 +6,7 @@ XREPORT is a local-first client/server system for radiological report generation
 
 ## Runtime Topology
 
-- Frontend: React + TypeScript + Vite (`app/client`)
+- Frontend: standalone Angular 22 + TypeScript (`app/client`)
 - Backend: FastAPI (`app/server`)
 - Backend contracts: domain models (`app/server/domain`), services (`app/server/services`), and repositories (`app/server/repositories`)
 - Persistence: SQLite by default, PostgreSQL optional (`app/server/repositories/database`)
@@ -43,7 +43,7 @@ XREPORT is a local-first client/server system for radiological report generation
    │  └─ repositories/
    ├─ client/
    │  ├─ package.json
-   │  ├─ vite.config.ts
+   │  ├─ angular.json
    │  └─ src/
    └─ tests/
       └─ run_tests.bat
@@ -52,6 +52,6 @@ XREPORT is a local-first client/server system for radiological report generation
 ## Entry Points
 
 - Backend API entrypoint: `app/server/app.py`
-- Frontend web entrypoint: `app/client/src/main.tsx`
-- Frontend route composition: `app/client/src/App.tsx`
+- Frontend web entrypoint: `app/client/src/main.ts`
+- Frontend route composition: `app/client/src/app/app.routes.ts`
 - Local launcher and maintenance menu on Windows: `start_on_windows.ps1`
