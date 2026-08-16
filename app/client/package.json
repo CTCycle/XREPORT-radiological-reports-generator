@@ -10,6 +10,7 @@
     "preview": "ng serve --configuration production --proxy-config src/proxy.conf.cjs",
     "test": "ng test --watch=false",
     "test:unit": "ng test --watch=false",
+    "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_angular_e2e.ps1",
     "lint": "ng lint"
   },
   "private": true,

@@ -1,0 +1,82 @@
+"""Focused browser checks for the canonical Angular client.
+
+The standard Windows test runner starts the configured backend/frontend before
+invoking this module through the client ``test:e2e`` script.
+"""
+
+import os
+
+import pytest
+
+playwright = pytest.importorskip("playwright.sync_api")
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page, sync_playwright
+
+
+BASE_URL = os.environ.get("UI_BASE_URL", "http://127.0.0.1:8003").rstrip("/")
+
+
+@pytest.fixture()
+def page() -> Page:
+    with sync_playwright() as playwright_runtime:
+        try:
+            browser = playwright_runtime.chromium.launch(headless=True)
+        except PlaywrightError as error:
+            if "Executable doesn't exist" in str(error):
+                pytest.skip("Playwright Chromium is not installed in this environment")
+            raise
+        browser_page = browser.new_page(viewport={"width": 390, "height": 844})
+        yield browser_page
+        browser.close()
+
+
+def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
+    console_errors: list[str] = []
+    page.on("console", lambda message: console_errors.append(message.text) if message.type in {"error", "warning"} else None)
+
+    page.goto(f"{BASE_URL}/", wait_until="domcontentloaded")
+    page.locator("main").wait_for()
+    assert page.url.rstrip("/").endswith("/inference")
+
+    for route in ("/inference", "/dataset", "/training", "/dataset/validate/mimic-cxr-training-sample"):
+        page.goto(f"{BASE_URL}{route}", wait_until="domcontentloaded")
+        page.locator("main").wait_for()
+        widths = page.evaluate("({ body: document.body.scrollWidth, client: document.documentElement.clientWidth })")
+        assert widths["body"] <= widths["client"] + 2, (route, widths)
+
+    assert not console_errors
+
+
+def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
+    page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
+    page.locator('button[title="View images"]').first.wait_for()
+
+    page.locator('button[title="View images"]').first.click()
+    viewer = page.locator('[role="dialog"].viewer-modal')
+    viewer.wait_for()
+    assert "Image Viewer" in viewer.inner_text()
+    page.keyboard.press("Escape")
+    viewer.wait_for(state="hidden")
+
+    page.get_by_role("button", name="Run validation").first.click()
+    wizard = page.locator('[role="dialog"].wizard-modal')
+    wizard.wait_for()
+    assert wizard.locator(".wizard-metric").count() == 3
+    page.keyboard.press("Escape")
+    wizard.wait_for(state="hidden")
+
+
+def test_training_wizard_has_five_steps(page: Page) -> None:
+    page.goto(f"{BASE_URL}/training", wait_until="domcontentloaded")
+    row = page.locator("button.panel-row-main-button").first
+    row.wait_for()
+    row.click()
+    page.get_by_role("button", name="Configure Training").click()
+
+    wizard = page.locator('[role="dialog"].training-wizard-modal')
+    wizard.wait_for()
+    assert wizard.locator(".training-wizard-step").count() == 5
+    wizard.locator(".training-wizard-step").nth(4).click()
+    assert "Training Summary" in wizard.inner_text()
+    page.keyboard.press("Escape")
+    wizard.wait_for(state="hidden")
