@@ -1,5 +1,9 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('Launch', 'Install', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
+    [string]$Action,
+    [switch]$Launch
+)
 
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -303,49 +307,68 @@ function Get-PortProcessId {
 function Invoke-Launch {
     $settings = Import-XReportEnvironment
     Initialize-Environment
+    $frontendBuilt = $false
     if (-not (Test-DependenciesReady)) {
         Write-Step 'Required application environments are missing or unusable; installing dependencies.'
         Ensure-PortableRuntimes
         Install-Dependencies -Settings $settings -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -InstallationType 'Standard'
+        $frontendBuilt = $settings.ALWAYS_REBUILD -eq 'true'
     }
     else {
         Write-Ok 'Application environments are ready; skipped dependency installation.'
     }
+
+    if (-not $frontendBuilt -and $settings.ALWAYS_REBUILD -eq 'true') {
+        Write-Step 'Rebuilding frontend.'
+        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+    }
+
     Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
     Stop-PortListener -Port ([int]$settings.UI_PORT)
 
     if (-not (Test-Path -LiteralPath $VenvPython)) {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
-    $backendArgs = @(
-        '-m'
-        'uvicorn'
-        'server.app:app'
-        '--app-dir'
-        ('"{0}"' -f (Join-Path $RepoRoot 'app'))
-        '--host'
-        $settings.FASTAPI_HOST
-        '--port'
-        $settings.FASTAPI_PORT
-    )
-    if ($settings.RELOAD -eq 'true') {
-        $backendArgs += '--reload'
-    }
-    $backendArgs += @('--log-level', 'info')
+    $backendAppPath = Join-Path $RepoRoot 'app'
+    $backendArgs = "-m uvicorn server.app:app --app-dir `"$backendAppPath`" --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
+    if ($settings.RELOAD -eq 'true') { $backendArgs += ' --reload' }
 
     Write-Step 'Starting backend'
-    $backendWindowStyle = if ($settings.BACKEND_VISIBLE -eq 'true') { 'Normal' } else { 'Hidden' }
-    Start-Process -FilePath $VenvPython -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle $backendWindowStyle | Out-Null
+    if ($settings.BACKEND_VISIBLE -eq 'true') {
+        $escapedPython = $VenvPython.Replace("'", "''")
+        $escapedApp = $backendAppPath.Replace("'", "''")
+        $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
+        if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
+        $backendProcess = Start-Process -FilePath 'powershell.exe' `
+            -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
+            -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
+    }
+    else {
+        $backendProcess = Start-Process -FilePath $VenvPython `
+            -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
+    }
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
     Write-Step "Waiting for backend health at $healthUrl"
     Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 60
 
     Write-Step 'Starting frontend preview'
+    $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
     $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
         'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT
-    ) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-    $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
+    ) `
+        -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+    try {
+        Write-Step "Waiting for frontend at $uiUrl"
+        Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60
+    }
+    catch {
+        if ($frontendProcess -and -not $frontendProcess.HasExited) {
+            & taskkill.exe /PID $frontendProcess.Id /T /F | Out-Null
+        }
+        throw
+    }
+
     Start-Process $uiUrl
 
     $backendPid = Get-PortProcessId -Port ([int]$settings.FASTAPI_PORT)
@@ -494,6 +517,28 @@ function Show-Menu {
     Write-MenuRule -Color DarkGray
     Write-MenuItem -Number '8' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
+}
+
+if ($Launch -and $Action) {
+    throw 'Use either -Launch or -Action, not both.'
+}
+
+if ($Launch) {
+    Invoke-Launch
+    exit 0
+}
+
+if ($Action) {
+    switch ($Action) {
+        'Launch' { Invoke-Launch }
+        'Install' { Invoke-InstallOrUpdate }
+        'InitializeDatabase' { Invoke-InitializeDatabase }
+        'Test' { Invoke-TestSuite }
+        'RemoveLogs' { Remove-Logs }
+        'ClearCache' { Clear-ApplicationCache }
+        'Uninstall' { Uninstall-Application }
+    }
+    exit 0
 }
 
 while ($true) {
