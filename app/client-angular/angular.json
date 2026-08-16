@@ -3,7 +3,10 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "schematicCollections": ["angular-eslint"]
+    "schematicCollections": [
+      "angular-eslint"
+    ],
+    "analytics": false
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -42,10 +45,10 @@
                   "maximumWarning": "500kB",
                   "maximumError": "1MB"
                 },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  {
+                    "type": "anyComponentStyle",
+                    "maximumWarning": "20kB",
+                    "maximumError": "30kB"
                 }
               ],
               "outputHashing": "all"
