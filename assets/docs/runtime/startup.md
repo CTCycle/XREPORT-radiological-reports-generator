@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-06
+Last updated: 2026-08-16
 
 ## Windows Local Launcher
 
@@ -8,6 +8,12 @@ PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
+```
+
+For direct, non-interactive launch use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
 
 The menu can:
@@ -18,7 +24,7 @@ The menu can:
 - initialize the database and run tests
 - remove logs, clear caches, or uninstall generated dependencies
 
-The launch option starts the backend, waits for `/api/health`, starts the frontend preview, opens the browser, and then exits the menu.
+The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
 
 The install/update option prepares the portable runtimes before requesting an
 installation profile:

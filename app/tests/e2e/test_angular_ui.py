@@ -80,3 +80,45 @@ def test_training_wizard_has_five_steps(page: Page) -> None:
     assert "Training Summary" in wizard.inner_text()
     page.keyboard.press("Escape")
     wizard.wait_for(state="hidden")
+
+
+def test_training_dashboard_visual_structure_and_responsive_layout(page: Page) -> None:
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{BASE_URL}/training", wait_until="domcontentloaded")
+    dashboard = page.locator(".training-dashboard")
+    dashboard.wait_for()
+
+    assert dashboard.locator(".dashboard-metric-card").count() == 5
+    assert dashboard.locator(".chart-placeholder").count() == 2
+    assert dashboard.get_by_role("status").inner_text() == "Idle"
+    desktop_styles = page.evaluate(
+        """
+        () => {
+            const dashboard = document.querySelector('.training-dashboard');
+            const header = document.querySelector('.dashboard-header');
+            const metrics = document.querySelector('.dashboard-metrics-grid');
+            const placeholder = document.querySelector('.chart-placeholder');
+            return {
+                dashboardBorder: getComputedStyle(dashboard).borderTopStyle,
+                headerDisplay: getComputedStyle(header).display,
+                metricsDisplay: getComputedStyle(metrics).display,
+                metricsColumns: getComputedStyle(metrics).gridTemplateColumns,
+                placeholderBorder: getComputedStyle(placeholder).borderTopStyle,
+            };
+        }
+        """
+    )
+    assert desktop_styles["dashboardBorder"] == "solid"
+    assert desktop_styles["headerDisplay"] == "flex"
+    assert desktop_styles["metricsDisplay"] == "grid"
+    assert len(desktop_styles["metricsColumns"].split(" ")) == 5
+    assert desktop_styles["placeholderBorder"] == "dashed"
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.reload(wait_until="domcontentloaded")
+    dashboard.wait_for()
+    mobile_widths = page.evaluate(
+        "({ body: document.body.scrollWidth, client: document.documentElement.clientWidth, columns: getComputedStyle(document.querySelector('.dashboard-metrics-grid')).gridTemplateColumns })"
+    )
+    assert mobile_widths["body"] <= mobile_widths["client"] + 2
+    assert len(mobile_widths["columns"].split(" ")) == 1

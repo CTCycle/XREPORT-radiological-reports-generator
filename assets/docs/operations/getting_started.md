@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-07-11
+Last updated: 2026-08-16
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -12,6 +12,8 @@ This guidance is for radiology and ML users running local report-generation work
 2. Select **Launch application**.
 3. Wait for runtime, dependency, build, and health checks to complete.
 4. Use the browser opened at the URL configured by `UI_HOST` and `UI_PORT` in `settings/.env`.
+
+For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`.
 
 ### macOS Or Linux Manual Flow
 
@@ -25,5 +27,5 @@ uv run --project app/server python -m uvicorn server.app:app --app-dir app --hos
 
 ```bash
 cd app/client
-npm run preview -- --host 127.0.0.1 --port 8003 --strictPort
+npm run preview -- --host 127.0.0.1 --port 8003
 ```
