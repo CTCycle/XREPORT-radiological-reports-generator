@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideSettings } from '@ng-icons/lucide';
 
@@ -36,12 +38,22 @@ import { lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideSettings }
           </button>
         </nav>
       </div>
-      <div class="main-layout-content" (scroll)="onContentScroll($event)"><router-outlet /></div>
+      <div #content class="main-layout-content" (scroll)="onContentScroll($event)"><router-outlet /></div>
     </div>
   `,
   styleUrl: '../styles/MainLayout.css',
 })
 export class MainLayoutComponent {
+  @ViewChild('content', { static: true }) private readonly content?: ElementRef<HTMLElement>;
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      queueMicrotask(() => { if (this.content) this.content.nativeElement.scrollTop = 0; });
+    });
+  }
+
   onContentScroll(event: Event): void {
     const element = event.target as HTMLElement;
     // The React shell resets this scroll container on route changes; route navigation starts at the top.
