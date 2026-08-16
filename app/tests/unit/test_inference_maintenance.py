@@ -9,7 +9,7 @@ from server.services.errors import NotFoundError
 from server.services.inference import InferenceImageStore, InferenceService
 
 ###############################################################################
-def test_legacy_model_reference_is_not_a_maintenance_target(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_model_reference_is_not_a_maintenance_target(monkeypatch: pytest.MonkeyPatch) -> None:
     service = InferenceService(MagicMock(), InferenceImageStore())
     monkeypatch.setattr(
         service,
@@ -19,7 +19,7 @@ def test_legacy_model_reference_is_not_a_maintenance_target(monkeypatch: pytest.
 
     with pytest.raises(NotFoundError, match="not in the local inference catalog"):
         service.start_model_maintenance(
-            model_ref="legacy:huggingface:nathansutton/generate-cxr",
+            model_ref="huggingface:example/unknown-model",
             action="delete_local",
             revision=None,
         )

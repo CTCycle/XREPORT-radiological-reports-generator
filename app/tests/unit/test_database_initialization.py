@@ -5,9 +5,15 @@ from pathlib import Path
 import pytest
 import sqlalchemy
 
+from server.common.constants import (
+    INFERENCE_REPORTS_TABLE,
+    INFERENCE_RUNS_TABLE,
+    TABLE_REQUIRED_COLUMNS,
+)
 import server.repositories.database.engine as database_engine
 import server.repositories.database.initializer as initializer
 from server.configurations.settings import DatabaseSettings
+from server.repositories.database.utils import UPSERT_CONFLICT_COLUMNS
 from server.repositories.schemas import Base
 
 ###############################################################################
@@ -46,6 +52,26 @@ def _postgres_settings() -> DatabaseSettings:
 def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
     monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
     monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
+
+###############################################################################
+def test_current_inference_persistence_contract_matches_orm() -> None:
+    assert set(TABLE_REQUIRED_COLUMNS[INFERENCE_RUNS_TABLE]) == {
+        "checkpoint_id",
+        "provider",
+        "model_ref",
+        "model_revision",
+        "generation_profile",
+        "generation_config_json",
+        "clinical_context",
+        "request_id",
+        "status",
+        "execution_time_seconds",
+        "executed_at",
+    }
+    assert UPSERT_CONFLICT_COLUMNS[INFERENCE_REPORTS_TABLE] == (
+        "inference_run_id",
+        "input_image_name_key",
+    )
 
 ###############################################################################
 def test_missing_sqlite_database_is_created_with_schema(tmp_path, monkeypatch) -> None:

@@ -24,7 +24,7 @@ UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
     TRAINING_SAMPLES_TABLE: ("processing_run_id", "record_id"),
     CHECKPOINTS_TABLE: ("name_key",),
     INFERENCE_RUNS_TABLE: ("request_id",),
-    INFERENCE_REPORTS_TABLE: ("inference_run_id", "input_image_name"),
+    INFERENCE_REPORTS_TABLE: ("inference_run_id", "input_image_name_key"),
 }
 
 SQL_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")

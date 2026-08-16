@@ -81,12 +81,12 @@ def test_embedded_catalog_is_exactly_five_unique_sha_pinned_public_models() -> N
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("adapter", "generate_cxr_blip"),
-        ("model_loader", "blip_conditional_generation"),
-        ("processor_loader", "blip"),
+        ("adapter", "unsupported_adapter"),
+        ("model_loader", "unsupported_model_loader"),
+        ("processor_loader", "unsupported_processor_loader"),
     ],
 )
-def test_provider_rejects_retired_manifest_identifiers(field: str, value: str) -> None:
+def test_provider_rejects_unsupported_manifest_identifiers(field: str, value: str) -> None:
     manifest = _entry()
     manifest[field] = value
 

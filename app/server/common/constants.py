@@ -104,9 +104,15 @@ TABLE_REQUIRED_COLUMNS: dict[str, list[str]] = {
     ],
     INFERENCE_RUNS_TABLE: [
         "checkpoint_id",
-        "generation_mode",
+        "provider",
+        "model_ref",
+        "model_revision",
+        "generation_profile",
+        "generation_config_json",
+        "clinical_context",
         "request_id",
         "status",
+        "execution_time_seconds",
         "executed_at",
     ],
     INFERENCE_REPORTS_TABLE: [
