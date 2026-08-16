@@ -27,7 +27,7 @@ $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
 $UvUrlAmd64 = 'https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip'
 $UvUrlArm64 = 'https://github.com/astral-sh/uv/releases/latest/download/uv-aarch64-pc-windows-msvc.zip'
-$NodeVersion = '22.12.0'
+$NodeVersion = '22.22.3'
 $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 
@@ -150,7 +150,20 @@ function Ensure-PortableRuntimes {
     }
     Invoke-Checked -FilePath $UvExe -ArgumentList @('--version')
 
-    if (-not (Test-Path -LiteralPath $NodeExe)) {
+    $portableNodeNeedsUpgrade = $false
+    if (Test-Path -LiteralPath $NodeExe) {
+        $existingNodeVersion = (& $NodeExe --version).TrimStart('v')
+        try {
+            $portableNodeNeedsUpgrade = ([version]$existingNodeVersion -lt [version]$NodeVersion)
+        } catch {
+            $portableNodeNeedsUpgrade = $true
+        }
+    }
+    if (-not (Test-Path -LiteralPath $NodeExe) -or $portableNodeNeedsUpgrade) {
+        if ($portableNodeNeedsUpgrade) {
+            Write-Info "Upgrading portable Node.js from $existingNodeVersion to $NodeVersion"
+            Get-ChildItem -LiteralPath $NodeDir -Force | Remove-Item -Recurse -Force
+        }
         Write-Info "Downloading Node.js $NodeVersion"
         Invoke-DownloadAndExtract -Uri $NodeUrl -ArchivePath (Join-Path $NodeDir $NodeArchive) -DestinationPath $NodeDir
     }
@@ -173,6 +186,7 @@ function Import-XReportEnvironment {
         FASTAPI_PORT = '5003'
         UI_HOST = '127.0.0.1'
         UI_PORT = '8003'
+        UI_API_BASE_URL = '/api'
         RELOAD = 'false'
         BACKEND_VISIBLE = 'false'
         ALWAYS_REBUILD = 'false'
@@ -236,7 +250,7 @@ function Test-DependenciesReady {
     $frontendLock = Join-Path $ClientDir 'package-lock.json'
     $frontendModules = Join-Path $ClientDir 'node_modules'
     $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
-    $frontendRunner = Join-Path $frontendModules '.bin\vite.cmd'
+    $frontendRunner = Join-Path $frontendModules '.bin\ng.cmd'
     $backendEntrypoint = Join-Path $ServerDir 'app.py'
 
     if (-not (Test-Path -LiteralPath $PythonExe) -or
@@ -329,7 +343,7 @@ function Invoke-Launch {
 
     Write-Step 'Starting frontend preview'
     $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
-        'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT, '--strictPort'
+        'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT
     ) -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
     $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
     Start-Process $uiUrl

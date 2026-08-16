@@ -2,18 +2,17 @@
 
 Last updated: 2026-06-03
 
-Apply these rules to React, TypeScript, and frontend integration work.
+Apply these rules to Angular, TypeScript, and frontend integration work.
 
 ## Baseline
 
-- Stack: React 18 plus TypeScript plus Vite
+- Stack: standalone Angular 22 plus strict TypeScript
 - Keep TypeScript strictness aligned with the existing `tsconfig` settings.
 - Preserve the existing feature structure:
-  - `src/pages`
-  - `src/components`
-  - `src/services`
-  - `src/hooks`
-  - `src/types`
+  - `src/app/pages`
+  - `src/app/components`
+  - `src/app/services`
+  - `src/app/types`
 
 ## Typing And State
 
@@ -24,7 +23,7 @@ Apply these rules to React, TypeScript, and frontend integration work.
 
 ## API Integration
 
-- Route API calls through `src/services/*` modules.
+- Route API calls through typed `src/app/services/*` modules.
 - Keep `/api` contract alignment with backend endpoints and response models.
 - Preserve the established start, poll, and cancel pattern for long-running UX.
 
