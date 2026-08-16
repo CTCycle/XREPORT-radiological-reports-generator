@@ -755,3 +755,45 @@ input[type="checkbox"] {
         margin: 0;
     }
 }
+
+/* Keep the validation wizard inside narrow mobile viewports. */
+@media (max-width: 600px) {
+    .dataset-container,
+    .dataset-container .section,
+    .validation-config-layout,
+    .validation-config-row {
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .dataset-container {
+        padding: var(--space-4);
+        overflow-x: hidden;
+    }
+
+    .validation-config-layout {
+        padding: var(--space-4);
+    }
+
+    .validation-config-row {
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .validation-config-min-width {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .validation-checkboxes-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-3);
+    }
+
+    .header h1 {
+        font-size: clamp(1.8rem, 9vw, 2.4rem);
+        overflow-wrap: anywhere;
+    }
+}
