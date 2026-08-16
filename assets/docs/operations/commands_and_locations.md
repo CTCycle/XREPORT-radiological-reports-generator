@@ -1,17 +1,18 @@
 # Commands And Locations
 
-Last updated: 2026-08-04
+Last updated: 2026-08-16
 
 ## Primary Commands
 
 ### Launch And Maintenance
 
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`
 
 ### Manual Backend And Frontend
 
 - `uv run --project app/server python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
-- `cd app/client && npm run preview -- --host <host> --port <port> --strictPort`
+- `cd app/client && npm run preview -- --host <host> --port <port>`
 
 ### Tests
 
