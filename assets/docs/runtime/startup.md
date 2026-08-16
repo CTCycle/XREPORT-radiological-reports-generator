@@ -41,10 +41,10 @@ PowerShell:
 ```powershell
 uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
 Set-Location app/client
-npm run preview -- --host 127.0.0.1 --port 8003 --strictPort
+npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
-Use host and port values from `settings/.env`. `VITE_API_BASE_URL` should remain `/api` for the proxied local flow.
+Use host and port values from `settings/.env`. `UI_API_BASE_URL` should remain `/api` for the proxied local flow.
 
 ## Test Runtime
 

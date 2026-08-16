@@ -71,3 +71,11 @@ jobs:
       - name: Build client
         working-directory: app/client
         run: npm run build
+
+      - name: Lint client
+        working-directory: app/client
+        run: npm run lint
+
+      - name: Run client unit tests
+        working-directory: app/client
+        run: npm run test:unit
