@@ -1,10 +1,13 @@
 .dataset-container {
+    width: 100%;
     padding: var(--space-8);
     max-width: 1400px;
     margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .section {
+    min-width: 0;
     background: var(--bg-secondary);
     border-radius: 12px;
     padding: 1.25rem;
@@ -131,12 +134,6 @@
 
 .dataset-table-col-rows {
     text-align: right;
-}
-
-.dataset-table-body {
-    max-height: 240px;
-    /* ~8 rows */
-    overflow-y: auto;
 }
 
 .dataset-table-row {
