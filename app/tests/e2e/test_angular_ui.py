@@ -47,6 +47,64 @@ def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
     assert not console_errors
 
 
+def test_inference_model_browser_layout_and_selection(page: Page) -> None:
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")
+    page.locator(".model-card").first.wait_for()
+
+    desktop = page.evaluate(
+        """
+        () => {
+            const group = document.querySelector('.model-group');
+            const list = group?.querySelector('.model-list');
+            const cards = [...(group?.querySelectorAll('.model-card') ?? [])];
+            const firstRowY = cards[0]?.getBoundingClientRect().y ?? 0;
+            const firstRow = cards.filter((card) => Math.abs(card.getBoundingClientRect().y - firstRowY) < 1);
+            const bottoms = firstRow.map((card) => card.getBoundingClientRect().bottom);
+            const catalogBottom = document.querySelector('.catalog-panel')?.getBoundingClientRect().bottom ?? 0;
+            const detailsBottom = document.querySelector('.model-details')?.getBoundingClientRect().bottom ?? 0;
+            return {
+                bodyWidth: document.body.scrollWidth,
+                clientWidth: document.documentElement.clientWidth,
+                columns: list ? getComputedStyle(list).gridTemplateColumns : '',
+                cardCount: cards.length,
+                firstRowBottomDelta: bottoms.length > 1 ? Math.max(...bottoms) - Math.min(...bottoms) : 0,
+                panelBottomDelta: Math.abs(catalogBottom - detailsBottom),
+            };
+        }
+        """
+    )
+    assert desktop["bodyWidth"] <= desktop["clientWidth"] + 2
+    assert len(desktop["columns"].split(" ")) == 2
+    assert desktop["cardCount"] >= 1
+    assert desktop["firstRowBottomDelta"] < 1
+    assert desktop["panelBottomDelta"] < 1
+
+    public_cards = page.locator(".model-group").first.locator(".model-card")
+    selected_card = public_cards.nth(1) if public_cards.count() > 1 else public_cards.first()
+    selected_name = selected_card.locator("strong").inner_text()
+    selected_card.click()
+    assert page.locator(".model-details h3").inner_text() == selected_name
+
+    first_name = public_cards.first().locator("strong").inner_text()
+    page.get_by_placeholder("Filter by model, anatomy, or origin").fill(first_name.split(" ")[0])
+    assert page.locator(".model-card").count() >= 1
+    page.get_by_placeholder("Filter by model, anatomy, or origin").fill("")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    mobile = page.evaluate(
+        """
+        () => ({
+            bodyWidth: document.body.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
+            columns: getComputedStyle(document.querySelector('.model-list')).gridTemplateColumns,
+        })
+        """
+    )
+    assert mobile["bodyWidth"] <= mobile["clientWidth"] + 2
+    assert len(mobile["columns"].split(" ")) == 1
+
+
 def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
     page.locator('button[title="View images"]').first.wait_for()
