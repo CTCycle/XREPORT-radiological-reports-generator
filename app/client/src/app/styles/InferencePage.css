@@ -128,8 +128,7 @@
     font-weight: 800;
 }
 
-.step-state,
-.status-badge {
+.step-state {
     display: inline-flex;
     align-items: center;
     max-width: min(100%, 300px);
@@ -146,8 +145,7 @@
     white-space: nowrap;
 }
 
-.step-state.ready,
-.status-badge.ready {
+.step-state.ready {
     border-color: color-mix(in srgb, var(--success-color) 35%, var(--border-color));
     background: color-mix(in srgb, var(--success-color) 10%, var(--bg-secondary));
     color: var(--success-color);
@@ -198,9 +196,34 @@
     display: grid;
     gap: var(--space-4);
     min-width: 0;
-    max-height: 470px;
-    overflow: auto;
+    max-height: min(55vh, 32rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding-right: 2px;
+    scrollbar-color: color-mix(in srgb, var(--text-secondary) 38%, transparent) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+}
+
+.model-groups::-webkit-scrollbar {
+    width: 8px;
+}
+
+.model-groups::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.model-groups::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-secondary) 38%, transparent);
+    background-clip: padding-box;
+}
+
+.model-groups::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--text-secondary) 58%, transparent);
+    background-clip: padding-box;
 }
 
 .model-group {
@@ -277,9 +300,6 @@
     display: grid;
     gap: var(--space-2);
     min-width: 0;
-    max-height: 220px;
-    overflow: auto;
-    padding: 1px;
 }
 
 .model-card {
@@ -964,9 +984,10 @@ textarea:disabled {
         grid-template-columns: 1fr;
     }
 
-    .model-list {
-        max-height: 220px;
+    .model-groups {
+        max-height: min(52vh, 28rem);
     }
+
 }
 
 @media (max-width: 640px) {

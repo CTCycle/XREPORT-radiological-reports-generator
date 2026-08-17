@@ -100,8 +100,11 @@ textarea:focus-visible {
 }
 
 @media (max-width: 720px) {
-  html,
+  html { overflow: hidden; }
+
   body {
+    height: auto;
+    min-height: 100%;
     overflow: auto;
   }
 }
