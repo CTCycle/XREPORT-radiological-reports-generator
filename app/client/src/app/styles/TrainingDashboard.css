@@ -75,6 +75,12 @@
     background: rgba(37, 99, 235, 0.1);
 }
 
+.dashboard-status.error {
+    border-color: rgba(220, 38, 38, 0.25);
+    color: #b91c1c;
+    background: rgba(220, 38, 38, 0.1);
+}
+
 .status-indicator {
     width: 0.5rem;
     height: 0.5rem;
@@ -89,6 +95,10 @@
 
 .status-indicator.complete {
     background: #2563eb;
+}
+
+.status-indicator.error {
+    background: #dc2626;
 }
 
 @keyframes pulse {

@@ -83,4 +83,15 @@ describe('TrainingDashboardComponent', () => {
     element.querySelector<HTMLButtonElement>('.btn-stop')?.click();
     expect(emitted).toBe(1);
   });
+
+  it('shows failed status when the training workflow reports an error', () => {
+    const fixture = TestBed.createComponent(TrainingDashboardComponent);
+    fixture.componentRef.setInput('dashboardState', createState({ currentEpoch: 1 }));
+    fixture.componentRef.setInput('error', 'Current dataset metadata does not match checkpoint.');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('[role="status"]')?.textContent).toContain('Failed');
+    expect(element.querySelector('.dashboard-status.error')).not.toBeNull();
+  });
 });
