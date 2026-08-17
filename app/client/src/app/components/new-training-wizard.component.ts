@@ -10,9 +10,10 @@ import { ModalFocusDirective } from './modal-focus.directive';
   selector: 'app-new-training-wizard',
   imports: [CommonModule, ReactiveFormsModule, NgIcon, ModalFocusDirective],
   providers: [provideIcons({ lucideActivity, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX })],
+  styleUrl: '../styles/TrainingPage.css',
   template: `
     @if (open) {
-      <div class="modal-backdrop" role="presentation">
+      <div class="training-modal-backdrop" role="presentation">
         <section class="modal training-wizard-modal" role="dialog" aria-modal="true" aria-labelledby="new-training-title" appModalFocus (modalEscape)="closed.emit()">
           <div class="modal-header"><h2 id="new-training-title">New Training Wizard</h2><button type="button" class="btn-icon-small" aria-label="Close" (click)="closed.emit()"><ng-icon name="lucideX"/></button></div>
           <p>Dataset: <strong>{{ datasetLabel || 'No dataset selected' }}</strong></p>

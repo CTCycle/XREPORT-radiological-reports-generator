@@ -168,6 +168,48 @@
     margin-right: 8px;
 }
 
+.validation-dashboard .result-message {
+    color: var(--text-secondary);
+    margin: 0 0 1.25rem;
+}
+
+.validation-dashboard .histogram {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 250px;
+}
+
+.validation-dashboard .histogram-bars {
+    align-items: flex-end;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.45);
+    display: flex;
+    flex: 1;
+    gap: 1px;
+    min-height: 0;
+}
+
+.validation-dashboard .histogram-bar {
+    background: #3b82f6;
+    border-radius: 2px 2px 0 0;
+    display: block;
+    flex: 1 1 0;
+    min-width: 1px;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+.validation-dashboard .histogram-bar:hover {
+    opacity: 1;
+}
+
+.validation-dashboard .chart-axis {
+    color: #64748b;
+    display: flex;
+    font-size: 0.7rem;
+    justify-content: space-between;
+}
+
 /* Loading State */
 .validation-dashboard .loading-container {
     display: flex;

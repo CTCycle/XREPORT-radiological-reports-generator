@@ -104,6 +104,7 @@
 .metadata-value {
     font-size: 0.78rem;
     color: var(--text-primary);
+    margin: 0;
     white-space: pre-wrap;
     word-break: break-word;
 }
