@@ -40,8 +40,8 @@ interface ChartGroup {
             <h2 id="training-dashboard-title">Training Dashboard</h2>
           </div>
         </div>
-        <div class="dashboard-status" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.idle]="statusKind === 'idle'" role="status" aria-live="polite">
-          <span class="status-indicator" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.idle]="statusKind === 'idle'" aria-hidden="true"></span>
+        <div class="dashboard-status" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.error]="statusKind === 'error'" [class.idle]="statusKind === 'idle'" role="status" aria-live="polite">
+          <span class="status-indicator" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.error]="statusKind === 'error'" [class.idle]="statusKind === 'idle'" aria-hidden="true"></span>
           {{ statusLabel }}
         </div>
       </header>
@@ -133,17 +133,20 @@ interface ChartGroup {
 })
 export class TrainingDashboardComponent {
   @Input({ required: true }) dashboardState!: TrainingDashboardState;
+  @Input() error: string | null = null;
   @Output() readonly stopRequested = new EventEmitter<void>();
 
   readonly emptyChartTitles = ['Loss', 'Accuracy'];
 
-  get statusKind(): 'training' | 'complete' | 'idle' {
+  get statusKind(): 'training' | 'complete' | 'error' | 'idle' {
     if (this.dashboardState.isTraining) return 'training';
+    if (this.error) return 'error';
     return this.dashboardState.currentEpoch > 0 ? 'complete' : 'idle';
   }
 
   get statusLabel(): string {
     if (this.statusKind === 'training') return 'Training in progress';
+    if (this.statusKind === 'error') return 'Failed';
     if (this.statusKind === 'complete') return 'Complete';
     return 'Idle';
   }
