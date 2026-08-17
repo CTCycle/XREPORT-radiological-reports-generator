@@ -595,6 +595,21 @@
     overflow-wrap: anywhere;
 }
 
+.maintenance-progress {
+    display: grid;
+    flex: 1 1 100%;
+    gap: 6px;
+    padding: var(--space-3);
+    border: 1px solid color-mix(in srgb, var(--accent-color) 35%, var(--border-color));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-secondary));
+}
+
+.maintenance-progress small {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
 .study-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
