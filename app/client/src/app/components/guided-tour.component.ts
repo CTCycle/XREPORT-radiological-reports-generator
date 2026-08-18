@@ -61,7 +61,6 @@ export type TourCloseReason = 'skipped' | 'completed';
           </header>
           <p class="guided-tour-body" [id]="bodyId">{{ currentStep().body }}</p>
           <footer class="guidance-tour-footer">
-            <button type="button" class="guidance-link-button" (click)="skip()">Skip walkthrough</button>
             <div class="guided-tour-navigation">
               <button type="button" class="guidance-button" [disabled]="currentStepIndex() === 0" (click)="back()">
                 <ng-icon name="lucideChevronLeft" size="15" aria-hidden="true" />Back

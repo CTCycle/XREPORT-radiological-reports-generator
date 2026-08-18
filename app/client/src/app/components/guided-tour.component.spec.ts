@@ -66,15 +66,19 @@ describe('GuidedTourComponent', () => {
     expect(document.activeElement).toBe(source);
   });
 
-  it('records skip and finish outcomes', async () => {
+  it('closes early with X and finishes through navigation', async () => {
     const fixture = TestBed.createComponent(TourHostComponent);
+    const host = fixture.componentInstance;
     document.body.appendChild(fixture.nativeElement);
     fixture.detectChanges();
     await fixture.whenStable();
-    const skip = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button) => (button as HTMLElement).textContent?.includes('Skip')) as HTMLButtonElement;
-    skip.click();
+    expect(Array.from(fixture.nativeElement.querySelectorAll('button')).some((button) => (button as HTMLElement).textContent?.includes('Skip'))).toBeFalsy();
+    const close = fixture.nativeElement.querySelector('button[aria-label="Close walkthrough"]') as HTMLButtonElement;
+    close.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.closedReason).toBe('skipped');
+    host.open = false;
+    fixture.detectChanges();
 
     const secondFixture = TestBed.createComponent(TourHostComponent);
     document.body.appendChild(secondFixture.nativeElement);

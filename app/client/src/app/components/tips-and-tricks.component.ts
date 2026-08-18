@@ -5,7 +5,6 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX } from '@ng-icons/lucide';
 import { GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
 import { ModalFocusDirective } from './modal-focus.directive';
-import { TutorialMediaComponent } from './tutorial-media.component';
 
 interface TipCard {
   icon: string;
@@ -18,7 +17,7 @@ interface TipCard {
 @Component({
   standalone: true,
   selector: 'app-tips-and-tricks',
-  imports: [CommonModule, NgIcon, ModalFocusDirective, TutorialMediaComponent],
+  imports: [CommonModule, NgIcon, ModalFocusDirective],
   providers: [provideIcons({ lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX })],
   template: `
     @if (open) {
@@ -57,8 +56,7 @@ interface TipCard {
                 <ng-icon name="lucideFileSearch" size="17" aria-hidden="true" />
                 <h3>Inference walkthrough</h3>
               </div>
-              <p>See the four-step path from model selection to an editable research-use draft.</p>
-              <app-tutorial-media />
+              <p>Use the walkthrough for a guided pass through model selection, image setup, generation, and draft review.</p>
               <div class="guidance-tip-card-actions">
                 <button type="button" class="guidance-button guidance-button-primary" (click)="startInferenceTour()">Show walkthrough</button>
               </div>
