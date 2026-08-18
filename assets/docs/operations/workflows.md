@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-08-04
+Last updated: 2026-08-18
 
 ## Prepare A Dataset
 
@@ -41,7 +41,7 @@ Expected result:
 
 ## Validate a local model
 
-Use the real Generate flow with a public/de-identified chest X-ray. The first run installs the exact pinned revision into `app/resources/models/huggingface`, records metadata and provenance under `assets/QA/` when capturing validation evidence, and generates a real report. A subsequent run must reuse the active snapshot without another download.
+Use the real Generate flow with a public/de-identified chest X-ray. The first run installs the exact pinned revision into `<resource root>/models/huggingface`, records metadata and provenance under `assets/QA/` when capturing validation evidence, and generates a real report. A subsequent run must reuse the active snapshot without another download.
 
 ## Validate Quality
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import sys
+
+from dotenv import dotenv_values
 
 ###############################################################################
 def _resolve_root() -> Path:
@@ -21,13 +24,42 @@ def _resolve_root() -> Path:
 
 ROOT_DIR = _resolve_root()
 APP_DIR = ROOT_DIR / "app"
-RESOURCES_DIR = APP_DIR / "resources"
 SCRIPTS_DIR = APP_DIR / "scripts"
 SERVER_DIR = APP_DIR / "server"
 SETTINGS_DIR = ROOT_DIR / "settings"
 SHARED_DIR = APP_DIR / "shared"
 TESTS_DIR = APP_DIR / "tests"
 
+CONFIGURATION_FILE_PATH = SETTINGS_DIR / "configurations.json"
+ENV_FILE_PATH = SETTINGS_DIR / ".env"
+ENV_EXAMPLE_FILE_PATH = SETTINGS_DIR / ".env.example"
+DEFAULT_RESOURCES_DIR = APP_DIR / "resources"
+
+###############################################################################
+def _configured_resources_dir() -> str | None:
+    """Read the resource override before the normal dotenv bootstrap runs."""
+    environment_path = (
+        ENV_FILE_PATH if ENV_FILE_PATH.is_file() else ENV_EXAMPLE_FILE_PATH
+    )
+    if environment_path.is_file():
+        configured = dotenv_values(environment_path).get("XREPORT_RESOURCES_DIR")
+        if configured is not None:
+            return configured
+    return os.getenv("XREPORT_RESOURCES_DIR")
+
+###############################################################################
+def _resolve_resources_dir() -> Path:
+    configured = _configured_resources_dir()
+    if not configured or not configured.strip():
+        return DEFAULT_RESOURCES_DIR
+
+    resource_dir = Path(configured).expanduser()
+    if not resource_dir.is_absolute():
+        resource_dir = ROOT_DIR / resource_dir
+    return resource_dir.resolve()
+
+
+RESOURCES_DIR = _resolve_resources_dir()
 LOGS_DIR = RESOURCES_DIR / "logs"
 MODELS_DIR = RESOURCES_DIR / "models"
 CHECKPOINTS_DIR = RESOURCES_DIR / "checkpoints"
@@ -43,7 +75,4 @@ HF_METADATA_DIR = HUGGINGFACE_MODELS_DIR / "metadata"
 TORCH_CACHE_DIR = MODELS_DIR / "torch"
 KERAS_CACHE_DIR = MODELS_DIR / "keras"
 
-CONFIGURATION_FILE_PATH = SETTINGS_DIR / "configurations.json"
 DATABASE_FILE_PATH = RESOURCES_DIR / "database.db"
-ENV_FILE_PATH = SETTINGS_DIR / ".env"
-ENV_EXAMPLE_FILE_PATH = SETTINGS_DIR / ".env.example"

@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-07-16
+Last updated: 2026-08-18
 
 ## Reusable Patterns
 
@@ -35,6 +35,15 @@ Last updated: 2026-07-16
 - centered modal layout
 - explicit close actions
 - keyboard-focus-safe controls
+
+### Contextual Guidance
+
+- `GuidanceService` stores versioned, per-item guidance state under `xreport.guidance.v1` through `StorageService`.
+- `app-feature-tip` is reserved for first-use callouts on genuinely non-obvious workflows; it is dismissible and does not repeat after its content version is seen.
+- `app-help-popover` provides short, local explanations for model contracts, dataset processing, checkpoint actions, and validation configuration.
+- `app-guided-tour` consumes declarative `GuidanceDefinition` and `TourStep` data. Tours can be skipped, closed, navigated backward, and replayed from Help & tips.
+- `app-tips-and-tricks` is the low-priority manual entry point for concise workflow reminders and the lightweight inference demonstration.
+- Guidance anchors use `data-guidance-target` attributes and must remain attached to the relevant control or region when templates change.
 
 ### Data Views
 

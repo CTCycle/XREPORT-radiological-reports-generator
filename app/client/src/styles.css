@@ -132,3 +132,8 @@ textarea:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* CDK supplies the popover backdrop element outside the component's style scope. */
+.guidance-popover-backdrop {
+  background: transparent;
+}

@@ -148,6 +148,10 @@
 }
 
 .app-nav-settings {
+    margin-top: 0.35rem;
+}
+
+.app-nav-help {
     margin-top: auto;
 }
 

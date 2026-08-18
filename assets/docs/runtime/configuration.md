@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-05
+Last updated: 2026-08-18
 
 ## Shared Configuration Sources
 
@@ -38,8 +38,10 @@ Last updated: 2026-08-05
 - `INFERENCE_DEVICE` (for example, `auto` or `cuda`)
 - `INFERENCE_MAX_LOADED_MODELS` (must remain `1`; the embedded provider keeps one model resident)
 - `INFERENCE_MODEL_TIMEOUT` (generation/model-operation timeout in seconds)
+- `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
+  `app/resources`)
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden.
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. `XREPORT_RESOURCES_DIR` accepts an absolute path or a path relative to the repository root; all runtime resources, including the embedded SQLite database, are stored beneath it.
 
 ## Database Mode Switch
 
@@ -59,6 +61,6 @@ database and schema initialization.
 - Frontend calls backend routes through `/api`.
 - Angular dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
-- The application derives the portable root from the deployed folder structure and owns all model caches under `app/resources/models`. `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the backend at startup; hostile or stale user-level cache variables, including deprecated `TRANSFORMERS_CACHE`, are cleared.
-- The external catalogue contains exactly five SHA-pinned public report-generation models (four chest-X-ray specialists and the broader gated MedGemma option). Their first Download or Generate action stages the pinned revision into `app/resources/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
-- Installed metadata is stored in `app/resources/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.
+- The application derives the portable root from the deployed folder structure and owns all model caches under `<resource root>/models`. `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the backend at startup; hostile or stale user-level cache variables, including deprecated `TRANSFORMERS_CACHE`, are cleared.
+- The external catalogue contains exactly five SHA-pinned public report-generation models (four chest-X-ray specialists and the broader gated MedGemma option). Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
+- Installed metadata is stored in `<resource root>/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.

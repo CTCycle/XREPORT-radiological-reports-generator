@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-07-16
+Last updated: 2026-08-18
 
 ## Core UX Journeys
 
@@ -17,6 +17,14 @@ Last updated: 2026-07-16
 - Use consistent button labels and affordances for primary, cancel, and destructive actions.
 - Keep modal close behavior predictable.
 - Keep empty, loading, and error states explicit. Avoid silent failures.
+
+## Contextual Guidance
+
+- Keep onboarding optional and concentrated on the inference and dataset workflows where users must perform several non-obvious steps.
+- Use short first-use callouts, local help popovers, and a small replayable inference tour instead of automatic tours on every route.
+- Training keeps its existing five-step wizard; validation keeps its existing metric descriptions. Add only focused help where terminology or configuration choices may be unclear.
+- Persist seen, dismissed, skipped, and completed states by content version. Manual replay remains available from the sidebar Help & tips action.
+- Guidance overlays must support Escape and keyboard focus restoration, avoid obscuring the highlighted control, adapt to narrow screens, and remain static when reduced motion is requested.
 
 ## Responsiveness
 
