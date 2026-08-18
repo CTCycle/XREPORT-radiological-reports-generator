@@ -37,8 +37,8 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
               <ng-icon name="lucideBrainCircuit" size="16" /> <span>Training</span>
             </a>
           </div>
-          <button type="button" class="app-nav-button app-nav-help" title="Help & tips" aria-label="Help & tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
-            <ng-icon name="lucideCircleHelp" size="16" /> <span>Help &amp; tips</span>
+          <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
+            <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
           </button>
           <button type="button" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings" disabled>
             <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>

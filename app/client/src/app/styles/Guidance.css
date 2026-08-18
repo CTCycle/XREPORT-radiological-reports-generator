@@ -102,11 +102,15 @@
     width: 28px;
     height: 28px;
     padding: 0;
-    border: 1px solid var(--border-color);
-    border-radius: 50%;
+    border: 0;
+    border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    background: var(--bg-secondary);
+    background: transparent;
     cursor: pointer;
+}
+
+.guidance-popover-trigger ng-icon {
+    display: block;
 }
 
 .guidance-popover-trigger:hover {
