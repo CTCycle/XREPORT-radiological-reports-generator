@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-12
+Last updated: 2026-08-18
 
 ## Safety scope
 
@@ -36,7 +36,8 @@ integrity-verified local snapshot.
 
 ## Project-local lifecycle
 
-The backend owns this structure under the portable application root:
+The backend owns this structure under the configured resource root (default
+`app/resources`; override with `XREPORT_RESOURCES_DIR`):
 
 ```text
 app/resources/
@@ -96,7 +97,7 @@ the browser. Missing credentials or unaccepted terms produce a structured
 
 ## Custom XREPORT
 
-Complete checkpoints discovered under `app/resources/checkpoints` are listed in
+Complete checkpoints discovered under `<resource root>/checkpoints` are listed in
 the persistent **Custom XReport Models** section. They use the existing Keras /
 BEiT adapter and are locally trained, ready, and never presented as public
 downloads. Incomplete training directories are ignored. The public model

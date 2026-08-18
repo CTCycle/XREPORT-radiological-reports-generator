@@ -42,6 +42,17 @@
     width: 100%;
 }
 
+.dataset-guidance-helper,
+.validation-guidance-helper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    margin: -0.35rem 0 0.15rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
 /* Row 1: Data Source - Upload only */
 .row-datasource {
     display: block;
