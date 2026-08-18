@@ -211,6 +211,16 @@
     background: var(--input-bg);
 }
 
+.guidance-tip-card-warning {
+    grid-column: 1 / -1;
+    border-color: color-mix(in srgb, var(--warning-color) 38%, var(--border-color));
+    background: color-mix(in srgb, var(--warning-color) 8%, var(--input-bg));
+}
+
+.guidance-tip-card-warning .guidance-tip-card-header {
+    color: var(--warning-color);
+}
+
 .guidance-tip-card-wide {
     margin-top: 0.75rem;
 }
@@ -256,7 +266,32 @@
     z-index: 1400;
     align-items: stretch;
     justify-content: stretch;
+    background: transparent;
+}
+
+.guided-tour-shade {
+    position: fixed;
+    z-index: 1400;
     background: rgba(15, 23, 42, 0.62);
+    pointer-events: auto;
+}
+
+.guided-tour-shade-top {
+    inset: 0 0 auto;
+}
+
+.guided-tour-shade-left {
+    left: 0;
+}
+
+.guided-tour-shade-right {
+    right: 0;
+}
+
+.guided-tour-shade-bottom {
+    right: 0;
+    bottom: 0;
+    left: 0;
 }
 
 .guided-tour-spotlight {
@@ -265,7 +300,8 @@
     pointer-events: none;
     border: 2px solid var(--accent-color);
     border-radius: var(--radius-md);
-    box-shadow: 0 0 0 4px rgba(79, 134, 234, 0.3);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 0 4px rgba(79, 134, 234, 0.3), 0 0 18px rgba(255, 255, 255, 0.18);
 }
 
 .guided-tour-dialog {

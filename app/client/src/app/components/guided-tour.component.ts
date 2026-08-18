@@ -17,6 +17,14 @@ interface PanelPosition {
   left: number;
 }
 
+interface ScrollPosition {
+  container: HTMLElement | null;
+  containerLeft: number;
+  containerTop: number;
+  windowLeft: number;
+  windowTop: number;
+}
+
 export type TourCloseReason = 'skipped' | 'completed';
 
 @Component({
@@ -28,6 +36,10 @@ export type TourCloseReason = 'skipped' | 'completed';
     @if (open) {
       <div class="guided-tour-backdrop" role="presentation" (click)="skip()">
         @if (targetRect(); as rect) {
+          <div class="guided-tour-shade guided-tour-shade-top" [style.height.px]="rect.top > 6 ? rect.top - 6 : 0"></div>
+          <div class="guided-tour-shade guided-tour-shade-left" [style.top.px]="rect.top - 6" [style.width.px]="rect.left > 6 ? rect.left - 6 : 0" [style.height.px]="rect.height + 12"></div>
+          <div class="guided-tour-shade guided-tour-shade-right" [style.top.px]="rect.top - 6" [style.left.px]="rect.left + rect.width + 6" [style.height.px]="rect.height + 12"></div>
+          <div class="guided-tour-shade guided-tour-shade-bottom" [style.top.px]="rect.top + rect.height + 6"></div>
           <div
             class="guided-tour-spotlight"
             aria-hidden="true"
@@ -82,6 +94,8 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly guidance = inject(GuidanceService);
   private layoutTimer: ReturnType<typeof setTimeout> | null = null;
+  private initialScrollPosition: ScrollPosition | null = null;
+  private scrollPositionRestored = false;
   private readonly viewportHandler = () => {
     if (this.open) this.measureTarget();
   };
@@ -97,6 +111,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   readonly bodyId = `${this.titleId}-body`;
 
   ngAfterViewInit(): void {
+    this.captureScrollPosition();
     window.addEventListener('resize', this.viewportHandler, { passive: true });
     window.addEventListener('scroll', this.viewportHandler, { passive: true, capture: true });
     if (this.open) this.scheduleLayout();
@@ -113,6 +128,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
     window.removeEventListener('resize', this.viewportHandler);
     window.removeEventListener('scroll', this.viewportHandler, true);
     if (this.layoutTimer) clearTimeout(this.layoutTimer);
+    this.restoreScrollPosition();
   }
 
   currentStep(): TourStep {
@@ -128,6 +144,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   next(): void {
     if (this.currentStepIndex() >= this.definition.steps.length - 1) {
       this.guidance.complete(this.definition.id, this.definition.version);
+      this.restoreScrollPosition();
       this.closed.emit('completed');
       return;
     }
@@ -137,6 +154,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
 
   skip(): void {
     this.guidance.skip(this.definition.id, this.definition.version);
+    this.restoreScrollPosition();
     this.closed.emit('skipped');
   }
 
@@ -163,9 +181,52 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
     if (!target || typeof target.scrollIntoView !== 'function') return;
     const rect = target.getBoundingClientRect();
     const margin = 88;
+    const container = target.closest<HTMLElement>('.main-layout-content');
+    const containerStyle = container ? getComputedStyle(container) : null;
+    const canScrollContainer = Boolean(
+      container &&
+      container.scrollHeight > container.clientHeight &&
+      containerStyle &&
+      ['auto', 'overlay', 'scroll'].includes(containerStyle.overflowY),
+    );
+
+    if (canScrollContainer && container) {
+      const containerRect = container.getBoundingClientRect();
+      const visibleTop = containerRect.top + margin;
+      const visibleBottom = containerRect.bottom - margin;
+      let offset = 0;
+      if (rect.top < visibleTop) offset = rect.top - visibleTop;
+      if (rect.bottom > visibleBottom) offset = rect.bottom - visibleBottom;
+      if (offset !== 0) {
+        container.scrollBy({ top: offset, behavior: this.prefersReducedMotion() ? 'auto' : 'smooth' });
+      }
+      return;
+    }
+
     if (rect.top < margin || rect.bottom > window.innerHeight - margin) {
       target.scrollIntoView({ block: 'center', behavior: this.prefersReducedMotion() ? 'auto' : 'smooth' });
     }
+  }
+
+  private captureScrollPosition(): void {
+    if (this.initialScrollPosition) return;
+    const target = this.targetElement();
+    const container = target?.closest<HTMLElement>('.main-layout-content') ?? document.querySelector<HTMLElement>('.main-layout-content');
+    this.initialScrollPosition = {
+      container,
+      containerLeft: container?.scrollLeft ?? 0,
+      containerTop: container?.scrollTop ?? 0,
+      windowLeft: window.scrollX,
+      windowTop: window.scrollY,
+    };
+  }
+
+  private restoreScrollPosition(): void {
+    if (this.scrollPositionRestored || !this.initialScrollPosition) return;
+    this.scrollPositionRestored = true;
+    const position = this.initialScrollPosition;
+    position.container?.scrollTo({ left: position.containerLeft, top: position.containerTop, behavior: 'auto' });
+    window.scrollTo({ left: position.windowLeft, top: position.windowTop, behavior: 'auto' });
   }
 
   private measureTarget(): void {

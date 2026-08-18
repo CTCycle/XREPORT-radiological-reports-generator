@@ -45,6 +45,7 @@ describe('GuidedTourComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Step 1 of 2');
     expect(document.body.querySelector('.guided-tour-spotlight')).toBeTruthy();
+    expect(document.body.querySelectorAll('.guided-tour-shade')).toHaveLength(4);
     const next = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button) => (button as HTMLElement).textContent?.includes('Next')) as HTMLButtonElement;
     next.click();
     fixture.detectChanges();
@@ -54,6 +55,7 @@ describe('GuidedTourComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Step 2 of 2');
     expect(document.body.querySelector('.guided-tour-spotlight')).toBeNull();
+    expect(document.body.querySelectorAll('.guided-tour-shade')).toHaveLength(0);
     const back = Array.from(fixture.nativeElement.querySelectorAll('button')).find((button) => (button as HTMLElement).textContent?.includes('Back')) as HTMLButtonElement;
     back.click();
     fixture.detectChanges();
