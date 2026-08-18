@@ -16,6 +16,7 @@ from playwright.sync_api import Page, sync_playwright
 BASE_URL = os.environ.get("UI_BASE_URL", "http://127.0.0.1:8003").rstrip("/")
 
 
+###############################################################################
 @pytest.fixture()
 def page() -> Page:
     with sync_playwright() as playwright_runtime:
@@ -30,6 +31,7 @@ def page() -> Page:
         browser.close()
 
 
+###############################################################################
 def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
     console_errors: list[str] = []
     page.on("console", lambda message: console_errors.append(message.text) if message.type in {"error", "warning"} else None)
@@ -66,6 +68,7 @@ def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
     assert not console_errors
 
 
+###############################################################################
 def test_inference_model_browser_layout_and_selection(page: Page) -> None:
     page.set_viewport_size({"width": 1440, "height": 1000})
     page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")
@@ -124,6 +127,7 @@ def test_inference_model_browser_layout_and_selection(page: Page) -> None:
     assert len(mobile["columns"].split(" ")) == 1
 
 
+###############################################################################
 def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
     page.set_viewport_size({"width": 1440, "height": 1000})
     page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")
@@ -174,6 +178,7 @@ def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
     assert widths["body"] <= widths["client"] + 2
 
 
+###############################################################################
 def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
     page.locator('button[title="View images"]').first.wait_for()
@@ -193,6 +198,7 @@ def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     wizard.wait_for(state="hidden")
 
 
+###############################################################################
 def test_training_wizard_has_five_steps(page: Page) -> None:
     page.goto(f"{BASE_URL}/training", wait_until="domcontentloaded")
     row = page.locator("button.panel-row-main-button").first
@@ -209,6 +215,7 @@ def test_training_wizard_has_five_steps(page: Page) -> None:
     wizard.wait_for(state="hidden")
 
 
+###############################################################################
 def test_training_dashboard_visual_structure_and_responsive_layout(page: Page) -> None:
     page.set_viewport_size({"width": 1280, "height": 900})
     page.goto(f"{BASE_URL}/training", wait_until="domcontentloaded")
