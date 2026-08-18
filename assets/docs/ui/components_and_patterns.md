@@ -41,7 +41,8 @@ Last updated: 2026-08-18
 - `GuidanceService` stores versioned, per-item guidance state under `xreport.guidance.v1` through `StorageService`.
 - `app-feature-tip` is reserved for first-use callouts on genuinely non-obvious workflows; it is dismissible and does not repeat after its content version is seen.
 - `app-help-popover` provides short, local explanations for model contracts, dataset processing, checkpoint actions, and validation configuration.
-- `app-guided-tour` consumes declarative `GuidanceDefinition` and `TourStep` data. Tours can be skipped, closed, navigated backward, and replayed from Help & tips.
+- Keep short contextual help in the relevant section title or field label; do not reserve a separate helper row for a lone information control.
+- `app-guided-tour` consumes declarative `GuidanceDefinition` and `TourStep` data. Tours can be closed before completion, navigated backward and forward, and replayed from Help & tips.
 - `app-tips-and-tricks` is the low-priority manual entry point for concise workflow reminders and the lightweight inference demonstration.
 - Guidance anchors use `data-guidance-target` attributes and must remain attached to the relevant control or region when templates change.
 
