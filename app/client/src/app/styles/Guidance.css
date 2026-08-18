@@ -151,7 +151,7 @@
 }
 
 .guidance-modal-backdrop,
-.guidance-tour-backdrop {
+.guided-tour-backdrop {
     position: fixed;
     inset: 0;
     display: flex;
@@ -298,84 +298,13 @@
 }
 
 .guided-tour-footer {
-    justify-content: space-between;
+    justify-content: flex-end;
     margin: 0 -1rem -1rem;
 }
 
 .guided-tour-navigation {
     display: flex;
     gap: 0.45rem;
-}
-
-.tutorial-media {
-    margin-top: 0.35rem;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-}
-
-.tutorial-media-flow {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.35rem;
-}
-
-.tutorial-media-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-    min-width: 0;
-    color: var(--text-secondary);
-    font-size: var(--text-xs);
-    text-align: center;
-}
-
-.tutorial-media-node {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--border-color);
-    border-radius: 50%;
-    color: var(--accent-color-strong);
-    background: var(--input-bg);
-    animation: guidance-media-pulse 5.6s ease-in-out infinite;
-}
-
-.tutorial-media.paused .tutorial-media-node {
-    animation-play-state: paused;
-}
-
-.tutorial-media-controls {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 0.5rem;
-}
-
-.tutorial-media-controls button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.25rem 0.45rem;
-    border: 0;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    background: transparent;
-    font-size: var(--text-xs);
-    cursor: pointer;
-}
-
-.tutorial-media-controls button:hover {
-    color: var(--text-primary);
-    background: var(--input-bg);
-}
-
-@keyframes guidance-media-pulse {
-    0%, 100% { border-color: var(--border-color); background: var(--input-bg); transform: translateY(0); }
-    12%, 25% { border-color: var(--accent-color); background: rgba(79, 134, 234, 0.16); transform: translateY(-2px); }
-    37% { border-color: var(--border-color); background: var(--input-bg); transform: translateY(0); }
 }
 
 @media (max-width: 720px) {
@@ -401,11 +330,5 @@
         width: auto;
         max-height: min(70vh, 440px);
         border-radius: var(--radius-lg);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .tutorial-media-node {
-        animation: none;
     }
 }
