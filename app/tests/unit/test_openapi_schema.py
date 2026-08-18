@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from server.app import app
+
+###############################################################################
+SHARED_OPENAPI_PATH = (
+    Path(__file__).resolve().parents[3] / "app" / "shared" / "openapi.json"
+)
 
 ###############################################################################
 def test_openapi_schema_generation_and_prefixes() -> None:
@@ -20,6 +28,13 @@ def test_openapi_schema_generation_and_prefixes() -> None:
     ]
     for prefix in expected_prefixes:
         assert any(path.startswith(prefix) for path in paths), f"Missing prefix: {prefix}"
+
+###############################################################################
+def test_shared_openapi_schema_matches_runtime() -> None:
+    with SHARED_OPENAPI_PATH.open(encoding="utf-8") as schema_file:
+        shared_schema = json.load(schema_file)
+
+    assert shared_schema == app.openapi()
 
 ###############################################################################
 def test_stable_api_routes_declare_response_models() -> None:

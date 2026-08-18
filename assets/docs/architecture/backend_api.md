@@ -1,6 +1,15 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-12
+Last updated: 2026-08-18
+
+The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors
+the runtime FastAPI schema and is the contract snapshot available to frontend
+and tooling consumers. Regenerate it from the repository root with:
+
+```powershell
+$env:PYTHONPATH = "app"
+& ".\\app\\server\\.venv\\Scripts\\python.exe" -c "import json; from pathlib import Path; from server.app import app; Path('app/shared/openapi.json').write_text(json.dumps(app.openapi(), indent=2) + '\\n', encoding='utf-8')"
+```
 
 All routers are mounted under `/api`.
 

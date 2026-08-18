@@ -12,6 +12,7 @@ interface TipCard {
   body: string;
   route?: string;
   routeLabel?: string;
+  tone?: 'warning';
 }
 
 @Component({
@@ -36,7 +37,7 @@ interface TipCard {
           <div class="guidance-modal-body">
             <div class="guidance-tips-grid">
               @for (tip of tips; track tip.title) {
-                <article class="guidance-tip-card">
+                <article class="guidance-tip-card" [class.guidance-tip-card-warning]="tip.tone === 'warning'">
                   <div class="guidance-tip-card-header">
                     <ng-icon [name]="tip.icon" size="17" aria-hidden="true" />
                     <h3>{{ tip.title }}</h3>
@@ -112,6 +113,7 @@ export class TipsAndTricksComponent {
       icon: 'lucideAlertTriangle',
       title: 'Treat output as a draft',
       body: 'Generated text remains an editable research-use draft. Inspect the returned provenance before copying or exporting it.',
+      tone: 'warning',
     },
   ];
 
