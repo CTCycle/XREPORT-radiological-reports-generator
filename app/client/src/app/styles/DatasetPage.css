@@ -73,6 +73,20 @@
     flex: 0 0 auto;
 }
 
+.dataset-db-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: -0.5rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
+.dataset-db-status svg {
+    flex: 0 0 auto;
+    color: var(--accent-color);
+}
+
 .upload-row-content .upload-grid {
     flex: 1;
     margin-bottom: 0;
@@ -219,8 +233,9 @@
 
 /* Dataset Processing Split View */
 .dataset-processing-split {
-    display: flex;
-    gap: 1.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
     align-items: stretch;
 }
 
@@ -231,13 +246,33 @@
     /* Prevents overflow */
 }
 
-.processing-config-section {
-    flex-basis: 320px;
-    min-width: 280px;
-    max-width: 360px;
-    flex-shrink: 0;
+.processing-config-panel {
+    min-width: 0;
     display: flex;
     flex-direction: column;
+}
+
+.processing-config-panel > h3 {
+    margin: 0 0 0.5rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.processing-config-panel .processing-description {
+    margin: 0 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.processing-config-panel .form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.processing-config-panel .processing-actions {
+    margin-top: auto;
 }
 
 .vertical-separator {
@@ -841,11 +876,14 @@ input[type="checkbox"] {
         height: 28px;
     }
 
+}
+
+@media (max-width: 720px) {
     .dataset-processing-split {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
-    .processing-config-section {
+    .processing-config-panel {
         max-width: 100%;
         width: 100%;
     }
