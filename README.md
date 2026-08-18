@@ -18,7 +18,7 @@ The application runs locally as a FastAPI backend with an Angular-served web int
 
 ## 2. Model and Dataset (Optional)
 
-XREPORT supports its trained image-captioning checkpoints plus a fixed five-model Hugging Face Transformers catalogue. Selected public models are downloaded on first Generate into the project-local `app/resources` cache, verified, and reused offline on subsequent launches; no separate model server is required.
+XREPORT supports its trained image-captioning checkpoints plus a fixed five-model Hugging Face Transformers catalogue. Selected public models are downloaded on first Generate into the project-local resource cache (under `app/resources` by default), verified, and reused offline on subsequent launches; no separate model server is required.
 
 Supported data sources:
 - **MIMIC-CXR** (initial validation dataset)
@@ -97,7 +97,9 @@ Use `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` on Windows
 
 ## 6. Resources
 
-Runtime data is stored under `app/resources`:
+Runtime data is stored under `app/resources` by default. Set
+`XREPORT_RESOURCES_DIR` in `settings/.env` to use another absolute path or a
+path relative to the repository root:
 - `checkpoints/`
 - `logs/`
 - `models/`
@@ -121,7 +123,7 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
   `settings/.env.example`. An existing `settings/.env` is never overwritten,
   and `.env` files are excluded by `.gitignore`.
 - SQLite mode (`EMBEDDED_DATABASE=true`):
-  - On application startup, if `app/resources/database.db` does not exist, the app initializes the SQLite schema automatically.
+  - On application startup, if `<resource root>/database.db` does not exist, the app initializes the SQLite schema automatically.
   - If the file already exists, startup does not recreate, reset, reseed, or cross-validate it.
 - PostgreSQL mode (`EMBEDDED_DATABASE=false`):
   - Normal startup only verifies a connection to the configured database and never creates or initializes it.
