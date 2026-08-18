@@ -13,11 +13,9 @@ from server.common.path import (
 )
 from server.services.model_installation import InstallationError, ModelInstallationManager
 
-
 ###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
-
 
 ###############################################################################
 class ModelStorageLifecycle:

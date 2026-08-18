@@ -27,14 +27,12 @@ from transformers.utils.hub import HF_MODULES_CACHE
 from server.common.path import ROOT_DIR
 from server.domain.inference import GenerationProfile, InferenceImage
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class StudyImage:
     stored: InferenceImage
     image: Image.Image
     original_dimensions: tuple[int, int]
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -76,7 +74,6 @@ class _LegacyDecoderPrepareInputs:
             )
         return self.original(input_ids, *args, past_key_values=past_key_values, **kwargs)
 
-
 ###############################################################################
 class _LegacyCacheView:
     """Shape-only legacy view used by the archived CXRMate-ED decoder."""
@@ -108,7 +105,6 @@ class _LegacyCacheView:
     # -------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
         return getattr(self.past_key_values, name)
-
 
 ###############################################################################
 class _CXRMateEDPrepareInputs:
@@ -161,7 +157,6 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
 
     decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
     decoder._xreport_cache_compat = True
-
 
 ###############################################################################
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
