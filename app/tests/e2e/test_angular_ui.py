@@ -44,6 +44,25 @@ def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
         widths = page.evaluate("({ body: document.body.scrollWidth, client: document.documentElement.clientWidth })")
         assert widths["body"] <= widths["client"] + 2, (route, widths)
 
+    page.set_viewport_size({"width": 768, "height": 1024})
+    page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
+    page.locator(".dataset-table").wait_for()
+    tablet = page.evaluate(
+        """
+        () => {
+          const table = document.querySelector('.dataset-table');
+          return {
+            bodyWidth: document.body.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
+            tableClientWidth: table?.clientWidth ?? 0,
+            tableScrollWidth: table?.scrollWidth ?? 0,
+          };
+        }
+        """
+    )
+    assert tablet["bodyWidth"] <= tablet["clientWidth"] + 2
+    assert tablet["tableScrollWidth"] <= tablet["tableClientWidth"] + 1, tablet
+
     assert not console_errors
 
 
@@ -132,8 +151,13 @@ def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
     tour.wait_for()
     assert page.url.rstrip("/").endswith("/inference")
     assert "Step 1 of 4" in tour.inner_text()
-    page.get_by_role("button", name="Skip walkthrough").click()
-    assert page.evaluate("JSON.parse(localStorage.getItem('xreport.guidance.v1'))['inference-tour'].status") == "skipped"
+    assert page.get_by_role("button", name="Skip walkthrough").count() == 0
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    page.get_by_role("button", name="Next").click()
+    assert "Step 4 of 4" in tour.inner_text()
+    page.get_by_role("button", name="Finish").click()
+    assert page.evaluate("JSON.parse(localStorage.getItem('xreport.guidance.v1'))['inference-tour'].status") == "completed"
 
     page.get_by_role("button", name="About model cards").click()
     popover = page.locator(".guidance-popover-panel")
