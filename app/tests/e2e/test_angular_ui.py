@@ -105,6 +105,51 @@ def test_inference_model_browser_layout_and_selection(page: Page) -> None:
     assert len(mobile["columns"].split(" ")) == 1
 
 
+def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")
+    page.locator("app-inference-page").wait_for()
+    page.evaluate("localStorage.clear()")
+    page.reload(wait_until="domcontentloaded")
+
+    tip = page.get_by_text("A quick way to get started")
+    tip.wait_for()
+    page.get_by_role("button", name="Show me").click()
+    tour = page.locator(".guided-tour-dialog")
+    tour.wait_for()
+    assert "Step 1 of 4" in tour.inner_text()
+    page.get_by_role("button", name="Next").click()
+    assert "Step 2 of 4" in tour.inner_text()
+    page.get_by_role("button", name="Back").click()
+    assert "Step 1 of 4" in tour.inner_text()
+    page.get_by_role("button", name="Close walkthrough").click()
+    assert page.evaluate("JSON.parse(localStorage.getItem('xreport.guidance.v1'))['inference-tour'].status") == "skipped"
+
+    page.get_by_role("button", name="Help & tips").click()
+    tips = page.locator(".guidance-modal")
+    tips.wait_for()
+    page.get_by_role("button", name="Show walkthrough").click()
+    tour.wait_for()
+    assert page.url.rstrip("/").endswith("/inference")
+    assert "Step 1 of 4" in tour.inner_text()
+    page.get_by_role("button", name="Skip walkthrough").click()
+    assert page.evaluate("JSON.parse(localStorage.getItem('xreport.guidance.v1'))['inference-tour'].status") == "skipped"
+
+    page.get_by_role("button", name="About model cards").click()
+    popover = page.locator(".guidance-popover-panel")
+    popover.wait_for()
+    page.keyboard.press("Escape")
+    popover.wait_for(state="hidden")
+    assert page.get_by_role("button", name="About model cards").get_attribute("aria-expanded") == "false"
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.reload(wait_until="domcontentloaded")
+    page.locator("app-inference-page").wait_for()
+    assert not tip.is_visible()
+    widths = page.evaluate("({ body: document.body.scrollWidth, client: document.documentElement.clientWidth })")
+    assert widths["body"] <= widths["client"] + 2
+
+
 def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
     page.locator('button[title="View images"]').first.wait_for()

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, computed, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -12,7 +12,10 @@ import { asRecord, readNumber, readString, readStringArray } from '../common/par
 import { ApiService } from '../services/api.service';
 import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
+import { GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
 import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
+import { FeatureTipComponent } from '../components/feature-tip.component';
+import { HelpPopoverComponent } from '../components/help-popover.component';
 
 type DraftSections = Partial<Record<OutputSection, string>>;
 const SECTION_LABELS: Record<OutputSection, string> = { raw_report: 'Raw report', findings: 'Findings', impression: 'Impression' };
@@ -20,18 +23,19 @@ const SECTION_LABELS: Record<OutputSection, string> = { raw_report: 'Raw report'
 @Component({
   standalone: true,
   selector: 'app-inference-page',
-  imports: [CommonModule, FormsModule, NgIcon],
+  imports: [CommonModule, FormsModule, NgIcon, FeatureTipComponent, HelpPopoverComponent],
   providers: [provideIcons({ lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle, lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2 })],
   template: `
     <main class="inference-workspace">
       <header class="workspace-heading"><div class="workspace-title"><span class="eyebrow">Inference</span><h1>Turn a radiograph into a draft report</h1><p>Select a local model, provide the study, then review the generated text before it leaves the workspace.</p></div></header>
       <div class="research-warning" role="alert"><ng-icon name="lucideAlertTriangle" aria-hidden="true"/><div><strong>Research use only</strong><span>Models and generated drafts are not clinically approved. Qualified review and independent verification are required.</span></div></div>
+      <app-feature-tip guidanceId="inference-first-use" [version]="1" title="A quick way to get started" message="Choose a model, add a study image, then review the editable draft. The walkthrough is optional." [showAction]="true" actionLabel="Show me" (action)="startInferenceTour()" />
       <section class="workflow-stack" aria-label="Inference workflow">
         <section class="workflow-step model-step" aria-labelledby="model-step-title">
           <div class="step-header"><div class="step-title"><span class="step-number">1</span><div><h2 id="model-step-title">Choose or prepare a model</h2><p>Only models exposed by the local catalog can be selected.</p></div></div></div>
           <div class="model-selection">
-            <aside class="catalog-panel" aria-label="Model catalog">
-              <div class="catalog-heading"><div><strong>Model catalogue</strong><span>{{ filteredModels().length }} models · {{ publicModels().length }} public · {{ customModels().length }} custom</span></div></div>
+            <aside class="catalog-panel" aria-label="Model catalog" data-guidance-target="inference-model-catalog">
+              <div class="catalog-heading"><div><strong>Model catalogue</strong><span>{{ filteredModels().length }} models · {{ publicModels().length }} public · {{ customModels().length }} custom</span></div><app-help-popover label="About model cards" title="About model cards" body="Start with Ready or Download available. Each card reports the model's anatomy, image limit, context support, output sections, and local readiness." /></div>
               <label class="search-field"><ng-icon name="lucideSearch" aria-hidden="true"/><span class="sr-only">Filter models</span><input [(ngModel)]="modelFilterValue" placeholder="Filter by model, anatomy, or origin"/></label>
               @if (state().isLoadingModels) { <div class="catalog-state"><ng-icon name="lucideLoaderCircle" class="spin"/>Discovering local models…</div> }
               @if (catalogError()) { <div class="catalog-state error" role="alert">{{ catalogError() }}</div> }
@@ -58,10 +62,12 @@ const SECTION_LABELS: Record<OutputSection, string> = { raw_report: 'Raw report'
   `,
   styleUrl: '../styles/InferencePage.css',
 })
-export class InferencePage {
+export class InferencePage implements AfterViewInit {
+  private readonly element = inject(ElementRef<HTMLElement>);
   private readonly api = inject(ApiService);
   private readonly appState = inject(AppStateService);
   private readonly polling = inject(JobPollingService);
+  private readonly guidance = inject(GuidanceService);
   private readonly destroyRef = inject(DestroyRef);
   readonly state = this.appState.inference;
   readonly modelFilter = signal('');
@@ -98,6 +104,16 @@ export class InferencePage {
   set generationProfile(value: GenerationProfile) { this.appState.updateInference((state) => ({ ...state, generationProfile: value })); }
 
   constructor() { this.loadModels(); this.destroyRef.onDestroy(() => { const url = this.currentUrl(); if (url) URL.revokeObjectURL(url); }); }
+  ngAfterViewInit() {
+    const targets: Record<string, string> = {
+      '.upload-zone': 'inference-study-upload',
+      '.study-settings': 'inference-generation-settings',
+      '.report-step': 'inference-draft-review',
+    };
+    const root = this.element.nativeElement as HTMLElement;
+    for (const [selector, target] of Object.entries(targets)) (root.querySelector(selector) as HTMLElement | null)?.setAttribute('data-guidance-target', target);
+  }
+  startInferenceTour() { this.guidance.requestTour(INFERENCE_TOUR_ID); }
   private async loadModels() { this.appState.updateInference((state) => ({ ...state, isLoadingModels: true })); this.catalogError.set(null); const response = await this.api.getInferenceModels(); if (response.result) { this.appState.updateInference((state) => ({ ...state, modelAvailability: response.result!.models, selectedModelRef: response.result!.models.some((model) => model.model_ref === state.selectedModelRef) ? state.selectedModelRef : response.result!.models[0]?.model_ref ?? '', isLoadingModels: false })); } else { this.catalogError.set(response.error ?? 'Unable to load the local model catalog.'); this.appState.updateInference((state) => ({ ...state, isLoadingModels: false })); } }
   selectModel(model: ModelAvailability) { if (this.maintenanceBusy()) return; this.appState.updateInference((state) => ({ ...state, selectedModelRef: model.model_ref, images: state.images.slice(0, model.max_current_images), currentIndex: 0, clinicalContext: model.capabilities.clinical_context ? state.clinicalContext : '', reports: {}, generatedReport: '', isCopied: false })); this.drafts.set({}); this.studyReport.set(false); this.generationError.set(null); this.maintenanceMessage.set(null); }
   onDrop(event: DragEvent) { event.preventDefault(); this.addFiles(event.dataTransfer?.files ?? null); }

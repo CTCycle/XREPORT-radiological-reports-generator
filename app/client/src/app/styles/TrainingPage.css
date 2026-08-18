@@ -1,3 +1,15 @@
+.training-guidance-helper {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    width: min(100% - 2rem, 1400px);
+    margin: 0.75rem auto -0.25rem;
+    padding: 0 1rem;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
+}
+
 .training-container {
     width: 100%;
     padding: var(--space-8);

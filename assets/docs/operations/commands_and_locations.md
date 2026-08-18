@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 
 ## Primary Commands
 
@@ -36,10 +36,10 @@ Last updated: 2026-08-16
 
 ## Data And Output Locations
 
-- runtime data root: `app/resources`
-- SQLite database file: `app/resources/database.db`
-- checkpoints: `app/resources/checkpoints`
-- model cache/artifacts: `app/resources/models`
-- tokenizer resources: `app/resources/tokenizers`
-- report templates: `app/resources/templates`
-- logs: `app/resources/logs`
+- runtime data root: `app/resources` by default; override with `XREPORT_RESOURCES_DIR`
+- SQLite database file: `<resource root>/database.db`
+- checkpoints: `<resource root>/checkpoints`
+- model cache/artifacts: `<resource root>/models`
+- tokenizer resources: `<resource root>/tokenizers`
+- report templates: `<resource root>/templates`
+- logs: `<resource root>/logs`

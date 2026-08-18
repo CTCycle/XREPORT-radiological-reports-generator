@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-08-05
+Last updated: 2026-08-18
 
 ## Troubleshooting Quick Guide
 
@@ -8,9 +8,9 @@ Last updated: 2026-08-05
   - check `UI_HOST` and `UI_PORT` in `settings/.env`
   - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
 - jobs stay running too long:
-  - poll the status endpoint and inspect backend logs in `app/resources/logs`
+  - poll the status endpoint and inspect backend logs under `<resource root>/logs`
 - missing artifacts or checkpoints:
-  - confirm write permissions and paths under `app/resources`
+  - confirm write permissions and paths under the configured resource root
 - first run is slow:
   - expected when dependencies and runtimes are being initialized
 - model unavailable:
@@ -19,13 +19,13 @@ Last updated: 2026-08-05
   - Hugging Face requires a cached snapshot and an exact configured commit
 - startup validation failure:
   - verify `settings/configurations.json` exists
-  - check write permissions under `app/resources`
+  - check write permissions under the configured resource root
 
 ## Database Initialization
 
 ### SQLite Mode
 
-- When `EMBEDDED_DATABASE=true`, the backend initializes `app/resources/database.db` automatically on first startup if the file does not exist.
+- When `EMBEDDED_DATABASE=true`, the backend initializes `<resource root>/database.db` automatically on first startup if the file does not exist. The resource root defaults to `app/resources` and can be changed with `XREPORT_RESOURCES_DIR`.
 - On later startups, only the file existence check is performed. Existing data is not recreated, reset, reseeded, or schema-validated.
 - The launcher option `3` can be used to manually trigger the same idempotent SQLite initialization.
 

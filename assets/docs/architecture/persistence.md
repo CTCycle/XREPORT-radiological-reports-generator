@@ -1,12 +1,14 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-05
+Last updated: 2026-08-18
 
 ## Database Backend Selection
 
 From `settings/.env`:
 
-- `EMBEDDED_DATABASE=true`: SQLite using `app/resources/database.db`
+- `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to
+  `app/resources`; relative values are resolved from the repository root.
+- `EMBEDDED_DATABASE=true`: SQLite using `<resource root>/database.db`
 - `EMBEDDED_DATABASE=false`: PostgreSQL using configured engine, host, port, database name, user, password, and SSL settings
 
 ## Initialization Behavior
@@ -14,7 +16,7 @@ From `settings/.env`:
 - Backend startup calls the startup service, which coordinates repository database preparation and resource validation before serving requests.
 - If `settings/.env` is missing, it is copied from `settings/.env.example`; an
   existing environment file is never overwritten.
-- SQLite startup checks only whether `app/resources/database.db` exists. A
+- SQLite startup checks only whether `<resource root>/database.db` exists. A
   missing file is initialized once; an existing file is not recreated, reset,
   reseeded, or schema-validated.
 - PostgreSQL startup performs only a connection check against the configured
@@ -60,7 +62,7 @@ restricting database deletion while evaluations or inference runs reference it.
 
 ## Non-Database Artifacts
 
-- checkpoints and model artifacts under `app/resources/checkpoints` and `app/resources/models`
-- logs under `app/resources/logs`
-- templates under `app/resources/templates`
-- tokenizer resources under `app/resources/tokenizers`
+- checkpoints and model artifacts under `<resource root>/checkpoints` and `<resource root>/models`
+- logs under `<resource root>/logs`
+- templates under `<resource root>/templates`
+- tokenizer resources under `<resource root>/tokenizers`
