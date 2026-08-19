@@ -13,7 +13,7 @@ import { ModalFocusDirective } from './modal-focus.directive';
   providers: [provideIcons({ lucideAlertCircle, lucideChevronLeft, lucideChevronRight, lucideLoaderCircle, lucideX })],
   template: `
     @if (open && datasetName) {
-      <div class="modal-backdrop" role="presentation" (click)="closed.emit()">
+      <div class="image-viewer-backdrop" role="presentation" (click)="closed.emit()">
         <section class="viewer-modal" role="dialog" aria-modal="true" aria-labelledby="image-viewer-title" appModalFocus (modalEscape)="closed.emit()" (click)="$event.stopPropagation()">
           <header class="viewer-header">
             <div class="viewer-title"><h3 id="image-viewer-title">Image Viewer</h3><p class="viewer-subtitle">Dataset: <strong>{{ datasetName }}</strong>@if (totalImages()) { <span class="viewer-counter"> • {{ currentIndex() }} / {{ totalImages() }}</span> }</p></div>

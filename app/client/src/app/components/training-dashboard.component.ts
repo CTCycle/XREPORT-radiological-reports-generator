@@ -46,27 +46,32 @@ interface ChartGroup {
         </div>
       </header>
 
-      <div class="dashboard-metrics-grid">
-        <div class="dashboard-metric-card">
-          <div class="metric-label">Epoch</div>
-          <div class="metric-value">{{ dashboardState.currentEpoch }} / {{ dashboardState.totalEpochs || '--' }}</div>
+      <div class="dashboard-metrics-row">
+        <div class="dashboard-metrics-grid">
+          <div class="dashboard-metric-card">
+            <div class="metric-label">Epoch</div>
+            <div class="metric-value">{{ dashboardState.currentEpoch }} / {{ dashboardState.totalEpochs || '--' }}</div>
+          </div>
+          <div class="dashboard-metric-card">
+            <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Train Loss</div>
+            <div class="metric-value loss">{{ dashboardState.loss | number:'1.3-3' }}</div>
+          </div>
+          <div class="dashboard-metric-card">
+            <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Val Loss</div>
+            <div class="metric-value loss">{{ dashboardState.valLoss | number:'1.3-3' }}</div>
+          </div>
+          <div class="dashboard-metric-card">
+            <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Train Acc</div>
+            <div class="metric-value accuracy">{{ dashboardState.accuracy * 100 | number:'1.3-3' }}%</div>
+          </div>
+          <div class="dashboard-metric-card">
+            <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Val Acc</div>
+            <div class="metric-value accuracy">{{ dashboardState.valAccuracy * 100 | number:'1.3-3' }}%</div>
+          </div>
         </div>
-        <div class="dashboard-metric-card">
-          <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Train Loss</div>
-          <div class="metric-value loss">{{ dashboardState.loss | number:'1.3-3' }}</div>
-        </div>
-        <div class="dashboard-metric-card">
-          <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Val Loss</div>
-          <div class="metric-value loss">{{ dashboardState.valLoss | number:'1.3-3' }}</div>
-        </div>
-        <div class="dashboard-metric-card">
-          <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Train Acc</div>
-          <div class="metric-value accuracy">{{ dashboardState.accuracy * 100 | number:'1.3-3' }}%</div>
-        </div>
-        <div class="dashboard-metric-card">
-          <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Val Acc</div>
-          <div class="metric-value accuracy">{{ dashboardState.valAccuracy * 100 | number:'1.3-3' }}%</div>
-        </div>
+        <button type="button" class="btn-stop" (click)="stopRequested.emit()" [disabled]="!dashboardState.isTraining">
+          <ng-icon name="lucideSquare" aria-hidden="true"/>Stop training
+        </button>
       </div>
 
       <section class="progress-section" aria-label="Training progress">
@@ -78,9 +83,6 @@ interface ChartGroup {
           <div class="progress-bar-container" role="progressbar" [attr.aria-valuenow]="clampedProgress" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Training progress: ' + clampedProgress + ' percent'">
             <div class="progress-bar" [style.width.%]="clampedProgress"></div>
           </div>
-          <button type="button" class="btn-stop" (click)="stopRequested.emit()" [disabled]="!dashboardState.isTraining">
-            <ng-icon name="lucideSquare" aria-hidden="true"/>Stop training
-          </button>
         </div>
       </section>
 

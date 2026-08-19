@@ -1,9 +1,23 @@
+.image-viewer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow: auto;
+    background: rgba(15, 23, 42, 0.55);
+    overscroll-behavior: contain;
+}
+
 .viewer-modal {
     background: var(--bg-secondary);
     border-radius: 14px;
     width: 1000px;
     max-width: 95vw;
     height: 90vh;
+    max-height: calc(100vh - 2rem);
     display: flex;
     flex-direction: column;
     box-shadow: 0 26px 60px rgba(15, 23, 42, 0.35);
