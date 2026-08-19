@@ -135,7 +135,7 @@ See also `assets/docs/` for architecture, runtime, operations, and troubleshooti
 
 ## 8. Development Status
 
-This project is under active development and may contain incomplete features. Tagged releases (currently v2.4.0) are stable for local evaluation and testing.
+This project is under active development and may contain incomplete features. The initial production-ready release is v1.0.0, which is stable for local evaluation and testing.
 
 ## 9. License
 
