@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'Install', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
+    [ValidateSet('Launch', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
     [string]$Action,
     [switch]$Launch
 )
@@ -154,6 +154,12 @@ function Ensure-PortableRuntimes {
     }
     Invoke-Checked -FilePath $UvExe -ArgumentList @('--version')
 
+    Ensure-PortableNodeRuntime
+    Initialize-Environment
+}
+
+function Ensure-PortableNodeRuntime {
+    New-Item -ItemType Directory -Path $NodeDir -Force | Out-Null
     $portableNodeNeedsUpgrade = $false
     if (Test-Path -LiteralPath $NodeExe) {
         $existingNodeVersion = (& $NodeExe --version).TrimStart('v')
@@ -181,7 +187,6 @@ function Ensure-PortableRuntimes {
     }
     $nodeVersionOutput = & $NodeExe --version
     Write-Ok "Node.js ready: $nodeVersionOutput"
-    Initialize-Environment
 }
 
 function Import-XReportEnvironment {
@@ -239,14 +244,37 @@ function Install-Dependencies {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     }
 
+    Install-FrontendDependencies
+
+    if ($BuildFrontend) {
+        Invoke-FrontendBuild
+    }
+}
+
+function Install-FrontendDependencies {
     Write-Step 'Installing frontend dependencies'
     $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) { @('ci') } else { @('install') }
     Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $ClientDir
+}
 
-    if ($BuildFrontend) {
-        Write-Step 'Building frontend'
-        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
-    }
+function Invoke-FrontendBuild {
+    Write-Step 'Building frontend'
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+}
+
+function Test-FrontendDependenciesReady {
+    $frontendPackage = Join-Path $ClientDir 'package.json'
+    $frontendLock = Join-Path $ClientDir 'package-lock.json'
+    $frontendModules = Join-Path $ClientDir 'node_modules'
+    $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
+    $frontendRunner = Join-Path $frontendModules '.bin\ng.cmd'
+
+    return (Test-Path -LiteralPath $NodeExe) -and
+        (Test-Path -LiteralPath $NpmCmd) -and
+        (Test-Path -LiteralPath $frontendPackage) -and
+        (Test-Path -LiteralPath $frontendLock) -and
+        (Test-Path -LiteralPath $frontendInstallState) -and
+        (Test-Path -LiteralPath $frontendRunner)
 }
 
 function Test-DependenciesReady {
@@ -320,7 +348,7 @@ function Invoke-Launch {
 
     if (-not $frontendBuilt -and $settings.ALWAYS_REBUILD -eq 'true') {
         Write-Step 'Rebuilding frontend.'
-        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+        Invoke-FrontendBuild
     }
 
     Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
@@ -387,6 +415,19 @@ function Invoke-InstallOrUpdate {
     Write-Step 'Pruning uv cache'
     Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Ok 'Dependencies installed and frontend built successfully'
+}
+
+function Invoke-RebuildFrontend {
+    $settings = Import-XReportEnvironment
+    Ensure-PortableNodeRuntime
+    Initialize-Environment
+    if (-not (Test-FrontendDependenciesReady)) {
+        Write-Step 'Frontend dependencies are missing or unusable; installing them.'
+        Install-FrontendDependencies
+    }
+    Stop-PortListener -Port ([int]$settings.UI_PORT)
+    Invoke-FrontendBuild
+    Write-Ok 'Frontend rebuilt successfully'
 }
 
 function Read-InstallationType {
@@ -501,21 +542,22 @@ function Show-Menu {
     Write-Host '  APPLICATION' -ForegroundColor DarkCyan
     Write-MenuItem -Number '1' -Label 'Launch application' -Description 'Start local services'
     Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Description 'Sync runtimes + packages'
+    Write-MenuItem -Number '3' -Label 'Rebuild frontend only' -Description 'Build client without launching services'
 
     Write-Host ''
     Write-Host '  DATA & QUALITY' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '3' -Label 'Initialize database' -Description 'Prepare local data store'
-    Write-MenuItem -Number '4' -Label 'Run test suite' -Description 'Execute project checks'
+    Write-MenuItem -Number '4' -Label 'Initialize database' -Description 'Prepare local data store'
+    Write-MenuItem -Number '5' -Label 'Run test suite' -Description 'Execute project checks'
 
     Write-Host ''
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '5' -Label 'Remove logs' -Description 'Delete application logs'
-    Write-MenuItem -Number '6' -Label 'Clear cache' -Description 'Remove temporary caches'
-    Write-MenuItem -Number '7' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
+    Write-MenuItem -Number '6' -Label 'Remove logs' -Description 'Delete application logs'
+    Write-MenuItem -Number '7' -Label 'Clear cache' -Description 'Remove temporary caches'
+    Write-MenuItem -Number '8' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
 
     Write-Host ''
     Write-MenuRule -Color DarkGray
-    Write-MenuItem -Number '8' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
+    Write-MenuItem -Number '9' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
 }
 
@@ -532,6 +574,7 @@ if ($Action) {
     switch ($Action) {
         'Launch' { Invoke-Launch }
         'Install' { Invoke-InstallOrUpdate }
+        'RebuildFrontend' { Invoke-RebuildFrontend }
         'InitializeDatabase' { Invoke-InitializeDatabase }
         'Test' { Invoke-TestSuite }
         'RemoveLogs' { Remove-Logs }
@@ -543,23 +586,24 @@ if ($Action) {
 
 while ($true) {
     Show-Menu
-    $selection = (Read-Host '  Select an option (1-8)').Trim()
-    if ($selection -notmatch '^[1-8]$') {
-        Write-Warn 'Invalid option. Enter a number from 1 to 8.'
+    $selection = (Read-Host '  Select an option (1-9)').Trim()
+    if ($selection -notmatch '^[1-9]$') {
+        Write-Warn 'Invalid option. Enter a number from 1 to 9.'
         [void](Read-Host 'Press Enter to continue')
         continue
     }
-    if ($selection -eq '8') { break }
+    if ($selection -eq '9') { break }
 
     try {
         switch ($selection) {
             '1' { Invoke-Launch; exit 0 }
             '2' { Invoke-InstallOrUpdate }
-            '3' { Invoke-InitializeDatabase }
-            '4' { Invoke-TestSuite }
-            '5' { Remove-Logs }
-            '6' { Clear-ApplicationCache }
-            '7' { Uninstall-Application }
+            '3' { Invoke-RebuildFrontend }
+            '4' { Invoke-InitializeDatabase }
+            '5' { Invoke-TestSuite }
+            '6' { Remove-Logs }
+            '7' { Clear-ApplicationCache }
+            '8' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message
