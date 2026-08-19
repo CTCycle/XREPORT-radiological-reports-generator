@@ -1,6 +1,9 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideChevronLeft, lucideChevronRight, lucideX } from '@ng-icons/lucide';
+import { filter } from 'rxjs';
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition, TourPlacement, TourStep } from '../types/guidance';
 import { ModalFocusDirective } from './modal-focus.directive';
@@ -93,6 +96,8 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   private static nextId = 0;
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly guidance = inject(GuidanceService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private layoutTimer: ReturnType<typeof setTimeout> | null = null;
   private initialScrollPosition: ScrollPosition | null = null;
   private scrollPositionRestored = false;
@@ -109,6 +114,17 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   readonly panelPosition = signal<PanelPosition>({ top: 80, left: 80 });
   readonly titleId = `guided-tour-${GuidedTourComponent.nextId++}-title`;
   readonly bodyId = `${this.titleId}-body`;
+
+  constructor() {
+    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      if (!this.open) return;
+      if (!this.isRouteAllowed(event.urlAfterRedirects)) {
+        this.skip();
+        return;
+      }
+      this.scheduleLayout();
+    });
+  }
 
   ngAfterViewInit(): void {
     this.captureScrollPosition();
@@ -138,7 +154,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   back(): void {
     if (this.currentStepIndex() === 0) return;
     this.currentStepIndex.update((index) => index - 1);
-    this.scheduleLayout();
+    void this.navigateToCurrentStep();
   }
 
   next(): void {
@@ -149,7 +165,7 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
       return;
     }
     this.currentStepIndex.update((index) => index + 1);
-    this.scheduleLayout();
+    void this.navigateToCurrentStep();
   }
 
   skip(): void {
@@ -167,6 +183,16 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
       this.measureTarget();
       this.layoutTimer = setTimeout(() => this.measureTarget(), 140);
     });
+  }
+
+  private async navigateToCurrentStep(): Promise<void> {
+    const route = this.currentStep()?.route;
+    if (route && !this.router.url.startsWith(route)) await this.router.navigateByUrl(route);
+    this.scheduleLayout();
+  }
+
+  private isRouteAllowed(url: string): boolean {
+    return this.definition.steps.some((step) => url.startsWith(step.route ?? this.definition.route));
   }
 
   private targetElement(): HTMLElement | null {
