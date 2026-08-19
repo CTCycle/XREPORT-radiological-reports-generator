@@ -12,6 +12,7 @@ export interface TourStep {
   target: string;
   title: string;
   body: string;
+  route?: string;
   placement?: TourPlacement;
 }
 
@@ -21,4 +22,3 @@ export interface GuidanceDefinition {
   route: string;
   steps: readonly TourStep[];
 }
-

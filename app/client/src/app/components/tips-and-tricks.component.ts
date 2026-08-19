@@ -3,7 +3,8 @@ import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX } from '@ng-icons/lucide';
-import { GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
+import { DATA_TRAINING_TOUR_ID, GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
+import { DatasetTrainingJourneyComponent } from './dataset-training-journey.component';
 import { ModalFocusDirective } from './modal-focus.directive';
 
 interface TipCard {
@@ -18,7 +19,7 @@ interface TipCard {
 @Component({
   standalone: true,
   selector: 'app-tips-and-tricks',
-  imports: [CommonModule, NgIcon, ModalFocusDirective],
+  imports: [CommonModule, NgIcon, DatasetTrainingJourneyComponent, ModalFocusDirective],
   providers: [provideIcons({ lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX })],
   template: `
     @if (open) {
@@ -35,6 +36,8 @@ interface TipCard {
           </header>
 
           <div class="guidance-modal-body">
+            <app-dataset-training-journey (routeRequested)="openRoute($event)" (walkthroughRequested)="startDataTrainingTour()" />
+            <h3 class="guidance-section-heading">Quick reminders</h3>
             <div class="guidance-tips-grid">
               @for (tip of tips; track tip.title) {
                 <article class="guidance-tip-card" [class.guidance-tip-card-warning]="tip.tone === 'warning'">
@@ -91,14 +94,14 @@ export class TipsAndTricksComponent {
     {
       icon: 'lucideFileStack',
       title: 'Build in order',
-      body: 'Load the image folder and report file first. Then select exactly one dataset row before building a processed dataset.',
+      body: 'Load the image folder and CSV/XLSX report file first. Then select exactly one source row before building a processed training dataset.',
       route: '/dataset',
       routeLabel: 'Open Dataset',
     },
     {
       icon: 'lucideBrainCircuit',
       title: 'Use checkpoints deliberately',
-      body: 'Start new training from a processed dataset; use Resume for continuation and Evaluate Model to inspect a saved checkpoint.',
+      body: 'Start new training from a processed dataset. Enable checkpoint saving when you want to continue later with Resume or inspect it with Evaluate Model.',
       route: '/training',
       routeLabel: 'Open Training',
     },
@@ -125,5 +128,10 @@ export class TipsAndTricksComponent {
   startInferenceTour(): void {
     this.closed.emit();
     this.guidance.requestTour(INFERENCE_TOUR_ID);
+  }
+
+  startDataTrainingTour(): void {
+    this.closed.emit();
+    this.guidance.requestTour(DATA_TRAINING_TOUR_ID);
   }
 }

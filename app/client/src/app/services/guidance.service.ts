@@ -5,6 +5,7 @@ import type { GuidanceDefinition, GuidanceEntry, GuidanceStatus } from '../types
 
 export const GUIDANCE_STORAGE_KEY = 'xreport.guidance.v1';
 export const INFERENCE_TOUR_ID = 'inference-tour';
+export const DATA_TRAINING_TOUR_ID = 'data-training-tour';
 
 export const INFERENCE_TOUR: GuidanceDefinition = {
   id: INFERENCE_TOUR_ID,
@@ -42,6 +43,59 @@ export const INFERENCE_TOUR: GuidanceDefinition = {
   ],
 };
 
+export const DATA_TRAINING_TOUR: GuidanceDefinition = {
+  id: DATA_TRAINING_TOUR_ID,
+  version: 1,
+  route: '/dataset',
+  steps: [
+    {
+      id: 'source',
+      target: '[data-guidance-target="dataset-source"]',
+      route: '/dataset',
+      title: '1. Upload and load the source',
+      body: 'Choose the server-side image folder and upload the CSV/XLSX reports or metadata file. Load Dataset matches the two inputs and stores the source rows for processing.',
+      placement: 'bottom',
+    },
+    {
+      id: 'process',
+      target: '[data-guidance-target="dataset-processing"]',
+      route: '/dataset',
+      title: '2. Process the uploaded source',
+      body: 'Select exactly one source dataset, configure the sample, validation split, tokenizer, and report limit, then Build Dataset. The work runs in the background.',
+      placement: 'top',
+    },
+    {
+      id: 'training-dataset',
+      target: '[data-guidance-target="training-dataset-list"]',
+      route: '/training',
+      title: '3. Select the training dataset',
+      body: 'Processing creates a separate training-ready dataset. Select it in New Training Session; this is the prepared input used by the model, not the raw source rows.',
+      placement: 'right',
+    },
+    {
+      id: 'new-training',
+      target: '[data-guidance-target="training-new-action"]',
+      route: '/training',
+      title: '4. Start a new training run',
+      body: 'Configure Training opens the five-step wizard. Review the model, dataset, epochs, batch size, device, and checkpoint-saving choices before starting the background run.',
+      placement: 'left',
+    },
+    {
+      id: 'resume',
+      target: '[data-guidance-target="training-resume-action"]',
+      route: '/training',
+      title: '5. Resume from a checkpoint',
+      body: 'When a checkpoint is available, select it under Resume Training, enter additional epochs, and continue from the saved state instead of starting from zero.',
+      placement: 'left',
+    },
+  ],
+};
+
+const GUIDANCE_TOURS: Record<string, GuidanceDefinition> = {
+  [INFERENCE_TOUR_ID]: INFERENCE_TOUR,
+  [DATA_TRAINING_TOUR_ID]: DATA_TRAINING_TOUR,
+};
+
 @Injectable({ providedIn: 'root' })
 export class GuidanceService {
   private readonly storage = inject(StorageService);
@@ -49,6 +103,10 @@ export class GuidanceService {
   private readonly tourRequestSubject = new Subject<string>();
 
   readonly tourRequests$ = this.tourRequestSubject.asObservable();
+
+  getTour(id: string): GuidanceDefinition | null {
+    return GUIDANCE_TOURS[id] ?? null;
+  }
 
   getEntry(id: string): GuidanceEntry | null {
     return this.entries[id] ?? null;
