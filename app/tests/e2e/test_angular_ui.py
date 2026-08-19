@@ -66,6 +66,40 @@ def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
     assert not console_errors
 
 ###############################################################################
+def test_theme_selector_persistence_and_system_resolution(page: Page) -> None:
+    console_errors: list[str] = []
+    page.on("console", lambda message: console_errors.append(message.text) if message.type in {"error", "warning"} else None)
+    page.emulate_media(color_scheme="dark")
+    page.add_init_script("localStorage.setItem('theme-preference', 'system')")
+
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")
+    selector = page.locator("app-theme-selector")
+    selector.wait_for()
+
+    assert page.locator("html").get_attribute("data-theme") == "dark"
+    assert page.locator("html").evaluate("element => getComputedStyle(element).colorScheme") == "dark"
+    assert selector.get_by_role("button", name="Use System theme").get_attribute("aria-pressed") == "true"
+
+    selector.get_by_role("button", name="Use Light theme").click()
+    assert page.locator("html").get_attribute("data-theme") == "light"
+    assert page.evaluate("localStorage.getItem('theme-preference')") == "light"
+
+    page.emulate_media(color_scheme="dark")
+    assert page.locator("html").get_attribute("data-theme") == "light"
+
+    selector.get_by_role("button", name="Use System theme").click()
+    assert page.locator("html").get_attribute("data-theme") == "dark"
+    page.emulate_media(color_scheme="light")
+    page.wait_for_function("document.documentElement.dataset.theme === 'light'")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    widths = page.evaluate("({ body: document.body.scrollWidth, client: document.documentElement.clientWidth })")
+    assert widths["body"] <= widths["client"] + 2
+    assert selector.is_visible()
+    assert not console_errors
+
+###############################################################################
 def test_inference_model_browser_layout_and_selection(page: Page) -> None:
     page.set_viewport_size({"width": 1440, "height": 1000})
     page.goto(f"{BASE_URL}/inference", wait_until="domcontentloaded")

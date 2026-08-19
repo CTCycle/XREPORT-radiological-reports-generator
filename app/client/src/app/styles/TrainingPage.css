@@ -37,7 +37,7 @@
     grid-template-columns: minmax(0, 2.1fr) minmax(0, 0.9fr);
     gap: 0;
     position: relative;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-md);
     --panel-row-height: 48px;
     overflow: hidden;
 }
@@ -66,7 +66,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    background-color: rgba(59, 130, 246, 0.04);
+    background-color: var(--accent-subtle);
     border-left: 1px solid var(--border-color);
     padding: 1.25rem 1.25rem 1.25rem 1.5rem;
 }
@@ -101,7 +101,7 @@
 .panel-collapse-toggle:hover {
     border-color: var(--accent-color);
     color: var(--accent-color);
-    background: #eef2ff;
+    background: var(--accent-subtle);
 }
 
 .panel-collapse-toggle:focus-visible {
@@ -145,7 +145,7 @@
 .panel-refresh:hover {
     border-color: var(--accent-color);
     color: var(--accent-color);
-    background: #eef2ff;
+    background: var(--accent-subtle);
 }
 
 .panel-list {
@@ -186,13 +186,13 @@
 }
 
 .panel-row:hover {
-    border-color: rgba(59, 130, 246, 0.35);
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-sm);
 }
 
 .panel-row.selected {
     border-color: var(--accent-color);
-    background: rgba(59, 130, 246, 0.08);
+    background: var(--accent-soft);
 }
 
 .panel-row-main {
@@ -242,7 +242,7 @@
 
 .icon-button {
     border: 1px solid var(--border-color);
-    background: #fff;
+    background: var(--surface-elevated);
     color: var(--text-secondary);
     width: 30px;
     height: 30px;
@@ -256,7 +256,7 @@
 .icon-button:hover {
     border-color: var(--accent-color);
     color: var(--accent-color);
-    background: rgba(59, 130, 246, 0.1);
+    background: var(--accent-soft);
 }
 
 .icon-button:focus-visible {
@@ -267,9 +267,9 @@
 }
 
 .icon-button.danger:hover {
-    border-color: #ef4444;
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.12);
+    border-color: var(--error-color);
+    color: var(--error-color);
+    background: var(--error-soft);
 }
 
 .panel-empty {
@@ -278,7 +278,7 @@
     padding: 1rem 0.75rem;
     border: 1px dashed var(--border-color);
     border-radius: 12px;
-    background: #f8fafc;
+    background: var(--bg-muted);
 }
 
 .panel-card {
@@ -379,25 +379,25 @@
 }
 
 .btn-primary {
-    background: var(--accent-color);
-    color: white;
-    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.22);
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-    background: #2563eb;
+    background: var(--accent-fill);
 }
 
 .btn-secondary {
-    background: #fff;
+    background: var(--surface-elevated);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
 }
 
 .btn-secondary:hover {
-    background: #f8fafc;
+    background: var(--hover-bg);
     color: var(--text-primary);
-    border-color: #cbd5e1;
+    border-color: var(--input-border);
 }
 
 .btn:disabled {
@@ -439,7 +439,7 @@
 .form-select:focus {
     outline: none;
     border-color: var(--accent-color);
-    background: #fff;
+    background: var(--surface-elevated);
 }
 
 .form-checkbox {
@@ -456,16 +456,16 @@
 }
 
 .form-checkbox:hover {
-    background: #fff;
-    border-color: #cbd5e1;
+    background: var(--surface-elevated);
+    border-color: var(--input-border);
 }
 
 .checkbox-visual {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    border: 1px solid #cbd5e1;
-    background: #fff;
+    border: 1px solid var(--input-border);
+    background: var(--surface-elevated);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -482,7 +482,7 @@ input[type="checkbox"]:checked+.checkbox-visual {
     content: '';
     width: 6px;
     height: 6px;
-    background: #fff;
+    background: var(--on-accent);
     border-radius: 2px;
     opacity: 0;
     transition: opacity 0.2s;
@@ -521,7 +521,7 @@ input[type="checkbox"] {
 .training-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.65);
+    background: var(--overlay-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -536,8 +536,8 @@ input[type="checkbox"] {
     max-height: 88vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
-    border: 1px solid #b7c8dd;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
 }
 
 .training-wizard-header {
@@ -545,8 +545,8 @@ input[type="checkbox"] {
     justify-content: space-between;
     align-items: flex-start;
     padding: 1.1rem 1.4rem;
-    border-bottom: 1px solid #b7c8dd;
-    background: #f8fbff;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--surface-elevated);
     gap: 1rem;
 }
 
@@ -598,24 +598,24 @@ input[type="checkbox"] {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    border: 1px solid #b7c8dd;
-    color: #435a76;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
     display: grid;
     place-items: center;
     font-size: 0.75rem;
     font-weight: 600;
-    background: #f2f6fb;
+    background: var(--input-bg);
 }
 
 .wizard-step-dot.active {
     border-color: var(--accent-color-strong);
-    background: #dbeafe;
+    background: var(--accent-soft);
     color: var(--accent-color-strong);
 }
 
 .wizard-step-label {
     font-size: 0.78rem;
-    color: #435a76;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
@@ -626,7 +626,7 @@ input[type="checkbox"] {
 .wizard-step-line {
     flex: 1;
     height: 1px;
-    background: #b7c8dd;
+    background: var(--border-color);
     margin-left: 0.5rem;
 }
 
@@ -637,7 +637,7 @@ input[type="checkbox"] {
 .training-wizard-body {
     padding: 1rem 1.4rem 1.4rem;
     overflow-y: auto;
-    background: #fbfdff;
+    background: var(--bg-primary);
 }
 
 /* Wizard Page - Compact Style */
@@ -656,7 +656,7 @@ input[type="checkbox"] {
     color: var(--text-primary);
     margin-bottom: 1rem;
     padding-bottom: 0.25rem;
-    border-bottom: 1px solid #b7c8dd;
+    border-bottom: 1px solid var(--border-color);
 }
 
 /* Force clean styling for form groups inside wizard to remove "contours" */
@@ -672,14 +672,14 @@ input[type="checkbox"] {
 
 .training-wizard-modal .form-label {
     font-size: 0.75rem;
-    color: #405775;
+    color: var(--text-secondary);
     font-weight: 600;
 }
 
 .training-wizard-modal .form-input,
 .training-wizard-modal .form-select {
-    background: #f7faff;
-    border: 1px solid #b7c8dd;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 0.35rem 0.5rem;
     font-size: 0.85rem;
@@ -688,7 +688,7 @@ input[type="checkbox"] {
 
 .training-wizard-modal .form-input:focus {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: var(--focus-ring);
 }
 
 /* Checkbox specific alignment */
@@ -726,8 +726,8 @@ input[type="checkbox"] {
 }
 
 .wizard-device-panel {
-    background: #eef4fb;
-    border: 1px solid #b7c8dd;
+    background: var(--bg-muted);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 0.9rem 1rem;
 }
@@ -752,7 +752,7 @@ input[type="checkbox"] {
 }
 
 .wizard-device-card {
-    background: #fff;
+    background: var(--surface-elevated);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 0.75rem;
@@ -817,8 +817,8 @@ input[type="checkbox"] {
 }
 
 .training-wizard-footer {
-    border-top: 1px solid #b7c8dd;
-    background: #f1f5fb;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-muted);
     padding: 0.9rem 1.4rem 1.2rem;
     display: flex;
     flex-direction: column;
@@ -833,7 +833,7 @@ input[type="checkbox"] {
 }
 
 .wizard-error {
-    color: #ef4444;
+    color: var(--error-color);
     font-size: 0.8rem;
 }
 
@@ -875,7 +875,7 @@ input[type="checkbox"] {
     max-height: 280px;
     overflow-y: auto;
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--accent-subtle);
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
@@ -959,11 +959,11 @@ input[type="checkbox"] {
 /* Highlighted Input */
 .form-input.highlight-input {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: var(--focus-ring);
 }
 
 .form-input.highlight-input:focus {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    box-shadow: var(--focus-ring);
 }
 
 @media (max-width: 640px) {
@@ -1062,8 +1062,8 @@ input[type="checkbox"] {
 }
 
 .training-wizard-step.active span {
-    color: #fff;
-    background: var(--accent-primary);
+    color: var(--on-accent);
+    background: var(--accent-fill);
 }
 
 .training-wizard-body {
