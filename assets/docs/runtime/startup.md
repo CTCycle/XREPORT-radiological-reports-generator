@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-16
+Last updated: 2026-08-19
 
 ## Windows Local Launcher
 
@@ -20,11 +20,20 @@ The menu can:
 
 - prepare portable Python, uv, and Node.js in `runtimes/`
 - synchronize backend and frontend dependencies
+- rebuild the frontend without launching services
 - build and launch the local web application
 - initialize the database and run tests
 - remove logs, clear caches, or uninstall generated dependencies
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
+
+Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
+frontend dependencies as needed, rebuild the Angular client, and leave backend
+services untouched. The same operation can be run directly with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend
+```
 
 The install/update option prepares the portable runtimes before requesting an
 installation profile:
@@ -64,6 +73,6 @@ The test launcher uses the prepared backend environment and starts required loca
 
 On backend startup, SQLite initializes only when its database file is missing.
 PostgreSQL is checked with a connection-only probe and must have been
-initialized explicitly through launcher option `3`. Startup also verifies the
+initialized explicitly through launcher option `4`. Startup also verifies the
 tracked configuration file and creates required resource directories for logs,
 models, tokenizers, checkpoints, and templates.
