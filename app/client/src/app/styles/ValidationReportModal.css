@@ -4,7 +4,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--overlay-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -19,7 +19,7 @@
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 26px 60px rgba(15, 23, 42, 0.35);
+    box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color);
 }
 
@@ -89,8 +89,8 @@
 
 .report-metric-pill {
     padding: 0.35rem 0.65rem;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-color);
     border-radius: 999px;
     font-size: 0.7rem;
     color: var(--text-primary);

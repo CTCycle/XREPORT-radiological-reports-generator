@@ -15,21 +15,57 @@
   --bg-primary: #e9eef6;
   --bg-secondary: #ffffff;
   --bg-muted: #e3e9f3;
+  --surface-elevated: #ffffff;
+  --bg-gradient-start: #edf2f8;
+  --bg-gradient-end: #e9eef6;
   --text-primary: #20324a;
   --text-secondary: #5f728c;
+  --text-muted: #64748b;
   --accent-color: #4f86ea;
   --accent-color-strong: #2f6de0;
+  --accent-fill: #2f6de0;
+  --accent-primary: var(--accent-fill);
+  --link-color: #2f6de0;
+  --link-hover: #1d4ed8;
   --border-color: #d6dfec;
+  --border-subtle: #e5ebf3;
   --input-bg: #f6f9ff;
-  --success-color: #16a34a;
-  --warning-color: #b45309;
-  --error-color: #dc2626;
+  --input-border: #cbd5e1;
+  --hover-bg: #eef3fb;
+  --selected-bg: #dce9ff;
+  --disabled-bg: #eef2f7;
+  --disabled-text: #8795a8;
+  --disabled-border: #d8e0eb;
+  --success-color: #15803d;
+  --success-bg: #dcfce7;
+  --warning-color: #a16207;
+  --warning-bg: #fef3c7;
+  --error-color: #b91c1c;
+  --error-bg: #fee2e2;
+  --accent-soft: rgba(79, 134, 234, 0.1);
+  --accent-subtle: rgba(79, 134, 234, 0.05);
+  --accent-strong-soft: rgba(47, 109, 224, 0.14);
+  --success-soft: rgba(21, 128, 61, 0.12);
+  --warning-soft: rgba(161, 98, 7, 0.12);
+  --error-soft: rgba(185, 28, 28, 0.12);
+  --neutral-soft: rgba(100, 116, 139, 0.14);
+  --overlay-color: rgba(15, 23, 42, 0.55);
+  --code-bg: #eef2f7;
+  --media-bg: #000000;
+  --media-control-bg: rgba(255, 255, 255, 0.1);
+  --media-control-hover-bg: rgba(255, 255, 255, 0.2);
+  --on-accent: #ffffff;
+  --on-media: #ffffff;
+  --chart-primary: #2563eb;
+  --chart-secondary: #0d9488;
+  --chart-grid: rgba(32, 50, 74, 0.22);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --shadow-sm: 0 2px 6px rgba(28, 48, 72, 0.05);
   --shadow-md: 0 10px 24px rgba(28, 48, 72, 0.1);
   --focus-ring: 0 0 0 3px rgba(79, 134, 234, 0.22);
+  --theme-transition-duration: 0.18s;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -52,24 +88,74 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-primary: #101419;
+  --bg-secondary: #161d27;
+  --bg-muted: #1f2937;
+  --surface-elevated: #202b38;
+  --bg-gradient-start: #151c26;
+  --bg-gradient-end: #101419;
+  --text-primary: #f3f6fb;
+  --text-secondary: #b5c1d1;
+  --text-muted: #94a3b8;
+  --accent-color: #76a7f5;
+  --accent-color-strong: #9bc0ff;
+  --accent-fill: #2f5fa7;
+  --link-color: #9bc0ff;
+  --link-hover: #c1d7ff;
+  --border-color: #354256;
+  --border-subtle: #293547;
+  --input-bg: #131b25;
+  --input-border: #46566d;
+  --hover-bg: #222d3b;
+  --selected-bg: #253b5b;
+  --disabled-bg: #202733;
+  --disabled-text: #718096;
+  --disabled-border: #364152;
+  --success-color: #6ee7a0;
+  --success-bg: #123b2b;
+  --warning-color: #f6c453;
+  --warning-bg: #3a2c0e;
+  --error-color: #ff8b8b;
+  --error-bg: #4a2024;
+  --accent-soft: rgba(118, 167, 245, 0.18);
+  --accent-subtle: rgba(118, 167, 245, 0.1);
+  --accent-strong-soft: rgba(155, 192, 255, 0.18);
+  --success-soft: rgba(110, 231, 160, 0.14);
+  --warning-soft: rgba(246, 196, 83, 0.14);
+  --error-soft: rgba(255, 139, 139, 0.16);
+  --neutral-soft: rgba(148, 163, 184, 0.14);
+  --overlay-color: rgba(0, 0, 0, 0.68);
+  --code-bg: #0b111a;
+  --chart-primary: #9bc0ff;
+  --chart-secondary: #58d6bd;
+  --chart-grid: rgba(243, 246, 251, 0.22);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 14px 32px rgba(0, 0, 0, 0.36);
+  --focus-ring: 0 0 0 3px rgba(155, 192, 255, 0.48);
+}
+
 html,
 body {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  background: linear-gradient(180deg, #edf2f8 0%, #e9eef6 100%);
+  background: linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
   color: var(--text-primary);
 }
 
-#root {
+app-root {
   width: 100%;
   min-height: 100vh;
-  display: flex;
+  display: block;
 }
 
 button,
@@ -77,6 +163,24 @@ input,
 select,
 textarea {
   font: inherit;
+  transition: color var(--theme-transition-duration) ease,
+    background-color var(--theme-transition-duration) ease,
+    border-color var(--theme-transition-duration) ease,
+    box-shadow var(--theme-transition-duration) ease;
+}
+
+input,
+select,
+textarea {
+  color: var(--text-primary);
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  accent-color: var(--accent-color-strong);
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 button:focus-visible,

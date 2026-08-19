@@ -1,10 +1,10 @@
 .validation-dashboard {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(246, 249, 255, 0.9));
-    border: 1px solid rgba(79, 134, 234, 0.2);
+    background: linear-gradient(135deg, var(--surface-elevated), var(--input-bg));
+    border: 1px solid var(--accent-soft);
     border-radius: 12px;
     padding: 1.5rem;
     margin-top: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--shadow-md);
 }
 
 .validation-dashboard .dashboard-header {
@@ -13,7 +13,7 @@
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(79, 134, 234, 0.15);
+    border-bottom: 1px solid var(--accent-soft);
 }
 
 .validation-dashboard .dashboard-title {
@@ -36,21 +36,21 @@
 }
 
 .validation-dashboard .dashboard-status.success {
-    background: rgba(34, 197, 94, 0.1);
+    background: var(--success-soft);
     color: var(--success-color);
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    border: 1px solid var(--success-color);
 }
 
 .validation-dashboard .dashboard-status.error {
-    background: rgba(239, 68, 68, 0.1);
+    background: var(--error-soft);
     color: var(--error-color);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid var(--error-color);
 }
 
 .validation-dashboard .dashboard-status.running {
-    background: rgba(79, 134, 234, 0.12);
+    background: var(--accent-soft);
     color: var(--accent-color-strong);
-    border: 1px solid rgba(79, 134, 234, 0.3);
+    border: 1px solid var(--accent-color);
 }
 
 .validation-dashboard .validation-progress {
@@ -63,7 +63,7 @@
 .validation-dashboard .progress-bar {
     height: 10px;
     border-radius: 999px;
-    background: rgba(148, 163, 184, 0.2);
+    background: var(--neutral-soft);
     overflow: hidden;
 }
 
@@ -77,7 +77,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.85rem;
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .validation-dashboard .progress-status {
@@ -98,11 +98,11 @@
 }
 
 .validation-dashboard .stats-section {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(79, 134, 234, 0.16);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
 }
 
 .validation-dashboard .stats-section-title {
@@ -122,7 +122,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .validation-dashboard .stats-row:last-child {
@@ -130,7 +130,7 @@
 }
 
 .validation-dashboard .stat-label {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
@@ -147,11 +147,11 @@
 
 /* Chart Section */
 .validation-dashboard .chart-section {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(79, 134, 234, 0.16);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-sm);
 }
 
 .validation-dashboard .chart-title {
@@ -182,7 +182,7 @@
 
 .validation-dashboard .histogram-bars {
     align-items: flex-end;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.45);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     flex: 1;
     gap: 1px;
@@ -190,7 +190,7 @@
 }
 
 .validation-dashboard .histogram-bar {
-    background: #3b82f6;
+    background: var(--chart-primary);
     border-radius: 2px 2px 0 0;
     display: block;
     flex: 1 1 0;
@@ -204,7 +204,7 @@
 }
 
 .validation-dashboard .chart-axis {
-    color: #64748b;
+    color: var(--text-secondary);
     display: flex;
     font-size: 0.7rem;
     justify-content: space-between;
@@ -240,13 +240,13 @@
 }
 
 .validation-dashboard .loading-text {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.9rem;
 }
 
 /* Idle Message */
 .validation-dashboard .idle-message {
-    color: #64748b;
+    color: var(--text-secondary);
     text-align: center;
     padding: 2rem;
     font-size: 0.9rem;

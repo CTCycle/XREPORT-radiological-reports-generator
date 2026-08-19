@@ -1,7 +1,7 @@
 .metadata-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--overlay-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -17,7 +17,7 @@
     border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow-md);
 }
 
 .metadata-header {
@@ -112,8 +112,8 @@
 .metadata-error {
     padding: 0.75rem;
     border-radius: 10px;
-    background: rgba(239, 68, 68, 0.1);
-    color: #b91c1c;
+    background: var(--error-soft);
+    color: var(--error-color);
     font-size: 0.85rem;
     border: 1px solid rgba(239, 68, 68, 0.3);
 }

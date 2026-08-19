@@ -6,7 +6,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.4);
+    background: var(--overlay-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -23,7 +23,7 @@
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color, #e2e8f0);
     overflow: hidden;
 }
@@ -107,7 +107,7 @@
 .toggle-switch {
     width: 48px;
     height: 26px;
-    background-color: #cbd5e1;
+    background-color: var(--input-border);
     border-radius: 26px;
     position: relative;
     transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -125,7 +125,7 @@
     left: 3px;
     width: 20px;
     height: 20px;
-    background-color: white;
+    background-color: var(--surface-elevated);
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -224,7 +224,7 @@
 
 .wizard-metric.selected {
     border-color: var(--accent-color, #3b82f6);
-    background: rgba(59, 130, 246, 0.03);
+    background: var(--accent-subtle);
 }
 
 .wizard-metric-title {
