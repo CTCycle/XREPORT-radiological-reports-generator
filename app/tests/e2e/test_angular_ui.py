@@ -15,7 +15,6 @@ from playwright.sync_api import Page, sync_playwright
 
 BASE_URL = os.environ.get("UI_BASE_URL", "http://127.0.0.1:8003").rstrip("/")
 
-
 ###############################################################################
 @pytest.fixture()
 def page() -> Page:
@@ -29,7 +28,6 @@ def page() -> Page:
         browser_page = browser.new_page(viewport={"width": 390, "height": 844})
         yield browser_page
         browser.close()
-
 
 ###############################################################################
 def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
@@ -66,7 +64,6 @@ def test_root_redirect_and_mobile_route_matrix(page: Page) -> None:
     assert tablet["tableScrollWidth"] <= tablet["tableClientWidth"] + 1, tablet
 
     assert not console_errors
-
 
 ###############################################################################
 def test_inference_model_browser_layout_and_selection(page: Page) -> None:
@@ -126,7 +123,6 @@ def test_inference_model_browser_layout_and_selection(page: Page) -> None:
     assert mobile["bodyWidth"] <= mobile["clientWidth"] + 2
     assert len(mobile["columns"].split(" ")) == 1
 
-
 ###############################################################################
 def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
     page.set_viewport_size({"width": 1440, "height": 1000})
@@ -177,7 +173,6 @@ def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
     widths = page.evaluate("({ body: document.body.scrollWidth, client: document.documentElement.clientWidth })")
     assert widths["body"] <= widths["client"] + 2
 
-
 ###############################################################################
 def test_dataset_training_workflow_journey_and_tour(page: Page) -> None:
     page.set_viewport_size({"width": 1440, "height": 1000})
@@ -212,7 +207,6 @@ def test_dataset_training_workflow_journey_and_tour(page: Page) -> None:
     page.get_by_role("button", name="Close walkthrough").click()
     assert page.locator(".guided-tour-dialog").count() == 0
 
-
 ###############################################################################
 def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
@@ -232,7 +226,6 @@ def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.keyboard.press("Escape")
     wizard.wait_for(state="hidden")
 
-
 ###############################################################################
 def test_training_wizard_has_five_steps(page: Page) -> None:
     page.goto(f"{BASE_URL}/training", wait_until="domcontentloaded")
@@ -248,7 +241,6 @@ def test_training_wizard_has_five_steps(page: Page) -> None:
     assert "Training Summary" in wizard.inner_text()
     page.keyboard.press("Escape")
     wizard.wait_for(state="hidden")
-
 
 ###############################################################################
 def test_training_dashboard_visual_structure_and_responsive_layout(page: Page) -> None:
