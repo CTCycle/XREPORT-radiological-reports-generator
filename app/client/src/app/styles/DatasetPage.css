@@ -234,16 +234,13 @@
 /* Dataset Processing Split View */
 .dataset-processing-split {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
     gap: 1rem;
     align-items: stretch;
 }
 
 .dataset-grid-section {
-    flex: 1;
-    /* Takes available space, usually around 60-70% */
-    min-width: 0;
-    /* Prevents overflow */
+    display: contents;
 }
 
 .processing-config-panel {
