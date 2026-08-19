@@ -106,12 +106,21 @@
     50% { opacity: 0.5; }
 }
 
+.dashboard-metrics-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
 .dashboard-metrics-grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
+    flex: 0 1 950px;
     gap: 0.5rem;
     max-width: 950px;
-    margin: 0 auto 1rem;
+    margin: 0;
 }
 
 .dashboard-metric-card {
@@ -365,7 +374,8 @@
 
 @media (max-width: 768px) {
     .dashboard-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .progress-bar-row { flex-direction: column; align-items: stretch; }
+    .dashboard-metrics-row { align-items: stretch; flex-direction: column; }
+    .dashboard-metrics-grid { width: 100%; max-width: none; flex: 0 1 auto; }
     .btn-stop { width: 100%; }
 }
 
