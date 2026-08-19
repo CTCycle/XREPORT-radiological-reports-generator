@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Primary Commands
 
@@ -8,6 +8,7 @@ Last updated: 2026-08-18
 
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`
+- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`
 
 ### Manual Backend And Frontend
 

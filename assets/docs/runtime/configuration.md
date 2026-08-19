@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Shared Configuration Sources
 
@@ -53,7 +53,7 @@ Last updated: 2026-08-18
 SQLite checks the database file at backend startup and initializes only a
 missing file. Existing SQLite files are not recreated, reseeded, or
 cross-validated. PostgreSQL startup only verifies a connection to the
-configured database; use option `3` in `start_on_windows.ps1` for explicit
+configured database; use option `4` in `start_on_windows.ps1` for explicit
 database and schema initialization.
 
 ## Interoperability

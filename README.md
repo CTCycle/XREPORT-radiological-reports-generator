@@ -33,7 +33,7 @@ Supported data sources:
 Run:
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 
-The launcher menu can launch the app, install or update dependencies, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
+The launcher menu can launch the app, install or update dependencies, rebuild the frontend only, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
 
 ### 3.2 macOS / Linux (Manual Setup)
 
@@ -127,7 +127,7 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
   - If the file already exists, startup does not recreate, reset, reseed, or cross-validate it.
 - PostgreSQL mode (`EMBEDDED_DATABASE=false`):
   - Normal startup only verifies a connection to the configured database and never creates or initializes it.
-  - Select option `3` in `start_on_windows.ps1` to create the configured database and schema explicitly.
+  - Select option `4` in `start_on_windows.ps1` to create the configured database and schema explicitly.
 
 See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
 

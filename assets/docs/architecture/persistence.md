@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ## Database Backend Selection
 
@@ -20,7 +20,7 @@ From `settings/.env`:
   missing file is initialized once; an existing file is not recreated, reset,
   reseeded, or schema-validated.
 - PostgreSQL startup performs only a connection check against the configured
-  database. Database and schema creation are explicit through option `3` in
+  database. Database and schema creation are explicit through option `4` in
   `start_on_windows.ps1`.
 - The repository has no applicable database seed routine; initialization only
   creates the existing schema.
