@@ -169,7 +169,7 @@ export class TrainingDashboardComponent {
       const series = keys.map((key, index) => ({
         key,
         label: key.replaceAll('_', ' '),
-        color: index === 0 ? '#2563eb' : '#0d9488',
+        color: index === 0 ? 'var(--chart-primary)' : 'var(--chart-secondary)',
         values: data.flatMap((point) => typeof point[key] === 'number' ? [{ batch: point.batch, value: point[key] as number }] : []),
       })).filter((item) => item.values.length);
       const maxBatch = Math.max(...data.map((point) => point.batch), 1);

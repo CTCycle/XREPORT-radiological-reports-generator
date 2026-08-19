@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(15, 23, 42, 0.4);
+  background-color: var(--overlay-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,7 +21,7 @@
   max-width: 800px;
   max-height: 90vh;
   border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -142,7 +142,7 @@
   flex-direction: column;
   gap: 0.75rem;
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   font-family: inherit;
   text-align: left;
   width: 100%;
@@ -151,12 +151,12 @@
 .metric-card:hover {
   transform: translateY(-4px);
   border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .metric-card.selected {
   border-color: var(--accent-color, #3b82f6);
-  background-color: rgba(59, 130, 246, 0.03);
+  background-color: var(--accent-subtle);
 }
 
 .metric-icon {
@@ -174,7 +174,7 @@
 
 .metric-card.selected .metric-icon {
   color: var(--accent-color, #3b82f6);
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--accent-soft);
 }
 
 .metric-card h3 {
@@ -312,7 +312,7 @@
   padding: 1.5rem;
   margin-bottom: 1.25rem;
   border: 1px solid var(--border-color, #e2e8f0);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .summary-card.compact {
@@ -430,19 +430,19 @@
 
 .btn-wizard-primary {
   background-color: var(--accent-color, #3b82f6);
-  color: white;
+  color: var(--on-accent);
   box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
 }
 
 .btn-wizard-primary:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: var(--accent-fill);
   transform: translateY(-1px);
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
 }
 
 .btn-wizard-primary:disabled {
-  background-color: #e2e8f0;
-  color: #475569;
+  background-color: var(--disabled-bg);
+  color: var(--disabled-text);
   cursor: not-allowed;
   box-shadow: none;
 }

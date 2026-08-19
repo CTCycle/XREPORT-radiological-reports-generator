@@ -7,7 +7,7 @@
     padding: 0.85rem 1rem;
     border: 1px solid rgba(47, 109, 224, 0.28);
     border-radius: var(--radius-md);
-    background: rgba(79, 134, 234, 0.08);
+    background: var(--accent-subtle);
     color: var(--text-primary);
 }
 
@@ -17,7 +17,7 @@
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    color: #ffffff;
+    color: var(--on-accent);
     background: var(--accent-color-strong);
 }
 
@@ -63,16 +63,16 @@
 
 .guidance-button:hover,
 .guidance-link-button:hover {
-    background: rgba(79, 134, 234, 0.12);
+    background: var(--accent-soft);
 }
 
 .guidance-button-primary {
-    color: #ffffff;
+    color: var(--on-accent);
     background: var(--accent-color-strong);
 }
 
 .guidance-button-primary:hover {
-    background: #255fc9;
+    background: var(--accent-fill);
 }
 
 .guidance-dismiss-button,
@@ -166,7 +166,7 @@
 .guidance-modal-backdrop {
     z-index: 1300;
     padding: 1rem;
-    background: rgba(15, 23, 42, 0.58);
+    background: var(--overlay-color);
 }
 
 .guidance-modal {
@@ -315,7 +315,7 @@
 }
 
 .guidance-journey-status-dot.is-ready {
-    background: #16a34a;
+    background: var(--success-color);
     box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
@@ -363,7 +363,7 @@
 }
 
 .guidance-journey-step.is-completed .guidance-journey-marker {
-    color: #16a34a;
+    color: var(--success-color);
 }
 
 .guidance-journey-step.is-available .guidance-journey-marker {
@@ -595,7 +595,7 @@
 .guided-tour-shade {
     position: fixed;
     z-index: 1400;
-    background: rgba(15, 23, 42, 0.62);
+    background: var(--overlay-color);
     pointer-events: auto;
 }
 

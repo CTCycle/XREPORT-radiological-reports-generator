@@ -1,8 +1,8 @@
 # UI Design Tokens
 
-Last updated: 2026-06-03
+Last updated: 2026-08-20
 
-Use `src/index.css` as the source of truth for UI tokens.
+Use `app/client/src/styles.css` as the source of truth for UI tokens.
 
 ## Typography
 
@@ -43,24 +43,45 @@ Background and surface tokens:
 - `--bg-primary`
 - `--bg-secondary`
 - `--bg-muted`
+- `--surface-elevated`
+- `--hover-bg`
+- `--selected-bg`
 
 Text tokens:
 
 - `--text-primary`
 - `--text-secondary`
+- `--text-muted`
 
 Border and input tokens:
 
 - `--border-color`
+- `--border-subtle`
 - `--input-bg`
+- `--input-border`
 
 Accent and semantic tokens:
 
 - `--accent-color`
 - `--accent-color-strong`
+- `--accent-fill`
+- `--link-color`
+- `--link-hover`
 - `--success-color`
 - `--warning-color`
 - `--error-color`
+- `--success-bg`
+- `--warning-bg`
+- `--error-bg`
+- `--disabled-bg`
+- `--disabled-text`
+- `--overlay-color`
+- `--code-bg`
+- `--media-bg`
+- `--on-accent`
+- `--on-media`
+- `--chart-primary`
+- `--chart-secondary`
 
 Shape and elevation tokens:
 
@@ -69,7 +90,17 @@ Shape and elevation tokens:
 - `--radius-lg`
 - `--shadow-sm`
 - `--shadow-md`
+- `--focus-ring`
 
 Accessibility rule:
 
 - Avoid one-off colors when an existing semantic or tokenized value already exists.
+
+## Theme behavior
+
+- The resolved theme is applied to the root HTML element as `data-theme="light"` or `data-theme="dark"`.
+- Theme preferences are `light`, `dark`, or `system`; the default preference is `system`.
+- The selected preference is stored locally under `theme-preference`. The resolved theme is never stored as the preference, so `system` continues following the OS.
+- `color-scheme`, native controls, the browser theme color, overlays, status states, charts, and form surfaces must consume the active token palette.
+- Component styles should use semantic variables instead of duplicating light or dark color literals.
+- Intentional media-viewer stages may use `--media-bg`; all surrounding controls and overlays must remain tokenized.

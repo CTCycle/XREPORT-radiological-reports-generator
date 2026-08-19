@@ -21,7 +21,7 @@
     overflow-y: auto;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+    box-shadow: var(--shadow-sm);
     z-index: 20;
 }
 
@@ -124,22 +124,22 @@
 
 .app-nav-button.active {
     color: var(--accent-color-strong);
-    background: rgba(37, 99, 235, 0.12);
+    background: var(--accent-soft);
 }
 
 .app-nav-button-primary {
     color: var(--accent-color-strong);
-    background: rgba(37, 99, 235, 0.08);
+    background: var(--accent-subtle);
 }
 
 .app-nav-button-primary:hover {
     color: var(--accent-color-strong);
-    background: rgba(37, 99, 235, 0.16);
+    background: var(--accent-strong-soft);
 }
 
 .app-nav-button-primary.active {
-    color: #ffffff;
-    background: var(--accent-color-strong);
+    color: var(--on-accent);
+    background: var(--accent-fill);
 }
 
 .app-nav-button:focus-visible {
