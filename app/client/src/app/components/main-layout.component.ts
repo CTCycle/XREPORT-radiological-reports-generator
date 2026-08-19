@@ -7,11 +7,12 @@ import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
+import { ThemeSelectorComponent } from './theme-selector.component';
 import { TipsAndTricksComponent } from './tips-and-tricks.component';
 
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, TipsAndTricksComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, ThemeSelectorComponent, TipsAndTricksComponent],
   providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings })],
   template: `
     <div class="main-layout">
@@ -37,6 +38,7 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
               <ng-icon name="lucideBrainCircuit" size="16" /> <span>Training</span>
             </a>
           </div>
+          <app-theme-selector />
           <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
             <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
           </button>

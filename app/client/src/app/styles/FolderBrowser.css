@@ -13,7 +13,7 @@
 .folder-browser-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--overlay-color);
     border: 0;
     margin: 0;
     padding: 0;
@@ -33,7 +33,7 @@
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color);
 }
 
@@ -108,7 +108,7 @@
 }
 
 .error {
-    color: #dc2626;
+    color: var(--error-color);
 }
 
 .folder-list {
@@ -151,7 +151,7 @@
 }
 
 .folder-item.drive svg {
-    color: #f59e0b;
+    color: var(--warning-color);
 }
 
 .folder-name {
@@ -166,14 +166,14 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.75rem;
-    color: #16a34a;
-    background: rgba(22, 163, 74, 0.1);
+    color: var(--success-color);
+    background: var(--success-soft);
     padding: 0.15rem 0.4rem;
     border-radius: 4px;
 }
 
 .image-count svg {
-    color: #16a34a;
+    color: var(--success-color);
 }
 
 .folder-browser-footer {
@@ -230,13 +230,13 @@
 }
 
 .action-buttons .btn-primary {
-    background: var(--accent-color);
+    background: var(--accent-fill);
     border: none;
-    color: white;
+    color: var(--on-accent);
 }
 
 .action-buttons .btn-primary:hover {
-    background: #2563eb;
+    background: var(--accent-fill);
 }
 
 .action-buttons .btn-primary:disabled {

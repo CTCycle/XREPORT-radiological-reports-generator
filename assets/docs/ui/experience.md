@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ## Core UX Journeys
 
@@ -17,6 +17,14 @@ Last updated: 2026-08-18
 - Use consistent button labels and affordances for primary, cancel, and destructive actions.
 - Keep modal close behavior predictable.
 - Keep empty, loading, and error states explicit. Avoid silent failures.
+
+## Theme selection
+
+- The navigation theme selector exposes Light, Dark, and System preferences.
+- Desktop navigation uses equal icon targets with native tooltips; mobile navigation keeps the text labels visible.
+- The selected preference is shown with a selected state and `aria-pressed`; the control remains keyboard accessible on desktop and mobile.
+- System follows the browser or operating-system `prefers-color-scheme` setting while selected. Manual preferences are not overridden by OS changes.
+- Theme changes apply immediately without a page refresh and remain functional when the backend is unavailable.
 
 ## Contextual Guidance
 
