@@ -179,6 +179,41 @@ def test_guidance_first_use_persistence_replay_and_keyboard(page: Page) -> None:
 
 
 ###############################################################################
+def test_dataset_training_workflow_journey_and_tour(page: Page) -> None:
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
+    page.locator("app-dataset-page").wait_for()
+
+    page.get_by_role("button", name="Help and tips").click()
+    journey = page.locator(".guidance-workflow-journey")
+    journey.wait_for()
+    assert journey.locator(".guidance-journey-step").count() == 5
+    assert "Data to training" in journey.inner_text()
+    assert page.get_by_role("button", name="Walk me through it").count() == 1
+
+    page.get_by_role("button", name="Walk me through it").click()
+    tour = page.locator(".guided-tour-dialog")
+    tour.wait_for()
+    assert "Step 1 of 5" in tour.inner_text()
+
+    page.get_by_role("button", name="Next").click()
+    assert "Step 2 of 5" in tour.inner_text()
+    page.get_by_role("button", name="Next").click()
+    page.wait_for_url(f"{BASE_URL}/training")
+    assert "Step 3 of 5" in tour.inner_text()
+    assert page.locator('[data-guidance-target="training-dataset-list"]').count() == 1
+
+    page.get_by_role("button", name="Next").click()
+    assert "Step 4 of 5" in tour.inner_text()
+    assert page.locator('[data-guidance-target="training-new-action"]').count() == 1
+    page.get_by_role("button", name="Next").click()
+    assert "Step 5 of 5" in tour.inner_text()
+    assert page.locator('[data-guidance-target="training-resume-action"]').count() == 1
+    page.get_by_role("button", name="Close walkthrough").click()
+    assert page.locator(".guided-tour-dialog").count() == 0
+
+
+###############################################################################
 def test_dataset_viewer_validation_wizard_and_escape(page: Page) -> None:
     page.goto(f"{BASE_URL}/dataset", wait_until="domcontentloaded")
     page.locator('button[title="View images"]').first.wait_for()

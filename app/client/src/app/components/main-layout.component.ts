@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings } from '@ng-icons/lucide';
-import { GuidanceService, INFERENCE_TOUR, INFERENCE_TOUR_ID } from '../services/guidance.service';
+import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
 import { TipsAndTricksComponent } from './tips-and-tricks.component';
@@ -64,16 +64,18 @@ export class MainLayoutComponent {
     this.guidance.tourRequests$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((tourId) => this.handleTourRequest(tourId));
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       const tour = this.activeTour();
-      if (tour && !this.router.url.startsWith(tour.route)) this.activeTour.set(null);
+      if (tour && !tour.steps.some((step) => this.router.url.startsWith(step.route ?? tour.route))) this.activeTour.set(null);
       queueMicrotask(() => { if (this.content) this.content.nativeElement.scrollTop = 0; });
     });
   }
 
   private async handleTourRequest(tourId: string): Promise<void> {
-    if (tourId !== INFERENCE_TOUR_ID) return;
+    const tour = this.guidance.getTour(tourId);
+    if (!tour) return;
     this.tipsOpen.set(false);
-    if (!this.router.url.startsWith(INFERENCE_TOUR.route)) await this.router.navigateByUrl(INFERENCE_TOUR.route);
-    setTimeout(() => this.activeTour.set(INFERENCE_TOUR), 0);
+    const firstRoute = tour.steps[0]?.route ?? tour.route;
+    if (!this.router.url.startsWith(firstRoute)) await this.router.navigateByUrl(firstRoute);
+    setTimeout(() => this.activeTour.set(tour), 0);
   }
 
   onContentScroll(event: Event): void {
