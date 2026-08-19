@@ -36,6 +36,8 @@ describe('TrainingDashboardComponent', () => {
     expect(element.querySelectorAll('.chart-placeholder')).toHaveLength(2);
     expect(element.querySelector('[role="status"]')?.textContent).toContain('Idle');
     expect(element.querySelector<HTMLButtonElement>('.btn-stop')?.disabled).toBe(true);
+    expect(element.querySelector('.dashboard-metrics-row .btn-stop')).not.toBeNull();
+    expect(element.querySelector('.progress-bar-row .btn-stop')).toBeNull();
     expect(element.querySelector('.log-empty')?.textContent).toContain('No training output yet.');
   });
 
