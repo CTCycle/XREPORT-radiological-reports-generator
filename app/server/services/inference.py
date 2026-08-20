@@ -37,6 +37,7 @@ from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
+from server.configurations import ServerSettings
 from server.configurations.startup import get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
 from server.services.inference_runtime import InferenceRuntimeCoordinator
@@ -146,7 +147,12 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
     )
 
 ###############################################################################
-def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
+def report_installation_lifecycle(
+    job_id: str,
+    payload: dict[str, Any],
+    *,
+    job_manager: JobManager,
+) -> None:
     phase = str(payload.get("phase", "working"))
     weights = {
         "checking": (0.0, 5.0),
@@ -165,8 +171,8 @@ def report_installation_lifecycle(job_id: str, payload: dict[str, Any]) -> None:
         progress = start + (end - start) * min(1.0, max(0.0, downloaded / total))
     else:
         progress = start
-    get_job_manager().update_progress(job_id, progress)
-    get_job_manager().update_result(job_id, {"lifecycle": payload})
+    job_manager.update_progress(job_id, progress)
+    job_manager.update_result(job_id, {"lifecycle": payload})
 
 ###############################################################################
 def report_inference_progress(
@@ -177,10 +183,12 @@ def report_inference_progress(
     inference_metadata: list[dict[str, Any]] | None = None,
     display_sections: dict[str, dict[str, str]] | None = None,
     provenance: dict[str, Any] | None = None,
+    *,
+    job_manager: JobManager,
 ) -> None:
     progress = 94.0 + ((image_index / total_images) * 5.0)
-    get_job_manager().update_progress(job_id, progress)
-    get_job_manager().update_result(
+    job_manager.update_progress(job_id, progress)
+    job_manager.update_result(
         job_id,
         {
             "lifecycle": {
@@ -191,7 +199,7 @@ def report_inference_progress(
             },
         },
     )
-    get_job_manager().update_result(
+    job_manager.update_result(
         job_id,
         {
             "reports": dict(reports),
@@ -203,17 +211,17 @@ def report_inference_progress(
         },
     )
     if inference_metadata is not None:
-        get_job_manager().update_result(
+        job_manager.update_result(
             job_id,
             {"inference_metadata": inference_metadata},
         )
     if display_sections is not None:
-        get_job_manager().update_result(
+        job_manager.update_result(
             job_id,
             {"display_sections": display_sections},
         )
     if provenance is not None:
-        get_job_manager().update_result(job_id, {"provenance": provenance})
+        job_manager.update_result(job_id, {"provenance": provenance})
 
 ###############################################################################
 def run_inference_job(
@@ -224,10 +232,14 @@ def run_inference_job(
     clinical_context: str,
     request_id: str,
     job_id: str,
+    *,
+    job_manager: JobManager,
+    inference_image_store: InferenceImageStore,
+    runtime: InferenceRuntimeCoordinator,
+    repository: InferenceRepository,
 ) -> dict[str, Any]:
     """Blocking inference function that runs in background thread."""
-    inference_image_store = get_inference_image_store()
-    if get_job_manager().should_stop(job_id):
+    if job_manager.should_stop(job_id):
         inference_image_store.remove_job(job_id)
         return {}
 
@@ -239,17 +251,21 @@ def run_inference_job(
     started_at = time.perf_counter()
     persisted_provenance: dict[str, Any] = {}
     try:
-        report_progress = partial(report_inference_progress, job_id)
-        execution = get_inference_runtime().generate(
+        report_progress = partial(report_inference_progress, job_id, job_manager=job_manager)
+        execution = runtime.generate(
             model_ref=model_ref,
             model_revision=model_revision,
             model_manifest=model_manifest,
             generation_profile=generation_profile,
             clinical_context=clinical_context,
             images=stored_images,
-            should_stop=partial(get_job_manager().should_stop, job_id),
+            should_stop=partial(job_manager.should_stop, job_id),
             report_progress=report_progress,
-            report_lifecycle=partial(report_installation_lifecycle, job_id),
+            report_lifecycle=partial(
+                report_installation_lifecycle,
+                job_id,
+                job_manager=job_manager,
+            ),
         )
         reports_by_filename = execution.reports
         display_sections = execution.display_sections
@@ -260,7 +276,7 @@ def run_inference_job(
     finally:
         inference_image_store.remove_job(job_id)
 
-    if get_job_manager().should_stop(job_id) or not reports_by_filename:
+    if job_manager.should_stop(job_id) or not reports_by_filename:
         return {
             "reports": {},
             "reports_ordered": [],
@@ -274,13 +290,12 @@ def run_inference_job(
     report_filenames = list(reports_by_filename)
 
     try:
-        serializer = InferenceRepository()
-        job_snapshot = get_job_manager().get_job_status(job_id) or {}
+        job_snapshot = job_manager.get_job_status(job_id) or {}
         job_result = job_snapshot.get("result") or {}
         persisted_provenance = dict(job_result.get("provenance", provenance))
         if "input_images" not in persisted_provenance:
             persisted_provenance["input_images"] = job_result.get("inference_metadata", [])
-        serializer.save_generated_reports(
+        repository.save_generated_reports(
             [
                 {
                     "image": filename,
@@ -329,25 +344,31 @@ def run_model_maintenance_job(
     action: str,
     revision: str,
     job_id: str,
+    job_manager: JobManager,
+    installation_manager: ModelInstallationManager,
+    runtime: InferenceRuntimeCoordinator,
 ) -> dict[str, Any]:
-    manager = get_model_installation_manager()
     repository_id = model_ref.removeprefix("huggingface:")
     try:
         if action == "delete_local":
-            deleted = get_inference_runtime().delete_local(repository_id, manifest)
+            deleted = runtime.delete_local(repository_id, manifest)
             payload = {
                 "phase": "completed",
                 "message": "Local model files deleted; the public catalogue entry remains available.",
                 "action": action,
                 **deleted,
             }
-            report_installation_lifecycle(job_id, payload)
+            report_installation_lifecycle(job_id, payload, job_manager=job_manager)
             return {"lifecycle": payload, **deleted}
-        candidate = manager.stage(
+        candidate = installation_manager.stage(
             manifest={**manifest, "revision": revision},
             revision=revision,
-            should_stop=lambda: get_job_manager().should_stop(job_id),
-            report_progress=partial(report_installation_lifecycle, job_id),
+            should_stop=lambda: job_manager.should_stop(job_id),
+            report_progress=partial(
+                report_installation_lifecycle,
+                job_id,
+                job_manager=job_manager,
+            ),
             operation_id=None,
             force_download=action == "reinstall",
         )
@@ -356,20 +377,20 @@ def run_model_maintenance_job(
                 "phase": "verified",
                 "message": "Candidate model is verified and ready for validation through Generate",
                 "revision": candidate.revision,
-                "local_path": manager.relative_path(candidate.path),
+                "local_path": installation_manager.relative_path(candidate.path),
                 "action": action,
             },
             "candidate_revision": candidate.revision,
-            "candidate_path": manager.relative_path(candidate.path),
+            "candidate_path": installation_manager.relative_path(candidate.path),
         }
     except (InstallationCancelled, InstallationError) as exc:
-        manager.record_error(
+        installation_manager.record_error(
             repository_id,
             str(exc),
             state="failed",
             interrupted=(
                 isinstance(exc, InstallationCancelled)
-                or manager.is_resumable_error(str(exc))
+                or installation_manager.is_resumable_error(str(exc))
             ),
         )
         raise
@@ -385,9 +406,19 @@ class InferenceService:
         self,
         job_manager: JobManager,
         inference_image_store: InferenceImageStore,
+        server_settings: ServerSettings,
+        model_catalog: InferenceModelCatalog,
+        installation_manager: ModelInstallationManager,
+        runtime: InferenceRuntimeCoordinator,
+        repository: InferenceRepository,
     ) -> None:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
+        self.server_settings = server_settings
+        self.model_catalog = model_catalog
+        self.installation_manager = installation_manager
+        self.runtime = runtime
+        self.repository = repository
 
     # -------------------------------------------------------------------------
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
@@ -477,14 +508,14 @@ class InferenceService:
 
     # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
-        return InferenceModelCatalog(get_server_settings().inference).list_models()
+        return self.model_catalog.list_models()
 
     # -------------------------------------------------------------------------
     def get_model_update(self, model_ref: str) -> ModelUpdateCheckResponse:
         selected = next((model for model in self.get_models().models if model.model_ref == model_ref), None)
         if selected is None or selected.provider != "huggingface":
             raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
-        result = get_model_installation_manager().check_update(
+        result = self.installation_manager.check_update(
             model_ref.removeprefix("huggingface:"),
         )
         return ModelUpdateCheckResponse(**result)
@@ -518,12 +549,15 @@ class InferenceService:
             raise BadRequestError(detail="download_update requires the revision returned by check-update")
         if action == "delete_local":
             target_revision = configured_revision
-        job_id = self.job_manager.start_job(
-            job_type="model_maintenance",
-            runner=run_model_maintenance_job,
-            failure_mapper=map_inference_failure,
-            kwargs={
-                "model_ref": model_ref,
+            job_id = self.job_manager.start_job(
+                job_type="model_maintenance",
+                runner=run_model_maintenance_job,
+                failure_mapper=map_inference_failure,
+                kwargs={
+                    "job_manager": self.job_manager,
+                    "installation_manager": self.installation_manager,
+                    "runtime": self.runtime,
+                    "model_ref": model_ref,
                 "manifest": manifest,
                 "action": action,
                 "revision": target_revision,
@@ -535,7 +569,7 @@ class InferenceService:
             job_type=status["job_type"],
             status=status["status"],
             message=f"Model {action} started for {model_ref}",
-            poll_interval=get_server_settings().jobs.polling_interval,
+            poll_interval=self.server_settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -600,6 +634,10 @@ class InferenceService:
                 runner=run_inference_job,
                 failure_mapper=map_inference_failure,
                 kwargs={
+                    "job_manager": self.job_manager,
+                    "inference_image_store": self.inference_image_store,
+                    "runtime": self.runtime,
+                    "repository": self.repository,
                     "model_ref": model_ref,
                     "model_revision": selected_model.model_revision,
                     "model_manifest": {
@@ -623,7 +661,7 @@ class InferenceService:
                 job_type=job_status["job_type"],
                 status=job_status["status"],
                 message=f"Inference job started for {len(images)} images",
-                poll_interval=get_server_settings().jobs.polling_interval,
+                poll_interval=self.server_settings.jobs.polling_interval,
             )
 
         except ServiceError:
@@ -658,7 +696,14 @@ class InferenceService:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_service() -> InferenceService:
+    server_settings = get_server_settings()
+    installation_manager = get_model_installation_manager()
     return InferenceService(
         job_manager=get_job_manager(),
         inference_image_store=get_inference_image_store(),
+        server_settings=server_settings,
+        model_catalog=InferenceModelCatalog(server_settings.inference),
+        installation_manager=installation_manager,
+        runtime=get_inference_runtime(),
+        repository=InferenceRepository(),
     )

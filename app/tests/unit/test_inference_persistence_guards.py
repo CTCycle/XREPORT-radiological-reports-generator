@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from server.domain.inference import InferenceImage, ProviderGenerationResult
 from server.services.inference import InferenceImageStore, run_inference_job
-import server.services.inference as inference_service
 from server.services.jobs import JobExecutionError, JobManager, JobState
 
 ###############################################################################
@@ -35,15 +35,7 @@ def _setup_job(
     image_store.link_job(job_id, request_id)
 
 ###############################################################################
-def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> None:
-    monkeypatch.setattr(inference_service, "get_job_manager", lambda: manager)
-    monkeypatch.setattr(
-        inference_service,
-        "get_inference_image_store",
-        lambda: image_store,
-    )
-
-    ###############################################################################
+def _runtime_stub(provider: Any) -> Any:
     class RuntimeStub:
 
         # -------------------------------------------------------------------------
@@ -56,18 +48,16 @@ def _patch_runtime(monkeypatch, manager, image_store, provider, repository) -> N
                 provenance=generation.provenance,
             )
 
-    monkeypatch.setattr(inference_service, "get_inference_runtime", lambda: RuntimeStub())
-    monkeypatch.setattr(inference_service, "InferenceRepository", lambda: repository)
+    return RuntimeStub()
 
 ###############################################################################
-def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch) -> None:
+def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     manager = JobManager()
     image_store = InferenceImageStore()
     job_id = "cancel-after-generation"
     request_id = "request-cancelled"
     _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
 
-    ###############################################################################
     class CancellingProvider:
 
         # -------------------------------------------------------------------------
@@ -81,7 +71,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
             )
 
     repository = MagicMock()
-    _patch_runtime(monkeypatch, manager, image_store, CancellingProvider(), repository)
+    runtime = _runtime_stub(CancellingProvider())
 
     result = run_inference_job(
         model_ref="huggingface:test/model",
@@ -91,6 +81,10 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
         clinical_context="",
         request_id=request_id,
         job_id=job_id,
+        job_manager=manager,
+        inference_image_store=image_store,
+        runtime=runtime,
+        repository=repository,
     )
 
     assert result["reports"] == {}
@@ -98,7 +92,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports(monkeypatch
     assert image_store.get(request_id) is None
 
 ###############################################################################
-def test_timeout_does_not_persist_reports(monkeypatch) -> None:
+def test_timeout_does_not_persist_reports() -> None:
     manager = JobManager()
     image_store = InferenceImageStore()
     job_id = "timeout-no-persistence"
@@ -107,7 +101,7 @@ def test_timeout_does_not_persist_reports(monkeypatch) -> None:
     provider = MagicMock()
     provider.generate.side_effect = TimeoutError("inference deadline exceeded")
     repository = MagicMock()
-    _patch_runtime(monkeypatch, manager, image_store, provider, repository)
+    runtime = _runtime_stub(provider)
 
     with pytest.raises(TimeoutError, match="deadline exceeded"):
         run_inference_job(
@@ -118,13 +112,17 @@ def test_timeout_does_not_persist_reports(monkeypatch) -> None:
             clinical_context="",
             request_id=request_id,
             job_id=job_id,
+            job_manager=manager,
+            inference_image_store=image_store,
+            runtime=runtime,
+            repository=repository,
         )
 
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
 
 ###############################################################################
-def test_persistence_failure_fails_inference_job(monkeypatch) -> None:
+def test_persistence_failure_fails_inference_job() -> None:
     manager = JobManager()
     image_store = InferenceImageStore()
     job_id = "persistence-failure"
@@ -139,7 +137,7 @@ def test_persistence_failure_fails_inference_job(monkeypatch) -> None:
     )
     repository = MagicMock()
     repository.save_generated_reports.side_effect = RuntimeError("database unavailable")
-    _patch_runtime(monkeypatch, manager, image_store, provider, repository)
+    runtime = _runtime_stub(provider)
 
     with pytest.raises(JobExecutionError, match="could not be persisted") as exc_info:
         run_inference_job(
@@ -150,6 +148,10 @@ def test_persistence_failure_fails_inference_job(monkeypatch) -> None:
             clinical_context="",
             request_id=request_id,
             job_id=job_id,
+            job_manager=manager,
+            inference_image_store=image_store,
+            runtime=runtime,
+            repository=repository,
         )
 
     assert exc_info.value.code == "persistence_failed"
