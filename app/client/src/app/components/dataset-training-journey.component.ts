@@ -14,7 +14,8 @@ import {
   lucideSliders,
   lucideUpload,
 } from '@ng-icons/lucide';
-import { ApiService } from '../services/api.service';
+import { DatasetApiService } from '../services/dataset-api.service';
+import { TrainingApiService } from '../services/training-api.service';
 
 type JourneyStepStatus = 'completed' | 'current' | 'upcoming' | 'available';
 
@@ -156,7 +157,8 @@ const initialStatus: JourneyStatus = {
   styleUrl: '../styles/Guidance.css',
 })
 export class DatasetTrainingJourneyComponent {
-  private readonly api = inject(ApiService);
+  private readonly datasetApi = inject(DatasetApiService);
+  private readonly trainingApi = inject(TrainingApiService);
   private refreshSequence = 0;
 
   @Output() readonly routeRequested = new EventEmitter<string>();
@@ -240,11 +242,11 @@ export class DatasetTrainingJourneyComponent {
     this.status.set({ ...initialStatus });
 
     const [datasetStatus, sourceDatasets, processedDatasets, checkpoints, trainingStatus] = await Promise.all([
-      this.api.getDatasetStatus(),
-      this.api.getDatasetNames(),
-      this.api.getProcessedDatasetNames(),
-      this.api.getCheckpoints(),
-      this.api.getTrainingStatus(),
+      this.datasetApi.getStatus(),
+      this.datasetApi.getNames(),
+      this.datasetApi.getProcessedNames(),
+      this.trainingApi.getCheckpoints(),
+      this.trainingApi.getStatus(),
     ]);
 
     if (sequence !== this.refreshSequence) return;
