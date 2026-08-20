@@ -7,7 +7,7 @@ import pytest
 from server.domain.inference import InferenceImage, ProviderGenerationResult
 from server.services.inference import InferenceImageStore, run_inference_job
 import server.services.inference as inference_service
-from server.services.jobs import JobManager, JobState
+from server.services.jobs import JobExecutionError, JobManager, JobState
 
 ###############################################################################
 def _image() -> InferenceImage:
@@ -121,4 +121,37 @@ def test_timeout_does_not_persist_reports(monkeypatch) -> None:
         )
 
     repository.save_generated_reports.assert_not_called()
+    assert image_store.get(request_id) is None
+
+###############################################################################
+def test_persistence_failure_fails_inference_job(monkeypatch) -> None:
+    manager = JobManager()
+    image_store = InferenceImageStore()
+    job_id = "persistence-failure"
+    request_id = "request-persistence-failure"
+    _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
+    provider = MagicMock()
+    provider.generate.return_value = ProviderGenerationResult(
+        reports={"scan.png": "Generated report"},
+        display_sections={"scan.png": {"raw_report": "Generated report"}},
+        metadata=[],
+        provenance={"provider": "huggingface"},
+    )
+    repository = MagicMock()
+    repository.save_generated_reports.side_effect = RuntimeError("database unavailable")
+    _patch_runtime(monkeypatch, manager, image_store, provider, repository)
+
+    with pytest.raises(JobExecutionError, match="could not be persisted") as exc_info:
+        run_inference_job(
+            model_ref="huggingface:test/model",
+            model_revision="a" * 40,
+            model_manifest={"revision": "a" * 40},
+            generation_profile="deterministic",
+            clinical_context="",
+            request_id=request_id,
+            job_id=job_id,
+        )
+
+    assert exc_info.value.code == "persistence_failed"
+    assert exc_info.value.phase == "persistence"
     assert image_store.get(request_id) is None
