@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ApiService } from '../services/api.service';
+import { DatasetApiService } from '../services/dataset-api.service';
+import { TrainingApiService } from '../services/training-api.service';
 import { DatasetTrainingJourneyComponent } from './dataset-training-journey.component';
 
 @Component({
@@ -17,13 +18,18 @@ function apiResult<T>(result: T) {
   return Promise.resolve({ result, error: null });
 }
 
-function emptyApi() {
+function emptyDatasetApi() {
   return {
-    getDatasetStatus: () => apiResult({ has_data: false, row_count: 0, allow_server_browse: true, message: 'No data' }),
-    getDatasetNames: () => apiResult({ datasets: [], count: 0 }),
-    getProcessedDatasetNames: () => apiResult({ datasets: [], count: 0 }),
+    getStatus: () => apiResult({ has_data: false, row_count: 0, allow_server_browse: true, message: 'No data' }),
+    getNames: () => apiResult({ datasets: [], count: 0 }),
+    getProcessedNames: () => apiResult({ datasets: [], count: 0 }),
+  };
+}
+
+function emptyTrainingApi() {
+  return {
     getCheckpoints: () => apiResult({ checkpoints: [] }),
-    getTrainingStatus: () => apiResult({ is_training: false, current_epoch: 0, total_epochs: 0, loss: 0, val_loss: 0, accuracy: 0, val_accuracy: 0, progress_percent: 0, elapsed_seconds: 0 }),
+    getStatus: () => apiResult({ is_training: false, current_epoch: 0, total_epochs: 0, loss: 0, val_loss: 0, accuracy: 0, val_accuracy: 0, progress_percent: 0, elapsed_seconds: 0 }),
   };
 }
 
@@ -31,7 +37,7 @@ describe('DatasetTrainingJourneyComponent', () => {
   it('starts at source upload and keeps later actions locked when no data exists', async () => {
     await TestBed.configureTestingModule({
       imports: [JourneyHostComponent],
-      providers: [{ provide: ApiService, useValue: emptyApi() }],
+      providers: [{ provide: DatasetApiService, useValue: emptyDatasetApi() }, { provide: TrainingApiService, useValue: emptyTrainingApi() }],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(JourneyHostComponent);
@@ -56,17 +62,19 @@ describe('DatasetTrainingJourneyComponent', () => {
   });
 
   it('recognizes a processed dataset and exposes the checkpoint branch', async () => {
-    const api = {
-      getDatasetStatus: () => apiResult({ has_data: true, row_count: 12, allow_server_browse: true, message: 'Found 12 records' }),
-      getDatasetNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'images', row_count: 12, has_validation_report: false }], count: 1 }),
-      getProcessedDatasetNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'processed', row_count: 10, has_validation_report: false }], count: 1 }),
+    const datasetApi = {
+      getStatus: () => apiResult({ has_data: true, row_count: 12, allow_server_browse: true, message: 'Found 12 records' }),
+      getNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'images', row_count: 12, has_validation_report: false }], count: 1 }),
+      getProcessedNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'processed', row_count: 10, has_validation_report: false }], count: 1 }),
+    };
+    const trainingApi = {
       getCheckpoints: () => apiResult({ checkpoints: [{ name: 'source-epoch-4', epochs: 4, loss: 0.2, val_loss: 0.3 }] }),
-      getTrainingStatus: () => apiResult({ is_training: false, current_epoch: 4, total_epochs: 10, loss: 0.2, val_loss: 0.3, accuracy: 0.8, val_accuracy: 0.7, progress_percent: 40, elapsed_seconds: 120 }),
+      getStatus: () => apiResult({ is_training: false, current_epoch: 4, total_epochs: 10, loss: 0.2, val_loss: 0.3, accuracy: 0.8, val_accuracy: 0.7, progress_percent: 40, elapsed_seconds: 120 }),
     };
 
     await TestBed.configureTestingModule({
       imports: [JourneyHostComponent],
-      providers: [{ provide: ApiService, useValue: api }],
+      providers: [{ provide: DatasetApiService, useValue: datasetApi }, { provide: TrainingApiService, useValue: trainingApi }],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(JourneyHostComponent);
