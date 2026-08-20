@@ -56,7 +56,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `runtime/configuration.md`
   - Shared configuration sources, environment variables, inference controls, and interoperability.
 - `runtime/deployment.md`
-  - Local deployment scope and runtime preparation notes.
+  - Local deployment scope, Tauri release layout, and runtime preparation notes.
 - `runtime/local_inference_models.md`
   - Embedded Hugging Face model catalogue, XREPORT checkpoints, and research-use constraints.
 

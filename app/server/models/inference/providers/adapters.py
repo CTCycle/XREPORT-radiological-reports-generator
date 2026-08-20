@@ -24,7 +24,7 @@ from transformers import (
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.utils.hub import HF_MODULES_CACHE
 
-from server.common.path import ROOT_DIR
+from server.common.path import is_within_allowed_roots
 from server.domain.inference import GenerationProfile, InferenceImage
 
 ###############################################################################
@@ -585,10 +585,8 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         if not (processor_snapshot / "configuration_uniformer.py").is_file():
             raise RuntimeError("CXRMate-ED verified UniFormer processor code is missing")
         cache_dir = Path(HF_MODULES_CACHE).resolve()
-        try:
-            cache_dir.relative_to(ROOT_DIR.resolve())
-        except ValueError as exc:
-            raise RuntimeError("CXRMate-ED remote-code cache is outside the project") from exc
+        if not is_within_allowed_roots(cache_dir):
+            raise RuntimeError("CXRMate-ED remote-code cache is outside application storage")
         dynamic_options = {
             "cache_dir": str(cache_dir),
             "local_files_only": True,

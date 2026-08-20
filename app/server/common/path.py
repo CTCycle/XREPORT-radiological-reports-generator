@@ -6,9 +6,30 @@ import sys
 
 from dotenv import dotenv_values
 
+
+def _desktop_enabled() -> bool:
+    return os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _required_desktop_path(name: str) -> Path:
+    value = os.getenv(name, "").strip()
+    if not value:
+        raise RuntimeError(f"{name} must be set for packaged XREPORT runtime")
+    return Path(value).expanduser().resolve()
+
 ###############################################################################
 def _resolve_root() -> Path:
     """Resolve the portable application root without falling back to user caches."""
+    if _desktop_enabled():
+        root = _required_desktop_path("XREPORT_RUNTIME_ROOT")
+        if not root.is_dir():
+            raise RuntimeError(f"Packaged XREPORT runtime root does not exist: {root}")
+        return root
     candidates: list[Path] = [Path(__file__).resolve(), Path.cwd(), Path(sys.executable).resolve()]
     for source in candidates:
         for candidate in (source, *source.parents):
@@ -35,9 +56,22 @@ ENV_FILE_PATH = SETTINGS_DIR / ".env"
 ENV_EXAMPLE_FILE_PATH = SETTINGS_DIR / ".env.example"
 DEFAULT_RESOURCES_DIR = APP_DIR / "resources"
 
+# Packaged mode deliberately separates immutable extracted files from mutable
+# per-user state.  Source mode keeps the historical resource-root override.
+PACKAGED_MODE = _desktop_enabled()
+DATA_ROOT = (
+    _required_desktop_path("XREPORT_DATA_ROOT") if PACKAGED_MODE else DEFAULT_RESOURCES_DIR
+)
+RELEASE_VERSION = os.getenv("XREPORT_RELEASE_VERSION", "").strip() or None
+RUNTIME_VARIANT = os.getenv("XREPORT_RUNTIME_VARIANT", "").strip().lower() or None
+
 ###############################################################################
 def _configured_resources_dir() -> str | None:
     """Read the resource override before the normal dotenv bootstrap runs."""
+    if PACKAGED_MODE:
+        # A packaged build must never escape its user-data boundary through a
+        # source-relative XREPORT_RESOURCES_DIR setting.
+        return None
     environment_path = (
         ENV_FILE_PATH if ENV_FILE_PATH.is_file() else ENV_EXAMPLE_FILE_PATH
     )
@@ -59,7 +93,7 @@ def _resolve_resources_dir() -> Path:
     return resource_dir.resolve()
 
 
-RESOURCES_DIR = _resolve_resources_dir()
+RESOURCES_DIR = DATA_ROOT if PACKAGED_MODE else _resolve_resources_dir()
 LOGS_DIR = RESOURCES_DIR / "logs"
 MODELS_DIR = RESOURCES_DIR / "models"
 CHECKPOINTS_DIR = RESOURCES_DIR / "checkpoints"
@@ -76,3 +110,28 @@ TORCH_CACHE_DIR = MODELS_DIR / "torch"
 KERAS_CACHE_DIR = MODELS_DIR / "keras"
 
 DATABASE_FILE_PATH = RESOURCES_DIR / "database.db"
+CLIENT_DIST_DIR = (
+    Path(os.getenv("XREPORT_CLIENT_DIST_DIR", "")).expanduser().resolve()
+    if PACKAGED_MODE and os.getenv("XREPORT_CLIENT_DIST_DIR", "").strip()
+    else ROOT_DIR / "client"
+    if PACKAGED_MODE
+    else ROOT_DIR / "app" / "client" / "dist" / "client-angular" / "browser"
+)
+
+# Configuration is mutable in packaged mode but the catalogue/template files
+# remain part of the verified runtime archive.
+if PACKAGED_MODE:
+    CONFIGURATION_FILE_PATH = DATA_ROOT / "settings" / "configurations.json"
+    ENV_FILE_PATH = DATA_ROOT / ".env"
+
+
+def is_within_allowed_roots(path: Path) -> bool:
+    """Return whether a user/model path is inside runtime or data storage."""
+    resolved = path.resolve()
+    for root in (ROOT_DIR.resolve(), DATA_ROOT.resolve()):
+        try:
+            resolved.relative_to(root)
+            return True
+        except ValueError:
+            continue
+    return False
