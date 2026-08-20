@@ -7,7 +7,7 @@ from pathlib import Path
 
 import transformers
 
-from server.common.path import ROOT_DIR, SETTINGS_DIR
+from server.common.path import DATA_ROOT, PACKAGED_MODE, ROOT_DIR, SETTINGS_DIR
 from server.configurations import InferenceSettings
 from server.domain.inference import (
     InferenceManifest,
@@ -23,7 +23,11 @@ from server.services.model_installation import ModelInstallationManager
 
 
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
-VALIDATION_RECEIPTS_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
+VALIDATION_RECEIPTS_DIR = (
+    DATA_ROOT / "validation_receipts"
+    if PACKAGED_MODE
+    else ROOT_DIR / "assets" / "QA" / "inference_validation"
+)
 
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
@@ -202,7 +206,7 @@ class InferenceModelCatalog:
             }.get(installation_state, "not_downloaded"),
             "can_download": installation_state != "active" and entry.enabled and status not in {"disabled", "incompatible"},
             "can_delete_local": installation_state in {"active", "staged", "corrupt", "failed", "downloading"},
-            "local_path": str(local_path.relative_to(ROOT_DIR).as_posix()) if local_path else None,
+            "local_path": ModelInstallationManager._relative(local_path) if local_path else None,
             "active_revision": active_revision,
             "candidate_revision": candidate_revision,
             "integrity_status": str(inspected["integrity"]),

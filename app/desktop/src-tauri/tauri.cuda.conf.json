@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "XREPORT CUDA",
+  "version": "1.0.0",
+  "identifier": "io.github.ctcycle.xreport.cuda",
+  "build": {
+    "frontendDist": "ui",
+    "devUrl": "http://127.0.0.1:8003"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [{
+      "label": "main",
+      "title": "XREPORT — Radiological Reports (CUDA)",
+      "width": 1440,
+      "height": 960,
+      "minWidth": 1024,
+      "minHeight": 720,
+      "visible": true,
+      "resizable": true,
+      "fullscreen": false
+    }],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi"],
+    "resources": ["generated/runtime.zip"],
+    "category": "Medical",
+    "shortDescription": "Self-contained radiological report workspace",
+    "longDescription": "XREPORT is a local radiological report generation and model evaluation workspace.",
+    "publisher": "CTCycle",
+    "license": "MIT",
+    "licenseFile": "../../../LICENSE",
+    "copyright": "Copyright © 2026 CTCycle",
+    "icon": ["icons/icon.ico", "icons/32x32.png", "icons/128x128.png", "icons/256x256.png"],
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper" },
+      "wix": {
+        "upgradeCode": "df72bc2e-df79-4923-9ce5-e0d7505e4bed"
+      }
+    }
+  }
+}

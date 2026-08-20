@@ -16,7 +16,7 @@ from transformers import StoppingCriteria, StoppingCriteriaList
 from transformers.utils.hub import HF_MODULES_CACHE
 
 from server.configurations import InferenceSettings
-from server.common.path import ROOT_DIR
+from server.common.path import is_within_allowed_roots
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
@@ -408,10 +408,8 @@ class HuggingFaceProvider:
             configured_snapshot = manifest.get("local_snapshot_path")
             if configured_snapshot:
                 snapshot_path = Path(str(configured_snapshot)).resolve()
-                try:
-                    snapshot_path.relative_to(ROOT_DIR.resolve())
-                except ValueError as exc:
-                    raise RuntimeError("Model snapshot must be inside the project resources") from exc
+                if not is_within_allowed_roots(snapshot_path):
+                    raise RuntimeError("Model snapshot must be inside application storage")
                 if not snapshot_path.is_dir():
                     raise RuntimeError(f"Verified local model snapshot is missing: {snapshot_path}")
             else:
@@ -466,8 +464,8 @@ class HuggingFaceProvider:
         Hub lookup or user-level cache is consulted.
         """
         cache_root = Path(HF_MODULES_CACHE).resolve()
-        if not cache_root.is_relative_to(ROOT_DIR.resolve()):
-            raise RuntimeError("Transformers remote-code cache must remain inside the project resources")
+        if not is_within_allowed_roots(cache_root):
+            raise RuntimeError("Transformers remote-code cache must remain inside application storage")
         module_path = cache_root / "transformers_modules" / f"_{revision}"
         module_path.mkdir(parents=True, exist_ok=True)
         init_file = module_path / "__init__.py"

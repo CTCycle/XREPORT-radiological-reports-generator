@@ -8,3 +8,5 @@ class HealthResponse(BaseModel):
     application: str
     version: str
     runtime_mode: str
+    runtime_variant: str | None = None
+    runtime_port: int | None = None

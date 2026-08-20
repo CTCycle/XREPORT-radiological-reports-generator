@@ -10,6 +10,7 @@ from server.common.path import (
     HF_ROLLBACK_DIR,
     HF_STAGING_DIR,
     ROOT_DIR,
+    is_within_allowed_roots,
 )
 from server.services.model_installation import InstallationError, ModelInstallationManager
 
@@ -50,10 +51,8 @@ class ModelStorageLifecycle:
     @staticmethod
     def _remove_tree(path: Path, *, root_dir: Path = ROOT_DIR) -> int:
         resolved = path.resolve()
-        try:
-            resolved.relative_to(root_dir.resolve())
-        except ValueError as exc:
-            raise InstallationError("Refusing to delete a model path outside the project") from exc
+        if not is_within_allowed_roots(resolved):
+            raise InstallationError("Refusing to delete a model path outside application storage")
         size = ModelStorageLifecycle._tree_size(resolved)
         if resolved.is_dir() and not resolved.is_symlink():
             shutil.rmtree(resolved)

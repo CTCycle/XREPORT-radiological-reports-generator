@@ -1,0 +1,69 @@
+name: XREPORT Windows desktop release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (for example 1.0.0)
+        required: true
+        type: string
+
+jobs:
+  package:
+    name: Package ${{ matrix.variant }} desktop
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: Cpu
+            artifact: cpu
+          - variant: Cuda
+            artifact: cuda
+    env:
+      RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate version
+        shell: pwsh
+        run: |
+          $version = "$env:RELEASE_VERSION" -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid release version: $version" }
+          $metadata = & .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime ${{ matrix.variant }} -DesktopTarget All -Version $version -Force 2>&1
+          if ($LASTEXITCODE -ne 0) { throw "Desktop packaging failed: $LASTEXITCODE`n$($metadata -join "`n")" }
+
+      - name: Inspect release artifacts and checksums
+        shell: pwsh
+        run: |
+          $version = "$env:RELEASE_VERSION" -replace '^v', ''
+          $prefix = "release\XREPORT-v$version-windows-x64-${{ matrix.artifact }}"
+          foreach ($name in @("$prefix-portable.exe", "$prefix.msi", "$prefix.sha256")) {
+            if (-not (Test-Path -LiteralPath $name)) { throw "Missing artifact: $name" }
+          }
+          $hashLines = Get-Content -LiteralPath "$prefix.sha256"
+          $invalid = @($hashLines | Where-Object { $_ -notmatch '^[0-9a-f]{64}  XREPORT-' })
+          if ($hashLines.Count -ne 2 -or $invalid.Count -gt 0) { throw 'Checksum manifest is not standard sha256sum format.' }
+          Get-ChildItem release | Select-Object Name,Length | Format-Table
+
+      - name: Fail closed when signing is requested without credentials
+        shell: pwsh
+        env:
+          SIGNING_CERT_BASE64: ${{ secrets.XREPORT_SIGNING_CERT_BASE64 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.XREPORT_SIGNING_CERT_PASSWORD }}
+        run: |
+          if ($env:SIGNING_CERT_BASE64 -and -not $env:SIGNING_CERT_PASSWORD) { throw 'Signing certificate was supplied without a password.' }
+          if (-not $env:SIGNING_CERT_BASE64) { Write-Host 'Unsigned build: no code-signing certificate was configured.' }
+
+      - name: Upload portable, MSI, and manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: XREPORT-${{ matrix.artifact }}-windows-x64
+          path: release/*
+          if-no-files-found: error

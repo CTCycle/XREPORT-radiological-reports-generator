@@ -46,6 +46,9 @@ test = [
     "ruff==0.15.9",
     "pyright==1.1.408"
 ]
+desktop = [
+    "pyinstaller==6.16.0"
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["server"] 

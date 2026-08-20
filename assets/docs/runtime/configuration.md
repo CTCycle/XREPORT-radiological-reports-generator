@@ -6,6 +6,19 @@ Last updated: 2026-08-19
 
 - Environment overrides: `settings/.env`
 - Tracked environment template: `settings/.env.example`
+
+## Packaged desktop configuration
+
+Packaged mode receives an internal runtime contract from Rust:
+`XREPORT_RUNTIME_ROOT`, `XREPORT_DATA_ROOT`, `XREPORT_RELEASE_VERSION`,
+`XREPORT_RUNTIME_VARIANT`, `XREPORT_CLIENT_DIST_DIR`, and the ephemeral
+`XREPORT_DESKTOP_TOKEN`. These values are absent from `.env.example` and are
+not emitted into logs. `XREPORT_RESOURCES_DIR` is ignored in packaged mode.
+
+Mutable settings are `%LOCALAPPDATA%\XREPORT\data\.env` and
+`%LOCALAPPDATA%\XREPORT\data\settings\configurations.json`; the immutable
+catalogue remains in the extracted runtime. Database, checkpoints, model
+downloads, tokenizers, templates, caches, and logs are all below the data root.
 - Static configuration: `settings/configurations.json`
 
 ## Key Environment Variables
@@ -41,7 +54,7 @@ Last updated: 2026-08-19
 - `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
   `app/resources`)
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. `XREPORT_RESOURCES_DIR` accepts an absolute path or a path relative to the repository root; all runtime resources, including the embedded SQLite database, are stored beneath it.
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
 ## Database Mode Switch
 

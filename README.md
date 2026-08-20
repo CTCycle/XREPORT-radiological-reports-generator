@@ -35,6 +35,54 @@ Run:
 
 The launcher menu can launch the app, install or update dependencies, rebuild the frontend only, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
 
+### 3.3 Windows desktop packages
+
+The repository also contains a Tauri 2 desktop shell under `app/desktop`. It
+starts the frozen FastAPI service itself, serves the already-built Angular
+client, waits for a dynamic loopback health contract, and shuts the service
+down gracefully. The ordinary browser launcher remains unchanged.
+
+Development shell (source backend and visible consoles):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
+```
+
+Release packaging is Windows x64 only. A clean tree is required for a normal
+release; `-AllowDirtyTree` is an explicit diagnostic override:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0
+# Diagnostic build of the same four artifacts:
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0 `
+  -AllowDirtyTree -Force
+```
+
+Use `-DesktopRuntime Cpu|Cuda` and `-DesktopTarget Portable|Msi` to narrow a
+build. MSI embeds the WebView2 bootstrapper by default; pass
+`-OfflineWebView2` only when an offline WebView2 installer is intentionally
+available. `-Action RemoveDesktopRelease` removes generated release, staging,
+and Cargo output without touching user data.
+
+Artifacts are written to `release/` with standard SHA-256 manifests:
+
+* `XREPORT-v1.0.0-windows-x64-cpu-portable.exe` and `.msi`
+* `XREPORT-v1.0.0-windows-x64-cuda-portable.exe` and `.msi`
+* one `.sha256` file per variant plus a build metadata JSON file
+
+Portable artifacts are self-contained single EXEs: the frozen runtime ZIP is
+streamed into a PE overlay. MSI artifacts carry the same verified ZIP as an
+immutable installer resource. The raw Tauri shell under
+`app/desktop/src-tauri/target` is not itself a portable release artifact.
+
+The builds are currently unsigned. Portable execution requires the maintained
+system WebView2 runtime; MSI installation is per-machine and normally needs
+administrator approval. CPU and CUDA products have separate identifiers and
+shortcuts but share one per-user instance guard, so only one XREPORT desktop
+variant can run at a time.
+
 ### 3.2 macOS / Linux (Manual Setup)
 
 Prerequisites:
@@ -136,6 +184,14 @@ path relative to the repository root:
 
 On Windows, portable runtimes and runtime virtual environment are stored in `runtimes/`.
 
+Packaged desktop mode never writes mutable state into the installation
+directory. Immutable extracted files live under
+`%LOCALAPPDATA%\XREPORT\runtime\<cpu|cuda>\1.0.0\<payload-sha256>`. Runtime data,
+the seeded `.env`, configuration, SQLite database, logs, checkpoints, model
+downloads, tokenizers, templates, and caches live under
+`%LOCALAPPDATA%\XREPORT\data`. Data intentionally survives MSI upgrades and
+uninstall; remove that directory manually only when a full reset is wanted.
+
 ---
 
 ## 7. Configuration
@@ -158,6 +214,14 @@ On Windows, portable runtimes and runtime virtual environment are stored in `run
   - Select option `4` in `start_on_windows.ps1` to create the configured database and schema explicitly.
 
 See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
+
+Packaged mode ignores a source-relative `XREPORT_RESOURCES_DIR`. The shell
+passes a per-launch 256-bit token to the backend; the one-time bootstrap URL is
+stored only in the user-scoped session file and becomes an HttpOnly,
+host-only, `SameSite=Strict` cookie. Native health/shutdown probes use a
+private header. The packaged server adds same-origin CSP and standard browser
+hardening headers, and it exposes no Tauri filesystem, shell, process, or
+arbitrary-opener capability to the Angular content.
 
 ---
 

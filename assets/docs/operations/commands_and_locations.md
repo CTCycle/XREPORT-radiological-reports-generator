@@ -1,14 +1,28 @@
 # Commands And Locations
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Primary Commands
 
 ### Launch And Maintenance
 
+```powershell
+.\start_on_windows.ps1 -Action LaunchDesktopDev
+.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0
+.\start_on_windows.ps1 -Action RemoveDesktopRelease
+```
+
+Release artifacts are under `release/`. Desktop staging and Cargo output are
+under `app/desktop/build` and `app/desktop/src-tauri/target`; both are ignored.
+Packaged logs are `%LOCALAPPDATA%\XREPORT\data\logs\desktop-shell.log` and the
+timestamped backend logs beside it. Readiness/session files in
+`%LOCALAPPDATA%\XREPORT\data\state` are temporary and are removed at exit.
+
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`
 - `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`
+
+### Desktop commands and locations
 
 ### Manual Backend And Frontend
 

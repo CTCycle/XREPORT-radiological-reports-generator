@@ -17,6 +17,19 @@ XREPORT is a local-first client/server system for radiological report generation
 
 The Angular application and FastAPI application are separate runtimes. The Windows launcher starts them as coordinated local processes; the backend root redirects to FastAPI documentation, while the Angular runtime owns the user interface.
 
+### Packaged Windows topology
+
+The packaged topology is a native Tauri shell -> verified local runtime ->
+windowless frozen FastAPI process -> Angular static files. Rust owns runtime
+extraction, the common per-user mutex, dynamic-port readiness/health polling,
+the Windows Job Object, navigation policy, and shutdown. FastAPI owns the API,
+SPA fallback, cookie bootstrap, and same-origin security headers. Immutable
+runtime files are separated from mutable `%LOCALAPPDATA%\XREPORT\data`.
+
+The source topology remains FastAPI on 5003 plus Angular preview on 8003.
+`LaunchDesktopDev` exercises it through a debug Tauri window; `Launch` keeps
+the normal browser workflow.
+
 ## Dependency Direction
 
 ```mermaid

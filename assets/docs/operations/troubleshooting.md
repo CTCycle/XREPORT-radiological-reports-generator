@@ -4,6 +4,23 @@ Last updated: 2026-08-20
 
 ## Troubleshooting Quick Guide
 
+### Desktop startup failures
+
+If the desktop splash changes to the startup error page, inspect
+`%LOCALAPPDATA%\XREPORT\data\logs\desktop-shell.log` and the timestamped
+backend log. The shell rejects stale or mismatched runtime manifests, waits for
+the readiness contract plus authenticated `/api/health`, and reports an early
+backend exit instead of leaving an orphan process. It sends a bounded graceful
+shutdown request first; the Windows Job Object terminates descendants if the
+timeout expires.
+
+The packaged backend chooses a free loopback port, so a process using 5003 does
+not prevent startup. Only one CPU/CUDA/portable/installed XREPORT desktop
+instance is allowed per Windows user. MSI uninstall preserves user data;
+remove `%LOCALAPPDATA%\XREPORT\data` manually only for a complete reset.
+The CPU and CUDA products intentionally share that data directory while using
+variant-specific immutable runtime archives.
+
 - UI not reachable:
   - check `UI_HOST` and `UI_PORT` in `settings/.env`
   - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
@@ -25,7 +42,7 @@ Last updated: 2026-08-20
 
 ### SQLite Mode
 
-- When `EMBEDDED_DATABASE=true`, the backend initializes `<resource root>/database.db` automatically on first startup if the file does not exist. The resource root defaults to `app/resources` and can be changed with `XREPORT_RESOURCES_DIR`.
+- When `EMBEDDED_DATABASE=true`, source mode initializes `<resource root>/database.db` automatically on first startup if the file does not exist. Packaged mode initializes `%LOCALAPPDATA%\XREPORT\data\database.db`; it never writes a database into the immutable installation/runtime directory.
 - On later startups, existing data is not recreated, reset, or reseeded. The required tables and columns are checked against schema version 1. A structurally compatible older database without `schema_metadata` is stamped with the current marker; an incompatible schema, missing marker row, or unsupported version stops startup.
 - The launcher option `4` can be used to manually trigger the same idempotent SQLite initialization.
 

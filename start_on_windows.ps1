@@ -1,8 +1,16 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
     [string]$Action,
-    [switch]$Launch
+    [switch]$Launch,
+    [ValidateSet('Cpu', 'Cuda', 'All')]
+    [string]$DesktopRuntime = 'All',
+    [ValidateSet('Portable', 'Msi', 'All')]
+    [string]$DesktopTarget = 'All',
+    [switch]$OfflineWebView2,
+    [string]$Version = '1.0.0',
+    [switch]$Force,
+    [switch]$AllowDirtyTree
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,6 +33,14 @@ $EnvFile = Join-Path $RepoRoot 'settings\.env'
 $EnvExample = Join-Path $RepoRoot 'settings\.env.example'
 $TestsBat = Join-Path $RepoRoot 'app\tests\run_tests.bat'
 $InitDatabaseScript = Join-Path $RepoRoot 'app\scripts\initialize_database.py'
+$DesktopDir = Join-Path $RepoRoot 'app\desktop'
+$DesktopTauriDir = Join-Path $DesktopDir 'src-tauri'
+$DesktopBuildDir = Join-Path $DesktopDir 'build'
+$DesktopReleaseDir = Join-Path $RepoRoot 'release'
+$DesktopTargetDir = Join-Path $DesktopTauriDir 'target'
+$DesktopPythonScript = Join-Path $DesktopBuildDir 'run_pyinstaller.py'
+$DesktopSpec = Join-Path $DesktopBuildDir 'xreport_backend.spec'
+$DesktopBundleScript = Join-Path $DesktopBuildDir 'create_runtime_bundle.py'
 
 $PythonVersion = '3.14.2'
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
@@ -430,6 +446,315 @@ function Invoke-RebuildFrontend {
     Write-Ok 'Frontend rebuilt successfully'
 }
 
+function Get-DesktopVariants {
+    switch ($DesktopRuntime) {
+        'Cpu' { @('cpu') }
+        'Cuda' { @('cuda') }
+        default { @('cpu', 'cuda') }
+    }
+}
+
+function Get-DesktopVersionMetadata {
+    $clientVersion = ([string]((Get-Content -LiteralPath (Join-Path $ClientDir 'package.json') -Raw | ConvertFrom-Json).version)).Trim()
+    $serverVersion = (Select-String -LiteralPath (Join-Path $ServerDir 'pyproject.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    $backendVersion = (Select-String -LiteralPath (Join-Path $ServerDir 'common\constants.py') -Pattern 'FASTAPI_VERSION\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    $cargoVersion = (Select-String -LiteralPath (Join-Path $DesktopTauriDir 'Cargo.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    $tauriVersions = @()
+    foreach ($config in @('tauri.cpu.conf.json', 'tauri.cuda.conf.json')) {
+        $configPath = Join-Path $DesktopTauriDir $config
+        $tauriVersions += ([string]((Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json).version)).Trim()
+    }
+    [pscustomobject]@{
+        Client = $clientVersion
+        Server = $serverVersion
+        Backend = $backendVersion
+        Cargo = $cargoVersion
+        Tauri = ($tauriVersions -join ',')
+    }
+}
+
+function Assert-DesktopVersion {
+    param([Parameter(Mandatory = $true)][string]$ExpectedVersion)
+    $metadata = Get-DesktopVersionMetadata
+    $values = @($metadata.Client, $metadata.Server, $metadata.Backend, $metadata.Cargo) + @($metadata.Tauri -split ',')
+    if (($values | Where-Object { $_ -ne $ExpectedVersion }).Count -gt 0) {
+        throw "Desktop version drift detected. Expected $ExpectedVersion; metadata: $($metadata | ConvertTo-Json -Compress)"
+    }
+    Write-Ok "Desktop version metadata is synchronized at $ExpectedVersion"
+}
+
+function Assert-DesktopSourceState {
+    $status = @(git -C $RepoRoot status --porcelain)
+    if ($status.Count -gt 0 -and -not $AllowDirtyTree) {
+        throw 'Desktop release requires a clean git tree. Use -AllowDirtyTree only for diagnostic builds.'
+    }
+    if ($status.Count -gt 0) {
+        Write-Warn 'Building from a dirty tree because -AllowDirtyTree was supplied.'
+    }
+    return [pscustomobject]@{
+        Dirty = ($status.Count -gt 0)
+        Commit = ((git -C $RepoRoot rev-parse HEAD).Trim())
+    }
+}
+
+function Get-DesktopConfigPath {
+    param([Parameter(Mandatory = $true)][string]$Variant)
+    $sourceName = if ($Variant -eq 'cpu') { 'tauri.cpu.conf.json' } else { 'tauri.cuda.conf.json' }
+    $sourcePath = Join-Path $DesktopTauriDir $sourceName
+    $configPath = Join-Path $DesktopBuildDir "tauri-$Variant-$Version.json"
+    New-Item -ItemType Directory -Path $DesktopBuildDir -Force | Out-Null
+    $config = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    if ($OfflineWebView2) {
+        $config.bundle.windows.webviewInstallMode = [pscustomobject]@{ type = 'offlineInstaller' }
+    }
+    $config | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $configPath -Encoding utf8
+    return $configPath
+}
+
+function Invoke-DesktopFrontendBuild {
+    if (-not (Test-FrontendDependenciesReady)) {
+        Ensure-PortableNodeRuntime
+        foreach ($line in @(Install-FrontendDependencies)) { Write-Host $line }
+    }
+    foreach ($line in @(Invoke-FrontendBuild)) { Write-Host $line }
+    $frontendOutput = Join-Path $ClientDir 'dist\client-angular\browser\index.html'
+    if (-not (Test-Path -LiteralPath $frontendOutput)) {
+        throw "Angular production output was not created: $frontendOutput"
+    }
+    return (Split-Path -Parent $frontendOutput)
+}
+
+function Invoke-DesktopBackendFreeze {
+    param(
+        [Parameter(Mandatory = $true)][string]$Variant,
+        [Parameter(Mandatory = $true)][string]$SourceCommit,
+        [Parameter(Mandatory = $true)][string]$FrontendDist
+    )
+    $stagingRoot = Join-Path $DesktopBuildDir "runtime-staging\$Variant"
+    $distRoot = Join-Path $DesktopBuildDir "pyinstaller\$Variant\dist"
+    $workRoot = Join-Path $DesktopBuildDir "pyinstaller\$Variant\work"
+    if (Test-Path -LiteralPath $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
+    if (Test-Path -LiteralPath $distRoot) { Remove-Item -LiteralPath $distRoot -Recurse -Force }
+    if (Test-Path -LiteralPath $workRoot) { Remove-Item -LiteralPath $workRoot -Recurse -Force }
+    New-Item -ItemType Directory -Path $stagingRoot, $distRoot, $workRoot | Out-Null
+
+    $previousPythonPath = $env:PYTHONPATH
+    $cpuOverlay = Join-Path $DesktopBuildDir 'cpu-overlay'
+    try {
+        if ($Variant -eq 'cpu') {
+            if (Test-Path -LiteralPath $cpuOverlay) { Remove-Item -LiteralPath $cpuOverlay -Recurse -Force }
+            New-Item -ItemType Directory -Path $cpuOverlay -Force | Out-Null
+            Write-Step 'Preparing isolated CPU Torch overlay (the CUDA development environment is unchanged)'
+            foreach ($line in @(Invoke-Checked -FilePath $UvExe -ArgumentList @(
+                'pip', 'install', '--python', $VenvPython, '--target', $cpuOverlay,
+                '--index-strategy', 'unsafe-best-match',
+                '--index-url', 'https://download.pytorch.org/whl/cpu',
+                '--extra-index-url', 'https://pypi.org/simple',
+                'torch==2.10.0+cpu', 'torchvision==0.25.0+cpu'
+            ) -WorkingDirectory $ServerDir)) { Write-Host $line }
+            $env:PYTHONPATH = "$cpuOverlay;$(Join-Path $RepoRoot 'app')"
+        }
+        else {
+            $env:PYTHONPATH = Join-Path $RepoRoot 'app'
+        }
+
+        & $VenvPython -c 'import PyInstaller' *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Step 'Installing pinned PyInstaller build tooling into the existing server environment'
+            foreach ($line in @(Invoke-Checked -FilePath $UvExe -ArgumentList @('pip', 'install', '--python', $VenvPython, 'pyinstaller==6.16.0') -WorkingDirectory $ServerDir)) { Write-Host $line }
+        }
+        Write-Step "Freezing $Variant backend with PyInstaller"
+        foreach ($line in @(Invoke-Checked -FilePath $VenvPython -ArgumentList @(
+            $DesktopPythonScript, '--spec', $DesktopSpec, '--distpath', $distRoot, '--workpath', $workRoot
+        ) -WorkingDirectory $RepoRoot)) { Write-Host $line }
+    }
+    finally {
+        if ($null -eq $previousPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue } else { $env:PYTHONPATH = $previousPythonPath }
+    }
+
+    $frozenBackend = Join-Path $distRoot 'XREPORT-backend'
+    $frozenExecutable = Join-Path $frozenBackend 'XREPORT-backend.exe'
+    if (-not (Test-Path -LiteralPath $frozenExecutable)) { throw "PyInstaller did not produce $frozenExecutable" }
+    # Copy the onedir container as a directory so PyInstaller's `_internal`
+    # layout and its Python DLL dependency graph remain intact.
+    Copy-Item -LiteralPath $frozenBackend -Destination (Join-Path $stagingRoot 'backend') -Recurse -Force
+    $stagedBackend = Join-Path $stagingRoot 'backend'
+    foreach ($directory in @(Get-ChildItem -LiteralPath $stagedBackend -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -in @('__pycache__', '.pytest_cache', '.ruff_cache', 'tests', 'test') -or
+        $_.Name -match '^(pytest|playwright|ruff|pyright|jupyter|notebook|pip|setuptools|uv)([-.].*)?\.dist-info$'
+    } | Sort-Object FullName -Descending)) {
+        Remove-Item -LiteralPath $directory.FullName -Recurse -Force
+    }
+    foreach ($file in @(Get-ChildItem -LiteralPath $stagedBackend -File -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.pyc', '.pyo') })) {
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+    Copy-Item -LiteralPath $FrontendDist -Destination (Join-Path $stagingRoot 'client') -Recurse -Force
+    New-Item -ItemType Directory -Path (Join-Path $stagingRoot 'settings') -Force | Out-Null
+    Copy-Item -LiteralPath $EnvExample -Destination (Join-Path $stagingRoot 'settings\.env.example') -Force
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\configurations.json') -Destination (Join-Path $stagingRoot 'settings\configurations.json') -Force
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\inference_models.json') -Destination (Join-Path $stagingRoot 'settings\inference_models.json') -Force
+    return $stagingRoot
+}
+
+function Add-DesktopRuntimeOverlay {
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter(Mandatory = $true)][string]$Archive
+    )
+    # A CUDA archive is too large for include_bytes!/rustc and for an
+    # in-memory PowerShell read.  Append it as a PE overlay with a fixed
+    # footer; the Rust shell seeks directly to that bounded ZIP region.
+    $temporary = "$Executable.runtime-overlay.tmp"
+    if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+    $source = $null
+    $archiveStream = $null
+    $output = $null
+    try {
+        $source = [IO.File]::OpenRead($Executable)
+        $archiveStream = [IO.File]::OpenRead($Archive)
+        $output = [IO.File]::Open($temporary, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        $source.CopyTo($output, 4MB)
+        $archiveOffset = [UInt64]$output.Position
+        $archiveStream.CopyTo($output, 4MB)
+        $archiveLength = [UInt64]($output.Position - [Int64]$archiveOffset)
+        $magic = [Text.Encoding]::ASCII.GetBytes('XRPZIP01')
+        $output.Write($magic, 0, $magic.Length)
+        $offsetBytes = [BitConverter]::GetBytes($archiveOffset)
+        $lengthBytes = [BitConverter]::GetBytes($archiveLength)
+        $output.Write($offsetBytes, 0, $offsetBytes.Length)
+        $output.Write($lengthBytes, 0, $lengthBytes.Length)
+    }
+    finally {
+        if ($null -ne $output) { $output.Dispose() }
+        if ($null -ne $archiveStream) { $archiveStream.Dispose() }
+        if ($null -ne $source) { $source.Dispose() }
+    }
+    Move-Item -LiteralPath $temporary -Destination $Executable -Force
+}
+
+function Invoke-DesktopVariantBuild {
+    param(
+        [Parameter(Mandatory = $true)][string]$Variant,
+        [Parameter(Mandatory = $true)][string]$SourceCommit,
+        [Parameter(Mandatory = $true)][bool]$DirtyTree,
+        [Parameter(Mandatory = $true)][string]$FrontendDist
+    )
+    $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
+    $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
+    $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$Version.json"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
+    $bundleArgs = @(
+        $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
+        '--version', $Version, '--variant', $Variant, '--source-commit', $SourceCommit, '--audit', $auditPath
+    )
+    if ($DirtyTree) { $bundleArgs += '--dirty' }
+    Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
+
+    $configPath = Get-DesktopConfigPath -Variant $Variant
+    $env:XREPORT_DESKTOP_VARIANT = $Variant
+    $releaseTarget = Join-Path $DesktopTauriDir 'target\release'
+    $msiDir = Join-Path $releaseTarget 'bundle\msi'
+    if (Test-Path -LiteralPath $msiDir) { Remove-Item -LiteralPath $msiDir -Recurse -Force }
+    $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath)
+    if ($DesktopTarget -eq 'Msi' -or $DesktopTarget -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
+    Write-Step "Building Tauri $Variant release"
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
+
+    New-Item -ItemType Directory -Path $DesktopReleaseDir -Force | Out-Null
+    $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant-portable.exe"
+    $rawExe = Join-Path $releaseTarget 'xreport-desktop.exe'
+    if (-not (Test-Path -LiteralPath $rawExe)) { throw "Expected Tauri executable not found: $rawExe" }
+    $fileVersion = (Get-Item -LiteralPath $rawExe).VersionInfo.FileVersion
+    if (-not $fileVersion -or $fileVersion -notlike "$Version*") { throw "Tauri executable version mismatch or missing file metadata: $fileVersion" }
+    if ($DesktopTarget -eq 'Portable' -or $DesktopTarget -eq 'All') {
+        Add-DesktopRuntimeOverlay -Executable $rawExe -Archive $archivePath
+        Copy-Item -LiteralPath $rawExe -Destination $portablePath -Force
+    }
+
+    $msiPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant.msi"
+    if ($DesktopTarget -eq 'Msi' -or $DesktopTarget -eq 'All') {
+        $variantToken = if ($Variant -eq 'cpu') { '(?i)cpu' } else { '(?i)cuda' }
+        $candidates = @(Get-ChildItem -LiteralPath $msiDir -File -Filter '*.msi' | Where-Object { $_.Name -match [regex]::Escape($Version) -and $_.Name -match '(?i)xreport' -and $_.Name -match $variantToken })
+        if ($candidates.Count -ne 1) { throw "Expected exactly one versioned $Variant MSI; found $($candidates.Count): $($candidates.Name -join ', ')" }
+        Copy-Item -LiteralPath $candidates[0].FullName -Destination $msiPath -Force
+    }
+
+    $artifactPaths = @()
+    if (Test-Path -LiteralPath $portablePath) { $artifactPaths += $portablePath }
+    if (Test-Path -LiteralPath $msiPath) { $artifactPaths += $msiPath }
+    if ($artifactPaths.Count -eq 0) { throw "No $Variant desktop artifacts were produced" }
+    $checksumPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant.sha256"
+    $checksumLines = foreach ($artifact in $artifactPaths) {
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash.ToLowerInvariant()
+        "$hash  $([IO.Path]::GetFileName($artifact))"
+    }
+    $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
+    $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant-build.json"
+    [pscustomobject]@{
+        application = 'XREPORT'
+        version = $Version
+        variant = $Variant
+        source_commit = $SourceCommit
+        dirty_tree = $DirtyTree
+        webview2 = if ($OfflineWebView2) { 'offlineInstaller' } else { 'embedBootstrapper' }
+        artifacts = @($artifactPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
+        checksums = [IO.Path]::GetFileName($checksumPath)
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $metadataPath -Encoding utf8
+    Write-Ok "$Variant desktop artifacts written under $DesktopReleaseDir"
+}
+
+function Invoke-BuildDesktopRelease {
+    Assert-DesktopVersion -ExpectedVersion $Version
+    $sourceState = Assert-DesktopSourceState
+    if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) { Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force }
+    Ensure-PortableRuntimes
+    if (-not (Test-DependenciesReady)) {
+        Install-Dependencies -Settings (Import-XReportEnvironment) -InstallationType 'Standard'
+    }
+    $frontendDist = Invoke-DesktopFrontendBuild
+    foreach ($variant in Get-DesktopVariants) {
+        Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist
+    }
+    Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
+    Write-Ok 'Desktop release build completed. Unsigned artifacts require WebView2 on the target machine.'
+}
+
+function Invoke-LaunchDesktopDev {
+    $settings = Import-XReportEnvironment
+    Ensure-PortableRuntimes
+    if (-not (Test-FrontendDependenciesReady)) { Install-FrontendDependencies }
+    Invoke-FrontendBuild
+    Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
+    Stop-PortListener -Port ([int]$settings.UI_PORT)
+    $backendAppPath = Join-Path $RepoRoot 'app'
+    $escapedPython = $VenvPython.Replace("'", "''")
+    $escapedApp = $backendAppPath.Replace("'", "''")
+    $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
+    $backendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
+    $frontendCommand = "& '$($NpmCmd.Replace("'", "''"))' run preview -- --host $($settings.UI_HOST) --port $($settings.UI_PORT)"
+    $frontendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $frontendCommand) -WorkingDirectory $ClientDir -WindowStyle Normal -PassThru
+    try {
+        Invoke-HealthCheck -Uri "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health" -TimeoutSeconds 60
+        Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
+        $env:XREPORT_DESKTOP_DEV = '1'
+        Write-Step 'Launching the debug Tauri shell; backend and frontend consoles remain visible.'
+        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', (Join-Path $DesktopTauriDir 'tauri.conf.json')) -WorkingDirectory $DesktopDir
+    }
+    finally {
+        Remove-Item Env:XREPORT_DESKTOP_DEV -ErrorAction SilentlyContinue
+        foreach ($process in @($frontendProcess, $backendProcess)) {
+            if ($process -and -not $process.HasExited) { & taskkill.exe /PID $process.Id /T /F | Out-Null }
+        }
+    }
+}
+
+function Invoke-RemoveDesktopRelease {
+    foreach ($target in @($DesktopReleaseDir, (Join-Path $DesktopBuildDir 'runtime-staging'), (Join-Path $DesktopBuildDir 'pyinstaller'), (Join-Path $DesktopBuildDir 'cpu-overlay'), $DesktopTargetDir, (Join-Path $DesktopTauriDir 'generated\runtime.zip'))) {
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+    }
+    Write-Ok 'Desktop release outputs, staging, and Tauri target files removed; user data was preserved.'
+}
+
 function Read-InstallationType {
     Write-Host '  [1] Development - include Ruff, Pyright, and pytest'
     Write-Host '  [2] Standard    - install runtime dependencies only'
@@ -573,6 +898,9 @@ if ($Launch) {
 if ($Action) {
     switch ($Action) {
         'Launch' { Invoke-Launch }
+        'LaunchDesktopDev' { Invoke-LaunchDesktopDev }
+        'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
+        'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
         'Install' { Invoke-InstallOrUpdate }
         'RebuildFrontend' { Invoke-RebuildFrontend }
         'InitializeDatabase' { Invoke-InitializeDatabase }
@@ -603,7 +931,7 @@ while ($true) {
             '5' { Invoke-TestSuite }
             '6' { Remove-Logs }
             '7' { Clear-ApplicationCache }
-            '8' { Uninstall-Application }
+        '8' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message

@@ -55,3 +55,23 @@ Thumbs.db
 *.exe
 *.gz
 !.gitkeep
+
+# Reproducible dependency locks committed for the application and desktop shell.
+!app/client/package-lock.json
+!app/desktop/package-lock.json
+!app/desktop/src-tauri/Cargo.lock
+!app/server/uv.lock
+
+# Desktop build staging/output (never user data).
+app/desktop/src-tauri/target/
+!app/desktop/build/
+app/desktop/build/*
+!app/desktop/build/create_runtime_bundle.py
+!app/desktop/build/run_pyinstaller.py
+!app/desktop/build/xreport_backend.spec
+app/desktop/runtime-staging/
+app/desktop/generated/
+app/desktop/src-tauri/generated/
+app/desktop/src-tauri/gen/
+app/desktop/src-tauri/ui/
+release/
