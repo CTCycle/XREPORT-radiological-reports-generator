@@ -1,6 +1,6 @@
 # Runtime Modes
 
-Last updated: 2026-08-01
+Last updated: 2026-08-20
 
 ## Supported Modes
 
@@ -10,6 +10,23 @@ Last updated: 2026-08-01
 - Frontend: Vite preview or dev server in `app/client`.
 - The Windows operator flow uses `start_on_windows.ps1`.
 - macOS and Linux use the documented manual backend and frontend commands.
+
+### Packaged Windows Desktop Mode
+
+- Tauri 2 is the native shell. The MSI carries a verified ZIP64 runtime as a
+  Tauri resource; the single-file portable EXE carries the same archive as a
+  streamed PE overlay. Both contain the frozen FastAPI backend and production
+  Angular files without asking `rustc` to load the CUDA archive into memory.
+- CPU and CUDA are separate products (`io.github.ctcycle.xreport.cpu` and
+  `io.github.ctcycle.xreport.cuda`) and use different MSI upgrade codes.
+- Both products use `%LOCALAPPDATA%\XREPORT\data` for mutable state and a
+  common `Local\io.github.ctcycle.xreport.desktop` mutex.
+- The backend selects an available loopback port, writes a short-lived
+  readiness contract, and is authenticated by a per-launch token. The shell
+  performs readiness/health polling and graceful shutdown.
+- The portable executable uses the system WebView2 runtime. The default MSI
+  embeds the WebView2 bootstrapper; an offline installer is an explicit build
+  option.
 
 ### Containerized Runtime
 

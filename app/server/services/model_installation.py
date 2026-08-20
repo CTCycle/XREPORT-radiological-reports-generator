@@ -16,26 +16,23 @@ from huggingface_hub import HfApi, get_token
 import requests
 
 from server.common.path import (
+    DATA_ROOT,
     HF_INSTALLED_DIR,
     HF_METADATA_DIR,
     HF_ROLLBACK_DIR,
     HF_STAGING_DIR,
     ROOT_DIR,
+    is_within_allowed_roots,
 )
-
-
 REVISION_PATTERN = r"^[0-9a-f]{40}$"
 ProgressCallback = Callable[[dict[str, Any]], None]
 
-###############################################################################
 class InstallationCancelled(RuntimeError):
     """Raised when the user cancels a download or maintenance operation."""
 
-###############################################################################
 class InstallationError(RuntimeError):
     """Raised when a model cannot be installed or verified safely."""
 
-###############################################################################
 @dataclass(frozen=True)
 class InstallationTarget:
     repository_id: str
@@ -44,11 +41,9 @@ class InstallationTarget:
     candidate: bool
     operation_id: str | None = None
 
-###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
 
-###############################################################################
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -86,7 +81,16 @@ class ModelInstallationManager:
     # -------------------------------------------------------------------------
     @staticmethod
     def _relative(path: Path) -> str:
-        return path.resolve().relative_to(ROOT_DIR.resolve()).as_posix()
+        resolved = path.resolve()
+        try:
+            return resolved.relative_to(ROOT_DIR.resolve()).as_posix()
+        except ValueError:
+            try:
+                return f"data/{resolved.relative_to(DATA_ROOT.resolve()).as_posix()}"
+            except ValueError as exc:
+                raise InstallationError(
+                    "Model path is outside the application runtime and data roots"
+                ) from exc
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -99,11 +103,13 @@ class ModelInstallationManager:
     def _absolute(relative_path: str | None) -> Path | None:
         if not relative_path:
             return None
-        path = (ROOT_DIR / relative_path).resolve()
-        try:
-            path.relative_to(ROOT_DIR.resolve())
-        except ValueError as exc:
-            raise InstallationError("Model metadata points outside the application root") from exc
+        normalized = str(relative_path).replace("\\", "/")
+        if normalized.startswith("data/"):
+            path = (DATA_ROOT / normalized.removeprefix("data/")).resolve()
+        else:
+            path = (ROOT_DIR / normalized).resolve()
+        if not is_within_allowed_roots(path):
+            raise InstallationError("Model metadata points outside the application roots")
         return path
 
     # -------------------------------------------------------------------------

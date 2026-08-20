@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-19
+Last updated: 2026-08-20
 
 ## Windows Local Launcher
 
@@ -48,6 +48,42 @@ by Git.
 Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
 application launch. The default `ALWAYS_REBUILD=false` skips that startup
 build; the install/update option continues to build the frontend.
+
+## Tauri desktop development
+
+`LaunchDesktopDev` builds Angular once, starts the source FastAPI backend on
+the configured 5003 port, starts the preview on 8003, leaves both consoles
+visible, and opens the debug Tauri shell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
+```
+
+The existing `-Action Launch` path remains the normal browser workflow and is
+not replaced by the desktop action.
+
+## Tauri release packaging
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0
+```
+
+Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
+`-OfflineWebView2` as needed. A clean tree is required unless
+`-AllowDirtyTree` is explicitly supplied for diagnostic work. Outputs are
+under `release/`; generated Cargo/PyInstaller/runtime staging is under
+`app/desktop/build` and is ignored. Remove it with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease
+```
+
+Portable output is one EXE per variant: the release script streams the audited
+ZIP64 runtime onto the PE as an overlay and writes a fixed footer. MSI output
+keeps that ZIP as an installer resource. Do not copy only the raw
+`app/desktop/src-tauri/target/release/xreport-desktop.exe`; it is a shell build,
+not a distributable portable artifact.
 
 ## Manual Backend And Frontend
 
