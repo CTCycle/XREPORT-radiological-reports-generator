@@ -1,8 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-08-01
-
-## Purpose
+Last updated: 2026-08-20
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -30,13 +28,15 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 ### Architecture
 
 - `architecture/system_overview.md`
-  - Repository layout, runtime topology, and entry points.
+  - Repository layout, runtime topology, dependency direction, and entry points.
 - `architecture/backend_api.md`
-  - Mounted routers and endpoint catalog.
+  - Mounted routers, endpoint catalog, frontend client mapping, and root serving behavior.
 - `architecture/execution_and_data_flow.md`
-  - Domain, service, repository, provider, job model, and async versus sync behavior.
+  - Domain, service, repository, provider, job model, service composition, and async versus sync behavior.
 - `architecture/persistence.md`
-  - Database mode selection, initialization behavior, and artifact locations.
+  - Database mode selection, schema compatibility checks, entity ownership, constraints, and artifact locations.
+- `architecture/architecture_review.md`
+  - Findings, implementation status, deferred migration work, and validation evidence from the architecture review.
 
 ### Coding
 

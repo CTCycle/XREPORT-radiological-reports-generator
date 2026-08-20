@@ -1,10 +1,8 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
-The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors
-the runtime FastAPI schema and is the contract snapshot available to frontend
-and tooling consumers. Regenerate it from the repository root with:
+The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
 ```powershell
 $env:PYTHONPATH = "app"
@@ -63,21 +61,22 @@ All routers are mounted under `/api`.
 - `GET /api/inference/jobs/{job_id}`
 - `DELETE /api/inference/jobs/{job_id}`
 
-`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. The obsolete inference checkpoint endpoint and `checkpoint`/`generation_mode` request fields are removed. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
 
-`GET /api/inference/models` returns only the current `models` and `providers` fields. Model maintenance accepts references from that current catalogue; retired or unknown references return 404.
+The Angular client maps these endpoint groups to `InferenceApiService`, `DatasetApiService`, `TrainingApiService`, and `ValidationApiService`. Shared request execution and error formatting live in `ApiRequestService`; feature clients preserve the existing result/error envelope.
 
 The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
 
-Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. The mapping includes 400, 403, 404, 409, 413, 500, and 501 responses.
+Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. Background job failures remain visible through the job status response, including persistence failures during inference history writes.
 
 ## Health
 
 - `GET /api/health`
 
-The health response reports the backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
+The health response reports backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
 
-## Root Behavior
+## Root Behavior And Serving
 
-- When `app/client/dist` is available, the backend serves SPA files from the built frontend bundle.
-- Otherwise, `GET /` redirects to FastAPI's `/docs` endpoint.
+- `GET /` on the FastAPI process redirects to `/docs`.
+- The FastAPI process does not own the Angular document root in the current runtime topology.
+- Angular is served by its own development or production frontend runtime, coordinated with FastAPI by `start_on_windows.ps1`.
