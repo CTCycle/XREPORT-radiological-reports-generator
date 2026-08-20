@@ -3,8 +3,7 @@ from __future__ import annotations
 import threading
 import time
 
-from server.domain.jobs import JobState
-from server.services.jobs import JobManager
+from server.services.jobs import JobManager, JobState
 
 ###############################################################################
 def blocking_runner(release: threading.Event) -> dict[str, object]:
