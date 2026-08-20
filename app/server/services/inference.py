@@ -35,7 +35,7 @@ from server.common.constants import (
 from server.common.utils.logger import logger
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.services.jobs import JobManager, get_job_manager
+from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations.startup import get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
@@ -49,6 +49,37 @@ from server.services.model_installation import (
 
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
+
+###############################################################################
+def map_inference_failure(exc: Exception) -> JobExecutionError:
+    if isinstance(exc, JobExecutionError):
+        return exc
+
+    message = str(exc).split("\n")[0][:300]
+    lowered = message.lower()
+    code = "inference_failed"
+    phase = "inference"
+    recoverable = True
+    if "accepted model terms" in lowered or "valid local token" in lowered:
+        code, phase = "access_required", "download"
+    elif "download" in lowered or "hub" in lowered:
+        code, phase = "download_failed", "download"
+    elif "integrity" in lowered or "hash mismatch" in lowered or "size mismatch" in lowered:
+        code, phase = "integrity_failed", "verify"
+    elif "required runtime modules" in lowered or "requires the qwen" in lowered:
+        code, phase = "runtime_dependency_missing", "loading"
+    elif "cuda" in lowered or "out of memory" in lowered or "memory" in lowered:
+        code, phase = "hardware_insufficient", "loading"
+    elif "snapshot" in lowered or "checkpoint" in lowered:
+        code, phase = "model_load_failed", "loading"
+    elif "cancel" in lowered:
+        code, phase, recoverable = "cancelled", "working", True
+    return JobExecutionError(
+        message,
+        code=code,
+        phase=phase,
+        recoverable=recoverable,
+    )
 
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
@@ -484,6 +515,7 @@ class InferenceService:
         job_id = self.job_manager.start_job(
             job_type="model_maintenance",
             runner=run_model_maintenance_job,
+            failure_mapper=map_inference_failure,
             kwargs={
                 "model_ref": model_ref,
                 "manifest": manifest,
@@ -560,6 +592,7 @@ class InferenceService:
             job_id = self.job_manager.start_job(
                 job_type=self.JOB_TYPE,
                 runner=run_inference_job,
+                failure_mapper=map_inference_failure,
                 kwargs={
                     "model_ref": model_ref,
                     "model_revision": selected_model.model_revision,
