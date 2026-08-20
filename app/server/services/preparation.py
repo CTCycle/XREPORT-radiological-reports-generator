@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
-from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -49,11 +48,7 @@ from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
 from server.configurations import ServerSettings
-from server.models.training.processing import (
-    TextSanitizer,
-    TokenizerHandler,
-    TrainValidationSplit,
-)
+from server.services.dataset_processing import DatasetProcessingService
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 LOCAL_FILESYSTEM_DISABLED_ERROR = (
@@ -112,149 +107,6 @@ def count_images_in_folder(folder_path: str) -> int:
         return 0
 
 ###############################################################################
-def _save_processed_dataset(
-    serializer: DatasetRepository,
-    configuration: dict[str, Any],
-    training_data: pd.DataFrame,
-    dataset_name: str,
-    source_dataset_name: str,
-    vocabulary_size: int,
-) -> None:
-    metadata_for_hash = {
-        "dataset_name": dataset_name,
-        "seed": configuration.get("seed", 42),
-        "sample_size": configuration.get("sample_size", 1.0),
-        "validation_size": configuration.get("validation_size", 0.2),
-        "vocabulary_size": vocabulary_size,
-        "max_report_size": configuration.get("max_report_size", 200),
-        "tokenizer": configuration.get("tokenizer", None),
-        "source_dataset": source_dataset_name,
-    }
-    hashcode = serializer.generate_hashcode(metadata_for_hash)
-    serializer.save_training_data(
-        configuration,
-        training_data,
-        vocabulary_size,
-        hashcode,
-    )
-    logger.info("Preprocessed data saved to database with hash: %s", hashcode)
-
-###############################################################################
-def run_process_dataset_job(
-    configuration: dict[str, Any],
-    job_id: str,
-) -> dict[str, Any]:
-    """Blocking dataset processing function that runs in background thread."""
-    serializer = DatasetRepository()
-    source_dataset_name_raw = configuration.get("dataset_name")
-    source_dataset_name = (
-        str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""
-    )
-    if not source_dataset_name:
-        raise RuntimeError(DATASET_NAME_EMPTY_ERROR)
-    custom_name_raw = configuration.get("custom_name")
-    custom_name = str(custom_name_raw) if custom_name_raw is not None else None
-
-    # Load source dataset from radiography table.
-    dataset = serializer.load_source_dataset(
-        sample_size=configuration["sample_size"],
-        seed=configuration["seed"],
-        dataset_name=source_dataset_name,
-    )
-
-    if dataset.empty:
-        if source_dataset_name:
-            raise RuntimeError(
-                f"No data found for dataset: {source_dataset_name}. Please load the dataset and try again."
-            )
-        raise RuntimeError(
-            f"No data found in {DATASET_RECORDS_TABLE} table. Please load a dataset first."
-        )
-
-    dataset_name = resolve_processed_dataset_name(source_dataset_name, custom_name)
-
-    # Update configuration for saving
-    configuration["dataset_name"] = dataset_name
-    configuration["source_dataset"] = source_dataset_name
-
-    # Step 1: Sanitize text corpus
-    sanitizer = TextSanitizer(configuration)
-    processed_data = sanitizer.sanitize_text(dataset)
-    logger.info("Text sanitization completed")
-
-    get_job_manager().update_progress(job_id, 30.0)
-    if get_job_manager().should_stop(job_id):
-        return {}
-
-    # Step 2: Tokenize text using Hugging Face tokenizer
-    try:
-        tokenization = TokenizerHandler(configuration)
-        logger.info(f"Tokenizing text using {tokenization.tokenizer_id} tokenizer")
-        processed_data = tokenization.tokenize_text_corpus(processed_data)
-        vocabulary_size = tokenization.vocabulary_size
-        logger.info(f"Vocabulary size: {vocabulary_size} tokens")
-    except Exception as e:
-        logger.exception("Failed to tokenize text")
-        raise RuntimeError(f"Tokenization failed: {str(e)}") from e
-
-    get_job_manager().update_progress(job_id, 60.0)
-    if get_job_manager().should_stop(job_id):
-        return {}
-
-    # Step 3: Keep sanitized text so training upserts can use deterministic keys.
-    # Step 4: Split into train and validation sets
-    splitter = TrainValidationSplit(configuration, processed_data)
-    training_data = splitter.split_train_and_validation()
-
-    train_samples = len(training_data[training_data["split"] == "train"])
-    validation_samples = len(training_data[training_data["split"] == "validation"])
-
-    logger.info(
-        f"Split complete: {train_samples} train, {validation_samples} validation samples"
-    )
-
-    get_job_manager().update_progress(job_id, 80.0)
-    if get_job_manager().should_stop(job_id):
-        return {}
-
-    # Step 5: Save processed data and metadata to database
-    try:
-        _save_processed_dataset(
-            serializer,
-            configuration,
-            training_data,
-            dataset_name,
-            source_dataset_name,
-            vocabulary_size,
-        )
-    except RuntimeError as e:
-        # Schema mismatch or other runtime errors - use the clean message directly
-        logger.error(f"Database error: {e}")
-        raise
-    except Exception as e:
-        logger.exception("Failed to save training data")
-        raise RuntimeError(f"Failed to save training data: {str(e)}") from e
-
-    get_job_manager().update_progress(job_id, 100.0)
-
-    return {
-        "total_samples": len(training_data),
-        "train_samples": train_samples,
-        "validation_samples": validation_samples,
-        "vocabulary_size": vocabulary_size,
-    }
-
-###############################################################################
-def resolve_processed_dataset_name(
-    source_dataset_name: str,
-    custom_name: str | None,
-) -> str:
-    if custom_name and custom_name.strip():
-        return custom_name.strip()
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{source_dataset_name}_{timestamp}"
-
-###############################################################################
 class PreparationService:
     """Endpoint for dataset preparation and browsing operations."""
 
@@ -264,11 +116,15 @@ class PreparationService:
     def __init__(
         self,
         repository: PreparationRepository,
+        dataset_repository: DatasetRepository,
+        processing_service: DatasetProcessingService,
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
     ) -> None:
         self.repository = repository
+        self.dataset_repository = dataset_repository
+        self.processing_service = processing_service
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
@@ -563,13 +419,12 @@ class PreparationService:
         # Persist matched data to database with name and path.
         if not matched.empty:
             try:
-                serializer = DatasetRepository()
                 db_df = self.prepare_dataset_records_dataframe(
                     matched=matched,
                     image_column=image_column,
                     dataset_name=dataset_name,
                 )
-                serializer.upsert_source_dataset(db_df)
+                self.dataset_repository.upsert_source_dataset(db_df)
                 logger.info(
                     f"Upserted {len(db_df)} records to {DATASET_RECORDS_TABLE} table (dataset: {dataset_name})"
                 )
@@ -610,8 +465,7 @@ class PreparationService:
             )
 
         # Quick validation - check if source data exists
-        serializer = DatasetRepository()
-        dataset = serializer.load_source_dataset(
+        dataset = self.dataset_repository.load_source_dataset(
             sample_size=1.0,
             seed=configuration["seed"],
             dataset_name=dataset_name,
@@ -624,7 +478,7 @@ class PreparationService:
         # Start background job
         job_id = self.job_manager.start_job(
             job_type=self.JOB_TYPE,
-            runner=run_process_dataset_job,
+            runner=self.processing_service.run,
             kwargs={
                 "configuration": configuration,
             },
@@ -815,9 +669,17 @@ class PreparationService:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_preparation_service() -> PreparationService:
+    database = get_database()
+    dataset_repository = DatasetRepository(database)
+    job_manager = get_job_manager()
     return PreparationService(
-        repository=PreparationRepository(get_database()),
-        job_manager=get_job_manager(),
+        repository=PreparationRepository(database),
+        dataset_repository=dataset_repository,
+        processing_service=DatasetProcessingService(
+            repository=dataset_repository,
+            job_manager=job_manager,
+        ),
+        job_manager=job_manager,
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),
     )
