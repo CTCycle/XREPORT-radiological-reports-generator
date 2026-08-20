@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from functools import lru_cache
 import inspect
 import threading
@@ -10,7 +11,63 @@ from typing import Any
 from collections.abc import Callable
 
 from server.common.utils.logger import logger
-from server.domain.jobs import JobState
+
+###############################################################################
+@dataclass
+class JobState:
+    """Mutable in-memory state owned by the background-job runtime."""
+
+    job_id: str
+    job_type: str
+    status: str
+    progress: float = 0.0
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: float = field(default_factory=monotonic)
+    completed_at: float | None = None
+    stop_requested: bool = False
+    lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+
+    # -------------------------------------------------------------------------
+    def update(self, **kwargs: Any) -> None:
+        with self.lock:
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+
+    # -------------------------------------------------------------------------
+    def snapshot(self) -> dict[str, Any]:
+        with self.lock:
+            return {
+                "job_id": self.job_id,
+                "job_type": self.job_type,
+                "status": self.status,
+                "progress": self.progress,
+                "result": self.result,
+                "error": self.error,
+                "created_at": self.created_at,
+                "completed_at": self.completed_at,
+            }
+
+###############################################################################
+class JobExecutionError(RuntimeError):
+    """Typed failure payload supplied by a feature-specific job runner."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "job_failed",
+        phase: str = "execution",
+        recoverable: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.phase = phase
+        self.recoverable = recoverable
+
+###############################################################################
+FailureMapper = Callable[[Exception], JobExecutionError]
 
 ###############################################################################
 class JobManager:
@@ -28,6 +85,7 @@ class JobManager:
         runner: Callable[..., dict[str, Any]],
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
+        failure_mapper: FailureMapper | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
         state = JobState(job_id=job_id, job_type=job_type, status="pending")
@@ -42,7 +100,7 @@ class JobManager:
 
         thread = threading.Thread(
             target=self._run_job,
-            args=(job_id, runner, args, runner_kwargs),
+            args=(job_id, runner, args, runner_kwargs, failure_mapper),
             daemon=True,
         )
 
@@ -137,6 +195,7 @@ class JobManager:
         runner: Callable[..., dict[str, Any]],
         args: tuple[Any, ...],
         kwargs: dict[str, Any],
+        failure_mapper: FailureMapper | None,
     ) -> None:
         with self.lock:
             state = self.jobs.get(job_id)
@@ -164,7 +223,7 @@ class JobManager:
                 state.update(status="cancelled", completed_at=monotonic())
                 logger.info("Job %s cancelled during execution", job_id)
                 return
-            failure = self._failure_payload(exc)
+            failure = self._failure_payload(exc, failure_mapper)
             with state.lock:
                 merged_failure = {**(state.result or {}), "failure": failure}
             state.update(
@@ -178,31 +237,24 @@ class JobManager:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _failure_payload(exc: Exception) -> dict[str, Any]:
+    def _failure_payload(
+        exc: Exception,
+        failure_mapper: FailureMapper | None,
+    ) -> dict[str, Any]:
         message = str(exc).split("\n")[0][:300]
-        lowered = message.lower()
-        code = "inference_failed"
-        phase = "inference"
-        recoverable = True
-        if "accepted model terms" in lowered or "valid local token" in lowered:
-            code, phase = "access_required", "download"
-        elif "download" in lowered or "hub" in lowered:
-            code, phase = "download_failed", "download"
-        elif "integrity" in lowered or "hash mismatch" in lowered or "size mismatch" in lowered:
-            code, phase = "integrity_failed", "verify"
-        elif "required runtime modules" in lowered or "requires the qwen" in lowered:
-            code, phase = "runtime_dependency_missing", "loading"
-        elif "cuda" in lowered or "out of memory" in lowered or "memory" in lowered:
-            code, phase = "hardware_insufficient", "loading"
-        elif "snapshot" in lowered or "checkpoint" in lowered:
-            code, phase = "model_load_failed", "loading"
-        elif "cancel" in lowered:
-            code, phase, recoverable = "cancelled", "working", True
+        mapped = None
+        if failure_mapper is not None:
+            try:
+                mapped = failure_mapper(exc)
+            except Exception:  # noqa: BLE001
+                logger.exception("Job failure mapper raised while classifying an error")
+        if mapped is None:
+            mapped = exc if isinstance(exc, JobExecutionError) else JobExecutionError(message)
         return {
-            "code": code,
-            "message": message,
-            "phase": phase,
-            "recoverable": recoverable,
+            "code": mapped.code,
+            "message": str(mapped).split("\n")[0][:300],
+            "phase": mapped.phase,
+            "recoverable": mapped.recoverable,
         }
 
     # -------------------------------------------------------------------------
