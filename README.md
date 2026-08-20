@@ -77,13 +77,41 @@ npm run preview -- --host 127.0.0.1 --port 8003
 
 ### 4.3 UI Snapshots
 
-The snapshots below were captured from the current Windows web interface at 1440×920.
+The screenshots below were captured from the current Windows web interface at a consistent 1280×740 normal viewport. Scrollable workflows use separate, focused frames so important content stays readable; the images are not stitched full-page captures.
 
-- **Dataset management**: data source selection and dataset processing configuration.
-  ![Dataset management page](assets/figures/readme-dataset.png)
-- **Training workspace**: training session setup, checkpoint actions, and training dashboard.
-  ![Training workspace page](assets/figures/readme-training.png)
-- **Inference workspace**: filterable local model catalog, capability-aware study inputs, clinical context, generation profiles, and editable Findings/Impression drafting with copy, regenerate, and export actions.
+#### Dataset handling
+
+The Dataset page shows imported sources, record counts, and the processing configuration used to turn source data into a training-ready dataset.
+
+![Dataset overview](assets/figures/readme-dataset.png)
+
+![Dataset processing configuration](assets/figures/readme-dataset-processing.png)
+
+#### Training dashboard
+
+This completed small training run shows real progress, eight plotted loss/accuracy points, final metrics, and the session log in one place.
+
+![Populated training dashboard](assets/figures/readme-training.png)
+
+#### Inference workflow
+
+The public model catalogue makes readiness and provenance visible before use. The selected CXRMate Multi TF model is an open, lightweight chest-X-ray reporter.
+
+![Public inference model catalogue](assets/figures/readme-inference.png)
+
+The workflow then keeps the study image, generation controls, and multi-view input state visible while the draft is produced.
+
+![Inference image workflow](assets/figures/readme-inference-workflow.png)
+
+The editable review panel presents the generated Findings and Impression together with the model and provider metadata needed for qualified review.
+
+![Inference draft review](assets/figures/readme-inference-report.png)
+
+#### Help & Tips
+
+The Tips & Tricks panel provides contextual onboarding, completed workflow steps, and guidance for resuming from an existing checkpoint.
+
+![Help and tips](assets/figures/readme-help-and-tips.png)
 
 For operator guidance, see `assets/docs/operations/getting_started.md` and `assets/docs/operations/workflows.md`.
 
