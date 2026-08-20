@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, computed, inject, signal } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertCircle, lucideChevronLeft, lucideChevronRight, lucideLoaderCircle, lucideX } from '@ng-icons/lucide';
-import { ApiService } from '../services/api.service';
+import { DatasetApiService } from '../services/dataset-api.service';
 import type { ImageMetadataResponse } from '../types/trainingApi';
 import { ModalFocusDirective } from './modal-focus.directive';
 
@@ -46,7 +46,7 @@ export class ImageViewerComponent implements OnChanges {
   @Input() open = false;
   @Input() datasetName: string | null = null;
   @Output() readonly closed = new EventEmitter<void>();
-  private readonly api = inject(ApiService);
+  private readonly api = inject(DatasetApiService);
   readonly currentIndex = signal(1);
   readonly totalImages = signal(0);
   readonly loadingCount = signal(false);
@@ -54,7 +54,7 @@ export class ImageViewerComponent implements OnChanges {
   readonly error = signal<string | null>(null);
   readonly metadata = signal<ImageMetadataResponse | null>(null);
   readonly imageError = signal<string | null>(null);
-  readonly imageUrl = computed(() => this.datasetName && this.totalImages() > 0 ? this.api.getDatasetImageContentUrl(this.datasetName, this.currentIndex()) : null);
+  readonly imageUrl = computed(() => this.datasetName && this.totalImages() > 0 ? this.api.getImageContentUrl(this.datasetName, this.currentIndex()) : null);
 
   ngOnChanges(changes: SimpleChanges) {
     if ((changes['open']?.currentValue || changes['datasetName']) && this.open && this.datasetName) void this.loadDataset(this.datasetName);
@@ -62,7 +62,7 @@ export class ImageViewerComponent implements OnChanges {
 
   private async loadDataset(dataset: string) {
     this.currentIndex.set(1); this.totalImages.set(0); this.metadata.set(null); this.error.set(null); this.imageError.set(null); this.loadingCount.set(true);
-    const result = await this.api.getDatasetImageCount(dataset);
+    const result = await this.api.getImageCount(dataset);
     if (!this.open || this.datasetName !== dataset) return;
     this.loadingCount.set(false);
     if (!result.result) { this.error.set(result.error ?? 'Unable to load dataset image count.'); return; }
@@ -73,7 +73,7 @@ export class ImageViewerComponent implements OnChanges {
   private async loadMetadata() {
     if (!this.datasetName || !this.totalImages()) return;
     this.loadingImage.set(true); this.imageError.set(null);
-    const result = await this.api.getDatasetImageMetadata(this.datasetName, this.currentIndex());
+    const result = await this.api.getImageMetadata(this.datasetName, this.currentIndex());
     if (!this.open) return;
     if (!result.result) { this.error.set(result.error ?? 'Unable to load image metadata.'); this.loadingImage.set(false); return; }
     this.metadata.set(result.result);

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, catchError, defer, from, of, switchMap, takeWhile, timer } from 'rxjs';
-import { ApiResult } from './api.service';
+import { ApiResult } from './api-request.service';
 import { JobStatusResponse } from '../types/jobs';
 
 @Injectable({ providedIn: 'root' })

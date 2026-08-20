@@ -5,7 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertCircle, lucideBarChart2, lucideCheckCircle, lucideDatabase, lucideEye, lucideFileSpreadsheet, lucideFolderUp, lucideLoaderCircle, lucideRefreshCw, lucideSliders, lucideTrash2, lucideX } from '@ng-icons/lucide';
-import { ApiService } from '../services/api.service';
+import { DatasetApiService } from '../services/dataset-api.service';
+import { ValidationApiService } from '../services/validation-api.service';
 import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
 import { StorageService } from '../services/storage.service';
@@ -42,7 +43,8 @@ const VALIDATION_STORAGE_KEY = 'xreport.validation.jobs';
   styleUrl: '../styles/DatasetPage.css',
 })
 export class DatasetPage {
-  private readonly api = inject(ApiService);
+  private readonly api = inject(DatasetApiService);
+  private readonly validationApi = inject(ValidationApiService);
   private readonly appState = inject(AppStateService);
   private readonly storage = inject(StorageService);
   private readonly polling = inject(JobPollingService);
@@ -72,8 +74,8 @@ export class DatasetPage {
   readonly canBrowse = computed(() => this.state().dbStatus?.allow_server_browse ?? true);
   get browsePath() { return this.browsePathState(); }
   set browsePath(value: string) { this.browsePathState.set(value); }
-  async refresh() { const [status, names] = await Promise.all([this.api.getDatasetStatus(), this.api.getDatasetNames()]); if (status.result) this.appState.updateDataset((state) => ({ ...state, dbStatus: status.result })); if (names.result) this.appState.updateDataset((state) => ({ ...state, datasetNames: names.result })); }
-  async refreshNames() { const result = await this.api.getDatasetNames(); if (result.result) this.appState.updateDataset((state) => ({ ...state, datasetNames: result.result })); }
+  async refresh() { const [status, names] = await Promise.all([this.api.getStatus(), this.api.getNames()]); if (status.result) this.appState.updateDataset((state) => ({ ...state, dbStatus: status.result })); if (names.result) this.appState.updateDataset((state) => ({ ...state, datasetNames: names.result })); }
+  async refreshNames() { const result = await this.api.getNames(); if (result.result) this.appState.updateDataset((state) => ({ ...state, datasetNames: result.result })); }
   setConfig<K extends keyof DatasetProcessingConfig>(key: K, value: DatasetProcessingConfig[K]) { this.appState.updateDatasetConfig(key, value); }
   toggleDataset(name: string) { this.appState.updateDataset((state) => ({ ...state, selectedDatasets: state.selectedDatasets.includes(name) ? state.selectedDatasets.filter((item) => item !== name) : [...state.selectedDatasets, name] })); }
   async uploadFile(files: FileList | null) { const file = files?.[0]; if (!file) return; this.appState.updateDataset((state) => ({ ...state, datasetFile: file, datasetUpload: null, uploadError: null })); const result = await this.api.uploadDataset(file); if (result.result) this.appState.updateDataset((state) => ({ ...state, datasetUpload: result.result })); else this.appState.updateDataset((state) => ({ ...state, uploadError: result.error })); }
@@ -81,7 +83,7 @@ export class DatasetPage {
   navigateFolder(path: string) { this.browsePath = path; void this.browse(path); }
   async selectFolder() { const path = this.browsePath; const result = await this.api.validateImagePath(path); this.appState.updateDataset((state) => ({ ...state, imageFolderPath: path, imageFolderName: path.split(/[\\/]/).filter(Boolean).pop() ?? path, imageValidation: result.result, uploadError: result.error })); if (result.result?.valid) this.folderBrowserOpen.set(false); }
   async loadDataset() { const current = this.state(); if (!current.imageValidation?.valid) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please select an image folder first' })); return; } if (!current.datasetUpload?.success) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please upload a dataset file first' })); return; } this.appState.updateDataset((state) => ({ ...state, isLoading: true, uploadError: null })); const result = await this.api.loadDataset({ image_folder_path: current.imageFolderPath, sample_size: current.config.sampleSize }); this.appState.updateDataset((state) => ({ ...state, loadResult: result.result, isLoading: false, uploadError: result.error })); await this.refresh(); }
-  async buildDataset() { const current = this.state(); const datasetName = current.selectedDatasets[0]; if (!datasetName || current.selectedDatasets.length !== 1) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Select exactly one dataset to process.' })); return; } this.appState.updateDataset((state) => ({ ...state, isProcessing: true, uploadError: null })); const started = await this.api.processDataset({ dataset_name: datasetName, custom_name: current.config.datasetName || undefined, sample_size: current.config.sampleSize, validation_size: current.config.validationSize, tokenizer: current.config.tokenizer, max_report_size: current.config.maxReportSize }); if (!started.result) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: started.error })); return; } this.polling.poll((jobId) => this.api.getPreparationJobStatus(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: status.status === 'completed' ? null : status.error ?? 'Processing failed' })); if (status.status === 'completed') { const parsed = this.api.parseProcessDatasetResponse(status.result ?? {}); this.appState.updateDataset((state) => ({ ...state, processingResult: parsed })); void this.refresh(); } } }); }
+  async buildDataset() { const current = this.state(); const datasetName = current.selectedDatasets[0]; if (!datasetName || current.selectedDatasets.length !== 1) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Select exactly one dataset to process.' })); return; } this.appState.updateDataset((state) => ({ ...state, isProcessing: true, uploadError: null })); const started = await this.api.processDataset({ dataset_name: datasetName, custom_name: current.config.datasetName || undefined, sample_size: current.config.sampleSize, validation_size: current.config.validationSize, tokenizer: current.config.tokenizer, max_report_size: current.config.maxReportSize }); if (!started.result) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: started.error })); return; } this.polling.poll((jobId) => this.api.getJobStatus(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: status.status === 'completed' ? null : status.error ?? 'Processing failed' })); if (status.status === 'completed') { const parsed = this.api.parseProcessDatasetResponse(status.result ?? {}); this.appState.updateDataset((state) => ({ ...state, processingResult: parsed })); void this.refresh(); } } }); }
   async deleteDataset(name: string) { if (!confirm(`Delete dataset ${name}?`)) return; const result = await this.api.deleteDataset(name); if (!result.result) this.appState.updateDataset((state) => ({ ...state, uploadError: result.error })); await this.refresh(); }
   openViewer(datasetName: string) { this.viewerDataset.set(datasetName); }
   closeViewer() { this.viewerDataset.set(null); }
@@ -92,7 +94,7 @@ export class DatasetPage {
     const dataset = payload.row;
     if (!dataset || !payload.metrics.length) return;
     this.reportDataset.set(dataset); this.reportOpen.set(true); this.reportLoading.set(true); this.reportResult.set(null); this.reportError.set(null); this.reportProgress.set(0); this.reportStatus.set('pending'); this.reportMetadata.set({ sampleSize: payload.sampleFraction, metrics: payload.metrics });
-    const started = await this.api.runValidation({ dataset_name: dataset.name, metrics: payload.metrics, sample_size: payload.sampleFraction });
+    const started = await this.validationApi.run({ dataset_name: dataset.name, metrics: payload.metrics, sample_size: payload.sampleFraction });
     if (!started.result) { this.reportLoading.set(false); this.reportStatus.set('failed'); this.reportError.set(started.error ?? 'Failed to start validation job'); return; }
     const job: StoredValidationJob = { jobId: started.result.job_id, metrics: payload.metrics, sampleSize: payload.sampleFraction, status: 'pending', progress: 0 };
     this.validationJobs.update((jobs) => ({ ...jobs, [dataset.name]: job })); this.storage.writeRecord(VALIDATION_STORAGE_KEY, this.validationJobs());
@@ -102,16 +104,16 @@ export class DatasetPage {
     this.reportDataset.set(dataset); this.reportOpen.set(true); this.reportResult.set(null); this.reportError.set(null); this.reportMetadata.set(null); this.reportProgress.set(null); this.reportStatus.set(null); this.reportLoading.set(true);
     const active = this.validationJobs()[dataset.name];
     if (active && active.status !== 'completed' && active.status !== 'failed' && active.status !== 'cancelled') { this.reportMetadata.set({ sampleSize: active.sampleSize, metrics: active.metrics }); this.reportProgress.set(active.progress ?? 0); this.reportStatus.set(active.status ?? 'running'); this.pollValidationJob(dataset.name, active); return; }
-    const result = await this.api.getValidationReport(dataset.name);
+    const result = await this.validationApi.getReport(dataset.name);
     if (!result.result) { this.reportLoading.set(false); this.reportError.set(result.error ?? 'Failed to load validation report'); return; }
     this.reportMetadata.set({ date: result.result.date, sampleSize: result.result.sample_size, metrics: result.result.metrics }); this.reportResult.set({ success: true, message: 'Validation report loaded', pixel_distribution: result.result.pixel_distribution, image_statistics: result.result.image_statistics, text_statistics: result.result.text_statistics }); this.reportProgress.set(100); this.reportStatus.set('completed'); this.reportLoading.set(false);
   }
   private pollValidationJob(datasetName: string, job: StoredValidationJob) {
-    this.polling.poll((jobId) => this.api.getValidationJobStatus(jobId), job.jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
+    this.polling.poll((jobId) => this.validationApi.getJobStatus(jobId), job.jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
       const next = { ...job, status: status.status, progress: status.progress };
       this.validationJobs.update((jobs) => ({ ...jobs, [datasetName]: next })); this.storage.writeRecord(VALIDATION_STORAGE_KEY, this.validationJobs());
       if (this.reportDataset()?.name === datasetName) { this.reportProgress.set(status.progress ?? 0); this.reportStatus.set(status.status); this.reportLoading.set(!['completed', 'failed', 'cancelled'].includes(status.status)); }
-      if (status.status === 'completed' && status.result && this.reportDataset()?.name === datasetName) { this.reportResult.set(this.api.parseValidationResponse(status.result)); this.reportLoading.set(false); }
+      if (status.status === 'completed' && status.result && this.reportDataset()?.name === datasetName) { this.reportResult.set(this.validationApi.parseResponse(status.result)); this.reportLoading.set(false); }
       if (status.status !== 'completed' && ['failed', 'cancelled'].includes(status.status) && this.reportDataset()?.name === datasetName) { this.reportLoading.set(false); this.reportError.set(status.error ?? `Validation ${status.status}`); }
     });
   }
