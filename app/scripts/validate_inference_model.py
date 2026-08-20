@@ -22,9 +22,8 @@ if str(APP_DIR) not in sys.path:
 from server.common.path import ROOT_DIR  # noqa: E402
 from server.configurations.startup import get_server_settings  # noqa: E402
 from server.domain.inference import InferenceImage, InferenceManifest  # noqa: E402
-from server.domain.jobs import JobState  # noqa: E402
 from server.models.inference.providers.huggingface import HuggingFaceProvider  # noqa: E402
-from server.services.jobs import JobManager  # noqa: E402
+from server.services.jobs import JobManager, JobState  # noqa: E402
 from server.services.inference_catalog import (  # noqa: E402
     CATALOG_PATH,
     InferenceModelCatalog,
