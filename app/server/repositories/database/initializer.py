@@ -12,7 +12,10 @@ from server.common.path import DATABASE_FILE_PATH
 from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.common.utils.logger import logger
-from server.repositories.schemas import Base
+from server.repositories.schemas import Base, SchemaMetadata
+
+SCHEMA_METADATA_KEY = "xreport"
+CURRENT_SCHEMA_VERSION = 1
 
 ###############################################################################
 def _postgres_database_exists_sql() -> str:
@@ -71,17 +74,102 @@ def build_postgres_create_database_sql(
     return sqlalchemy.text(_create_database_sql(database_name))
 
 ###############################################################################
+class DatabaseSchemaError(RuntimeError):
+    """Raised when a database cannot be safely used by the current release."""
+
+###############################################################################
+def _schema_mismatches(engine: sqlalchemy.Engine) -> list[str]:
+    inspector = sqlalchemy.inspect(engine)
+    mismatches: list[str] = []
+    metadata_table_name = SchemaMetadata.__table__.name
+
+    for table_name, table in Base.metadata.tables.items():
+        if table_name == metadata_table_name and not inspector.has_table(table_name):
+            continue
+        if not inspector.has_table(table_name):
+            mismatches.append(f"missing table '{table_name}'")
+            continue
+        actual_columns = {
+            str(column["name"]) for column in inspector.get_columns(table_name)
+        }
+        missing_columns = sorted(
+            str(column.name)
+            for column in table.columns
+            if str(column.name) not in actual_columns
+        )
+        if missing_columns:
+            mismatches.append(
+                f"table '{table_name}' is missing columns: {', '.join(missing_columns)}"
+            )
+    return mismatches
+
+###############################################################################
+def _write_schema_version(repository: Database) -> None:
+    with repository.transaction() as session:
+        metadata = session.get(SchemaMetadata, SCHEMA_METADATA_KEY)
+        if metadata is None:
+            session.add(
+                SchemaMetadata(
+                    schema_name=SCHEMA_METADATA_KEY,
+                    schema_version=CURRENT_SCHEMA_VERSION,
+                )
+            )
+            return
+        metadata.schema_version = CURRENT_SCHEMA_VERSION
+
+###############################################################################
+def _validate_schema_compatibility(repository: Database) -> None:
+    mismatches = _schema_mismatches(repository.engine)
+    if mismatches:
+        raise DatabaseSchemaError(
+            f"Database schema is incompatible with XREPORT schema version "
+            f"{CURRENT_SCHEMA_VERSION}: {'; '.join(mismatches)}. "
+            "Recreate the database or apply a supported migration before restarting."
+        )
+
+    inspector = sqlalchemy.inspect(repository.engine)
+    if not inspector.has_table(SchemaMetadata.__table__.name):
+        SchemaMetadata.__table__.create(repository.engine)
+        _write_schema_version(repository)
+        logger.info(
+            "Stamped existing database with XREPORT schema version %s",
+            CURRENT_SCHEMA_VERSION,
+        )
+        return
+
+    with repository.read_session() as session:
+        metadata = session.get(SchemaMetadata, SCHEMA_METADATA_KEY)
+    if metadata is None:
+        raise DatabaseSchemaError(
+            "Database schema metadata is missing the XREPORT version marker. "
+            "Recreate the database or apply a supported migration before restarting."
+        )
+    if metadata.schema_version != CURRENT_SCHEMA_VERSION:
+        raise DatabaseSchemaError(
+            f"Database schema version {metadata.schema_version} is not supported; "
+            f"this release requires version {CURRENT_SCHEMA_VERSION}. "
+            "Recreate the database or apply a supported migration before restarting."
+        )
+
+###############################################################################
+def verify_schema_compatibility(settings: DatabaseSettings) -> None:
+    repository = Database(settings)
+    try:
+        _validate_schema_compatibility(repository)
+    finally:
+        repository.engine.dispose()
+
+###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     if DATABASE_FILE_PATH.is_file():
-        logger.info(
-            "SQLite database already exists at %s; skipping initialization",
-            DATABASE_FILE_PATH,
-        )
+        verify_schema_compatibility(settings)
+        logger.info("Verified SQLite database at %s", DATABASE_FILE_PATH)
         return
 
     repository = Database(settings)
     try:
         Base.metadata.create_all(repository.engine)
+        _write_schema_version(repository)
     finally:
         repository.engine.dispose()
     logger.info("Initialized SQLite database at %s", repository.db_path)
@@ -126,6 +214,7 @@ def initialize_postgres_database(settings: DatabaseSettings) -> str:
     repository = Database(normalized_settings)
     try:
         Base.metadata.create_all(repository.engine)
+        _write_schema_version(repository)
     finally:
         repository.engine.dispose()
     logger.info("Ensured PostgreSQL tables exist in %s", target_database)
@@ -170,6 +259,9 @@ def _run_database_action(
 ) -> None:
     try:
         operation(settings)
+    except DatabaseSchemaError as exc:
+        logger.error("%s failed: %s", action, exc)
+        raise RuntimeError(f"{action} failed: {exc}") from exc
     except (SQLAlchemyError, ValueError) as exc:
         logger.error("%s failed: %s", action, exc)
         raise RuntimeError(f"{action} failed.") from exc
@@ -194,6 +286,7 @@ def _prepare_sqlite_startup(settings: DatabaseSettings) -> None:
 def _prepare_postgres_startup(settings: DatabaseSettings) -> None:
     _validate_postgres_engine(settings)
     verify_postgres_connection(settings)
+    verify_schema_compatibility(settings)
 
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
