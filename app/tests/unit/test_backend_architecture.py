@@ -123,6 +123,17 @@ def test_backend_structure_has_explicit_top_level_dependencies() -> None:
                 or (layer == "services" and imported.startswith("server.api"))
                 or (layer == "repositories" and imported.startswith(("server.api", "server.services")))
                 or (layer == "models" and imported.startswith(("server.api", "server.services", "server.repositories")))
+                or (
+                    layer == "domain"
+                    and imported.startswith(
+                        (
+                            "server.api",
+                            "server.models",
+                            "server.repositories",
+                            "server.services",
+                        )
+                    )
+                )
                 or (path.name == "app.py" and imported.startswith("server.repositories"))
             )
             if forbidden:

@@ -5,10 +5,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from server.domain.inference import InferenceImage, ProviderGenerationResult
-from server.domain.jobs import JobState
 from server.services.inference import InferenceImageStore, run_inference_job
 import server.services.inference as inference_service
-from server.services.jobs import JobManager
+from server.services.jobs import JobManager, JobState
 
 ###############################################################################
 def _image() -> InferenceImage:
