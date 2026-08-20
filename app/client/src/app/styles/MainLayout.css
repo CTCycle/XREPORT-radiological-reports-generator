@@ -159,8 +159,14 @@
     cursor: not-allowed;
 }
 
-.app-nav-help {
+.app-nav-footer {
+    display: flex;
+    flex-direction: column;
     margin-top: auto;
+}
+
+.app-nav-help {
+    margin-top: 0.25rem;
 }
 
 .main-layout-content {
@@ -222,6 +228,10 @@
 
     .app-nav-subtitle {
         display: none;
+    }
+
+    .app-nav-footer {
+        margin-top: 0.35rem;
     }
 
     .main-layout-content {

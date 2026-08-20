@@ -38,13 +38,15 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
               <ng-icon name="lucideBrainCircuit" size="16" /> <span>Training</span>
             </a>
           </div>
-          <app-theme-selector />
-          <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
-            <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
-          </button>
-          <button type="button" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings" disabled>
-            <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>
-          </button>
+          <div class="app-nav-footer">
+            <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
+              <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
+            </button>
+            <button type="button" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings" disabled>
+              <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>
+            </button>
+            <app-theme-selector />
+          </div>
         </nav>
       </div>
       <div #content class="main-layout-content" (scroll)="onContentScroll($event)"><router-outlet /></div>
