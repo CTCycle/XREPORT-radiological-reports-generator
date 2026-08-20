@@ -549,15 +549,15 @@ class InferenceService:
             raise BadRequestError(detail="download_update requires the revision returned by check-update")
         if action == "delete_local":
             target_revision = configured_revision
-            job_id = self.job_manager.start_job(
-                job_type="model_maintenance",
-                runner=run_model_maintenance_job,
-                failure_mapper=map_inference_failure,
-                kwargs={
-                    "job_manager": self.job_manager,
-                    "installation_manager": self.installation_manager,
-                    "runtime": self.runtime,
-                    "model_ref": model_ref,
+        job_id = self.job_manager.start_job(
+            job_type="model_maintenance",
+            runner=run_model_maintenance_job,
+            failure_mapper=map_inference_failure,
+            kwargs={
+                "job_manager": self.job_manager,
+                "installation_manager": self.installation_manager,
+                "runtime": self.runtime,
+                "model_ref": model_ref,
                 "manifest": manifest,
                 "action": action,
                 "revision": target_revision,
