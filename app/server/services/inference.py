@@ -304,7 +304,13 @@ def run_inference_job(
             execution_time_seconds=time.perf_counter() - started_at,
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to persist generated reports for %s: %s", job_id, exc)
+        logger.exception("Failed to persist generated reports for %s", job_id)
+        raise JobExecutionError(
+            "Generated reports could not be persisted to inference history.",
+            code="persistence_failed",
+            phase="persistence",
+            recoverable=True,
+        ) from exc
 
     return {
         "reports": reports_by_filename,
