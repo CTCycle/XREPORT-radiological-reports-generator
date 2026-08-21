@@ -474,7 +474,8 @@ function Invoke-RebuildFrontend {
 }
 
 function Get-DesktopVariants {
-    switch ($DesktopRuntime) {
+    param([string]$Runtime = $DesktopRuntime)
+    switch ($Runtime) {
         'Cpu' { @('cpu') }
         'Cuda' { @('cuda') }
         default { @('cpu', 'cuda') }
@@ -525,10 +526,13 @@ function Assert-DesktopSourceState {
 }
 
 function Get-DesktopConfigPath {
-    param([Parameter(Mandatory = $true)][string]$Variant)
+    param(
+        [Parameter(Mandatory = $true)][string]$Variant,
+        [string]$ReleaseVersion = $Version
+    )
     $sourceName = if ($Variant -eq 'cpu') { 'tauri.cpu.conf.json' } else { 'tauri.cuda.conf.json' }
     $sourcePath = Join-Path $DesktopTauriDir $sourceName
-    $configPath = Join-Path $DesktopBuildDir "tauri-$Variant-$Version.json"
+    $configPath = Join-Path $DesktopBuildDir "tauri-$Variant-$ReleaseVersion.json"
     New-Item -ItemType Directory -Path $DesktopBuildDir -Force | Out-Null
     $config = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
     if ($OfflineWebView2) {
@@ -664,44 +668,46 @@ function Invoke-DesktopVariantBuild {
         [Parameter(Mandatory = $true)][string]$Variant,
         [Parameter(Mandatory = $true)][string]$SourceCommit,
         [Parameter(Mandatory = $true)][bool]$DirtyTree,
-        [Parameter(Mandatory = $true)][string]$FrontendDist
+        [Parameter(Mandatory = $true)][string]$FrontendDist,
+        [ValidateSet('Portable', 'Msi', 'All')][string]$Target = $DesktopTarget,
+        [string]$ReleaseVersion = $Version
     )
     $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
     $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
-    $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$Version.json"
+    $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$ReleaseVersion.json"
     New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
     $bundleArgs = @(
         $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
-        '--version', $Version, '--variant', $Variant, '--source-commit', $SourceCommit, '--audit', $auditPath
+        '--version', $ReleaseVersion, '--variant', $Variant, '--source-commit', $SourceCommit, '--audit', $auditPath
     )
     if ($DirtyTree) { $bundleArgs += '--dirty' }
     Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
 
-    $configPath = Get-DesktopConfigPath -Variant $Variant
+    $configPath = Get-DesktopConfigPath -Variant $Variant -ReleaseVersion $ReleaseVersion
     $env:XREPORT_DESKTOP_VARIANT = $Variant
     $releaseTarget = Join-Path $DesktopTauriDir 'target\release'
     $msiDir = Join-Path $releaseTarget 'bundle\msi'
     if (Test-Path -LiteralPath $msiDir) { Remove-Item -LiteralPath $msiDir -Recurse -Force }
     $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath)
-    if ($DesktopTarget -eq 'Msi' -or $DesktopTarget -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
+    if ($Target -eq 'Msi' -or $Target -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
     Write-Step "Building Tauri $Variant release"
     Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
 
     New-Item -ItemType Directory -Path $DesktopReleaseDir -Force | Out-Null
-    $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant-portable.exe"
+    $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-portable.exe"
     $rawExe = Join-Path $releaseTarget 'xreport-desktop.exe'
     if (-not (Test-Path -LiteralPath $rawExe)) { throw "Expected Tauri executable not found: $rawExe" }
     $fileVersion = (Get-Item -LiteralPath $rawExe).VersionInfo.FileVersion
-    if (-not $fileVersion -or $fileVersion -notlike "$Version*") { throw "Tauri executable version mismatch or missing file metadata: $fileVersion" }
-    if ($DesktopTarget -eq 'Portable' -or $DesktopTarget -eq 'All') {
+    if (-not $fileVersion -or $fileVersion -notlike "$ReleaseVersion*") { throw "Tauri executable version mismatch or missing file metadata: $fileVersion" }
+    if ($Target -eq 'Portable' -or $Target -eq 'All') {
         Add-DesktopRuntimeOverlay -Executable $rawExe -Archive $archivePath
         Copy-Item -LiteralPath $rawExe -Destination $portablePath -Force
     }
 
-    $msiPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant.msi"
-    if ($DesktopTarget -eq 'Msi' -or $DesktopTarget -eq 'All') {
+    $msiPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.msi"
+    if ($Target -eq 'Msi' -or $Target -eq 'All') {
         $variantToken = if ($Variant -eq 'cpu') { '(?i)cpu' } else { '(?i)cuda' }
-        $candidates = @(Get-ChildItem -LiteralPath $msiDir -File -Filter '*.msi' | Where-Object { $_.Name -match [regex]::Escape($Version) -and $_.Name -match '(?i)xreport' -and $_.Name -match $variantToken })
+        $candidates = @(Get-ChildItem -LiteralPath $msiDir -File -Filter '*.msi' | Where-Object { $_.Name -match [regex]::Escape($ReleaseVersion) -and $_.Name -match '(?i)xreport' -and $_.Name -match $variantToken })
         if ($candidates.Count -ne 1) { throw "Expected exactly one versioned $Variant MSI; found $($candidates.Count): $($candidates.Name -join ', ')" }
         Copy-Item -LiteralPath $candidates[0].FullName -Destination $msiPath -Force
     }
@@ -710,16 +716,16 @@ function Invoke-DesktopVariantBuild {
     if (Test-Path -LiteralPath $portablePath) { $artifactPaths += $portablePath }
     if (Test-Path -LiteralPath $msiPath) { $artifactPaths += $msiPath }
     if ($artifactPaths.Count -eq 0) { throw "No $Variant desktop artifacts were produced" }
-    $checksumPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant.sha256"
+    $checksumPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.sha256"
     $checksumLines = foreach ($artifact in $artifactPaths) {
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash.ToLowerInvariant()
         "$hash  $([IO.Path]::GetFileName($artifact))"
     }
     $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
-    $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$Version-windows-x64-$Variant-build.json"
+    $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-build.json"
     [pscustomobject]@{
         application = 'XREPORT'
-        version = $Version
+        version = $ReleaseVersion
         variant = $Variant
         source_commit = $SourceCommit
         dirty_tree = $DirtyTree
@@ -731,7 +737,16 @@ function Invoke-DesktopVariantBuild {
 }
 
 function Invoke-BuildDesktopRelease {
-    Assert-DesktopVersion -ExpectedVersion $Version
+    param(
+        [string[]]$Variants,
+        [ValidateSet('Portable', 'Msi', 'All')][string]$Target = $DesktopTarget,
+        [string]$ReleaseVersion = $Version
+    )
+    $selectedVariants = if ($Variants -and $Variants.Count -gt 0) { @($Variants) } else { @(Get-DesktopVariants) }
+    $invalidVariants = @($selectedVariants | Where-Object { $_ -notin @('cpu', 'cuda') })
+    if ($invalidVariants.Count -gt 0) { throw "Unsupported desktop runtime variant: $($invalidVariants -join ', ')" }
+
+    Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
     $sourceState = Assert-DesktopSourceState
     if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) { Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force }
     Ensure-PortableRuntimes
@@ -739,11 +754,188 @@ function Invoke-BuildDesktopRelease {
         Install-Dependencies -Settings (Import-XReportEnvironment) -InstallationType 'Standard'
     }
     $frontendDist = Invoke-DesktopFrontendBuild
-    foreach ($variant in Get-DesktopVariants) {
-        Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist
+    foreach ($variant in $selectedVariants) {
+        Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
     }
     Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
     Write-Ok 'Desktop release build completed. Unsigned artifacts require WebView2 on the target machine.'
+}
+
+function Get-DesktopArtifactDefinitions {
+    param([string]$ReleaseVersion = $Version)
+    $prefix = "XREPORT-v$ReleaseVersion-windows-x64"
+    @(
+        [pscustomobject]@{
+            Key = 'CpuPortable'
+            Label = 'CPU portable executable'
+            Variant = 'cpu'
+            Target = 'Portable'
+            Path = (Join-Path $DesktopReleaseDir "$prefix-cpu-portable.exe")
+        }
+        [pscustomobject]@{
+            Key = 'CpuMsi'
+            Label = 'CPU MSI installer'
+            Variant = 'cpu'
+            Target = 'Msi'
+            Path = (Join-Path $DesktopReleaseDir "$prefix-cpu.msi")
+        }
+        [pscustomobject]@{
+            Key = 'CudaPortable'
+            Label = 'CUDA portable executable'
+            Variant = 'cuda'
+            Target = 'Portable'
+            Path = (Join-Path $DesktopReleaseDir "$prefix-cuda-portable.exe")
+        }
+        [pscustomobject]@{
+            Key = 'CudaMsi'
+            Label = 'CUDA MSI installer'
+            Variant = 'cuda'
+            Target = 'Msi'
+            Path = (Join-Path $DesktopReleaseDir "$prefix-cuda.msi")
+        }
+    )
+}
+
+function Read-DesktopReleaseVersion {
+    param([ValidateSet('Create', 'Remove')][string]$Operation)
+    $candidate = ([string](Read-Host "Release version to $Operation [$Version]")).Trim()
+    if ([string]::IsNullOrWhiteSpace($candidate)) { return $Version }
+    if ($candidate -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Invalid release version: $candidate. Use semantic version format such as 1.0.0."
+    }
+    return $candidate
+}
+
+function Read-DesktopArtifactSelection {
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('Create', 'Remove')][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$ReleaseVersion
+    )
+    $definitions = @(Get-DesktopArtifactDefinitions -ReleaseVersion $ReleaseVersion)
+    while ($true) {
+        Clear-Host
+        Write-Host ''
+        Write-Host "  DESKTOP RELEASE / $Operation" -ForegroundColor Cyan
+        Write-Host "  Version: v$ReleaseVersion" -ForegroundColor DarkGray
+        Write-MenuRule
+        for ($index = 0; $index -lt $definitions.Count; $index++) {
+            $definition = $definitions[$index]
+            if ($Operation -eq 'Remove') {
+                $state = if (Test-Path -LiteralPath $definition.Path) { 'present' } else { 'not found' }
+                $description = "$state; update variant manifests"
+            }
+            else {
+                $description = 'Build or rebuild this package'
+            }
+            Write-MenuItem -Number ([string]($index + 1)) -Label $definition.Label -Description $description
+        }
+        Write-Host ''
+        Write-MenuItem -Number ([string]($definitions.Count + 1)) -Label 'All desktop artifacts' -Description "${Operation} all four packages" -NumberColor Green
+        Write-MenuItem -Number 'B' -Label 'Back' -Description 'Return to the main menu' -NumberColor DarkGray
+        Write-Host ''
+
+        $selection = ([string](Read-Host "  Select an artifact (1-$($definitions.Count + 1), B)")).Trim()
+        if ($selection -match '^B$') { return $null }
+        if ($selection -eq [string]($definitions.Count + 1)) { return $definitions }
+        if ($selection -match '^\d+$') {
+            $index = [int]$selection - 1
+            if ($index -ge 0 -and $index -lt $definitions.Count) {
+                return @($definitions[$index])
+            }
+        }
+        Write-Warn 'Invalid artifact selection.'
+        [void](Read-Host 'Press Enter to continue')
+    }
+}
+
+function Invoke-CreateDesktopArtifactsMenu {
+    $releaseVersion = Read-DesktopReleaseVersion -Operation 'Create'
+    $selected = Read-DesktopArtifactSelection -Operation 'Create' -ReleaseVersion $releaseVersion
+    if ($null -eq $selected) { return }
+
+    $selectedDefinitions = @($selected)
+    $plan = foreach ($variant in @($selectedDefinitions | Select-Object -ExpandProperty Variant -Unique)) {
+        $variantTargets = @($selectedDefinitions | Where-Object { $_.Variant -eq $variant } | Select-Object -ExpandProperty Target -Unique)
+        [pscustomobject]@{
+            Variant = $variant
+            Target = if ($variantTargets.Count -gt 1) { 'All' } else { $variantTargets[0] }
+        }
+    }
+    foreach ($targetGroup in @($plan | Group-Object -Property Target)) {
+        $variants = @($targetGroup.Group | Select-Object -ExpandProperty Variant)
+        Write-Step "Creating $($targetGroup.Name) artifact(s) for $($variants -join ', ') at v$releaseVersion"
+        Invoke-BuildDesktopRelease -Variants $variants -Target $targetGroup.Name -ReleaseVersion $releaseVersion
+    }
+}
+
+function Update-DesktopVariantReleaseMetadata {
+    param(
+        [Parameter(Mandatory = $true)][string]$Variant,
+        [Parameter(Mandatory = $true)][string]$ReleaseVersion
+    )
+    $definitions = @(Get-DesktopArtifactDefinitions -ReleaseVersion $ReleaseVersion | Where-Object { $_.Variant -eq $Variant } | Sort-Object Target)
+    $payloads = @($definitions | Where-Object { Test-Path -LiteralPath $_.Path })
+    $prefix = "XREPORT-v$ReleaseVersion-windows-x64-$Variant"
+    $checksumPath = Join-Path $DesktopReleaseDir "$prefix.sha256"
+    $metadataPath = Join-Path $DesktopReleaseDir "$prefix-build.json"
+
+    if ($payloads.Count -eq 0) {
+        foreach ($sidecar in @($checksumPath, $metadataPath)) {
+            if (Test-Path -LiteralPath $sidecar) { Remove-Item -LiteralPath $sidecar -Force }
+        }
+        return
+    }
+
+    $checksumLines = foreach ($payload in $payloads) {
+        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $payload.Path).Hash.ToLowerInvariant()
+        "$hash  $([IO.Path]::GetFileName($payload.Path))"
+    }
+    $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
+
+    if (Test-Path -LiteralPath $metadataPath) {
+        try {
+            $metadata = Get-Content -LiteralPath $metadataPath -Raw | ConvertFrom-Json
+            $metadata.artifacts = @($payloads | ForEach-Object { [IO.Path]::GetFileName($_.Path) })
+            $metadata.checksums = [IO.Path]::GetFileName($checksumPath)
+            $metadata | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $metadataPath -Encoding utf8
+        }
+        catch {
+            Write-Warn "Could not update release metadata ${metadataPath}: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Invoke-RemoveDesktopArtifacts {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Selections,
+        [Parameter(Mandatory = $true)][string]$ReleaseVersion
+    )
+    $removed = 0
+    foreach ($selection in @($Selections)) {
+        if (Test-Path -LiteralPath $selection.Path) {
+            Remove-Item -LiteralPath $selection.Path -Force
+            $removed++
+            Write-Info "Removed $([IO.Path]::GetFileName($selection.Path))"
+        }
+        else {
+            Write-Warn "Artifact not found: $($selection.Path)"
+        }
+    }
+
+    foreach ($variant in @($Selections | Select-Object -ExpandProperty Variant -Unique)) {
+        Update-DesktopVariantReleaseMetadata -Variant $variant -ReleaseVersion $ReleaseVersion
+    }
+    if ((Test-Path -LiteralPath $DesktopReleaseDir -PathType Container) -and -not (Get-ChildItem -LiteralPath $DesktopReleaseDir -Force)) {
+        Remove-Item -LiteralPath $DesktopReleaseDir -Force
+    }
+    Write-Ok "Removed $removed selected release payload(s); remaining manifests were synchronized."
+}
+
+function Invoke-RemoveDesktopArtifactsMenu {
+    $releaseVersion = Read-DesktopReleaseVersion -Operation 'Remove'
+    $selected = Read-DesktopArtifactSelection -Operation 'Remove' -ReleaseVersion $releaseVersion
+    if ($null -eq $selected) { return }
+    Invoke-RemoveDesktopArtifacts -Selections @($selected) -ReleaseVersion $releaseVersion
 }
 
 function Invoke-LaunchDesktopDev {
@@ -1028,14 +1220,19 @@ function Show-Menu {
     Write-MenuItem -Number '5' -Label 'Run test suite' -Description 'Execute project checks'
 
     Write-Host ''
+    Write-Host '  DESKTOP RELEASE' -ForegroundColor DarkCyan
+    Write-MenuItem -Number '6' -Label 'Create release artifacts' -Description 'Build selected desktop packages'
+    Write-MenuItem -Number '7' -Label 'Remove release artifacts' -Description 'Delete selected desktop packages' -NumberColor Yellow
+
+    Write-Host ''
     Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '6' -Label 'Remove logs' -Description 'Delete application logs'
-    Write-MenuItem -Number '7' -Label 'Clear cache' -Description 'Remove temporary caches'
-    Write-MenuItem -Number '8' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
+    Write-MenuItem -Number '8' -Label 'Remove logs' -Description 'Delete application logs'
+    Write-MenuItem -Number '9' -Label 'Clear cache' -Description 'Remove temporary caches'
+    Write-MenuItem -Number '10' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
 
     Write-Host ''
     Write-MenuRule -Color DarkGray
-    Write-MenuItem -Number '9' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
+    Write-MenuItem -Number '11' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
 }
 
@@ -1067,13 +1264,13 @@ if ($Action) {
 
 while ($true) {
     Show-Menu
-    $selection = (Read-Host '  Select an option (1-9)').Trim()
-    if ($selection -notmatch '^[1-9]$') {
-        Write-Warn 'Invalid option. Enter a number from 1 to 9.'
+    $selection = (Read-Host '  Select an option (1-11)').Trim()
+    if ($selection -notmatch '^(?:[1-9]|10|11)$') {
+        Write-Warn 'Invalid option. Enter a number from 1 to 11.'
         [void](Read-Host 'Press Enter to continue')
         continue
     }
-    if ($selection -eq '9') { break }
+    if ($selection -eq '11') { break }
 
     try {
         switch ($selection) {
@@ -1082,9 +1279,11 @@ while ($true) {
             '3' { Invoke-RebuildFrontend }
             '4' { Invoke-InitializeDatabase }
             '5' { Invoke-TestSuite }
-            '6' { Remove-Logs }
-            '7' { Clear-ApplicationCache }
-        '8' { Uninstall-Application }
+            '6' { Invoke-CreateDesktopArtifactsMenu }
+            '7' { Invoke-RemoveDesktopArtifactsMenu }
+            '8' { Remove-Logs }
+            '9' { Clear-ApplicationCache }
+            '10' { Uninstall-Application }
         }
     } catch {
         Write-Fatal $_.Exception.Message

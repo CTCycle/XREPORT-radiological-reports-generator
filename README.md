@@ -66,6 +66,19 @@ build. MSI embeds the WebView2 bootstrapper by default; pass
 available. `-Action RemoveDesktopRelease` removes generated release, staging,
 and Cargo output without touching user data.
 
+The interactive launcher exposes the same workflow under **DESKTOP RELEASE**.
+Choose **Create release artifacts** or **Remove release artifacts**, enter the
+version, and select CPU/CUDA portable or MSI output—or all four packages. The
+interactive removal updates the selected variant's checksum and build metadata
+sidecars; the direct `RemoveDesktopRelease` action remains the full cleanup for
+all release and desktop build output.
+
+The automated GitHub workflow is `.github/workflows/desktop-release.yml`. It
+runs for `vX.Y.Z` tags or a manual version dispatch, builds the CPU and CUDA
+matrix on Windows, verifies the expected EXE/MSI/checksum files, and uploads
+them as workflow artifacts. It does not publish a GitHub Release record; GitHub
+still provides the source archives for a tag.
+
 Artifacts are written to `release/` with standard SHA-256 manifests:
 
 * `XREPORT-v1.0.0-windows-x64-cpu-portable.exe` and `.msi`
