@@ -200,6 +200,12 @@ path relative to the repository root:
 
 On Windows, portable runtimes and runtime virtual environment are stored in `runtimes/`.
 
+Disposable runtime caches are stored under `runtimes/cache`; pytest, Ruff, and
+other development-tool caches are stored under `app/tests/cache`. Use
+`.\start_on_windows.ps1 -Action ClearCache` to remove them. Cleanup skips
+locked or administrator-protected files and continues with the remaining
+artifacts.
+
 Packaged desktop mode never writes mutable state into the installation
 directory. Immutable extracted files live under
 `%LOCALAPPDATA%\XREPORT\runtime\<cpu|cuda>\1.0.0\<payload-sha256>`. Runtime data,
