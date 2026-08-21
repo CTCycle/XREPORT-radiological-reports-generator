@@ -11,6 +11,16 @@ jobs:
   validation:
     name: Backend And Client Validation
     runs-on: ubuntu-latest
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
+      PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
+      NPM_CONFIG_CACHE: ${{ github.workspace }}/runtimes/cache/npm
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright-browsers
+      XDG_CACHE_HOME: ${{ github.workspace }}/app/tests/cache
+      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
+      MYPY_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/mypy
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/app/tests/cache/python
+      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
     services:
       postgres:
         image: postgres:16
@@ -43,7 +53,7 @@ jobs:
         run: uv sync --extra test
 
       - name: Run backend unit tests
-        run: app/server/.venv/bin/python -m pytest app/tests/unit -q
+        run: app/server/.venv/bin/python -m pytest app/tests/unit -q --basetemp app/tests/cache/pytest-tmp
 
       - name: Run Pyright
         working-directory: app/server
@@ -57,7 +67,7 @@ jobs:
           DATABASE_NAME: xreport
           DATABASE_USERNAME: xreport
           DATABASE_PASSWORD: xreport
-        run: app/server/.venv/bin/python -m pytest app/tests/integration -q
+        run: app/server/.venv/bin/python -m pytest app/tests/integration -q --basetemp app/tests/cache/pytest-tmp
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

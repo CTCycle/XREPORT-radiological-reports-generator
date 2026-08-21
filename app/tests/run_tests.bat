@@ -7,10 +7,25 @@ set "APP_DIR=%PROJECT_ROOT%\app"
 set "SERVER_DIR=%APP_DIR%\server"
 set "CLIENT_DIR=%APP_DIR%\client"
 set "TESTS_DIR=%APP_DIR%\tests"
-set "PYTEST_BASETEMP=%PROJECT_ROOT%\.pytest-tmp"
+set "RUNTIME_CACHE_DIR=%PROJECT_ROOT%\runtimes\cache"
+set "UV_CACHE_DIR=%RUNTIME_CACHE_DIR%\uv"
+set "PIP_CACHE_DIR=%RUNTIME_CACHE_DIR%\pip"
+set "NPM_CACHE_DIR=%RUNTIME_CACHE_DIR%\npm"
+set "PLAYWRIGHT_BROWSERS_PATH=%RUNTIME_CACHE_DIR%\playwright-browsers"
+set "TOOLS_CACHE_DIR=%TESTS_DIR%\cache"
+set "XDG_CACHE_HOME=%TOOLS_CACHE_DIR%"
+set "PYTEST_CACHE_DIR=%TOOLS_CACHE_DIR%\pytest"
+set "PYTEST_BASETEMP=%TOOLS_CACHE_DIR%\pytest-tmp"
+set "RUFF_CACHE_DIR=%TOOLS_CACHE_DIR%\ruff"
+set "MYPY_CACHE_DIR=%TOOLS_CACHE_DIR%\mypy"
+set "PYTHONPYCACHEPREFIX=%TOOLS_CACHE_DIR%\python"
+set "COVERAGE_FILE=%TOOLS_CACHE_DIR%\coverage\.coverage"
+set "NPM_CONFIG_CACHE=%NPM_CACHE_DIR%"
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
+
+for %%D in ("%RUNTIME_CACHE_DIR%" "%UV_CACHE_DIR%" "%PIP_CACHE_DIR%" "%NPM_CACHE_DIR%" "%PLAYWRIGHT_BROWSERS_PATH%" "%TOOLS_CACHE_DIR%" "%PYTEST_CACHE_DIR%" "%PYTEST_BASETEMP%" "%RUFF_CACHE_DIR%" "%MYPY_CACHE_DIR%" "%PYTHONPYCACHEPREFIX%" "%TOOLS_CACHE_DIR%\coverage") do if not exist "%%~D" mkdir "%%~D" >nul 2>&1
 
 set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=5003"
@@ -171,7 +186,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %*
+"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"
