@@ -23,6 +23,7 @@ The menu can:
 - rebuild the frontend without launching services
 - build and launch the local web application
 - initialize the database and run tests
+- create or remove selected desktop release artifacts
 - remove logs, clear caches, or uninstall generated dependencies
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
@@ -78,6 +79,15 @@ under `release/`; generated Cargo/PyInstaller/runtime staging is under
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease
 ```
+
+The interactive launcher has a **DESKTOP RELEASE** section. **Create release
+artifacts** prompts for a version and then offers CPU portable, CPU MSI, CUDA
+portable, CUDA MSI, or all four packages. **Remove release artifacts** offers
+the same choices for that version and keeps the remaining variant checksum and
+build metadata sidecars synchronized. These menu actions operate on final
+`release/` payloads; the direct `RemoveDesktopRelease` action remains the
+full cleanup for release, staging, PyInstaller, CPU overlay, Tauri target, and
+generated runtime output.
 
 Portable output is one EXE per variant: the release script streams the audited
 ZIP64 runtime onto the PE as an overlay and writes a fixed footer. MSI output
