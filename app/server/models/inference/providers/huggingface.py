@@ -631,7 +631,7 @@ class HuggingFaceProvider:
         profile: GenerationProfile,
         clinical_context: str,
     ) -> dict[str, Any]:
-        return {
+        provenance: dict[str, Any] = {
             "provider": "huggingface",
             "model_ref": f"huggingface:{manifest['repository_id']}",
             "model_revision": manifest["revision"],
@@ -645,6 +645,15 @@ class HuggingFaceProvider:
             "clinical_context": clinical_context,
             "research_only": bool(manifest.get("research_only", True)),
         }
+        validation_status = manifest.get("validation_status")
+        validation_message = manifest.get("validation_message")
+        if validation_status is not None:
+            provenance["validation_status"] = validation_status
+        if validation_message:
+            provenance["validation_message"] = validation_message
+        if validation_status == "degraded":
+            provenance["quality_warnings"] = ["sensitivity_canary_failed"]
+        return provenance
 
     # -------------------------------------------------------------------------
     @staticmethod

@@ -100,8 +100,8 @@
       "quantization": ["none"],
       "trust_remote_code": true,
       "remote_code_approved": true,
-      "validation_status": "pending",
-      "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+      "validation_status": "degraded",
+      "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
       "resource_policy": {
         "max_snapshot_size_bytes": 2000000000,
         "reason": "The model's custom inference module imports its pinned local support modules and lookup tables."
