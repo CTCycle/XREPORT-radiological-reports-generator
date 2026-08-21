@@ -11,8 +11,11 @@ from server.models.training.processing import (
     TokenizerHandler,
     TrainValidationSplit,
 )
-from server.repositories.serialization.dataset import DatasetRepository
-from server.services.jobs import JobManager
+from server.repositories.serialization.dataset import (
+    DatasetIntegrityError,
+    DatasetRepository,
+)
+from server.services.jobs import JobExecutionError, JobManager
 
 ###############################################################################
 def resolve_processed_dataset_name(
@@ -91,6 +94,15 @@ class DatasetProcessingService:
                 f"No data found for dataset: {source_dataset_name}. "
                 "Please load the dataset and try again."
             )
+
+        try:
+            dataset = self.repository.validate_img_paths(dataset)
+        except DatasetIntegrityError as exc:
+            raise JobExecutionError(
+                str(exc),
+                code="dataset_integrity_failed",
+                phase="input_validation",
+            ) from exc
 
         dataset_name = resolve_processed_dataset_name(source_dataset_name, custom_name)
         configuration["dataset_name"] = dataset_name

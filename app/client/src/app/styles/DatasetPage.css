@@ -436,6 +436,12 @@
     background: var(--error-soft);
 }
 
+.upload-status.warning {
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--warning-color) 14%, var(--bg-secondary));
+    border: 1px solid color-mix(in srgb, var(--warning-color) 42%, transparent);
+}
+
 .upload-status.info {
     color: var(--accent-color-strong);
     background: var(--accent-soft);

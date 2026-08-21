@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -31,6 +31,15 @@ All routers are mounted under `/api`.
 - `GET /api/preparation/jobs/{job_id}`
 - `DELETE /api/preparation/jobs/{job_id}`
 - `GET /api/preparation/browse`
+
+`POST /api/preparation/dataset/load` requires the uploaded table to contain
+`text` and a recognized image column (`image`, `filename`, `file`, `img`, or
+`image_name`). Missing columns return a structured 400 response and the
+uploaded table remains available for correction. When some rows do not match
+images, the first request returns `requires_confirmation=true` with matched
+and unmatched counts without writing records. A repeat request with
+`confirm_unmatched=true` imports only the matched rows and returns
+`partial_import=true`; an empty match is rejected.
 
 ## Training
 
@@ -68,6 +77,12 @@ The Angular client maps these endpoint groups to `InferenceApiService`, `Dataset
 The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
 
 Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. Background job failures remain visible through the job status response, including persistence failures during inference history writes.
+
+Dataset-consuming jobs validate every stored image path before processing. A
+deleted or missing path fails closed with the `dataset_integrity_failed` job
+code. Checkpoint evaluation resolves validation data from the checkpoint's
+recorded `dataset_name`; unavailable data reports `checkpoint_dataset_unavailable`
+and incompatible model/data shapes report `checkpoint_input_mismatch`.
 
 ## Health
 

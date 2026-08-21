@@ -18,6 +18,7 @@ export interface DatasetUploadResponse {
 export interface LoadDatasetRequest {
     image_folder_path: string;
     sample_size?: number;
+    confirm_unmatched?: boolean;
 }
 
 export interface LoadDatasetResponse {
@@ -25,6 +26,8 @@ export interface LoadDatasetResponse {
     total_images: number;
     matched_records: number;
     unmatched_records: number;
+    requires_confirmation: boolean;
+    partial_import: boolean;
     message: string;
 }
 

@@ -22,7 +22,10 @@ from server.models.device import DeviceConfig
 from server.models.training.dataloader import XRAYDataLoader
 from server.models.training.model import build_xreport_model
 from server.models.training.trainer import ModelTrainer
-from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.dataset import (
+    DatasetIntegrityError,
+    DatasetRepository,
+)
 from server.repositories.serialization.model import ModelSerializer
 
 ###############################################################################
@@ -260,14 +263,10 @@ def prepare_training_data(
     if train_data.empty and validation_data.empty:
         raise ValueError("No training data found. Please process a dataset first.")
 
-    validate_paths = bool(configuration.get("validate_paths_on_train", False))
-    if validate_paths:
+    if not train_data.empty:
         train_data = serializer.validate_img_paths(train_data)
+    if not validation_data.empty:
         validation_data = serializer.validate_img_paths(validation_data)
-        if train_data.empty and validation_data.empty:
-            raise ValueError(
-                "No valid images found. Image paths may have changed since dataset was processed."
-            )
 
     return train_data, validation_data, metadata
 
@@ -275,7 +274,6 @@ def prepare_training_data(
 def load_resume_training_data(
     train_config: dict[str, Any],
     model_metadata: dict[str, Any],
-    validate_paths: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     serializer = DatasetRepository()
     current_metadata = serializer.load_training_data(only_metadata=True)
@@ -286,13 +284,10 @@ def load_resume_training_data(
         )
 
     train_data, validation_data, _ = serializer.load_training_data()
-    if validate_paths:
+    if not train_data.empty:
         train_data = serializer.validate_img_paths(train_data)
+    if not validation_data.empty:
         validation_data = serializer.validate_img_paths(validation_data)
-        if train_data.empty or validation_data.empty:
-            raise ValueError(
-                "No valid images found. Image paths may have changed since dataset was processed."
-            )
 
     return train_data, validation_data
 
@@ -380,6 +375,17 @@ def run_training_process(
         )
     except WorkerInterrupted:
         result_queue.put({"result": {}})
+    except DatasetIntegrityError as exc:
+        result_queue.put(
+            {
+                "error": str(exc),
+                "failure": {
+                    "code": "dataset_integrity_failed",
+                    "phase": "input_validation",
+                    "recoverable": True,
+                },
+            }
+        )
     except Exception as exc:  # noqa: BLE001
         result_queue.put({"error": str(exc)})
 
@@ -400,9 +406,8 @@ def run_resume_training_process(
         train_config["additional_epochs"] = additional_epochs
         train_config["polling_interval"] = get_server_settings().jobs.polling_interval
 
-        validate_paths = bool(train_config.get("validate_paths_on_train", False))
         train_data, validation_data = load_resume_training_data(
-            train_config, model_metadata, validate_paths
+            train_config, model_metadata
         )
         if train_data.empty or validation_data.empty:
             raise ValueError(
@@ -467,5 +472,16 @@ def run_resume_training_process(
         )
     except WorkerInterrupted:
         result_queue.put({"result": {}})
+    except DatasetIntegrityError as exc:
+        result_queue.put(
+            {
+                "error": str(exc),
+                "failure": {
+                    "code": "dataset_integrity_failed",
+                    "phase": "input_validation",
+                    "recoverable": True,
+                },
+            }
+        )
     except Exception as exc:  # noqa: BLE001
         result_queue.put({"error": str(exc)})

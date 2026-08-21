@@ -18,6 +18,7 @@ def test_dataset_processing_uses_injected_runtime_dependencies(monkeypatch) -> N
             "record_id": [1, 2],
         }
     )
+    repository.validate_img_paths.side_effect = lambda data: data
     repository.generate_hashcode.return_value = "hash"
     job_manager = MagicMock(spec=JobManager)
     job_manager.should_stop.return_value = False

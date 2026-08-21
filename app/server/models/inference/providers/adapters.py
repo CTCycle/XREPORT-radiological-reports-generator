@@ -564,6 +564,23 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
     """Published CXRMate-ED image-only/context-aware study preprocessing."""
 
     supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_length": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_length": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_length": 384,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
 
     # -------------------------------------------------------------------------
     def load_model(
@@ -658,7 +675,6 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         stopping_criteria: StoppingCriteriaValue,
         output_sections: list[str],
     ) -> StudyGeneration:
-        del profile
         image_tensors: list[torch.Tensor] = []
         for item in images:
             transformed = model.test_transforms(pil_to_tensor(item.image))
@@ -685,6 +701,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             model,
         )
         _ensure_cxrmate_ed_cache_compatibility(model)
+        generation_kwargs = self.generation_profiles[profile]
         output = model.generate(
             input_ids=moved["bos_token_ids"],
             decoder_inputs_embeds=moved["inputs_embeds"],
@@ -692,8 +709,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             prompt_attention_mask=moved["attention_mask"],
             prompt_position_ids=moved["position_ids"],
             special_token_ids=[processor.sep_token_id],
-            max_length=256,
-            num_beams=4,
+            **generation_kwargs,
             return_dict_in_generate=True,
             stopping_criteria=stopping_criteria,
         )["sequences"]

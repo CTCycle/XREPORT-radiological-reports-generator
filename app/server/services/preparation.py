@@ -347,7 +347,7 @@ class PreparationService:
         )
 
     # -------------------------------------------------------------------------
-    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
+    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:  # noqa: C901
         self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
@@ -381,6 +381,11 @@ class PreparationService:
         if sample_size < 1.0:
             df = df.sample(frac=sample_size, random_state=seed)
 
+        if "text" not in df.columns:
+            raise BadRequestError(
+                detail="Dataset is missing the required 'text' column.",
+            )
+
         image_column = self.get_image_column_name(list(df.columns))
         total_images = count_image_files(folder_path)
         if total_images == 0:
@@ -389,14 +394,11 @@ class PreparationService:
             )
 
         if image_column is None:
-            # Just return stats without matching
-            logger.warning("No image column found in dataset for matching")
-            return LoadDatasetResponse(
-                success=True,
-                total_images=total_images,
-                matched_records=0,
-                unmatched_records=len(df),
-                message=f"Loaded {total_images} images and {len(df)} records. No image column found for matching.",
+            raise BadRequestError(
+                detail=(
+                    "Dataset is missing an image column. Use one of: "
+                    "image, filename, file, img, image_name."
+                ),
             )
 
         required_stems = {
@@ -415,6 +417,28 @@ class PreparationService:
         logger.info(
             f"Dataset loaded: {len(matched)} matched, {unmatched} unmatched records"
         )
+
+        if matched.empty:
+            raise BadRequestError(
+                detail=(
+                    f"No dataset rows matched images in {folder_path}. "
+                    f"{unmatched} record(s) remain unmatched."
+                ),
+            )
+
+        if unmatched > 0 and not request.confirm_unmatched:
+            return LoadDatasetResponse(
+                success=False,
+                total_images=total_images,
+                matched_records=len(matched),
+                unmatched_records=unmatched,
+                requires_confirmation=True,
+                partial_import=False,
+                message=(
+                    f"Found {len(matched)} matched and {unmatched} unmatched records. "
+                    "Review the count and confirm to import the matched rows."
+                ),
+            )
 
         # Persist matched data to database with name and path.
         if not matched.empty:
@@ -442,9 +466,16 @@ class PreparationService:
             total_images=total_images,
             matched_records=len(matched),
             unmatched_records=unmatched,
+            requires_confirmation=False,
+            partial_import=unmatched > 0,
             message=(
                 f"Successfully loaded dataset with {len(matched)} matched records "
                 f"from {total_images} images"
+                + (
+                    f" after explicit confirmation; {unmatched} unmatched records were not imported."
+                    if unmatched > 0
+                    else ""
+                )
             ),
         )
 

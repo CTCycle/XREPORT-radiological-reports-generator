@@ -26,7 +26,14 @@ class ProviderGenerationResult:
 ###############################################################################
 GenerationProfile = Literal["deterministic", "concise", "detailed"]
 OutputSection = Literal["raw_report", "findings", "impression"]
-ValidationStatus = Literal["blocked", "incompatible", "disabled", "pending", "passed"]
+ValidationStatus = Literal[
+    "blocked",
+    "incompatible",
+    "disabled",
+    "pending",
+    "degraded",
+    "passed",
+]
 InstallationState = Literal[
     "not_installed",
     "staged",

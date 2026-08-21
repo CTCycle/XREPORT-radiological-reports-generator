@@ -1,16 +1,24 @@
 # Operations Workflows
 
-Last updated: 2026-08-18
+Last updated: 2026-08-21
 
 ## Prepare A Dataset
 
 1. Open the Dataset page.
-2. Load or upload a dataset.
-3. Run preparation and processing.
-4. Confirm dataset status and metadata before training.
+2. Select the image folder and upload a table containing `text` plus a
+   recognized image column.
+3. Load the dataset. If unmatched rows are reported, review the matched and
+   unmatched counts; choose **Import matched rows** only when a labeled
+   partial import is acceptable.
+4. Run preparation and processing.
+5. Confirm dataset status and metadata before training.
 
 Expected result:
 
+- missing required columns produce a structured error without discarding the
+  upload
+- unmatched rows are never silently imported; confirmed partial imports are
+  visibly labeled with their counts
 - the dataset is available in a prepared, usable state for downstream training or validation
 
 ## Train A Model
@@ -52,3 +60,7 @@ Use the real Generate flow with a public/de-identified chest X-ray. The first ru
 Expected result:
 
 - quality indicators are available for model comparison and release decisions
+- checkpoint evaluation uses the checkpoint-associated processed dataset and
+  reports typed input/data failures instead of raw Keras exceptions
+- validation, processing, training, and resume fail closed when stored image
+  paths have been deleted
