@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-19
+Last updated: 2026-08-21
 
 ## Shared Configuration Sources
 
@@ -48,6 +48,7 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `DATABASE_CONNECT_TIMEOUT`
 - `DATABASE_INSERT_BATCH_SIZE`
 - `HF_LOCAL_ONLY` (must remain `true` for embedded Hugging Face generation)
+- `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)
 - `INFERENCE_DEVICE` (for example, `auto` or `cuda`)
 - `INFERENCE_MAX_LOADED_MODELS` (must remain `1`; the embedded provider keeps one model resident)
 - `INFERENCE_MODEL_TIMEOUT` (generation/model-operation timeout in seconds)

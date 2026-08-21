@@ -7,6 +7,7 @@ import sys
 from dotenv import dotenv_values
 
 
+###############################################################################
 def _desktop_enabled() -> bool:
     return os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
         "1",
@@ -16,6 +17,7 @@ def _desktop_enabled() -> bool:
     }
 
 
+###############################################################################
 def _required_desktop_path(name: str) -> Path:
     value = os.getenv(name, "").strip()
     if not value:
@@ -125,6 +127,7 @@ if PACKAGED_MODE:
     ENV_FILE_PATH = DATA_ROOT / ".env"
 
 
+###############################################################################
 def is_within_allowed_roots(path: Path) -> bool:
     """Return whether a user/model path is inside runtime or data storage."""
     resolved = path.resolve()

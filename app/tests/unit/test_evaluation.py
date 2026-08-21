@@ -49,6 +49,8 @@ def test_bleu_score_handles_non_string_reports_gracefully(monkeypatch) -> None:
 
 ###############################################################################
 def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
+
+    ###############################################################################
     class ModelStub:
         built = True
         input_shape = [(None, 224, 224, 3), (None, 200)]
@@ -71,11 +73,15 @@ def test_checkpoint_validation_data_uses_checkpoint_dataset(monkeypatch) -> None
     requested_names: list[str | None] = []
     validation_data = pd.DataFrame({"path": ["image.png"], "tokens": [[1, 2]]})
 
+    ###############################################################################
     class RepositoryStub:
+
+        # -------------------------------------------------------------------------
         def load_training_data(self, *, dataset_name=None):
             requested_names.append(dataset_name)
             return pd.DataFrame(), validation_data, {}
 
+        # -------------------------------------------------------------------------
         def validate_img_paths(self, data):
             return data
 

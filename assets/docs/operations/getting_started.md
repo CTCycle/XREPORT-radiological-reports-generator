@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -38,3 +38,18 @@ uv run --project app/server python -m uvicorn server.app:app --app-dir app --hos
 cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
+
+## First Report-Generation Run
+
+1. Open **Inference** and read the research-use warning.
+2. Select a ready public model or a complete Custom XReport checkpoint. A public
+   model that is not cached is downloaded and verified during its first
+   **Generate** action; gated models also require the provider's access terms
+   and credentials.
+3. Add a de-identified radiograph or study, choose a supported generation
+   profile, and submit the background job.
+4. Review the editable **Findings** and **Impression** fields and inspect the
+   returned model, provider, revision, profile, and output metadata before
+   copying or exporting the draft.
+
+Generated reports are research-use drafts, not clinically approved reports.

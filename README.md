@@ -7,13 +7,23 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
+Last updated: 2026-08-21
+
 ## 1. Project Overview
 
-XREPORT is a client-server research application that generates editable draft radiological reports from X-ray images. Models and generated drafts are not clinically approved and require qualified independent review.
-It combines a FastAPI backend and an Angular 22 frontend to support end-to-end workflows for dataset preparation, model training, validation, and report generation.
+XREPORT is a local-first research application that generates editable draft radiological reports from X-ray images. Models and generated drafts are not clinically approved and require qualified independent review.
+It combines a FastAPI backend and an Angular 22 frontend to take users from source data through dataset preparation, model training, validation, and report generation.
 
 The application runs locally as a FastAPI backend with an Angular-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
 
+Key capabilities:
+
+- import image folders plus CSV/XLSX report metadata, review matches, and inspect paired records
+- clean, tokenize, split, and build training-ready datasets
+- configure CPU/GPU training, monitor live metrics and logs, save checkpoints, resume, and evaluate
+- use five pinned public Hugging Face report-generation models or locally trained Custom XReport checkpoints
+- generate editable Findings and Impression drafts from up to 16 study images, then copy or export them for qualified review
+- keep validation, model readiness, provenance, and research-use warnings visible in the workflow
 
 
 ## 2. Model and Dataset (Optional)
@@ -35,7 +45,7 @@ Run:
 
 The launcher menu can launch the app, install or update dependencies, rebuild the frontend only, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
 
-### 3.3 Windows desktop packages
+### 3.2 Windows desktop packages
 
 The repository also contains a Tauri 2 desktop shell under `app/desktop`. It
 starts the frozen FastAPI service itself, serves the already-built Angular
@@ -96,7 +106,7 @@ administrator approval. CPU and CUDA products have separate identifiers and
 shortcuts but share one per-user instance guard, so only one XREPORT desktop
 variant can run at a time.
 
-### 3.2 macOS / Linux (Manual Setup)
+### 3.3 macOS / Linux (Manual Setup)
 
 Prerequisites:
 - Python 3.14+
@@ -107,7 +117,7 @@ Setup:
 ```bash
 cd app/server
 uv sync
-cd app/client
+cd ../client
 npm ci
 npm run build
 ```
@@ -121,11 +131,18 @@ npm run build
 Windows:
 - Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select **Launch application**.
 
-macOS/Linux (manual):
+macOS/Linux (manual, in two terminals):
+
+Terminal 1, from the repository root:
+
 ```bash
-cd app
-uv run --project server python -m uvicorn server.app:app --host 127.0.0.1 --port 5003
-cd client
+uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+```
+
+Terminal 2:
+
+```bash
+cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
@@ -147,40 +164,39 @@ uv run alembic -c alembic.ini upgrade head
 
 ### 4.2 Core Workflow
 
-1. Prepare or load dataset on the **Dataset** page.
-2. Start training and monitor progress on the **Training** page.
-3. Generate draft reports on the **Inference** page.
-4. Run dataset/checkpoint validation from **Validation** flows.
+1. On **Dataset**, upload an image folder and report table, load the source, review matched/unmatched rows, and build a processed dataset.
+2. On **Training**, select a processed dataset, review the five-step configuration wizard, and start or resume a run while watching live metrics, charts, and logs.
+3. On **Inference**, select a public or custom model, add up to 16 images, choose a generation profile, and submit a background generation job.
+4. Review and edit the returned **Findings** and **Impression** fields, inspect model/provider provenance, and copy or export the research-use draft.
+5. Use the Dataset and Training validation actions to check datasets and checkpoints before drawing quality conclusions.
 
 ### 4.3 UI Snapshots
 
-The screenshots below were captured from the current Windows web interface at a consistent 1280×740 normal viewport. Scrollable workflows use separate, focused frames so important content stays readable; the images are not stitched full-page captures.
+The screenshots below were captured from the current Windows web interface at a consistent 1280×720 desktop viewport. Scrollable workflows use separate, focused frames so important content stays readable; the images are not stitched full-page captures.
 
 #### Dataset handling
 
-The Dataset page shows imported sources, record counts, and the processing configuration used to turn source data into a training-ready dataset.
+The Dataset workflow keeps the source and processing controls together, then lets users inspect a populated image/report pair before using it downstream.
 
-![Dataset overview](assets/figures/readme-dataset.png)
-
-![Dataset processing configuration](assets/figures/readme-dataset-processing.png)
+![Dataset image viewer](assets/figures/readme-dataset.png)
 
 #### Training dashboard
 
-This completed small training run shows real progress, eight plotted loss/accuracy points, final metrics, and the session log in one place.
+This completed eight-epoch run shows final progress, plotted loss and accuracy points, final metrics, and the session log in one place.
 
 ![Populated training dashboard](assets/figures/readme-training.png)
 
 #### Inference workflow
 
-The public model catalogue makes readiness and provenance visible before use. The selected CXRMate Multi TF model is an open, lightweight chest-X-ray reporter.
+The public model catalogue makes readiness, installation, validation state, anatomy, output sections, and licence visible before use. The selected CXRMate Multi TF model is an open, lightweight chest-X-ray reporter.
 
 ![Public inference model catalogue](assets/figures/readme-inference.png)
 
-The workflow then keeps the study image, generation controls, and multi-view input state visible while the draft is produced.
+The workflow keeps two de-identified study images, generation controls, and the multi-view input state visible while the draft is produced.
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The editable review panel presents the generated Findings and Impression together with the model and provider metadata needed for qualified review.
+The editable review panel shows the generated Findings beside a reviewed Impression, with model, provider, revision, profile, and output metadata for qualified review.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
 
@@ -190,13 +206,21 @@ The Tips & Tricks panel provides contextual onboarding, completed workflow steps
 
 ![Help and tips](assets/figures/readme-help-and-tips.png)
 
-For operator guidance, see `assets/docs/operations/getting_started.md` and `assets/docs/operations/workflows.md`.
+For operator guidance, see [Getting started](assets/docs/operations/getting_started.md) and [Core workflows](assets/docs/operations/workflows.md).
 
 
 
-## 5. Setup and Maintenance
+## 5. Documentation and Maintenance
 
 Use `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` on Windows to access the consolidated launch and maintenance menu.
+
+Deeper documentation:
+
+- [Runtime startup and launcher actions](assets/docs/runtime/startup.md)
+- [Runtime configuration and environment variables](assets/docs/runtime/configuration.md)
+- [Local inference models and first-use lifecycle](assets/docs/runtime/local_inference_models.md)
+- [Architecture overview](assets/docs/architecture/system_overview.md)
+- [Troubleshooting and database initialization](assets/docs/operations/troubleshooting.md)
 
 
 
@@ -234,6 +258,7 @@ uninstall; remove that directory manually only when a full reset is wanted.
 - Backend defaults: `settings/configurations.json`
 - Database configuration: `settings/.env`
 - Curated local inference catalog: `settings/inference_models.json`
+- Optional Hugging Face access token: `HF_TOKEN` for gated models such as MedGemma; do not commit it
 
 ### 7.1 Database initialization behavior
 
@@ -241,11 +266,13 @@ uninstall; remove that directory manually only when a full reset is wanted.
   `settings/.env.example`. An existing `settings/.env` is never overwritten,
   and `.env` files are excluded by `.gitignore`.
 - SQLite mode (`EMBEDDED_DATABASE=true`):
-  - On application startup, if `<resource root>/database.db` does not exist, the app initializes the SQLite schema automatically.
-  - If the file already exists, startup does not recreate, reset, reseed, or cross-validate it.
+  - On application startup, the Alembic coordinator creates a missing database and upgrades an existing database to the checked-in head.
+  - An exact known legacy schema may be adopted; ambiguous or modified non-empty databases fail closed without mutation.
 - PostgreSQL mode (`EMBEDDED_DATABASE=false`):
-  - Normal startup only verifies a connection to the configured database and never creates or initializes it.
-  - Select option `4` in `start_on_windows.ps1` to create the configured database and schema explicitly.
+  - Normal startup verifies the configured connection and applies pending revisions when permitted.
+  - Select **Initialize database** in `start_on_windows.ps1` to run the same explicit initialization path without launching the UI.
+
+Public models may require a first-use download and verification. Keep network access available for a model that is not already cached; gated models additionally require the provider's access terms and credentials. Once verified, the local snapshot is reused on later launches.
 
 See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
 
