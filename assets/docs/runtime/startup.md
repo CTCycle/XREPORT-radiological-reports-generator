@@ -107,8 +107,9 @@ app\tests\run_tests.bat
 
 The test launcher uses the prepared backend environment and starts required local services when they are not already running.
 
-On backend startup, SQLite initializes only when its database file is missing.
-PostgreSQL is checked with a connection-only probe and must have been
-initialized explicitly through launcher option `4`. Startup also verifies the
-tracked configuration file and creates required resource directories for logs,
-models, tokenizers, checkpoints, and templates.
+On backend startup, the shared Alembic coordinator creates the SQLite file or
+PostgreSQL database when necessary, adopts only an exact known unversioned
+schema, and upgrades to the checked-in head before the readiness callback runs.
+The launcher’s explicit database option uses the same coordinator. Startup also
+verifies the tracked configuration file and creates required resource
+directories for logs, models, tokenizers, checkpoints, and templates.

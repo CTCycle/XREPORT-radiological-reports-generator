@@ -43,19 +43,19 @@ variant-specific immutable runtime archives.
 ### SQLite Mode
 
 - When `EMBEDDED_DATABASE=true`, source mode initializes `<resource root>/database.db` automatically on first startup if the file does not exist. Packaged mode initializes `%LOCALAPPDATA%\XREPORT\data\database.db`; it never writes a database into the immutable installation/runtime directory.
-- On later startups, existing data is not recreated, reset, or reseeded. The required tables and columns are checked against schema version 1. A structurally compatible older database without `schema_metadata` is stamped with the current marker; an incompatible schema, missing marker row, or unsupported version stops startup.
-- The launcher option `4` can be used to manually trigger the same idempotent SQLite initialization.
+- On later startups, existing data is not recreated, reset, or reseeded. Alembic checks the applied revision and upgrades to head under an exclusive SQLite transaction.
+- A non-empty database without `alembic_version` is stamped only after exact v1 schema validation. Partial or modified schemas fail and are not repaired automatically.
+- The launcher option `4` can be used to manually trigger the same idempotent Alembic initialization.
 
 ### PostgreSQL Mode
 
-- When `EMBEDDED_DATABASE=false`, normal startup checks the configured PostgreSQL connection and verifies schema compatibility; it does not create or migrate the schema.
-- Run `start_on_windows.ps1`, choose `4. Initialize database`, and execute the explicit initialization before launching the application.
-- The same command also works for SQLite mode and is safe when the SQLite file already exists.
-- Invalid, unavailable, or not-yet-initialized PostgreSQL connections fail startup with a database startup error; correct the connection settings or run the explicit initialization command.
+- When `EMBEDDED_DATABASE=false`, startup and option `4` create the configured PostgreSQL database when absent (subject to permissions), then apply pending Alembic revisions under advisory locks.
+- The same command also works for SQLite mode and is safe when the database already exists.
+- Invalid, unavailable, unsupported, or permission-limited PostgreSQL connections fail with a sanitized database migration error; correct the connection settings or use an administrative initialization account.
 
 ### Schema compatibility failure
 
-- Read the startup error for the missing table, missing column, missing `xreport` marker, or unsupported schema version.
+- Read the startup error for the missing table/column, incompatible unversioned schema, unknown Alembic revision, multiple heads, or migration failure.
 - Preserve a copy of the database before any recovery action.
 - If the database is disposable, recreate it through the documented initialization path.
-- If the data is needed, apply a supported migration once one exists; the current release does not transform arbitrary schema changes and intentionally fails fast.
+- If the data is needed, preserve a backup and apply a reviewed supported migration. The current release intentionally fails fast on arbitrary schema changes.

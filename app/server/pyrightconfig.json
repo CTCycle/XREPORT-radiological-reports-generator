@@ -1,5 +1,5 @@
 {
-  "include": ["api", "common", "configurations", "domain", "models", "repositories", "services"],
+  "include": ["api", "common", "configurations", "domain", "models", "repositories", "services", "migrations"],
   "exclude": [".venv"],
   "extraPaths": [".."],
   "venvPath": ".",

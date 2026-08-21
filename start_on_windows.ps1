@@ -428,6 +428,8 @@ function Invoke-InstallOrUpdate {
     $settings = Import-XReportEnvironment
     Stop-PortListener -Port ([int]$settings.UI_PORT)
     Install-Dependencies -Settings $settings -BuildFrontend -InstallationType $installationType
+    Write-Step 'Synchronizing database schema'
+    Invoke-InitializeDatabase
     Write-Step 'Pruning uv cache'
     Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Ok 'Dependencies installed and frontend built successfully'

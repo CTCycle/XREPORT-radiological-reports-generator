@@ -14,12 +14,14 @@ console_mode = os.environ.get("XREPORT_PYINSTALLER_CONSOLE", "0") == "1"
 hiddenimports = [
     "server.desktop_entry",
     "server.common.runtime_layout",
+    *collect_submodules("alembic"),
     *collect_submodules("server"),
     *collect_submodules("uvicorn"),
 ]
 datas = [
     *collect_data_files("transformers"),
     *collect_data_files("keras"),
+    (str(server_root / "migrations"), "server/migrations"),
 ]
 # PyInstaller's maintained hooks already place these native libraries in the
 # onedir `_internal` tree.  Adding collect_dynamic_libs here duplicates the

@@ -14,21 +14,23 @@ From `settings/.env`:
 
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
-The current application schema version is `1`, recorded in `schema_metadata` with `schema_name = 'xreport'`.
+Alembic is the authoritative schema history. The checked-in migration stream has
+one head (`c1e4f1a7b2d9`) and stores the applied revision in `alembic_version`.
 
 ### SQLite
 
-- A new database file is initialized with `Base.metadata.create_all` and stamped with the current schema version.
-- An existing file is not recreated, reset, or reseeded. Startup inspects every required table and column.
-- An existing structurally compatible database without the marker table receives the marker table and is stamped with the current version. This compatibility bootstrap does not attempt to transform arbitrary schema changes.
-- A missing version marker, missing required table/column, or unsupported version raises `DatabaseSchemaError`. Startup stops with guidance to recreate the database or apply a supported migration before restarting.
+- A missing database file is created by SQLAlchemy and upgraded from Alembic base to head.
+- Startup acquires an exclusive SQLite transaction before checking or applying migrations, so concurrent processes serialize safely.
+- A non-empty database without `alembic_version` is adopted only after an exact semantic comparison with the known v1 schema. The baseline is stamped and the legacy `schema_metadata` table is removed by the checked-in head migration.
+- Partial, modified, or unexpected schemas fail without repair or stamping. Migration failures roll back the shared transaction.
 
 ### PostgreSQL
 
-- Explicit database initialization creates the configured database when needed, ensures the current tables exist, and writes the schema marker.
-- Startup performs a connection check and then verifies the existing schema and version marker. Startup does not silently create or migrate a PostgreSQL schema.
+- Initialization and startup create the configured database through the administrative connection when it does not exist and the configured role has permission.
+- Database creation and migration use bounded PostgreSQL advisory locks. Migrations run on one transaction-scoped connection and preserve existing data.
+- A missing/unknown revision, multiple heads, incompatible legacy schema, unavailable database, or insufficient creation privilege fails startup with actionable sanitized logging.
 
-The repository currently uses SQLAlchemy metadata creation plus an explicit compatibility marker; it does not yet include an Alembic migration history. A future migration system must define supported upgrade paths before the schema version is advanced beyond the current compatibility check.
+`Base.metadata` is the target metadata used for reviewed autogeneration and drift checks. It is not used to create or evolve production schemas after Alembic is introduced.
 
 If `settings/.env` is missing, it is copied from `settings/.env.example`; an existing environment file is never overwritten. Additional startup validation ensures required resource directories exist.
 
@@ -36,10 +38,6 @@ If `settings/.env` is missing, it is copied from `settings/.env.example`; an exi
 
 ```mermaid
 erDiagram
-    SCHEMA_METADATA {
-        string schema_name PK
-        int schema_version
-    }
     DATASETS {
         int dataset_id PK
         string name
@@ -115,7 +113,7 @@ erDiagram
     DATASET_RECORDS o|--o{ INFERENCE_REPORTS : links
 ```
 
-`schema_metadata` is an application compatibility marker and is intentionally not related to a business entity. The other tables are owned by independent repositories:
+The tables below are owned by independent repositories:
 
 - `DatasetRepository`: datasets, dataset versions, records, processing runs, and training samples.
 - `ValidationRepository`: validation runs and checkpoint evaluations.
