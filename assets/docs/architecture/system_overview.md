@@ -13,7 +13,7 @@ XREPORT is a local-first client/server system for radiological report generation
 - Persistence: SQLAlchemy repositories and schemas in `app/server/repositories`, with SQLite by default and PostgreSQL optional.
 - Learning runtime: model, provider, and inference implementation details in `app/server/models`.
 - Long-running execution: start, poll, and cancel jobs through `app/server/services/jobs.py`.
-- Startup validation: database compatibility and required resource-directory checks before the API serves requests.
+- Startup validation: Alembic database creation/upgrade and required resource-directory checks before the API serves requests.
 
 The Angular application and FastAPI application are separate runtimes. The Windows launcher starts them as coordinated local processes; the backend root redirects to FastAPI documentation, while the Angular runtime owns the user interface.
 
@@ -98,7 +98,7 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 
 ### Repositories and learning runtime
 
-`app/server/repositories` contains SQLAlchemy schemas plus focused dataset, validation, and inference persistence boundaries. `app/server/models` contains model-training and inference implementation details; it is not the ORM model layer. The database schema marker is defined alongside the ORM tables in `repositories/schemas`.
+`app/server/repositories` contains SQLAlchemy schemas plus focused dataset, validation, and inference persistence boundaries. `app/server/models` contains model-training and inference implementation details; it is not the ORM model layer. ORM metadata lives in `repositories/schemas`; Alembic revisions and the migration environment live in `server/migrations`.
 
 ## Frontend Boundaries
 

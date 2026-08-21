@@ -116,6 +116,22 @@ cd client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
+Database migrations are applied automatically during installation and backend
+startup. To initialize or upgrade the configured database explicitly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InitializeDatabase
+```
+
+For migration development, run Alembic from `app/server` and review generated
+revisions before committing them:
+
+```powershell
+uv run alembic -c alembic.ini current --check-heads
+uv run alembic -c alembic.ini revision --autogenerate -m "describe schema change"
+uv run alembic -c alembic.ini upgrade head
+```
+
 ### 4.2 Core Workflow
 
 1. Prepare or load dataset on the **Dataset** page.
