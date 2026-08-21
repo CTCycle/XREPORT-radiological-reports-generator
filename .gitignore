@@ -10,6 +10,11 @@ app/client/logs/
 app/resources/tokenizers/**
 app/client/*.local
 runtimes/**
+runtimes/cache/
+!runtimes/cache/
+!runtimes/cache/.gitkeep
+app/tests/cache/*
+!app/tests/cache/.gitkeep
 assets/QA/**
 
 # Python

@@ -54,6 +54,9 @@ desktop = [
 [tool.hatch.build.targets.wheel]
 packages = ["server"] 
 
+[tool.pytest.ini_options]
+cache_dir = "../../app/tests/cache/pytest"
+
 [[tool.uv.index]]
 name = "pytorch-cu130"
 url = "https://download.pytorch.org/whl/cu130"
@@ -63,6 +66,9 @@ explicit = true
 torch = { index = "pytorch-cu130" }
 torchvision = { index = "pytorch-cu130" }
 # torchaudio  = { index = "pytorch-cu130" }
+
+[tool.ruff]
+cache-dir = "../../app/tests/cache/ruff"
 
 [tool.ruff.lint]
 extend-select = ["C901", "PLR0912", "PLR0915"]

@@ -21,7 +21,19 @@ $PythonExe = Join-Path $PythonDir 'python.exe'
 $PythonPth = Join-Path $PythonDir 'python314._pth'
 $UvDir = Join-Path $RuntimesDir 'uv'
 $UvExe = Join-Path $UvDir 'uv.exe'
-$UvCacheDir = Join-Path $RuntimesDir '.uv-cache'
+$RuntimeCacheDir = Join-Path $RuntimesDir 'cache'
+$UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
+$NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
+$PipCacheDir = Join-Path $RuntimeCacheDir 'pip'
+$PlaywrightBrowsersCacheDir = Join-Path $RuntimeCacheDir 'playwright-browsers'
+$ToolCacheDir = Join-Path $RepoRoot 'app\tests\cache'
+$PytestCacheDir = Join-Path $ToolCacheDir 'pytest'
+$PytestTempDir = Join-Path $ToolCacheDir 'pytest-tmp'
+$RuffCacheDir = Join-Path $ToolCacheDir 'ruff'
+$MypyCacheDir = Join-Path $ToolCacheDir 'mypy'
+$PythonCacheDir = Join-Path $ToolCacheDir 'python'
+$CoverageCacheDir = Join-Path $ToolCacheDir 'coverage'
+$AngularCacheDir = Join-Path $ToolCacheDir 'angular'
 $NodeDir = Join-Path $RuntimesDir 'nodejs'
 $NodeExe = Join-Path $NodeDir 'node.exe'
 $NpmCmd = Join-Path $NodeDir 'npm.cmd'
@@ -76,7 +88,22 @@ function Invoke-Checked {
 }
 
 function Initialize-Environment {
+    New-Item -ItemType Directory -Path @(
+        $RuntimeCacheDir, $UvCacheDir, $NpmCacheDir, $PipCacheDir,
+        $PlaywrightBrowsersCacheDir, $ToolCacheDir, $PytestCacheDir,
+        $PytestTempDir, $RuffCacheDir, $MypyCacheDir, $PythonCacheDir,
+        $CoverageCacheDir, $AngularCacheDir
+    ) -Force | Out-Null
     $env:UV_CACHE_DIR = $UvCacheDir
+    $env:PIP_CACHE_DIR = $PipCacheDir
+    $env:NPM_CONFIG_CACHE = $NpmCacheDir
+    $env:npm_config_cache = $NpmCacheDir
+    $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightBrowsersCacheDir
+    $env:XDG_CACHE_HOME = $ToolCacheDir
+    $env:RUFF_CACHE_DIR = $RuffCacheDir
+    $env:MYPY_CACHE_DIR = $MypyCacheDir
+    $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
+    $env:COVERAGE_FILE = Join-Path $CoverageCacheDir '.coverage'
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:UV_LINK_MODE = 'copy'
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
@@ -430,8 +457,6 @@ function Invoke-InstallOrUpdate {
     Install-Dependencies -Settings $settings -BuildFrontend -InstallationType $installationType
     Write-Step 'Synchronizing database schema'
     Invoke-InitializeDatabase
-    Write-Step 'Pruning uv cache'
-    Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
     Write-Ok 'Dependencies installed and frontend built successfully'
 }
 
@@ -809,16 +834,142 @@ function Remove-Logs {
     }
 }
 
+function Remove-PathBestEffort {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [string]$Label = $Path
+    )
+
+    $removed = 0
+    $skipped = 0
+    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) {
+        return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 0 }
+    }
+
+    $root = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if ($null -eq $root) {
+        Write-Warn "Skipped inaccessible cache path: $Label"
+        return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 1 }
+    }
+
+    $children = @()
+    if ($root.PSIsContainer) {
+        $children = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue |
+            Sort-Object @{ Expression = 'PSIsContainer'; Descending = $false }, @{ Expression = { $_.FullName.Length }; Descending = $true })
+        foreach ($child in $children) {
+            if ($child.Name -eq '.gitkeep') { continue }
+            $hasKeepMarker = $child.PSIsContainer -and @($children | Where-Object {
+                $_.Name -eq '.gitkeep' -and
+                $_.FullName.StartsWith("$($child.FullName)\", [StringComparison]::OrdinalIgnoreCase)
+            }).Count -gt 0
+            if ($hasKeepMarker) { continue }
+            try {
+                if ($child.PSIsContainer) {
+                    Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+                } else {
+                    Remove-Item -LiteralPath $child.FullName -Force -ErrorAction Stop
+                }
+                $removed++
+            } catch {
+                $skipped++
+                if ($skipped -le 5) {
+                    Write-Warn "Skipped locked or protected cache item: $($child.FullName)"
+                }
+            }
+        }
+        if (@($children | Where-Object { $_.Name -eq '.gitkeep' }).Count -gt 0) {
+            return [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
+        }
+    }
+
+    if (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue) {
+        try {
+            if ($root.PSIsContainer) {
+                Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+            } else {
+                Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
+            }
+            $removed++
+        } catch {
+            $skipped++
+            if ($skipped -le 5) {
+                Write-Warn "Skipped locked or protected cache path: $Label"
+            }
+        }
+    }
+
+    [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
+}
+
+function Get-LegacyCacheDirectories {
+    $legacyNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.pyright')
+    $excludedNames = @('.git', '.venv', 'node_modules', 'dist', 'build', 'release', 'target')
+    $resourcesRoot = Join-Path $RepoRoot 'app\resources'
+    $pending = [Collections.Generic.Stack[string]]::new()
+    $pending.Push($RepoRoot)
+    $found = @()
+    while ($pending.Count -gt 0) {
+        $current = $pending.Pop()
+        try {
+            $childDirectories = @([IO.Directory]::EnumerateDirectories($current))
+        } catch {
+            continue
+        }
+        foreach ($childPath in $childDirectories) {
+            $childName = Split-Path -Leaf $childPath
+            if ($childName -in $excludedNames -or
+                $childPath.Equals($resourcesRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                $childPath.StartsWith("$resourcesRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+            if ($childName -in $legacyNames) {
+                $found += Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
+                continue
+            }
+            $pending.Push([string]$childPath)
+        }
+    }
+    @($found | Sort-Object FullName -Descending)
+}
+
 function Remove-PythonCaches {
-    $caches = Get-ChildItem -LiteralPath $RepoRoot -Directory -Recurse -Filter '__pycache__' -Force -ErrorAction SilentlyContinue
-    foreach ($cache in $caches) { Remove-Item -LiteralPath $cache.FullName -Recurse -Force }
-    Write-Ok "Removed $($caches.Count) Python cache directorie(s)"
+    $caches = @(Get-LegacyCacheDirectories | Where-Object { $_.Name -eq '__pycache__' })
+    $results = @($caches | ForEach-Object { Remove-PathBestEffort -Path $_.FullName -Label $_.FullName })
+    $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
+    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
+    if ($skipped -gt 0) {
+        Write-Warn "Removed $removed Python cache item(s); skipped $skipped protected item(s)."
+    } else {
+        Write-Ok "Removed $removed Python cache item(s)"
+    }
 }
 
 function Clear-ApplicationCache {
-    Remove-PythonCaches
-    Remove-Item -LiteralPath $UvCacheDir -Recurse -Force -ErrorAction SilentlyContinue
-    Write-Ok 'Application caches cleared'
+    $targets = @(
+        $RuntimeCacheDir,
+        $ToolCacheDir,
+        (Join-Path $RuntimesDir '.uv-cache'),
+        (Join-Path $RepoRoot '.pytest-tmp'),
+        (Join-Path $ClientDir '.angular\cache'),
+        (Join-Path $ClientDir 'node_modules\.cache'),
+        (Join-Path $ClientDir 'coverage')
+    )
+    $results = @()
+    foreach ($target in $targets) {
+        $results += Remove-PathBestEffort -Path $target -Label $target
+    }
+    foreach ($cache in Get-LegacyCacheDirectories) {
+        $results += Remove-PathBestEffort -Path $cache.FullName -Label $cache.FullName
+    }
+
+    $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
+    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
+    if ($skipped -gt 0) {
+        Write-Warn "Application cache cleanup completed: removed $removed item(s); skipped $skipped protected item(s)."
+    } else {
+        Write-Ok "Application caches cleared: removed $removed item(s)."
+    }
+    New-Item -ItemType Directory -Path $RuntimeCacheDir, $ToolCacheDir -Force | Out-Null
 }
 
 function Uninstall-Application {
@@ -834,7 +985,7 @@ function Uninstall-Application {
         (Join-Path $RepoRoot 'uv.lock')
     )
     foreach ($target in $targets) {
-        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+        Remove-PathBestEffort -Path $target -Label $target | Out-Null
     }
     Remove-PythonCaches
     Write-Ok 'Application runtimes and generated dependencies removed; settings and user data were preserved'

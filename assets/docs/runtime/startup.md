@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Windows Local Launcher
 
@@ -113,3 +113,21 @@ schema, and upgrades to the checked-in head before the readiness callback runs.
 The launcher’s explicit database option uses the same coordinator. Startup also
 verifies the tracked configuration file and creates required resource
 directories for logs, models, tokenizers, checkpoints, and templates.
+
+## Development Cache Locations
+
+Disposable runtime caches are kept under `runtimes/cache`, with separate
+subdirectories for uv, npm, pip, and Playwright browser downloads. Pytest,
+Ruff, Python bytecode, coverage, and other development-tool caches are kept
+under `app/tests/cache`. The test runner uses
+`app/tests/cache/pytest-tmp` for pytest's temporary test directory.
+
+Select **Clear cache** in the maintenance menu, or run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
+```
+
+Cache cleanup is best-effort: locked or administrator-protected files are
+reported and skipped so the launcher can continue removing the remaining
+artifacts.

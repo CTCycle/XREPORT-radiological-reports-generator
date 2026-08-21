@@ -6,7 +6,12 @@
     "schematicCollections": [
       "angular-eslint"
     ],
-    "analytics": false
+    "analytics": false,
+    "cache": {
+      "enabled": true,
+      "environment": "all",
+      "path": "../tests/cache/angular"
+    }
   },
   "newProjectRoot": "projects",
   "projects": {

@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Primary Commands
 
@@ -32,7 +32,16 @@ timestamped backend logs beside it. Readiness/session files in
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest app/tests -v --tb=short --basetemp .pytest-tmp`
+- `app/server/.venv/Scripts/python.exe -m pytest app/tests -v --tb=short --basetemp app/tests/cache/pytest-tmp -o "cache_dir=app/tests/cache/pytest"`
+
+### Development cache locations
+
+- runtime caches: `runtimes/cache/{uv,npm,pip,playwright-browsers}`
+- test and development-tool caches: `app/tests/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular}`
+- best-effort cleanup: `.\start_on_windows.ps1 -Action ClearCache`
+
+Locked or administrator-protected cache files are reported and skipped during
+cleanup; other cached artifacts continue to be removed.
 
 ### Alembic development workflow
 
