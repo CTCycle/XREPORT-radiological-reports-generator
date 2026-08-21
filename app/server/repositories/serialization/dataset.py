@@ -29,6 +29,10 @@ from server.repositories.serialization.support import RepositorySupport
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
 ###############################################################################
+class DatasetIntegrityError(ValueError):
+    """Raised when a dataset contains missing or unusable image paths."""
+
+###############################################################################
 class DatasetRepository(RepositorySupport):
 
     # -------------------------------------------------------------------------
@@ -87,10 +91,9 @@ class DatasetRepository(RepositorySupport):
     # -------------------------------------------------------------------------
     def validate_img_paths(self, dataset: pd.DataFrame) -> pd.DataFrame:
         if "path" not in dataset.columns:
-            logger.error(
-                "Dataset missing 'path' column - images were not stored with paths"
+            raise DatasetIntegrityError(
+                "Dataset is missing the required 'path' column; image paths were not stored."
             )
-            return pd.DataFrame()
 
         valid_mask = dataset["path"].apply(
             lambda item: Path(item).is_file() if pd.notna(item) else False
@@ -98,10 +101,21 @@ class DatasetRepository(RepositorySupport):
         clean_dataset = dataset.loc[valid_mask, :].copy().reset_index(drop=True)
         dropped = len(dataset) - len(clean_dataset)
 
-        if len(clean_dataset) > 0:
-            logger.info("Validated image paths: %s valid records", len(clean_dataset))
         if dropped > 0:
-            logger.warning("%s records have missing or invalid image paths", dropped)
+            missing_paths = [
+                str(value)
+                for value in dataset.loc[~valid_mask, "path"].head(5).tolist()
+            ]
+            preview = ", ".join(missing_paths) if missing_paths else "unknown paths"
+            raise DatasetIntegrityError(
+                f"Dataset contains {dropped} missing or invalid image path(s). "
+                f"Examples: {preview}"
+            )
+
+        if clean_dataset.empty:
+            raise DatasetIntegrityError("Dataset contains no records with valid image paths.")
+
+        logger.info("Validated image paths: %s valid records", len(clean_dataset))
 
         return clean_dataset
 

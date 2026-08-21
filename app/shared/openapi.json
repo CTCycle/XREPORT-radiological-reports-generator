@@ -2160,6 +2160,12 @@
             "title": "Sample Size",
             "description": "Fraction of data to use",
             "default": 1.0
+          },
+          "confirm_unmatched": {
+            "type": "boolean",
+            "title": "Confirm Unmatched",
+            "description": "Explicitly confirm importing matched rows when some images are unmatched",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2186,6 +2192,16 @@
           "unmatched_records": {
             "type": "integer",
             "title": "Unmatched Records"
+          },
+          "requires_confirmation": {
+            "type": "boolean",
+            "title": "Requires Confirmation",
+            "default": false
+          },
+          "partial_import": {
+            "type": "boolean",
+            "title": "Partial Import",
+            "default": false
           },
           "message": {
             "type": "string",
@@ -2270,6 +2286,7 @@
               "incompatible",
               "disabled",
               "pending",
+              "degraded",
               "passed"
             ],
             "title": "Validation Status",

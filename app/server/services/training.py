@@ -32,7 +32,7 @@ from server.common.utils.security import (
     resolve_checkpoint_path,
     validate_checkpoint_name,
 )
-from server.services.jobs import JobManager, get_job_manager
+from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.model import ModelSerializer
 from server.common.path import CHECKPOINTS_DIR
@@ -226,6 +226,14 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
         return {}
 
     if "error" in result_payload and result_payload["error"]:
+        failure = result_payload.get("failure")
+        if isinstance(failure, dict):
+            raise JobExecutionError(
+                str(result_payload["error"]),
+                code=str(failure.get("code", "job_failed")),
+                phase=str(failure.get("phase", "execution")),
+                recoverable=bool(failure.get("recoverable", True)),
+            )
         raise RuntimeError(str(result_payload["error"]))
 
     if "result" in result_payload:

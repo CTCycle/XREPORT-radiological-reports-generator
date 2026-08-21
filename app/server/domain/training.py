@@ -42,6 +42,10 @@ class LoadDatasetRequest(BaseModel):
     sample_size: float = Field(
         1.0, ge=0.01, le=1.0, description="Fraction of data to use"
     )
+    confirm_unmatched: bool = Field(
+        False,
+        description="Explicitly confirm importing matched rows when some images are unmatched",
+    )
     model_config = ConfigDict(extra="forbid")
 
 ###############################################################################
@@ -50,6 +54,8 @@ class LoadDatasetResponse(BaseModel):
     total_images: int
     matched_records: int
     unmatched_records: int
+    requires_confirmation: bool = False
+    partial_import: bool = False
     message: str
 
 ###############################################################################

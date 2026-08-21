@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-18
+Last updated: 2026-08-21
 
 ## Safety scope
 
@@ -33,6 +33,18 @@ common `ProviderGenerationResult`. CXRMate adapters retain their published
 multi-view/section-decoding contracts; CheXOne and MedGemma use the shared
 chat-style vision-language path. Custom remote code is imported only from the
 integrity-verified local snapshot.
+
+### CXRMate-ED validation status
+
+CXRMate-ED remains selectable and runnable for research use, but its catalog
+`validation_status` is currently `degraded`. The real three-case canary reaches
+the image tensor, clinical context, and selected generation settings, yet two
+of the three supplied fixtures still produce identical report text. The UI
+shows the warning before generation, and every generated provenance record
+contains `validation_status=degraded`, the warning text, and
+`quality_warnings=["sensitivity_canary_failed"]`. The latest canary record is
+stored under `assets/QA/inference_validation_runs/`; a stale passing receipt
+cannot promote this model while the manifest remains degraded.
 
 ## Project-local lifecycle
 

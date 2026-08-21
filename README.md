@@ -14,7 +14,7 @@ It combines a FastAPI backend and an Angular 22 frontend to support end-to-end w
 
 The application runs locally as a FastAPI backend with an Angular-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
 
----
+
 
 ## 2. Model and Dataset (Optional)
 
@@ -24,7 +24,7 @@ Supported data sources:
 - **MIMIC-CXR** (initial validation dataset)
 - **Custom datasets** following the supported image-report pair format
 
----
+
 
 ## 3. Installation
 
@@ -99,7 +99,7 @@ npm ci
 npm run build
 ```
 
----
+
 
 ## 4. How to Use
 
@@ -179,13 +179,13 @@ The Tips & Tricks panel provides contextual onboarding, completed workflow steps
 
 For operator guidance, see `assets/docs/operations/getting_started.md` and `assets/docs/operations/workflows.md`.
 
----
+
 
 ## 5. Setup and Maintenance
 
 Use `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` on Windows to access the consolidated launch and maintenance menu.
 
----
+
 
 ## 6. Resources
 
@@ -214,7 +214,6 @@ downloads, tokenizers, templates, and caches live under
 `%LOCALAPPDATA%\XREPORT\data`. Data intentionally survives MSI upgrades and
 uninstall; remove that directory manually only when a full reset is wanted.
 
----
 
 ## 7. Configuration
 
@@ -245,7 +244,7 @@ private header. The packaged server adds same-origin CSP and standard browser
 hardening headers, and it exposes no Tauri filesystem, shell, process, or
 arbitrary-opener capability to the Angular content.
 
----
+
 
 ## 8. Development Status
 

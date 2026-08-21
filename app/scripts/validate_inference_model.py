@@ -33,6 +33,8 @@ from server.services.inference import (  # noqa: E402
     InferenceImageStore,
     run_inference_job,
 )
+from server.services.inference_runtime import InferenceRuntimeCoordinator  # noqa: E402
+from server.services.model_installation import ModelInstallationManager  # noqa: E402
 import server.services.inference as inference_service  # noqa: E402
 
 
@@ -182,6 +184,10 @@ def main() -> int:
     job_manager = JobManager()
     image_store = InferenceImageStore()
     provider = HuggingFaceProvider(settings)
+    runtime = InferenceRuntimeCoordinator(
+        huggingface_provider=provider,
+        installation_manager=ModelInstallationManager(),
+    )
     recorder = RecordingRepository()
     request_id = "validation_fixture"
     image_store.store(request_id, [image])
@@ -209,6 +215,10 @@ def main() -> int:
             clinical_context=args.clinical_context,
             request_id=request_id,
             job_id=job_id,
+            job_manager=job_manager,
+            inference_image_store=image_store,
+            runtime=runtime,
+            repository=recorder,
         )
         previous_result = job_manager.jobs[job_id].result or {}
         job_manager.jobs[job_id].update(
