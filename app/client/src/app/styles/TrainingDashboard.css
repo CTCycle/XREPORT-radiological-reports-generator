@@ -308,6 +308,16 @@
     font-size: 11px;
 }
 
+.chart-x-tick {
+    stroke: currentColor;
+    opacity: 0.35;
+}
+
+.chart-x-axis-label {
+    fill: currentColor;
+    font-size: 11px;
+}
+
 .chart-placeholder {
     display: flex;
     align-items: center;

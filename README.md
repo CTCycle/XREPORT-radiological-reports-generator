@@ -172,7 +172,7 @@ uv run alembic -c alembic.ini upgrade head
 
 ### 4.3 UI Snapshots
 
-The screenshots below were captured from the current Windows web interface at a consistent 1280×720 desktop viewport. Scrollable workflows use separate, focused frames so important content stays readable; the images are not stitched full-page captures.
+The screenshots below were captured from the current Windows web interface at a consistent 1280×720 desktop viewport. Each image is a focused panel frame rather than a stitched full-page capture, with the relevant scrollable content fit to the frame so text and controls remain readable.
 
 #### Dataset handling
 
@@ -182,7 +182,7 @@ The Dataset workflow keeps the source and processing controls together, then let
 
 #### Training dashboard
 
-This completed eight-epoch run shows final progress, plotted loss and accuracy points, final metrics, and the session log in one place.
+This live eight-epoch session shows 100% progress, labeled loss and accuracy axes, plotted metric points, final metrics, and the session log in one place.
 
 ![Populated training dashboard](assets/figures/readme-training.png)
 
@@ -196,7 +196,7 @@ The workflow keeps two de-identified study images, generation controls, and the 
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The editable review panel shows the generated Findings beside a reviewed Impression, with model, provider, revision, profile, and output metadata for qualified review.
+The editable review panel shows a generated raw draft after model inference, with model, provider, revision, profile, and output metadata ready for qualified review.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
 
