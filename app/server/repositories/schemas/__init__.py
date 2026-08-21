@@ -10,7 +10,6 @@ from server.repositories.schemas.models import (
     InferenceReport,
     InferenceRun,
     ProcessingRun,
-    SchemaMetadata,
     TrainingSample,
     ValidationRun,
 )
@@ -23,7 +22,6 @@ __all__ = [
     "DatasetRecord",
     "DatasetVersion",
     "ProcessingRun",
-    "SchemaMetadata",
     "TrainingSample",
     "ValidationRun",
     "Checkpoint",

@@ -98,3 +98,11 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
     )
     assert rejected.returncode != 0
     assert "forbidden runtime staging entry" in rejected.stderr
+
+
+def test_pyinstaller_spec_packages_alembic_migration_files() -> None:
+    spec = Path(__file__).parents[2] / "desktop" / "build" / "xreport_backend.spec"
+    source = spec.read_text(encoding="utf-8")
+
+    assert 'collect_submodules("alembic")' in source
+    assert '"server/migrations"' in source

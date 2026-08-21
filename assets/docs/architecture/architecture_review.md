@@ -6,13 +6,13 @@ This review records the implementation status of the architecture findings ident
 
 ## Summary
 
-No P0 blocker remains. The P1 findings were implemented and validated. The main P2 structural findings were also addressed: mutable job state is outside the domain package, service composition is explicit for preparation and inference, and the frontend API gateway is split by feature. Alembic remains intentionally deferred until the project adopts a migration policy for long-lived databases.
+No P0 blocker remains. The P1 findings were implemented and validated. The main P2 structural findings were also addressed: mutable job state is outside the domain package, service composition is explicit for preparation and inference, and the frontend API gateway is split by feature. Alembic now owns the long-lived database migration policy.
 
 ## Findings And Status
 
 | Priority | Finding | Status | Implementation |
 | --- | --- | --- | --- |
-| P1 | Existing databases had no startup schema compatibility check. | Resolved | `schema_metadata` records version 1; startup checks required tables and columns and fails clearly on incompatible or unsupported schemas. Structurally compatible unversioned databases are stamped. |
+| P1 | Existing databases had no startup schema compatibility check. | Resolved | Alembic startup checks the current revision, adopts only an exact known v1 unversioned schema, applies pending revisions under a migration lock, and fails clearly on incompatible or unsupported schemas. |
 | P1 | Generic `JobManager` contained inference-specific failure semantics. | Resolved | `JobManager` owns generic lifecycle state and fallback errors; feature services supply failure mapping when needed. |
 | P1 | Inference history persistence failures could be swallowed after generation. | Resolved | `run_inference_job` raises a typed `persistence_failed` job error and leaves the job failed when history persistence fails. |
 | P1 | `PreparationService` combined workflow coordination and dataset processing. | Resolved | `DatasetProcessingService` owns processing, splitting, tokenization, and processed-sample persistence behind an injected `DatasetRepository`. |
@@ -40,11 +40,15 @@ flowchart TD
 
 The architecture keeps contracts stable while allowing service and provider implementations to evolve behind injected boundaries. Persistence ownership remains singular: dataset, validation, and inference histories are written by their respective repositories.
 
-## Deferred Work
+## Migration Policy
 
 ### Alembic migration history
 
-The current release adds a version marker and compatibility guard, but it does not invent an upgrade path for arbitrary existing schemas. Alembic should be introduced when the project has a migration ownership and deployment policy, including supported upgrade/downgrade expectations, PostgreSQL rollout rules, and a test fixture strategy. Until then, incompatible schemas fail fast with recreate-or-migrate guidance.
+Alembic is now the schema authority. The baseline revision records the complete
+known v1 schema, and the head revision removes the transitional
+`schema_metadata` table. Startup and explicit initialization both upgrade to the
+single head, with strict adoption for existing unversioned databases and
+transaction/lock protection for concurrent processes.
 
 ### Broader service cleanup
 
