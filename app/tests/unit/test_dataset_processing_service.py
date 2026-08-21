@@ -23,29 +23,40 @@ def test_dataset_processing_uses_injected_runtime_dependencies(monkeypatch) -> N
     job_manager = MagicMock(spec=JobManager)
     job_manager.should_stop.return_value = False
 
+    ###############################################################################
     class SanitizerStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self, _configuration) -> None:
             pass
 
+        # -------------------------------------------------------------------------
         def sanitize_text(self, data: pd.DataFrame) -> pd.DataFrame:
             return data.copy()
 
+    ###############################################################################
     class TokenizerStub:
         tokenizer_id = "stub"
         vocabulary_size = 17
 
+        # -------------------------------------------------------------------------
         def __init__(self, _configuration) -> None:
             pass
 
+        # -------------------------------------------------------------------------
         def tokenize_text_corpus(self, data: pd.DataFrame) -> pd.DataFrame:
             result = data.copy()
             result["tokens"] = [[1], [2]]
             return result
 
+    ###############################################################################
     class SplitStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self, _configuration, data: pd.DataFrame) -> None:
             self.data = data
 
+        # -------------------------------------------------------------------------
         def split_train_and_validation(self) -> pd.DataFrame:
             result = self.data.copy()
             result["split"] = ["train", "validation"]

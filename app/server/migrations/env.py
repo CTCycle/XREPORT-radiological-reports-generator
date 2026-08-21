@@ -15,11 +15,13 @@ config = context.config
 target_metadata = Base.metadata
 
 
+###############################################################################
 def _configured_url() -> str | None:
     value = (config.get_main_option("sqlalchemy.url") or "").strip()
     return value or None
 
 
+###############################################################################
 def _database_engine() -> tuple[Engine, bool]:
     """Return a CLI engine and whether the caller owns its disposal."""
     configured_url = _configured_url()
@@ -36,6 +38,7 @@ def _database_engine() -> tuple[Engine, bool]:
     return database.engine, True
 
 
+###############################################################################
 def _configure(connection: Connection) -> None:
     context.configure(
         connection=connection,
@@ -46,6 +49,7 @@ def _configure(connection: Connection) -> None:
     )
 
 
+###############################################################################
 def run_migrations_offline() -> None:
     url = _configured_url()
     if not url:
@@ -67,6 +71,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+###############################################################################
 def run_migrations_online() -> None:
     supplied_connection: Connection | None = config.attributes.get("connection")
     if supplied_connection is not None:
