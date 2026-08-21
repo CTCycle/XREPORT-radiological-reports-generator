@@ -95,6 +95,10 @@ interface ChartGroup {
                 <title [attr.id]="chartId(chart.title)">{{ chart.title }} training chart</title>
                 <line x1="48" y1="24" x2="48" y2="210" stroke="currentColor" opacity=".25"/>
                 <line x1="48" y1="210" x2="620" y2="210" stroke="currentColor" opacity=".25"/>
+                @for (tick of chartTicks(chart.maxValue); track tick) {
+                  <line class="chart-y-grid-line" x1="48" [attr.y1]="chartTickY(tick, chart.maxValue)" x2="620" [attr.y2]="chartTickY(tick, chart.maxValue)"/>
+                  <text class="chart-y-axis-label" x="42" [attr.y]="chartTickY(tick, chart.maxValue) + 4" text-anchor="end">{{ chartTickLabel(chart.title, tick) }}</text>
+                }
                 @for (boundary of dashboardState.epochBoundaries; track boundary) {
                   <line [attr.x1]="chartX(boundary, chart.maxBatch)" y1="24" [attr.x2]="chartX(boundary, chart.maxBatch)" y2="210" stroke="currentColor" opacity=".25" stroke-dasharray="4 4"/>
                 }
@@ -194,6 +198,20 @@ export class TrainingDashboardComponent {
 
   chartX(batch: number, maxBatch: number): number {
     return 48 + Math.max(0, Math.min(1, batch / Math.max(maxBatch, 1))) * 572;
+  }
+
+  chartTicks(maxValue: number): number[] {
+    const safeMax = Math.max(maxValue, 1);
+    return [safeMax, safeMax / 2, 0];
+  }
+
+  chartTickY(value: number, maxValue: number): number {
+    return 210 - (Math.max(0, Math.min(1, value / Math.max(maxValue, 1))) * 186);
+  }
+
+  chartTickLabel(title: string, value: number): string {
+    if (title === 'Accuracy') return `${Math.round(value * 100)}%`;
+    return value.toFixed(value >= 10 ? 0 : 2);
   }
 
   chartPoints(values: { batch: number; value: number }[], maxValue: number, maxBatch: number): string {

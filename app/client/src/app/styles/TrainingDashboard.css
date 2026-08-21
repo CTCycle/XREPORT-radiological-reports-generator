@@ -297,6 +297,17 @@
     background: var(--bg-primary);
 }
 
+.chart-y-grid-line {
+    stroke: currentColor;
+    stroke-dasharray: 2 3;
+    opacity: 0.14;
+}
+
+.chart-y-axis-label {
+    fill: currentColor;
+    font-size: 11px;
+}
+
 .chart-placeholder {
     display: flex;
     align-items: center;
