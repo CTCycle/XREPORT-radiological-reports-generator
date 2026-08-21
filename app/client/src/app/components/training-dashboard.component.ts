@@ -105,8 +105,10 @@ interface ChartGroup {
                 @for (series of chart.series; track series.key) {
                   <polyline [attr.points]="chartPoints(series.values, chart.maxValue, chart.maxBatch)" fill="none" [attr.stroke]="series.color" stroke-width="2" [attr.aria-label]="series.label"/>
                 }
-                <text x="48" y="232" font-size="11">0</text>
-                <text x="600" y="232" font-size="11">{{ chart.maxBatch }}</text>
+                @for (tick of chartXTicks(chart.maxBatch); track tick) {
+                  <line class="chart-x-tick" [attr.x1]="chartX(tick, chart.maxBatch)" y1="210" [attr.x2]="chartX(tick, chart.maxBatch)" y2="214"/>
+                  <text class="chart-x-axis-label" [attr.x]="chartX(tick, chart.maxBatch)" y="232" text-anchor="middle">{{ tick }}</text>
+                }
               </svg>
               <div class="chart-legend" aria-label="Chart legend">
                 @for (series of chart.series; track series.key) {
@@ -198,6 +200,23 @@ export class TrainingDashboardComponent {
 
   chartX(batch: number, maxBatch: number): number {
     return 48 + Math.max(0, Math.min(1, batch / Math.max(maxBatch, 1))) * 572;
+  }
+
+  chartXTicks(maxBatch: number): number[] {
+    const safeMax = Math.max(1, Math.ceil(maxBatch));
+    const step = safeMax <= 12 ? 1 : safeMax <= 24 ? 2 : safeMax <= 60 ? 5 : safeMax <= 120 ? 10 : this.scaledChartXTickStep(safeMax);
+    const ticks = [0];
+    for (let value = step; value < safeMax; value += step) ticks.push(value);
+    if (ticks[ticks.length - 1] !== safeMax) ticks.push(safeMax);
+    return ticks;
+  }
+
+  private scaledChartXTickStep(maxBatch: number): number {
+    const rawStep = maxBatch / 12;
+    const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+    const normalized = rawStep / magnitude;
+    const niceStep = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return niceStep * magnitude;
   }
 
   chartTicks(maxValue: number): number[] {

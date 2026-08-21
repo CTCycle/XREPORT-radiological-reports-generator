@@ -64,6 +64,11 @@ describe('TrainingDashboardComponent', () => {
     expect(element.querySelector('.progress-time')?.textContent).toContain('1h 1m 1s');
     expect(element.querySelectorAll('.training-chart')).toHaveLength(2);
     expect(element.querySelectorAll('.chart-legend span')).toHaveLength(4);
+    expect(element.querySelectorAll('.chart-y-axis-label')).toHaveLength(6);
+    expect([...element.querySelectorAll('.chart-y-axis-label')].map((label) => label.textContent?.trim())).toContain('100%');
+    expect([...element.querySelectorAll('.chart-x-axis-label')].map((label) => label.textContent?.trim())).toEqual(['0', '1', '2', '0', '1', '2']);
+    expect(fixture.componentInstance.chartXTicks(8)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(fixture.componentInstance.chartXTicks(30)).toEqual([0, 5, 10, 15, 20, 25, 30]);
     expect(element.querySelector('.log-body')?.textContent).toContain('job-1');
     expect(element.querySelector<HTMLButtonElement>('.btn-stop')?.disabled).toBe(false);
     expect(element.querySelectorAll('.metric-value.accuracy')[0]?.textContent).toContain('80.000%');
