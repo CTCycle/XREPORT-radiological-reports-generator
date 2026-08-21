@@ -15,10 +15,12 @@ import shutil
 import tempfile
 
 
+###############################################################################
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+###############################################################################
 @dataclass(frozen=True)
 class RuntimeLayout:
     mode: str
@@ -27,22 +29,27 @@ class RuntimeLayout:
     release_version: str | None
     variant: str | None
 
+    # -------------------------------------------------------------------------
     @property
     def packaged(self) -> bool:
         return self.mode == "packaged"
 
+    # -------------------------------------------------------------------------
     @property
     def settings_template(self) -> Path:
         return self.runtime_root / "settings" / ".env.example"
 
+    # -------------------------------------------------------------------------
     @property
     def configuration_template(self) -> Path:
         return self.runtime_root / "settings" / "configurations.json"
 
+    # -------------------------------------------------------------------------
     @property
     def mutable_settings_dir(self) -> Path:
         return self.data_root / "settings"
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_environment(cls) -> "RuntimeLayout":
         packaged = _truthy(os.getenv("XREPORT_DESKTOP"))
@@ -67,6 +74,7 @@ class RuntimeLayout:
         return cls("packaged", runtime_root, data_root, version, variant)
 
 
+###############################################################################
 def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
     if destination.exists():
         return False
@@ -87,6 +95,7 @@ def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
     return True
 
 
+###############################################################################
 def ensure_packaged_data(layout: RuntimeLayout) -> None:
     """Create the data tree and seed first-run files without overwriting edits."""
     if not layout.packaged:
@@ -112,6 +121,7 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
         (layout.data_root / name).mkdir(parents=True, exist_ok=True)
 
 
+###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     """Validate the extracted runtime manifest before importing application code."""
     if not layout.packaged:
@@ -133,6 +143,7 @@ def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     return payload
 
 
+###############################################################################
 def runtime_layout_from_environment() -> RuntimeLayout:
     layout = RuntimeLayout.from_environment()
     if layout.packaged:

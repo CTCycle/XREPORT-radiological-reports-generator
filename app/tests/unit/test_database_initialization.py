@@ -22,6 +22,7 @@ from server.repositories.database.utils import UPSERT_CONFLICT_COLUMNS
 from server.repositories.schemas import Base
 
 
+###############################################################################
 def _sqlite_settings() -> DatabaseSettings:
     return DatabaseSettings(
         backend="sqlite",
@@ -38,6 +39,7 @@ def _sqlite_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def _postgres_settings() -> DatabaseSettings:
     return DatabaseSettings(
         backend="postgresql",
@@ -54,21 +56,25 @@ def _postgres_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
     monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
     monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
 
 
+###############################################################################
 def _alembic_config(path: Path) -> Config:
     config = Config(str(initializer.MIGRATIONS_DIR.parent / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
     return config
 
 
+###############################################################################
 def _create_revision(path: Path, revision: str) -> None:
     command.upgrade(_alembic_config(path), revision)
 
 
+###############################################################################
 def _database_tables(path: Path) -> set[str]:
     engine = sqlalchemy.create_engine(f"sqlite:///{path}")
     try:
@@ -77,6 +83,7 @@ def _database_tables(path: Path) -> set[str]:
         engine.dispose()
 
 
+###############################################################################
 def test_current_inference_persistence_contract_matches_orm() -> None:
     assert set(TABLE_REQUIRED_COLUMNS[INFERENCE_RUNS_TABLE]) == {
         "checkpoint_id",
@@ -97,6 +104,7 @@ def test_current_inference_persistence_contract_matches_orm() -> None:
     )
 
 
+###############################################################################
 def test_empty_sqlite_database_is_migrated_to_head(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -118,6 +126,7 @@ def test_empty_sqlite_database_is_migrated_to_head(tmp_path, monkeypatch) -> Non
         engine.dispose()
 
 
+###############################################################################
 def test_repeated_sqlite_initialization_is_idempotent(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -131,6 +140,7 @@ def test_repeated_sqlite_initialization_is_idempotent(tmp_path, monkeypatch) -> 
     }
 
 
+###############################################################################
 @pytest.mark.parametrize("drop_marker", [False, True])
 def test_known_unversioned_schema_is_adopted_without_data_loss(
     tmp_path,
@@ -170,6 +180,7 @@ def test_known_unversioned_schema_is_adopted_without_data_loss(
         engine.dispose()
 
 
+###############################################################################
 def test_database_one_revision_behind_is_upgraded(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -187,6 +198,7 @@ def test_database_one_revision_behind_is_upgraded(tmp_path, monkeypatch) -> None
         engine.dispose()
 
 
+###############################################################################
 def test_partial_unversioned_schema_fails_without_stamping(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -205,6 +217,7 @@ def test_partial_unversioned_schema_fails_without_stamping(tmp_path, monkeypatch
     assert "alembic_version" not in _database_tables(database_path)
 
 
+###############################################################################
 def test_unexpected_unversioned_object_fails_without_stamping(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -223,6 +236,7 @@ def test_unexpected_unversioned_object_fails_without_stamping(tmp_path, monkeypa
     assert "alembic_version" not in _database_tables(database_path)
 
 
+###############################################################################
 def test_invalid_legacy_marker_fails_without_stamping(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -243,6 +257,7 @@ def test_invalid_legacy_marker_fails_without_stamping(tmp_path, monkeypatch) -> 
     assert "alembic_version" not in _database_tables(database_path)
 
 
+###############################################################################
 @pytest.mark.parametrize(
     "version_rows, message",
     [
@@ -276,6 +291,7 @@ def test_invalid_alembic_version_state_fails(
         initializer.prepare_database_for_startup(_sqlite_settings())
 
 
+###############################################################################
 def test_failed_migration_rolls_back_the_shared_transaction(
     tmp_path,
     monkeypatch,
@@ -296,6 +312,7 @@ def test_failed_migration_rolls_back_the_shared_transaction(
     assert "alembic_version" not in _database_tables(database_path)
 
 
+###############################################################################
 def test_migrated_schema_has_no_autogenerate_drift(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -317,6 +334,7 @@ def test_migrated_schema_has_no_autogenerate_drift(tmp_path, monkeypatch) -> Non
         engine.dispose()
 
 
+###############################################################################
 def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -332,6 +350,7 @@ def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
         initializer.prepare_database_for_startup(_sqlite_settings())
 
 
+###############################################################################
 def test_unexpected_head_table_blocks_startup(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -347,6 +366,7 @@ def test_unexpected_head_table_blocks_startup(tmp_path, monkeypatch) -> None:
         initializer.prepare_database_for_startup(_sqlite_settings())
 
 
+###############################################################################
 def test_concurrent_sqlite_initializers_are_serialized(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
@@ -367,6 +387,7 @@ def test_concurrent_sqlite_initializers_are_serialized(tmp_path, monkeypatch) ->
         engine.dispose()
 
 
+###############################################################################
 def test_postgres_startup_uses_the_same_migration_coordinator(monkeypatch) -> None:
     settings = _postgres_settings()
     calls: list[str] = []
@@ -381,6 +402,7 @@ def test_postgres_startup_uses_the_same_migration_coordinator(monkeypatch) -> No
     assert calls == ["initialize"]
 
 
+###############################################################################
 def test_postgres_startup_failure_is_sanitized(monkeypatch) -> None:
     settings = _postgres_settings()
     failure = sqlalchemy.exc.OperationalError(
@@ -400,6 +422,7 @@ def test_postgres_startup_failure_is_sanitized(monkeypatch) -> None:
     assert "secret" not in str(exc_info.value).lower()
 
 
+###############################################################################
 def test_error_sanitizer_redacts_password_assignments() -> None:
     sanitized = initializer._sanitize_error("password=secret; url=postgresql://user:secret@host/db")
 
@@ -407,6 +430,7 @@ def test_error_sanitizer_redacts_password_assignments() -> None:
     assert sanitized.count("<redacted>") == 2
 
 
+###############################################################################
 def test_postgres_initialization_is_reached_by_manual_entrypoint(monkeypatch) -> None:
     settings = _postgres_settings()
     calls: list[str] = []

@@ -19,6 +19,7 @@ SHUTDOWN_PATH = "/__xreport/shutdown"
 HEALTH_PATH = "/api/health"
 
 
+###############################################################################
 def desktop_token() -> str:
     token = os.getenv("XREPORT_DESKTOP_TOKEN", "")
     if len(token) < 32:
@@ -26,10 +27,12 @@ def desktop_token() -> str:
     return token
 
 
+###############################################################################
 def token_matches(candidate: str | None) -> bool:
     return bool(candidate) and hmac.compare_digest(candidate, desktop_token())
 
 
+###############################################################################
 def _security_headers(response: Response) -> Response:
     response.headers.setdefault(
         "Content-Security-Policy",
@@ -51,6 +54,7 @@ def _security_headers(response: Response) -> Response:
     return response
 
 
+###############################################################################
 class DesktopSecurityMiddleware(BaseHTTPMiddleware):
     """Require the per-launch cookie for every packaged UI/API request.
 
@@ -59,6 +63,7 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
     is the only endpoint that accepts the token in a URL.
     """
 
+    # -------------------------------------------------------------------------
     async def dispatch(
         self,
         request: Request,
@@ -90,6 +95,7 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
         return _security_headers(response)
 
 
+###############################################################################
 def install_shutdown_event(application: Any) -> asyncio.Event:
     event_factory = getattr(asyncio, "Event")
     event = event_factory()

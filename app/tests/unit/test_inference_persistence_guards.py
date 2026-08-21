@@ -36,6 +36,8 @@ def _setup_job(
 
 ###############################################################################
 def _runtime_stub(provider: Any) -> Any:
+
+    ###############################################################################
     class RuntimeStub:
 
         # -------------------------------------------------------------------------
@@ -58,6 +60,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     request_id = "request-cancelled"
     _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
 
+    ###############################################################################
     class CancellingProvider:
 
         # -------------------------------------------------------------------------

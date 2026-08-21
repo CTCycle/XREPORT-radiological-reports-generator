@@ -35,10 +35,12 @@ _SAFE_INHERITED_ENVIRONMENT = {
 }
 
 
+###############################################################################
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+###############################################################################
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
@@ -46,11 +48,13 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+###############################################################################
 def _remove_file(path: Path | None) -> None:
     if path is not None:
             path.unlink(missing_ok=True)
 
 
+###############################################################################
 def _write_ready(
     ready_file: Path,
     session_file: Path,
@@ -79,6 +83,7 @@ def _write_ready(
     )
 
 
+###############################################################################
 def _sanitize_inherited_environment() -> None:
     """Drop arbitrary parent variables before loading the packaged .env.
 
@@ -105,6 +110,7 @@ def _sanitize_inherited_environment() -> None:
             os.environ.pop(key, None)
 
 
+###############################################################################
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="XREPORT packaged backend")
     parser.add_argument("--host", default="127.0.0.1")
@@ -116,6 +122,7 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+###############################################################################
 def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
     _sanitize_inherited_environment()
     os.environ["XREPORT_DESKTOP"] = "true"
@@ -130,6 +137,7 @@ def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
     return ready_file, session_file
 
 
+###############################################################################
 def _validate_runtime(arguments: argparse.Namespace) -> None:
     layout_module = import_module("server.common.runtime_layout")
     layout = layout_module.runtime_layout_from_environment()
@@ -137,6 +145,7 @@ def _validate_runtime(arguments: argparse.Namespace) -> None:
         raise RuntimeError("Desktop entry arguments do not match the runtime contract")
 
 
+###############################################################################
 def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]:
     if arguments.host not in {"127.0.0.1", "localhost"}:
         raise RuntimeError("Packaged XREPORT backend must bind to loopback")
@@ -152,6 +161,7 @@ def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]
     return listener, int(listener.getsockname()[1])
 
 
+###############################################################################
 def _configure_server_environment(port: int) -> None:
     os.environ["FASTAPI_HOST"] = "127.0.0.1"
     os.environ["FASTAPI_PORT"] = str(port)
@@ -175,6 +185,7 @@ def _configure_server_environment(port: int) -> None:
     os.environ["KERAS_HOME"] = str(model_root / "keras")
 
 
+###############################################################################
 def _run_server(
     listener: socket.socket,
     port: int,
@@ -208,6 +219,7 @@ def _run_server(
     server.run(sockets=[listener])
 
 
+###############################################################################
 def main() -> int:
     arguments = _parse_args()
     ready_file, session_file = _prepare_contract(arguments)

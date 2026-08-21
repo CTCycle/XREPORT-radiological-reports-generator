@@ -53,6 +53,7 @@ class JobState:
 class JobExecutionError(RuntimeError):
     """Typed failure payload supplied by a feature-specific job runner."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         message: str,

@@ -54,6 +54,7 @@ def health_check(request: Request) -> HealthResponse:
     )
 
 
+###############################################################################
 def request_shutdown(request: Request) -> JSONResponse:
     event = getattr(request.app.state, "desktop_shutdown_event", None)
     if event is not None:
@@ -61,6 +62,7 @@ def request_shutdown(request: Request) -> JSONResponse:
     return JSONResponse({"status": "shutting_down"})
 
 
+###############################################################################
 async def wait_for_desktop_shutdown(
     shutdown_event: asyncio.Event,
     desktop_server: object,
@@ -69,6 +71,7 @@ async def wait_for_desktop_shutdown(
     desktop_server.should_exit = True  # type: ignore[attr-defined]
 
 
+###############################################################################
 def serve_packaged_frontend(path: str) -> FileResponse:
     relative = Path(path)
     candidate = (CLIENT_DIST_DIR / relative).resolve()

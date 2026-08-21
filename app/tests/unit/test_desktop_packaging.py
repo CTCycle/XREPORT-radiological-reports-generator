@@ -9,6 +9,7 @@ from server.common.desktop_security import token_matches
 from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 
 
+###############################################################################
 def test_packaged_layout_seeds_data_without_overwriting_edits(tmp_path: Path, monkeypatch) -> None:
     runtime = tmp_path / "runtime"
     data = tmp_path / "data"
@@ -32,6 +33,7 @@ def test_packaged_layout_seeds_data_without_overwriting_edits(tmp_path: Path, mo
     assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
 
 
+###############################################################################
 def test_desktop_token_is_constant_time_checked(monkeypatch) -> None:
     token = "a" * 64
     monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
@@ -40,6 +42,7 @@ def test_desktop_token_is_constant_time_checked(monkeypatch) -> None:
     assert not token_matches(None)
 
 
+###############################################################################
 def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path) -> None:
     staging = tmp_path / "staging"
     (staging / "backend").mkdir(parents=True)
@@ -100,6 +103,7 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
     assert "forbidden runtime staging entry" in rejected.stderr
 
 
+###############################################################################
 def test_pyinstaller_spec_packages_alembic_migration_files() -> None:
     spec = Path(__file__).parents[2] / "desktop" / "build" / "xreport_backend.spec"
     source = spec.read_text(encoding="utf-8")
