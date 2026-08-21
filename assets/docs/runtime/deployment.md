@@ -24,6 +24,18 @@ Last updated: 2026-08-20
 - Python dependencies are synchronized from `app/server/pyproject.toml`.
 - Frontend dependencies are installed from `app/client/package-lock.json` when it exists.
 
+## Database Migration Lifecycle
+
+- Install/update and every backend startup run the same synchronous Alembic
+  coordinator before the application reports readiness.
+- Development migrations are generated and reviewed from `Base.metadata`; the
+  application only applies checked-in revisions.
+- Production upgrades use the shared connection/transaction path, SQLite
+  exclusive locking, and PostgreSQL advisory locking. Back up persistent data
+  before deploying a release containing a schema migration.
+- The frozen backend packages `server/migrations` as immutable runtime data;
+  the database remains in the user data root.
+
 ## Desktop release layout
 
 The Windows release command freezes the backend with the pinned desktop

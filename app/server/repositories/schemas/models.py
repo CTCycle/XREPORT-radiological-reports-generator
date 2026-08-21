@@ -24,14 +24,6 @@ class Base(DeclarativeBase):
     pass
 
 ###############################################################################
-class SchemaMetadata(Base):
-    """Application schema compatibility marker."""
-
-    __tablename__ = "schema_metadata"
-    schema_name: Mapped[str] = mapped_column(String(64), primary_key=True)
-    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
-
-###############################################################################
 class Dataset(Base):
     """Canonical dataset identity."""
 
