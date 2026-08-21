@@ -25,14 +25,20 @@ from server.domain.jobs import (
 )
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
-from server.services.jobs import JobManager, get_job_manager
+from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.services.validation import DatasetValidator
 from server.repositories.serialization.validation import ValidationRepository
-from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.dataset import (
+    DatasetIntegrityError,
+    DatasetRepository,
+)
 from server.repositories.serialization.model import ModelSerializer
 from server.configurations.startup import get_server_settings
 from server.models.training.dataloader import XRAYDataLoader
-from server.services.evaluation import CheckpointEvaluator
+from server.services.evaluation import (
+    CheckpointEvaluator,
+    CheckpointInputMismatchError,
+)
 from server.configurations import ServerSettings
 
 ###############################################################################
@@ -99,7 +105,14 @@ def run_validation_job(
     if jm.should_stop(job_id):
         return {}
     dataset_name = _resolve_dataset_name(dataset, dataset_name)
-    dataset = dataset_repository.validate_img_paths(dataset)
+    try:
+        dataset = dataset_repository.validate_img_paths(dataset)
+    except DatasetIntegrityError as exc:
+        raise JobExecutionError(
+            str(exc),
+            code="dataset_integrity_failed",
+            phase="input_validation",
+        ) from exc
     if dataset.empty:
         return {
             "success": False,
@@ -331,7 +344,7 @@ def run_checkpoint_evaluation_job(
     if jm.should_stop(job_id):
         return {}
     evaluator = CheckpointEvaluator(model, train_config, model_metadata)
-    validation_data = _load_checkpoint_validation_data(metrics)
+    validation_data = _load_checkpoint_validation_data(metrics, train_config)
     metric_results = _run_checkpoint_metrics(
         evaluator,
         train_config,
@@ -418,15 +431,34 @@ def _load_checkpoint_for_evaluation(
 ###############################################################################
 def _load_checkpoint_validation_data(
     metrics: Any,
+    train_config: dict[str, Any],
 ) -> pd.DataFrame | None:
     if "evaluation_report" not in metrics and "bleu_score" not in metrics:
         return None
+    dataset_name = str(train_config.get("dataset_name") or "").strip()
+    if not dataset_name:
+        raise JobExecutionError(
+            "Checkpoint configuration does not identify its processed dataset.",
+            code="checkpoint_dataset_unavailable",
+            phase="input_validation",
+        )
+
     repository = DatasetRepository()
-    _, validation_data, _ = repository.load_training_data()
-    if isinstance(validation_data, pd.DataFrame) and validation_data.empty:
-        logger.warning("No validation data available for checkpoint evaluation")
-        return validation_data
-    return repository.validate_img_paths(validation_data)
+    _, validation_data, _ = repository.load_training_data(dataset_name=dataset_name)
+    if not isinstance(validation_data, pd.DataFrame) or validation_data.empty:
+        raise JobExecutionError(
+            f"No validation data is available for checkpoint dataset '{dataset_name}'.",
+            code="checkpoint_dataset_unavailable",
+            phase="input_validation",
+        )
+    try:
+        return repository.validate_img_paths(validation_data)
+    except DatasetIntegrityError as exc:
+        raise JobExecutionError(
+            f"Checkpoint dataset '{dataset_name}' failed image-path validation: {exc}",
+            code="dataset_integrity_failed",
+            phase="input_validation",
+        ) from exc
 
 ###############################################################################
 def _run_evaluation_report_metric(
@@ -447,7 +479,15 @@ def _run_evaluation_report_metric(
     if eval_data.empty:
         return {}, {"data_fraction": evaluation_fraction}
     validation_dataset = XRAYDataLoader(train_config).build_training_dataloader(eval_data)
-    eval_results = evaluator.evaluate_model(validation_dataset)
+    try:
+        evaluator.preflight_validation_dataset(validation_dataset)
+        eval_results = evaluator.evaluate_model(validation_dataset)
+    except CheckpointInputMismatchError as exc:
+        raise JobExecutionError(
+            str(exc),
+            code="checkpoint_input_mismatch",
+            phase="input_validation",
+        ) from exc
     return {
         "loss": eval_results.get("loss"),
         "accuracy": eval_results.get("accuracy"),

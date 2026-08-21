@@ -2,7 +2,7 @@ export type GenerationProfile = 'deterministic' | 'concise' | 'detailed';
 export type ModelStatus = 'ready' | 'not_installed' | 'unvalidated' | 'downloading' | 'gated' | 'runtime_unavailable' | 'incompatible' | 'disabled';
 export type LocalModelState = 'not_downloaded' | 'downloading' | 'downloaded_unvalidated' | 'ready' | 'failed';
 export type OutputSection = 'raw_report' | 'findings' | 'impression';
-export type ValidationStatus = 'blocked' | 'incompatible' | 'disabled' | 'pending' | 'passed';
+export type ValidationStatus = 'blocked' | 'incompatible' | 'disabled' | 'pending' | 'degraded' | 'passed';
 
 export interface ModelAvailability {
     model_ref: string;

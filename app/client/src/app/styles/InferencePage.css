@@ -545,8 +545,9 @@
 .model-note {
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-secondary));
-    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--warning-color) 14%, var(--bg-secondary));
+    color: var(--text-primary);
+    border: 1px solid color-mix(in srgb, var(--warning-color) 42%, transparent);
     font-size: var(--text-xs);
 }
 

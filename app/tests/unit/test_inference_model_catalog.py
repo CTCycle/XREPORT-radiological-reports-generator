@@ -74,6 +74,11 @@ def test_catalog_lists_exactly_five_public_models_and_custom_refs(monkeypatch) -
     assert response.models[0].available_actions == ["download"]
     xreport = response.models[-1]
     assert xreport.output_sections == ["raw_report"]
+    cxrmate_ed = next(
+        model for model in public if model.model_ref.endswith("aehrc/cxrmate-ed")
+    )
+    assert cxrmate_ed.validation_status == "degraded"
+    assert "sensitivity canary failed" in (cxrmate_ed.validation_message or "")
 
 ###############################################################################
 def test_catalog_disables_huggingface_when_local_only_is_disabled(monkeypatch) -> None:

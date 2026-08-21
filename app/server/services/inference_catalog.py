@@ -23,6 +23,7 @@ from server.services.model_installation import ModelInstallationManager
 
 
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
+CXRMATE_ED_PROFILE_CONTRACT_VERSION = 1
 VALIDATION_RECEIPTS_DIR = (
     DATA_ROOT / "validation_receipts"
     if PACKAGED_MODE
@@ -56,6 +57,11 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "weight_file_sets": entry.weight_file_sets,
         "trust_remote_code": entry.trust_remote_code,
         "remote_code_approved": entry.remote_code_approved,
+        "generation_profile_contract_version": (
+            CXRMATE_ED_PROFILE_CONTRACT_VERSION
+            if entry.adapter == "cxrmate_ed"
+            else None
+        ),
     }
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
@@ -155,9 +161,15 @@ class InferenceModelCatalog:
             "status": status,
             "status_message": status_message,
             "enabled": entry.enabled,
-            "validation_status": "passed" if has_validation_evidence else entry.validation_status,
+            "validation_status": (
+                entry.validation_status
+                if entry.validation_status == "degraded"
+                else "passed" if has_validation_evidence else entry.validation_status
+            ),
             "validation_message": (
-                None if has_validation_evidence else entry.validation_message
+                entry.validation_message
+                if entry.validation_status == "degraded"
+                else None if has_validation_evidence else entry.validation_message
             ),
             "category": entry.category,
             "recommended": entry.recommended,

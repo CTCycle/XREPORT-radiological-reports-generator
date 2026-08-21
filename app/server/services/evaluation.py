@@ -13,6 +13,10 @@ from server.common.utils.logger import logger
 from server.models.inference import TextGenerator
 
 ###############################################################################
+class CheckpointInputMismatchError(ValueError):
+    """Raised when checkpoint input shapes do not match evaluation data."""
+
+###############################################################################
 class CheckpointEvaluator:
 
     # -------------------------------------------------------------------------
@@ -53,6 +57,101 @@ class CheckpointEvaluator:
         except Exception as e:
             logger.error(f"Model evaluation failed: {e}")
             raise
+
+    # -------------------------------------------------------------------------
+    def preflight_validation_dataset(self, validation_dataset: DataLoader) -> None:
+        """Validate and, when necessary, build the model from a real data batch."""
+        try:
+            batch = next(iter(validation_dataset))
+        except StopIteration as exc:
+            raise CheckpointInputMismatchError(
+                "Checkpoint validation data is empty."
+            ) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise CheckpointInputMismatchError(
+                f"Unable to read a checkpoint validation batch: {exc}"
+            ) from exc
+
+        model_inputs = batch[0] if isinstance(batch, (tuple, list)) else batch
+        if not isinstance(model_inputs, (tuple, list)):
+            model_inputs = (model_inputs,)
+        actual_shapes = [
+            self._without_batch_dimension(tuple(getattr(value, "shape", ())))
+            for value in model_inputs
+        ]
+        expected_shapes = self._model_input_shapes()
+
+        if expected_shapes and len(expected_shapes) != len(actual_shapes):
+            raise CheckpointInputMismatchError(
+                "Checkpoint expects "
+                f"{len(expected_shapes)} input(s), but validation data provides "
+                f"{len(actual_shapes)}."
+            )
+
+        if expected_shapes:
+            mismatches = [
+                (index, expected, actual)
+                for index, (expected, actual) in enumerate(
+                    zip(expected_shapes, actual_shapes, strict=True)
+                )
+                if not self._shapes_compatible(expected, actual)
+            ]
+            if mismatches:
+                details = "; ".join(
+                    f"input {index}: expected {expected}, found {actual}"
+                    for index, expected, actual in mismatches
+                )
+                raise CheckpointInputMismatchError(
+                    f"Checkpoint input shape mismatch ({details})."
+                )
+
+        if not getattr(self.model, "built", True):
+            try:
+                self.model.build(
+                    [
+                        (None, *shape)
+                        for shape in actual_shapes
+                    ]
+                )
+            except Exception as exc:  # noqa: BLE001
+                raise CheckpointInputMismatchError(
+                    f"Unable to build checkpoint model for validation inputs: {exc}"
+                ) from exc
+
+    # -------------------------------------------------------------------------
+    def _model_input_shapes(self) -> list[tuple[Any, ...]]:
+        raw_shapes = getattr(self.model, "input_shape", None)
+        if raw_shapes is None:
+            return []
+        if (
+            isinstance(raw_shapes, tuple)
+            and raw_shapes
+            and (raw_shapes[0] is None or isinstance(raw_shapes[0], int))
+        ):
+            raw_shapes = [raw_shapes]
+        if not isinstance(raw_shapes, (tuple, list)):
+            return []
+        return [
+            tuple(shape[1:]) if len(shape) > 0 and shape[0] is None else tuple(shape)
+            for shape in raw_shapes
+            if isinstance(shape, (tuple, list))
+        ]
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _shapes_compatible(
+        expected: tuple[Any, ...],
+        actual: tuple[Any, ...],
+    ) -> bool:
+        return len(expected) == len(actual) and all(
+            expected_value is None or int(expected_value) == int(actual_value)
+            for expected_value, actual_value in zip(expected, actual, strict=True)
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _without_batch_dimension(shape: tuple[Any, ...]) -> tuple[Any, ...]:
+        return shape[1:] if shape else shape
 
     # -------------------------------------------------------------------------
     def normalize_report_text(
