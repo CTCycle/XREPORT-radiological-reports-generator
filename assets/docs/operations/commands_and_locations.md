@@ -14,6 +14,10 @@ Last updated: 2026-08-21
 
 Release artifacts are under `release/`. Desktop staging and Cargo output are
 under `app/desktop/build` and `app/desktop/src-tauri/target`; both are ignored.
+From the interactive launcher, use the **DESKTOP RELEASE** section to create
+or remove CPU/CUDA portable and MSI payloads individually, or select all four.
+Interactive removal updates the selected variant manifests; the direct remove
+action above removes the complete desktop release build output.
 Packaged logs are `%LOCALAPPDATA%\XREPORT\data\logs\desktop-shell.log` and the
 timestamped backend logs beside it. Readiness/session files in
 `%LOCALAPPDATA%\XREPORT\data\state` are temporary and are removed at exit.
