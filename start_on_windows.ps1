@@ -8,7 +8,7 @@ param(
     [ValidateSet('Portable', 'Msi', 'All')]
     [string]$DesktopTarget = 'All',
     [switch]$OfflineWebView2,
-    [string]$Version = '1.0.0',
+    [string]$Version = '3.0.0',
     [switch]$Force,
     [switch]$AllowDirtyTree
 )
@@ -288,6 +288,7 @@ function Install-Dependencies {
     }
 
     Install-FrontendDependencies
+    Install-DesktopDependencies
 
     if ($BuildFrontend) {
         Invoke-FrontendBuild
@@ -298,6 +299,12 @@ function Install-FrontendDependencies {
     Write-Step 'Installing frontend dependencies'
     $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) { @('ci') } else { @('install') }
     Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $ClientDir
+}
+
+function Install-DesktopDependencies {
+    Write-Step 'Installing desktop dependencies'
+    $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $DesktopDir 'package-lock.json')) { @('ci') } else { @('install') }
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $DesktopDir
 }
 
 function Invoke-FrontendBuild {
@@ -320,6 +327,19 @@ function Test-FrontendDependenciesReady {
         (Test-Path -LiteralPath $frontendRunner)
 }
 
+function Test-DesktopDependenciesReady {
+    $desktopPackage = Join-Path $DesktopDir 'package.json'
+    $desktopLock = Join-Path $DesktopDir 'package-lock.json'
+    $desktopModules = Join-Path $DesktopDir 'node_modules'
+    $desktopInstallState = Join-Path $desktopModules '.package-lock.json'
+    $desktopRunner = Join-Path $desktopModules '.bin\tauri.cmd'
+
+    return (Test-Path -LiteralPath $desktopPackage) -and
+        (Test-Path -LiteralPath $desktopLock) -and
+        (Test-Path -LiteralPath $desktopInstallState) -and
+        (Test-Path -LiteralPath $desktopRunner)
+}
+
 function Test-DependenciesReady {
     $frontendPackage = Join-Path $ClientDir 'package.json'
     $frontendLock = Join-Path $ClientDir 'package-lock.json'
@@ -337,7 +357,8 @@ function Test-DependenciesReady {
         -not (Test-Path -LiteralPath $frontendPackage) -or
         -not (Test-Path -LiteralPath $frontendLock) -or
         -not (Test-Path -LiteralPath $frontendInstallState) -or
-        -not (Test-Path -LiteralPath $frontendRunner)) {
+        -not (Test-Path -LiteralPath $frontendRunner) -or
+        -not (Test-DesktopDependenciesReady)) {
         return $false
     }
 
@@ -552,7 +573,14 @@ function Invoke-DesktopFrontendBuild {
     if (-not (Test-Path -LiteralPath $frontendOutput)) {
         throw "Angular production output was not created: $frontendOutput"
     }
-    return (Split-Path -Parent $frontendOutput)
+    $frontendDist = Split-Path -Parent $frontendOutput
+    $desktopUi = Join-Path $DesktopTauriDir 'ui'
+    if (Test-Path -LiteralPath $desktopUi) { Remove-Item -LiteralPath $desktopUi -Recurse -Force }
+    New-Item -ItemType Directory -Path $desktopUi -Force | Out-Null
+    foreach ($entry in @(Get-ChildItem -LiteralPath $frontendDist -Force)) {
+        Copy-Item -LiteralPath $entry.FullName -Destination $desktopUi -Recurse -Force
+    }
+    return $frontendDist
 }
 
 function Invoke-DesktopBackendFreeze {
@@ -801,7 +829,7 @@ function Read-DesktopReleaseVersion {
     $candidate = ([string](Read-Host "Release version to $Operation [$Version]")).Trim()
     if ([string]::IsNullOrWhiteSpace($candidate)) { return $Version }
     if ($candidate -notmatch '^\d+\.\d+\.\d+$') {
-        throw "Invalid release version: $candidate. Use semantic version format such as 1.0.0."
+        throw "Invalid release version: $candidate. Use semantic version format such as 3.0.0."
     }
     return $candidate
 }
@@ -942,7 +970,8 @@ function Invoke-LaunchDesktopDev {
     $settings = Import-XReportEnvironment
     Ensure-PortableRuntimes
     if (-not (Test-FrontendDependenciesReady)) { Install-FrontendDependencies }
-    Invoke-FrontendBuild
+    if (-not (Test-DesktopDependenciesReady)) { Install-DesktopDependencies }
+    Invoke-DesktopFrontendBuild | Out-Null
     Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
     Stop-PortListener -Port ([int]$settings.UI_PORT)
     $backendAppPath = Join-Path $RepoRoot 'app'
@@ -968,7 +997,7 @@ function Invoke-LaunchDesktopDev {
 }
 
 function Invoke-RemoveDesktopRelease {
-    foreach ($target in @($DesktopReleaseDir, (Join-Path $DesktopBuildDir 'runtime-staging'), (Join-Path $DesktopBuildDir 'pyinstaller'), (Join-Path $DesktopBuildDir 'cpu-overlay'), $DesktopTargetDir, (Join-Path $DesktopTauriDir 'generated\runtime.zip'))) {
+    foreach ($target in @($DesktopReleaseDir, (Join-Path $DesktopBuildDir 'runtime-staging'), (Join-Path $DesktopBuildDir 'pyinstaller'), (Join-Path $DesktopBuildDir 'cpu-overlay'), $DesktopTargetDir, (Join-Path $DesktopTauriDir 'generated\runtime.zip'), (Join-Path $DesktopTauriDir 'ui'))) {
         if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
     }
     Write-Ok 'Desktop release outputs, staging, and Tauri target files removed; user data was preserved.'

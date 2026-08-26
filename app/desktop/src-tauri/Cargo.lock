@@ -4393,7 +4393,7 @@ dependencies = [
 
 [[package]]
 name = "xreport-desktop"
-version = "1.0.0"
+version = "3.0.0"
 dependencies = [
  "base64 0.22.1",
  "hex",
