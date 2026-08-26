@@ -11,6 +11,7 @@ from server.domain.inference import InferenceImage
 from server.models.inference.providers import xreport
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 
+
 ###############################################################################
 def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
     configuration_dir = checkpoint_dir / "configuration"
@@ -24,8 +25,9 @@ def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
     else:
         model_path.write_bytes(b"not-a-keras-archive")
 
+
 ###############################################################################
-def test_validate_checkpoint_rejects_incomplete_or_corrupt_archives(
+def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrupt(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -34,63 +36,41 @@ def test_validate_checkpoint_rejects_incomplete_or_corrupt_archives(
     (incomplete / "saved_model.keras").write_bytes(b"not-a-keras-archive")
     corrupt = tmp_path / "corrupt"
     _write_checkpoint_files(corrupt, valid_model=False)
-    monkeypatch.setattr(xreport, "resolve_checkpoint_path", lambda name: str(tmp_path / name))
-
-    with pytest.raises(FileNotFoundError, match="incomplete"):
-        XReportCheckpointProvider().validate_checkpoint("incomplete")
-    with pytest.raises(ValueError, match="invalid Keras archive"):
-        XReportCheckpointProvider().validate_checkpoint("corrupt")
-
-###############################################################################
-def test_validate_checkpoint_accepts_complete_keras_archive(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
     complete = tmp_path / "complete"
     _write_checkpoint_files(complete, valid_model=True)
     monkeypatch.setattr(xreport, "resolve_checkpoint_path", lambda name: str(tmp_path / name))
 
-    assert XReportCheckpointProvider().validate_checkpoint("complete") == "complete"
+    provider = XReportCheckpointProvider()
+    with pytest.raises(FileNotFoundError, match="incomplete"):
+        provider.validate_checkpoint("incomplete")
+    with pytest.raises(ValueError, match="invalid Keras archive"):
+        provider.validate_checkpoint("corrupt")
+    assert provider.validate_checkpoint("complete") == "complete"
+
 
 ###############################################################################
 def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatch) -> None:
-
-    ###############################################################################
     class FakeModel:
-
-        # -------------------------------------------------------------------------
         def summary(self, *, expand_nested: bool) -> None:
             del expand_nested
 
-    ###############################################################################
     class FakeGenerator:
-        generator_image_methods = {
-            "greedy_search": lambda *args, **kwargs: "",
-        }
+        generator_image_methods = {"greedy_search": lambda *args, **kwargs: ""}
 
-        # -------------------------------------------------------------------------
         def __init__(self, *args, **kwargs) -> None:
             del args, kwargs
 
-        # -------------------------------------------------------------------------
         def load_tokenizer_and_configuration(self):
             return FakeTokenizer(), {}
 
-    ###############################################################################
     class FakeTokenizer:
-
-        # -------------------------------------------------------------------------
         def get_vocab(self) -> dict[str, int]:
             return {"[CLS]": 0}
 
-    ###############################################################################
     class FakeDataLoader:
-
-        # -------------------------------------------------------------------------
         def __init__(self, *args, **kwargs) -> None:
             del args, kwargs
 
-        # -------------------------------------------------------------------------
         def prepare_inference_image_bytes(self, data: bytes) -> np.ndarray:
             del data
             return np.zeros((224, 224, 3), dtype=np.float32)
@@ -98,13 +78,12 @@ def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(xreport, "TextGenerator", FakeGenerator)
     monkeypatch.setattr(xreport, "XRAYDataLoader", FakeDataLoader)
 
-    image = InferenceImage("scan.png", "image/png", b"bytes", 5)
     with pytest.raises(RuntimeError, match="empty or malformed"):
         XReportCheckpointProvider().generate(
             model=FakeModel(),
             model_metadata={},
             generation_mode="greedy_search",
-            images=[image],
+            images=[InferenceImage("scan.png", "image/png", b"bytes", 5)],
             should_stop=lambda: False,
             report_progress=lambda *args: None,
         )

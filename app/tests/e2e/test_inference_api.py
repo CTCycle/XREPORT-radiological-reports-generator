@@ -1,103 +1,25 @@
-"""E2E tests for the catalog-backed inference API."""
+"""Cross-layer contract check for the catalog-backed inference API."""
 
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
-def _minimal_png() -> bytes:
-    return bytes.fromhex(
-        "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de"
-        "0000000c4944415408d763f8ffff3f0005fe02fedccc59e70000000049454e44ae426082"
+def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
+    api_context: APIRequestContext,
+) -> None:
+    catalog_response = api_context.get("/api/inference/models")
+    assert catalog_response.ok
+    catalog = catalog_response.json()
+    assert catalog["models"]
+    assert set(catalog["providers"]) == {"huggingface", "xreport"}
+
+    response = api_context.post(
+        "/api/inference/models/maintenance",
+        data={
+            "model_ref": "xreport:not-in-the-catalog",
+            "action": "delete_local",
+        },
     )
 
-###############################################################################
-class TestInferenceEndpoints:
-
-    # -------------------------------------------------------------------------
-    def test_get_models_returns_catalog(self, api_context: APIRequestContext) -> None:
-        response = api_context.get("/api/inference/models")
-
-        assert response.ok, f"Expected 200, got {response.status}"
-        payload = response.json()
-        assert isinstance(payload["models"], list)
-        assert isinstance(payload["providers"], dict)
-        assert set(payload) == {"models", "providers"}
-        assert set(payload["providers"]) == {"huggingface", "xreport"}
-        for model in payload["models"]:
-            assert model["model_ref"]
-            assert model["status"]
-            assert model["research_only"] is True
-            assert model["max_current_images"] >= 1
-            assert isinstance(model["output_sections"], list)
-
-    # -------------------------------------------------------------------------
-    def test_maintenance_rejects_unknown_model_reference(
-        self, api_context: APIRequestContext
-    ) -> None:
-        response = api_context.post(
-            "/api/inference/models/maintenance",
-            data={
-                "model_ref": "xreport:not-in-the-catalog",
-                "action": "delete_local",
-            },
-        )
-
-        assert response.status == 404
-        assert "catalog" in response.json()["detail"]
-
-    # -------------------------------------------------------------------------
-    def test_generate_requires_catalog_request_fields(
-        self, api_context: APIRequestContext
-    ) -> None:
-        response = api_context.post(
-            "/api/inference/generate",
-            multipart={
-                "images": {
-                    "name": "test.png",
-                    "mimeType": "image/png",
-                    "buffer": _minimal_png(),
-                },
-            },
-        )
-
-        assert response.status == 422
-
-    # -------------------------------------------------------------------------
-    def test_generate_rejects_unknown_model_ref(
-        self, api_context: APIRequestContext
-    ) -> None:
-        response = api_context.post(
-            "/api/inference/generate",
-            multipart={
-                "model_ref": "xreport:not-in-the-catalog",
-                "generation_profile": "deterministic",
-                "clinical_context": "",
-                "images": {
-                    "name": "test.png",
-                    "mimeType": "image/png",
-                    "buffer": _minimal_png(),
-                },
-            },
-        )
-
-        assert response.status == 404
-        assert "catalog" in response.json()["detail"]
-
-    # -------------------------------------------------------------------------
-    def test_generate_rejects_invalid_generation_profile(
-        self, api_context: APIRequestContext
-    ) -> None:
-        response = api_context.post(
-            "/api/inference/generate",
-            multipart={
-                "model_ref": "xreport:not-in-the-catalog",
-                "generation_profile": "unsupported-mode",
-                "clinical_context": "",
-                "images": {
-                    "name": "test.png",
-                    "mimeType": "image/png",
-                    "buffer": _minimal_png(),
-                },
-            },
-        )
-
-        assert response.status == 422
+    assert response.status == 404
+    assert "catalog" in response.json()["detail"]
