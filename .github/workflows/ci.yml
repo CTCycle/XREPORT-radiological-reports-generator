@@ -79,7 +79,7 @@ jobs:
 
       - name: Run retained API E2E tests
         run: |
-          app/server/.venv/bin/python -m uvicorn server.app:app --app-dir app/server --host 127.0.0.1 --port 5003 --log-level warning > /tmp/xreport-api.log 2>&1 &
+          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5003 --log-level warning > /tmp/xreport-api.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
