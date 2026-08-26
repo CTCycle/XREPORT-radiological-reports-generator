@@ -8,7 +8,7 @@ param(
     [ValidateSet('Portable', 'Msi', 'All')]
     [string]$DesktopTarget = 'All',
     [switch]$OfflineWebView2,
-    [string]$Version = '3.0.0',
+    [string]$Version,
     [switch]$Force,
     [switch]$AllowDirtyTree
 )
@@ -53,15 +53,29 @@ $DesktopTargetDir = Join-Path $DesktopTauriDir 'target'
 $DesktopPythonScript = Join-Path $DesktopBuildDir 'run_pyinstaller.py'
 $DesktopSpec = Join-Path $DesktopBuildDir 'xreport_backend.spec'
 $DesktopBundleScript = Join-Path $DesktopBuildDir 'create_runtime_bundle.py'
+$DesktopRuntimeVerifier = Join-Path $DesktopBuildDir 'verify_runtime_bundle.py'
+$DesktopCpuRequirements = Join-Path $DesktopBuildDir 'cpu-runtime-requirements.txt'
+$DesktopArchitecture = 'windows-x64'
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = ([string]((Get-Content -LiteralPath (Join-Path $ClientDir 'package.json') -Raw | ConvertFrom-Json).version)).Trim()
+}
 
 $PythonVersion = '3.14.2'
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
-$UvUrlAmd64 = 'https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-pc-windows-msvc.zip'
-$UvUrlArm64 = 'https://github.com/astral-sh/uv/releases/latest/download/uv-aarch64-pc-windows-msvc.zip'
+$PythonSha256 = 'f05e28d161c6b15af64a7cb7f08b4a22b3a6b03eee71baee24ea557b3bdd5798'
+$UvVersion = '0.11.9'
+$UvUrlAmd64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-x86_64-pc-windows-msvc.zip"
+$UvUrlArm64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-aarch64-pc-windows-msvc.zip"
+$UvSha256Amd64 = 'facbf9637c373761a96fa63c537d6c46581d357a65af01eacfd8c6319e6fb14e'
+$UvSha256Arm64 = '93de7822f6214c704ec15db1b4d33eabd3709a0303ec068723d9f5f5aa99e9e7'
 $NodeVersion = '22.22.3'
 $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
+$NodeSha256 = '6c8d54f635feff4df76c2ca80f45332eb2ff57d25226edce36592e51a177ee33'
+$NpmVersion = '10.9.8'
+$RustVersion = '1.95.0'
 
 function Write-Step([string]$Message) { Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Write-Host "[OK] $Message" -ForegroundColor Green }
@@ -116,13 +130,18 @@ function Invoke-DownloadAndExtract {
     param(
         [Parameter(Mandatory = $true)][string]$Uri,
         [Parameter(Mandatory = $true)][string]$ArchivePath,
-        [Parameter(Mandatory = $true)][string]$DestinationPath
+        [Parameter(Mandatory = $true)][string]$DestinationPath,
+        [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$ExpectedSha256
     )
     $ProgressPreference = 'SilentlyContinue'
     New-Item -ItemType Directory -Path (Split-Path -Parent $ArchivePath) -Force | Out-Null
     New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
-    Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $ArchivePath
     try {
+        Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $ArchivePath
+        $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant()
+        if ($actualSha256 -ne $ExpectedSha256.ToLowerInvariant()) {
+            throw "Downloaded archive hash mismatch for $Uri. Expected $ExpectedSha256; got $actualSha256."
+        }
         Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
     } finally {
         Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
@@ -175,39 +194,75 @@ function Invoke-HealthCheck {
 }
 
 function Ensure-PortableRuntimes {
+    param([switch]$IncludeRust)
+
     Write-Step 'Preparing portable runtimes'
     New-Item -ItemType Directory -Path $RuntimesDir, $PythonDir, $UvDir, $NodeDir -Force | Out-Null
 
-    if (-not (Test-Path -LiteralPath $PythonExe)) {
+    $pythonReady = $false
+    if (Test-Path -LiteralPath $PythonExe) {
+        $pythonOutput = (& $PythonExe --version 2>&1 | Out-String).Trim()
+        $pythonReady = $pythonOutput -match "^Python $([regex]::Escape($PythonVersion))$"
+    }
+    if (-not $pythonReady) {
+        if (Test-Path -LiteralPath $PythonDir) {
+            Get-ChildItem -LiteralPath $PythonDir -Force | Remove-Item -Recurse -Force
+        }
         Write-Info "Downloading Python $PythonVersion"
-        Invoke-DownloadAndExtract -Uri $PythonUrl -ArchivePath (Join-Path $PythonDir $PythonArchive) -DestinationPath $PythonDir
+        Invoke-DownloadAndExtract -Uri $PythonUrl -ArchivePath (Join-Path $PythonDir $PythonArchive) -DestinationPath $PythonDir -ExpectedSha256 $PythonSha256
     }
     Invoke-PatchPythonPath -Path $PythonPth
     $foundVersion = Get-PythonVersion -PythonExe $PythonExe
+    if ($foundVersion.Trim() -ne $PythonVersion) {
+        throw "Portable Python version mismatch. Expected $PythonVersion; found $($foundVersion.Trim())."
+    }
     Write-Ok "Python ready: $foundVersion"
 
-    if (-not (Test-Path -LiteralPath $UvExe)) {
-        $uvUrl = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { $UvUrlArm64 } else { $UvUrlAmd64 }
-        Write-Info 'Downloading uv'
-        Invoke-DownloadAndExtract -Uri $uvUrl -ArchivePath (Join-Path $UvDir 'uv.zip') -DestinationPath $UvDir
+    $uvArchitecture = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
+    $uvExpectedVersion = "uv $UvVersion"
+    $uvReady = $false
+    if (Test-Path -LiteralPath $UvExe) {
+        $uvOutput = (& $UvExe --version 2>&1 | Out-String).Trim()
+        $uvReady = $uvOutput -like "$uvExpectedVersion*"
+    }
+    if (-not $uvReady) {
+        if (Test-Path -LiteralPath $UvDir) {
+            Get-ChildItem -LiteralPath $UvDir -Force | Remove-Item -Recurse -Force
+        }
+        $uvUrl = if ($uvArchitecture -eq 'arm64') { $UvUrlArm64 } else { $UvUrlAmd64 }
+        $uvHash = if ($uvArchitecture -eq 'arm64') { $UvSha256Arm64 } else { $UvSha256Amd64 }
+        Write-Info "Downloading uv $UvVersion"
+        Invoke-DownloadAndExtract -Uri $uvUrl -ArchivePath (Join-Path $UvDir "uv-$UvVersion-$uvArchitecture.zip") -DestinationPath $UvDir -ExpectedSha256 $uvHash
         $foundUv = Find-UvExecutable -SearchRoot $UvDir
         if ($foundUv -ne $UvExe) {
             Copy-Item -LiteralPath $foundUv -Destination $UvExe -Force
         }
     }
-    Invoke-Checked -FilePath $UvExe -ArgumentList @('--version')
+    $foundUvVersion = (& $UvExe --version 2>&1 | Out-String).Trim()
+    if ($foundUvVersion -notlike "$uvExpectedVersion*") {
+        throw "uv version mismatch. Expected $UvVersion; found $foundUvVersion."
+    }
+    Write-Ok "uv ready: $foundUvVersion"
 
     Ensure-PortableNodeRuntime
     Initialize-Environment
+    if ($IncludeRust) {
+        Ensure-RustToolchain
+    }
 }
 
 function Ensure-PortableNodeRuntime {
     New-Item -ItemType Directory -Path $NodeDir -Force | Out-Null
     $portableNodeNeedsUpgrade = $false
+    $existingNodeVersion = $null
+    $existingNpmVersion = $null
     if (Test-Path -LiteralPath $NodeExe) {
-        $existingNodeVersion = (& $NodeExe --version).TrimStart('v')
+        $existingNodeVersion = (& $NodeExe --version 2>&1).TrimStart('v')
+        if (Test-Path -LiteralPath $NpmCmd) {
+            $existingNpmVersion = (& $NpmCmd --version 2>&1).Trim()
+        }
         try {
-            $portableNodeNeedsUpgrade = ([version]$existingNodeVersion -lt [version]$NodeVersion)
+            $portableNodeNeedsUpgrade = ([version]$existingNodeVersion -ne [version]$NodeVersion) -or ($existingNpmVersion -ne $NpmVersion)
         } catch {
             $portableNodeNeedsUpgrade = $true
         }
@@ -218,7 +273,7 @@ function Ensure-PortableNodeRuntime {
             Get-ChildItem -LiteralPath $NodeDir -Force | Remove-Item -Recurse -Force
         }
         Write-Info "Downloading Node.js $NodeVersion"
-        Invoke-DownloadAndExtract -Uri $NodeUrl -ArchivePath (Join-Path $NodeDir $NodeArchive) -DestinationPath $NodeDir
+        Invoke-DownloadAndExtract -Uri $NodeUrl -ArchivePath (Join-Path $NodeDir $NodeArchive) -DestinationPath $NodeDir -ExpectedSha256 $NodeSha256
     }
     $nestedNodeDir = Join-Path $NodeDir "node-v$NodeVersion-win-x64"
     if (Test-Path -LiteralPath (Join-Path $nestedNodeDir 'node.exe')) {
@@ -229,7 +284,27 @@ function Ensure-PortableNodeRuntime {
         throw "Portable Node.js or npm was not found in $NodeDir."
     }
     $nodeVersionOutput = & $NodeExe --version
+    $npmVersionOutput = (& $NpmCmd --version 2>&1).Trim()
+    if ($nodeVersionOutput.TrimStart('v').Trim() -ne $NodeVersion -or $npmVersionOutput -ne $NpmVersion) {
+        throw "Portable Node.js toolchain mismatch. Expected Node $NodeVersion/npm $NpmVersion; found $($nodeVersionOutput.Trim())/$npmVersionOutput."
+    }
     Write-Ok "Node.js ready: $nodeVersionOutput"
+}
+
+function Ensure-RustToolchain {
+    $rustup = Get-Command rustup.exe -ErrorAction SilentlyContinue
+    if ($null -eq $rustup) {
+        throw "Rust $RustVersion requires rustup.exe and the Windows MSVC Build Tools/SDK. Install rustup, then rerun the desktop build."
+    }
+    Invoke-Checked -FilePath $rustup.Source -ArgumentList @(
+        'toolchain', 'install', $RustVersion, '--profile', 'minimal', '--component', 'rustfmt', '--component', 'clippy', '--no-self-update'
+    )
+    $env:RUSTUP_TOOLCHAIN = $RustVersion
+    $rustOutput = (& $rustup.Source 'run' $RustVersion 'rustc' '--version' 2>&1 | Out-String).Trim()
+    if ($rustOutput -notmatch "rustc $([regex]::Escape($RustVersion))(?:\s|$)") {
+        throw "Rust toolchain mismatch. Expected $RustVersion; found $rustOutput."
+    }
+    Write-Ok "Rust ready: $rustOutput"
 }
 
 function Import-XReportEnvironment {
@@ -272,13 +347,19 @@ function Install-Dependencies {
     param(
         [hashtable]$Settings,
         [switch]$BuildFrontend,
-        [ValidateSet('Standard', 'Development')]
+        [switch]$Locked,
+        [ValidateSet('Standard', 'Development', 'Desktop')]
         [string]$InstallationType = 'Standard'
     )
 
     Write-Step 'Synchronizing Python dependencies'
-    $syncArgs = @('sync', '--python', $PythonExe)
-    if ($InstallationType -eq 'Development') { $syncArgs += '--all-extras' }
+    $syncArgs = @('sync', '--frozen', '--python', $PythonExe)
+    if ($InstallationType -eq 'Development') {
+        $syncArgs += '--all-extras'
+    }
+    elseif ($InstallationType -eq 'Desktop') {
+        $syncArgs += @('--extra', 'desktop')
+    }
     try {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     } catch {
@@ -287,8 +368,8 @@ function Install-Dependencies {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     }
 
-    Install-FrontendDependencies
-    Install-DesktopDependencies
+    Install-FrontendDependencies -Locked:$Locked
+    Install-DesktopDependencies -Locked:$Locked
 
     if ($BuildFrontend) {
         Invoke-FrontendBuild
@@ -296,15 +377,21 @@ function Install-Dependencies {
 }
 
 function Install-FrontendDependencies {
+    param([switch]$Locked)
     Write-Step 'Installing frontend dependencies'
-    $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json')) { @('ci') } else { @('install') }
-    Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $ClientDir
+    if (-not (Test-Path -LiteralPath (Join-Path $ClientDir 'package-lock.json'))) {
+        throw "Locked frontend installation requires $ClientDir\package-lock.json."
+    }
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('ci') -WorkingDirectory $ClientDir
 }
 
 function Install-DesktopDependencies {
+    param([switch]$Locked)
     Write-Step 'Installing desktop dependencies'
-    $npmInstallArgs = if (Test-Path -LiteralPath (Join-Path $DesktopDir 'package-lock.json')) { @('ci') } else { @('install') }
-    Invoke-Checked -FilePath $NpmCmd -ArgumentList $npmInstallArgs -WorkingDirectory $DesktopDir
+    if (-not (Test-Path -LiteralPath (Join-Path $DesktopDir 'package-lock.json'))) {
+        throw "Locked desktop installation requires $DesktopDir\package-lock.json."
+    }
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('ci') -WorkingDirectory $DesktopDir
 }
 
 function Invoke-FrontendBuild {
@@ -556,6 +643,7 @@ function Get-DesktopConfigPath {
     $configPath = Join-Path $DesktopBuildDir "tauri-$Variant-$ReleaseVersion.json"
     New-Item -ItemType Directory -Path $DesktopBuildDir -Force | Out-Null
     $config = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $config.version = $ReleaseVersion
     if ($OfflineWebView2) {
         $config.bundle.windows.webviewInstallMode = [pscustomobject]@{ type = 'offlineInstaller' }
     }
@@ -564,7 +652,11 @@ function Get-DesktopConfigPath {
 }
 
 function Invoke-DesktopFrontendBuild {
-    if (-not (Test-FrontendDependenciesReady)) {
+    param([switch]$Strict)
+    if ($Strict) {
+        Install-FrontendDependencies -Locked
+    }
+    elseif (-not (Test-FrontendDependenciesReady)) {
         Ensure-PortableNodeRuntime
         foreach ($line in @(Install-FrontendDependencies)) { Write-Host $line }
     }
@@ -606,10 +698,9 @@ function Invoke-DesktopBackendFreeze {
             Write-Step 'Preparing isolated CPU Torch overlay (the CUDA development environment is unchanged)'
             foreach ($line in @(Invoke-Checked -FilePath $UvExe -ArgumentList @(
                 'pip', 'install', '--python', $VenvPython, '--target', $cpuOverlay,
-                '--index-strategy', 'unsafe-best-match',
+                '--require-hashes', '--no-deps', '--only-binary', ':all:',
                 '--index-url', 'https://download.pytorch.org/whl/cpu',
-                '--extra-index-url', 'https://pypi.org/simple',
-                'torch==2.10.0+cpu', 'torchvision==0.25.0+cpu'
+                '--requirement', $DesktopCpuRequirements
             ) -WorkingDirectory $ServerDir)) { Write-Host $line }
             $env:PYTHONPATH = "$cpuOverlay;$(Join-Path $RepoRoot 'app')"
         }
@@ -619,8 +710,7 @@ function Invoke-DesktopBackendFreeze {
 
         & $VenvPython -c 'import PyInstaller' *> $null
         if ($LASTEXITCODE -ne 0) {
-            Write-Step 'Installing pinned PyInstaller build tooling into the existing server environment'
-            foreach ($line in @(Invoke-Checked -FilePath $UvExe -ArgumentList @('pip', 'install', '--python', $VenvPython, 'pyinstaller==6.16.0') -WorkingDirectory $ServerDir)) { Write-Host $line }
+            throw 'The locked desktop Python environment is missing PyInstaller. Re-run the desktop dependency synchronization.'
         }
         Write-Step "Freezing $Variant backend with PyInstaller"
         foreach ($line in @(Invoke-Checked -FilePath $VenvPython -ArgumentList @(
@@ -703,23 +793,51 @@ function Invoke-DesktopVariantBuild {
     $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
     $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
     $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$ReleaseVersion.json"
+    $artifactPrefix = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant"
+    foreach ($staleArtifact in @(
+        "${artifactPrefix}-portable.exe",
+        "${artifactPrefix}.msi",
+        "${artifactPrefix}.sha256",
+        "${artifactPrefix}-build.json"
+    )) {
+        if (Test-Path -LiteralPath $staleArtifact) { Remove-Item -LiteralPath $staleArtifact -Force }
+    }
+    if (Test-Path -LiteralPath $auditPath) { Remove-Item -LiteralPath $auditPath -Force }
     New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
+    if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
     $bundleArgs = @(
         $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
-        '--version', $ReleaseVersion, '--variant', $Variant, '--source-commit', $SourceCommit, '--audit', $auditPath
+        '--version', $ReleaseVersion, '--variant', $Variant, '--architecture', $DesktopArchitecture,
+        '--source-commit', $SourceCommit, '--audit', $auditPath
     )
     if ($DirtyTree) { $bundleArgs += '--dirty' }
     Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
+    $runtimeManifest = Get-Content -LiteralPath $auditPath -Raw | ConvertFrom-Json
+    Invoke-Checked -FilePath $VenvPython -ArgumentList @(
+        $DesktopRuntimeVerifier, '--archive', $archivePath, '--version', $ReleaseVersion,
+        '--variant', $Variant, '--architecture', $DesktopArchitecture, '--source-commit', $SourceCommit
+    ) -WorkingDirectory $RepoRoot
 
     $configPath = Get-DesktopConfigPath -Variant $Variant -ReleaseVersion $ReleaseVersion
+    $cargoTargetRoot = Join-Path $DesktopBuildDir "cargo-target\$Variant"
+    if (Test-Path -LiteralPath $cargoTargetRoot) { Remove-Item -LiteralPath $cargoTargetRoot -Recurse -Force }
+    $previousVariant = $env:XREPORT_DESKTOP_VARIANT
+    $previousCargoTarget = $env:CARGO_TARGET_DIR
     $env:XREPORT_DESKTOP_VARIANT = $Variant
-    $releaseTarget = Join-Path $DesktopTauriDir 'target\release'
+    $env:CARGO_TARGET_DIR = $cargoTargetRoot
+    $releaseTarget = Join-Path $cargoTargetRoot 'release'
     $msiDir = Join-Path $releaseTarget 'bundle\msi'
-    if (Test-Path -LiteralPath $msiDir) { Remove-Item -LiteralPath $msiDir -Recurse -Force }
-    $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath)
-    if ($Target -eq 'Msi' -or $Target -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
-    Write-Step "Building Tauri $Variant release"
-    Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
+    try {
+        $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath, '--ci', '--no-sign')
+        if ($Target -eq 'Msi' -or $Target -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
+        $buildArgs += @('--', '--locked')
+        Write-Step "Building Tauri $Variant release"
+        Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
+    }
+    finally {
+        if ($null -eq $previousVariant) { Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue } else { $env:XREPORT_DESKTOP_VARIANT = $previousVariant }
+        if ($null -eq $previousCargoTarget) { Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue } else { $env:CARGO_TARGET_DIR = $previousCargoTarget }
+    }
 
     New-Item -ItemType Directory -Path $DesktopReleaseDir -Force | Out-Null
     $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-portable.exe"
@@ -752,11 +870,15 @@ function Invoke-DesktopVariantBuild {
     $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
     $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-build.json"
     [pscustomobject]@{
+        format = 2
         application = 'XREPORT'
         version = $ReleaseVersion
         variant = $Variant
+        architecture = $DesktopArchitecture
         source_commit = $SourceCommit
         dirty_tree = $DirtyTree
+        created_utc = [string]$runtimeManifest.created_utc
+        payload_sha256 = [string]$runtimeManifest.payload_sha256
         webview2 = if ($OfflineWebView2) { 'offlineInstaller' } else { 'embedBootstrapper' }
         artifacts = @($artifactPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
         checksums = [IO.Path]::GetFileName($checksumPath)
@@ -777,15 +899,25 @@ function Invoke-BuildDesktopRelease {
     Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
     $sourceState = Assert-DesktopSourceState
     if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) { Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force }
-    Ensure-PortableRuntimes
-    if (-not (Test-DependenciesReady)) {
-        Install-Dependencies -Settings (Import-XReportEnvironment) -InstallationType 'Standard'
+    foreach ($generatedPath in @(
+        (Join-Path $DesktopTauriDir 'ui'),
+        (Join-Path $DesktopTauriDir 'generated\runtime.zip')
+    )) {
+        if (Test-Path -LiteralPath $generatedPath) {
+            Remove-Item -LiteralPath $generatedPath -Recurse -Force
+        }
     }
-    $frontendDist = Invoke-DesktopFrontendBuild
-    foreach ($variant in $selectedVariants) {
-        Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
+    try {
+        Ensure-PortableRuntimes -IncludeRust
+        Install-Dependencies -Settings (Import-XReportEnvironment) -Locked -InstallationType 'Desktop'
+        $frontendDist = Invoke-DesktopFrontendBuild
+        foreach ($variant in $selectedVariants) {
+            Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
+        }
     }
-    Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
+    finally {
+        Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
+    }
     Write-Ok 'Desktop release build completed. Unsigned artifacts require WebView2 on the target machine.'
 }
 
@@ -997,10 +1129,26 @@ function Invoke-LaunchDesktopDev {
 }
 
 function Invoke-RemoveDesktopRelease {
-    foreach ($target in @($DesktopReleaseDir, (Join-Path $DesktopBuildDir 'runtime-staging'), (Join-Path $DesktopBuildDir 'pyinstaller'), (Join-Path $DesktopBuildDir 'cpu-overlay'), $DesktopTargetDir, (Join-Path $DesktopTauriDir 'generated\runtime.zip'), (Join-Path $DesktopTauriDir 'ui'))) {
-        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+    $generatedConfigs = @(Get-ChildItem -LiteralPath $DesktopBuildDir -File -Filter 'tauri-*.json' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $targets = @(
+        $DesktopReleaseDir,
+        (Join-Path $DesktopBuildDir 'runtime-staging'),
+        (Join-Path $DesktopBuildDir 'pyinstaller'),
+        (Join-Path $DesktopBuildDir 'cpu-overlay'),
+        (Join-Path $DesktopBuildDir 'cargo-target'),
+        $DesktopTargetDir,
+        (Join-Path $DesktopTauriDir 'generated\runtime.zip'),
+        (Join-Path $DesktopTauriDir 'ui')
+    ) + $generatedConfigs
+    $results = foreach ($target in $targets) {
+        Remove-PathBestEffort -Path $target -Label $target
     }
-    Write-Ok 'Desktop release outputs, staging, and Tauri target files removed; user data was preserved.'
+    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
+    if ($skipped -gt 0) {
+        Write-Warn "Desktop release cleanup completed; skipped $skipped locked or protected item(s)."
+    } else {
+        Write-Ok 'Desktop release outputs, staging, and Tauri target files removed; user data was preserved.'
+    }
 }
 
 function Read-InstallationType {

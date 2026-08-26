@@ -7,9 +7,9 @@ Apply these rules to new and modified Python code in scope of the task.
 ## Runtime And Dependencies
 
 - Target Python version: `>=3.14` from `pyproject.toml`
-- Use `runtimes/.venv` when it exists, otherwise follow project launcher and runtime conventions.
-- Keep dependency state aligned with `uv` and `runtimes/uv.lock`.
-- Do not create parallel or ad hoc environments for regular project work.
+- Use the launcher-managed `app/server/.venv` for repository work; do not create
+  parallel or ad hoc environments.
+- Keep dependency state aligned with `uv` and the committed `app/server/uv.lock`.
 
 ## Typing
 

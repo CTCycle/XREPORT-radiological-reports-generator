@@ -76,6 +76,17 @@ build. MSI embeds the WebView2 bootstrapper by default; pass
 available. `-Action RemoveDesktopRelease` removes generated release, staging,
 and Cargo output without touching user data.
 
+From `app/desktop`, `npm run tauri:build` delegates to the same complete
+launcher path (CPU by default):
+
+```powershell
+npm run tauri:build
+npm run tauri:build -- -DesktopRuntime Cuda -DesktopTarget All
+```
+
+The build always recreates the ignored Angular `ui/` directory and variant
+`runtime.zip`; direct raw `tauri build` is not a distributable build command.
+
 The interactive launcher exposes the same workflow under **DESKTOP RELEASE**.
 Choose **Create release artifacts** or **Remove release artifacts**, enter the
 version, and select CPU/CUDA portable or MSI output—or all four packages. The
@@ -85,9 +96,11 @@ all release and desktop build output.
 
 The automated GitHub workflow is `.github/workflows/desktop-release.yml`. It
 runs for `vX.Y.Z` tags or a manual version dispatch, builds the CPU and CUDA
-matrix on Windows, verifies the expected EXE/MSI/checksum files, and uploads
-them as workflow artifacts. It does not publish a GitHub Release record; GitHub
-still provides the source archives for a tag.
+matrix on Windows, verifies the expected EXE/MSI/checksum/runtime contracts,
+smoke-tests each portable executable, and uploads them as workflow artifacts.
+`.github/workflows/desktop-clean-build.yml` proves the same path from an empty
+generated state on pull requests (CPU) and `develop` pushes (CPU and CUDA).
+Neither workflow signs or publishes a GitHub Release record.
 
 Artifacts are written to `release/` with standard SHA-256 manifests:
 
@@ -98,7 +111,7 @@ Artifacts are written to `release/` with standard SHA-256 manifests:
 Portable artifacts are self-contained single EXEs: the frozen runtime ZIP is
 streamed into a PE overlay. MSI artifacts carry the same verified ZIP as an
 immutable installer resource. The raw Tauri shell under
-`app/desktop/src-tauri/target` is not itself a portable release artifact.
+`app/desktop/build/cargo-target` is not itself a portable release artifact.
 
 The builds are currently unsigned. Portable execution requires the maintained
 system WebView2 runtime; MSI installation is per-machine and normally needs
@@ -116,7 +129,7 @@ Prerequisites:
 Setup:
 ```bash
 cd app/server
-uv sync
+uv sync --frozen
 cd ../client
 npm ci
 npm run build

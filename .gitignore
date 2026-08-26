@@ -74,6 +74,11 @@ app/desktop/build/*
 !app/desktop/build/create_runtime_bundle.py
 !app/desktop/build/run_pyinstaller.py
 !app/desktop/build/xreport_backend.spec
+!app/desktop/build/cpu-runtime-requirements.txt
+!app/desktop/build/verify_runtime_bundle.py
+!app/desktop/build/verify_desktop_artifacts.ps1
+!app/desktop/build/smoke_desktop.ps1
+!app/desktop/build/tauri_build.ps1
 app/desktop/runtime-staging/
 app/desktop/generated/
 app/desktop/src-tauri/generated/

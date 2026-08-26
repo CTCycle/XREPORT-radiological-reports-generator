@@ -31,6 +31,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Assert generated desktop inputs are absent
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath 'app/desktop/src-tauri/ui') { throw 'Generated desktop UI exists in the clean checkout.' }
+          if (Test-Path -LiteralPath 'app/desktop/src-tauri/generated/runtime.zip') { throw 'Generated runtime archive exists in the clean checkout.' }
+
       - name: Resolve and validate version
         shell: pwsh
         run: |
@@ -52,14 +58,17 @@ jobs:
           if ($hashLines.Count -ne 2 -or $invalid.Count -gt 0) { throw 'Checksum manifest is not standard sha256sum format.' }
           Get-ChildItem release | Select-Object Name,Length | Format-Table
 
-      - name: Fail closed when signing is requested without credentials
+      - name: Verify packaged runtime and MSI resource
         shell: pwsh
-        env:
-          SIGNING_CERT_BASE64: ${{ secrets.XREPORT_SIGNING_CERT_BASE64 }}
-          SIGNING_CERT_PASSWORD: ${{ secrets.XREPORT_SIGNING_CERT_PASSWORD }}
         run: |
-          if ($env:SIGNING_CERT_BASE64 -and -not $env:SIGNING_CERT_PASSWORD) { throw 'Signing certificate was supplied without a password.' }
-          if (-not $env:SIGNING_CERT_BASE64) { Write-Host 'Unsigned build: no code-signing certificate was configured.' }
+          & .\app\desktop\build\verify_desktop_artifacts.ps1 -Variant '${{ matrix.artifact }}' -Version ($env:RELEASE_VERSION -replace '^v', '')
+          if ($LASTEXITCODE -ne 0) { throw "Artifact verification failed with exit code $LASTEXITCODE." }
+
+      - name: Smoke-test packaged portable application
+        shell: pwsh
+        run: |
+          & .\app\desktop\build\smoke_desktop.ps1 -Variant '${{ matrix.artifact }}' -Version ($env:RELEASE_VERSION -replace '^v', '')
+          if ($LASTEXITCODE -ne 0) { throw "Desktop smoke test failed with exit code $LASTEXITCODE." }
 
       - name: Upload portable, MSI, and manifests
         uses: actions/upload-artifact@v4
@@ -67,3 +76,4 @@ jobs:
           name: XREPORT-${{ matrix.artifact }}-windows-x64
           path: release/*
           if-no-files-found: error
+          retention-days: 7

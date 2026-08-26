@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-08-21
+Last updated: 2026-08-26
 
 ## Deployment Scope
 
@@ -17,13 +17,18 @@ Last updated: 2026-08-21
 ## Runtime Prerequisites
 
 - Windows prerequisites are downloaded into `runtimes/` by the launcher.
-- Manual environments require Python 3.14+, uv, and Node.js 22.x with npm.
+- Manual environments require Python 3.14.2, uv 0.11.9, Node.js 22.22.3/npm
+  10.9.8, rustup with Rust 1.95.0, and the Windows MSVC Build Tools/SDK for
+  desktop packaging.
 
 ## Dependency Consistency
 
-- Python dependencies are synchronized from `app/server/pyproject.toml`.
-- Frontend dependencies are installed from `app/client/package-lock.json` when it exists.
-- Desktop Tauri dependencies are installed from `app/desktop/package-lock.json` when it exists.
+- Python dependencies are synchronized with `uv sync --frozen` from
+  `app/server/pyproject.toml` and `app/server/uv.lock`.
+- Frontend dependencies are always installed with `npm ci` from
+  `app/client/package-lock.json`.
+- Desktop Tauri dependencies are always installed with `npm ci` from
+  `app/desktop/package-lock.json`.
 
 ## Database Migration Lifecycle
 
@@ -39,11 +44,19 @@ Last updated: 2026-08-21
 
 ## Desktop release layout
 
-The Windows release command freezes the backend with the pinned desktop
-PyInstaller extra, builds the Angular client once, and streams each variant's
-runtime into a ZIP64 archive. The archive audit records the commit, dirty-tree
-state, payload hash, file count, sizes, and largest entries, and rejects
-secrets, databases, logs, caches, models, symlinks, and duplicate members.
+The Windows release command always synchronizes the locked desktop Python and
+Node environments, freezes the backend with the pinned desktop PyInstaller
+extra, builds the Angular client once, and streams each variant's runtime into
+a ZIP64 archive. The archive audit records the commit, architecture,
+dirty-tree state, payload hash, file count, sizes, and largest entries, and
+rejects secrets, databases, logs, caches, models, symlinks, and duplicate
+members. `runtime.zip` and `ui/` are generated inputs and are never committed.
+
+The canonical command is `start_on_windows.ps1 -Action BuildDesktopRelease`.
+`app/desktop` also exposes `npm run tauri:build`, which delegates to that
+launcher (CPU by default; pass `-DesktopRuntime Cuda` or `All` after `--`).
+Raw `tauri build` is an internal shell operation and is not a complete release
+path.
 
 The shell extracts atomically to
 `%LOCALAPPDATA%\XREPORT\runtime\<variant>\<version>\<payload-sha256>`. The
@@ -61,8 +74,8 @@ downloaded on demand into user data and are never bundled.
 Portable files are unsigned, single-executable PE overlays, and depend on the
 maintained system WebView2 runtime. MSI packages are per-machine products with
 `runtime.zip` as an immutable Tauri resource and embedded WebView2 bootstrapper
-mode by default. Signing is deliberately absent on this host and the CI
-workflow fails closed when signing is requested without a valid certificate.
+mode by default. Signing is deliberately absent: local and CI builds produce
+unsigned workflow artifacts only.
 
 ## DILIGENT reference comparison
 
