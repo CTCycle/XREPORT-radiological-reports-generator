@@ -63,10 +63,10 @@ release; `-AllowDirtyTree` is an explicit diagnostic override:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0
 # Diagnostic build of the same four artifacts:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0 `
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0 `
   -AllowDirtyTree -Force
 ```
 
@@ -91,8 +91,8 @@ still provides the source archives for a tag.
 
 Artifacts are written to `release/` with standard SHA-256 manifests:
 
-* `XREPORT-v1.0.0-windows-x64-cpu-portable.exe` and `.msi`
-* `XREPORT-v1.0.0-windows-x64-cuda-portable.exe` and `.msi`
+* `XREPORT-v3.0.0-windows-x64-cpu-portable.exe` and `.msi`
+* `XREPORT-v3.0.0-windows-x64-cuda-portable.exe` and `.msi`
 * one `.sha256` file per variant plus a build metadata JSON file
 
 Portable artifacts are self-contained single EXEs: the frozen runtime ZIP is
@@ -245,7 +245,7 @@ artifacts.
 
 Packaged desktop mode never writes mutable state into the installation
 directory. Immutable extracted files live under
-`%LOCALAPPDATA%\XREPORT\runtime\<cpu|cuda>\1.0.0\<payload-sha256>`. Runtime data,
+`%LOCALAPPDATA%\XREPORT\runtime\<cpu|cuda>\3.0.0\<payload-sha256>`. Runtime data,
 the seeded `.env`, configuration, SQLite database, logs, checkpoints, model
 downloads, tokenizers, templates, and caches live under
 `%LOCALAPPDATA%\XREPORT\data`. Data intentionally survives MSI upgrades and
@@ -288,7 +288,7 @@ arbitrary-opener capability to the Angular content.
 
 ## 8. Development Status
 
-This project is under active development and may contain incomplete features. The initial production-ready release is v1.0.0, which is stable for local evaluation and testing.
+This project is under active development and may contain incomplete features. The upcoming major release is v3.0.0, which is intended for stable local evaluation and testing.
 
 ## 9. License
 
