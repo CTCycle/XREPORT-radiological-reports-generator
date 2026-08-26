@@ -54,7 +54,7 @@ jobs:
 
       - name: Install backend dependencies from project metadata
         working-directory: app/server
-        run: uv pip install --python .venv/bin/python --index https://download.pytorch.org/whl/cu130 --editable '.[test]'
+        run: uv sync --extra test --python .venv/bin/python
 
       - name: Run Ruff
         working-directory: app/server
