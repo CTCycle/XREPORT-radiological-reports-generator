@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-08-21
+Last updated: 2026-08-26
 
 ## Primary Commands
 
@@ -12,8 +12,20 @@ Last updated: 2026-08-21
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 ```
 
+The equivalent complete desktop wrapper from `app/desktop` is:
+
+```powershell
+npm run tauri:build
+npm run tauri:build -- -DesktopRuntime Cuda -DesktopTarget All
+```
+
+Desktop release preparation uses `uv sync --frozen`, `npm ci`, and the pinned
+Rust/Node/Python/uv versions. Generated `ui/` and `runtime.zip` inputs remain
+ignored and are recreated for every release build.
+
 Release artifacts are under `release/`. Desktop staging and Cargo output are
-under `app/desktop/build` and `app/desktop/src-tauri/target`; both are ignored.
+under `app/desktop/build` (including variant-specific `cargo-target` folders);
+all are ignored.
 From the interactive launcher, use the **DESKTOP RELEASE** section to create
 or remove CPU/CUDA portable and MSI payloads individually, or select all four.
 Interactive removal updates the selected variant manifests; the direct remove

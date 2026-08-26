@@ -10,6 +10,8 @@ use zip::ZipArchive;
 
 const OVERLAY_MAGIC: &[u8; 8] = b"XRPZIP01";
 const OVERLAY_FOOTER_LEN: u64 = 8 + 8 + 8;
+const RUNTIME_MANIFEST_FORMAT: u8 = 2;
+const DESKTOP_ARCHITECTURE: &str = "windows-x64";
 
 /// A seekable view over a region of a file.
 ///
@@ -150,15 +152,15 @@ fn open_runtime_archive(
 
 #[derive(Debug, Deserialize)]
 struct RuntimeManifest {
+    format: u8,
+    application: String,
     version: String,
     variant: String,
+    architecture: String,
+    source_commit: String,
+    created_utc: String,
     payload_sha256: String,
-    #[serde(default = "default_backend")]
     backend_executable: String,
-}
-
-fn default_backend() -> String {
-    "backend/XREPORT-backend.exe".to_string()
 }
 
 #[derive(Clone, Debug)]
@@ -171,27 +173,47 @@ pub struct RuntimeInfo {
 
 fn safe_member(name: &str) -> Result<PathBuf, String> {
     let path = Path::new(name);
-    if name.is_empty() || name.contains('\\') || path.is_absolute() {
+    if name.is_empty()
+        || name.contains('\0')
+        || name.contains('\\')
+        || name.contains(':')
+        || path.is_absolute()
+    {
         return Err(format!("unsafe runtime archive member: {name}"));
     }
     for component in path.components() {
         if matches!(
             component,
-            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            Component::CurDir | Component::ParentDir | Component::RootDir | Component::Prefix(_)
         ) {
             return Err(format!("unsafe runtime archive member: {name}"));
         }
     }
     let lower = name.to_ascii_lowercase();
     if lower == ".env"
+        || lower == ".gitignore"
         || lower == "database.db"
         || lower.ends_with("/.env")
+        || lower.ends_with("/.gitignore")
         || lower.ends_with("/database.db")
         || lower.ends_with(".sqlite")
         || lower.ends_with(".sqlite3")
         || lower.ends_with(".log")
-        || lower.contains("/__pycache__/")
-        || lower.contains("/node_modules/")
+        || lower.ends_with(".pyc")
+        || lower.ends_with(".pyo")
+        || lower.split('/').any(|part| {
+            matches!(
+                part,
+                "__pycache__" | ".pytest_cache" | ".ruff_cache" | "node_modules"
+            )
+        })
+        || lower.starts_with("models/")
+        || lower.starts_with("checkpoints/")
+        || lower.starts_with("logs/")
+        || lower.starts_with("resources/")
+        || lower
+            .split('/')
+            .any(|part| matches!(part, ".git" | "tests" | "test" | "caches"))
     {
         return Err(format!("forbidden runtime archive member: {name}"));
     }
@@ -208,7 +230,18 @@ fn validate_manifest(
         &fs::read(&manifest_path).map_err(|error| format!("read runtime manifest: {error}"))?,
     )
     .map_err(|error| format!("parse runtime manifest: {error}"))?;
-    if manifest.version != expected_version || manifest.variant != expected_variant {
+    if manifest.format != RUNTIME_MANIFEST_FORMAT
+        || manifest.application != "XREPORT"
+        || manifest.version != expected_version
+        || manifest.variant != expected_variant
+        || manifest.architecture != DESKTOP_ARCHITECTURE
+        || manifest.source_commit.len() != 40
+        || !manifest
+            .source_commit
+            .chars()
+            .all(|character| character.is_ascii_hexdigit())
+        || manifest.created_utc.trim().is_empty()
+    {
         return Err("runtime manifest does not match the desktop shell".to_string());
     }
     if manifest.payload_sha256.len() != 64
@@ -216,13 +249,24 @@ fn validate_manifest(
             .payload_sha256
             .chars()
             .all(|character| character.is_ascii_hexdigit())
+        || manifest.backend_executable != "backend/XREPORT-backend.exe"
     {
-        return Err("runtime manifest contains an invalid payload hash".to_string());
+        return Err(
+            "runtime manifest contains an invalid payload hash or backend path".to_string(),
+        );
     }
     let backend = root.join(&manifest.backend_executable);
     let client = root.join("client");
-    if !backend.is_file() || !client.join("index.html").is_file() {
-        return Err("runtime is missing the frozen backend or Angular client".to_string());
+    let required_files = [
+        backend.clone(),
+        client.join("index.html"),
+        client.join("error.html"),
+        root.join("settings/.env.example"),
+        root.join("settings/configurations.json"),
+        root.join("settings/inference_models.json"),
+    ];
+    if required_files.iter().any(|path| !path.is_file()) {
+        return Err("runtime is missing one or more required desktop files".to_string());
     }
     Ok(RuntimeInfo {
         root: root.to_path_buf(),
@@ -274,7 +318,7 @@ pub fn extract_runtime(
                 .map_err(|error| format!("read runtime archive entry {index}: {error}"))?;
             let member_name = entry.name().to_string();
             let relative = safe_member(&member_name)?;
-            if !members.insert(member_name.clone()) {
+            if !members.insert(member_name.to_ascii_lowercase()) {
                 return Err(format!("duplicate runtime archive member: {member_name}"));
             }
             if entry
@@ -284,7 +328,7 @@ pub fn extract_runtime(
                 return Err(format!("symlink runtime archive member: {member_name}"));
             }
             if entry.is_dir() {
-                continue;
+                return Err(format!("directory runtime archive member: {member_name}"));
             }
             let destination = staging.join(&relative);
             if let Some(parent) = destination.parent() {
@@ -349,6 +393,9 @@ mod tests {
         assert!(safe_member("../database.db").is_err());
         assert!(safe_member("database.db").is_err());
         assert!(safe_member("settings/.env").is_err());
+        assert!(safe_member(".gitignore").is_err());
+        assert!(safe_member("backend/cache.pyc").is_err());
+        assert!(safe_member("backend/file.exe:stream").is_err());
         assert!(safe_member("backend\\child.exe").is_err());
     }
 }

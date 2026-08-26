@@ -6,12 +6,11 @@
   "license": "MIT",
   "packageManager": "npm@10.9.8",
   "scripts": {
-    "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:build": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File build/tauri_build.ps1",
     "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.11.4"
+    "@tauri-apps/cli": "2.11.4"
   }
 }

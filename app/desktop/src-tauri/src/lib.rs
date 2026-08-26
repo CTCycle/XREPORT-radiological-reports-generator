@@ -72,7 +72,17 @@ fn log_shell(data_root: &Path, message: &str) {
 
 fn show_startup_error(window: &WebviewWindow, data_root: &Path, message: &str) {
     log_shell(data_root, &format!("startup failure: {message}"));
-    let _ = window.navigate(Url::parse("tauri://localhost/error.html").expect("static error URL"));
+    let mut url = Url::parse("tauri://localhost/error.html").expect("static error URL");
+    url.query_pairs_mut()
+        .append_pair("message", message)
+        .append_pair(
+            "log",
+            &data_root
+                .join("logs")
+                .join("desktop-shell.log")
+                .to_string_lossy(),
+        );
+    let _ = window.navigate(url);
 }
 
 fn navigate_to_backend(window: &WebviewWindow, handle: &BackendHandle) -> Result<(), String> {
