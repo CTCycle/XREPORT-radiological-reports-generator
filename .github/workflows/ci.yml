@@ -67,15 +67,33 @@ jobs:
         working-directory: app/server
         run: .venv/bin/pyright .
 
-      - name: Run PostgreSQL persistence tests
+      - name: Run PostgreSQL persistence contract
         env:
-          EMBEDDED_DATABASE: false
-          DATABASE_HOST: 127.0.0.1
-          DATABASE_PORT: 5432
-          DATABASE_NAME: xreport
-          DATABASE_USERNAME: xreport
-          DATABASE_PASSWORD: xreport
-        run: app/server/.venv/bin/python -m pytest app/tests/integration -q --basetemp app/tests/cache/pytest-tmp
+          XREPORT_RUN_POSTGRES_INTEGRATION: "true"
+          XREPORT_TEST_DATABASE_HOST: 127.0.0.1
+          XREPORT_TEST_DATABASE_PORT: "5432"
+          XREPORT_TEST_DATABASE_NAME: xreport
+          XREPORT_TEST_DATABASE_USERNAME: xreport
+          XREPORT_TEST_DATABASE_PASSWORD: xreport
+        run: app/server/.venv/bin/python -m pytest app/tests/integration -q --basetemp app/tests/cache/pytest-integration-tmp
+
+      - name: Run retained API E2E tests
+        run: |
+          app/server/.venv/bin/python -m uvicorn server.app:app --app-dir app/server --host 127.0.0.1 --port 5003 --log-level warning > /tmp/xreport-api.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat /tmp/xreport-api.log; exit 1; }
+          APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest \
+            app/tests/e2e/test_inference_api.py \
+            app/tests/e2e/test_training_api.py \
+            app/tests/e2e/test_upload_api.py \
+            -q --basetemp app/tests/cache/pytest-e2e-tmp
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
