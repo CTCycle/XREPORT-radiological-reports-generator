@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import hashlib
 import json
 from pathlib import Path
+import re
 import stat
 import zipfile
 
@@ -24,7 +25,16 @@ FORBIDDEN_PARTS = {
     "logs",
     "caches",
 }
-FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pyc"}
+FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pyc", ".pyo"}
+REQUIRED_MEMBERS = {
+    "client/index.html",
+    "client/error.html",
+    "backend/XREPORT-backend.exe",
+    "settings/.env.example",
+    "settings/configurations.json",
+    "settings/inference_models.json",
+}
+COMMIT_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
 def iter_files(root: Path) -> list[tuple[Path, str]]:
@@ -44,16 +54,18 @@ def iter_files(root: Path) -> list[tuple[Path, str]]:
             raise ValueError(f"unsupported runtime staging entry: {normalized}")
         lowered = normalized.lower()
         if (
-            any(part.lower() in FORBIDDEN_PARTS for part in parts)
+            ":" in normalized
+            or any(part.lower() in FORBIDDEN_PARTS for part in parts)
             or lowered.startswith(("models/", "checkpoints/", "logs/", "resources/"))
             or lowered in FORBIDDEN_NAMES
             or Path(lowered).name in FORBIDDEN_NAMES
             or Path(lowered).suffix in FORBIDDEN_SUFFIXES
         ):
             raise ValueError(f"forbidden runtime staging entry: {normalized}")
-        if normalized in seen:
+        normalized_key = normalized.lower()
+        if normalized_key in seen:
             raise ValueError(f"duplicate runtime archive member: {normalized}")
-        seen.add(normalized)
+        seen.add(normalized_key)
         entries.append((source, normalized))
     return entries
 
@@ -91,24 +103,26 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--variant", choices=("cpu", "cuda"), required=True)
-    parser.add_argument("--source-commit", default="unknown")
+    parser.add_argument("--architecture", choices=("windows-x64",), default="windows-x64")
+    parser.add_argument("--source-commit", required=True)
     parser.add_argument("--dirty", action="store_true")
     parser.add_argument("--audit", type=Path, required=True)
     args = parser.parse_args()
+    if not COMMIT_RE.fullmatch(args.source_commit):
+        raise ValueError("source commit must be a full 40-character hexadecimal SHA")
 
     entries = iter_files(args.staging)
-    if not any(name == "client/index.html" for _, name in entries):
-        raise ValueError("runtime staging is missing client/index.html")
-    if not any(name == "backend/XREPORT-backend.exe" for _, name in entries):
-        raise ValueError("runtime staging is missing backend/XREPORT-backend.exe")
-    if not any(name == "settings/.env.example" for _, name in entries):
-        raise ValueError("runtime staging is missing settings/.env.example")
+    entry_names = {name for _, name in entries}
+    missing = sorted(REQUIRED_MEMBERS.difference(entry_names))
+    if missing:
+        raise ValueError(f"runtime staging is missing required files: {', '.join(missing)}")
     payload_sha256, payload_bytes, largest = digest_entries(entries)
     manifest = {
-        "format": 1,
+        "format": 2,
         "application": "XREPORT",
         "version": args.version,
         "variant": args.variant,
+        "architecture": args.architecture,
         "backend_executable": "backend/XREPORT-backend.exe",
         "payload_sha256": payload_sha256,
         "file_count": len(entries),

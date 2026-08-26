@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-21
+Last updated: 2026-08-26
 
 ## Windows Local Launcher
 
@@ -80,6 +80,13 @@ under `release/`; generated Cargo/PyInstaller/runtime staging is under
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease
 ```
 
+The release action always recreates `app/desktop/src-tauri/ui` and
+`app/desktop/src-tauri/generated/runtime.zip` from the locked frontend/backend
+inputs. It uses separate Cargo targets for CPU and CUDA and fails closed if a
+release Tauri build is invoked without a valid generated runtime. From
+`app/desktop`, `npm run tauri:build` is the complete CPU release wrapper; use
+`npm run tauri:build -- -DesktopRuntime Cuda` for the CUDA variant.
+
 The interactive launcher has a **DESKTOP RELEASE** section. **Create release
 artifacts** prompts for a version and then offers CPU portable, CPU MSI, CUDA
 portable, CUDA MSI, or all four packages. **Remove release artifacts** offers
@@ -92,7 +99,7 @@ generated runtime output.
 Portable output is one EXE per variant: the release script streams the audited
 ZIP64 runtime onto the PE as an overlay and writes a fixed footer. MSI output
 keeps that ZIP as an installer resource. Do not copy only the raw
-`app/desktop/src-tauri/target/release/xreport-desktop.exe`; it is a shell build,
+`app/desktop/build/cargo-target/<variant>/release/xreport-desktop.exe`; it is a shell build,
 not a distributable portable artifact.
 
 ## Manual Backend And Frontend

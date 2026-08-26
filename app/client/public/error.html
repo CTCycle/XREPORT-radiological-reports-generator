@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XREPORT — Desktop startup error</title>
+  <style>
+    :root { color-scheme: light; font-family: "Segoe UI", sans-serif; background: #e9eef6; color: #1c2633; }
+    body { display: grid; min-height: 100vh; margin: 0; place-items: center; }
+    main { width: min(680px, calc(100% - 48px)); padding: 32px; border: 1px solid #c7d1df; border-radius: 16px; background: #fff; box-shadow: 0 18px 48px #20344a22; }
+    h1 { margin-top: 0; font-size: 1.4rem; }
+    #status { white-space: pre-wrap; line-height: 1.5; }
+    #log-path { color: #526277; font-size: .9rem; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <main role="alert" aria-live="assertive">
+    <h1>XREPORT could not start</h1>
+    <p id="status">The packaged backend did not become ready.</p>
+    <p id="log-path"></p>
+  </main>
+  <script src="error-page.js"></script>
+</body>
+</html>
