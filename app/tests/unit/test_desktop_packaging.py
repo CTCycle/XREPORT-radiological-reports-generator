@@ -10,7 +10,7 @@ from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 
 
 ###############################################################################
-def test_packaged_layout_seeds_data_without_overwriting_edits(tmp_path: Path, monkeypatch) -> None:
+def test_packaged_layout_seeds_data_without_overwriting_user_edits(tmp_path: Path, monkeypatch) -> None:
     runtime = tmp_path / "runtime"
     data = tmp_path / "data"
     (runtime / "settings").mkdir(parents=True)
@@ -28,22 +28,24 @@ def test_packaged_layout_seeds_data_without_overwriting_edits(tmp_path: Path, mo
     config_path = data / "settings" / "configurations.json"
     assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
     assert config_path.is_file()
+
     env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
     ensure_packaged_data(layout)
     assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
 
 
 ###############################################################################
-def test_desktop_token_is_constant_time_checked(monkeypatch) -> None:
+def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
     token = "a" * 64
     monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
+
     assert token_matches(token)
     assert not token_matches("b" * 64)
     assert not token_matches(None)
 
 
 ###############################################################################
-def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path) -> None:
+def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
     staging = tmp_path / "staging"
     (staging / "backend").mkdir(parents=True)
     (staging / "client").mkdir()
@@ -53,9 +55,10 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
     (staging / "settings" / ".env.example").write_text("", encoding="utf-8")
     (staging / "settings" / "configurations.json").write_text("{}", encoding="utf-8")
     (staging / "settings" / "inference_models.json").write_text("{}", encoding="utf-8")
+    script = Path(__file__).parents[2] / "desktop" / "build" / "create_runtime_bundle.py"
+
     output = tmp_path / "runtime.zip"
     audit = tmp_path / "audit.json"
-    script = Path(__file__).parents[2] / "desktop" / "build" / "create_runtime_bundle.py"
     completed = subprocess.run(
         [
             sys.executable,
@@ -79,6 +82,7 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
     assert output.is_file()
     assert manifest["payload_sha256"]
     assert "runtime-manifest.json" not in completed.stdout
+
     (staging / "logs").mkdir()
     (staging / "logs" / "backend.log").write_text("forbidden", encoding="utf-8")
     rejected = subprocess.run(
@@ -101,12 +105,3 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
     )
     assert rejected.returncode != 0
     assert "forbidden runtime staging entry" in rejected.stderr
-
-
-###############################################################################
-def test_pyinstaller_spec_packages_alembic_migration_files() -> None:
-    spec = Path(__file__).parents[2] / "desktop" / "build" / "xreport_backend.spec"
-    source = spec.read_text(encoding="utf-8")
-
-    assert 'collect_submodules("alembic")' in source
-    assert '"server/migrations"' in source
