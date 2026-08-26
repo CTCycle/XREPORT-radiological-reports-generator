@@ -10,3 +10,7 @@ class HealthResponse(BaseModel):
     runtime_mode: str
     runtime_variant: str | None = None
     runtime_port: int | None = None
+
+###############################################################################
+class ShutdownResponse(BaseModel):
+    status: str
