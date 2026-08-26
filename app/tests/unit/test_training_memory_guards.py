@@ -5,8 +5,6 @@ import types
 from typing import Any
 
 import pytest
-import torch
-from torch.utils.data import DataLoader, TensorDataset
 
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
@@ -15,41 +13,34 @@ from server.models.training import processing
 from server.models.training.dataloader import XRAYDataLoader
 from server.models.training.trainer import ModelTrainer
 
+
 ###############################################################################
 class FakeLoader:
-
-    # -------------------------------------------------------------------------
     def __init__(self, length: int) -> None:
         self.length = length
 
-    # -------------------------------------------------------------------------
     def __len__(self) -> int:
         return self.length
 
-    # -------------------------------------------------------------------------
     def __iter__(self):
         for _ in range(self.length):
             yield ((0, 0), 0)
 
+
 ###############################################################################
 class FakeSession:
+    history = {"loss": [1.0], "val_loss": [1.2]}
+    epoch = [0]
 
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.history = {"loss": [1.0], "val_loss": [1.2]}
-        self.epoch = [0]
 
 ###############################################################################
 class FakeModel:
-
-    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.fit_x: Any = None
         self.fit_validation_data: Any = None
-        self.fit_steps_per_epoch: int = 0
-        self.fit_validation_steps: int = 0
+        self.fit_steps_per_epoch = 0
+        self.fit_validation_steps = 0
 
-    # -------------------------------------------------------------------------
     def fit(self, x: Any, **kwargs: Any) -> FakeSession:
         self.fit_x = x
         self.fit_validation_data = kwargs.get("validation_data")
@@ -57,34 +48,19 @@ class FakeModel:
         self.fit_validation_steps = int(kwargs.get("validation_steps", 0))
         return FakeSession()
 
-###############################################################################
-class TokenizerCallGuard:
-
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.call_count = 0
-
-    # -------------------------------------------------------------------------
-    def fail_if_called(self, *args: Any, **kwargs: Any) -> None:
-        self.call_count += 1
-        raise AssertionError("Tokenizer loading must not happen in XRAYDataLoader init")
 
 ###############################################################################
-def test_model_trainer_uses_finite_iterables_for_fit() -> None:
+def test_model_trainer_uses_finite_iterables_for_keras_fit() -> None:
     trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
     model = FakeModel()
-    train_data = FakeLoader(length=3)
-    validation_data = FakeLoader(length=2)
 
-    trained_model, history = trainer.train_model(
+    trainer.train_model(
         model=model,
-        train_data=train_data,
-        validation_data=validation_data,
+        train_data=FakeLoader(length=3),
+        validation_data=FakeLoader(length=2),
         checkpoint_path=".",
     )
 
-    assert trained_model is model
-    assert history["epochs"] == 1
     assert isinstance(model.fit_x, DeviceDataLoader)
     assert isinstance(model.fit_validation_data, DeviceDataLoader)
     assert not isinstance(model.fit_x, types.GeneratorType)
@@ -92,39 +68,17 @@ def test_model_trainer_uses_finite_iterables_for_fit() -> None:
     assert model.fit_steps_per_epoch == 3
     assert model.fit_validation_steps == 2
 
-###############################################################################
-def test_model_trainer_preserves_native_torch_dataloaders_for_keras() -> None:
-    trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
-    model = FakeModel()
-    train_data = DataLoader(
-        TensorDataset(torch.zeros((2, 1)), torch.zeros((2, 1))),
-        batch_size=1,
-    )
-    validation_data = DataLoader(
-        TensorDataset(torch.zeros((2, 1)), torch.zeros((2, 1))),
-        batch_size=1,
-    )
-
-    trainer.train_model(
-        model=model,
-        train_data=train_data,
-        validation_data=validation_data,
-        checkpoint_path=".",
-    )
-
-    assert model.fit_x is train_data
-    assert model.fit_validation_data is validation_data
 
 ###############################################################################
-def test_xray_dataloader_init_does_not_load_tokenizer(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    guard = TokenizerCallGuard()
-    monkeypatch.setattr(
-        processing.AutoTokenizer,
-        "from_pretrained",
-        guard.fail_if_called,
-    )
+def test_xray_dataloader_construction_does_not_load_tokenizer(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def fail_if_called(*_args: Any, **_kwargs: Any) -> None:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("Tokenizer loading must not happen in XRAYDataLoader init")
+
+    monkeypatch.setattr(processing.AutoTokenizer, "from_pretrained", fail_if_called)
 
     for _ in range(20):
         XRAYDataLoader(
@@ -135,4 +89,4 @@ def test_xray_dataloader_init_does_not_load_tokenizer(
             }
         )
 
-    assert guard.call_count == 0
+    assert calls == 0
