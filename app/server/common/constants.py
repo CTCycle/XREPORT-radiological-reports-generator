@@ -10,7 +10,7 @@ FASTAPI_API_PREFIX = "/api"
 ###############################################################################
 FASTAPI_TITLE = "XREPORT Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
-FASTAPI_VERSION = "1.0.0"
+FASTAPI_VERSION = "3.0.0"
 
 # [TRAINING CONSTANTS]
 ###############################################################################

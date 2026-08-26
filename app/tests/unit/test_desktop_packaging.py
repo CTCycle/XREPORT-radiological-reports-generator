@@ -19,7 +19,7 @@ def test_packaged_layout_seeds_data_without_overwriting_edits(tmp_path: Path, mo
     monkeypatch.setenv("XREPORT_DESKTOP", "true")
     monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
     monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
-    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "1.0.0")
+    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.0.0")
     monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
 
     layout = RuntimeLayout.from_environment()
@@ -65,7 +65,7 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
             "--output",
             str(output),
             "--version",
-            "1.0.0",
+            "3.0.0",
             "--variant",
             "cpu",
             "--audit",
@@ -90,7 +90,7 @@ def test_runtime_bundle_streaming_audit_rejects_forbidden_entries(tmp_path: Path
             "--output",
             str(tmp_path / "rejected.zip"),
             "--version",
-            "1.0.0",
+            "3.0.0",
             "--variant",
             "cpu",
             "--audit",

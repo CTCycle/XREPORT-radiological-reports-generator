@@ -8,7 +8,7 @@ Last updated: 2026-08-21
 
 ```powershell
 .\start_on_windows.ps1 -Action LaunchDesktopDev
-.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 1.0.0
+.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 ```
 

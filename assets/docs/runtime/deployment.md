@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-08-20
+Last updated: 2026-08-21
 
 ## Deployment Scope
 
@@ -23,6 +23,7 @@ Last updated: 2026-08-20
 
 - Python dependencies are synchronized from `app/server/pyproject.toml`.
 - Frontend dependencies are installed from `app/client/package-lock.json` when it exists.
+- Desktop Tauri dependencies are installed from `app/desktop/package-lock.json` when it exists.
 
 ## Database Migration Lifecycle
 
