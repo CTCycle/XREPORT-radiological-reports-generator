@@ -57,8 +57,10 @@ def test_health_endpoint_returns_backend_json() -> None:
     assert response.json() == {
         "status": "ok",
         "application": "XREPORT Backend",
-        "version": "1.0.0",
+        "version": "3.0.0",
         "runtime_mode": "sqlite",
+        "runtime_variant": None,
+        "runtime_port": None,
     }
 
 ###############################################################################
