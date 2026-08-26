@@ -310,6 +310,12 @@ class ModelUpdateCheckRequest(BaseModel):
     model_ref: str
 
 ###############################################################################
+class InferenceGenerateRequest(BaseModel):
+    model_ref: str
+    generation_profile: GenerationProfile
+    clinical_context: str = ""
+
+###############################################################################
 class ModelMaintenanceRequest(BaseModel):
     model_ref: str
     action: Literal["download", "repair", "reinstall", "download_update", "delete_local"]

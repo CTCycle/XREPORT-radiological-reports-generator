@@ -6,7 +6,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from server.api.inference import router as inference_router
 from server.api.errors import register_service_error_handlers
@@ -31,7 +31,7 @@ from server.common.desktop_security import (
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
 from server.common.path import RUNTIME_VARIANT
 from server.configurations import get_server_settings
-from server.domain.health import HealthResponse
+from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 
 ###############################################################################
@@ -55,11 +55,11 @@ def health_check(request: Request) -> HealthResponse:
 
 
 ###############################################################################
-def request_shutdown(request: Request) -> JSONResponse:
+def request_shutdown(request: Request) -> ShutdownResponse:
     event = getattr(request.app.state, "desktop_shutdown_event", None)
     if event is not None:
         event.set()
-    return JSONResponse({"status": "shutting_down"})
+    return ShutdownResponse(status="shutting_down")
 
 
 ###############################################################################
@@ -156,6 +156,7 @@ def create_app() -> FastAPI:
             request_shutdown,
             methods=["POST"],
             include_in_schema=False,
+            response_model=ShutdownResponse,
         )
         application.add_api_route(
             "/{path:path}",

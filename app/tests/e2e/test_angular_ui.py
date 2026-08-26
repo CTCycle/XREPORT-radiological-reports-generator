@@ -9,8 +9,8 @@ import os
 import pytest
 
 playwright = pytest.importorskip("playwright.sync_api")
-from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Error as PlaywrightError  # noqa: E402
+from playwright.sync_api import Page, sync_playwright  # noqa: E402
 
 
 BASE_URL = os.environ.get("UI_BASE_URL", "http://127.0.0.1:8003").rstrip("/")

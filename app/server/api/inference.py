@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, UploadFile, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
+    InferenceGenerateRequest,
     InferenceModelsResponse,
     ModelMaintenanceRequest,
     ModelUpdateCheckRequest,
@@ -12,6 +15,18 @@ from server.domain.inference import (
 )
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
 from server.services.inference import InferenceService, get_inference_service
+
+###############################################################################
+def parse_generation_request(
+    model_ref: str = Form(...),
+    generation_profile: GenerationProfile = Form(...),
+    clinical_context: str = Form(""),
+) -> InferenceGenerateRequest:
+    return InferenceGenerateRequest(
+        model_ref=model_ref,
+        generation_profile=generation_profile,
+        clinical_context=clinical_context,
+    )
 
 ###############################################################################
 class InferenceEndpoint:
@@ -44,9 +59,10 @@ class InferenceEndpoint:
     # -------------------------------------------------------------------------
     async def generate_reports(
         self,
-        model_ref: str = Form(...),
-        generation_profile: GenerationProfile = Form(...),
-        clinical_context: str = Form(""),
+        request: Annotated[
+            InferenceGenerateRequest,
+            Depends(parse_generation_request),
+        ],
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
@@ -62,9 +78,9 @@ class InferenceEndpoint:
                 )
             )
         return self.service.generate_reports(
-            model_ref=model_ref,
-            generation_profile=generation_profile,
-            clinical_context=clinical_context,
+            model_ref=request.model_ref,
+            generation_profile=request.generation_profile,
+            clinical_context=request.clinical_context,
             images=parsed_images,
         )
 

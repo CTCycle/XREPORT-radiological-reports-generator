@@ -1355,6 +1355,14 @@
     "schemas": {
       "Body_generate_reports_api_inference_generate_post": {
         "properties": {
+          "images": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Images"
+          },
           "model_ref": {
             "type": "string",
             "title": "Model Ref"
@@ -1372,21 +1380,13 @@
             "type": "string",
             "title": "Clinical Context",
             "default": ""
-          },
-          "images": {
-            "items": {
-              "type": "string",
-              "format": "binary"
-            },
-            "type": "array",
-            "title": "Images"
           }
         },
         "type": "object",
         "required": [
+          "images",
           "model_ref",
-          "generation_profile",
-          "images"
+          "generation_profile"
         ],
         "title": "Body_generate_reports_api_inference_generate_post"
       },

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from server.api.inference import InferenceEndpoint
+from server.domain.inference import InferenceGenerateRequest
 from server.domain.inference import InferenceImage
 from server.domain.inference import InferenceModelsResponse
 from server.domain.jobs import JobStartResponse
@@ -73,9 +74,11 @@ def test_inference_endpoint_converts_uploads_to_domain_images() -> None:
 
     response = run_async_in_thread(
         endpoint.generate_reports(
-            model_ref="xreport:checkpoint_a",
-            generation_profile="deterministic",
-            clinical_context="",
+            request=InferenceGenerateRequest(
+                model_ref="xreport:checkpoint_a",
+                generation_profile="deterministic",
+                clinical_context="",
+            ),
             images=uploads,
         )
     )

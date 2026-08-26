@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-21
+Last updated: 2026-08-26
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -71,6 +71,8 @@ and unmatched counts without writing records. A repeat request with
 - `DELETE /api/inference/jobs/{job_id}`
 
 `POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+
+The multipart metadata is parsed into the domain `InferenceGenerateRequest`; the uploaded files remain typed `UploadFile` inputs and the flat field names remain unchanged.
 
 The Angular client maps these endpoint groups to `InferenceApiService`, `DatasetApiService`, `TrainingApiService`, and `ValidationApiService`. Shared request execution and error formatting live in `ApiRequestService`; feature clients preserve the existing result/error envelope.
 
