@@ -9,6 +9,7 @@ import torch
 from server.configurations import InferenceSettings
 from server.domain.inference import InferenceImage
 from server.models.inference.providers.adapters import MedGemmaAdapter
+from server.models.inference.providers import huggingface as huggingface_module
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
@@ -74,7 +75,11 @@ def _processor_inputs() -> Inputs:
 
 ###############################################################################
 def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr("server.models.inference.providers.huggingface.ROOT_DIR", tmp_path)
+    monkeypatch.setattr(
+        huggingface_module,
+        "is_within_allowed_roots",
+        lambda path: path.resolve().is_relative_to(tmp_path.resolve()),
+    )
     snapshot_path = tmp_path / "snapshot"
     snapshot_path.mkdir()
     calls: dict[str, object] = {}
@@ -256,7 +261,11 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
 
 ###############################################################################
 def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch, tmp_path) -> None:
-    monkeypatch.setattr("server.models.inference.providers.huggingface.ROOT_DIR", tmp_path)
+    monkeypatch.setattr(
+        huggingface_module,
+        "is_within_allowed_roots",
+        lambda path: path.resolve().is_relative_to(tmp_path.resolve()),
+    )
     model_a = MagicMock()
     model_b = MagicMock()
     processor_a = MagicMock()

@@ -36,11 +36,6 @@ _SAFE_INHERITED_ENVIRONMENT = {
 
 
 ###############################################################################
-def _truthy(value: str | None) -> bool:
-    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
-###############################################################################
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
@@ -177,12 +172,6 @@ def _configure_server_environment(port: int) -> None:
     nltk_root.mkdir(parents=True, exist_ok=True)
     os.environ["NLTK_DATA"] = str(nltk_root)
     os.environ["MPLCONFIGDIR"] = str(data_root / "caches" / "matplotlib")
-    model_root = data_root / "models"
-    os.environ["HF_HOME"] = str(model_root / "huggingface")
-    os.environ["HF_HUB_CACHE"] = str(model_root / "huggingface" / "hub-cache")
-    os.environ["TRANSFORMERS_CACHE"] = str(model_root / "huggingface" / "hub-cache")
-    os.environ["TORCH_HOME"] = str(model_root / "torch")
-    os.environ["KERAS_HOME"] = str(model_root / "keras")
 
 
 ###############################################################################

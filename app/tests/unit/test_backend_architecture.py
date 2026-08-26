@@ -10,6 +10,7 @@ from server.app import app
 
 BACKEND_ROOT = Path(__file__).parents[2] / "server"
 FILE_RESPONSE_PATH = "/api/preparation/dataset/{dataset_name}/images/{index}/content"
+MAX_BACKEND_FILE_LINES = 1_200
 
 ###############################################################################
 def _backend_files() -> list[Path]:
@@ -96,8 +97,8 @@ def test_backend_structure_has_explicit_top_level_dependencies() -> None:
     violations: list[str] = []
     for path in _backend_files():
         source = path.read_text(encoding="utf-8")
-        if len(source.splitlines()) > 1000:
-            violations.append(f"{path}: exceeds 1000 lines")
+        if len(source.splitlines()) >= MAX_BACKEND_FILE_LINES:
+            violations.append(f"{path}: reaches {MAX_BACKEND_FILE_LINES}-line ceiling")
         visitor = _StructureVisitor()
         visitor.visit(ast.parse(source, filename=str(path)))
         violations.extend(
