@@ -812,7 +812,11 @@ function Invoke-DesktopVariantBuild {
     )
     if ($DirtyTree) { $bundleArgs += '--dirty' }
     Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
-    $runtimeManifest = Get-Content -LiteralPath $auditPath -Raw | ConvertFrom-Json
+    $runtimeManifestJson = Get-Content -LiteralPath $auditPath -Raw
+    $runtimeManifest = $runtimeManifestJson | ConvertFrom-Json
+    $createdUtcMatch = [regex]::Match($runtimeManifestJson, '"created_utc"\s*:\s*"([^"]+)"')
+    if (-not $createdUtcMatch.Success) { throw "Runtime audit is missing a raw created_utc value: $auditPath" }
+    $createdUtc = $createdUtcMatch.Groups[1].Value
     Invoke-Checked -FilePath $VenvPython -ArgumentList @(
         $DesktopRuntimeVerifier, '--archive', $archivePath, '--version', $ReleaseVersion,
         '--variant', $Variant, '--architecture', $DesktopArchitecture, '--source-commit', $SourceCommit
@@ -877,7 +881,10 @@ function Invoke-DesktopVariantBuild {
         architecture = $DesktopArchitecture
         source_commit = $SourceCommit
         dirty_tree = $DirtyTree
-        created_utc = [string]$runtimeManifest.created_utc
+        # Windows PowerShell converts ISO timestamps to DateTime values while
+        # deserializing JSON. Preserve the source string so release metadata
+        # stays locale-independent and matches the runtime audit exactly.
+        created_utc = $createdUtc
         payload_sha256 = [string]$runtimeManifest.payload_sha256
         webview2 = if ($OfflineWebView2) { 'offlineInstaller' } else { 'embedBootstrapper' }
         artifacts = @($artifactPaths | ForEach-Object { [IO.Path]::GetFileName($_) })

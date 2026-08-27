@@ -7,7 +7,10 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -23,6 +26,7 @@ struct ReadyContract {
 
 pub struct BackendHandle {
     child: Mutex<Child>,
+    stopped: AtomicBool,
     _job: Option<JobObject>,
     pub data_root: PathBuf,
     pub ready_file: PathBuf,
@@ -180,7 +184,16 @@ pub fn start_backend(
     version: &str,
     variant: &str,
 ) -> Result<BackendHandle, String> {
+    let startup_started = Instant::now();
     let runtime = extract_runtime(data_root, version, variant)?;
+    shell_log(
+        data_root,
+        &format!(
+            "runtime ready cache_hit={} elapsed_ms={:.0}",
+            runtime.cache_hit,
+            startup_started.elapsed().as_secs_f64() * 1000.0
+        ),
+    );
     let state_dir = data_root.join("state");
     fs::create_dir_all(&state_dir)
         .map_err(|error| format!("create desktop state directory: {error}"))?;
@@ -234,6 +247,14 @@ pub fn start_backend(
     let mut child = command
         .spawn()
         .map_err(|error| format!("start packaged backend: {error}"))?;
+    shell_log(
+        data_root,
+        &format!(
+            "backend process spawned pid={} elapsed_ms={:.0}",
+            child.id(),
+            startup_started.elapsed().as_secs_f64() * 1000.0
+        ),
+    );
     let job = match JobObject::attach(child.id()) {
         Ok(job) => job,
         Err(error) => {
@@ -259,10 +280,15 @@ pub fn start_backend(
     };
     shell_log(
         data_root,
-        &format!("backend ready on loopback port {}", contract.port),
+        &format!(
+            "backend ready on loopback port {} elapsed_ms={:.0}",
+            contract.port,
+            startup_started.elapsed().as_secs_f64() * 1000.0
+        ),
     );
     Ok(BackendHandle {
         child: Mutex::new(child),
+        stopped: AtomicBool::new(false),
         _job: Some(job),
         data_root: data_root.to_path_buf(),
         ready_file,
@@ -292,6 +318,10 @@ impl BackendHandle {
     }
 
     pub fn stop(&self) {
+        if self.stopped.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let shutdown_started = Instant::now();
         let _ = request(self.port, "POST", "/__xreport/shutdown", &self.token);
         let deadline = Instant::now() + Duration::from_secs(8);
         loop {
@@ -309,7 +339,13 @@ impl BackendHandle {
         }
         let _ = fs::remove_file(&self.ready_file);
         let _ = fs::remove_file(&self.session_file);
-        shell_log(&self.data_root, "backend stopped");
+        shell_log(
+            &self.data_root,
+            &format!(
+                "backend stopped elapsed_ms={:.0}",
+                shutdown_started.elapsed().as_secs_f64() * 1000.0
+            ),
+        );
     }
 }
 
