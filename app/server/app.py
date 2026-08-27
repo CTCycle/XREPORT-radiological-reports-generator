@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
 from pathlib import Path
+from time import perf_counter
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse
@@ -33,6 +34,7 @@ from server.common.path import RUNTIME_VARIANT
 from server.configurations import get_server_settings
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
+from server.common.utils.logger import logger
 
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse | FileResponse:
@@ -86,15 +88,31 @@ def serve_packaged_frontend(path: str) -> FileResponse:
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    startup_started = getattr(application.state, "desktop_startup_started_at", None)
     settings = get_server_settings()
+    if startup_started is not None:
+        logger.info(
+            "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
+            (perf_counter() - startup_started) * 1000,
+        )
 
     run_startup_validations(settings)
+    if startup_started is not None:
+        logger.info(
+            "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
+            (perf_counter() - startup_started) * 1000,
+        )
 
     application.state.server_settings = settings
 
     ready_callback = getattr(application.state, "desktop_ready_callback", None)
     if ready_callback is not None:
         ready_callback()
+        if startup_started is not None:
+            logger.info(
+                "Packaged startup phase=ready_contract_written elapsed_ms=%.0f",
+                (perf_counter() - startup_started) * 1000,
+            )
     shutdown_task: asyncio.Task[None] | None = None
     shutdown_event = getattr(application.state, "desktop_shutdown_event", None)
     desktop_server = getattr(application.state, "desktop_server", None)

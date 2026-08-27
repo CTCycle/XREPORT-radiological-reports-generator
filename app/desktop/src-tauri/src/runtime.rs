@@ -12,6 +12,14 @@ const OVERLAY_MAGIC: &[u8; 8] = b"XRPZIP01";
 const OVERLAY_FOOTER_LEN: u64 = 8 + 8 + 8;
 const RUNTIME_MANIFEST_FORMAT: u8 = 2;
 const DESKTOP_ARCHITECTURE: &str = "windows-x64";
+const REQUIRED_RUNTIME_MEMBERS: [&str; 6] = [
+    "backend/XREPORT-backend.exe",
+    "client/index.html",
+    "client/error.html",
+    "settings/.env.example",
+    "settings/configurations.json",
+    "settings/inference_models.json",
+];
 
 /// A seekable view over a region of a file.
 ///
@@ -161,6 +169,8 @@ struct RuntimeManifest {
     created_utc: String,
     payload_sha256: String,
     backend_executable: String,
+    file_count: usize,
+    payload_bytes: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -169,6 +179,7 @@ pub struct RuntimeInfo {
     pub backend_executable: PathBuf,
     pub client_dir: PathBuf,
     pub payload_sha256: String,
+    pub cache_hit: bool,
 }
 
 fn safe_member(name: &str) -> Result<PathBuf, String> {
@@ -220,16 +231,11 @@ fn safe_member(name: &str) -> Result<PathBuf, String> {
     Ok(path.to_path_buf())
 }
 
-fn validate_manifest(
-    root: &Path,
+fn validate_manifest_values(
+    manifest: &RuntimeManifest,
     expected_version: &str,
     expected_variant: &str,
-) -> Result<RuntimeInfo, String> {
-    let manifest_path = root.join("runtime-manifest.json");
-    let manifest: RuntimeManifest = serde_json::from_slice(
-        &fs::read(&manifest_path).map_err(|error| format!("read runtime manifest: {error}"))?,
-    )
-    .map_err(|error| format!("parse runtime manifest: {error}"))?;
+) -> Result<(), String> {
     if manifest.format != RUNTIME_MANIFEST_FORMAT
         || manifest.application != "XREPORT"
         || manifest.version != expected_version
@@ -250,21 +256,29 @@ fn validate_manifest(
             .chars()
             .all(|character| character.is_ascii_hexdigit())
         || manifest.backend_executable != "backend/XREPORT-backend.exe"
+        || manifest.payload_bytes == 0
     {
         return Err(
             "runtime manifest contains an invalid payload hash or backend path".to_string(),
         );
     }
+    Ok(())
+}
+
+fn validate_manifest(
+    root: &Path,
+    expected_version: &str,
+    expected_variant: &str,
+) -> Result<RuntimeInfo, String> {
+    let manifest_path = root.join("runtime-manifest.json");
+    let manifest: RuntimeManifest = serde_json::from_slice(
+        &fs::read(&manifest_path).map_err(|error| format!("read runtime manifest: {error}"))?,
+    )
+    .map_err(|error| format!("parse runtime manifest: {error}"))?;
+    validate_manifest_values(&manifest, expected_version, expected_variant)?;
     let backend = root.join(&manifest.backend_executable);
     let client = root.join("client");
-    let required_files = [
-        backend.clone(),
-        client.join("index.html"),
-        client.join("error.html"),
-        root.join("settings/.env.example"),
-        root.join("settings/configurations.json"),
-        root.join("settings/inference_models.json"),
-    ];
+    let required_files = REQUIRED_RUNTIME_MEMBERS.map(|member| root.join(member));
     if required_files.iter().any(|path| !path.is_file()) {
         return Err("runtime is missing one or more required desktop files".to_string());
     }
@@ -273,7 +287,65 @@ fn validate_manifest(
         backend_executable: backend,
         client_dir: client,
         payload_sha256: manifest.payload_sha256,
+        cache_hit: false,
     })
+}
+
+fn validate_archive_contract(
+    archive: &mut ZipArchive<BoundedFile>,
+    expected_version: &str,
+    expected_variant: &str,
+) -> Result<RuntimeManifest, String> {
+    let manifest: RuntimeManifest = {
+        let mut entry = archive
+            .by_name("runtime-manifest.json")
+            .map_err(|error| format!("read runtime manifest from archive: {error}"))?;
+        let mut payload = Vec::new();
+        entry
+            .read_to_end(&mut payload)
+            .map_err(|error| format!("read runtime manifest from archive: {error}"))?;
+        serde_json::from_slice(&payload)
+            .map_err(|error| format!("parse runtime manifest from archive: {error}"))?
+    };
+    validate_manifest_values(&manifest, expected_version, expected_variant)?;
+
+    let expected_file_count = archive
+        .len()
+        .checked_sub(1)
+        .ok_or_else(|| "runtime archive is missing payload members".to_string())?;
+    if manifest.file_count != expected_file_count {
+        return Err("runtime manifest file_count does not match the archive".to_string());
+    }
+
+    let mut members = HashSet::new();
+    for index in 0..archive.len() {
+        let entry = archive
+            .by_index(index)
+            .map_err(|error| format!("read runtime archive entry {index}: {error}"))?;
+        let member_name = entry.name().to_string();
+        safe_member(&member_name)?;
+        if !members.insert(member_name.to_ascii_lowercase()) {
+            return Err(format!("duplicate runtime archive member: {member_name}"));
+        }
+        if entry
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+        {
+            return Err(format!("symlink runtime archive member: {member_name}"));
+        }
+        if entry.is_dir() {
+            return Err(format!("directory runtime archive member: {member_name}"));
+        }
+    }
+    for required in REQUIRED_RUNTIME_MEMBERS {
+        let required_lower = required.to_ascii_lowercase();
+        if !members.contains(&required_lower) {
+            return Err(format!(
+                "runtime archive is missing required member: {required}"
+            ));
+        }
+    }
+    Ok(manifest)
 }
 
 fn existing_runtime(
@@ -286,7 +358,10 @@ fn existing_runtime(
         return Ok(None);
     }
     match validate_manifest(target, expected_version, expected_variant) {
-        Ok(info) if info.payload_sha256.eq_ignore_ascii_case(digest) => Ok(Some(info)),
+        Ok(mut info) if info.payload_sha256.eq_ignore_ascii_case(digest) => {
+            info.cache_hit = true;
+            Ok(Some(info))
+        }
         Ok(_) | Err(_) => Ok(None),
     }
 }
@@ -297,6 +372,8 @@ pub fn extract_runtime(
     expected_variant: &str,
 ) -> Result<RuntimeInfo, String> {
     let mut archive = open_runtime_archive(expected_variant, expected_version)?;
+    let archive_manifest =
+        validate_archive_contract(&mut archive, expected_version, expected_variant)?;
     let runtime_parent = data_root
         .parent()
         .ok_or_else(|| "desktop data root has no application parent".to_string())?
@@ -305,6 +382,23 @@ pub fn extract_runtime(
         .join(expected_version);
     fs::create_dir_all(&runtime_parent)
         .map_err(|error| format!("create runtime directory: {error}"))?;
+    let target = runtime_parent.join(&archive_manifest.payload_sha256);
+    if let Some(existing) = existing_runtime(
+        &target,
+        expected_version,
+        expected_variant,
+        &archive_manifest.payload_sha256,
+    )? {
+        return Ok(existing);
+    }
+
+    // The archive contract is cheap to inspect, but the payload digest is
+    // intentionally computed only when a new extraction is required.  A
+    // verified payload is stored under its manifest hash, so reopening an
+    // already extracted release does not stream hundreds of megabytes from
+    // the portable overlay (or several gigabytes from a CUDA bundle).
+    drop(archive);
+    let mut archive = open_runtime_archive(expected_variant, expected_version)?;
     let staging = runtime_parent.join(format!(".staging-{}", Uuid::new_v4().simple()));
     fs::create_dir_all(&staging)
         .map_err(|error| format!("create runtime staging directory: {error}"))?;

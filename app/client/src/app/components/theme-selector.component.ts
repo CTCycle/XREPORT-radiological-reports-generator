@@ -16,7 +16,6 @@ interface ThemeOption {
   providers: [provideIcons({ lucideMonitor, lucideMoon, lucideSun })],
   template: `
     <fieldset class="theme-selector" aria-label="Theme preference">
-      <p class="sr-only">Choose the application color theme.</p>
       <div class="theme-selector-options" role="group" aria-label="Theme preference">
         @for (option of options; track option.value) {
           <button
