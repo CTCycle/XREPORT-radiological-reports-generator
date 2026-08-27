@@ -9,18 +9,6 @@ from server.services.model_installation import ModelInstallationManager
 
 
 ###############################################################################
-class ModelSerializerStub:
-    def scan_checkpoints_folder(self) -> list[str]:
-        return ["checkpoint_epoch_48"]
-
-
-###############################################################################
-class EmptyModelSerializerStub:
-    def scan_checkpoints_folder(self) -> list[str]:
-        return []
-
-
-###############################################################################
 def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
         hf_local_only=hf_local_only,
@@ -52,8 +40,8 @@ def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
 ###############################################################################
 def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) -> None:
     monkeypatch.setattr(
-        "server.services.inference_catalog.ModelSerializer",
-        ModelSerializerStub,
+        "server.services.inference_catalog.scan_complete_checkpoints",
+        lambda: ["checkpoint_epoch_48"],
     )
 
     response = InferenceModelCatalog(_settings()).list_models()
@@ -72,8 +60,8 @@ def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) 
 ###############################################################################
 def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(monkeypatch) -> None:
     monkeypatch.setattr(
-        "server.services.inference_catalog.ModelSerializer",
-        ModelSerializerStub,
+        "server.services.inference_catalog.scan_complete_checkpoints",
+        lambda: ["checkpoint_epoch_48"],
     )
 
     response = InferenceModelCatalog(_settings(hf_local_only=False)).list_models()
@@ -87,8 +75,8 @@ def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(mon
 ###############################################################################
 def test_catalog_hides_xreport_provider_without_complete_checkpoints(monkeypatch) -> None:
     monkeypatch.setattr(
-        "server.services.inference_catalog.ModelSerializer",
-        EmptyModelSerializerStub,
+        "server.services.inference_catalog.scan_complete_checkpoints",
+        lambda: [],
     )
 
     response = InferenceModelCatalog(_settings()).list_models()
@@ -100,8 +88,8 @@ def test_catalog_hides_xreport_provider_without_complete_checkpoints(monkeypatch
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
     monkeypatch.setattr(
-        "server.services.inference_catalog.ModelSerializer",
-        EmptyModelSerializerStub,
+        "server.services.inference_catalog.scan_complete_checkpoints",
+        lambda: [],
     )
     active_path = ROOT_DIR / "app" / "resources" / "models" / "huggingface" / "installed" / "active"
     monkeypatch.setattr(

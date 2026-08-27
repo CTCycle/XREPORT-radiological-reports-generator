@@ -172,7 +172,7 @@ export class DatasetTrainingJourneyComponent {
       icon: 'lucideUpload',
       title: 'Upload and load source data',
       summary: 'Bring the image folder and its reports or metadata into the application as one matched source.',
-      doThis: 'Choose a server-side image folder containing JPG/JPEG, PNG, BMP, TIFF, or GIF files. Upload the CSV or XLSX reports/metadata file, then click Load Dataset.',
+      doThis: 'Choose an image folder containing JPG/JPEG, PNG, BMP, TIFF, or GIF files. Desktop uses the native system picker; browser mode uses the server fallback. Upload the CSV or XLSX reports/metadata file, then click Load Dataset.',
       whatHappens: 'XREPORT matches report image identifiers to available images, reports matched and unmatched records, and stores the loaded source rows for processing.',
       route: '/dataset',
       routeLabel: 'Open Dataset',

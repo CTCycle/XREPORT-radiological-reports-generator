@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Query, status
 from fastapi.responses import FileResponse
 
@@ -22,7 +24,8 @@ from server.domain.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from server.services.preparation import PreparationService, get_preparation_service
+if TYPE_CHECKING:
+    from server.services.preparation import PreparationService
 
 ###############################################################################
 class PreparationEndpoint:
@@ -34,7 +37,15 @@ class PreparationEndpoint:
         service: PreparationService | None = None,
     ) -> None:
         self.router = router
-        self.service = get_preparation_service() if service is None else service
+        self._service = service
+
+    @property
+    def service(self) -> PreparationService:
+        if self._service is None:
+            from server.services.preparation import get_preparation_service
+
+            self._service = get_preparation_service()
+        return self._service
 
     # -------------------------------------------------------------------------
     def get_dataset_status(self) -> DatasetStatusResponse:

@@ -1,18 +1,33 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, File, UploadFile, status
 
 from server.domain.training import DatasetUploadResponse
-from server.services.upload import UploadService, get_upload_state
+if TYPE_CHECKING:
+    from server.services.upload import UploadService
 
 ###############################################################################
 class UploadEndpoint:
     """Endpoint for dataset upload operations."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, router: APIRouter, upload_service: UploadService) -> None:
+    def __init__(
+        self,
+        router: APIRouter,
+        upload_service: UploadService | None = None,
+    ) -> None:
         self.router = router
-        self.upload_service = upload_service
+        self._upload_service = upload_service
+
+    @property
+    def upload_service(self) -> UploadService:
+        if self._upload_service is None:
+            from server.services.upload import UploadService, get_upload_state
+
+            self._upload_service = UploadService(get_upload_state())
+        return self._upload_service
 
     # -------------------------------------------------------------------------
     async def upload_dataset(
@@ -38,10 +53,7 @@ class UploadEndpoint:
 ###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/upload", tags=["upload"])
-    UploadEndpoint(
-        router=router,
-        upload_service=UploadService(get_upload_state()),
-    ).add_routes()
+    UploadEndpoint(router=router).add_routes()
     return router
 
 

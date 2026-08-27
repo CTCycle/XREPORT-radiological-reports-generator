@@ -6,7 +6,7 @@ const defaultTrainingConfig: TrainingConfig = { numEncoders: 6, numDecoders: 6, 
 const defaultDashboard: TrainingDashboardState = { isTraining: false, currentEpoch: 0, totalEpochs: 0, loss: 0, valLoss: 0, accuracy: 0, valAccuracy: 0, progressPercent: 0, elapsedSeconds: 0, chartData: [], availableMetrics: [], epochBoundaries: [], logEntries: [] };
 
 function freshDatasetState(): DatasetPageState {
-  return { config: { ...defaultDatasetConfig }, imageFolderPath: '', imageFolderName: '', imageValidation: null, datasetFile: null, datasetUpload: null, loadResult: null, isLoading: false, uploadError: null, folderBrowserOpen: false, isProcessing: false, processingResult: null, dbStatus: null, datasetNames: null, selectedDatasets: [], isValidating: false, validationResult: null, validationError: null };
+  return { config: { ...defaultDatasetConfig }, imageFolderPath: '', imageFolderName: '', imageValidation: null, datasetFile: null, datasetUpload: null, loadResult: null, isLoading: false, uploadError: null, isProcessing: false, processingResult: null, dbStatus: null, datasetNames: null, selectedDatasets: [], isValidating: false, validationResult: null, validationError: null };
 }
 function freshTrainingState(): TrainingPageState {
   return { config: { ...defaultTrainingConfig }, newSessionExpanded: true, resumeSessionExpanded: false, selectedCheckpoint: '', additionalEpochs: 50, dashboardState: { ...defaultDashboard } };
