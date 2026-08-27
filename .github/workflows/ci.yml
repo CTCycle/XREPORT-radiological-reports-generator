@@ -7,20 +7,21 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validation:
     name: Backend And Client Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
-      UV_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/uv
-      PIP_CACHE_DIR: ${{ github.workspace }}/runtimes/cache/pip
-      NPM_CONFIG_CACHE: ${{ github.workspace }}/runtimes/cache/npm
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/runtimes/cache/playwright-browsers
-      XDG_CACHE_HOME: ${{ github.workspace }}/app/tests/cache
-      RUFF_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/ruff
-      MYPY_CACHE_DIR: ${{ github.workspace }}/app/tests/cache/mypy
-      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/app/tests/cache/python
-      COVERAGE_FILE: ${{ github.workspace }}/app/tests/cache/coverage/.coverage
+      XDG_CACHE_HOME: ${{ runner.temp }}/xreport-cache
+      RUFF_CACHE_DIR: ${{ runner.temp }}/xreport-ruff
     services:
       postgres:
         image: postgres:16
@@ -46,11 +47,15 @@ jobs:
           python-version: "3.14.2"
 
       - name: Install uv
-        run: python -m pip install uv==0.11.9
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.30"
+          enable-cache: true
+          cache-dependency-glob: app/server/uv.lock
 
       - name: Synchronize locked backend dependencies
         working-directory: app/server
-        run: uv sync --frozen --extra test --python 3.14.2
+        run: uv sync --locked --extra test --python 3.14.2
 
       - name: Run Ruff
         working-directory: app/server
@@ -96,6 +101,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22.22.3"
+          cache: npm
+          cache-dependency-path: app/client/package-lock.json
 
       - name: Verify Node toolchain
         shell: bash
@@ -118,3 +125,14 @@ jobs:
       - name: Run client unit tests
         working-directory: app/client
         run: npm run test:unit
+
+      - name: Upload failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: xreport-ci-diagnostics-${{ github.run_id }}
+          retention-days: 3
+          if-no-files-found: ignore
+          path: |
+            /tmp/xreport-api.log
+            app/tests/cache/
