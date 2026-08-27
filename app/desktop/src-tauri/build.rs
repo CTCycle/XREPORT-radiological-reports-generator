@@ -125,9 +125,9 @@ fn main() {
         validate_release_inputs(&archive, &ui);
     }
     // `tauri_build` validates bundle resources even for a debug/test compile.
-    // Debug tests intentionally run without generated release assets; the
-    // release path above remains fail-closed and is prepared by the launcher.
-    if profile == "release" {
+    // Ordinary debug tests intentionally run without generated release assets;
+    // the official release/dev paths are prepared by the launcher.
+    if profile == "release" || std::env::var("XREPORT_DESKTOP_DEV").is_ok() {
         tauri_build::build();
     }
     let variant = std::env::var("XREPORT_DESKTOP_VARIANT").unwrap_or_else(|_| "cpu".to_string());

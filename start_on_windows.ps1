@@ -643,6 +643,14 @@ function Get-DesktopConfigPath {
     $configPath = Join-Path $DesktopBuildDir "tauri-$Variant-$ReleaseVersion.json"
     New-Item -ItemType Directory -Path $DesktopBuildDir -Force | Out-Null
     $config = Get-Content -LiteralPath $sourcePath -Raw | ConvertFrom-Json
+    $capabilityPath = Join-Path $DesktopTauriDir 'capabilities\default.json'
+    $capability = Get-Content -LiteralPath $capabilityPath -Raw | ConvertFrom-Json
+    if ($config.app.security.PSObject.Properties.Name -contains 'capabilities') {
+        $config.app.security.capabilities = @($capability)
+    }
+    else {
+        $config.app.security | Add-Member -MemberType NoteProperty -Name capabilities -Value @($capability)
+    }
     $config.version = $ReleaseVersion
     if ($OfflineWebView2) {
         $config.bundle.windows.webviewInstallMode = [pscustomobject]@{ type = 'offlineInstaller' }
@@ -1124,8 +1132,9 @@ function Invoke-LaunchDesktopDev {
         Invoke-HealthCheck -Uri "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health" -TimeoutSeconds 60
         Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
         $env:XREPORT_DESKTOP_DEV = '1'
+        $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version
         Write-Step 'Launching the debug Tauri shell; backend and frontend consoles remain visible.'
-        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', (Join-Path $DesktopTauriDir 'tauri.conf.json')) -WorkingDirectory $DesktopDir
+        Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', $devConfigPath) -WorkingDirectory $DesktopDir
     }
     finally {
         Remove-Item Env:XREPORT_DESKTOP_DEV -ErrorAction SilentlyContinue

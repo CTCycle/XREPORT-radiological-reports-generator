@@ -3,5 +3,8 @@
   "identifier": "default",
   "description": "XREPORT desktop window can open the native operating-system picker.",
   "windows": ["main"],
+  "remote": {
+    "urls": ["http://127.0.0.1:*"]
+  },
   "permissions": ["dialog:allow-open"]
 }
