@@ -1,12 +1,15 @@
 # Testing And Quality Rules
 
-Last updated: 2026-08-04
+Last updated: 2026-08-27
 
 ## Tooling And Quality Gates
 
 - Linting and formatting use Ruff or the established project-equivalent toolchain.
 - Typing should remain Pylance-compatible.
 - Testing uses pytest with coverage focused on `tests/unit` plus impacted `tests/e2e`.
+- Pytest configuration is centralized in `app/server/pyproject.toml`; CI and
+  repository test helpers pass that file explicitly instead of relying on a
+  root-level pytest configuration file.
 - Validate changed API contracts and job-lifecycle behavior with targeted tests.
 
 ## Windows Script Rules

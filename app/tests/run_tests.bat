@@ -186,7 +186,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
+"%PYTHON_CMD%" -m pytest -c "%SERVER_DIR%\pyproject.toml" "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
 set "PYTEST_RC=%ERRORLEVEL%"
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"
