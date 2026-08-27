@@ -1348,16 +1348,13 @@ function Uninstall-Application {
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
         (Join-Path $ClientDir '.angular'),
-        (Join-Path $ClientDir 'dist'),
-        (Join-Path $ClientDir 'package-lock.json'),
-        (Join-Path $ServerDir 'uv.lock'),
-        (Join-Path $RepoRoot 'uv.lock')
+        (Join-Path $ClientDir 'dist')
     )
     foreach ($target in $targets) {
         Remove-PathBestEffort -Path $target -Label $target | Out-Null
     }
     Remove-PythonCaches
-    Write-Ok 'Application runtimes and generated dependencies removed; settings and user data were preserved'
+    Write-Ok 'Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved.'
 }
 
 function Write-MenuRule {
