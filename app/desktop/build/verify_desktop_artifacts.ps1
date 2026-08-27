@@ -41,7 +41,11 @@ Assert-File $metadataPath
 Assert-File $runtimeAudit
 Assert-File $python
 
-$metadata = Get-Content -LiteralPath $metadataPath -Raw | ConvertFrom-Json
+$metadataJson = Get-Content -LiteralPath $metadataPath -Raw
+$metadata = $metadataJson | ConvertFrom-Json
+$metadataCreatedUtcMatch = [regex]::Match($metadataJson, '"created_utc"\s*:\s*"([^"]+)"')
+if (-not $metadataCreatedUtcMatch.Success) { throw 'Build metadata is missing a raw created_utc value.' }
+$metadataCreatedUtc = $metadataCreatedUtcMatch.Groups[1].Value
 foreach ($property in @('format', 'application', 'version', 'variant', 'architecture', 'source_commit', 'created_utc', 'payload_sha256', 'artifacts', 'checksums')) {
     if ($null -eq $metadata.$property) { throw "Build metadata is missing '$property'." }
 }
@@ -49,8 +53,20 @@ if ($metadata.format -ne 2 -or $metadata.application -ne 'XREPORT' -or $metadata
     $metadata.variant -ne $Variant -or $metadata.architecture -ne 'windows-x64' -or $metadata.source_commit -ne $SourceCommit) {
     throw "Build metadata does not match $Variant $Version $SourceCommit."
 }
-try { [DateTime]::Parse($metadata.created_utc).ToUniversalTime() | Out-Null } catch { throw 'Build metadata created_utc is invalid.' }
-$runtimeManifest = Get-Content -LiteralPath $runtimeAudit -Raw | ConvertFrom-Json
+try {
+    [DateTimeOffset]::ParseExact(
+        $metadataCreatedUtc,
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::AssumeUniversal
+    ) | Out-Null
+}
+catch { throw 'Build metadata created_utc is invalid.' }
+$runtimeManifestJson = Get-Content -LiteralPath $runtimeAudit -Raw
+$runtimeManifest = $runtimeManifestJson | ConvertFrom-Json
+$runtimeCreatedUtcMatch = [regex]::Match($runtimeManifestJson, '"created_utc"\s*:\s*"([^"]+)"')
+if (-not $runtimeCreatedUtcMatch.Success) { throw 'Runtime audit is missing a raw created_utc value.' }
+$runtimeCreatedUtc = $runtimeCreatedUtcMatch.Groups[1].Value
 foreach ($property in @('format', 'application', 'version', 'variant', 'architecture', 'source_commit', 'created_utc', 'payload_sha256', 'backend_executable')) {
     if ($null -eq $runtimeManifest.$property) { throw "Runtime audit is missing '$property'." }
 }
@@ -61,7 +77,7 @@ if ($runtimeManifest.format -ne 2 -or $runtimeManifest.application -ne 'XREPORT'
     throw 'Runtime audit does not match the requested desktop build.'
 }
 if ($metadata.payload_sha256 -ne $runtimeManifest.payload_sha256 -or
-    $metadata.created_utc -ne $runtimeManifest.created_utc -or
+    $metadataCreatedUtc -ne $runtimeCreatedUtc -or
     $metadata.source_commit -ne $runtimeManifest.source_commit -or
     $metadata.architecture -ne $runtimeManifest.architecture) {
     throw 'Build metadata does not match the runtime audit.'

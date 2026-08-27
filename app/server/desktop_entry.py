@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import secrets
 import socket
+from time import perf_counter
 from typing import Any
 
 
@@ -33,6 +34,15 @@ _SAFE_INHERITED_ENVIRONMENT = {
     "USERPROFILE",
     "WINDIR",
 }
+
+_STARTUP_STARTED = perf_counter()
+
+
+def _startup_log(phase: str) -> None:
+    print(
+        f"[startup] phase={phase} elapsed_ms={(perf_counter() - _STARTUP_STARTED) * 1000:.0f}",
+        flush=True,
+    )
 
 
 ###############################################################################
@@ -182,8 +192,12 @@ def _run_server(
     session_file: Path,
     arguments: argparse.Namespace,
 ) -> None:
+    _startup_log("server_app_import_start")
     app = import_module("server.app").app
+    app.state.desktop_startup_started_at = _STARTUP_STARTED
+    _startup_log("server_app_imported")
     uvicorn = import_module("uvicorn")
+    _startup_log("uvicorn_imported")
     server = uvicorn.Server(
         uvicorn.Config(
             app,
@@ -205,19 +219,25 @@ def _run_server(
         arguments.variant,
         os.environ["XREPORT_DESKTOP_TOKEN"],
     )
+    _startup_log("server_configured")
     server.run(sockets=[listener])
 
 
 ###############################################################################
 def main() -> int:
     arguments = _parse_args()
+    _startup_log("arguments_parsed")
     ready_file, session_file = _prepare_contract(arguments)
+    _startup_log("contract_prepared")
 
     # Validate and seed before importing server.app.  Its module-level app is
     # intentionally created only after this contract has been established.
     _validate_runtime(arguments)
+    _startup_log("runtime_validated")
     listener, port = _create_listener(arguments)
+    _startup_log("listener_bound")
     _configure_server_environment(port)
+    _startup_log("environment_configured")
     try:
         _run_server(listener, port, ready_file, session_file, arguments)
         return 0
