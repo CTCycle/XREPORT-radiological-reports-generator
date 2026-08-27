@@ -70,9 +70,14 @@ fn log_shell(data_root: &Path, message: &str) {
     }
 }
 
-fn show_startup_error(window: &WebviewWindow, data_root: &Path, message: &str) {
-    log_shell(data_root, &format!("startup failure: {message}"));
-    let mut url = Url::parse("tauri://localhost/error.html").expect("static error URL");
+#[cfg(target_os = "windows")]
+const STARTUP_ERROR_BASE_URL: &str = "http://tauri.localhost";
+#[cfg(not(target_os = "windows"))]
+const STARTUP_ERROR_BASE_URL: &str = "tauri://localhost";
+
+fn startup_error_url(data_root: &Path, message: &str) -> Url {
+    let mut url =
+        Url::parse(&format!("{STARTUP_ERROR_BASE_URL}/error.html")).expect("static error URL");
     url.query_pairs_mut()
         .append_pair("message", message)
         .append_pair(
@@ -82,7 +87,17 @@ fn show_startup_error(window: &WebviewWindow, data_root: &Path, message: &str) {
                 .join("desktop-shell.log")
                 .to_string_lossy(),
         );
-    let _ = window.navigate(url);
+    url
+}
+
+fn show_startup_error(window: &WebviewWindow, data_root: &Path, message: &str) {
+    log_shell(data_root, &format!("startup failure: {message}"));
+    if let Err(error) = window.navigate(startup_error_url(data_root, message)) {
+        log_shell(
+            data_root,
+            &format!("startup error page navigation failed: {error}"),
+        );
+    }
 }
 
 fn navigate_to_backend(window: &WebviewWindow, handle: &BackendHandle) -> Result<(), String> {
@@ -186,4 +201,41 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running XREPORT desktop application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::startup_error_url;
+    use std::path::Path;
+
+    #[test]
+    fn startup_error_url_uses_the_embedded_asset_origin_and_encodes_details() {
+        let url = startup_error_url(Path::new(r"C:\XREPORT\data"), "runtime failed & stopped");
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert_eq!(url.scheme(), "tauri");
+            assert_eq!(url.host_str(), Some("localhost"));
+        }
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(url.scheme(), "http");
+            assert_eq!(url.host_str(), Some("tauri.localhost"));
+        }
+        assert_eq!(url.path(), "/error.html");
+        assert_eq!(
+            url.query_pairs()
+                .find(|(key, _)| key == "message")
+                .unwrap()
+                .1,
+            "runtime failed & stopped"
+        );
+        let expected_log = Path::new(r"C:\XREPORT\data")
+            .join("logs")
+            .join("desktop-shell.log");
+        assert_eq!(
+            url.query_pairs().find(|(key, _)| key == "log").unwrap().1,
+            expected_log.to_string_lossy()
+        );
+    }
 }
