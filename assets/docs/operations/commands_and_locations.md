@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-08-26
+Last updated: 2026-08-27
 
 ## Primary Commands
 
@@ -48,7 +48,7 @@ timestamped backend logs beside it. Readiness/session files in
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest app/tests -v --tb=short --basetemp app/tests/cache/pytest-tmp -o "cache_dir=app/tests/cache/pytest"`
+- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp app/tests/cache/pytest-tmp -o "cache_dir=app/tests/cache/pytest"`
 - `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_cxrmate_ed_sensitivity.py" --fixture-provenance "<approved source>" --fixture-deidentification "<approved de-identification statement>"`
 
 The CXRMate-ED canary is cache-only and writes its real-inference evidence to

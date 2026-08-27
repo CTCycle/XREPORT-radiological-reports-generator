@@ -57,7 +57,7 @@ jobs:
         run: .venv/bin/ruff check .
 
       - name: Run backend unit tests
-        run: app/server/.venv/bin/python -m pytest app/tests/unit -q --basetemp app/tests/cache/pytest-tmp
+        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp app/tests/cache/pytest-tmp
 
       - name: Run Pyright
         working-directory: app/server
@@ -71,7 +71,7 @@ jobs:
           XREPORT_TEST_DATABASE_NAME: xreport
           XREPORT_TEST_DATABASE_USERNAME: xreport
           XREPORT_TEST_DATABASE_PASSWORD: xreport
-        run: app/server/.venv/bin/python -m pytest app/tests/integration -q --basetemp app/tests/cache/pytest-integration-tmp
+        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/integration -q --basetemp app/tests/cache/pytest-integration-tmp
 
       - name: Run retained API E2E tests
         run: |
@@ -86,6 +86,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat /tmp/xreport-api.log; exit 1; }
           APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest \
+            -c app/server/pyproject.toml \
             app/tests/e2e/test_inference_api.py \
             app/tests/e2e/test_training_api.py \
             app/tests/e2e/test_upload_api.py \
