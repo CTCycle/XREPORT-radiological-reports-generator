@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, status
 
 from server.domain.training import (
@@ -15,7 +17,8 @@ from server.domain.jobs import (
     JobStartResponse,
     JobStatusResponse,
 )
-from server.services.training import TrainingService, get_training_service
+if TYPE_CHECKING:
+    from server.services.training import TrainingService
 
 ###############################################################################
 class TrainingEndpoint:
@@ -27,7 +30,15 @@ class TrainingEndpoint:
         service: TrainingService | None = None,
     ) -> None:
         self.router = router
-        self.service = get_training_service() if service is None else service
+        self._service = service
+
+    @property
+    def service(self) -> TrainingService:
+        if self._service is None:
+            from server.services.training import get_training_service
+
+            self._service = get_training_service()
+        return self._service
 
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:

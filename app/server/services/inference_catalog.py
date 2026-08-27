@@ -3,11 +3,17 @@ from __future__ import annotations
 import importlib.util
 import hashlib
 import json
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 
-import transformers
-
-from server.common.path import DATA_ROOT, PACKAGED_MODE, ROOT_DIR, SETTINGS_DIR
+from server.common.path import (
+    CHECKPOINTS_DIR,
+    DATA_ROOT,
+    PACKAGED_MODE,
+    ROOT_DIR,
+    SETTINGS_DIR,
+)
+from server.common.inference_manifest import validate_manifest
 from server.configurations import InferenceSettings
 from server.domain.inference import (
     InferenceManifest,
@@ -17,8 +23,6 @@ from server.domain.inference import (
     ModelCapabilities,
     ProviderAvailability,
 )
-from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.repositories.serialization.model import ModelSerializer
 from server.services.model_installation import ModelInstallationManager
 
 
@@ -29,6 +33,25 @@ VALIDATION_RECEIPTS_DIR = (
     if PACKAGED_MODE
     else ROOT_DIR / "assets" / "QA" / "inference_validation"
 )
+
+###############################################################################
+def scan_complete_checkpoints() -> list[str]:
+    if not CHECKPOINTS_DIR.exists():
+        return []
+
+    model_folders: list[str] = []
+    for entry in CHECKPOINTS_DIR.iterdir():
+        if not entry.is_dir():
+            continue
+        required_files = (
+            entry / "saved_model.keras",
+            entry / "configuration" / "configuration.json",
+            entry / "configuration" / "metadata.json",
+            entry / "configuration" / "session_history.json",
+        )
+        if all(path.is_file() for path in required_files):
+            model_folders.append(entry.name)
+    return model_folders
 
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
@@ -71,13 +94,21 @@ class InferenceModelCatalog:
     """Lists strict embedded model metadata and discovered XREPORT checkpoints."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, settings: InferenceSettings) -> None:
+    def __init__(
+        self,
+        settings: InferenceSettings,
+        installation_manager: ModelInstallationManager | None = None,
+    ) -> None:
         self.settings = settings
+        self.installation_manager = (
+            installation_manager
+            if installation_manager is not None
+            else ModelInstallationManager()
+        )
 
     # -------------------------------------------------------------------------
     def list_models(self) -> InferenceModelsResponse:
-        huggingface = HuggingFaceProvider(self.settings)
-        models = self._configured_models(huggingface)
+        models = self._configured_models()
         xreport_models = self._xreport_models()
         models.extend(xreport_models)
         return InferenceModelsResponse(
@@ -89,23 +120,19 @@ class InferenceModelCatalog:
         )
 
     # -------------------------------------------------------------------------
-    def _configured_models(
-        self,
-        huggingface: HuggingFaceProvider,
-    ) -> list[ModelAvailability]:
+    def _configured_models(self) -> list[ModelAvailability]:
         payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
         manifest = InferenceManifest.model_validate(payload)
-        return [self._configured_model(entry, huggingface) for entry in manifest.models]
+        return [self._configured_model(entry) for entry in manifest.models]
 
     # -------------------------------------------------------------------------
     def _configured_model(
         self,
         entry: InferenceManifestEntry,
-        huggingface: HuggingFaceProvider,
     ) -> ModelAvailability:
         status = "not_installed"
         status_message: str | None = None
-        installation = ModelInstallationManager()
+        installation = self.installation_manager
         has_validation_evidence = self._has_validation_evidence(entry)
         inspected = installation.inspect(entry.model_dump(mode="json"))
         metadata = inspected["metadata"]
@@ -125,7 +152,7 @@ class InferenceModelCatalog:
                 if status_message is not None:
                     status = "incompatible"
                 else:
-                    huggingface.validate_manifest(
+                    validate_manifest(
                         entry.repository_id,
                         entry.model_dump(mode="json"),
                     )
@@ -249,19 +276,23 @@ class InferenceModelCatalog:
         cls,
         entry: InferenceManifestEntry,
     ) -> str | None:
-        current = cls._version_tuple(transformers.__version__)
+        try:
+            installed_version = package_version("transformers")
+        except PackageNotFoundError:
+            installed_version = "unavailable"
+        current = cls._version_tuple(installed_version)
         constraints = entry.runtime_constraints
         if constraints.min_transformers and current < cls._version_tuple(constraints.min_transformers):
             return (
                 f"Requires Transformers >= {constraints.min_transformers}; "
-                f"the installed version is {transformers.__version__}."
+                f"the installed version is {installed_version}."
             )
         if constraints.max_transformers_exclusive and current >= cls._version_tuple(
             constraints.max_transformers_exclusive
         ):
             return (
                 f"Requires Transformers < {constraints.max_transformers_exclusive}; "
-                f"the installed version is {transformers.__version__}."
+                f"the installed version is {installed_version}."
             )
         missing = [
             module
@@ -367,7 +398,7 @@ class InferenceModelCatalog:
 
     # -------------------------------------------------------------------------
     def _xreport_models(self) -> list[ModelAvailability]:
-        checkpoint_names = ModelSerializer().scan_checkpoints_folder()
+        checkpoint_names = scan_complete_checkpoints()
         return [
             ModelAvailability(
                 model_ref=f"xreport:{checkpoint_name}",

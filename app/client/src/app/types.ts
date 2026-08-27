@@ -35,7 +35,6 @@ export interface DatasetPageState {
     loadResult: LoadDatasetResponse | null;
     isLoading: boolean;
     uploadError: string | null;
-    folderBrowserOpen: boolean;
     isProcessing: boolean;
     processingResult: ProcessDatasetResponse | null;
     dbStatus: DatasetStatusResponse | null;

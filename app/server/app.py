@@ -89,6 +89,11 @@ def serve_packaged_frontend(path: str) -> FileResponse:
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     startup_started = getattr(application.state, "desktop_startup_started_at", None)
+    if startup_started is not None:
+        logger.info(
+            "Packaged startup phase=lifespan_entered elapsed_ms=%.0f",
+            (perf_counter() - startup_started) * 1000,
+        )
     settings = get_server_settings()
     if startup_started is not None:
         logger.info(

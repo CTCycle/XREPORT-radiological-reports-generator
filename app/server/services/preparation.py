@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from server.services.errors import (
@@ -48,7 +48,9 @@ from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
 from server.configurations import ServerSettings
-from server.services.dataset_processing import DatasetProcessingService
+
+if TYPE_CHECKING:
+    from server.services.dataset_processing import DatasetProcessingService
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 LOCAL_FILESYSTEM_DISABLED_ERROR = (
@@ -124,13 +126,24 @@ class PreparationService:
     ) -> None:
         self.repository = repository
         self.dataset_repository = dataset_repository
-        self.processing_service = processing_service
+        self._processing_service = processing_service
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
         self.allow_local_filesystem_access = (
             self.server_settings.features.allow_local_filesystem_access
         )
+
+    @property
+    def processing_service(self) -> DatasetProcessingService:
+        if self._processing_service is None:
+            from server.services.dataset_processing import DatasetProcessingService
+
+            self._processing_service = DatasetProcessingService(
+                repository=self.dataset_repository,
+                job_manager=self.job_manager,
+            )
+        return self._processing_service
 
     # -------------------------------------------------------------------------
     def ensure_local_filesystem_access(self) -> None:
@@ -706,10 +719,7 @@ def get_preparation_service() -> PreparationService:
     return PreparationService(
         repository=PreparationRepository(database),
         dataset_repository=dataset_repository,
-        processing_service=DatasetProcessingService(
-            repository=dataset_repository,
-            job_manager=job_manager,
-        ),
+        processing_service=None,
         job_manager=job_manager,
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),
