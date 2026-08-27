@@ -185,12 +185,14 @@ pub fn start_backend(
     variant: &str,
 ) -> Result<BackendHandle, String> {
     let startup_started = Instant::now();
+    let runtime_started = Instant::now();
     let runtime = extract_runtime(data_root, version, variant)?;
     shell_log(
         data_root,
         &format!(
-            "runtime ready cache_hit={} elapsed_ms={:.0}",
+            "startup phase=runtime_ready cache_hit={} phase_elapsed_ms={:.0} total_elapsed_ms={:.0}",
             runtime.cache_hit,
+            runtime_started.elapsed().as_secs_f64() * 1000.0,
             startup_started.elapsed().as_secs_f64() * 1000.0
         ),
     );
@@ -205,7 +207,10 @@ pub fn start_backend(
 
     shell_log(
         data_root,
-        &format!("starting backend variant={variant} version={version}"),
+        &format!(
+            "startup phase=backend_launching variant={variant} version={version} total_elapsed_ms={:.0}",
+            startup_started.elapsed().as_secs_f64() * 1000.0
+        ),
     );
     let backend_log = backend_log(data_root)?;
     let backend_log_error = backend_log
@@ -250,7 +255,7 @@ pub fn start_backend(
     shell_log(
         data_root,
         &format!(
-            "backend process spawned pid={} elapsed_ms={:.0}",
+            "startup phase=backend_spawned pid={} total_elapsed_ms={:.0}",
             child.id(),
             startup_started.elapsed().as_secs_f64() * 1000.0
         ),
@@ -281,7 +286,7 @@ pub fn start_backend(
     shell_log(
         data_root,
         &format!(
-            "backend ready on loopback port {} elapsed_ms={:.0}",
+            "startup phase=backend_ready port={} total_elapsed_ms={:.0}",
             contract.port,
             startup_started.elapsed().as_secs_f64() * 1000.0
         ),

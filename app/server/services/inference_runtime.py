@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
     ProviderGenerationResult,
 )
-from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.models.inference.providers.xreport import XReportCheckpointProvider
-from server.repositories.serialization.model import ModelSerializer
 from server.services.model_installation import (
     InstallationCancelled,
     InstallationError,
@@ -19,6 +16,9 @@ from server.services.model_installation import (
     ModelInstallationManager,
 )
 from server.services.model_storage import ModelStorageLifecycle
+
+if TYPE_CHECKING:
+    from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 
 StopCallback = Callable[[], bool]
@@ -132,6 +132,9 @@ class InferenceRuntimeCoordinator:
         with self.lock:
             if should_stop():
                 return ProviderGenerationResult({}, {}, [], provenance)
+            from server.models.inference.providers.xreport import XReportCheckpointProvider
+            from server.repositories.serialization.model import ModelSerializer
+
             self.huggingface_provider.unload()
             try:
                 model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(

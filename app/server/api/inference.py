@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
@@ -14,7 +14,8 @@ from server.domain.inference import (
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
-from server.services.inference import InferenceService, get_inference_service
+if TYPE_CHECKING:
+    from server.services.inference import InferenceService
 
 ###############################################################################
 def parse_generation_request(
@@ -38,7 +39,15 @@ class InferenceEndpoint:
         service: InferenceService | None = None,
     ) -> None:
         self.router = router
-        self.service = get_inference_service() if service is None else service
+        self._service = service
+
+    @property
+    def service(self) -> InferenceService:
+        if self._service is None:
+            from server.services.inference import get_inference_service
+
+            self._service = get_inference_service()
+        return self._service
 
     # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
