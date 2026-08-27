@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import perf_counter
 
 from server.common.path import (
     CHECKPOINTS_DIR,
@@ -29,9 +30,14 @@ def _ensure_directory(path: Path) -> None:
 
 ###############################################################################
 def run_startup_validations(settings: ServerSettings | None = None) -> None:
+    started = perf_counter()
     resolved_settings = settings or get_server_settings()
 
     prepare_database_for_startup(resolved_settings.database)
+    logger.info(
+        "Startup phase=database_validated elapsed_ms=%.0f",
+        (perf_counter() - started) * 1000,
+    )
 
     if not CONFIGURATION_FILE_PATH.is_file():
         raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE_PATH}")
@@ -55,6 +61,7 @@ def run_startup_validations(settings: ServerSettings | None = None) -> None:
         _ensure_directory(directory)
 
     logger.info(
-        "Startup validations completed (database_backend=%s)",
+        "Startup phase=resources_validated elapsed_ms=%.0f database_backend=%s",
+        (perf_counter() - started) * 1000,
         resolved_settings.database.backend,
     )

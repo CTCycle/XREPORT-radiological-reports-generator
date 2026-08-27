@@ -25,6 +25,8 @@
     "@angular/router": "^22.0.0",
     "@ng-icons/core": "^35.0.1",
     "@ng-icons/lucide": "^35.0.1",
+    "@tauri-apps/api": "2.8.0",
+    "@tauri-apps/plugin-dialog": "2.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

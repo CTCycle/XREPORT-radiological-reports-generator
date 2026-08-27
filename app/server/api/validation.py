@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, status
 
 from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
@@ -9,7 +11,8 @@ from server.domain.validation import (
     ValidationReportResponse,
     ValidationRequest,
 )
-from server.services.validation_runs import ValidationService, get_validation_service
+if TYPE_CHECKING:
+    from server.services.validation_runs import ValidationService
 
 ###############################################################################
 class ValidationEndpoint:
@@ -21,7 +24,15 @@ class ValidationEndpoint:
         service: ValidationService | None = None,
     ) -> None:
         self.router = router
-        self.service = get_validation_service() if service is None else service
+        self._service = service
+
+    @property
+    def service(self) -> ValidationService:
+        if self._service is None:
+            from server.services.validation_runs import get_validation_service
+
+            self._service = get_validation_service()
+        return self._service
 
     # -------------------------------------------------------------------------
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:

@@ -178,6 +178,7 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(state.clone())
         .manage(instance)
         .setup(move |app| {

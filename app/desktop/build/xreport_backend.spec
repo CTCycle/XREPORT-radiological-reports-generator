@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from PyInstaller.building.build_main import Analysis, COLLECT, EXE, PYZ
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 
 repo_root = Path(os.environ["XREPORT_REPO_ROOT"])
@@ -20,6 +20,7 @@ hiddenimports = [
 ]
 datas = [
     *collect_data_files("transformers"),
+    *copy_metadata("transformers"),
     *collect_data_files("keras"),
     (str(server_root / "migrations"), "server/migrations"),
 ]

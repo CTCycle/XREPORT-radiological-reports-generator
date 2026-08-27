@@ -22,6 +22,10 @@ from server.domain.inference import (
     InferenceImage,
     ProviderGenerationResult,
 )
+from server.common.inference_manifest import (
+    is_pinned_revision,
+    validate_manifest,
+)
 from server.models.inference.providers.adapters import (
     ADAPTERS,
     StandardImageTextAdapter,
@@ -30,7 +34,6 @@ from server.models.inference.providers.adapters import (
 )
 
 
-REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 ProgressCallback = Callable[
     [int, int, dict[str, str], list[dict[str, Any]] | None, dict[str, dict[str, str]] | None],
     None,
@@ -539,62 +542,7 @@ class HuggingFaceProvider:
     # -------------------------------------------------------------------------
     @staticmethod
     def is_pinned_revision(revision: str | None) -> bool:
-        return bool(revision and REVISION_PATTERN.fullmatch(revision))
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _require_manifest_fields(
-        repository_id: str,
-        manifest: Mapping[str, Any],
-    ) -> tuple[Any, Any, Any, Any, Any]:
-        required_fields = (
-            "adapter",
-            "model_loader",
-            "processor_loader",
-            "max_current_images",
-            "preferred_dtype",
-        )
-        missing_fields = [field for field in required_fields if field not in manifest]
-        if missing_fields:
-            raise RuntimeError(
-                f"{repository_id} manifest is missing required field(s): "
-                + ", ".join(missing_fields)
-            )
-        return tuple(manifest[field] for field in required_fields)  # type: ignore[return-value]
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _validate_manifest_adapter(adapter_name: Any) -> None:
-        if not isinstance(adapter_name, str):
-            raise RuntimeError("Manifest adapter must be a string")
-        if adapter_name not in ADAPTERS:
-            raise RuntimeError(f"Unsupported Hugging Face adapter: {adapter_name}")
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _validate_manifest_loaders(model_loader: Any, processor_loader: Any) -> None:
-        if not isinstance(model_loader, str):
-            raise RuntimeError("Manifest model_loader must be a string")
-        if model_loader not in {"auto_model", "image_text_to_text", "causal_lm"}:
-            raise RuntimeError(f"Unsupported Transformers model loader: {model_loader}")
-        if not isinstance(processor_loader, str):
-            raise RuntimeError("Manifest processor_loader must be a string")
-        if processor_loader != "auto":
-            raise RuntimeError(
-                f"Unsupported Transformers processor loader: {processor_loader}"
-            )
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _validate_manifest_runtime(max_current_images: Any, preferred_dtype: Any) -> None:
-        if isinstance(max_current_images, bool) or not isinstance(max_current_images, int):
-            raise RuntimeError("max_current_images must be an integer")
-        if max_current_images < 1:
-            raise RuntimeError("max_current_images must be at least 1")
-        if not isinstance(preferred_dtype, str):
-            raise RuntimeError("Manifest preferred_dtype must be a string")
-        if preferred_dtype not in {"auto", "float32", "float16", "bfloat16"}:
-            raise RuntimeError(f"Unsupported preferred dtype: {preferred_dtype}")
+        return is_pinned_revision(revision)
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -603,26 +551,7 @@ class HuggingFaceProvider:
         repository_id: str,
         manifest: Mapping[str, Any],
     ) -> dict[str, Any]:
-        normalized = dict(manifest)
-        normalized["repository_id"] = repository_id
-        revision = normalized.get("revision")
-        if not cls.is_pinned_revision(revision):
-            raise RuntimeError(
-                f"{repository_id} requires a pinned 40-character revision"
-            )
-        if normalized.get("trust_remote_code") and not normalized.get(
-            "remote_code_approved", False
-        ):
-            raise RuntimeError(
-                f"Remote code is not approved for pinned repository {repository_id}"
-            )
-        adapter_name, model_loader, processor_loader, max_current_images, preferred_dtype = (
-            cls._require_manifest_fields(repository_id, normalized)
-        )
-        cls._validate_manifest_adapter(adapter_name)
-        cls._validate_manifest_loaders(model_loader, processor_loader)
-        cls._validate_manifest_runtime(max_current_images, preferred_dtype)
-        return normalized
+        return validate_manifest(repository_id, manifest)
 
     # -------------------------------------------------------------------------
     @staticmethod

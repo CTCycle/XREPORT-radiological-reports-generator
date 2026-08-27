@@ -53,7 +53,7 @@ export const DATA_TRAINING_TOUR: GuidanceDefinition = {
       target: '[data-guidance-target="dataset-source"]',
       route: '/dataset',
       title: '1. Upload and load the source',
-      body: 'Choose the server-side image folder and upload the CSV/XLSX reports or metadata file. Load Dataset matches the two inputs and stores the source rows for processing.',
+      body: 'Choose an image folder (the desktop uses the native system picker; browser mode uses the local server fallback) and upload the CSV/XLSX reports or metadata file. Load Dataset matches the two inputs and stores the source rows for processing.',
       placement: 'bottom',
     },
     {

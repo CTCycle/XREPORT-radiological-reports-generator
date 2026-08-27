@@ -5,7 +5,7 @@ import time
 import uuid
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from server.services.errors import (
     BadRequestError,
@@ -33,19 +33,20 @@ from server.common.constants import (
     INFERENCE_IMAGE_EXTENSIONS,
 )
 from server.common.utils.logger import logger
-from server.models.inference.providers.xreport import XReportCheckpointProvider
-from server.models.inference.providers.huggingface import HuggingFaceProvider
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations import ServerSettings
 from server.configurations.startup import get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
-from server.services.inference_runtime import InferenceRuntimeCoordinator
 from server.services.model_installation import (
     InstallationCancelled,
     InstallationError,
     ModelInstallationManager,
 )
+
+if TYPE_CHECKING:
+    from server.models.inference.providers.huggingface import HuggingFaceProvider
+    from server.services.inference_runtime import InferenceRuntimeCoordinator
 
 
 MAX_INFERENCE_IMAGES = 16
@@ -131,6 +132,8 @@ def get_inference_image_store() -> InferenceImageStore:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_huggingface_provider() -> HuggingFaceProvider:
+    from server.models.inference.providers.huggingface import HuggingFaceProvider
+
     return HuggingFaceProvider(get_server_settings().inference)
 
 ###############################################################################
@@ -141,6 +144,8 @@ def get_model_installation_manager() -> ModelInstallationManager:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_runtime() -> InferenceRuntimeCoordinator:
+    from server.services.inference_runtime import InferenceRuntimeCoordinator
+
     return InferenceRuntimeCoordinator(
         huggingface_provider=get_huggingface_provider(),
         installation_manager=get_model_installation_manager(),
@@ -409,16 +414,22 @@ class InferenceService:
         server_settings: ServerSettings,
         model_catalog: InferenceModelCatalog,
         installation_manager: ModelInstallationManager,
-        runtime: InferenceRuntimeCoordinator,
-        repository: InferenceRepository,
+        runtime: InferenceRuntimeCoordinator | None = None,
+        repository: InferenceRepository | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
         self.server_settings = server_settings
         self.model_catalog = model_catalog
         self.installation_manager = installation_manager
-        self.runtime = runtime
-        self.repository = repository
+        self._runtime = runtime
+        self.repository = repository if repository is not None else InferenceRepository()
+
+    @property
+    def runtime(self) -> InferenceRuntimeCoordinator:
+        if self._runtime is None:
+            self._runtime = get_inference_runtime()
+        return self._runtime
 
     # -------------------------------------------------------------------------
     def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
@@ -462,6 +473,8 @@ class InferenceService:
             )
 
         try:
+            from server.models.inference.providers.xreport import XReportCheckpointProvider
+
             return XReportCheckpointProvider().validate_checkpoint(checkpoint)
         except FileNotFoundError as exc:
             raise NotFoundError(detail=str(exc)) from exc
@@ -702,8 +715,10 @@ def get_inference_service() -> InferenceService:
         job_manager=get_job_manager(),
         inference_image_store=get_inference_image_store(),
         server_settings=server_settings,
-        model_catalog=InferenceModelCatalog(server_settings.inference),
+        model_catalog=InferenceModelCatalog(
+            server_settings.inference,
+            installation_manager=installation_manager,
+        ),
         installation_manager=installation_manager,
-        runtime=get_inference_runtime(),
         repository=InferenceRepository(),
     )
