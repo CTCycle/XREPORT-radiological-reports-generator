@@ -19,9 +19,6 @@ jobs:
     name: Backend And Client Validation
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      XDG_CACHE_HOME: ${{ runner.temp }}/xreport-cache
-      RUFF_CACHE_DIR: ${{ runner.temp }}/xreport-ruff
     services:
       postgres:
         image: postgres:16
@@ -40,6 +37,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure runner-local caches
+        shell: bash
+        run: |
+          echo "XDG_CACHE_HOME=$RUNNER_TEMP/xreport-cache" >> "$GITHUB_ENV"
+          echo "RUFF_CACHE_DIR=$RUNNER_TEMP/xreport-ruff" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5
