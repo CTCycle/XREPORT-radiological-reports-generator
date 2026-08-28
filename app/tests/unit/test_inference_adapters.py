@@ -6,19 +6,23 @@ import torch
 from server.domain.inference import InferenceImage
 from server.models.inference.providers.adapters import CXRMateEDAdapter, StudyImage
 
-
 ###############################################################################
 def test_cxrmate_ed_passes_clinical_context_and_all_study_images() -> None:
+
+    ###############################################################################
     class ModelStub:
         zero_time_delta_value = 0
 
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.prepare_call: dict[str, object] = {}
             self.generate_call: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def test_transforms(self, image_tensor):
             return image_tensor.float()
 
+        # -------------------------------------------------------------------------
         def prepare_inputs(self, **kwargs):
             self.prepare_call = kwargs
             return (
@@ -29,13 +33,16 @@ def test_cxrmate_ed_passes_clinical_context_and_all_study_images() -> None:
                 torch.ones((1, 1), dtype=torch.long),
             )
 
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs):
             self.generate_call = kwargs
             return {"sequences": torch.tensor([[1, 2]])}
 
+        # -------------------------------------------------------------------------
         def split_and_decode_sections(self, output, token_ids, processor):
             return ["finding"], ["impression"]
 
+    ###############################################################################
     class ProcessorStub:
         sep_token_id = 10
         eos_token_id = 11
