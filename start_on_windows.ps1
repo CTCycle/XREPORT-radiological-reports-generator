@@ -378,9 +378,23 @@ function Install-Dependencies {
             '--reinstall-package', 'pyinstaller',
             '--reinstall-package', 'pyinstaller-hooks-contrib'
         ) -WorkingDirectory $ServerDir
-        & $VenvPython -c 'import PyInstaller' *> $null
-        if ($LASTEXITCODE -ne 0) {
-            throw 'The locked desktop Python environment is missing an importable PyInstaller after dependency synchronization.'
+        $pyInstallerProbe = (& $VenvPython -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+        $pyInstallerReady = $LASTEXITCODE -eq 0
+        if (-not $pyInstallerReady) {
+            Write-Info 'Reconciling the pinned PyInstaller toolchain directly in the project environment'
+            Invoke-Checked -FilePath $UvExe -ArgumentList @(
+                'pip', 'install', '--python', $VenvPython, '--reinstall',
+                'pyinstaller==6.16.0',
+                'pyinstaller-hooks-contrib==2026.6',
+                'altgraph==0.17.5',
+                'pefile==2023.2.7',
+                'pywin32-ctypes==0.2.3'
+            ) -WorkingDirectory $ServerDir
+            $pyInstallerProbe = (& $VenvPython -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+            $pyInstallerReady = $LASTEXITCODE -eq 0
+        }
+        if (-not $pyInstallerReady) {
+            throw "The locked desktop Python environment is missing an importable PyInstaller after dependency synchronization: $pyInstallerProbe"
         }
     }
 
