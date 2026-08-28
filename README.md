@@ -307,7 +307,7 @@ arbitrary-opener capability to the Angular content.
 
 ## 8. Development Status
 
-This project is under active development and may contain incomplete features. The upcoming major release is v3.0.0, which is intended for stable local evaluation and testing.
+This project is under active development and may contain incomplete features. The current major release is v3.0.0, intended for stable local evaluation and testing.
 
 ## 9. License
 
