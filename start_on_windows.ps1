@@ -123,6 +123,11 @@ function Initialize-Environment {
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
     Remove-Item Env:PYTHONNOUSERSITE -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $PythonExe) {
+        # Keep venv Python extension modules aligned with the bundled
+        # embeddable interpreter instead of a hosted system Python.
+        $env:PYTHONHOME = $PythonDir
+    }
     $env:PATH = "$NodeDir;$($env:PATH)"
 }
 
