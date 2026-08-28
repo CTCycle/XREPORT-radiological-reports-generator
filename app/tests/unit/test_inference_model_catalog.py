@@ -7,7 +7,6 @@ from server.configurations import InferenceSettings
 from server.services.inference_catalog import InferenceModelCatalog
 from server.services.model_installation import ModelInstallationManager
 
-
 ###############################################################################
 def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
@@ -16,7 +15,6 @@ def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
         max_loaded_models=1,
         model_timeout=600,
     )
-
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -35,7 +33,6 @@ def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
             "candidate_revision": None,
         },
     )
-
 
 ###############################################################################
 def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) -> None:
@@ -56,7 +53,6 @@ def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) 
     assert response.providers["xreport"].status == "ready"
     assert all(model.available_actions == ["download"] for model in public)
 
-
 ###############################################################################
 def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -71,7 +67,6 @@ def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(mon
     assert all(model.status == "disabled" for model in public)
     assert response.providers["huggingface"].status == "disabled"
 
-
 ###############################################################################
 def test_catalog_hides_xreport_provider_without_complete_checkpoints(monkeypatch) -> None:
     monkeypatch.setattr(
@@ -83,7 +78,6 @@ def test_catalog_hides_xreport_provider_without_complete_checkpoints(monkeypatch
 
     assert not any(model.provider == "xreport" for model in response.models)
     assert response.providers["xreport"].status == "not_installed"
-
 
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:

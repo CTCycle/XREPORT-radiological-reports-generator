@@ -26,6 +26,7 @@ class ValidationEndpoint:
         self.router = router
         self._service = service
 
+    # -------------------------------------------------------------------------
     @property
     def service(self) -> ValidationService:
         if self._service is None:

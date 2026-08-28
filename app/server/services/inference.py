@@ -425,6 +425,7 @@ class InferenceService:
         self._runtime = runtime
         self.repository = repository if repository is not None else InferenceRepository()
 
+    # -------------------------------------------------------------------------
     @property
     def runtime(self) -> InferenceRuntimeCoordinator:
         if self._runtime is None:

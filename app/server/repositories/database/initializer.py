@@ -43,27 +43,22 @@ LEGACY_SCHEMA_VERSION = 1
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
-
 ###############################################################################
 class DatabaseSchemaError(RuntimeError):
     """Raised when an existing database cannot be safely adopted."""
-
 
 ###############################################################################
 class DatabaseMigrationError(RuntimeError):
     """Raised when migration discovery, locking, or execution fails."""
 
-
 ###############################################################################
 def _postgres_database_exists_sql() -> str:
     return "SELECT 1 FROM pg_database WHERE datname=:name"
-
 
 ###############################################################################
 def _create_database_sql(database_name: str) -> str:
     safe_database = database_name.replace('"', '""')
     return f'CREATE DATABASE "{safe_database}" WITH ENCODING \'UTF8\' TEMPLATE template0'
-
 
 ###############################################################################
 def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | int]:
@@ -76,7 +71,6 @@ def build_postgres_connect_args(settings: DatabaseSettings) -> dict[str, str | i
         if settings.ssl_ca:
             connect_args["sslrootcert"] = settings.ssl_ca
     return connect_args
-
 
 ###############################################################################
 def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
@@ -91,7 +85,6 @@ def build_postgres_url(settings: DatabaseSettings, database_name: str) -> str:
         database=database_name,
     )
     return url.render_as_string(hide_password=False)
-
 
 ###############################################################################
 def clone_settings_with_database(
@@ -111,11 +104,9 @@ def clone_settings_with_database(
         insert_batch_size=settings.insert_batch_size,
     )
 
-
 ###############################################################################
 def build_postgres_create_database_sql(database_name: str) -> TextClause:
     return sqlalchemy.text(_create_database_sql(database_name))
-
 
 ###############################################################################
 def _database_label(settings: DatabaseSettings) -> str:
@@ -123,12 +114,10 @@ def _database_label(settings: DatabaseSettings) -> str:
         return str(DATABASE_FILE_PATH)
     return settings.database_name or "<unnamed PostgreSQL database>"
 
-
 ###############################################################################
 def _advisory_key(name: str) -> int:
     digest = hashlib.sha256(name.encode("utf-8")).digest()
     return int.from_bytes(digest[:8], byteorder="big", signed=True)
-
 
 ###############################################################################
 def _acquire_postgres_lock(
@@ -156,11 +145,9 @@ def _acquire_postgres_lock(
             )
         time.sleep(0.1)
 
-
 ###############################################################################
 def _release_postgres_session_lock(connection: Connection, key: int) -> None:
     connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
-
 
 ###############################################################################
 def _legacy_metadata(*, include_marker: bool) -> MetaData:
@@ -176,7 +163,6 @@ def _legacy_metadata(*, include_marker: bool) -> MetaData:
         )
     return metadata
 
-
 ###############################################################################
 def _format_diffs(diffs: list[object]) -> str:
     if not diffs:
@@ -185,7 +171,6 @@ def _format_diffs(diffs: list[object]) -> str:
     if len(diffs) > 12:
         rendered += f"; ... ({len(diffs) - 12} more)"
     return rendered
-
 
 ###############################################################################
 def _normalize_check_expression(expression: object) -> str:
@@ -212,7 +197,6 @@ def _normalize_check_expression(expression: object) -> str:
             break
         normalized = normalized[1:-1]
     return normalized
-
 
 ###############################################################################
 def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> list[str]:
@@ -331,7 +315,6 @@ def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> li
             )
     return diffs
 
-
 ###############################################################################
 def _include_schema_object(
     _object: object,
@@ -341,7 +324,6 @@ def _include_schema_object(
     _compare_to: object,
 ) -> bool:
     return not (object_type == "table" and name == ALEMBIC_VERSION_TABLE)
-
 
 ###############################################################################
 def _validate_legacy_schema(connection: Connection) -> None:
@@ -404,7 +386,6 @@ def _validate_legacy_schema(connection: Connection) -> None:
             f"{_format_diffs(diffs)}"
         )
 
-
 ###############################################################################
 def _validate_head_schema(connection: Connection) -> None:
     migration_context = MigrationContext.configure(
@@ -424,7 +405,6 @@ def _validate_head_schema(connection: Connection) -> None:
             f"{_format_diffs(diffs)}"
         )
 
-
 ###############################################################################
 def _build_alembic_config(connection: Connection) -> AlembicConfig:
     if not MIGRATIONS_DIR.is_dir():
@@ -433,7 +413,6 @@ def _build_alembic_config(connection: Connection) -> AlembicConfig:
     config.set_main_option("script_location", str(MIGRATIONS_DIR))
     config.attributes["connection"] = connection
     return config
-
 
 ###############################################################################
 def _pending_revisions(
@@ -454,7 +433,6 @@ def _pending_revisions(
         (str(revision.revision), revision.doc or "(no migration message)")
         for revision in revisions
     ]
-
 
 ###############################################################################
 def _run_migrations_on_connection(
@@ -524,7 +502,6 @@ def _run_migrations_on_connection(
         _validate_head_schema(connection)
         logger.info("Database migrations applied through Alembic head %s", head)
 
-
 ###############################################################################
 @contextmanager
 def _sqlite_migration_connection(engine: Engine) -> Iterator[Connection]:
@@ -536,7 +513,6 @@ def _sqlite_migration_connection(engine: Engine) -> Iterator[Connection]:
         except Exception:
             connection.rollback()
             raise
-
 
 ###############################################################################
 @contextmanager
@@ -557,7 +533,6 @@ def _postgres_migration_connection(
             )
             yield connection
 
-
 ###############################################################################
 def _migrate_repository(repository: Database, settings: DatabaseSettings) -> None:
     if settings.backend == "sqlite":
@@ -566,7 +541,6 @@ def _migrate_repository(repository: Database, settings: DatabaseSettings) -> Non
         return
     with _postgres_migration_connection(repository.engine, settings) as connection:
         _run_migrations_on_connection(connection, settings)
-
 
 ###############################################################################
 def _validate_postgres_engine(settings: DatabaseSettings) -> None:
@@ -578,7 +552,6 @@ def _validate_postgres_engine(settings: DatabaseSettings) -> None:
         "postgresql+psycopg2",
     }:
         raise ValueError(f"Unsupported database engine: {settings.engine}")
-
 
 ###############################################################################
 def _ensure_postgres_database(settings: DatabaseSettings) -> str:
@@ -632,7 +605,6 @@ def _ensure_postgres_database(settings: DatabaseSettings) -> str:
             admin_engine.dispose()
     return target_database
 
-
 ###############################################################################
 def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     repository = Database(settings)
@@ -641,7 +613,6 @@ def initialize_sqlite_database(settings: DatabaseSettings) -> None:
     finally:
         repository.engine.dispose()
     logger.info("SQLite database is synchronized at %s", repository.db_path)
-
 
 ###############################################################################
 def initialize_postgres_database(settings: DatabaseSettings) -> str:
@@ -655,7 +626,6 @@ def initialize_postgres_database(settings: DatabaseSettings) -> str:
     logger.info("PostgreSQL database %s is synchronized", target_database)
     return target_database
 
-
 ###############################################################################
 def verify_postgres_connection(settings: DatabaseSettings) -> None:
     repository = Database(settings)
@@ -666,14 +636,12 @@ def verify_postgres_connection(settings: DatabaseSettings) -> None:
         repository.engine.dispose()
     logger.info("Verified PostgreSQL connection to %s", settings.database_name)
 
-
 ###############################################################################
 def run_database_initialization(settings: DatabaseSettings) -> None:
     if settings.backend == "sqlite":
         initialize_sqlite_database(settings)
         return
     initialize_postgres_database(settings)
-
 
 ###############################################################################
 def _sanitize_error(message: str) -> str:
@@ -688,7 +656,6 @@ def _sanitize_error(message: str) -> str:
         sanitized,
     )
     return sanitized.replace("\\", "/")
-
 
 ###############################################################################
 def _run_database_action(
@@ -721,7 +688,6 @@ def _run_database_action(
         )
         raise RuntimeError(f"Unexpected error during {action.lower()}: {message}") from exc
 
-
 ###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
     resolved_settings = settings or get_server_settings().database
@@ -730,7 +696,6 @@ def initialize_database(settings: DatabaseSettings | None = None) -> None:
         run_database_initialization,
         resolved_settings,
     )
-
 
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:

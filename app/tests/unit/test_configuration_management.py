@@ -6,7 +6,6 @@ import pytest
 
 from server.configurations.management import ConfigurationManager
 
-
 ###############################################################################
 def _configuration_payload() -> dict[str, object]:
     return {
@@ -15,7 +14,6 @@ def _configuration_payload() -> dict[str, object]:
         "jobs": {"polling_interval": 2.5},
         "database": {"backend": "postgresql", "host": "ignored-json-host"},
     }
-
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -35,7 +33,6 @@ def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "DATABASE_INSERT_BATCH_SIZE",
     ):
         monkeypatch.delenv(key, raising=False)
-
 
 ###############################################################################
 def test_configuration_uses_json_for_application_settings_and_env_for_database(
@@ -62,7 +59,6 @@ def test_configuration_uses_json_for_application_settings_and_env_for_database(
     assert settings.database.database_name == "env-db"
     assert settings.database.username == "env-user"
     assert settings.database.password == "env-password"
-
 
 ###############################################################################
 def test_configuration_rejects_invalid_files(tmp_path) -> None:

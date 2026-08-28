@@ -41,6 +41,7 @@ class InferenceEndpoint:
         self.router = router
         self._service = service
 
+    # -------------------------------------------------------------------------
     @property
     def service(self) -> InferenceService:
         if self._service is None:
