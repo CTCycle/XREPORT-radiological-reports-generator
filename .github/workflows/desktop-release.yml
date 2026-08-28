@@ -77,3 +77,81 @@ jobs:
           path: release/*
           if-no-files-found: error
           retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION_INPUT: ${{ inputs.version || github.ref_name }}
+
+    steps:
+      - name: Resolve release version
+        shell: bash
+        run: |
+          version="${RELEASE_VERSION_INPUT#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release version: $version" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Download verified package outputs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: XREPORT-*-windows-x64
+          path: release-assets
+          merge-multiple: true
+
+      - name: Validate published asset set
+        shell: bash
+        run: |
+          expected=(
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cpu-portable.exe"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cpu.msi"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cpu.sha256"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cpu-build.json"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cuda-portable.exe"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cuda.msi"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cuda.sha256"
+            "XREPORT-v${RELEASE_VERSION}-windows-x64-cuda-build.json"
+          )
+          actual_count=$(find release-assets -mindepth 1 -maxdepth 1 -type f | wc -l)
+          if [[ "$actual_count" -ne "${#expected[@]}" ]]; then
+            echo "Expected ${#expected[@]} files, found $actual_count" >&2
+            find release-assets -maxdepth 2 -print >&2
+            exit 1
+          fi
+          for name in "${expected[@]}"; do
+            if [[ ! -s "release-assets/$name" ]]; then
+              echo "Missing or empty release asset: $name" >&2
+              exit 1
+            fi
+          done
+          if find release-assets -mindepth 1 -maxdepth 1 ! -type f -print -quit | grep -q .; then
+            echo 'Release asset directory contains an unexpected subdirectory.' >&2
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "XREPORT $RELEASE_TAG" \
+              --generate-notes \
+              --verify-tag
+          else
+            gh release create "$RELEASE_TAG" release-assets/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "XREPORT $RELEASE_TAG" \
+              --generate-notes \
+              --target "$GITHUB_SHA"
+          fi

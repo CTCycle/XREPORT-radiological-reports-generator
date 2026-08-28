@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-08-21
+Last updated: 2026-08-28
 
 ## 1. Project Overview
 
@@ -97,10 +97,10 @@ all release and desktop build output.
 The automated GitHub workflow is `.github/workflows/desktop-release.yml`. It
 runs for `vX.Y.Z` tags or a manual version dispatch, builds the CPU and CUDA
 matrix on Windows, verifies the expected EXE/MSI/checksum/runtime contracts,
-smoke-tests each portable executable, and uploads them as workflow artifacts.
-`.github/workflows/desktop-clean-build.yml` proves the same path from an empty
-generated state on pull requests (CPU) and `develop` pushes (CPU and CUDA).
-Neither workflow signs or publishes a GitHub Release record.
+smoke-tests each portable executable, and publishes the verified asset set to a
+GitHub Release. `.github/workflows/desktop-clean-build.yml` proves the same
+path from an empty generated state on pull requests (CPU) and `develop` pushes
+(CPU and CUDA). Neither workflow signs binaries.
 
 Artifacts are written to `release/` with standard SHA-256 manifests:
 
@@ -187,17 +187,19 @@ uv run alembic -c alembic.ini upgrade head
 
 The screenshots below were captured from the current Windows web interface at a consistent 1280×720 desktop viewport. Each image is a focused panel frame rather than a stitched full-page capture, with the relevant scrollable content fit to the frame so text and controls remain readable.
 
+The 2026-08-28 release-documentation pass used `.\start_on_windows.ps1 -Action Launch`, verified the backend health endpoint and frontend preview, loaded persisted datasets and checkpoints, and completed a public-model draft from two de-identified radiographs. These images document application behavior; they are not clinical evidence.
+
 #### Dataset handling
 
-The Dataset workflow keeps the source and processing controls together, then lets users inspect a populated image/report pair before using it downstream.
+The Dataset workflow keeps the source and processing controls together, then lets users inspect a populated image/report pair before using it downstream. This preview uses the valid persisted `dataset-upload-matched` sample and shows one of four paired images with its report text.
 
 ![Dataset image viewer](assets/figures/readme-dataset.png)
 
-#### Training dashboard
+#### Training and evaluation
 
-This live eight-epoch session shows 100% progress, labeled loss and accuracy axes, plotted metric points, final metrics, and the session log in one place.
+The Training workspace exposes saved runs and checkpoint actions. This complete evaluation report shows the `XREPORT_20260820T115346` checkpoint after eight epochs, with loss `3.8239` and accuracy `0.6667`.
 
-![Populated training dashboard](assets/figures/readme-training.png)
+![Checkpoint evaluation report](assets/figures/readme-training.png)
 
 #### Inference workflow
 
@@ -209,7 +211,7 @@ The workflow keeps two de-identified study images, generation controls, and the 
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The editable review panel shows a generated raw draft after model inference, with model, provider, revision, profile, and output metadata ready for qualified review.
+The editable review panel shows the completed public-model draft from the documented two-image run, with Findings, Impression, model, provider, revision, profile, and output metadata ready for qualified review.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
 
@@ -220,6 +222,10 @@ The Tips & Tricks panel provides contextual onboarding, completed workflow steps
 ![Help and tips](assets/figures/readme-help-and-tips.png)
 
 For operator guidance, see [Getting started](assets/docs/operations/getting_started.md) and [Core workflows](assets/docs/operations/workflows.md).
+
+### 4.4 Release-readiness notes
+
+The live documentation pass found one stale development-only dataset record: `dataset_small` points to removed QA image files and is intentionally excluded from the figures above. The persisted `mimic-cxr-training-sample` validation report is complete but currently exposes zero text-statistics values, so it is not presented as quality evidence. Both states should be cleaned or regenerated before using this development database as a release demo.
 
 
 
