@@ -119,7 +119,7 @@ class PreparationService:
         self,
         repository: PreparationRepository,
         dataset_repository: DatasetRepository,
-        processing_service: DatasetProcessingService,
+        processing_service: DatasetProcessingService | None,
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
