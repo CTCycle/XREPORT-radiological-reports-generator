@@ -378,19 +378,21 @@ function Install-Dependencies {
             '--reinstall-package', 'pyinstaller',
             '--reinstall-package', 'pyinstaller-hooks-contrib'
         ) -WorkingDirectory $ServerDir
-        $pyInstallerProbe = (& $VenvPython -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+        $pyInstallerProbe = (& $VenvPython -s -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
         $pyInstallerReady = $LASTEXITCODE -eq 0
         if (-not $pyInstallerReady) {
             Write-Info 'Reconciling the pinned PyInstaller toolchain directly in the project environment'
             Invoke-Checked -FilePath $UvExe -ArgumentList @(
-                'pip', 'install', '--python', $VenvPython, '--reinstall',
-                'pyinstaller==6.16.0',
+                'pip', 'install', '--python', $VenvPython, '--reinstall', '--no-cache',
+                'pyinstaller==6.22.2',
                 'pyinstaller-hooks-contrib==2026.6',
                 'altgraph==0.17.5',
+                'packaging==26.2',
                 'pefile==2023.2.7',
-                'pywin32-ctypes==0.2.3'
+                'pywin32-ctypes==0.2.3',
+                'setuptools==82.0.1'
             ) -WorkingDirectory $ServerDir
-            $pyInstallerProbe = (& $VenvPython -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+            $pyInstallerProbe = (& $VenvPython -s -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
             $pyInstallerReady = $LASTEXITCODE -eq 0
         }
         if (-not $pyInstallerReady) {
@@ -746,13 +748,13 @@ function Invoke-DesktopBackendFreeze {
             $env:PYTHONPATH = Join-Path $RepoRoot 'app'
         }
 
-        & $VenvPython -c 'import PyInstaller' *> $null
+        & $VenvPython -s -c 'import PyInstaller' *> $null
         if ($LASTEXITCODE -ne 0) {
             throw 'The locked desktop Python environment is missing PyInstaller. Re-run the desktop dependency synchronization.'
         }
         Write-Step "Freezing $Variant backend with PyInstaller"
         foreach ($line in @(Invoke-Checked -FilePath $VenvPython -ArgumentList @(
-            $DesktopPythonScript, '--spec', $DesktopSpec, '--distpath', $distRoot, '--workpath', $workRoot
+            '-s', $DesktopPythonScript, '--spec', $DesktopSpec, '--distpath', $distRoot, '--workpath', $workRoot
         ) -WorkingDirectory $RepoRoot)) { Write-Host $line }
     }
     finally {
