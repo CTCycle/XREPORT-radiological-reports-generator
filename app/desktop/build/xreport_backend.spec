@@ -9,7 +9,6 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy
 repo_root = Path(os.environ["XREPORT_REPO_ROOT"])
 app_root = repo_root / "app"
 server_root = app_root / "server"
-console_mode = os.environ.get("XREPORT_PYINSTALLER_CONSOLE", "0") == "1"
 
 hiddenimports = [
     "server.desktop_entry",
@@ -72,7 +71,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=console_mode,
+    console=False,
 )
 coll = COLLECT(
     exe,

@@ -217,3 +217,16 @@ def test_desktop_build_inputs_are_locked_and_placeholder_free() -> None:
     build_rs = (Path(__file__).parents[2] / "desktop" / "src-tauri" / "build.rs").read_text(encoding="utf-8")
     assert "Desktop runtime has not been generated" in build_rs
     assert "runtime archive placeholder" not in build_rs
+
+
+###############################################################################
+def test_packaged_desktop_processes_are_windowless() -> None:
+    desktop_root = Path(__file__).parents[2] / "desktop"
+    spec = (desktop_root / "build" / "xreport_backend.spec").read_text(encoding="utf-8")
+    backend = (desktop_root / "src-tauri" / "src" / "backend.rs").read_text(encoding="utf-8")
+    shell = (desktop_root / "src-tauri" / "src" / "lib.rs").read_text(encoding="utf-8")
+
+    assert "console=False" in spec
+    assert "XREPORT_PYINSTALLER_CONSOLE" not in spec
+    assert "creation_flags(&mut command, 0x08000000)" in backend
+    assert 'windows_subsystem = "windows"' in shell
