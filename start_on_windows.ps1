@@ -378,7 +378,26 @@ function Install-Dependencies {
             '--reinstall-package', 'pyinstaller',
             '--reinstall-package', 'pyinstaller-hooks-contrib'
         ) -WorkingDirectory $ServerDir
-        $pyInstallerProbe = (& $VenvPython -s -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+        $pyInstallerProbeScript = @'
+import importlib.util
+import sys
+import traceback
+
+print(f"python={sys.executable}")
+print(f"sys.path={sys.path}")
+for module_name in ("PyInstaller", "win32ctypes", "win32ctypes.pywin32"):
+    try:
+        print(f"{module_name}={importlib.util.find_spec(module_name)}")
+    except BaseException as exception:
+        print(f"{module_name}_spec_error={exception!r}")
+try:
+    import PyInstaller
+except BaseException:
+    traceback.print_exc()
+    raise
+print(f"PyInstaller={PyInstaller.__version__}")
+'@
+        $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
         $pyInstallerReady = $LASTEXITCODE -eq 0
         if (-not $pyInstallerReady) {
             Write-Info 'Reconciling the pinned PyInstaller toolchain directly in the project environment'
@@ -392,7 +411,7 @@ function Install-Dependencies {
                 'pywin32-ctypes==0.2.3',
                 'setuptools==82.0.1'
             ) -WorkingDirectory $ServerDir
-            $pyInstallerProbe = (& $VenvPython -s -c 'import PyInstaller; print(PyInstaller.__version__)' 2>&1 | Out-String).Trim()
+            $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
             $pyInstallerReady = $LASTEXITCODE -eq 0
         }
         if (-not $pyInstallerReady) {
