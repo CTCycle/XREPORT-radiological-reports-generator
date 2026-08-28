@@ -368,6 +368,23 @@ function Install-Dependencies {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     }
 
+    if ($InstallationType -eq 'Desktop') {
+        $desktopPythonReady = $false
+        if (Test-Path -LiteralPath $VenvPython) {
+            & $VenvPython -c 'import PyInstaller' *> $null
+            $desktopPythonReady = $LASTEXITCODE -eq 0
+        }
+        if (-not $desktopPythonReady) {
+            if (-not (Test-Path -LiteralPath $VenvPython)) {
+                throw 'The desktop Python environment was not created by dependency synchronization.'
+            }
+            Write-Info 'Re-synchronizing the locked desktop extra in the project environment'
+            Invoke-Checked -FilePath $UvExe -ArgumentList @(
+                'sync', '--frozen', '--python', $VenvPython, '--extra', 'desktop'
+            ) -WorkingDirectory $ServerDir
+        }
+    }
+
     Install-FrontendDependencies -Locked:$Locked
     Install-DesktopDependencies -Locked:$Locked
 
