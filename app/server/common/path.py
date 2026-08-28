@@ -6,7 +6,6 @@ import sys
 
 from dotenv import dotenv_values
 
-
 ###############################################################################
 def _desktop_enabled() -> bool:
     return os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
@@ -15,7 +14,6 @@ def _desktop_enabled() -> bool:
         "yes",
         "on",
     }
-
 
 ###############################################################################
 def _required_desktop_path(name: str) -> Path:
@@ -125,7 +123,6 @@ CLIENT_DIST_DIR = (
 if PACKAGED_MODE:
     CONFIGURATION_FILE_PATH = DATA_ROOT / "settings" / "configurations.json"
     ENV_FILE_PATH = DATA_ROOT / ".env"
-
 
 ###############################################################################
 def is_within_allowed_roots(path: Path) -> bool:

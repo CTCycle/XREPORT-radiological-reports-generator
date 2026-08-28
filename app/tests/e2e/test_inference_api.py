@@ -2,7 +2,6 @@
 
 from playwright.sync_api import APIRequestContext
 
-
 ###############################################################################
 def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
     api_context: APIRequestContext,

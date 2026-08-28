@@ -32,6 +32,7 @@ class TrainingEndpoint:
         self.router = router
         self._service = service
 
+    # -------------------------------------------------------------------------
     @property
     def service(self) -> TrainingService:
         if self._service is None:

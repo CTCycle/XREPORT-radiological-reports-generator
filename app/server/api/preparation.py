@@ -39,6 +39,7 @@ class PreparationEndpoint:
         self.router = router
         self._service = service
 
+    # -------------------------------------------------------------------------
     @property
     def service(self) -> PreparationService:
         if self._service is None:
