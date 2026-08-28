@@ -13,15 +13,18 @@ SUPPORTED_MODEL_LOADERS = frozenset({"auto_model", "image_text_to_text", "causal
 SUPPORTED_DTYPES = frozenset({"auto", "float32", "float16", "bfloat16"})
 
 
+###############################################################################
 def is_pinned_revision(revision: str | None) -> bool:
     return bool(revision and REVISION_PATTERN.fullmatch(revision))
 
 
+###############################################################################
 def _validate_pinned_revision(repository_id: str, manifest: Mapping[str, Any]) -> None:
     if not is_pinned_revision(manifest.get("revision")):
         raise RuntimeError(f"{repository_id} requires a pinned 40-character revision")
 
 
+###############################################################################
 def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> None:
     if manifest.get("trust_remote_code") and not manifest.get(
         "remote_code_approved", False
@@ -31,6 +34,7 @@ def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> No
         )
 
 
+###############################################################################
 def _require_manifest_fields(
     repository_id: str, manifest: Mapping[str, Any]
 ) -> None:
@@ -49,6 +53,7 @@ def _require_manifest_fields(
         )
 
 
+###############################################################################
 def _validate_string_choice(
     manifest: Mapping[str, Any],
     field: str,
@@ -62,6 +67,7 @@ def _validate_string_choice(
         raise RuntimeError(f"{unsupported_label}: {value}")
 
 
+###############################################################################
 def _validate_max_current_images(manifest: Mapping[str, Any]) -> None:
     value = manifest["max_current_images"]
     if isinstance(value, bool) or not isinstance(value, int):
@@ -70,6 +76,7 @@ def _validate_max_current_images(manifest: Mapping[str, Any]) -> None:
         raise RuntimeError("max_current_images must be at least 1")
 
 
+###############################################################################
 def validate_manifest(
     repository_id: str,
     manifest: Mapping[str, Any],

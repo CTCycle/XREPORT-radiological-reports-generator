@@ -13,41 +13,44 @@ from server.models.training import processing
 from server.models.training.dataloader import XRAYDataLoader
 from server.models.training.trainer import ModelTrainer
 
-
 ###############################################################################
 class FakeLoader:
+
+    # -------------------------------------------------------------------------
     def __init__(self, length: int) -> None:
         self.length = length
 
+    # -------------------------------------------------------------------------
     def __len__(self) -> int:
         return self.length
 
+    # -------------------------------------------------------------------------
     def __iter__(self):
         for _ in range(self.length):
             yield ((0, 0), 0)
-
 
 ###############################################################################
 class FakeSession:
     history = {"loss": [1.0], "val_loss": [1.2]}
     epoch = [0]
 
-
 ###############################################################################
 class FakeModel:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.fit_x: Any = None
         self.fit_validation_data: Any = None
         self.fit_steps_per_epoch = 0
         self.fit_validation_steps = 0
 
+    # -------------------------------------------------------------------------
     def fit(self, x: Any, **kwargs: Any) -> FakeSession:
         self.fit_x = x
         self.fit_validation_data = kwargs.get("validation_data")
         self.fit_steps_per_epoch = int(kwargs.get("steps_per_epoch", 0))
         self.fit_validation_steps = int(kwargs.get("validation_steps", 0))
         return FakeSession()
-
 
 ###############################################################################
 def test_model_trainer_uses_finite_iterables_for_keras_fit() -> None:
@@ -67,7 +70,6 @@ def test_model_trainer_uses_finite_iterables_for_keras_fit() -> None:
     assert not isinstance(model.fit_validation_data, types.GeneratorType)
     assert model.fit_steps_per_epoch == 3
     assert model.fit_validation_steps == 2
-
 
 ###############################################################################
 def test_xray_dataloader_construction_does_not_load_tokenizer(monkeypatch: pytest.MonkeyPatch) -> None:

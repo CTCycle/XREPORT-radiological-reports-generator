@@ -134,6 +134,7 @@ class PreparationService:
             self.server_settings.features.allow_local_filesystem_access
         )
 
+    # -------------------------------------------------------------------------
     @property
     def processing_service(self) -> DatasetProcessingService:
         if self._processing_service is None:

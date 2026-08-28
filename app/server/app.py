@@ -55,14 +55,12 @@ def health_check(request: Request) -> HealthResponse:
         runtime_port=request.url.port,
     )
 
-
 ###############################################################################
 def request_shutdown(request: Request) -> ShutdownResponse:
     event = getattr(request.app.state, "desktop_shutdown_event", None)
     if event is not None:
         event.set()
     return ShutdownResponse(status="shutting_down")
-
 
 ###############################################################################
 async def wait_for_desktop_shutdown(
@@ -71,7 +69,6 @@ async def wait_for_desktop_shutdown(
 ) -> None:
     await shutdown_event.wait()
     desktop_server.should_exit = True  # type: ignore[attr-defined]
-
 
 ###############################################################################
 def serve_packaged_frontend(path: str) -> FileResponse:

@@ -21,6 +21,7 @@ class UploadEndpoint:
         self.router = router
         self._upload_service = upload_service
 
+    # -------------------------------------------------------------------------
     @property
     def upload_service(self) -> UploadService:
         if self._upload_service is None:
