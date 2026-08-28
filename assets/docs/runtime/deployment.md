@@ -74,8 +74,9 @@ downloaded on demand into user data and are never bundled.
 Portable files are unsigned, single-executable PE overlays, and depend on the
 maintained system WebView2 runtime. MSI packages are per-machine products with
 `runtime.zip` as an immutable Tauri resource and embedded WebView2 bootstrapper
-mode by default. Signing is deliberately absent: local and CI builds produce
-unsigned workflow artifacts only.
+mode by default. The tagged `desktop-release.yml` workflow publishes the
+verified CPU/CUDA portable, MSI, checksum, and build-metadata files to the
+matching GitHub Release. Signing is deliberately absent.
 
 ## DILIGENT reference comparison
 
