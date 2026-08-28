@@ -17,22 +17,23 @@ def is_pinned_revision(revision: str | None) -> bool:
     return bool(revision and REVISION_PATTERN.fullmatch(revision))
 
 
-def validate_manifest(
-    repository_id: str,
-    manifest: Mapping[str, Any],
-) -> dict[str, Any]:
-    normalized = dict(manifest)
-    normalized["repository_id"] = repository_id
-    revision = normalized.get("revision")
-    if not is_pinned_revision(revision):
+def _validate_pinned_revision(repository_id: str, manifest: Mapping[str, Any]) -> None:
+    if not is_pinned_revision(manifest.get("revision")):
         raise RuntimeError(f"{repository_id} requires a pinned 40-character revision")
-    if normalized.get("trust_remote_code") and not normalized.get(
+
+
+def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> None:
+    if manifest.get("trust_remote_code") and not manifest.get(
         "remote_code_approved", False
     ):
         raise RuntimeError(
             f"Remote code is not approved for pinned repository {repository_id}"
         )
 
+
+def _require_manifest_fields(
+    repository_id: str, manifest: Mapping[str, Any]
+) -> None:
     required_fields = (
         "adapter",
         "model_loader",
@@ -40,41 +41,62 @@ def validate_manifest(
         "max_current_images",
         "preferred_dtype",
     )
-    missing_fields = [field for field in required_fields if field not in normalized]
+    missing_fields = [field for field in required_fields if field not in manifest]
     if missing_fields:
         raise RuntimeError(
             f"{repository_id} manifest is missing required field(s): "
             + ", ".join(missing_fields)
         )
 
-    adapter_name = normalized["adapter"]
-    if not isinstance(adapter_name, str):
-        raise RuntimeError("Manifest adapter must be a string")
-    if adapter_name not in SUPPORTED_ADAPTERS:
-        raise RuntimeError(f"Unsupported Hugging Face adapter: {adapter_name}")
 
-    model_loader = normalized["model_loader"]
-    if not isinstance(model_loader, str):
-        raise RuntimeError("Manifest model_loader must be a string")
-    if model_loader not in SUPPORTED_MODEL_LOADERS:
-        raise RuntimeError(f"Unsupported Transformers model loader: {model_loader}")
+def _validate_string_choice(
+    manifest: Mapping[str, Any],
+    field: str,
+    allowed_values: frozenset[str],
+    unsupported_label: str,
+) -> None:
+    value = manifest[field]
+    if not isinstance(value, str):
+        raise RuntimeError(f"Manifest {field} must be a string")
+    if value not in allowed_values:
+        raise RuntimeError(f"{unsupported_label}: {value}")
 
-    processor_loader = normalized["processor_loader"]
-    if not isinstance(processor_loader, str):
-        raise RuntimeError("Manifest processor_loader must be a string")
-    if processor_loader != "auto":
-        raise RuntimeError(f"Unsupported Transformers processor loader: {processor_loader}")
 
-    max_current_images = normalized["max_current_images"]
-    if isinstance(max_current_images, bool) or not isinstance(max_current_images, int):
+def _validate_max_current_images(manifest: Mapping[str, Any]) -> None:
+    value = manifest["max_current_images"]
+    if isinstance(value, bool) or not isinstance(value, int):
         raise RuntimeError("max_current_images must be an integer")
-    if max_current_images < 1:
+    if value < 1:
         raise RuntimeError("max_current_images must be at least 1")
 
-    preferred_dtype = normalized["preferred_dtype"]
-    if not isinstance(preferred_dtype, str):
-        raise RuntimeError("Manifest preferred_dtype must be a string")
-    if preferred_dtype not in SUPPORTED_DTYPES:
-        raise RuntimeError(f"Unsupported preferred dtype: {preferred_dtype}")
+
+def validate_manifest(
+    repository_id: str,
+    manifest: Mapping[str, Any],
+) -> dict[str, Any]:
+    normalized = dict(manifest)
+    normalized["repository_id"] = repository_id
+    _validate_pinned_revision(repository_id, normalized)
+    _validate_remote_code(repository_id, normalized)
+    _require_manifest_fields(repository_id, normalized)
+    _validate_string_choice(
+        normalized, "adapter", SUPPORTED_ADAPTERS, "Unsupported Hugging Face adapter"
+    )
+    _validate_string_choice(
+        normalized,
+        "model_loader",
+        SUPPORTED_MODEL_LOADERS,
+        "Unsupported Transformers model loader",
+    )
+    _validate_string_choice(
+        normalized,
+        "processor_loader",
+        frozenset({"auto"}),
+        "Unsupported Transformers processor loader",
+    )
+    _validate_max_current_images(normalized)
+    _validate_string_choice(
+        normalized, "preferred_dtype", SUPPORTED_DTYPES, "Unsupported preferred dtype"
+    )
 
     return normalized
