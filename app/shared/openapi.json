@@ -1321,8 +1321,7 @@
             "type": "integer",
             "maximum": 1000.0,
             "minimum": 1.0,
-            "title": "Num Samples",
-            "default": 10
+            "title": "Num Samples"
           },
           "metric_configs": {
             "anyOf": [
@@ -1364,7 +1363,8 @@
         "type": "object",
         "required": [
           "checkpoint",
-          "metrics"
+          "metrics",
+          "num_samples"
         ],
         "title": "CheckpointEvaluationRequest",
         "description": "Request model for checkpoint evaluation."
@@ -2032,21 +2032,21 @@
             "maximum": 1.0,
             "minimum": 0.01,
             "title": "Sample Size",
-            "description": "Fraction of data to use",
-            "default": 1.0
+            "description": "Fraction of data to use"
           },
           "confirm_unmatched": {
             "type": "boolean",
             "title": "Confirm Unmatched",
-            "description": "Explicitly confirm importing matched rows when some images are unmatched",
-            "default": false
+            "description": "Explicitly confirm importing matched rows when some images are unmatched"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "upload_id",
-          "image_folder_path"
+          "image_folder_path",
+          "sample_size",
+          "confirm_unmatched"
         ],
         "title": "LoadDatasetRequest"
       },
@@ -2854,38 +2854,38 @@
             "maximum": 1.0,
             "minimum": 0.01,
             "title": "Sample Size",
-            "description": "Fraction of data to use",
-            "default": 1.0
+            "description": "Fraction of data to use"
           },
           "validation_size": {
             "type": "number",
             "maximum": 0.5,
             "minimum": 0.05,
             "title": "Validation Size",
-            "description": "Fraction of data for validation",
-            "default": 0.2
+            "description": "Fraction of data for validation"
           },
           "tokenizer": {
             "type": "string",
             "maxLength": 128,
             "minLength": 1,
             "title": "Tokenizer",
-            "description": "Hugging Face tokenizer ID",
-            "default": "bert-base-uncased"
+            "description": "Hugging Face tokenizer ID"
           },
           "max_report_size": {
             "type": "integer",
             "maximum": 1000.0,
             "minimum": 50.0,
             "title": "Max Report Size",
-            "description": "Maximum token length for reports",
-            "default": 200
+            "description": "Maximum token length for reports"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "dataset_name"
+          "dataset_name",
+          "sample_size",
+          "validation_size",
+          "tokenizer",
+          "max_report_size"
         ],
         "title": "ProcessDatasetRequest"
       },
@@ -2956,119 +2956,100 @@
             "maximum": 1000.0,
             "minimum": 1.0,
             "title": "Additional Epochs",
-            "description": "Additional epochs to train",
-            "default": 10
+            "description": "Additional epochs to train"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "checkpoint"
+          "checkpoint",
+          "additional_epochs"
         ],
         "title": "ResumeTrainingRequest"
       },
       "StartTrainingRequest": {
         "properties": {
           "dataset_name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Dataset Name",
-            "description": "Processed dataset name to use for training (defaults to latest if omitted)"
+            "description": "Processed dataset name to use for training"
           },
           "epochs": {
             "type": "integer",
             "maximum": 1000.0,
             "minimum": 1.0,
             "title": "Epochs",
-            "description": "Number of training epochs",
-            "default": 10
+            "description": "Number of training epochs"
           },
           "batch_size": {
             "type": "integer",
             "maximum": 256.0,
             "minimum": 1.0,
             "title": "Batch Size",
-            "description": "Batch size for training",
-            "default": 32
+            "description": "Batch size for training"
           },
           "num_encoders": {
             "type": "integer",
             "maximum": 12.0,
             "minimum": 1.0,
             "title": "Num Encoders",
-            "description": "Number of encoder layers",
-            "default": 4
+            "description": "Number of encoder layers"
           },
           "num_decoders": {
             "type": "integer",
             "maximum": 12.0,
             "minimum": 1.0,
             "title": "Num Decoders",
-            "description": "Number of decoder layers",
-            "default": 4
+            "description": "Number of decoder layers"
           },
           "embedding_dims": {
             "type": "integer",
             "maximum": 1024.0,
             "minimum": 64.0,
             "title": "Embedding Dims",
-            "description": "Embedding dimensions",
-            "default": 256
+            "description": "Embedding dimensions"
           },
           "attention_heads": {
             "type": "integer",
             "maximum": 16.0,
             "minimum": 1.0,
             "title": "Attention Heads",
-            "description": "Number of attention heads",
-            "default": 8
+            "description": "Number of attention heads"
           },
           "train_temp": {
             "type": "number",
             "maximum": 2.0,
             "minimum": 0.1,
             "title": "Train Temp",
-            "description": "Training temperature",
-            "default": 1.0
+            "description": "Training temperature"
           },
           "freeze_img_encoder": {
             "type": "boolean",
             "title": "Freeze Img Encoder",
-            "description": "Freeze image encoder weights",
-            "default": false
+            "description": "Freeze image encoder weights"
           },
           "use_img_augmentation": {
             "type": "boolean",
             "title": "Use Img Augmentation",
-            "description": "Enable image augmentation",
-            "default": false
+            "description": "Enable image augmentation"
           },
           "shuffle_with_buffer": {
             "type": "boolean",
             "title": "Shuffle With Buffer",
-            "description": "Enable shuffle with buffer",
-            "default": true
+            "description": "Enable shuffle with buffer"
           },
           "shuffle_size": {
             "type": "integer",
             "minimum": 1.0,
             "title": "Shuffle Size",
-            "description": "Shuffle buffer size",
-            "default": 1024
+            "description": "Shuffle buffer size"
           },
           "save_checkpoints": {
             "type": "boolean",
             "title": "Save Checkpoints",
-            "description": "Save checkpoints during training",
-            "default": true
+            "description": "Save checkpoints during training"
           },
           "checkpoint_id": {
             "anyOf": [
@@ -3087,92 +3068,107 @@
           "use_device_GPU": {
             "type": "boolean",
             "title": "Use Device Gpu",
-            "description": "Use GPU for training",
-            "default": true
+            "description": "Use GPU for training"
           },
           "device_ID": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Device Id",
-            "description": "GPU device ID",
-            "default": 0
+            "description": "GPU device ID"
           },
           "jit_compile": {
             "type": "boolean",
             "title": "Jit Compile",
-            "description": "Enable torch compile mode",
-            "default": false
+            "description": "Enable torch compile mode"
           },
           "jit_backend": {
             "type": "string",
             "title": "Jit Backend",
-            "description": "Torch compile backend",
-            "default": "inductor"
+            "description": "Torch compile backend"
           },
           "use_mixed_precision": {
             "type": "boolean",
             "title": "Use Mixed Precision",
-            "description": "Enable mixed precision policy for GPU training",
-            "default": false
+            "description": "Enable mixed precision policy for GPU training"
           },
           "dataloader_workers": {
             "type": "integer",
             "maximum": 32.0,
             "minimum": 0.0,
             "title": "Dataloader Workers",
-            "description": "DataLoader worker processes",
-            "default": 0
+            "description": "DataLoader worker processes"
           },
           "prefetch_factor": {
             "type": "integer",
             "maximum": 8.0,
             "minimum": 1.0,
             "title": "Prefetch Factor",
-            "description": "DataLoader prefetch factor",
-            "default": 1
+            "description": "DataLoader prefetch factor"
           },
           "pin_memory": {
             "type": "boolean",
             "title": "Pin Memory",
-            "description": "Enable DataLoader pinned memory",
-            "default": true
+            "description": "Enable DataLoader pinned memory"
           },
           "persistent_workers": {
             "type": "boolean",
             "title": "Persistent Workers",
-            "description": "Keep DataLoader workers persistent across epochs",
-            "default": false
+            "description": "Keep DataLoader workers persistent across epochs"
           },
           "plot_training_metrics": {
             "type": "boolean",
             "title": "Plot Training Metrics",
-            "description": "Generate training plots",
-            "default": true
+            "description": "Generate training plots"
           },
           "use_scheduler": {
             "type": "boolean",
             "title": "Use Scheduler",
-            "description": "Use learning rate scheduler",
-            "default": false
+            "description": "Use learning rate scheduler"
           },
           "target_LR": {
             "type": "number",
             "maximum": 0.1,
             "minimum": 1e-06,
             "title": "Target Lr",
-            "description": "Target learning rate",
-            "default": 0.0001
+            "description": "Target learning rate"
           },
           "warmup_steps": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Warmup Steps",
-            "description": "Warmup steps for scheduler",
-            "default": 100
+            "description": "Warmup steps for scheduler"
           }
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "dataset_name",
+          "epochs",
+          "batch_size",
+          "num_encoders",
+          "num_decoders",
+          "embedding_dims",
+          "attention_heads",
+          "train_temp",
+          "freeze_img_encoder",
+          "use_img_augmentation",
+          "shuffle_with_buffer",
+          "shuffle_size",
+          "save_checkpoints",
+          "use_device_GPU",
+          "device_ID",
+          "jit_compile",
+          "jit_backend",
+          "use_mixed_precision",
+          "dataloader_workers",
+          "prefetch_factor",
+          "pin_memory",
+          "persistent_workers",
+          "plot_training_metrics",
+          "use_scheduler",
+          "target_LR",
+          "warmup_steps"
+        ],
         "title": "StartTrainingRequest"
       },
       "TextStatistics": {
@@ -3358,8 +3354,7 @@
             "type": "number",
             "maximum": 1.0,
             "minimum": 0.01,
-            "title": "Sample Size",
-            "default": 1.0
+            "title": "Sample Size"
           },
           "seed": {
             "anyOf": [
@@ -3377,7 +3372,8 @@
         "type": "object",
         "required": [
           "dataset_name",
-          "metrics"
+          "metrics",
+          "sample_size"
         ],
         "title": "ValidationRequest",
         "description": "Request model for dataset validation."

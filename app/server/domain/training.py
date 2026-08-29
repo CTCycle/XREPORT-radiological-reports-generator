@@ -47,10 +47,10 @@ class LoadDatasetRequest(BaseModel):
         description="Folder path containing X-ray images",
     )
     sample_size: float = Field(
-        1.0, ge=0.01, le=1.0, description="Fraction of data to use"
+        ..., ge=0.01, le=1.0, description="Fraction of data to use"
     )
     confirm_unmatched: bool = Field(
-        False,
+        ...,
         description="Explicitly confirm importing matched rows when some images are unmatched",
     )
     model_config = ConfigDict(extra="forbid")
@@ -81,55 +81,55 @@ class BrowseResponse(BaseModel):
 
 ###############################################################################
 class StartTrainingRequest(BaseModel):
-    dataset_name: str | None = Field(
-        None,
+    dataset_name: str = Field(
+        ...,
         min_length=1,
         max_length=128,
-        description="Processed dataset name to use for training (defaults to latest if omitted)",
+        description="Processed dataset name to use for training",
     )
-    epochs: int = Field(10, ge=1, le=1000, description="Number of training epochs")
-    batch_size: int = Field(32, ge=1, le=256, description="Batch size for training")
-    num_encoders: int = Field(4, ge=1, le=12, description="Number of encoder layers")
-    num_decoders: int = Field(4, ge=1, le=12, description="Number of decoder layers")
-    embedding_dims: int = Field(256, ge=64, le=1024, description="Embedding dimensions")
+    epochs: int = Field(..., ge=1, le=1000, description="Number of training epochs")
+    batch_size: int = Field(..., ge=1, le=256, description="Batch size for training")
+    num_encoders: int = Field(..., ge=1, le=12, description="Number of encoder layers")
+    num_decoders: int = Field(..., ge=1, le=12, description="Number of decoder layers")
+    embedding_dims: int = Field(..., ge=64, le=1024, description="Embedding dimensions")
     attention_heads: int = Field(
-        8, ge=1, le=16, description="Number of attention heads"
+        ..., ge=1, le=16, description="Number of attention heads"
     )
-    train_temp: float = Field(1.0, ge=0.1, le=2.0, description="Training temperature")
-    freeze_img_encoder: bool = Field(False, description="Freeze image encoder weights")
-    use_img_augmentation: bool = Field(False, description="Enable image augmentation")
-    shuffle_with_buffer: bool = Field(True, description="Enable shuffle with buffer")
-    shuffle_size: int = Field(1024, ge=1, description="Shuffle buffer size")
-    save_checkpoints: bool = Field(True, description="Save checkpoints during training")
+    train_temp: float = Field(..., ge=0.1, le=2.0, description="Training temperature")
+    freeze_img_encoder: bool = Field(..., description="Freeze image encoder weights")
+    use_img_augmentation: bool = Field(..., description="Enable image augmentation")
+    shuffle_with_buffer: bool = Field(..., description="Enable shuffle with buffer")
+    shuffle_size: int = Field(..., ge=1, description="Shuffle buffer size")
+    save_checkpoints: bool = Field(..., description="Save checkpoints during training")
     checkpoint_id: str | None = Field(
         None,
         min_length=1,
         max_length=128,
         description="Optional custom identifier for the checkpoint",
     )
-    use_device_GPU: bool = Field(True, description="Use GPU for training")
-    device_ID: int = Field(0, ge=0, description="GPU device ID")
-    jit_compile: bool = Field(False, description="Enable torch compile mode")
-    jit_backend: str = Field("inductor", description="Torch compile backend")
+    use_device_GPU: bool = Field(..., description="Use GPU for training")
+    device_ID: int = Field(..., ge=0, description="GPU device ID")
+    jit_compile: bool = Field(..., description="Enable torch compile mode")
+    jit_backend: str = Field(..., description="Torch compile backend")
     use_mixed_precision: bool = Field(
-        False, description="Enable mixed precision policy for GPU training"
+        ..., description="Enable mixed precision policy for GPU training"
     )
     dataloader_workers: int = Field(
-        0, ge=0, le=32, description="DataLoader worker processes"
+        ..., ge=0, le=32, description="DataLoader worker processes"
     )
     prefetch_factor: int = Field(
-        1, ge=1, le=8, description="DataLoader prefetch factor"
+        ..., ge=1, le=8, description="DataLoader prefetch factor"
     )
-    pin_memory: bool = Field(True, description="Enable DataLoader pinned memory")
+    pin_memory: bool = Field(..., description="Enable DataLoader pinned memory")
     persistent_workers: bool = Field(
-        False, description="Keep DataLoader workers persistent across epochs"
+        ..., description="Keep DataLoader workers persistent across epochs"
     )
-    plot_training_metrics: bool = Field(True, description="Generate training plots")
-    use_scheduler: bool = Field(False, description="Use learning rate scheduler")
+    plot_training_metrics: bool = Field(..., description="Generate training plots")
+    use_scheduler: bool = Field(..., description="Use learning rate scheduler")
     target_LR: float = Field(
-        0.0001, ge=0.000001, le=0.1, description="Target learning rate"
+        ..., ge=0.000001, le=0.1, description="Target learning rate"
     )
-    warmup_steps: int = Field(100, ge=0, description="Warmup steps for scheduler")
+    warmup_steps: int = Field(..., ge=0, description="Warmup steps for scheduler")
     model_config = ConfigDict(extra="forbid")
 
 ###############################################################################
@@ -140,9 +140,7 @@ class ResumeTrainingRequest(BaseModel):
         max_length=128,
         description="Checkpoint name to resume from",
     )
-    additional_epochs: int = Field(
-        10, ge=1, le=1000, description="Additional epochs to train"
-    )
+    additional_epochs: int = Field(..., ge=1, le=1000, description="Additional epochs to train")
     model_config = ConfigDict(extra="forbid")
 
 ###############################################################################
@@ -173,19 +171,19 @@ class ProcessDatasetRequest(BaseModel):
         description="Optional custom name for the processed dataset",
     )
     sample_size: float = Field(
-        1.0, ge=0.01, le=1.0, description="Fraction of data to use"
+        ..., ge=0.01, le=1.0, description="Fraction of data to use"
     )
     validation_size: float = Field(
-        0.2, ge=0.05, le=0.5, description="Fraction of data for validation"
+        ..., ge=0.05, le=0.5, description="Fraction of data for validation"
     )
     tokenizer: str = Field(
-        "bert-base-uncased",
+        ...,
         min_length=1,
         max_length=128,
         description="Hugging Face tokenizer ID",
     )
     max_report_size: int = Field(
-        200, ge=50, le=1000, description="Maximum token length for reports"
+        ..., ge=50, le=1000, description="Maximum token length for reports"
     )
     model_config = ConfigDict(extra="forbid")
 

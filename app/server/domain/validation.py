@@ -8,7 +8,7 @@ class ValidationRequest(BaseModel):
 
     dataset_name: str = Field(..., min_length=1, max_length=128)
     metrics: list[str] = Field(..., min_length=1, max_length=4)
-    sample_size: float = Field(1.0, ge=0.01, le=1.0)
+    sample_size: float = Field(..., ge=0.01, le=1.0)
     seed: int | None = None
     model_config = ConfigDict(extra="forbid")
 
@@ -71,7 +71,7 @@ class CheckpointEvaluationRequest(BaseModel):
 
     checkpoint: str = Field(..., min_length=1, max_length=128)
     metrics: list[str] = Field(..., min_length=1, max_length=4)
-    num_samples: int = Field(10, ge=1, le=1000)
+    num_samples: int = Field(..., ge=1, le=1000)
     metric_configs: dict[str, dict[str, float | int]] | None = None
     seed: int | None = None
 
