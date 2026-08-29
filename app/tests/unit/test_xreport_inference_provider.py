@@ -36,14 +36,12 @@ def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrup
     _write_checkpoint_files(corrupt, valid_model=False)
     complete = tmp_path / "complete"
     _write_checkpoint_files(complete, valid_model=True)
-    monkeypatch.setattr(xreport, "resolve_checkpoint_path", lambda name: str(tmp_path / name))
-
     provider = XReportCheckpointProvider()
     with pytest.raises(FileNotFoundError, match="incomplete"):
-        provider.validate_checkpoint("incomplete")
+        provider.validate_checkpoint(incomplete)
     with pytest.raises(ValueError, match="invalid Keras archive"):
-        provider.validate_checkpoint("corrupt")
-    assert provider.validate_checkpoint("complete") == "complete"
+        provider.validate_checkpoint(corrupt)
+    assert provider.validate_checkpoint(complete) == "complete"
 
 ###############################################################################
 def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatch) -> None:

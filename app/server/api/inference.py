@@ -13,7 +13,7 @@ from server.domain.inference import (
     ModelUpdateCheckRequest,
     ModelUpdateCheckResponse,
 )
-from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
+from server.domain.jobs import JobStartResponse
 if TYPE_CHECKING:
     from server.services.inference import InferenceService
 
@@ -95,14 +95,6 @@ class InferenceEndpoint:
         )
 
     # -------------------------------------------------------------------------
-    def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
-        return self.service.get_inference_job_status(job_id)
-
-    # -------------------------------------------------------------------------
-    def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
-        return self.service.cancel_inference_job(job_id)
-
-    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
             "/models",
@@ -132,21 +124,6 @@ class InferenceEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.get_inference_job_status,
-            methods=["GET"],
-            response_model=JobStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.cancel_inference_job,
-            methods=["DELETE"],
-            response_model=JobCancelResponse,
-            status_code=status.HTTP_200_OK,
-        )
-
 ###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/inference", tags=["inference"])

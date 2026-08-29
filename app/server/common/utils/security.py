@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path, PureWindowsPath
 
-from server.common.path import CHECKPOINTS_DIR
 
 
 MAX_CHECKPOINT_NAME_LENGTH = 128
@@ -33,15 +32,6 @@ def validate_checkpoint_name(name: str) -> str:
             "Checkpoint name can only include letters, numbers, hyphen, and underscore"
         )
     return normalized
-
-###############################################################################
-def resolve_checkpoint_path(name: str) -> str:
-    checkpoint_name = validate_checkpoint_name(name)
-    base_path = CHECKPOINTS_DIR.resolve()
-    target_path = (base_path / checkpoint_name).resolve()
-    if base_path not in target_path.parents and target_path != base_path:
-        raise ValueError("Checkpoint path is outside the checkpoints directory")
-    return str(target_path)
 
 ###############################################################################
 def sanitize_dataset_name(name: str) -> str:

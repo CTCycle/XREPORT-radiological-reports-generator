@@ -42,13 +42,6 @@ InstallationState = Literal[
     "failed",
     "downloading",
 ]
-LocalModelState = Literal[
-    "not_downloaded",
-    "downloading",
-    "downloaded_unvalidated",
-    "ready",
-    "failed",
-]
 ModelOrigin = Literal["public", "custom"]
 HardwareDemand = Literal["low", "moderate", "high", "very_high"]
 AccessPolicy = Literal["open", "gated"]
@@ -224,6 +217,8 @@ class ModelAvailability(BaseModel):
     enabled: bool = True
     validation_status: ValidationStatus = "pending"
     validation_message: str | None = None
+    validation_receipt_status: Literal["missing", "passed", "invalid"] = "missing"
+    validation_receipt_message: str | None = None
     category: str
     recommended: bool = False
     research_only: bool = True
@@ -264,9 +259,6 @@ class ModelAvailability(BaseModel):
     required_files: list[str] = Field(default_factory=list)
     weight_file_sets: list[list[str]] = Field(default_factory=list)
     installation_state: InstallationState = "not_installed"
-    local_state: LocalModelState = "not_downloaded"
-    can_download: bool = False
-    can_delete_local: bool = False
     local_path: str | None = None
     active_revision: str | None = None
     candidate_revision: str | None = None

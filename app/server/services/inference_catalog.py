@@ -7,7 +7,6 @@ from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 
 from server.common.path import (
-    CHECKPOINTS_DIR,
     DATA_ROOT,
     PACKAGED_MODE,
     ROOT_DIR,
@@ -24,6 +23,7 @@ from server.domain.inference import (
     ProviderAvailability,
 )
 from server.services.model_installation import ModelInstallationManager
+from server.repositories.checkpoints import CheckpointRepository
 
 
 CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
@@ -33,25 +33,6 @@ VALIDATION_RECEIPTS_DIR = (
     if PACKAGED_MODE
     else ROOT_DIR / "assets" / "QA" / "inference_validation"
 )
-
-###############################################################################
-def scan_complete_checkpoints() -> list[str]:
-    if not CHECKPOINTS_DIR.exists():
-        return []
-
-    model_folders: list[str] = []
-    for entry in CHECKPOINTS_DIR.iterdir():
-        if not entry.is_dir():
-            continue
-        required_files = (
-            entry / "saved_model.keras",
-            entry / "configuration" / "configuration.json",
-            entry / "configuration" / "metadata.json",
-            entry / "configuration" / "session_history.json",
-        )
-        if all(path.is_file() for path in required_files):
-            model_folders.append(entry.name)
-    return model_folders
 
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
@@ -98,6 +79,7 @@ class InferenceModelCatalog:
         self,
         settings: InferenceSettings,
         installation_manager: ModelInstallationManager | None = None,
+        checkpoint_repository: CheckpointRepository | None = None,
     ) -> None:
         self.settings = settings
         self.installation_manager = (
@@ -105,6 +87,7 @@ class InferenceModelCatalog:
             if installation_manager is not None
             else ModelInstallationManager()
         )
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
 
     # -------------------------------------------------------------------------
     def list_models(self) -> InferenceModelsResponse:
@@ -188,15 +171,13 @@ class InferenceModelCatalog:
             "status": status,
             "status_message": status_message,
             "enabled": entry.enabled,
-            "validation_status": (
-                entry.validation_status
-                if entry.validation_status == "degraded"
-                else "passed" if has_validation_evidence else entry.validation_status
-            ),
-            "validation_message": (
-                entry.validation_message
-                if entry.validation_status == "degraded"
-                else None if has_validation_evidence else entry.validation_message
+            "validation_status": entry.validation_status,
+            "validation_message": entry.validation_message,
+            "validation_receipt_status": "passed" if has_validation_evidence else "missing",
+            "validation_receipt_message": (
+                None
+                if has_validation_evidence
+                else "No valid real-inference validation receipt is recorded for this revision."
             ),
             "category": entry.category,
             "recommended": entry.recommended,
@@ -236,15 +217,6 @@ class InferenceModelCatalog:
             "required_files": entry.required_files,
             "weight_file_sets": entry.weight_file_sets,
             "installation_state": installation_state if installation_state in {"not_installed", "staged", "active", "corrupt", "failed", "downloading"} else "not_installed",
-            "local_state": {
-                "active": "ready",
-                "staged": "downloaded_unvalidated",
-                "downloading": "downloading",
-                "corrupt": "failed",
-                "failed": "failed",
-            }.get(installation_state, "not_downloaded"),
-            "can_download": installation_state != "active" and entry.enabled and status not in {"disabled", "incompatible"},
-            "can_delete_local": installation_state in {"active", "staged", "corrupt", "failed", "downloading"},
             "local_path": ModelInstallationManager._relative(local_path) if local_path else None,
             "active_revision": active_revision,
             "candidate_revision": candidate_revision,
@@ -389,29 +361,50 @@ class InferenceModelCatalog:
     def _xreport_provider_status(
         models: list[ModelAvailability],
     ) -> ProviderAvailability:
-        if models:
+        if any(model.status == "ready" for model in models):
             return ProviderAvailability(status="ready")
+        if any(model.status == "runtime_unavailable" for model in models):
+            return ProviderAvailability(
+                status="runtime_unavailable",
+                message="A registered XREPORT checkpoint artifact is unavailable.",
+            )
         return ProviderAvailability(
             status="not_installed",
-            message="No complete XREPORT checkpoints have been discovered yet.",
+            message="No XREPORT checkpoints are registered.",
         )
 
     # -------------------------------------------------------------------------
     def _xreport_models(self) -> list[ModelAvailability]:
-        checkpoint_names = scan_complete_checkpoints()
+        checkpoints = self.checkpoint_repository.list_checkpoints()
         return [
             ModelAvailability(
-                model_ref=f"xreport:{checkpoint_name}",
+                model_ref=f"xreport:{checkpoint.name}",
                 provider="xreport",
                 origin="custom",
-                display_name=checkpoint_name,
+                display_name=checkpoint.name,
                 description=(
                     "Local XREPORT checkpoint using the fixed BEiT 224x224x3 "
                     "image encoder"
                 ),
-                status="ready",
+                status="ready" if checkpoint.artifact_complete else "runtime_unavailable",
+                status_message=(
+                    None
+                    if checkpoint.artifact_complete
+                    else "The registered checkpoint artifact is missing or incomplete."
+                ),
                 enabled=True,
-                validation_status="passed",
+                validation_status="passed" if checkpoint.artifact_complete else "blocked",
+                validation_message=(
+                    None
+                    if checkpoint.artifact_complete
+                    else "Restore the registered checkpoint artifact before using it."
+                ),
+                validation_receipt_status="passed" if checkpoint.artifact_complete else "missing",
+                validation_receipt_message=(
+                    None
+                    if checkpoint.artifact_complete
+                    else "The registered checkpoint artifact is not complete."
+                ),
                 category="xreport_checkpoint",
                 input_semantics="independent_images",
                 capabilities=ModelCapabilities(multiple_current_views=True),
@@ -424,9 +417,9 @@ class InferenceModelCatalog:
                 coverage_note="Coverage depends on the data used by this XREPORT training run.",
                 hardware_demand="moderate",
                 parameter_label="Custom checkpoint",
-                local_state="ready",
-                can_download=False,
-                can_delete_local=False,
+                local_path=str(checkpoint.path),
+                integrity_status="verified" if checkpoint.artifact_complete else "invalid",
+                available_actions=["delete_local"],
             )
-            for checkpoint_name in sorted(checkpoint_names, reverse=True)
+            for checkpoint in sorted(checkpoints, key=lambda item: item.name_key, reverse=True)
         ]

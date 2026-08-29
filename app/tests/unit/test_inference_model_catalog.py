@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 
 from server.common.path import ROOT_DIR
@@ -35,13 +38,22 @@ def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 ###############################################################################
-def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "server.services.inference_catalog.scan_complete_checkpoints",
-        lambda: ["checkpoint_epoch_48"],
+def _catalog(checkpoints: list[object]) -> InferenceModelCatalog:
+    repository = SimpleNamespace(list_checkpoints=lambda: checkpoints)
+    return InferenceModelCatalog(_settings(), checkpoint_repository=repository)
+
+###############################################################################
+def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> object:
+    return SimpleNamespace(
+        name=name,
+        name_key=name.casefold(),
+        path=Path("app/resources/models/checkpoints") / name,
+        artifact_complete=complete,
     )
 
-    response = InferenceModelCatalog(_settings()).list_models()
+###############################################################################
+def test_catalog_exposes_available_public_and_custom_model_sources() -> None:
+    response = _catalog([_checkpoint()]).list_models()
 
     public = [model for model in response.models if model.origin == "public"]
     custom = [model for model in response.models if model.origin == "custom"]
@@ -54,13 +66,10 @@ def test_catalog_exposes_available_public_and_custom_model_sources(monkeypatch) 
     assert all(model.available_actions == ["download"] for model in public)
 
 ###############################################################################
-def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "server.services.inference_catalog.scan_complete_checkpoints",
-        lambda: ["checkpoint_epoch_48"],
-    )
-
-    response = InferenceModelCatalog(_settings(hf_local_only=False)).list_models()
+def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled() -> None:
+    catalog = _catalog([_checkpoint()])
+    catalog.settings = _settings(hf_local_only=False)
+    response = catalog.list_models()
 
     public = [model for model in response.models if model.origin == "public"]
     assert public
@@ -68,23 +77,14 @@ def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled(mon
     assert response.providers["huggingface"].status == "disabled"
 
 ###############################################################################
-def test_catalog_hides_xreport_provider_without_complete_checkpoints(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "server.services.inference_catalog.scan_complete_checkpoints",
-        lambda: [],
-    )
-
-    response = InferenceModelCatalog(_settings()).list_models()
+def test_catalog_hides_xreport_provider_without_registered_checkpoints() -> None:
+    response = _catalog([]).list_models()
 
     assert not any(model.provider == "xreport" for model in response.models)
     assert response.providers["xreport"].status == "not_installed"
 
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "server.services.inference_catalog.scan_complete_checkpoints",
-        lambda: [],
-    )
     active_path = ROOT_DIR / "app" / "resources" / "models" / "huggingface" / "installed" / "active"
     monkeypatch.setattr(
         "server.services.inference_catalog.ModelInstallationManager.inspect",
@@ -100,7 +100,7 @@ def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
         },
     )
 
-    model = InferenceModelCatalog(_settings()).list_models().models[0]
+    model = _catalog([]).list_models().models[0]
 
     assert model.status == "ready"
     assert model.installation_state == "active"

@@ -27,6 +27,7 @@ from server.repositories.serialization.dataset import (
     DatasetRepository,
 )
 from server.repositories.serialization.model import ModelSerializer
+from server.repositories.checkpoints import CheckpointRepository
 
 ###############################################################################
 class ProcessLike(Protocol):
@@ -400,8 +401,13 @@ def run_resume_training_process(
     stop_event = worker.stop_event
     try:
         modser = ModelSerializer()
+        checkpoint_record = CheckpointRepository().get_checkpoint(checkpoint)
+        if checkpoint_record is None:
+            raise ValueError(f"Checkpoint is not registered: {checkpoint}")
+        if not checkpoint_record.artifact_complete:
+            raise ValueError(f"Checkpoint artifact is missing or incomplete: {checkpoint}")
         model, train_config, model_metadata, session, checkpoint_path = (
-            modser.load_checkpoint(checkpoint)
+            modser.load_checkpoint(checkpoint_record.path)
         )
         train_config["additional_epochs"] = additional_epochs
         train_config["polling_interval"] = get_server_settings().jobs.polling_interval

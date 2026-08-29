@@ -4,8 +4,6 @@ import os
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
 import pandas as pd
 from server.services.errors import (
     BadRequestError,
@@ -32,25 +30,19 @@ from server.domain.training import (
     ImageCountResponse,
     ImageMetadataResponse,
 )
-from server.domain.jobs import (
-    JobStartResponse,
-    JobStatusResponse,
-    JobCancelResponse,
-)
+from server.domain.jobs import JobStartResponse
 from server.common.constants import VALID_IMAGE_EXTENSIONS
 from server.common.utils.logger import logger
 from server.services.jobs import JobManager, get_job_manager
 from server.configurations.startup import get_server_settings
 from server.services.upload import UploadState, get_upload_state
+from server.services.dataset_processing import DatasetProcessingService
 from server.repositories.preparation import PreparationRepository
 from server.repositories.serialization.dataset import DatasetRepository
 from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
 from server.configurations import ServerSettings
-
-if TYPE_CHECKING:
-    from server.services.dataset_processing import DatasetProcessingService
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 LOCAL_FILESYSTEM_DISABLED_ERROR = (
@@ -119,32 +111,20 @@ class PreparationService:
         self,
         repository: PreparationRepository,
         dataset_repository: DatasetRepository,
-        processing_service: DatasetProcessingService | None,
+        processing_service: DatasetProcessingService,
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
     ) -> None:
         self.repository = repository
         self.dataset_repository = dataset_repository
-        self._processing_service = processing_service
+        self.processing_service = processing_service
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
         self.allow_local_filesystem_access = (
             self.server_settings.features.allow_local_filesystem_access
         )
-
-    # -------------------------------------------------------------------------
-    @property
-    def processing_service(self) -> DatasetProcessingService:
-        if self._processing_service is None:
-            from server.services.dataset_processing import DatasetProcessingService
-
-            self._processing_service = DatasetProcessingService(
-                repository=self.dataset_repository,
-                job_manager=self.job_manager,
-            )
-        return self._processing_service
 
     # -------------------------------------------------------------------------
     def ensure_local_filesystem_access(self) -> None:
@@ -198,15 +178,6 @@ class PreparationService:
                 "row_order",
             ],
         ].copy()
-
-    # -------------------------------------------------------------------------
-    def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise NotFoundError(
-                detail=f"Job not found: {job_id}",
-            )
-        return job_status
 
     # -------------------------------------------------------------------------
     def get_dataset_status(self) -> DatasetStatusResponse:
@@ -374,20 +345,15 @@ class PreparationService:
                 detail=f"Invalid image folder path: {folder_path}",
             )
 
-        # Check if we have an uploaded dataset
-        if self.upload_state.is_empty():
+        dataset_info = self.upload_state.get(request.upload_id)
+        if dataset_info is None:
             raise BadRequestError(
-                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
+                detail=(
+                    "The upload_id is unknown or expired. "
+                    "Please upload a CSV/XLSX file again."
+                ),
             )
 
-        # Get the most recently uploaded dataset
-        latest_upload = self.upload_state.get_latest()
-        if latest_upload is None:
-            raise BadRequestError(
-                detail="No dataset uploaded. Please upload a CSV/XLSX file first.",
-            )
-
-        _, dataset_info = latest_upload
         df: pd.DataFrame = dataset_info["dataframe"].copy()
         dataset_name: str = dataset_info["dataset_name"]
 
@@ -472,8 +438,8 @@ class PreparationService:
                     detail=f"Failed to save data to database: {str(e)}",
                 ) from e
 
-        # Clear temporary storage after loading
-        self.upload_state.clear()
+        # Consume only the upload explicitly used for this import.
+        self.upload_state.remove(request.upload_id)
 
         return LoadDatasetResponse(
             success=True,
@@ -541,23 +507,6 @@ class PreparationService:
             status=job_status["status"],
             message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
             poll_interval=self.server_settings.jobs.polling_interval,
-        )
-
-    # -------------------------------------------------------------------------
-    def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.get_job_status_or_404(job_id)
-        return JobStatusResponse(**job_status)
-
-    # -------------------------------------------------------------------------
-    def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
-        self.get_job_status_or_404(job_id)
-
-        success = self.job_manager.cancel_job(job_id)
-
-        return JobCancelResponse(
-            job_id=job_id,
-            success=success,
-            message="Cancellation requested" if success else "Job cannot be cancelled",
         )
 
     # -------------------------------------------------------------------------
@@ -720,7 +669,10 @@ def get_preparation_service() -> PreparationService:
     return PreparationService(
         repository=PreparationRepository(database),
         dataset_repository=dataset_repository,
-        processing_service=None,
+        processing_service=DatasetProcessingService(
+            repository=dataset_repository,
+            job_manager=job_manager,
+        ),
         job_manager=job_manager,
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),

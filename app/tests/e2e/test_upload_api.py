@@ -25,6 +25,7 @@ def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
 
     assert response.ok, f"Expected 200, got {response.status}: {response.text()}"
     payload = response.json()
+    assert isinstance(payload["upload_id"], str) and payload["upload_id"]
     assert payload["dataset_name"] == "clinical_dataset"
     assert payload["row_count"] == 2
     assert payload["columns"] == ["id", "image", "text"]

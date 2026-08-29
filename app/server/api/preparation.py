@@ -21,8 +21,6 @@ from server.domain.training import (
 )
 from server.domain.jobs import (
     JobStartResponse,
-    JobStatusResponse,
-    JobCancelResponse,
 )
 if TYPE_CHECKING:
     from server.services.preparation import PreparationService
@@ -79,14 +77,6 @@ class PreparationEndpoint:
     # -------------------------------------------------------------------------
     def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
         return self.service.process_dataset(request)
-
-    # -------------------------------------------------------------------------
-    def get_preparation_job_status(self, job_id: str) -> JobStatusResponse:
-        return self.service.get_preparation_job_status(job_id)
-
-    # -------------------------------------------------------------------------
-    def cancel_preparation_job(self, job_id: str) -> JobCancelResponse:
-        return self.service.cancel_preparation_job(job_id)
 
     # -------------------------------------------------------------------------
     def browse_directory(
@@ -186,20 +176,6 @@ class PreparationEndpoint:
             "/dataset/{dataset_name}/images/{index}/content",
             self.get_dataset_image_content,
             methods=["GET"],
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.get_preparation_job_status,
-            methods=["GET"],
-            response_model=JobStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.cancel_preparation_job,
-            methods=["DELETE"],
-            response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(

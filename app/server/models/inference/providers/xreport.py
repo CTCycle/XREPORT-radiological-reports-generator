@@ -9,7 +9,6 @@ from typing import Any
 
 from PIL import Image, ImageOps
 
-from server.common.utils.security import resolve_checkpoint_path
 from server.domain.inference import InferenceImage
 from server.models.inference import TextGenerator
 from server.models.training.dataloader import XRAYDataLoader
@@ -19,12 +18,10 @@ class XReportCheckpointProvider:
     """Runs existing XREPORT checkpoints without changing their decoding behavior."""
 
     # -------------------------------------------------------------------------
-    def validate_checkpoint(self, checkpoint: str) -> str:
-        try:
-            checkpoint_dir = resolve_checkpoint_path(checkpoint)
-        except ValueError as exc:
-            raise ValueError(str(exc)) from exc
-        checkpoint_path = Path(checkpoint_dir)
+    def validate_checkpoint(self, checkpoint_path: str | Path) -> str:
+        checkpoint_path = Path(checkpoint_path).expanduser().resolve()
+        if not checkpoint_path.is_dir():
+            raise FileNotFoundError(f"Checkpoint artifact directory is missing: {checkpoint_path}")
         model_path = checkpoint_path / "saved_model.keras"
         required_files = (
             model_path,

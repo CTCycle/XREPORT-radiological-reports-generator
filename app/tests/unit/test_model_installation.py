@@ -23,6 +23,24 @@ def _manifest(revision: str = REVISION) -> dict[str, object]:
     }
 
 ###############################################################################
+def _active_metadata(
+    manager: ModelInstallationManager,
+    installed: Path,
+    **updates: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "repository_id": "example/report-model",
+        "state": "active",
+        "active_revision": REVISION,
+        "active_relative_path": manager.relative_path(installed),
+        "candidate": None,
+        "rollback": None,
+    }
+    payload.update(updates)
+    return payload
+
+###############################################################################
 class FakeApi:
 
     # -------------------------------------------------------------------------
@@ -256,13 +274,11 @@ def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> 
         (installed / filename).write_text("ok", encoding="utf-8")
     manager._write_metadata(
         "example/report-model",
-        {
-            "repository_id": "example/report-model",
-            "state": "active",
-            "active_revision": REVISION,
-            "active_relative_path": manager.relative_path(installed),
-            "file_manifest": {"model.safetensors": {"size": 999, "sha256": "bad"}},
-        },
+        _active_metadata(
+            manager,
+            installed,
+            file_manifest={"model.safetensors": {"size": 999, "sha256": "bad"}},
+        ),
     )
 
     with pytest.raises(InstallationError, match="integrity mismatch"):
@@ -282,13 +298,7 @@ def test_cancelled_maintenance_preserves_working_active_revision(manager_paths: 
         (installed / filename).write_text("ok", encoding="utf-8")
     manager._write_metadata(
         "example/report-model",
-        {
-            "repository_id": "example/report-model",
-            "state": "active",
-            "integrity": "verified",
-            "active_revision": REVISION,
-            "active_relative_path": manager.relative_path(installed),
-        },
+        _active_metadata(manager, installed, integrity="verified"),
     )
     partial = installation_module.HF_STAGING_DIR / "cancelled-op" / "example__report-model" / REVISION
     partial.mkdir(parents=True)
@@ -331,12 +341,7 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
         (path / "model.safetensors").write_bytes(b"owned" if path != unrelated else b"keep")
     manager._write_metadata(
         "example/report-model",
-        {
-            "repository_id": "example/report-model",
-            "state": "active",
-            "active_revision": REVISION,
-            "active_relative_path": manager.relative_path(installed),
-        },
+        _active_metadata(manager, installed),
     )
 
     deleted = ModelStorageLifecycle(

@@ -20,8 +20,6 @@ from server.domain.validation import (
 )
 from server.domain.jobs import (
     JobStartResponse,
-    JobStatusResponse,
-    JobCancelResponse,
 )
 from server.common.utils.logger import logger
 from server.common.utils.security import validate_checkpoint_name
@@ -33,6 +31,7 @@ from server.repositories.serialization.dataset import (
     DatasetRepository,
 )
 from server.repositories.serialization.model import ModelSerializer
+from server.repositories.checkpoints import CheckpointRepository
 from server.configurations.startup import get_server_settings
 from server.models.training.dataloader import XRAYDataLoader
 from server.services.evaluation import (
@@ -420,9 +419,12 @@ def _run_checkpoint_metrics(
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
 ) -> tuple[Any, Any, Any] | None:
+    checkpoint_record = CheckpointRepository().get_checkpoint(checkpoint)
+    if checkpoint_record is None or not checkpoint_record.artifact_complete:
+        return None
     try:
         model, train_config, model_metadata, _, _ = ModelSerializer().load_checkpoint(
-            checkpoint
+            checkpoint_record.path
         )
     except FileNotFoundError:
         return None
@@ -545,9 +547,11 @@ class ValidationService:
         self,
         job_manager: JobManager,
         server_settings: ServerSettings,
+        checkpoint_repository: CheckpointRepository | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.server_settings = server_settings
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
 
     # -------------------------------------------------------------------------
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
@@ -633,6 +637,14 @@ class ValidationService:
                 detail=str(exc),
             ) from exc
 
+        checkpoint_record = self.checkpoint_repository.get_checkpoint(checkpoint_name)
+        if checkpoint_record is None:
+            raise NotFoundError(detail=f"Checkpoint is not registered: {checkpoint_name}")
+        if not checkpoint_record.artifact_complete:
+            raise ConflictError(
+                detail=f"Checkpoint artifact is missing or incomplete: {checkpoint_name}"
+            )
+
         request_data = request.model_dump()
         request_data["checkpoint"] = checkpoint_name
 
@@ -659,37 +671,13 @@ class ValidationService:
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
-    # -------------------------------------------------------------------------
-    async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise NotFoundError(
-                detail=f"Job not found: {job_id}",
-            )
-        return JobStatusResponse(**job_status)
-
-    # -------------------------------------------------------------------------
-    async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise NotFoundError(
-                detail=f"Job not found: {job_id}",
-            )
-
-        success = self.job_manager.cancel_job(job_id)
-
-        return JobCancelResponse(
-            job_id=job_id,
-            success=success,
-            message="Cancellation requested" if success else "Job cannot be cancelled",
-        )
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_validation_service() -> ValidationService:
     return ValidationService(
         job_manager=get_job_manager(),
         server_settings=get_server_settings(),
+        checkpoint_repository=CheckpointRepository(),
     )
 
 

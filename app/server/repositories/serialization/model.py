@@ -11,7 +11,6 @@ from keras.models import load_model
 
 from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
-from server.common.utils.security import validate_checkpoint_name
 from server.models.training.encoder import BeitXRayImageEncoder
 from server.models.training.layers import (
     AddNorm,
@@ -107,32 +106,12 @@ class ModelSerializer:
         return configuration, metadata, history
 
     # -------------------------------------------------------------------------
-    def scan_checkpoints_folder(self) -> list[str]:
-        if not CHECKPOINTS_DIR.exists():
-            return []
-
-        model_folders = []
-        for entry in CHECKPOINTS_DIR.iterdir():
-            if entry.is_dir():
-                required_files = (
-                    entry / "saved_model.keras",
-                    entry / "configuration" / "configuration.json",
-                    entry / "configuration" / "metadata.json",
-                    entry / "configuration" / "session_history.json",
-                )
-                if all(path.is_file() for path in required_files):
-                    model_folders.append(entry.name)
-
-        return model_folders
-
-    # -------------------------------------------------------------------------
     def load_checkpoint(
-        self, checkpoint: str, custom_objects: dict[str, Any] | None = None
+        self, checkpoint_path: str | Path, custom_objects: dict[str, Any] | None = None
     ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
-        """Load checkpoint model and configuration for resume training or inference."""
-        checkpoint_name = validate_checkpoint_name(checkpoint)
+        """Load a registered checkpoint artifact from its resolved filesystem path."""
         base_path = CHECKPOINTS_DIR.resolve()
-        checkpoint_path = (base_path / checkpoint_name).resolve()
+        checkpoint_path = Path(checkpoint_path).expanduser().resolve()
         if base_path not in checkpoint_path.parents and checkpoint_path != base_path:
             raise ValueError("Checkpoint path is outside the checkpoints directory")
         model_path = checkpoint_path / "saved_model.keras"

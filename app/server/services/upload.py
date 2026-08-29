@@ -3,7 +3,9 @@ from __future__ import annotations
 import io
 from functools import lru_cache
 from pathlib import Path
+import threading
 from typing import Any
+import uuid
 
 import pandas as pd
 from server.services.errors import (
@@ -26,25 +28,27 @@ class UploadState:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, Any] = {}
+        self.lock = threading.Lock()
 
     # -------------------------------------------------------------------------
     def store(self, key: str, data: dict[str, Any]) -> None:
-        self.storage[key] = data
+        with self.lock:
+            self.storage[key] = data
 
     # -------------------------------------------------------------------------
-    def get_latest(self) -> tuple[str, dict[str, Any]] | None:
-        if not self.storage:
-            return None
-        latest_key = list(self.storage.keys())[-1]
-        return latest_key, self.storage[latest_key]
+    def get(self, upload_id: str) -> dict[str, Any] | None:
+        with self.lock:
+            return self.storage.get(upload_id)
 
     # -------------------------------------------------------------------------
-    def clear(self) -> None:
-        self.storage.clear()
+    def remove(self, upload_id: str) -> None:
+        with self.lock:
+            self.storage.pop(upload_id, None)
 
     # -------------------------------------------------------------------------
-    def is_empty(self) -> bool:
-        return len(self.storage) == 0
+    def contains(self, upload_id: str) -> bool:
+        with self.lock:
+            return upload_id in self.storage
 
 ###############################################################################
 class UploadService:
@@ -89,9 +93,9 @@ class UploadService:
             else:
                 df = pd.read_excel(io.BytesIO(contents))
 
-            storage_key = f"dataset_{dataset_name}"
+            upload_id = uuid.uuid4().hex
             self.upload_state.store(
-                storage_key,
+                upload_id,
                 {
                     "dataframe": df,
                     "filename": filename,
@@ -105,6 +109,7 @@ class UploadService:
 
             return DatasetUploadResponse(
                 success=True,
+                upload_id=upload_id,
                 filename=filename,
                 dataset_name=dataset_name,
                 row_count=len(df),
