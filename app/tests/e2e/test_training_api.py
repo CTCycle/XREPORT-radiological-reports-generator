@@ -7,13 +7,19 @@ from pathlib import Path
 from playwright.sync_api import APIRequestContext
 
 from server.common.path import CHECKPOINTS_DIR
+from server.repositories.checkpoints import CheckpointRepository
 
 ###############################################################################
 def _create_checkpoint_fixture(name: str) -> Path:
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
     (checkpoint_dir / "nested").mkdir(parents=True, exist_ok=True)
     (checkpoint_dir / "saved_model.keras").write_text("placeholder", encoding="utf-8")
+    configuration_dir = checkpoint_dir / "configuration"
+    configuration_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ("configuration.json", "metadata.json", "session_history.json"):
+        (configuration_dir / filename).write_text("{}", encoding="utf-8")
     (checkpoint_dir / "nested" / "artifact.txt").write_text("nested placeholder", encoding="utf-8")
+    CheckpointRepository().register_completed_checkpoint(name, checkpoint_dir)
     return checkpoint_dir
 
 ###############################################################################
