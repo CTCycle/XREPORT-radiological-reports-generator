@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
+
+JobLifecycleStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
 
 from pydantic import BaseModel
 
@@ -8,7 +10,7 @@ from pydantic import BaseModel
 class JobStartResponse(BaseModel):
     job_id: str
     job_type: str
-    status: str
+    status: JobLifecycleStatus
     message: str
     poll_interval: float = 1.0
 
@@ -16,7 +18,7 @@ class JobStartResponse(BaseModel):
 class JobStatusResponse(BaseModel):
     job_id: str
     job_type: str
-    status: str
+    status: JobLifecycleStatus
     progress: float
     result: dict[str, Any] | None = None
     error: str | None = None
