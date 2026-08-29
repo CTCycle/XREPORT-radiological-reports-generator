@@ -9,7 +9,7 @@ import {
   ValidationRequest,
   ValidationResponse,
 } from '../types/validationApi';
-import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import { JobStartResponse } from '../types/jobs';
 import { ApiRequestService } from './api-request.service';
 
 @Injectable({ providedIn: 'root' })
@@ -20,12 +20,9 @@ export class ValidationApiService {
     const evaluationRequest: CheckpointEvaluationRequest = { checkpoint, metrics, num_samples: numSamples, metric_configs: metricConfigs, seed };
     return this.request.request<JobStartResponse>('POST', '/api/validation/checkpoint', evaluationRequest);
   }
-  getCheckpointEvaluationJobStatus(jobId: string) { return this.request.request<JobStatusResponse>('GET', `/api/validation/jobs/${encodeURIComponent(jobId)}`); }
   getCheckpointEvaluationReport(checkpoint: string) { return this.request.request<CheckpointEvaluationReport>('GET', `/api/validation/checkpoint/reports/${encodeURIComponent(checkpoint)}`); }
   run(request: ValidationRequest) { return this.request.request<JobStartResponse>('POST', '/api/validation/run', request); }
   getReport(datasetName: string) { return this.request.request<ValidationReport>('GET', `/api/validation/reports/${encodeURIComponent(datasetName)}`); }
-  getJobStatus(jobId: string) { return this.request.request<JobStatusResponse>('GET', `/api/validation/jobs/${encodeURIComponent(jobId)}`); }
-  cancelJob(jobId: string) { return this.request.request<JobCancelResponse>('DELETE', `/api/validation/jobs/${encodeURIComponent(jobId)}`); }
 
   parseResponse(result: Record<string, unknown>): ValidationResponse {
     const pixel = asRecord(result['pixel_distribution']);

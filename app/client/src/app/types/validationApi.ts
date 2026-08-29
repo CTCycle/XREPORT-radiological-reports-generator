@@ -1,49 +1,18 @@
-export interface PixelDistribution {
-    bins: number[];
-    counts: number[];
-}
+import type { components } from './api.generated';
 
-export interface ImageStatistics {
-    count: number;
-    mean_height: number;
-    mean_width: number;
-    mean_pixel_value: number;
-    std_pixel_value: number;
-    mean_noise_std: number;
-    mean_noise_ratio: number;
-}
+type Schemas = components['schemas'];
 
-export interface TextStatistics {
-    count: number;
-    total_words: number;
-    unique_words: number;
-    avg_words_per_report: number;
-    min_words_per_report: number;
-    max_words_per_report: number;
-}
+export type PixelDistribution = Schemas['PixelDistribution'];
+export type ImageStatistics = Schemas['ImageStatistics'];
+export type TextStatistics = Schemas['TextStatistics'];
+export type ValidationRequest = Schemas['ValidationRequest'];
+export type ValidationReport = Schemas['ValidationReportResponse'];
 
-export interface ValidationRequest {
-    dataset_name: string;
-    metrics: string[];
-    sample_size?: number;
-    seed?: number;
-}
-
+/** View model extracted from a completed dataset-validation job result. */
 export interface ValidationResponse {
     success: boolean;
     message: string;
-    pixel_distribution?: PixelDistribution;
-    image_statistics?: ImageStatistics;
-    text_statistics?: TextStatistics;
-}
-
-export interface ValidationReport {
-    dataset_name: string;
-    date?: string | null;
-    sample_size?: number | null;
-    metrics: string[];
-    pixel_distribution?: PixelDistribution;
-    image_statistics?: ImageStatistics;
-    text_statistics?: TextStatistics;
-    artifacts?: Record<string, { mime_type: string; data: string }> | null;
+    pixel_distribution?: PixelDistribution | null;
+    image_statistics?: ImageStatistics | null;
+    text_statistics?: TextStatistics | null;
 }

@@ -6,7 +6,7 @@ import {
   ModelMaintenanceAction,
   ModelUpdateCheckResponse,
 } from '../types/inferenceApi';
-import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import { JobStartResponse } from '../types/jobs';
 
 @Injectable({ providedIn: 'root' })
 export class InferenceApiService {
@@ -25,6 +25,4 @@ export class InferenceApiService {
     images.forEach((image) => form.append('images', image));
     return this.request.request<JobStartResponse>('POST', '/api/inference/generate', form);
   }
-  getJobStatus(jobId: string) { return this.request.request<JobStatusResponse>('GET', `/api/inference/jobs/${encodeURIComponent(jobId)}`); }
-  cancelJob(jobId: string) { return this.request.request<JobCancelResponse>('DELETE', `/api/inference/jobs/${encodeURIComponent(jobId)}`); }
 }

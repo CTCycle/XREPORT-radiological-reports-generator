@@ -16,6 +16,7 @@ import {
 } from '@ng-icons/lucide';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { TrainingApiService } from '../services/training-api.service';
+import { JobsApiService } from '../services/jobs-api.service';
 
 type JourneyStepStatus = 'completed' | 'current' | 'upcoming' | 'available';
 
@@ -159,6 +160,7 @@ const initialStatus: JourneyStatus = {
 export class DatasetTrainingJourneyComponent {
   private readonly datasetApi = inject(DatasetApiService);
   private readonly trainingApi = inject(TrainingApiService);
+  private readonly jobsApi = inject(JobsApiService);
   private refreshSequence = 0;
 
   @Output() readonly routeRequested = new EventEmitter<string>();
@@ -241,21 +243,22 @@ export class DatasetTrainingJourneyComponent {
     const sequence = ++this.refreshSequence;
     this.status.set({ ...initialStatus });
 
-    const [datasetStatus, sourceDatasets, processedDatasets, checkpoints, trainingStatus] = await Promise.all([
+    const [datasetStatus, sourceDatasets, processedDatasets, checkpoints, trainingJobs] = await Promise.all([
       this.datasetApi.getStatus(),
       this.datasetApi.getNames(),
       this.datasetApi.getProcessedNames(),
       this.trainingApi.getCheckpoints(),
-      this.trainingApi.getStatus(),
+      this.jobsApi.list('training'),
     ]);
 
     if (sequence !== this.refreshSequence) return;
 
-    const errors = [datasetStatus.error, sourceDatasets.error, processedDatasets.error, checkpoints.error, trainingStatus.error].filter((error): error is string => Boolean(error));
+    const errors = [datasetStatus.error, sourceDatasets.error, processedDatasets.error, checkpoints.error, trainingJobs.error].filter((error): error is string => Boolean(error));
     const sourceCount = sourceDatasets.result?.count ?? 0;
     const processedCount = processedDatasets.result?.count ?? 0;
     const checkpointCount = checkpoints.result?.checkpoints.length ?? 0;
-    const training = trainingStatus.result;
+    const training = trainingJobs.result?.jobs.find((job) => job.status === 'pending' || job.status === 'running');
+    const trainingResult = training?.result;
 
     this.status.set({
       loading: false,
@@ -266,8 +269,8 @@ export class DatasetTrainingJourneyComponent {
       processedAvailable: processedCount > 0,
       processedCount,
       checkpointCount,
-      trainingActive: Boolean(training?.is_training),
-      currentEpoch: training?.current_epoch ?? 0,
+      trainingActive: Boolean(training),
+      currentEpoch: typeof trainingResult?.['current_epoch'] === 'number' ? trainingResult['current_epoch'] : 0,
     });
 
     this.activeStep.set(this.recommendedStepIndex());
