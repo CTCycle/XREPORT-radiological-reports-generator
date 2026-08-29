@@ -25,8 +25,6 @@ from server.domain.inference import (
 )
 from server.domain.jobs import (
     JobStartResponse,
-    JobStatusResponse,
-    JobCancelResponse,
 )
 from server.common.constants import (
     INFERENCE_IMAGE_CONTENT_TYPES,
@@ -43,6 +41,7 @@ from server.services.model_installation import (
     InstallationError,
     ModelInstallationManager,
 )
+from server.repositories.checkpoints import CheckpointRepository
 
 if TYPE_CHECKING:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
@@ -149,6 +148,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
     return InferenceRuntimeCoordinator(
         huggingface_provider=get_huggingface_provider(),
         installation_manager=get_model_installation_manager(),
+        checkpoint_repository=CheckpointRepository(),
     )
 
 ###############################################################################
@@ -416,6 +416,7 @@ class InferenceService:
         installation_manager: ModelInstallationManager,
         runtime: InferenceRuntimeCoordinator | None = None,
         repository: InferenceRepository | None = None,
+        checkpoint_repository: CheckpointRepository | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
@@ -424,6 +425,7 @@ class InferenceService:
         self.installation_manager = installation_manager
         self._runtime = runtime
         self.repository = repository if repository is not None else InferenceRepository()
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
 
     # -------------------------------------------------------------------------
     @property
@@ -431,15 +433,6 @@ class InferenceService:
         if self._runtime is None:
             self._runtime = get_inference_runtime()
         return self._runtime
-
-    # -------------------------------------------------------------------------
-    def get_job_status_or_404(self, job_id: str) -> dict[str, Any]:
-        job_status = self.job_manager.get_job_status(job_id)
-        if job_status is None:
-            raise NotFoundError(
-                detail=f"Job not found: {job_id}",
-            )
-        return job_status
 
     # -------------------------------------------------------------------------
     def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
@@ -473,10 +466,18 @@ class InferenceService:
                 detail=f"Unsupported generation mode: {generation_mode}",
             )
 
+        checkpoint_record = self.checkpoint_repository.get_checkpoint(checkpoint)
+        if checkpoint_record is None:
+            raise NotFoundError(detail=f"Checkpoint is not registered: {checkpoint}")
+        if not checkpoint_record.artifact_complete:
+            raise NotFoundError(
+                detail=f"Checkpoint artifact is missing or incomplete: {checkpoint}"
+            )
+
         try:
             from server.models.inference.providers.xreport import XReportCheckpointProvider
 
-            return XReportCheckpointProvider().validate_checkpoint(checkpoint)
+            return XReportCheckpointProvider().validate_checkpoint(checkpoint_record.path)
         except FileNotFoundError as exc:
             raise NotFoundError(detail=str(exc)) from exc
         except ValueError as exc:
@@ -688,25 +689,6 @@ class InferenceService:
                 detail=str(e),
             ) from e
 
-    # -------------------------------------------------------------------------
-    def get_inference_job_status(self, job_id: str) -> JobStatusResponse:
-        job_status = self.get_job_status_or_404(job_id)
-        return JobStatusResponse(**job_status)
-
-    # -------------------------------------------------------------------------
-    def cancel_inference_job(self, job_id: str) -> JobCancelResponse:
-        self.get_job_status_or_404(job_id)
-
-        success = self.job_manager.cancel_job(job_id)
-        if success:
-            self.inference_image_store.remove_job(job_id)
-
-        return JobCancelResponse(
-            job_id=job_id,
-            success=success,
-            message="Cancellation requested" if success else "Job cannot be cancelled",
-        )
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_service() -> InferenceService:
@@ -722,4 +704,5 @@ def get_inference_service() -> InferenceService:
         ),
         installation_manager=installation_manager,
         repository=InferenceRepository(),
+        checkpoint_repository=CheckpointRepository(),
     )

@@ -13,11 +13,23 @@ from server.repositories.schemas import (
     ValidationRun,
 )
 from server.repositories.schemas.normalization import normalize_key
+from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.serialization.support import RepositorySupport
 
 ###############################################################################
 class ValidationRepository(RepositorySupport):
     """Persistence boundary for validation and checkpoint evaluation reports."""
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        database=None,
+        checkpoint_repository: CheckpointRepository | None = None,
+    ) -> None:
+        super().__init__(database)
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository(
+            self.database
+        )
 
     # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:
@@ -46,7 +58,6 @@ class ValidationRepository(RepositorySupport):
                     sample_size=float(report.get("sample_size") or 1.0),
                     metrics_json=report.get("metrics") or [],
                     artifacts_json=report.get("artifacts") or {},
-                    status="succeeded",
                     text_count=int(text_stats.get("count", 0) or 0),
                     text_total_words=int(text_stats.get("total_words", 0) or 0),
                     text_unique_words=int(text_stats.get("unique_words", 0) or 0),
@@ -181,11 +192,14 @@ class ValidationRepository(RepositorySupport):
         checkpoint = str(report.get("checkpoint") or "").strip()
         if not checkpoint:
             raise ValueError("Checkpoint evaluation report requires a checkpoint name")
+        checkpoint_record = self.checkpoint_repository.get_checkpoint(checkpoint)
+        if checkpoint_record is None:
+            raise ValueError(f"Checkpoint is not registered: {checkpoint}")
         self.upsert_table(
             pd.DataFrame(
                 [
                     {
-                        "checkpoint_id": self._ensure_checkpoint(checkpoint),
+                        "checkpoint_id": checkpoint_record.checkpoint_id,
                         "executed_at": self._coerce_datetime(report.get("date")),
                         "metrics_json": report.get("metrics") or [],
                         "metric_configs_json": report.get("metric_configs") or {},
@@ -260,8 +274,6 @@ class ValidationRepository(RepositorySupport):
             raise ValueError("offset must be >= 0")
         statement = (
             select(
-                CheckpointEvaluation.request_id,
-                CheckpointEvaluation.status,
                 CheckpointEvaluation.executed_at,
                 CheckpointEvaluation.metrics_json,
                 CheckpointEvaluation.results_json,
@@ -283,12 +295,10 @@ class ValidationRepository(RepositorySupport):
             rows = session.execute(statement).all()
         return [
             {
-                "request_id": row[0],
-                "status": row[1],
-                "date": self._format_datetime(row[2]),
-                "metrics": self._parse_json(row[3], default=[]),
-                "results": self._parse_json(row[4], default={}),
-                "checkpoint": row[5],
+                "date": self._format_datetime(row[0]),
+                "metrics": self._parse_json(row[1], default=[]),
+                "results": self._parse_json(row[2], default={}),
+                "checkpoint": row[3],
             }
             for row in rows
         ]

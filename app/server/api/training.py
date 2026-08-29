@@ -10,13 +10,8 @@ from server.domain.training import (
     DeleteResponse,
     ResumeTrainingRequest,
     StartTrainingRequest,
-    TrainingStatusResponse,
 )
-from server.domain.jobs import (
-    JobCancelResponse,
-    JobStartResponse,
-    JobStatusResponse,
-)
+from server.domain.jobs import JobStartResponse
 if TYPE_CHECKING:
     from server.services.training import TrainingService
 
@@ -54,24 +49,12 @@ class TrainingEndpoint:
         return self.service.delete_checkpoint(checkpoint)
 
     # -------------------------------------------------------------------------
-    def get_training_status(self) -> TrainingStatusResponse:
-        return self.service.get_training_status()
-
-    # -------------------------------------------------------------------------
     def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
         return self.service.start_training(request)
 
     # -------------------------------------------------------------------------
     def resume_training(self, request: ResumeTrainingRequest) -> JobStartResponse:
         return self.service.resume_training(request)
-
-    # -------------------------------------------------------------------------
-    def get_training_job_status(self, job_id: str) -> JobStatusResponse:
-        return self.service.get_training_job_status(job_id)
-
-    # -------------------------------------------------------------------------
-    def cancel_training_job(self, job_id: str) -> JobCancelResponse:
-        return self.service.cancel_training_job(job_id)
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:
@@ -97,13 +80,6 @@ class TrainingEndpoint:
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
-            "/status",
-            self.get_training_status,
-            methods=["GET"],
-            response_model=TrainingStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
             "/start",
             self.start_training,
             methods=["POST"],
@@ -116,20 +92,6 @@ class TrainingEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.get_training_job_status,
-            methods=["GET"],
-            response_model=JobStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.cancel_training_job,
-            methods=["DELETE"],
-            response_model=JobCancelResponse,
-            status_code=status.HTTP_200_OK,
         )
 
 ###############################################################################

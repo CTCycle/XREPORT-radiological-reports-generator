@@ -15,6 +15,8 @@ from pathlib import Path
 import shutil
 import tempfile
 
+from dotenv import dotenv_values
+
 
 RUNTIME_MANIFEST_FORMAT = 2
 RUNTIME_ARCHITECTURE = "windows-x64"
@@ -29,6 +31,8 @@ class RuntimeLayout:
     mode: str
     runtime_root: Path
     data_root: Path
+    resources_root: Path
+    client_dist_dir: Path
     release_version: str | None
     variant: str | None
 
@@ -49,6 +53,20 @@ class RuntimeLayout:
 
     # -------------------------------------------------------------------------
     @property
+    def environment_file(self) -> Path:
+        return self.data_root / ".env" if self.packaged else self.runtime_root / "settings" / ".env"
+
+    # -------------------------------------------------------------------------
+    @property
+    def configuration_file(self) -> Path:
+        return (
+            self.data_root / "settings" / "configurations.json"
+            if self.packaged
+            else self.runtime_root / "settings" / "configurations.json"
+        )
+
+    # -------------------------------------------------------------------------
+    @property
     def mutable_settings_dir(self) -> Path:
         return self.data_root / "settings"
 
@@ -57,24 +75,65 @@ class RuntimeLayout:
     def from_environment(cls) -> "RuntimeLayout":
         packaged = _truthy(os.getenv("XREPORT_DESKTOP"))
         if not packaged:
-            # This value is only descriptive in source mode; path.py remains
-            # responsible for resolving the historical repository root.
             source_root = Path(__file__).resolve().parents[3]
-            return cls("source", source_root, source_root / "app" / "resources", None, None)
+            configured_resources = os.getenv("XREPORT_RESOURCES_DIR")
+            if configured_resources is None:
+                env_path = source_root / "settings" / ".env"
+                if env_path.is_file():
+                    configured_resources = dotenv_values(env_path).get(
+                        "XREPORT_RESOURCES_DIR"
+                    )
+            resources_root = Path(
+                configured_resources.strip()
+                if configured_resources and configured_resources.strip()
+                else source_root / "app" / "resources"
+            ).expanduser()
+            if not resources_root.is_absolute():
+                resources_root = source_root / resources_root
+            return cls(
+                "source",
+                source_root,
+                resources_root.resolve(),
+                resources_root.resolve(),
+                source_root / "app" / "client" / "dist" / "client-angular" / "browser",
+                None,
+                None,
+            )
 
         runtime_value = os.getenv("XREPORT_RUNTIME_ROOT", "").strip()
         data_value = os.getenv("XREPORT_DATA_ROOT", "").strip()
         version = os.getenv("XREPORT_RELEASE_VERSION", "").strip()
         variant = os.getenv("XREPORT_RUNTIME_VARIANT", "").strip().lower()
-        if not runtime_value or not data_value or not version or variant not in {"cpu", "cuda"}:
+        client_value = os.getenv("XREPORT_CLIENT_DIST_DIR", "").strip()
+        if (
+            not runtime_value
+            or not data_value
+            or not version
+            or variant not in {"cpu", "cuda"}
+            or not client_value
+        ):
             raise RuntimeError(
-                "Packaged XREPORT requires runtime root, data root, version, and cpu/cuda variant"
+                "Packaged XREPORT requires runtime root, data root, client directory, "
+                "version, and cpu/cuda variant"
             )
         runtime_root = Path(runtime_value).expanduser().resolve()
         data_root = Path(data_value).expanduser().resolve()
+        client_dist_dir = Path(client_value).expanduser().resolve()
         if not runtime_root.is_dir():
             raise RuntimeError(f"Packaged runtime root does not exist: {runtime_root}")
-        return cls("packaged", runtime_root, data_root, version, variant)
+        if not client_dist_dir.is_dir():
+            raise RuntimeError(
+                f"Packaged client directory does not exist: {client_dist_dir}"
+            )
+        return cls(
+            "packaged",
+            runtime_root,
+            data_root,
+            data_root,
+            client_dist_dir,
+            version,
+            variant,
+        )
 
 ###############################################################################
 def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:

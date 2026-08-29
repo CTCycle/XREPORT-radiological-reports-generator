@@ -21,7 +21,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.util.exc import CommandError
 import sqlalchemy
-from sqlalchemy import CheckConstraint, MetaData, Table, UniqueConstraint, inspect, text
+from sqlalchemy import CheckConstraint, MetaData, UniqueConstraint, inspect, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
@@ -33,13 +33,9 @@ from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.schemas import Base
 
-BASELINE_REVISION = "ad03b780d44b"
 # Kept as the current repository head for diagnostics and integration tests;
 # the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "c1e4f1a7b2d9"
-LEGACY_SCHEMA_METADATA_TABLE = "schema_metadata"
-LEGACY_SCHEMA_METADATA_KEY = "xreport"
-LEGACY_SCHEMA_VERSION = 1
+HEAD_REVISION = "d62f3ab4e8c1"
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
@@ -148,20 +144,6 @@ def _acquire_postgres_lock(
 ###############################################################################
 def _release_postgres_session_lock(connection: Connection, key: int) -> None:
     connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
-
-###############################################################################
-def _legacy_metadata(*, include_marker: bool) -> MetaData:
-    metadata = MetaData()
-    for table in Base.metadata.tables.values():
-        table.to_metadata(metadata)
-    if include_marker:
-        Table(
-            LEGACY_SCHEMA_METADATA_TABLE,
-            metadata,
-            sqlalchemy.Column("schema_name", sqlalchemy.String(64), primary_key=True),
-            sqlalchemy.Column("schema_version", sqlalchemy.Integer, nullable=False),
-        )
-    return metadata
 
 ###############################################################################
 def _format_diffs(diffs: list[object]) -> str:
@@ -326,67 +308,6 @@ def _include_schema_object(
     return not (object_type == "table" and name == ALEMBIC_VERSION_TABLE)
 
 ###############################################################################
-def _validate_legacy_schema(connection: Connection) -> None:
-    inspector = inspect(connection)
-    actual_tables = set(inspector.get_table_names())
-    unexpected_views = sorted(inspector.get_view_names())
-    expected_tables = set(Base.metadata.tables)
-    allowed_tables = expected_tables | {
-        LEGACY_SCHEMA_METADATA_TABLE,
-        ALEMBIC_VERSION_TABLE,
-    }
-    unexpected = sorted(actual_tables - allowed_tables)
-    missing = sorted(expected_tables - actual_tables)
-    if unexpected or unexpected_views or missing:
-        problems: list[str] = []
-        if missing:
-            problems.append(f"missing tables: {', '.join(missing)}")
-        if unexpected:
-            problems.append(f"unexpected tables: {', '.join(unexpected)}")
-        if unexpected_views:
-            problems.append(f"unexpected views: {', '.join(unexpected_views)}")
-        raise DatabaseSchemaError(
-            "Unversioned database does not match the known XREPORT v1 schema ("
-            + "; ".join(problems)
-            + ")."
-        )
-
-    marker_present = LEGACY_SCHEMA_METADATA_TABLE in actual_tables
-    if marker_present:
-        marker_rows = connection.execute(
-            text(
-                "SELECT schema_name, schema_version "
-                "FROM schema_metadata ORDER BY schema_name"
-            )
-        ).all()
-        expected_marker = [(LEGACY_SCHEMA_METADATA_KEY, LEGACY_SCHEMA_VERSION)]
-        if marker_rows != expected_marker:
-            raise DatabaseSchemaError(
-                "The legacy schema_metadata marker is missing, duplicated, or unsupported."
-            )
-
-    metadata = _legacy_metadata(include_marker=marker_present)
-    migration_context = MigrationContext.configure(
-        connection,
-        opts={
-            "compare_type": True,
-            "include_object": _include_schema_object,
-        },
-    )
-    try:
-        diffs = compare_metadata(migration_context, metadata)
-        diffs.extend(_semantic_constraint_diffs(connection, metadata))
-    except Exception as exc:
-        raise DatabaseSchemaError(
-            "Unable to compare the unversioned database with the known XREPORT v1 schema."
-        ) from exc
-    if diffs:
-        raise DatabaseSchemaError(
-            "Unversioned database does not match the known XREPORT v1 schema: "
-            f"{_format_diffs(diffs)}"
-        )
-
-###############################################################################
 def _validate_head_schema(connection: Connection) -> None:
     migration_context = MigrationContext.configure(
         connection,
@@ -464,16 +385,11 @@ def _run_migrations_on_connection(
 
     inspector = inspect(connection)
     application_tables = set(inspector.get_table_names()) - {ALEMBIC_VERSION_TABLE}
-    adopted = False
     if not current and application_tables:
-        _validate_legacy_schema(connection)
-        logger.warning(
-            "Adopting an unversioned XREPORT database after exact v1 schema validation: %s",
-            _database_label(settings),
+        raise DatabaseSchemaError(
+            "Non-empty database has no Alembic revision; refusing implicit schema "
+            "adoption. Run an explicit migration or data import before startup."
         )
-        command.stamp(config, BASELINE_REVISION)
-        current = (BASELINE_REVISION,)
-        adopted = True
 
     pending = _pending_revisions(script, current, head)
     current_label = ", ".join(current) if current else "base"
@@ -484,8 +400,6 @@ def _run_migrations_on_connection(
         current_label,
         head,
     )
-    if adopted:
-        logger.info("Stamped legacy database at baseline revision %s", BASELINE_REVISION)
     if not pending:
         _validate_head_schema(connection)
         logger.info("Database is already at Alembic head %s", head)

@@ -57,8 +57,9 @@ def test_load_dataset_reports_unmatched_rows_before_persisting() -> None:
         image_folder = Path(temp_dir)
         (image_folder / "present.jpg").write_bytes(b"image")
         upload_state = UploadState()
+        upload_id = "upload-demo"
         upload_state.store(
-            "dataset_demo",
+            upload_id,
             {
                 "dataset_name": "demo",
                 "dataframe": pd.DataFrame(
@@ -73,14 +74,14 @@ def test_load_dataset_reports_unmatched_rows_before_persisting() -> None:
         service = _preparation_service(upload_state, repository)
 
         preview = service.load_dataset(
-            LoadDatasetRequest(image_folder_path=str(image_folder))
+            LoadDatasetRequest(upload_id=upload_id, image_folder_path=str(image_folder))
         )
 
         assert preview.success is False
         assert preview.requires_confirmation is True
         assert preview.matched_records == 1
         assert preview.unmatched_records == 1
-        assert upload_state.is_empty() is False
+        assert upload_state.contains(upload_id) is True
 
 ###############################################################################
 def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
@@ -88,8 +89,9 @@ def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
         image_folder = Path(temp_dir)
         (image_folder / "present.jpg").write_bytes(b"image")
         upload_state = UploadState()
+        upload_id = "upload-demo"
         upload_state.store(
-            "dataset_demo",
+            upload_id,
             {
                 "dataset_name": "demo",
                 "dataframe": pd.DataFrame(
@@ -106,6 +108,7 @@ def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
 
         result = service.load_dataset(
             LoadDatasetRequest(
+                upload_id=upload_id,
                 image_folder_path=str(image_folder),
                 confirm_unmatched=True,
             )
@@ -117,7 +120,7 @@ def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
         assert result.unmatched_records == 1
         assert len(saved) == 1
         assert len(saved[0]) == 1
-        assert upload_state.is_empty() is True
+        assert upload_state.contains(upload_id) is False
 
 ###############################################################################
 def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> None:
@@ -125,8 +128,9 @@ def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> N
         image_folder = Path(temp_dir)
         (image_folder / "present.jpg").write_bytes(b"image")
         upload_state = UploadState()
+        upload_id = "upload-demo"
         upload_state.store(
-            "dataset_demo",
+            upload_id,
             {
                 "dataset_name": "demo",
                 "dataframe": pd.DataFrame({"image": ["present.jpg"]}),
@@ -136,10 +140,35 @@ def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> N
 
         with pytest.raises(BadRequestError, match="text"):
             service.load_dataset(
-                LoadDatasetRequest(image_folder_path=str(image_folder))
+                LoadDatasetRequest(upload_id=upload_id, image_folder_path=str(image_folder))
             )
 
-        assert upload_state.is_empty() is False
+        assert upload_state.contains(upload_id) is True
+
+###############################################################################
+def test_load_dataset_requires_the_explicit_upload_id() -> None:
+    with TemporaryDirectory(dir=Path.cwd()) as temp_dir:
+        image_folder = Path(temp_dir)
+        (image_folder / "present.jpg").write_bytes(b"image")
+        upload_state = UploadState()
+        upload_state.store(
+            "upload-one",
+            {
+                "dataset_name": "one",
+                "dataframe": pd.DataFrame(
+                    {"image": ["present.jpg"], "text": ["report"]}
+                ),
+            },
+        )
+        service = _preparation_service(upload_state, SimpleNamespace())
+
+        with pytest.raises(BadRequestError, match="upload_id"):
+            service.load_dataset(
+                LoadDatasetRequest(
+                    upload_id="upload-two",
+                    image_folder_path=str(image_folder),
+                )
+            )
 
 ###############################################################################
 def test_validate_img_paths_fails_closed_for_deleted_images() -> None:

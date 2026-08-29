@@ -24,6 +24,7 @@ class ImagePathResponse(BaseModel):
 ###############################################################################
 class DatasetUploadResponse(BaseModel):
     success: bool
+    upload_id: str
     filename: str
     dataset_name: str
     row_count: int
@@ -33,6 +34,12 @@ class DatasetUploadResponse(BaseModel):
 
 ###############################################################################
 class LoadDatasetRequest(BaseModel):
+    upload_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Explicit upload identifier returned by the dataset upload endpoint",
+    )
     image_folder_path: str = Field(
         ...,
         min_length=1,
@@ -141,27 +148,15 @@ class ResumeTrainingRequest(BaseModel):
 ###############################################################################
 class CheckpointInfo(BaseModel):
     name: str
-    epochs: int = 0
-    loss: float = 0.0
-    val_loss: float = 0.0
+    epochs: int | None = None
+    loss: float | None = None
+    val_loss: float | None = None
+    artifact_status: str = "ready"
+    message: str | None = None
 
 ###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointInfo]
-
-###############################################################################
-class TrainingStatusResponse(BaseModel):
-    job_id: str | None = None
-    is_training: bool
-    current_epoch: int = 0
-    total_epochs: int = 0
-    loss: float = 0.0
-    val_loss: float = 0.0
-    accuracy: float = 0.0
-    val_accuracy: float = 0.0
-    progress_percent: int = 0
-    elapsed_seconds: int = 0
-    poll_interval: float = 1.0
 
 ###############################################################################
 class ProcessDatasetRequest(BaseModel):
