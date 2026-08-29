@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, status
 
-from server.domain.jobs import JobCancelResponse, JobStartResponse, JobStatusResponse
+from server.domain.jobs import JobStartResponse
 from server.domain.validation import (
     CheckpointEvaluationReportResponse,
     CheckpointEvaluationRequest,
@@ -56,14 +56,6 @@ class ValidationEndpoint:
         return await self.service.get_validation_report(dataset_name)
 
     # -------------------------------------------------------------------------
-    async def get_validation_job_status(self, job_id: str) -> JobStatusResponse:
-        return await self.service.get_validation_job_status(job_id)
-
-    # -------------------------------------------------------------------------
-    async def cancel_validation_job(self, job_id: str) -> JobCancelResponse:
-        return await self.service.cancel_validation_job(job_id)
-
-    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
         self.router.add_api_route(
             "/run",
@@ -91,20 +83,6 @@ class ValidationEndpoint:
             self.get_validation_report,
             methods=["GET"],
             response_model=ValidationReportResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.get_validation_job_status,
-            methods=["GET"],
-            response_model=JobStatusResponse,
-            status_code=status.HTTP_200_OK,
-        )
-        self.router.add_api_route(
-            "/jobs/{job_id}",
-            self.cancel_validation_job,
-            methods=["DELETE"],
-            response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
 

@@ -235,8 +235,6 @@ class ValidationRun(Base):
 
     __tablename__ = "validation_runs"
     validation_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    request_id: Mapped[str | None] = mapped_column(String(64), unique=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="succeeded")
     dataset_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
@@ -266,10 +264,6 @@ class ValidationRun(Base):
     pixel_bins_json: Mapped[Any | None] = mapped_column(JSONSequence)
     pixel_counts_json: Mapped[Any | None] = mapped_column(JSONSequence)
     __table_args__ = (
-        CheckConstraint(
-            "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
-            name="ck_validation_runs_status",
-        ),
         Index("ix_validation_runs_dataset_id", "dataset_id"),
         Index("ix_validation_runs_dataset_executed", "dataset_id", "executed_at"),
     )
@@ -312,8 +306,6 @@ class CheckpointEvaluation(Base):
 
     __tablename__ = "checkpoint_evaluations"
     evaluation_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    request_id: Mapped[str | None] = mapped_column(String(64), unique=True)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="succeeded")
     checkpoint_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("checkpoints.checkpoint_id", ondelete="RESTRICT"),
@@ -328,10 +320,6 @@ class CheckpointEvaluation(Base):
     metric_configs_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
     results_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
     __table_args__ = (
-        CheckConstraint(
-            "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
-            name="ck_checkpoint_evaluations_status",
-        ),
         Index("ix_checkpoint_evaluations_checkpoint_id", "checkpoint_id"),
     )
     checkpoint: Mapped[Checkpoint] = relationship("Checkpoint", back_populates="evaluations")

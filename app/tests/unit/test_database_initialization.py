@@ -84,10 +84,10 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(tmp_path, monkeypatch
         engine.dispose()
 
 ###############################################################################
-def test_known_unversioned_schema_is_adopted_without_data_loss(tmp_path, monkeypatch) -> None:
+def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
-    command.upgrade(_alembic_config(database_path), initializer.BASELINE_REVISION)
+    command.upgrade(_alembic_config(database_path), "c1e4f1a7b2d9")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -99,17 +99,10 @@ def test_known_unversioned_schema_is_adopted_without_data_loss(tmp_path, monkeyp
     finally:
         engine.dispose()
 
-    initializer.initialize_database(_sqlite_settings())
+    with pytest.raises(RuntimeError, match="implicit schema adoption"):
+        initializer.initialize_database(_sqlite_settings())
 
-    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
-    try:
-        with engine.connect() as connection:
-            assert connection.exec_driver_sql(
-                "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION
-            assert connection.exec_driver_sql("SELECT name FROM datasets").scalar_one() == "Legacy"
-    finally:
-        engine.dispose()
+    assert "alembic_version" not in _database_tables(database_path)
 
 ###############################################################################
 def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path, monkeypatch) -> None:
@@ -124,7 +117,7 @@ def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path, monkeypat
     finally:
         engine.dispose()
 
-    with pytest.raises(RuntimeError, match="known XREPORT v1 schema"):
+    with pytest.raises(RuntimeError, match="implicit schema adoption"):
         initializer.prepare_database_for_startup(_sqlite_settings())
 
     assert "alembic_version" not in _database_tables(database_path)

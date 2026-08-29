@@ -8,13 +8,11 @@ import pandas as pd
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from server.common.constants import CHECKPOINTS_TABLE, DATASETS_TABLE, TABLE_REQUIRED_COLUMNS
-from server.common.path import CHECKPOINTS_DIR
+from server.common.constants import DATASETS_TABLE, TABLE_REQUIRED_COLUMNS
 from server.common.utils.logger import logger
-from server.common.utils.security import validate_checkpoint_name
 from server.repositories.database import Database, get_database
 from server.repositories.database.utils import validate_sql_identifier, validate_table_name
-from server.repositories.schemas import Checkpoint, Dataset
+from server.repositories.schemas import Dataset
 from server.repositories.schemas.normalization import normalize_key
 
 ###############################################################################
@@ -157,41 +155,6 @@ class RepositorySupport:
         if created_id is None:
             raise RuntimeError(f"Failed to create dataset: {normalized_name}")
         return created_id
-
-    # -------------------------------------------------------------------------
-    def _ensure_checkpoint(self, checkpoint: str) -> int:
-        checkpoint_name = validate_checkpoint_name(checkpoint)
-        with self.database.read_session() as session:
-            checkpoint_id = session.execute(
-                select(Checkpoint.checkpoint_id).where(
-                    Checkpoint.name_key == normalize_key(checkpoint_name)
-                )
-            ).scalar_one_or_none()
-        if checkpoint_id is not None:
-            return int(checkpoint_id)
-        self.upsert_table(
-            pd.DataFrame(
-                [
-                    {
-                        "name": checkpoint_name,
-                        "name_key": normalize_key(checkpoint_name),
-                        "path": str(CHECKPOINTS_DIR / checkpoint_name),
-                        "created_at": self._now_utc(),
-                        "last_seen_at": self._now_utc(),
-                    }
-                ]
-            ),
-            CHECKPOINTS_TABLE,
-        )
-        with self.database.read_session() as session:
-            checkpoint_id = session.execute(
-                select(Checkpoint.checkpoint_id).where(
-                    Checkpoint.name_key == normalize_key(checkpoint_name)
-                )
-            ).scalar_one_or_none()
-        if checkpoint_id is None:
-            raise RuntimeError(f"Failed to create checkpoint row: {checkpoint_name}")
-        return int(checkpoint_id)
 
     # -------------------------------------------------------------------------
     def _delete_by_key(self, table_name: str, column_name: str, value: Any) -> None:

@@ -16,6 +16,7 @@ from server.services.model_installation import (
     ModelInstallationManager,
 )
 from server.services.model_storage import ModelStorageLifecycle
+from server.repositories.checkpoints import CheckpointRepository
 
 if TYPE_CHECKING:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
@@ -36,10 +37,12 @@ class InferenceRuntimeCoordinator:
         huggingface_provider: HuggingFaceProvider,
         installation_manager: ModelInstallationManager,
         storage_lifecycle: ModelStorageLifecycle | None = None,
+        checkpoint_repository: CheckpointRepository | None = None,
     ) -> None:
         self.huggingface_provider = huggingface_provider
         self.installation_manager = installation_manager
         self.storage_lifecycle = storage_lifecycle or ModelStorageLifecycle(installation_manager)
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
         self.lock = threading.RLock()
 
     # -------------------------------------------------------------------------
@@ -115,6 +118,11 @@ class InferenceRuntimeCoordinator:
         report_progress: ProgressCallback,
     ) -> ProviderGenerationResult:
         checkpoint = model_ref.removeprefix("xreport:")
+        checkpoint_record = self.checkpoint_repository.get_checkpoint(checkpoint)
+        if checkpoint_record is None:
+            raise RuntimeError(f"Checkpoint is not registered: {checkpoint}")
+        if not checkpoint_record.artifact_complete:
+            raise RuntimeError(f"Checkpoint artifact is missing or incomplete: {checkpoint}")
         provenance: dict[str, Any] = {
             "provider": "xreport",
             "model_ref": model_ref,
@@ -138,7 +146,7 @@ class InferenceRuntimeCoordinator:
             self.huggingface_provider.unload()
             try:
                 model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
-                    checkpoint
+                    checkpoint_record.path
                 )
             except Exception as exc:  # noqa: BLE001
                 raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc

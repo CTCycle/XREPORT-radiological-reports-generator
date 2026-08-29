@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
+from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.schemas import InferenceReport, InferenceRun
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.serialization.support import RepositorySupport
@@ -13,6 +14,17 @@ from server.repositories.serialization.support import RepositorySupport
 ###############################################################################
 class InferenceRepository(RepositorySupport):
     """Persistence boundary for inference and checkpoint history."""
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        database=None,
+        checkpoint_repository: CheckpointRepository | None = None,
+    ) -> None:
+        super().__init__(database)
+        self.checkpoint_repository = checkpoint_repository or CheckpointRepository(
+            self.database
+        )
 
     # -------------------------------------------------------------------------
     def save_generated_reports(
@@ -35,7 +47,14 @@ class InferenceRepository(RepositorySupport):
         normalized_request_id = str(request_id or "").strip() or f"gen_{uuid.uuid4().hex[:12]}"
         checkpoint_id: int | None = None
         if provider == "xreport":
-            checkpoint_id = self._ensure_checkpoint(model_ref.removeprefix("xreport:"))
+            checkpoint = self.checkpoint_repository.get_checkpoint(
+                model_ref.removeprefix("xreport:")
+            )
+            if checkpoint is None:
+                raise ValueError(
+                    f"Checkpoint is not registered: {model_ref.removeprefix('xreport:')}"
+                )
+            checkpoint_id = checkpoint.checkpoint_id
         with self.database.transaction() as session:
             run = session.execute(
                 select(InferenceRun).where(InferenceRun.request_id == normalized_request_id)

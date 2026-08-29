@@ -154,13 +154,20 @@ class JobManager:
         return False
 
     # -------------------------------------------------------------------------
-    def list_jobs(self, job_type: str | None = None) -> list[dict[str, Any]]:
+    def list_jobs(
+        self,
+        job_type: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         with self.lock:
             states = list(self.jobs.values())
         results = []
         for state in states:
-            if job_type is None or state.job_type == job_type:
-                results.append(state.snapshot())
+            if job_type is not None and state.job_type != job_type:
+                continue
+            if status is not None and state.status != status:
+                continue
+            results.append(state.snapshot())
         return results
 
     # -------------------------------------------------------------------------
