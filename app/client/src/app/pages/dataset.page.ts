@@ -9,11 +9,12 @@ import { DatasetApiService } from '../services/dataset-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
 import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
-import { StorageService } from '../services/storage.service';
+import { JobsApiService } from '../services/jobs-api.service';
 import type { DatasetInfo, DirectoryItem } from '../types/trainingApi';
 import type { DatasetProcessingConfig } from '../types';
 import type { ValidationMetric, ValidationWizardConfirmPayload } from '../types/validationWizard';
 import type { ValidationResponse } from '../types/validationApi';
+import type { JobLifecycleStatus } from '../types/jobs';
 import { ImageViewerComponent } from '../components/image-viewer.component';
 import { ModalFocusDirective } from '../components/modal-focus.directive';
 import { ValidationReportModalComponent } from '../components/validation-report-modal.component';
@@ -22,8 +23,7 @@ import { FeatureTipComponent } from '../components/feature-tip.component';
 import { HelpPopoverComponent } from '../components/help-popover.component';
 import { DesktopDialogService } from '../services/desktop-dialog.service';
 
-interface StoredValidationJob { jobId: string; status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'; progress?: number; metrics: string[]; sampleSize: number; }
-const VALIDATION_STORAGE_KEY = 'xreport.validation.jobs';
+interface StoredValidationJob { jobId: string; status?: JobLifecycleStatus; progress?: number; metrics: string[]; sampleSize: number; }
 
 @Component({
   standalone: true,
@@ -47,7 +47,7 @@ export class DatasetPage {
   private readonly api = inject(DatasetApiService);
   private readonly validationApi = inject(ValidationApiService);
   private readonly appState = inject(AppStateService);
-  private readonly storage = inject(StorageService);
+  private readonly jobsApi = inject(JobsApiService);
   private readonly polling = inject(JobPollingService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -69,12 +69,12 @@ export class DatasetPage {
   private readonly browsePathState = signal('');
   readonly browseItems = signal<DirectoryItem[]>([]);
   readonly browseError = signal<string | null>(null);
-  readonly validationJobs = signal<Record<string, StoredValidationJob>>(this.storage.readRecord<StoredValidationJob>(VALIDATION_STORAGE_KEY));
+  readonly validationJobs = signal<Record<string, StoredValidationJob>>({});
   readonly datasets = computed(() => this.state().datasetNames?.datasets ?? []);
   readonly datasetPlaceholders = computed(() => Array.from({ length: Math.max(0, 6 - this.datasets().length) }, (_, index) => index));
   readonly config = computed(() => this.state().config);
   readonly isTauriSurface = this.desktopDialog.isTauriSurface();
-  constructor() { void this.refresh(); this.restoreValidationJobs(); }
+  constructor() { void this.refresh(); }
   readonly canBrowse = computed(() => this.state().dbStatus?.allow_server_browse ?? true);
   get browsePath() { return this.browsePathState(); }
   set browsePath(value: string) { this.browsePathState.set(value); }
@@ -88,11 +88,11 @@ export class DatasetPage {
   navigateFolder(path: string) { this.browsePath = path; void this.browse(path); }
   async selectFolder() { const path = this.browsePath; await this.selectFolderPath(path); if (this.state().imageValidation?.valid) this.folderBrowserOpen.set(false); }
   private async selectFolderPath(path: string) { const result = await this.api.validateImagePath(path); this.appState.updateDataset((state) => ({ ...state, imageFolderPath: path, imageFolderName: path.split(/[\\/]/).filter(Boolean).pop() ?? path, imageValidation: result.result, uploadError: result.error })); }
-  async loadDataset(confirmUnmatched = false) { const current = this.state(); if (!current.imageValidation?.valid) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please select an image folder first' })); return; } if (!current.datasetUpload?.success) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please upload a dataset file first' })); return; } this.appState.updateDataset((state) => ({ ...state, isLoading: true, uploadError: null })); const result = await this.api.loadDataset({ image_folder_path: current.imageFolderPath, sample_size: current.config.sampleSize, confirm_unmatched: confirmUnmatched }); this.appState.updateDataset((state) => ({ ...state, loadResult: result.result, isLoading: false, uploadError: result.error })); if (result.result?.success) await this.refresh(); }
+  async loadDataset(confirmUnmatched = false) { const current = this.state(); if (!current.imageValidation?.valid) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please select an image folder first' })); return; } if (!current.datasetUpload?.success) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Please upload a dataset file first' })); return; } this.appState.updateDataset((state) => ({ ...state, isLoading: true, uploadError: null })); const result = await this.api.loadDataset({ upload_id: current.datasetUpload.upload_id, image_folder_path: current.imageFolderPath, sample_size: current.config.sampleSize, confirm_unmatched: confirmUnmatched }); this.appState.updateDataset((state) => ({ ...state, loadResult: result.result, isLoading: false, uploadError: result.error })); if (result.result?.success) await this.refresh(); }
   async confirmPartialLoad() { await this.loadDataset(true); }
-  async buildDataset() { const current = this.state(); const datasetName = current.selectedDatasets[0]; if (!datasetName || current.selectedDatasets.length !== 1) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Select exactly one dataset to process.' })); return; } this.appState.updateDataset((state) => ({ ...state, isProcessing: true, uploadError: null })); const started = await this.api.processDataset({ dataset_name: datasetName, custom_name: current.config.datasetName || undefined, sample_size: current.config.sampleSize, validation_size: current.config.validationSize, tokenizer: current.config.tokenizer, max_report_size: current.config.maxReportSize }); if (!started.result) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: started.error })); return; } this.polling.poll((jobId) => this.api.getJobStatus(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: status.status === 'completed' ? null : status.error ?? 'Processing failed' })); if (status.status === 'completed') { const parsed = this.api.parseProcessDatasetResponse(status.result ?? {}); this.appState.updateDataset((state) => ({ ...state, processingResult: parsed })); void this.refresh(); } } }); }
+  async buildDataset() { const current = this.state(); const datasetName = current.selectedDatasets[0]; if (!datasetName || current.selectedDatasets.length !== 1) { this.appState.updateDataset((state) => ({ ...state, uploadError: 'Select exactly one dataset to process.' })); return; } this.appState.updateDataset((state) => ({ ...state, isProcessing: true, uploadError: null })); const started = await this.api.processDataset({ dataset_name: datasetName, custom_name: current.config.datasetName || undefined, sample_size: current.config.sampleSize, validation_size: current.config.validationSize, tokenizer: current.config.tokenizer, max_report_size: current.config.maxReportSize }); if (!started.result) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: started.error })); return; } this.polling.poll((jobId) => this.jobsApi.get(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.appState.updateDataset((state) => ({ ...state, isProcessing: false, uploadError: status.status === 'completed' ? null : status.error ?? 'Processing failed' })); if (status.status === 'completed') { const parsed = this.api.parseProcessDatasetResponse(status.result ?? {}); this.appState.updateDataset((state) => ({ ...state, processingResult: parsed })); void this.refresh(); } } }); }
   async deleteDataset(name: string) { if (!confirm(`Delete dataset ${name}?`)) return; const result = await this.api.deleteDataset(name); if (!result.result?.success) this.appState.updateDataset((state) => ({ ...state, uploadError: result.error ?? result.result?.message ?? 'Failed to delete dataset' })); await this.refresh(); }
-  private reconcileDatasetNames(names: { datasets: DatasetInfo[]; count: number }) { const available = new Set(names.datasets.map((dataset) => dataset.name)); this.appState.updateDataset((state) => ({ ...state, datasetNames: names, selectedDatasets: state.selectedDatasets.filter((name) => available.has(name)) })); if (this.viewerDataset() && !available.has(this.viewerDataset()!)) this.closeViewer(); if (this.validationWizardDataset() && !available.has(this.validationWizardDataset()!.name)) { this.validationWizardDataset.set(null); this.validationWizardOpen.set(false); } if (this.reportDataset() && !available.has(this.reportDataset()!.name)) { this.reportDataset.set(null); this.reportOpen.set(false); } this.validationJobs.update((jobs) => Object.fromEntries(Object.entries(jobs).filter(([name]) => available.has(name)))); }
+  private reconcileDatasetNames(names: { datasets: DatasetInfo[]; count: number }) { const available = new Set(names.datasets.map((dataset) => dataset.name)); this.appState.updateDataset((state) => ({ ...state, datasetNames: names, selectedDatasets: state.selectedDatasets.filter((name) => available.has(name)) })); if (this.viewerDataset() && !available.has(this.viewerDataset()!)) this.closeViewer(); if (this.validationWizardDataset() && !available.has(this.validationWizardDataset()!.name)) { this.validationWizardDataset.set(null); this.validationWizardOpen.set(false); } if (this.reportDataset() && !available.has(this.reportDataset()!.name)) { this.reportDataset.set(null); this.reportOpen.set(false); } }
   openViewer(datasetName: string) { this.viewerDataset.set(datasetName); }
   closeViewer() { this.viewerDataset.set(null); }
   selectedValidationMetrics(): ValidationMetric[] { const config = this.config(); return [config.pixDist ? 'pixels_distribution' : '', config.textStats ? 'text_statistics' : '', config.imgStats ? 'image_statistics' : ''].filter(Boolean) as ValidationMetric[]; }
@@ -105,7 +105,7 @@ export class DatasetPage {
     const started = await this.validationApi.run({ dataset_name: dataset.name, metrics: payload.metrics, sample_size: payload.sampleFraction });
     if (!started.result) { this.reportLoading.set(false); this.reportStatus.set('failed'); this.reportError.set(started.error ?? 'Failed to start validation job'); return; }
     const job: StoredValidationJob = { jobId: started.result.job_id, metrics: payload.metrics, sampleSize: payload.sampleFraction, status: 'pending', progress: 0 };
-    this.validationJobs.update((jobs) => ({ ...jobs, [dataset.name]: job })); this.storage.writeRecord(VALIDATION_STORAGE_KEY, this.validationJobs());
+    this.validationJobs.update((jobs) => ({ ...jobs, [dataset.name]: job }));
     this.pollValidationJob(dataset.name, job);
   }
   async openReport(dataset: DatasetInfo) {
@@ -117,14 +117,13 @@ export class DatasetPage {
     this.reportMetadata.set({ date: result.result.date, sampleSize: result.result.sample_size, metrics: result.result.metrics }); this.reportResult.set({ success: true, message: 'Validation report loaded', pixel_distribution: result.result.pixel_distribution, image_statistics: result.result.image_statistics, text_statistics: result.result.text_statistics }); this.reportProgress.set(100); this.reportStatus.set('completed'); this.reportLoading.set(false);
   }
   private pollValidationJob(datasetName: string, job: StoredValidationJob) {
-    this.polling.poll((jobId) => this.validationApi.getJobStatus(jobId), job.jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
+    this.polling.poll((jobId) => this.jobsApi.get(jobId), job.jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
       const next = { ...job, status: status.status, progress: status.progress };
-      this.validationJobs.update((jobs) => ({ ...jobs, [datasetName]: next })); this.storage.writeRecord(VALIDATION_STORAGE_KEY, this.validationJobs());
+      this.validationJobs.update((jobs) => ({ ...jobs, [datasetName]: next }));
       if (this.reportDataset()?.name === datasetName) { this.reportProgress.set(status.progress ?? 0); this.reportStatus.set(status.status); this.reportLoading.set(!['completed', 'failed', 'cancelled'].includes(status.status)); }
       if (status.status === 'completed' && status.result && this.reportDataset()?.name === datasetName) { this.reportResult.set(this.validationApi.parseResponse(status.result)); this.reportLoading.set(false); }
       if (status.status !== 'completed' && ['failed', 'cancelled'].includes(status.status) && this.reportDataset()?.name === datasetName) { this.reportLoading.set(false); this.reportError.set(status.error ?? `Validation ${status.status}`); }
     });
   }
-  private restoreValidationJobs() { for (const [datasetName, job] of Object.entries(this.validationJobs())) { if (job.status !== 'completed' && job.status !== 'failed' && job.status !== 'cancelled') this.pollValidationJob(datasetName, job); } }
   openValidation(dataset: DatasetInfo) { this.viewerDataset.set(null); void this.router.navigate(['/dataset/validate', dataset.name]); }
 }
