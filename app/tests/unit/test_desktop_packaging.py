@@ -20,6 +20,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(tmp_path: Pat
     runtime = tmp_path / "runtime"
     data = tmp_path / "data"
     (runtime / "settings").mkdir(parents=True)
+    (runtime / "client").mkdir()
     (runtime / "settings" / ".env.example").write_text("EMBEDDED_DATABASE=true\n", encoding="utf-8")
     (runtime / "settings" / "configurations.json").write_text("{\"global\": {\"seed\": 42}}", encoding="utf-8")
     monkeypatch.setenv("XREPORT_DESKTOP", "true")
@@ -27,6 +28,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(tmp_path: Pat
     monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
     monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.0.0")
     monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
+    monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
 
     layout = RuntimeLayout.from_environment()
     ensure_packaged_data(layout)

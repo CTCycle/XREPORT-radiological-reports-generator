@@ -5,6 +5,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from pydantic import ValidationError
+
 from ..common.path import CONFIGURATION_FILE_PATH
 from .settings import JsonServerSettings, ServerSettings
 
@@ -42,28 +44,17 @@ class ConfigurationManager:
             if config_path:
                 self._config_path = Path(config_path)
             payload = self._read_payload()
-            self._json_settings = JsonServerSettings.model_validate(payload)
+            try:
+                self._json_settings = JsonServerSettings.model_validate(payload)
+            except ValidationError as exc:
+                raise RuntimeError(
+                    f"Invalid application configuration in {self._config_path}"
+                ) from exc
             self._server_settings = self._json_settings.to_server_settings()
             return self._server_settings
-
     # -------------------------------------------------------------------------
     def get_all(self) -> ServerSettings:
         with self._lock:
             if self._server_settings is None:
                 return self.reload()
             return self._server_settings
-
-    # -------------------------------------------------------------------------
-    def get_block(self, name: str) -> dict[str, Any]:
-        normalized = name.strip().lower()
-
-        with self._lock:
-            if self._json_settings is None:
-                self.reload()
-            assert self._json_settings is not None
-            blocks = self._json_settings.to_blocks()
-            return dict(blocks.get(normalized, {}))
-
-    # -------------------------------------------------------------------------
-    def get_value(self, block: str, key: str, default: Any | None = None) -> Any:
-        return self.get_block(block).get(key, default)

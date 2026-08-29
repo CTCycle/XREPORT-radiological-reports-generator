@@ -122,7 +122,7 @@ class ModelInstallationManager:
         path = self._metadata_path(repository_id)
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except FileNotFoundError:
             return {
                 "schema_version": 1,
                 "repository_id": repository_id,
@@ -132,17 +132,30 @@ class ModelInstallationManager:
                 "candidate": None,
                 "rollback": None,
             }
-        if not isinstance(payload, dict) or payload.get("repository_id") != repository_id:
-            return {
-                "schema_version": 1,
-                "repository_id": repository_id,
-                "state": "corrupt",
-                "active_revision": None,
-                "active_relative_path": None,
-                "candidate": None,
-                "rollback": None,
-                "last_error": "Installation metadata is invalid.",
-            }
+        except (OSError, ValueError) as exc:
+            raise InstallationError(
+                f"Unable to read installation metadata for {repository_id}."
+            ) from exc
+        required_fields = {
+            "schema_version",
+            "repository_id",
+            "state",
+            "active_revision",
+            "active_relative_path",
+            "candidate",
+            "rollback",
+        }
+        if (
+            not isinstance(payload, dict)
+            or payload.get("repository_id") != repository_id
+            or payload.get("schema_version") != 1
+            or not required_fields.issubset(payload)
+            or payload.get("state")
+            not in {"not_installed", "downloading", "staged", "active", "corrupt", "failed"}
+        ):
+            raise InstallationError(
+                f"Installation metadata for {repository_id} is invalid."
+            )
         return payload
 
     # -------------------------------------------------------------------------
@@ -185,7 +198,7 @@ class ModelInstallationManager:
         )
         return {
             "metadata": metadata,
-            "state": metadata.get("state", "not_installed"),
+            "state": metadata["state"],
             "integrity": metadata.get("integrity", "unknown"),
             "active_revision": active_revision if active_present else None,
             "active_path": active_path if active_present else None,

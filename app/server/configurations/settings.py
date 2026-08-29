@@ -4,9 +4,7 @@ from dataclasses import dataclass
 import os
 from typing import Any
 
-from urllib.parse import urlsplit
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -63,7 +61,8 @@ def _normalize_optional_string(value: Any) -> str | None:
     return text or None
 
 ###############################################################################
-def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
+def _parse_bool_env(name: str, *, default: bool) -> bool:
+    value = os.getenv(name)
     if value is None:
         return default
     normalized = value.strip().lower()
@@ -71,199 +70,106 @@ def _normalize_bool_env(value: str | None, *, default: bool) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    return default
+    raise ValueError(f"{name} must be a boolean value")
 
 ###############################################################################
 def _normalize_int_env(
-    value: str | None,
+    name: str,
     *,
     default: int,
     minimum: int | None = None,
     maximum: int | None = None,
 ) -> int:
+    value = os.getenv(name)
     if value is None:
         return default
     try:
         parsed = int(value.strip())
     except (TypeError, ValueError):
-        return default
+        raise ValueError(f"{name} must be an integer") from None
     if minimum is not None and parsed < minimum:
-        return default
+        raise ValueError(f"{name} must be >= {minimum}")
     if maximum is not None and parsed > maximum:
-        return default
+        raise ValueError(f"{name} must be <= {maximum}")
     return parsed
 
 ###############################################################################
-def _database_env_payload() -> dict[str, Any]:
-    database_url = _normalize_optional_string(os.getenv("DATABASE_URL"))
-    url_parts = urlsplit(database_url) if database_url else None
-    url_username = url_parts.username if url_parts else None
-    url_password = url_parts.password if url_parts else None
-    url_host = url_parts.hostname if url_parts else None
-    url_port = url_parts.port if url_parts and url_parts.port else None
-    url_database_name = None
-    if url_parts:
-        url_database_name = _normalize_optional_string(url_parts.path.lstrip("/"))
-
-    engine = _normalize_optional_string(os.getenv("DATABASE_ENGINE"))
-    if not engine and url_parts and url_parts.scheme:
-        engine = url_parts.scheme
-
-    embedded_database = _normalize_bool_env(
-        os.getenv("EMBEDDED_DATABASE"),
-        default=True,
-    )
-    return {
-        "backend": "sqlite" if embedded_database else "postgresql",
-        "engine": engine or "postgres",
-        "host": _normalize_optional_string(os.getenv("DATABASE_HOST")) or url_host,
-        "port": _normalize_int_env(
-            os.getenv("DATABASE_PORT"),
-            default=url_port or 5432,
-            minimum=1,
-            maximum=65535,
-        ),
-        "database_name": _normalize_optional_string(os.getenv("DATABASE_NAME"))
-        or url_database_name,
-        "username": _normalize_optional_string(os.getenv("DATABASE_USERNAME"))
-        or _normalize_optional_string(url_username),
-        "password": _normalize_optional_string(os.getenv("DATABASE_PASSWORD"))
-        or _normalize_optional_string(url_password),
-        "ssl": _normalize_bool_env(
-            os.getenv("DATABASE_SSL"),
-            default=False,
-        ),
-        "ssl_ca": _normalize_optional_string(os.getenv("DATABASE_SSL_CA")),
-        "connect_timeout": _normalize_int_env(
-            os.getenv("DATABASE_CONNECT_TIMEOUT"),
-            default=30,
-            minimum=1,
-        ),
-        "insert_batch_size": _normalize_int_env(
-            os.getenv("DATABASE_INSERT_BATCH_SIZE"),
-            default=1000,
-            minimum=1,
-        ),
-    }
+def _required_env(name: str) -> str:
+    value = _normalize_optional_string(os.getenv(name))
+    if value is None:
+        raise ValueError(f"{name} is required for external database mode")
+    return value
 
 ###############################################################################
-class JsonDatabaseSettings(BaseModel):
-    backend: str = "sqlite"
-    engine: str = "postgres"
-    host: str | None = None
-    port: int = Field(default=5432, ge=1, le=65535)
-    database_name: str | None = None
-    username: str | None = None
-    password: str | None = None
-    ssl: bool = False
-    ssl_ca: str | None = None
-    connect_timeout: int = Field(default=30, ge=1)
-    insert_batch_size: int = Field(default=1000, ge=1)
+def _database_env_settings() -> DatabaseSettings:
+    if _normalize_optional_string(os.getenv("DATABASE_URL")) is not None:
+        raise ValueError(
+            "DATABASE_URL is not supported; configure the decomposed DATABASE_* values"
+        )
+    if _parse_bool_env("EMBEDDED_DATABASE", default=True):
+        return DatabaseSettings(
+            backend="sqlite",
+            engine=None,
+            host=None,
+            port=None,
+            database_name=None,
+            username=None,
+            password=None,
+            ssl=False,
+            ssl_ca=None,
+            connect_timeout=_normalize_int_env(
+                "DATABASE_CONNECT_TIMEOUT", default=30, minimum=1
+            ),
+            insert_batch_size=_normalize_int_env(
+                "DATABASE_INSERT_BATCH_SIZE", default=1000, minimum=1
+            ),
+        )
 
-    # -------------------------------------------------------------------------
-    @field_validator(
-        "host",
-        "database_name",
-        "username",
-        "password",
-        "ssl_ca",
-        mode="before",
+    return DatabaseSettings(
+        backend="postgresql",
+        engine=_required_env("DATABASE_ENGINE"),
+        host=_required_env("DATABASE_HOST"),
+        port=_normalize_int_env(
+            "DATABASE_PORT", default=5432, minimum=1, maximum=65535
+        ),
+        database_name=_required_env("DATABASE_NAME"),
+        username=_required_env("DATABASE_USERNAME"),
+        password=_normalize_optional_string(os.getenv("DATABASE_PASSWORD")),
+        ssl=_parse_bool_env("DATABASE_SSL", default=False),
+        ssl_ca=_normalize_optional_string(os.getenv("DATABASE_SSL_CA")),
+        connect_timeout=_normalize_int_env(
+            "DATABASE_CONNECT_TIMEOUT", default=30, minimum=1
+        ),
+        insert_batch_size=_normalize_int_env(
+            "DATABASE_INSERT_BATCH_SIZE", default=1000, minimum=1
+        ),
     )
-    @classmethod
-    def normalize_optional_strings(cls, value: Any) -> str | None:
-        return _normalize_optional_string(value)
-
-    # -------------------------------------------------------------------------
-    @field_validator("engine", mode="before")
-    @classmethod
-    def normalize_engine(cls, value: Any) -> str:
-        text = str(value).strip() if value is not None else ""
-        return text or "postgres"
-
-    # -------------------------------------------------------------------------
-    @field_validator("backend", mode="before")
-    @classmethod
-    def normalize_backend(cls, value: Any) -> str:
-        text = str(value).strip().lower() if value is not None else ""
-        return text or "sqlite"
-
-    # -------------------------------------------------------------------------
-    @model_validator(mode="after")
-    def validate_external_database_requirements(self) -> "JsonDatabaseSettings":
-        if self.backend == "sqlite":
-            return self
-
-        missing: list[str] = []
-        if not self.host:
-            missing.append("DATABASE_HOST or DATABASE_URL")
-        if not self.database_name:
-            missing.append("DATABASE_NAME or DATABASE_URL")
-        if not self.username:
-            missing.append("DATABASE_USERNAME or DATABASE_URL")
-
-        if missing:
-            joined = ", ".join(missing)
-            raise ValueError(
-                f"External database mode requires environment variables: {joined}"
-            )
-        return self
 
 ###############################################################################
-class JsonGlobalSettings(BaseModel):
+class _StrictSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=False)
+
+###############################################################################
+class JsonGlobalSettings(_StrictSettingsModel):
     seed: int = 42
 
 ###############################################################################
-class JsonFeatureSettings(BaseModel):
+class JsonFeatureSettings(_StrictSettingsModel):
     allow_local_filesystem_access: bool = True
 
 ###############################################################################
-class JsonJobsSettings(BaseModel):
+class JsonJobsSettings(_StrictSettingsModel):
     polling_interval: float = 1.0
 
 ###############################################################################
-class JsonInferenceSettings(BaseModel):
+class JsonInferenceSettings(_StrictSettingsModel):
     hf_local_only: bool = True
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1, le=1)
     model_timeout: int = Field(default=600, ge=1)
 
-    # -------------------------------------------------------------------------
-    @model_validator(mode="before")
-    @classmethod
-    def apply_environment_overrides(cls, value: Any) -> dict[str, Any]:
-        payload = dict(value) if isinstance(value, dict) else {}
-        payload["hf_local_only"] = _normalize_bool_env(
-            os.getenv("HF_LOCAL_ONLY"),
-            default=bool(payload.get("hf_local_only", True)),
-        )
-        payload["device"] = _normalize_optional_string(
-            os.getenv("INFERENCE_DEVICE")
-        ) or payload.get("device", "auto")
-        payload["max_loaded_models"] = _normalize_int_env(
-            os.getenv("INFERENCE_MAX_LOADED_MODELS"),
-            default=int(payload.get("max_loaded_models", 1)),
-            minimum=1,
-            maximum=1,
-        )
-        payload["model_timeout"] = _normalize_int_env(
-            os.getenv("INFERENCE_MODEL_TIMEOUT"),
-            default=int(payload.get("model_timeout", 600)),
-            minimum=1,
-        )
-        return payload
-
 ###############################################################################
-class JsonServerSettings(BaseModel):
-    model_config = ConfigDict(
-        extra="ignore",
-        populate_by_name=False,
-    )
-
-    database: JsonDatabaseSettings = Field(
-        default_factory=lambda: JsonDatabaseSettings.model_validate(
-            _database_env_payload()
-        )
-    )
+class JsonServerSettings(_StrictSettingsModel):
     global_settings: JsonGlobalSettings = Field(
         default_factory=JsonGlobalSettings,
         alias="global",
@@ -273,48 +179,9 @@ class JsonServerSettings(BaseModel):
     inference: JsonInferenceSettings = Field(default_factory=JsonInferenceSettings)
 
     # -------------------------------------------------------------------------
-    @model_validator(mode="before")
-    @classmethod
-    def apply_environment_database(cls, value: Any) -> Any:
-        mapped = dict(value) if isinstance(value, dict) else {}
-        mapped["database"] = _database_env_payload()
-        return mapped
-
-    # -------------------------------------------------------------------------
-    def to_server_settings(self) -> ServerSettings:
-        db = self.database
-        if db.backend == "sqlite":
-            database_settings = DatabaseSettings(
-                backend="sqlite",
-                engine=None,
-                host=None,
-                port=None,
-                database_name=None,
-                username=None,
-                password=None,
-                ssl=False,
-                ssl_ca=None,
-                connect_timeout=db.connect_timeout,
-                insert_batch_size=db.insert_batch_size,
-            )
-        else:
-            normalized_engine = db.engine.strip().lower()
-            database_settings = DatabaseSettings(
-                backend=db.backend,
-                engine=normalized_engine,
-                host=db.host,
-                port=db.port,
-                database_name=db.database_name,
-                username=db.username,
-                password=db.password,
-                ssl=db.ssl,
-                ssl_ca=db.ssl_ca,
-                connect_timeout=db.connect_timeout,
-                insert_batch_size=db.insert_batch_size,
-            )
-
+    def to_server_settings(self, database: DatabaseSettings | None = None) -> ServerSettings:
         return ServerSettings(
-            database=database_settings,
+            database=database or _database_env_settings(),
             global_settings=GlobalSettings(seed=self.global_settings.seed),
             features=FeatureSettings(
                 allow_local_filesystem_access=self.features.allow_local_filesystem_access
@@ -327,13 +194,3 @@ class JsonServerSettings(BaseModel):
                 model_timeout=self.inference.model_timeout,
             ),
         )
-
-    # -------------------------------------------------------------------------
-    def to_blocks(self) -> dict[str, dict[str, Any]]:
-        return {
-            "database": self.database.model_dump(),
-            "global": self.global_settings.model_dump(),
-            "features": self.features.model_dump(),
-            "jobs": self.jobs.model_dump(),
-            "inference": self.inference.model_dump(),
-        }
