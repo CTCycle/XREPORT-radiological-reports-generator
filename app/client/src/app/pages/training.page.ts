@@ -10,9 +10,10 @@ import { TrainingApiService } from '../services/training-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
 import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
-import { StorageService } from '../services/storage.service';
+import { JobsApiService } from '../services/jobs-api.service';
 import type { CheckpointInfo, DatasetInfo, StartTrainingConfig } from '../types/trainingApi';
 import type { CheckpointEvaluationReport } from '../types/inferenceApi';
+import type { JobLifecycleStatus } from '../types/jobs';
 import type { ChartDataPoint, TrainingDashboardState } from '../types';
 import { CheckpointEvaluationReportModalComponent } from '../components/checkpoint-evaluation-report-modal.component';
 import { EvaluationWizardComponent, EvaluationWizardConfirmPayload } from '../components/evaluation-wizard.component';
@@ -21,8 +22,8 @@ import { NewTrainingWizardComponent } from '../components/new-training-wizard.co
 import { TrainingDashboardComponent } from '../components/training-dashboard.component';
 import { HelpPopoverComponent } from '../components/help-popover.component';
 
-const EVALUATION_STORAGE_KEY = 'xreport.checkpoint_evaluation.jobs';
-interface StoredEvaluationJob { jobId: string; metrics: string[]; metricConfigs?: Record<string, { dataFraction: number }>; status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'; progress?: number; }
+interface StoredEvaluationJob { jobId: string; metrics: string[]; metricConfigs?: Record<string, { dataFraction: number }>; status?: JobLifecycleStatus; progress?: number; }
+type TrainingCheckpoint = Omit<CheckpointInfo, 'epochs' | 'loss' | 'val_loss'> & { epochs: number; loss: number; val_loss: number };
 @Component({
   standalone: true,
   selector: 'app-training-page',
@@ -47,11 +48,11 @@ export class TrainingPage {
   private readonly validationApi = inject(ValidationApiService);
   private readonly appState = inject(AppStateService);
   private readonly polling = inject(JobPollingService);
-  private readonly storage = inject(StorageService);
+  private readonly jobsApi = inject(JobsApiService);
   private readonly destroyRef = inject(DestroyRef);
   readonly state = this.appState.training;
   readonly datasets = signal<DatasetInfo[]>([]);
-  readonly checkpoints = signal<CheckpointInfo[]>([]);
+  readonly checkpoints = signal<TrainingCheckpoint[]>([]);
   readonly selectedDataset = signal<DatasetInfo | null>(null);
   readonly selectedCheckpoint = signal('');
   readonly collapsedNew = signal(false);
@@ -69,7 +70,8 @@ export class TrainingPage {
   readonly evaluationReportError = signal<string | null>(null);
   readonly evaluationReportProgress = signal<number | null>(null);
   readonly evaluationReport = signal<CheckpointEvaluationReport | null>(null);
-  readonly evaluationJobs = signal<Record<string, StoredEvaluationJob>>(this.storage.readRecord<StoredEvaluationJob>(EVALUATION_STORAGE_KEY));
+  readonly evaluationJobs = signal<Record<string, StoredEvaluationJob>>({});
+  private activeJobId: string | null = null;
   readonly trainingForm = inject(NonNullableFormBuilder).group({
     epochs: [this.state().config.epochs, [Validators.required, Validators.min(1)]],
     batchSize: [this.state().config.batchSize, [Validators.required, Validators.min(1)]],
@@ -101,9 +103,9 @@ export class TrainingPage {
   trainingConfig = { ...this.state().config };
   readonly dashboard = computed(() => this.state().dashboardState);
   readonly selectedCheckpointInfo = computed(() => this.checkpoints().find((checkpoint) => checkpoint.name === this.selectedCheckpoint()) ?? null);
-  constructor() { void this.loadDatasets(); void this.loadCheckpoints(); }
+  constructor() { void this.loadDatasets(); void this.loadCheckpoints(); void this.restoreActiveTraining(); }
   async loadDatasets() { const result = await this.datasetApi.getProcessedNames(); if (result.result) { this.datasets.set(result.result.datasets); const selected = this.selectedDataset(); if (selected && !result.result.datasets.some((dataset) => dataset.name === selected.name)) { this.selectedDataset.set(null); this.newWizardOpen.set(false); this.metadataModal.set(null); } } }
-  async loadCheckpoints() { const result = await this.api.getCheckpoints(); if (result.result) { this.checkpoints.set(result.result.checkpoints); const selected = this.selectedCheckpoint(); if (selected && !result.result.checkpoints.some((checkpoint) => checkpoint.name === selected)) { this.selectedCheckpoint.set(''); this.resumeWizardOpen.set(false); this.evaluationOpen.set(false); this.evaluationCheckpoint.set(null); this.evaluationReportCheckpoint.set(null); this.evaluationReportOpen.set(false); this.evaluationReport.set(null); this.evaluationReportError.set(null); } } }
+  async loadCheckpoints() { const result = await this.api.getCheckpoints(); if (result.result) { const checkpoints = result.result.checkpoints.map((checkpoint) => ({ ...checkpoint, epochs: checkpoint.epochs ?? 0, loss: checkpoint.loss ?? 0, val_loss: checkpoint.val_loss ?? 0 })); this.checkpoints.set(checkpoints); const selected = this.selectedCheckpoint(); if (selected && !checkpoints.some((checkpoint) => checkpoint.name === selected)) { this.selectedCheckpoint.set(''); this.resumeWizardOpen.set(false); this.evaluationOpen.set(false); this.evaluationCheckpoint.set(null); this.evaluationReportCheckpoint.set(null); this.evaluationReportOpen.set(false); this.evaluationReport.set(null); this.evaluationReportError.set(null); } } }
   selectDataset(dataset: DatasetInfo) { this.selectedDataset.set(dataset); }
   async showDatasetMetadata(dataset: DatasetInfo) { const result = await this.datasetApi.getProcessingMetadata(dataset.name); this.metadataModal.set({ title: 'Dataset Metadata', subtitle: dataset.name, body: result.result ? JSON.stringify(result.result.metadata, null, 2) : result.error ?? 'No metadata found' }); }
   async deleteDataset(dataset: DatasetInfo) { if (!confirm(`Delete dataset "${dataset.name}"? This cannot be undone.`)) return; const result = await this.datasetApi.deleteDataset(dataset.name); if (!result.result?.success) this.trainingError.set(result.error ?? result.result?.message ?? 'Failed to delete dataset'); await this.loadDatasets(); }
@@ -113,8 +115,9 @@ export class TrainingPage {
   async startTraining() { if (!this.selectedDataset()) return; if (this.trainingForm.invalid) { this.trainingForm.markAllAsTouched(); this.trainingError.set('Enter positive values for all training parameters.'); return; } this.isLoading.set(true); this.trainingError.set(null); const started = await this.api.start(this.startConfig()); if (!started.result) { this.isLoading.set(false); this.trainingError.set(started.error ?? 'Training failed'); return; } this.newWizardOpen.set(false); this.isLoading.set(false); this.pollTraining(started.result.job_id); }
   async resumeTraining() { const checkpoint = this.selectedCheckpointInfo(); if (!checkpoint) return; if (this.resumeForm.invalid) { this.resumeForm.markAllAsTouched(); this.trainingError.set('Additional epochs must be at least 1.'); return; } this.isLoading.set(true); const started = await this.api.resume(checkpoint.name, this.resumeForm.getRawValue().additionalEpochs); if (!started.result) { this.isLoading.set(false); this.trainingError.set(started.error ?? 'Resume training failed'); return; } this.resumeWizardOpen.set(false); this.isLoading.set(false); this.pollTraining(started.result.job_id); }
   private pollTraining(jobId: string) {
+    this.activeJobId = jobId;
     this.appState.updateDashboard({ isTraining: true, currentEpoch: 0, progressPercent: 0, chartData: [], availableMetrics: [], epochBoundaries: [], logEntries: [`Training job started (${jobId}).`] });
-    this.polling.poll((id) => this.api.getJobStatus(id), jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
+    this.polling.poll((id) => this.jobsApi.get(id), jobId, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
       const result = asRecord(status.result);
       if (result) {
         const current = this.state().dashboardState;
@@ -141,16 +144,23 @@ export class TrainingPage {
         const terminalMessage = status.status === 'completed' ? 'Training completed successfully.' : `Training ${status.status}: ${status.error ?? 'Unknown error'}`;
         this.appState.updateDashboard((current) => ({ ...current, isTraining: false, logEntries: [...current.logEntries, terminalMessage].slice(-200) }));
         if (status.status !== 'completed') this.trainingError.set(status.error ?? `Training ${status.status}`);
+        this.activeJobId = null;
         void this.loadCheckpoints();
       }
     });
   }
   private parseChartData(value: unknown): ChartDataPoint[] | undefined { if (!Array.isArray(value)) return undefined; const points = value.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry)).map((entry) => { const point: ChartDataPoint = { batch: readNumber(entry['batch']) ?? 0 }; for (const [key, raw] of Object.entries(entry)) { if (key !== 'batch' && typeof raw === 'number') point[key] = raw; } return point; }); return points.length ? points : undefined; }
-  async stopTraining() { const result = await this.api.getStatus(); if (result.result?.job_id) await this.api.cancelJob(result.result.job_id); this.appState.updateDashboard({ isTraining: false }); }
+  async stopTraining() { if (this.activeJobId) await this.jobsApi.cancel(this.activeJobId); this.appState.updateDashboard({ isTraining: false }); }
   openEvaluationWizard(checkpoint: CheckpointInfo) { if (!checkpoint) return; this.evaluationCheckpoint.set(checkpoint); this.evaluationOpen.set(true); }
   closeEvaluationWizard() { this.evaluationOpen.set(false); this.evaluationCheckpoint.set(null); }
   async openEvaluationReport(checkpoint: CheckpointInfo) { if (!checkpoint) return; this.evaluationReportCheckpoint.set(checkpoint); this.evaluationReport.set(null); this.evaluationReportError.set(null); this.evaluationReportProgress.set(null); this.evaluationReportLoading.set(true); this.evaluationReportOpen.set(true); const report = await this.validationApi.getCheckpointEvaluationReport(checkpoint.name); this.evaluationReportLoading.set(false); if (report.result) this.evaluationReport.set(report.result); else this.evaluationReportError.set(report.error ?? 'No evaluation report is available for this checkpoint.'); }
   closeEvaluationReport() { this.evaluationReportOpen.set(false); this.evaluationReportCheckpoint.set(null); }
-  async runEvaluation(payload: EvaluationWizardConfirmPayload) { const checkpoint = this.evaluationCheckpoint(); if (!checkpoint) return; const metricConfigsForApi = Object.fromEntries(Object.entries(payload.metricConfigs).map(([key, value]) => [key, { data_fraction: value.dataFraction }])); this.closeEvaluationWizard(); this.evaluationReportCheckpoint.set(checkpoint); this.evaluationReport.set({ checkpoint: checkpoint.name, metrics: payload.metrics, metric_configs: metricConfigsForApi }); this.evaluationReportError.set(null); this.evaluationReportProgress.set(0); this.evaluationReportLoading.set(true); this.evaluationReportOpen.set(true); const started = await this.validationApi.evaluateCheckpoint(checkpoint.name, payload.metrics, 10, metricConfigsForApi, 42); if (!started.result) { this.evaluationReportLoading.set(false); this.evaluationReportError.set(started.error ?? 'Failed to start evaluation job'); return; } this.evaluationJobs.update((jobs) => ({ ...jobs, [checkpoint.name]: { jobId: started.result!.job_id, metrics: payload.metrics, metricConfigs: payload.metricConfigs, status: 'pending', progress: 0 } })); this.storage.writeRecord(EVALUATION_STORAGE_KEY, this.evaluationJobs()); this.polling.poll((jobId) => this.validationApi.getCheckpointEvaluationJobStatus(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (status) => { if (!['completed', 'failed', 'cancelled'].includes(status.status)) { this.evaluationReportProgress.set(status.progress ?? 0); return; } this.evaluationJobs.update((jobs) => ({ ...jobs, [checkpoint.name]: { ...(jobs[checkpoint.name] ?? { jobId: started.result!.job_id, metrics: payload.metrics, metricConfigs: payload.metricConfigs }), status: status.status, progress: status.progress } })); this.storage.writeRecord(EVALUATION_STORAGE_KEY, this.evaluationJobs()); this.evaluationReportProgress.set(status.progress ?? 100); this.evaluationReportLoading.set(false); if (status.status !== 'completed') { this.evaluationReportError.set(status.error ?? `Evaluation ${status.status}`); return; } const report = await this.validationApi.getCheckpointEvaluationReport(checkpoint.name); if (report.result) this.evaluationReport.set(report.result); else this.evaluationReportError.set(report.error ?? 'Failed to load evaluation report'); }); }
+  async runEvaluation(payload: EvaluationWizardConfirmPayload) { const checkpoint = this.evaluationCheckpoint(); if (!checkpoint) return; const metricConfigsForApi = Object.fromEntries(Object.entries(payload.metricConfigs).map(([key, value]) => [key, { data_fraction: value.dataFraction }])); this.closeEvaluationWizard(); this.evaluationReportCheckpoint.set(checkpoint); this.evaluationReport.set({ checkpoint: checkpoint.name, metrics: payload.metrics, metric_configs: metricConfigsForApi }); this.evaluationReportError.set(null); this.evaluationReportProgress.set(0); this.evaluationReportLoading.set(true); this.evaluationReportOpen.set(true); const started = await this.validationApi.evaluateCheckpoint(checkpoint.name, payload.metrics, 10, metricConfigsForApi, 42); if (!started.result) { this.evaluationReportLoading.set(false); this.evaluationReportError.set(started.error ?? 'Failed to start evaluation job'); return; } this.evaluationJobs.update((jobs) => ({ ...jobs, [checkpoint.name]: { jobId: started.result!.job_id, metrics: payload.metrics, metricConfigs: payload.metricConfigs, status: 'pending', progress: 0 } })); this.polling.poll((jobId) => this.jobsApi.get(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async (status) => { if (!['completed', 'failed', 'cancelled'].includes(status.status)) { this.evaluationReportProgress.set(status.progress ?? 0); return; } this.evaluationJobs.update((jobs) => ({ ...jobs, [checkpoint.name]: { ...(jobs[checkpoint.name] ?? { jobId: started.result!.job_id, metrics: payload.metrics, metricConfigs: payload.metricConfigs }), status: status.status, progress: status.progress } })); this.evaluationReportProgress.set(status.progress ?? 100); this.evaluationReportLoading.set(false); if (status.status !== 'completed') { this.evaluationReportError.set(status.error ?? `Evaluation ${status.status}`); return; } const report = await this.validationApi.getCheckpointEvaluationReport(checkpoint.name); if (report.result) this.evaluationReport.set(report.result); else this.evaluationReportError.set(report.error ?? 'Failed to load evaluation report'); }); }
+
+  private async restoreActiveTraining(): Promise<void> {
+    const response = await this.jobsApi.list('training');
+    const active = response.result?.jobs.find((job) => job.status === 'pending' || job.status === 'running');
+    if (active) this.pollTraining(active.job_id);
+  }
 }
 

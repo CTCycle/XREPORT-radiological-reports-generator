@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { TrainingApiService } from '../services/training-api.service';
+import { JobsApiService } from '../services/jobs-api.service';
 import { DatasetTrainingJourneyComponent } from './dataset-training-journey.component';
 
 @Component({
@@ -29,15 +30,18 @@ function emptyDatasetApi() {
 function emptyTrainingApi() {
   return {
     getCheckpoints: () => apiResult({ checkpoints: [] }),
-    getStatus: () => apiResult({ is_training: false, current_epoch: 0, total_epochs: 0, loss: 0, val_loss: 0, accuracy: 0, val_accuracy: 0, progress_percent: 0, elapsed_seconds: 0 }),
   };
+}
+
+function emptyJobsApi() {
+  return { list: () => apiResult({ jobs: [] }) };
 }
 
 describe('DatasetTrainingJourneyComponent', () => {
   it('starts at source upload and keeps later actions locked when no data exists', async () => {
     await TestBed.configureTestingModule({
       imports: [JourneyHostComponent],
-      providers: [{ provide: DatasetApiService, useValue: emptyDatasetApi() }, { provide: TrainingApiService, useValue: emptyTrainingApi() }],
+      providers: [{ provide: DatasetApiService, useValue: emptyDatasetApi() }, { provide: TrainingApiService, useValue: emptyTrainingApi() }, { provide: JobsApiService, useValue: emptyJobsApi() }],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(JourneyHostComponent);
@@ -69,12 +73,12 @@ describe('DatasetTrainingJourneyComponent', () => {
     };
     const trainingApi = {
       getCheckpoints: () => apiResult({ checkpoints: [{ name: 'source-epoch-4', epochs: 4, loss: 0.2, val_loss: 0.3 }] }),
-      getStatus: () => apiResult({ is_training: false, current_epoch: 4, total_epochs: 10, loss: 0.2, val_loss: 0.3, accuracy: 0.8, val_accuracy: 0.7, progress_percent: 40, elapsed_seconds: 120 }),
     };
+    const jobsApi = { list: () => apiResult({ jobs: [] }) };
 
     await TestBed.configureTestingModule({
       imports: [JourneyHostComponent],
-      providers: [{ provide: DatasetApiService, useValue: datasetApi }, { provide: TrainingApiService, useValue: trainingApi }],
+      providers: [{ provide: DatasetApiService, useValue: datasetApi }, { provide: TrainingApiService, useValue: trainingApi }, { provide: JobsApiService, useValue: jobsApi }],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(JourneyHostComponent);

@@ -15,7 +15,7 @@ import {
   ProcessDatasetResponse,
   ProcessingMetadataResponse,
 } from '../types/trainingApi';
-import { JobCancelResponse, JobStartResponse, JobStatusResponse } from '../types/jobs';
+import { JobStartResponse } from '../types/jobs';
 import { ApiRequestService } from './api-request.service';
 
 @Injectable({ providedIn: 'root' })
@@ -36,8 +36,6 @@ export class DatasetApiService {
   loadDataset(request: LoadDatasetRequest) { return this.request.request<LoadDatasetResponse>('POST', '/api/preparation/dataset/load', request); }
   browseDirectory(path = '') { return this.request.request<BrowseResponse>('GET', path ? `/api/preparation/browse?path=${encodeURIComponent(path)}` : '/api/preparation/browse'); }
   processDataset(config: ProcessDatasetRequest) { return this.request.request<JobStartResponse>('POST', '/api/preparation/dataset/process', config); }
-  getJobStatus(jobId: string) { return this.request.request<JobStatusResponse>('GET', `/api/preparation/jobs/${encodeURIComponent(jobId)}`); }
-  cancelJob(jobId: string) { return this.request.request<JobCancelResponse>('DELETE', `/api/preparation/jobs/${encodeURIComponent(jobId)}`); }
   getImageCount(datasetName: string) { return this.request.request<ImageCountResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/count`); }
   getImageMetadata(datasetName: string, index: number) { return this.request.request<ImageMetadataResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}`); }
   getImageContentUrl(datasetName: string, index: number) { return `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}/content`; }
