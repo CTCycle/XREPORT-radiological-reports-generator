@@ -549,10 +549,7 @@ export interface components {
             checkpoint: string;
             /** Metrics */
             metrics: string[];
-            /**
-             * Num Samples
-             * @default 10
-             */
+            /** Num Samples */
             num_samples: number;
             /** Metric Configs */
             metric_configs?: {
@@ -830,13 +827,11 @@ export interface components {
             /**
              * Sample Size
              * @description Fraction of data to use
-             * @default 1
              */
             sample_size: number;
             /**
              * Confirm Unmatched
              * @description Explicitly confirm importing matched rows when some images are unmatched
-             * @default false
              */
             confirm_unmatched: boolean;
         };
@@ -1167,25 +1162,21 @@ export interface components {
             /**
              * Sample Size
              * @description Fraction of data to use
-             * @default 1
              */
             sample_size: number;
             /**
              * Validation Size
              * @description Fraction of data for validation
-             * @default 0.2
              */
             validation_size: number;
             /**
              * Tokenizer
              * @description Hugging Face tokenizer ID
-             * @default bert-base-uncased
              */
             tokenizer: string;
             /**
              * Max Report Size
              * @description Maximum token length for reports
-             * @default 200
              */
             max_report_size: number;
         };
@@ -1218,7 +1209,6 @@ export interface components {
             /**
              * Additional Epochs
              * @description Additional epochs to train
-             * @default 10
              */
             additional_epochs: number;
         };
@@ -1226,79 +1216,67 @@ export interface components {
         StartTrainingRequest: {
             /**
              * Dataset Name
-             * @description Processed dataset name to use for training (defaults to latest if omitted)
+             * @description Processed dataset name to use for training
              */
-            dataset_name?: string | null;
+            dataset_name: string;
             /**
              * Epochs
              * @description Number of training epochs
-             * @default 10
              */
             epochs: number;
             /**
              * Batch Size
              * @description Batch size for training
-             * @default 32
              */
             batch_size: number;
             /**
              * Num Encoders
              * @description Number of encoder layers
-             * @default 4
              */
             num_encoders: number;
             /**
              * Num Decoders
              * @description Number of decoder layers
-             * @default 4
              */
             num_decoders: number;
             /**
              * Embedding Dims
              * @description Embedding dimensions
-             * @default 256
              */
             embedding_dims: number;
             /**
              * Attention Heads
              * @description Number of attention heads
-             * @default 8
              */
             attention_heads: number;
             /**
              * Train Temp
              * @description Training temperature
-             * @default 1
              */
             train_temp: number;
             /**
              * Freeze Img Encoder
              * @description Freeze image encoder weights
-             * @default false
              */
             freeze_img_encoder: boolean;
             /**
              * Use Img Augmentation
              * @description Enable image augmentation
-             * @default false
              */
             use_img_augmentation: boolean;
             /**
              * Shuffle With Buffer
              * @description Enable shuffle with buffer
-             * @default true
              */
             shuffle_with_buffer: boolean;
             /**
              * Shuffle Size
              * @description Shuffle buffer size
-             * @default 1024
              */
             shuffle_size: number;
             /**
              * Save Checkpoints
              * @description Save checkpoints during training
-             * @default true
              */
             save_checkpoints: boolean;
             /**
@@ -1309,79 +1287,66 @@ export interface components {
             /**
              * Use Device Gpu
              * @description Use GPU for training
-             * @default true
              */
             use_device_GPU: boolean;
             /**
              * Device Id
              * @description GPU device ID
-             * @default 0
              */
             device_ID: number;
             /**
              * Jit Compile
              * @description Enable torch compile mode
-             * @default false
              */
             jit_compile: boolean;
             /**
              * Jit Backend
              * @description Torch compile backend
-             * @default inductor
              */
             jit_backend: string;
             /**
              * Use Mixed Precision
              * @description Enable mixed precision policy for GPU training
-             * @default false
              */
             use_mixed_precision: boolean;
             /**
              * Dataloader Workers
              * @description DataLoader worker processes
-             * @default 0
              */
             dataloader_workers: number;
             /**
              * Prefetch Factor
              * @description DataLoader prefetch factor
-             * @default 1
              */
             prefetch_factor: number;
             /**
              * Pin Memory
              * @description Enable DataLoader pinned memory
-             * @default true
              */
             pin_memory: boolean;
             /**
              * Persistent Workers
              * @description Keep DataLoader workers persistent across epochs
-             * @default false
              */
             persistent_workers: boolean;
             /**
              * Plot Training Metrics
              * @description Generate training plots
-             * @default true
              */
             plot_training_metrics: boolean;
             /**
              * Use Scheduler
              * @description Use learning rate scheduler
-             * @default false
              */
             use_scheduler: boolean;
             /**
              * Target Lr
              * @description Target learning rate
-             * @default 0.0001
              */
             target_LR: number;
             /**
              * Warmup Steps
              * @description Warmup steps for scheduler
-             * @default 100
              */
             warmup_steps: number;
         };
@@ -1444,10 +1409,7 @@ export interface components {
             dataset_name: string;
             /** Metrics */
             metrics: string[];
-            /**
-             * Sample Size
-             * @default 1
-             */
+            /** Sample Size */
             sample_size: number;
             /** Seed */
             seed?: number | null;

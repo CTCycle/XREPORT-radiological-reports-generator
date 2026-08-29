@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-JobLifecycleStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
-
 from pydantic import BaseModel
+
+JobLifecycleStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
 
 ###############################################################################
 class JobStartResponse(BaseModel):
