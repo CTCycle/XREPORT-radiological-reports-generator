@@ -462,7 +462,6 @@ class TrainingService:
 
         # Build configuration from request
         configuration = request.model_dump()
-        configuration.pop("sample_size", None)
 
         self.apply_runtime_training_configuration(configuration)
 

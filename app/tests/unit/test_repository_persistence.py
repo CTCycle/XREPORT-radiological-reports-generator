@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from server.repositories.database.engine import Database
 from server.repositories.schemas import (
     Base,
+    Checkpoint,
     CheckpointEvaluation,
     Dataset,
     DatasetRecord,
@@ -242,6 +243,14 @@ def test_validation_aggregates_are_stored_on_the_run() -> None:
 ###############################################################################
 def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
     _, database = _serializer()
+    with database.transaction() as session:
+        session.add(
+            Checkpoint(
+                name="checkpoint-1",
+                name_key="checkpoint-1",
+                path="registered-checkpoint",
+            )
+        )
     repository = ValidationRepository(database=database)
     repository.save_checkpoint_evaluation_report(
         {

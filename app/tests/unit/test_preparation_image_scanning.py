@@ -74,7 +74,12 @@ def test_load_dataset_reports_unmatched_rows_before_persisting() -> None:
         service = _preparation_service(upload_state, repository)
 
         preview = service.load_dataset(
-            LoadDatasetRequest(upload_id=upload_id, image_folder_path=str(image_folder))
+            LoadDatasetRequest(
+                upload_id=upload_id,
+                image_folder_path=str(image_folder),
+                sample_size=1.0,
+                confirm_unmatched=False,
+            )
         )
 
         assert preview.success is False
@@ -110,6 +115,7 @@ def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
             LoadDatasetRequest(
                 upload_id=upload_id,
                 image_folder_path=str(image_folder),
+                sample_size=1.0,
                 confirm_unmatched=True,
             )
         )
@@ -140,7 +146,12 @@ def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> N
 
         with pytest.raises(BadRequestError, match="text"):
             service.load_dataset(
-                LoadDatasetRequest(upload_id=upload_id, image_folder_path=str(image_folder))
+                LoadDatasetRequest(
+                    upload_id=upload_id,
+                    image_folder_path=str(image_folder),
+                    sample_size=1.0,
+                    confirm_unmatched=False,
+                )
             )
 
         assert upload_state.contains(upload_id) is True
@@ -167,6 +178,8 @@ def test_load_dataset_requires_the_explicit_upload_id() -> None:
                 LoadDatasetRequest(
                     upload_id="upload-two",
                     image_folder_path=str(image_folder),
+                    sample_size=1.0,
+                    confirm_unmatched=False,
                 )
             )
 
