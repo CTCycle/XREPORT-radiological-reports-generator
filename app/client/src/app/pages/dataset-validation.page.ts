@@ -8,12 +8,12 @@ import { lucideArrowLeft, lucideBarChart2, lucideFileText, lucideImage, lucideLo
 import { ValidationApiService } from '../services/validation-api.service';
 import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
-import { StorageService } from '../services/storage.service';
+import { JobsApiService } from '../services/jobs-api.service';
 import { HelpPopoverComponent } from '../components/help-popover.component';
 import type { ValidationResponse } from '../types/validationApi';
+import type { JobLifecycleStatus } from '../types/jobs';
 
-interface StoredValidationJob { jobId: string; status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'; progress?: number; metrics: string[]; sampleSize: number; }
-const STORAGE_KEY = 'xreport.validation.jobs';
+interface StoredValidationJob { jobId: string; status?: JobLifecycleStatus; progress?: number; metrics: string[]; sampleSize: number; }
 
 @Component({
   standalone: true,
@@ -29,7 +29,7 @@ export class DatasetValidationPage {
   private readonly api = inject(ValidationApiService);
   private readonly appState = inject(AppStateService);
   private readonly polling = inject(JobPollingService);
-  private readonly storage = inject(StorageService);
+  private readonly jobsApi = inject(JobsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -44,11 +44,11 @@ export class DatasetValidationPage {
   readonly progress = signal(0);
   readonly validationError = signal<string | null>(null);
   readonly validationResult = signal<ValidationResponse | null>(null);
-  readonly jobs = signal<Record<string, StoredValidationJob>>(this.storage.readRecord<StoredValidationJob>(STORAGE_KEY));
+  readonly jobs = signal<Record<string, StoredValidationJob>>({});
   constructor() { void this.loadExistingReport(); }
   private async loadExistingReport() { const report = await this.api.getReport(this.datasetName); if (report.result) this.validationResult.set(this.toValidationResponse(report.result)); }
   back() { void this.router.navigate(['/dataset']); }
-  async runValidation() { const config = this.validationForm.getRawValue(); if (this.validationForm.invalid) { this.validationForm.markAllAsTouched(); this.validationError.set('Enter a sample size between 0.01 and 1.'); return; } const metrics = [config.imgStats ? 'image_statistics' : '', config.textStats ? 'text_statistics' : '', config.pixDist ? 'pixels_distribution' : ''].filter(Boolean); if (!metrics.length) { this.validationError.set('Please select at least one validation metric'); return; } this.isValidating.set(true); this.validationError.set(null); this.validationResult.set(null); const started = await this.api.run({ dataset_name: this.datasetName, metrics, sample_size: config.evalSampleSize }); if (!started.result) { this.isValidating.set(false); this.validationError.set(started.error ?? 'Failed to start validation job'); return; } this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize, status: 'pending' } })); this.storage.writeRecord(STORAGE_KEY, this.jobs()); this.polling.poll((jobId) => this.api.getJobStatus(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { this.progress.set(status.progress ?? 0); this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { ...(jobs[this.datasetName] ?? { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize }), status: status.status, progress: status.progress } })); if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.isValidating.set(false); this.storage.writeRecord(STORAGE_KEY, this.jobs()); if (status.status === 'completed' && status.result) this.validationResult.set(this.api.parseResponse(status.result)); else if (status.status !== 'completed') this.validationError.set(status.error ?? `Validation ${status.status}`); } }); }
+  async runValidation() { const config = this.validationForm.getRawValue(); if (this.validationForm.invalid) { this.validationForm.markAllAsTouched(); this.validationError.set('Enter a sample size between 0.01 and 1.'); return; } const metrics = [config.imgStats ? 'image_statistics' : '', config.textStats ? 'text_statistics' : '', config.pixDist ? 'pixels_distribution' : ''].filter(Boolean); if (!metrics.length) { this.validationError.set('Please select at least one validation metric'); return; } this.isValidating.set(true); this.validationError.set(null); this.validationResult.set(null); const started = await this.api.run({ dataset_name: this.datasetName, metrics, sample_size: config.evalSampleSize }); if (!started.result) { this.isValidating.set(false); this.validationError.set(started.error ?? 'Failed to start validation job'); return; } this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize, status: 'pending' } })); this.polling.poll((jobId) => this.jobsApi.get(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { this.progress.set(status.progress ?? 0); this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { ...(jobs[this.datasetName] ?? { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize }), status: status.status, progress: status.progress } })); if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.isValidating.set(false); if (status.status === 'completed' && status.result) this.validationResult.set(this.api.parseResponse(status.result)); else if (status.status !== 'completed') this.validationError.set(status.error ?? `Validation ${status.status}`); } }); }
   private toValidationResponse(report: NonNullable<Awaited<ReturnType<ValidationApiService['getReport']>>['result']>): ValidationResponse { return { success: true, message: `Validation report for ${report.dataset_name}`, pixel_distribution: report.pixel_distribution, image_statistics: report.image_statistics, text_statistics: report.text_statistics }; }
   histogram(counts: number[]) { const bins: number[] = []; for (let index = 0; index < Math.min(256, counts.length); index += 4) bins.push(counts.slice(index, index + 4).reduce((sum, value) => sum + value, 0)); const max = Math.max(...bins, 1); return bins.map((value) => Math.max(2, value / max * 100)); }
 }

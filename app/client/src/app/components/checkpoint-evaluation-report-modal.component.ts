@@ -32,14 +32,16 @@ export class CheckpointEvaluationReportModalComponent {
   @Output() readonly closed = new EventEmitter<void>();
 
   hasResults() { const results = this.report?.results; return typeof results?.loss === 'number' || typeof results?.accuracy === 'number' || typeof results?.bleu_score === 'number'; }
-  formatMetric(value: number | undefined) { return typeof value === 'number' ? value.toFixed(4) : '--'; }
+  formatMetric(value: number | null | undefined) { return typeof value === 'number' ? value.toFixed(4) : '--'; }
   statusLabel() { return this.loading ? 'Running' : this.error ? 'Error' : this.hasResults() ? 'Complete' : 'Idle'; }
   metricLabel(metric: string) {
     const labels: Record<string, string> = { evaluation_report: 'Evaluation report', bleu_score: 'BLEU score' };
     const config = this.report?.metric_configs?.[metric];
     const parts: string[] = [];
-    if (typeof config?.data_fraction === 'number') parts.push(`${Math.round(config.data_fraction * 100)}%`);
-    if (typeof config?.num_samples === 'number') parts.push(`${config.num_samples} samples`);
+    const dataFraction = config?.['data_fraction'];
+    const numSamples = config?.['num_samples'];
+    if (typeof dataFraction === 'number') parts.push(`${Math.round(dataFraction * 100)}%`);
+    if (typeof numSamples === 'number') parts.push(`${numSamples} samples`);
     return `${labels[metric] ?? metric.replace(/_/g, ' ')}${parts.length ? ` · ${parts.join(' · ')}` : ''}`;
   }
 }
