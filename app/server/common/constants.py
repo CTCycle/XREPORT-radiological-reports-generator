@@ -1,5 +1,40 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+import tomllib
+
+
+###############################################################################
+def _application_version() -> str:
+    """Read the canonical source version or the packaged shell contract."""
+    packaged = os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if packaged:
+        version = os.getenv("XREPORT_RELEASE_VERSION", "").strip()
+        if not version:
+            raise RuntimeError(
+                "Packaged XREPORT requires XREPORT_RELEASE_VERSION before startup"
+            )
+        return version
+
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    try:
+        with pyproject_path.open("rb") as pyproject_file:
+            version = tomllib.load(pyproject_file)["project"]["version"]
+    except (OSError, KeyError, TypeError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(
+            f"Could not read the canonical XREPORT version from {pyproject_path}"
+        ) from exc
+    if not isinstance(version, str) or not version.strip():
+        raise RuntimeError(f"Canonical XREPORT version is invalid: {pyproject_path}")
+    return version.strip()
+
+
 # [BACKEND ROUTES]
 ###############################################################################
 FASTAPI_ROOT_ENDPOINT = "/"
@@ -10,7 +45,7 @@ FASTAPI_API_PREFIX = "/api"
 ###############################################################################
 FASTAPI_TITLE = "XREPORT Backend"
 FASTAPI_DESCRIPTION = "FastAPI backend"
-FASTAPI_VERSION = "3.0.0"
+FASTAPI_VERSION = _application_version()
 
 # [TRAINING CONSTANTS]
 ###############################################################################

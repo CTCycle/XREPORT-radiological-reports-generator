@@ -58,7 +58,8 @@ $DesktopCpuRequirements = Join-Path $DesktopBuildDir 'cpu-runtime-requirements.t
 $DesktopArchitecture = 'windows-x64'
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = ([string]((Get-Content -LiteralPath (Join-Path $ClientDir 'package.json') -Raw | ConvertFrom-Json).version)).Trim()
+    $Version = (Select-String -LiteralPath (Join-Path $ServerDir 'pyproject.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    if ([string]::IsNullOrWhiteSpace($Version)) { throw 'Could not read the canonical version from app/server/pyproject.toml.' }
 }
 
 $PythonVersion = '3.14.2'
@@ -649,7 +650,7 @@ function Get-DesktopVariants {
 function Get-DesktopVersionMetadata {
     $clientVersion = ([string]((Get-Content -LiteralPath (Join-Path $ClientDir 'package.json') -Raw | ConvertFrom-Json).version)).Trim()
     $serverVersion = (Select-String -LiteralPath (Join-Path $ServerDir 'pyproject.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
-    $backendVersion = (Select-String -LiteralPath (Join-Path $ServerDir 'common\constants.py') -Pattern 'FASTAPI_VERSION\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    $backendVersion = $serverVersion
     $cargoVersion = (Select-String -LiteralPath (Join-Path $DesktopTauriDir 'Cargo.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
     $tauriVersions = @()
     foreach ($config in @('tauri.cpu.conf.json', 'tauri.cuda.conf.json')) {

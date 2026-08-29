@@ -13,7 +13,8 @@ param(
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $launcher = Join-Path $repoRoot 'start_on_windows.ps1'
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = ([string]((Get-Content -LiteralPath (Join-Path $repoRoot 'app\client\package.json') -Raw | ConvertFrom-Json).version)).Trim()
+    $Version = (Select-String -LiteralPath (Join-Path $repoRoot 'app\server\pyproject.toml') -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1).Matches.Groups[1].Value
+    if ([string]::IsNullOrWhiteSpace($Version)) { throw 'Could not read the canonical version from app/server/pyproject.toml.' }
 }
 $launcherArgs = @(
     '-NoProfile',
