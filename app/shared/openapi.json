@@ -1925,6 +1925,13 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
             "title": "Status"
           },
           "message": {
@@ -1958,6 +1965,13 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
             "title": "Status"
           },
           "progress": {
