@@ -31,7 +31,8 @@ Apply these rules to new and modified Python code in scope of the task.
 
 - Use `async` only when dependencies and call paths are non-blocking or require async I/O.
 - Do not run CPU-heavy work directly inside async request handlers.
-- Use the job system for long-running tasks through start, poll, and cancel endpoints.
+- Use the job system for long-running tasks through feature start endpoints and
+  the generic `/api/jobs` poll/cancel resource.
 - Keep cancellation cooperative and explicit in long-running workflows.
 
 ## Code Structure

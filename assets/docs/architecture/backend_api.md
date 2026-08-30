@@ -1,12 +1,12 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-26
+Last updated: 2026-08-30
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
 ```powershell
 $env:PYTHONPATH = "app"
-& ".\\app\\server\\.venv\\Scripts\\python.exe" -c "import json; from pathlib import Path; from server.app import app; Path('app/shared/openapi.json').write_text(json.dumps(app.openapi(), indent=2) + '\\n', encoding='utf-8')"
+& ".\\app\\server\\.venv\\Scripts\\python.exe" -c "import json; from pathlib import Path; from server.app import app; Path('app/shared/openapi.json').write_text(json.dumps(app.openapi(), indent=2) + chr(10), encoding='utf-8')"
 ```
 
 All routers are mounted under `/api`.
@@ -14,6 +14,22 @@ All routers are mounted under `/api`.
 ## Upload
 
 - `POST /api/upload/dataset`
+
+The upload response contains an explicit `upload_id`. The client must send that
+identifier to `POST /api/preparation/dataset/load`; the backend never selects a
+latest or otherwise implicit upload.
+
+## Generic Jobs
+
+- `GET /api/jobs?job_type={job_type}&status={status}`
+- `GET /api/jobs/{job_id}`
+- `DELETE /api/jobs/{job_id}`
+
+The query parameters are optional filters. Every long-running preparation,
+training, validation, evaluation, and inference start endpoint returns a
+`job_id`; clients poll the generic job resource and use `DELETE` to request
+cancellation. There are no feature-specific job routes and no separate
+training-status endpoint.
 
 ## Preparation
 
@@ -28,8 +44,6 @@ All routers are mounted under `/api`.
 - `GET /api/preparation/dataset/{dataset_name}/images/count`
 - `GET /api/preparation/dataset/{dataset_name}/images/{index}`
 - `GET /api/preparation/dataset/{dataset_name}/images/{index}/content`
-- `GET /api/preparation/jobs/{job_id}`
-- `DELETE /api/preparation/jobs/{job_id}`
 - `GET /api/preparation/browse`
 
 `POST /api/preparation/dataset/load` requires the uploaded table to contain
@@ -46,11 +60,8 @@ and unmatched counts without writing records. A repeat request with
 - `GET /api/training/checkpoints`
 - `GET /api/training/checkpoints/{checkpoint}/metadata`
 - `DELETE /api/training/checkpoints/{checkpoint}`
-- `GET /api/training/status`
 - `POST /api/training/start`
 - `POST /api/training/resume`
-- `GET /api/training/jobs/{job_id}`
-- `DELETE /api/training/jobs/{job_id}`
 
 ## Validation
 
@@ -58,8 +69,6 @@ and unmatched counts without writing records. A repeat request with
 - `POST /api/validation/checkpoint`
 - `GET /api/validation/checkpoint/reports/{checkpoint}`
 - `GET /api/validation/reports/{dataset_name}`
-- `GET /api/validation/jobs/{job_id}`
-- `DELETE /api/validation/jobs/{job_id}`
 
 ## Inference
 
@@ -67,14 +76,12 @@ and unmatched counts without writing records. A repeat request with
 - `POST /api/inference/models/check-update`
 - `POST /api/inference/models/maintenance`
 - `POST /api/inference/generate`
-- `GET /api/inference/jobs/{job_id}`
-- `DELETE /api/inference/jobs/{job_id}`
 
 `POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
 
 The multipart metadata is parsed into the domain `InferenceGenerateRequest`; the uploaded files remain typed `UploadFile` inputs and the flat field names remain unchanged.
 
-The Angular client maps these endpoint groups to `InferenceApiService`, `DatasetApiService`, `TrainingApiService`, and `ValidationApiService`. Shared request execution and error formatting live in `ApiRequestService`; feature clients preserve the existing result/error envelope.
+The Angular client maps these endpoint groups to `InferenceApiService`, `DatasetApiService`, `TrainingApiService`, `ValidationApiService`, and the generic `JobsApiService`. Shared request execution and error formatting live in `ApiRequestService`; feature clients preserve the existing result/error envelope.
 
 The inference service accepts at most 16 images and a 64 MiB total image payload. It rejects models that are absent or not ready in the catalog, unsupported clinical context, unsupported providers, invalid image types, and invalid model-specific image counts.
 

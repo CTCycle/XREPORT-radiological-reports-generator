@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-08-21
+Last updated: 2026-08-30
 
 ## Safety scope
 
@@ -66,10 +66,12 @@ app/resources/
 └── keras/
 ```
 
-The catalogue (public availability) and local state (downloaded files) are
-separate. The API reports `not_downloaded`, `downloading`,
-`downloaded_unvalidated`, `ready`, or `failed` and exposes `can_download` and
-`can_delete_local` independently.
+The manifest policy, local installation receipt, and effective runtime
+readiness are separate. The API reports the effective `status`, explicit
+`installation_state` and `integrity_status`, manifest `validation_status`,
+real-inference `validation_receipt_status`, and the permitted
+`available_actions`. It does not duplicate those actions as independent
+boolean fields.
 
 An explicit Download, or the first Generate, stages only approved files at the
 pinned revision. Downloads resume incomplete files and publish cancellable
@@ -102,6 +104,8 @@ the browser. Missing credentials or unaccepted terms produce a structured
 - `POST /api/inference/models/maintenance` supports `download`, `repair`,
   `reinstall`, `download_update`, and `delete_local`; every operation is a
   background job with lifecycle and byte/file progress.
+- Poll maintenance jobs through `GET /api/jobs/{job_id}` and request
+  cancellation through `DELETE /api/jobs/{job_id}`.
 - Job failures contain a stable code, safe message, phase, and recoverability
   for access denial, download/integrity errors, incomplete snapshots, missing
   dependencies, unsupported hardware, model-load failures, cancellation, and
@@ -109,8 +113,11 @@ the browser. Missing credentials or unaccepted terms produce a structured
 
 ## Custom XREPORT
 
-Complete checkpoints discovered under `<resource root>/checkpoints` are listed in
-the persistent **Custom XReport Models** section. They use the existing Keras /
-BEiT adapter and are locally trained, ready, and never presented as public
-downloads. Incomplete training directories are ignored. The public model
-catalogue and its deletion lifecycle cannot remove or alter these checkpoints.
+Complete checkpoint artifacts are registered in the database and listed in the
+persistent **Custom XReport Models** section. The filesystem stores the
+registered Keras/BEiT artifacts; it is not scanned to invent checkpoint
+identity. Registered artifacts that later become incomplete are surfaced as
+`runtime_unavailable`, while unregistered directories are not listed. Custom
+checkpoints are locally trained and never presented as public downloads. The
+public model catalogue and its deletion lifecycle cannot remove or alter these
+checkpoints.

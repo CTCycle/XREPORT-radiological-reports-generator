@@ -1,8 +1,15 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-20
+Last updated: 2026-08-30
 
 ## Database Backend Selection
+
+The sources of truth are deliberately separated:
+
+- `settings/.env` owns deployment and infrastructure values such as the
+  runtime host, ports, resource root, database mode, and database connection.
+- `settings/configurations.json` owns application behavior such as the global
+  seed, feature flags, job polling interval, and inference runtime policy.
 
 From `settings/.env`:
 
@@ -15,13 +22,20 @@ From `settings/.env`:
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
 Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`c1e4f1a7b2d9`) and stores the applied revision in `alembic_version`.
+one head (`d62f3ab4e8c1`) and stores the applied revision in `alembic_version`.
 
 ### SQLite
 
 - A missing database file is created by SQLAlchemy and upgraded from Alembic base to head.
 - Startup acquires an exclusive SQLite transaction before checking or applying migrations, so concurrent processes serialize safely.
-- A non-empty database without `alembic_version` is adopted only after an exact semantic comparison with the known v1 schema. The baseline is stamped and the legacy `schema_metadata` table is removed by the checked-in head migration.
+- A non-empty database without `alembic_version` is rejected. Existing data is
+  never silently stamped, rewritten, or inferred as a compatible legacy schema;
+  use the explicit migration/initialization workflow after reviewing the
+  database state.
+- Head migration `d62f3ab4e8c1` removes obsolete validation and checkpoint-
+  evaluation job-state columns, then registers each complete checkpoint
+  artifact found in the configured checkpoint directory exactly once. Name and
+  normalized path collisions fail the migration.
 - Partial, modified, or unexpected schemas fail without repair or stamping. Migration failures roll back the shared transaction.
 
 ### PostgreSQL
@@ -70,20 +84,19 @@ erDiagram
     }
     VALIDATION_RUNS {
         int validation_run_id PK
-        string request_id UK
         int dataset_id FK
-        string status
+        datetime executed_at
     }
     CHECKPOINTS {
         int checkpoint_id PK
         string name
         string name_key UK
+        string path
     }
     CHECKPOINT_EVALUATIONS {
         int evaluation_id PK
-        string request_id UK
         int checkpoint_id FK
-        string status
+        datetime executed_at
     }
     INFERENCE_RUNS {
         int inference_run_id PK
@@ -116,6 +129,8 @@ erDiagram
 The tables below are owned by independent repositories:
 
 - `DatasetRepository`: datasets, dataset versions, records, processing runs, and training samples.
+- `CheckpointRepository`: registered checkpoint identity, canonical artifact
+  paths, artifact completeness, and safe deletion.
 - `ValidationRepository`: validation runs and checkpoint evaluations.
 - `InferenceRepository`: inference runs and generated reports.
 
@@ -126,7 +141,9 @@ Foreign-key behavior is explicit: dataset-owned records and processing data casc
 - Dataset and checkpoint names use normalized Unicode NFKC, trimmed, case-folded keys with unique constraints.
 - Dataset versions enforce unique `(dataset_id, version_number)` and `(dataset_id, content_hash)` pairs, positive version numbers, and non-negative record counts.
 - Training samples enforce unique `(processing_run_id, record_id)` pairs and a `train` or `validation` split.
-- Validation, checkpoint-evaluation, and inference statuses are constrained to their supported lifecycle values.
+- Inference history statuses are constrained to their supported lifecycle
+  values. Job lifecycle state is owned by `JobManager`, not persisted as
+  feature-specific report status columns.
 - Inference history enforces unique request IDs and unique report image names and indexes.
 - Dataset, processing, validation, checkpoint-evaluation, and report lookups have focused indexes defined in the schema models.
 
@@ -134,7 +151,9 @@ SQLite connections enable foreign-key enforcement, WAL journaling, normal synchr
 
 ## Non-Database Artifacts
 
-- Checkpoints and model artifacts under `<resource root>/checkpoints` and `<resource root>/models`.
+- Checkpoint artifacts and model artifacts under `<resource root>/checkpoints`
+  and `<resource root>/models`; checkpoint identity and history references stay
+  in the database registry.
 - Logs under `<resource root>/logs`.
 - Templates under `<resource root>/templates`.
 - Tokenizer resources under `<resource root>/tokenizers`.

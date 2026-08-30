@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-08-27
+Last updated: 2026-08-30
 
 ## Tooling And Quality Gates
 
@@ -11,6 +11,10 @@ Last updated: 2026-08-27
   repository test helpers pass that file explicitly instead of relying on a
   root-level pytest configuration file.
 - Validate changed API contracts and job-lifecycle behavior with targeted tests.
+- Keep `app/shared/openapi.json` synchronized with `app.server.app:app` and
+  regenerate Angular types with `npm run generate:api` after contract changes.
+- Verify the generic `/api/jobs` resource and explicit upload/checkpoint
+  identity behavior when changing long-running workflows.
 
 ## Windows Script Rules
 
