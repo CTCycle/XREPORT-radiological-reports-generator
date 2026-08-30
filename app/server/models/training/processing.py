@@ -7,9 +7,9 @@ from transformers import AutoTokenizer
 
 from server.common.path import TOKENIZERS_DIR
 
+
 ###############################################################################
 class TrainValidationSplit:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame) -> None:
         self.validation_size = configuration.get("validation_size", 0.2)
@@ -45,9 +45,9 @@ class TrainValidationSplit:
 
         return dataframe
 
+
 ###############################################################################
 class TextSanitizer:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.max_report_size = configuration.get("max_report_size", 200)
@@ -58,9 +58,9 @@ class TextSanitizer:
         dataset["text"] = dataset["text"].str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
         return dataset
 
+
 ###############################################################################
 class TokenizerHandler:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.tokenizer_id = configuration.get("tokenizer", None)

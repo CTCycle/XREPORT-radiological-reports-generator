@@ -8,7 +8,9 @@ from server.services.jobs import JobManager, get_job_manager
 
 
 class JobsEndpoint:
-    def __init__(self, router: APIRouter, job_manager: JobManager | None = None) -> None:
+    def __init__(
+        self, router: APIRouter, job_manager: JobManager | None = None
+    ) -> None:
         self.router = router
         self.job_manager = job_manager or get_job_manager()
 

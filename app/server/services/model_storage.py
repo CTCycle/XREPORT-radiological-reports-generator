@@ -12,11 +12,16 @@ from server.common.path import (
     ROOT_DIR,
     is_within_allowed_roots,
 )
-from server.services.model_installation import InstallationError, ModelInstallationManager
+from server.services.model_installation import (
+    InstallationError,
+    ModelInstallationManager,
+)
+
 
 ###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
+
 
 ###############################################################################
 class ModelStorageLifecycle:
@@ -52,7 +57,9 @@ class ModelStorageLifecycle:
     def _remove_tree(path: Path, *, root_dir: Path = ROOT_DIR) -> int:
         resolved = path.resolve()
         if not is_within_allowed_roots(resolved):
-            raise InstallationError("Refusing to delete a model path outside application storage")
+            raise InstallationError(
+                "Refusing to delete a model path outside application storage"
+            )
         size = ModelStorageLifecycle._tree_size(resolved)
         if resolved.is_dir() and not resolved.is_symlink():
             shutil.rmtree(resolved)
@@ -91,7 +98,9 @@ class ModelStorageLifecycle:
                 )
                 if value
             }
-            modules_root = self.hub_cache_dir.parent / "modules" / "transformers_modules"
+            modules_root = (
+                self.hub_cache_dir.parent / "modules" / "transformers_modules"
+            )
             roots.extend(modules_root / f"_{revision}" for revision in revisions)
             if processor_repository_id:
                 processor_slug = processor_repository_id.replace("/", "--")
@@ -113,9 +122,13 @@ class ModelStorageLifecycle:
                     for operation_root in list(root.iterdir()):
                         model_root = operation_root / slug
                         if model_root.exists():
-                            bytes_freed += self._remove_tree(model_root, root_dir=self.root_dir)
+                            bytes_freed += self._remove_tree(
+                                model_root, root_dir=self.root_dir
+                            )
                             deleted_paths.append(self.manager._relative(model_root))
-                            if operation_root.exists() and not any(operation_root.iterdir()):
+                            if operation_root.exists() and not any(
+                                operation_root.iterdir()
+                            ):
                                 operation_root.rmdir()
                     continue
                 if root.exists():

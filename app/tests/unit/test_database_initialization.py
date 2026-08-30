@@ -13,6 +13,7 @@ import server.repositories.database.initializer as initializer
 from server.configurations.settings import DatabaseSettings
 from server.repositories.schemas import Base
 
+
 ###############################################################################
 def _sqlite_settings() -> DatabaseSettings:
     return DatabaseSettings(
@@ -28,6 +29,7 @@ def _sqlite_settings() -> DatabaseSettings:
         connect_timeout=3,
         insert_batch_size=1000,
     )
+
 
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:
@@ -45,16 +47,19 @@ def _postgres_settings() -> DatabaseSettings:
         insert_batch_size=1000,
     )
 
+
 ###############################################################################
 def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
     monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
     monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
+
 
 ###############################################################################
 def _alembic_config(path: Path) -> Config:
     config = Config(str(initializer.MIGRATIONS_DIR.parent / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
     return config
+
 
 ###############################################################################
 def _database_tables(path: Path) -> set[str]:
@@ -64,8 +69,11 @@ def _database_tables(path: Path) -> set[str]:
     finally:
         engine.dispose()
 
+
 ###############################################################################
-def test_sqlite_startup_migrates_to_head_and_is_repeatable(tmp_path, monkeypatch) -> None:
+def test_sqlite_startup_migrates_to_head_and_is_repeatable(
+    tmp_path, monkeypatch
+) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
 
@@ -77,14 +85,20 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(tmp_path, monkeypatch
         tables = set(sqlalchemy.inspect(engine).get_table_names())
         assert set(Base.metadata.tables).issubset(tables)
         with engine.connect() as connection:
-            assert connection.exec_driver_sql(
-                "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT version_num FROM alembic_version"
+                ).scalar_one()
+                == initializer.HEAD_REVISION
+            )
     finally:
         engine.dispose()
 
+
 ###############################################################################
-def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(tmp_path, monkeypatch) -> None:
+def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
+    tmp_path, monkeypatch
+) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
     command.upgrade(_alembic_config(database_path), "c1e4f1a7b2d9")
@@ -104,8 +118,11 @@ def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(tmp_p
 
     assert "alembic_version" not in _database_tables(database_path)
 
+
 ###############################################################################
-def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path, monkeypatch) -> None:
+def test_unknown_partial_schema_is_rejected_without_stamping(
+    tmp_path, monkeypatch
+) -> None:
     database_path = tmp_path / "database.db"
     _patch_sqlite_path(monkeypatch, database_path)
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
@@ -121,6 +138,7 @@ def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path, monkeypat
         initializer.prepare_database_for_startup(_sqlite_settings())
 
     assert "alembic_version" not in _database_tables(database_path)
+
 
 ###############################################################################
 def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> None:
@@ -139,6 +157,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
     assert "transient_failure" not in _database_tables(database_path)
     assert "alembic_version" not in _database_tables(database_path)
 
+
 ###############################################################################
 def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
@@ -147,12 +166,15 @@ def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
-            connection.exec_driver_sql("ALTER TABLE datasets ADD COLUMN unexpected TEXT")
+            connection.exec_driver_sql(
+                "ALTER TABLE datasets ADD COLUMN unexpected TEXT"
+            )
     finally:
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="differs from the current ORM schema"):
         initializer.prepare_database_for_startup(_sqlite_settings())
+
 
 ###############################################################################
 def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None:
@@ -161,18 +183,24 @@ def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None
     settings = _sqlite_settings()
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(initializer.initialize_database, settings) for _ in range(2)]
+        futures = [
+            executor.submit(initializer.initialize_database, settings) for _ in range(2)
+        ]
         for future in futures:
             future.result()
 
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.connect() as connection:
-            assert connection.exec_driver_sql(
-                "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT version_num FROM alembic_version"
+                ).scalar_one()
+                == initializer.HEAD_REVISION
+            )
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None:
@@ -187,7 +215,9 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
         lambda _settings: (_ for _ in ()).throw(failure),
     )
 
-    with pytest.raises(RuntimeError, match="Database startup migration failed") as exc_info:
+    with pytest.raises(
+        RuntimeError, match="Database startup migration failed"
+    ) as exc_info:
         initializer.prepare_database_for_startup(_postgres_settings())
 
     assert "secret" not in str(exc_info.value).lower()

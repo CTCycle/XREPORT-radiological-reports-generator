@@ -26,6 +26,7 @@ StopCallback = Callable[[], bool]
 LifecycleCallback = Callable[[dict[str, Any]], None]
 ProgressCallback = Callable[..., None]
 
+
 ###############################################################################
 class InferenceRuntimeCoordinator:
     """Serializes resident model use across the supported inference providers."""
@@ -41,7 +42,9 @@ class InferenceRuntimeCoordinator:
     ) -> None:
         self.huggingface_provider = huggingface_provider
         self.installation_manager = installation_manager
-        self.storage_lifecycle = storage_lifecycle or ModelStorageLifecycle(installation_manager)
+        self.storage_lifecycle = storage_lifecycle or ModelStorageLifecycle(
+            installation_manager
+        )
         self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
         self.lock = threading.RLock()
 
@@ -122,7 +125,9 @@ class InferenceRuntimeCoordinator:
         if checkpoint_record is None:
             raise RuntimeError(f"Checkpoint is not registered: {checkpoint}")
         if not checkpoint_record.artifact_complete:
-            raise RuntimeError(f"Checkpoint artifact is missing or incomplete: {checkpoint}")
+            raise RuntimeError(
+                f"Checkpoint artifact is missing or incomplete: {checkpoint}"
+            )
         provenance: dict[str, Any] = {
             "provider": "xreport",
             "model_ref": model_ref,
@@ -140,7 +145,9 @@ class InferenceRuntimeCoordinator:
         with self.lock:
             if should_stop():
                 return ProviderGenerationResult({}, {}, [], provenance)
-            from server.models.inference.providers.xreport import XReportCheckpointProvider
+            from server.models.inference.providers.xreport import (
+                XReportCheckpointProvider,
+            )
             from server.repositories.serialization.model import ModelSerializer
 
             self.huggingface_provider.unload()
@@ -166,8 +173,7 @@ class InferenceRuntimeCoordinator:
             del model
 
         display_sections = {
-            filename: {"raw_report": report}
-            for filename, report in reports.items()
+            filename: {"raw_report": report} for filename, report in reports.items()
         }
         return ProviderGenerationResult(
             reports=reports,
@@ -210,12 +216,14 @@ class InferenceRuntimeCoordinator:
             effective_manifest["revision"] = target.revision
             effective_manifest["local_snapshot_path"] = str(target.path)
             effective_revision = target.revision
-            report_lifecycle({
-                "phase": "loading",
-                "message": "Loading the verified local model snapshot",
-                "revision": effective_revision,
-                "local_path": self.installation_manager.relative_path(target.path),
-            })
+            report_lifecycle(
+                {
+                    "phase": "loading",
+                    "message": "Loading the verified local model snapshot",
+                    "revision": effective_revision,
+                    "local_path": self.installation_manager.relative_path(target.path),
+                }
+            )
             generation = self.huggingface_provider.generate(
                 repository_id=repository_id,
                 manifest=effective_manifest,
@@ -235,11 +243,13 @@ class InferenceRuntimeCoordinator:
                 "cloud_assessment": cloud_assessment,
             }
             if target.candidate and generation.reports:
-                report_lifecycle({
-                    "phase": "activating",
-                    "message": "Activating the verified revision after successful inference",
-                    "revision": effective_revision,
-                })
+                report_lifecycle(
+                    {
+                        "phase": "activating",
+                        "message": "Activating the verified revision after successful inference",
+                        "revision": effective_revision,
+                    }
+                )
                 activated = self.installation_manager.activate(
                     manifest=effective_manifest,
                     target=target,
@@ -249,12 +259,14 @@ class InferenceRuntimeCoordinator:
                     "active_relative_path",
                     provenance["installation"]["local_path"],
                 )
-            report_lifecycle({
-                "phase": "completed",
-                "message": "Model loaded and report generated",
-                "revision": effective_revision,
-                "local_path": provenance["installation"]["local_path"],
-            })
+            report_lifecycle(
+                {
+                    "phase": "completed",
+                    "message": "Model loaded and report generated",
+                    "revision": effective_revision,
+                    "local_path": provenance["installation"]["local_path"],
+                }
+            )
             return ProviderGenerationResult(
                 reports=generation.reports,
                 display_sections=generation.display_sections,
@@ -296,25 +308,28 @@ class InferenceRuntimeCoordinator:
         report_lifecycle: LifecycleCallback,
         model_ref: str,
     ) -> tuple[InstallationTarget, dict[str, Any] | None]:
-        target = (
-            self.installation_manager.candidate_target(manifest)
-            or self.installation_manager.active_target(manifest)
-        )
+        target = self.installation_manager.candidate_target(
+            manifest
+        ) or self.installation_manager.active_target(manifest)
         cloud_assessment: dict[str, Any] | None = None
         if target is not None:
             return target, cloud_assessment
 
-        report_lifecycle({
-            "phase": "checking",
-            "message": "Checking whether a free cloud inference route is available",
-            "model_ref": model_ref,
-        })
+        report_lifecycle(
+            {
+                "phase": "checking",
+                "message": "Checking whether a free cloud inference route is available",
+                "model_ref": model_ref,
+            }
+        )
         cloud_assessment = self.installation_manager.assess_cloud(repository_id)
-        report_lifecycle({
-            "phase": "checking",
-            "message": cloud_assessment["reason"],
-            "cloud_assessment": cloud_assessment,
-        })
+        report_lifecycle(
+            {
+                "phase": "checking",
+                "message": cloud_assessment["reason"],
+                "cloud_assessment": cloud_assessment,
+            }
+        )
         revision = str(manifest["revision"])
         try:
             target = self.installation_manager.stage(

@@ -12,13 +12,14 @@ from torch.utils.data import DataLoader
 from server.common.utils.logger import logger
 from server.models.inference import TextGenerator
 
+
 ###############################################################################
 class CheckpointInputMismatchError(ValueError):
     """Raised when checkpoint input shapes do not match evaluation data."""
 
+
 ###############################################################################
 class CheckpointEvaluator:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -107,12 +108,7 @@ class CheckpointEvaluator:
 
         if not getattr(self.model, "built", True):
             try:
-                self.model.build(
-                    [
-                        (None, *shape)
-                        for shape in actual_shapes
-                    ]
-                )
+                self.model.build([(None, *shape) for shape in actual_shapes])
             except Exception as exc:  # noqa: BLE001
                 raise CheckpointInputMismatchError(
                     f"Unable to build checkpoint model for validation inputs: {exc}"
