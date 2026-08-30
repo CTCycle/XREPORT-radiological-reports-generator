@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-08-20
+Last updated: 2026-08-30
 
 ## Layer Responsibilities
 
@@ -61,7 +61,8 @@ Location: `app/client/src`
 - `components/*`: reusable UI building blocks.
 - `services/*-api.service.ts`: feature-specific backend integration.
 - `services/api-request.service.ts`: shared transport and error formatting.
-- `services/job-polling.service.ts`: shared start/poll/cancel support.
+- `services/jobs-api.service.ts`: generic job listing, status, and cancellation.
+- `services/job-polling.service.ts`: shared polling behavior over `JobsApiService`.
 
 There is no `hooks/*` layer in the Angular application; the former documentation reference was stale.
 
@@ -75,7 +76,7 @@ Factories compose runtime dependencies at the service boundary instead of hiding
 
 ## Generic Job Runtime
 
-`app/server/services/jobs.py` owns mutable `JobState` and lifecycle transitions. The domain package exposes only the serializable job response contract. A job failure can carry a message, code, phase, and recoverability flag through `JobExecutionError`; the generic manager never interprets inference-specific exception classes. Feature services can provide a failure mapper, and unmapped failures use the generic `job_failed` / `execution` fallback.
+`app/server/services/jobs.py` owns mutable `JobState` and lifecycle transitions. The domain package exposes only the serializable job response contract. A job failure can carry a message, code, phase, and recoverability flag through `JobExecutionError`; the generic manager never interprets inference-specific exception classes. Feature services can provide a failure mapper, and unmapped failures use the generic `job_failed` / `execution` fallback. `GET /api/jobs` is the only job read surface, and `DELETE /api/jobs/{job_id}` is the only cancellation surface.
 
 All long-running endpoints follow the same external contract:
 
@@ -100,7 +101,7 @@ sequenceDiagram
     API->>SVC: start job with uploaded images and config
     SVC-->>UI: job_id
     loop until terminal status
-        UI->>API: GET /api/inference/jobs/{job_id}
+        UI->>API: GET /api/jobs/{job_id}
         API-->>UI: progress, lifecycle, reports, or error
     end
     SVC->>RT: load provider and generate reports
@@ -127,6 +128,10 @@ sequenceDiagram
     participant Process as DatasetProcessingService
     participant Repo as DatasetRepository
 
+    UI->>API: POST /api/upload/dataset
+    API-->>UI: upload_id
+    UI->>API: POST /api/preparation/dataset/load (upload_id)
+    API->>Prep: consume the explicit upload
     UI->>API: POST /api/preparation/dataset/process
     API->>Prep: validate source dataset and configuration
     Prep->>Process: run processing job
@@ -136,6 +141,10 @@ sequenceDiagram
 ```
 
 Preparation owns workflow-level validation and naming. The processing service owns the compute-and-persist unit and receives its repository and job manager through composition.
+
+Upload identity is explicit and short-lived: a successful upload returns an
+`upload_id`, and only a load request carrying that identifier can consume the
+in-memory upload. No latest-upload selection is performed.
 
 ## Async Versus Sync Behavior
 
@@ -151,4 +160,4 @@ Preparation owns workflow-level validation and naming. The processing service ow
 - The system is local-first and filesystem-aware. Local path browsing is part of the supported workflow.
 - No authentication or authorization layer is implemented in the current API surface.
 - Job progress is polling-based. No production WebSocket API is exposed by backend routes.
-- Feature clients must preserve the existing API envelopes and endpoint paths when splitting frontend integration.
+- Feature clients must preserve the existing API envelopes and endpoint paths when splitting frontend integration. Long-running feature clients delegate lifecycle polling to `JobsApiService` rather than owning parallel job snapshots.
