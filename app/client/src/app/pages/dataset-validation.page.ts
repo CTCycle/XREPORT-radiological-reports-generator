@@ -33,7 +33,7 @@ export class DatasetValidationPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  readonly datasetName = this.route.snapshot.paramMap.get('datasetName') ?? 'default';
+  readonly datasetName = this.route.snapshot.paramMap.get('datasetName') ?? '';
   readonly validationForm = inject(NonNullableFormBuilder).group({
     evalSampleSize: [0.2, [Validators.required, Validators.min(0.01), Validators.max(1)]],
     imgStats: true,
@@ -45,7 +45,7 @@ export class DatasetValidationPage {
   readonly validationError = signal<string | null>(null);
   readonly validationResult = signal<ValidationResponse | null>(null);
   readonly jobs = signal<Record<string, StoredValidationJob>>({});
-  constructor() { void this.loadExistingReport(); }
+  constructor() { if (this.datasetName) void this.loadExistingReport(); else void this.router.navigate(['/dataset']); }
   private async loadExistingReport() { const report = await this.api.getReport(this.datasetName); if (report.result) this.validationResult.set(this.toValidationResponse(report.result)); }
   back() { void this.router.navigate(['/dataset']); }
   async runValidation() { const config = this.validationForm.getRawValue(); if (this.validationForm.invalid) { this.validationForm.markAllAsTouched(); this.validationError.set('Enter a sample size between 0.01 and 1.'); return; } const metrics = [config.imgStats ? 'image_statistics' : '', config.textStats ? 'text_statistics' : '', config.pixDist ? 'pixels_distribution' : ''].filter(Boolean); if (!metrics.length) { this.validationError.set('Please select at least one validation metric'); return; } this.isValidating.set(true); this.validationError.set(null); this.validationResult.set(null); const started = await this.api.run({ dataset_name: this.datasetName, metrics, sample_size: config.evalSampleSize }); if (!started.result) { this.isValidating.set(false); this.validationError.set(started.error ?? 'Failed to start validation job'); return; } this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize, status: 'pending' } })); this.polling.poll((jobId) => this.jobsApi.get(jobId), started.result.job_id, 2).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => { this.progress.set(status.progress ?? 0); this.jobs.update((jobs) => ({ ...jobs, [this.datasetName]: { ...(jobs[this.datasetName] ?? { jobId: started.result!.job_id, metrics, sampleSize: config.evalSampleSize }), status: status.status, progress: status.progress } })); if (['completed', 'failed', 'cancelled'].includes(status.status)) { this.isValidating.set(false); if (status.status === 'completed' && status.result) this.validationResult.set(this.api.parseResponse(status.result)); else if (status.status !== 'completed') this.validationError.set(status.error ?? `Validation ${status.status}`); } }); }

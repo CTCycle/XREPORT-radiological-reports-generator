@@ -75,10 +75,10 @@ def run_validation_job(
     """Blocking validation function that runs in background thread."""
     jm = get_job_manager()
     dataset_repository = DatasetRepository()
-    sample_size = request_data.get("sample_size", 1.0)
+    sample_size = request_data["sample_size"]
     seed = request_data.get("seed", 42)
-    metrics = request_data.get("metrics", [])
-    dataset_name = request_data.get("dataset_name")
+    metrics = request_data["metrics"]
+    dataset_name = str(request_data["dataset_name"]).strip()
     sample_pct = sample_size * 100
     logger.info(f"Starting dataset validation with {sample_pct:.1f}% sample size")
     jm.update_progress(job_id, 5.0)
@@ -103,7 +103,6 @@ def run_validation_job(
     jm.update_progress(job_id, 15.0)
     if jm.should_stop(job_id):
         return {}
-    dataset_name = _resolve_dataset_name(dataset, dataset_name)
     try:
         dataset = dataset_repository.validate_img_paths(dataset)
     except DatasetIntegrityError as exc:
@@ -196,16 +195,6 @@ def _load_validation_dataset(
         seed=seed,
         dataset_name=dataset_name,
     )
-
-###############################################################################
-def _resolve_dataset_name(dataset: pd.DataFrame, dataset_name: Any) -> str:
-    if dataset_name:
-        return str(dataset_name)
-    if "name" in dataset.columns and not dataset.empty:
-        return str(dataset["name"].iloc[0])
-    if "dataset_name" in dataset.columns and not dataset.empty:
-        return str(dataset["dataset_name"].iloc[0])
-    return "default"
 
 ###############################################################################
 def _run_text_validation_metric(

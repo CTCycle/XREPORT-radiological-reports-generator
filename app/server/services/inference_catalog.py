@@ -72,7 +72,7 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
 
 ###############################################################################
 class InferenceModelCatalog:
-    """Lists strict embedded model metadata and discovered XREPORT checkpoints."""
+    """Lists strict embedded model metadata and registered XREPORT checkpoints."""
 
     # -------------------------------------------------------------------------
     def __init__(
