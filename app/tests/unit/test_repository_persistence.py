@@ -21,6 +21,7 @@ from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.validation import ValidationRepository
 
+
 ###############################################################################
 def _serializer() -> tuple[DatasetRepository, Database]:
     database = Database.__new__(Database)
@@ -31,6 +32,7 @@ def _serializer() -> tuple[DatasetRepository, Database]:
     database.insert_batch_size = 100
     Base.metadata.create_all(database.engine)
     return DatasetRepository(database=database), database
+
 
 ###############################################################################
 def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
@@ -74,11 +76,15 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
             .order_by(DatasetVersion.version_number.desc())
             .limit(1)
         ).scalar_one()
-        rows = session.execute(
-            select(DatasetRecord).where(
-                DatasetRecord.dataset_version_id == latest.dataset_version_id
+        rows = (
+            session.execute(
+                select(DatasetRecord).where(
+                    DatasetRecord.dataset_version_id == latest.dataset_version_id
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert dataset.name_key == "chest"
     assert latest.version_number == 2
@@ -86,6 +92,7 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     assert rows[0].image_name_key == "a.png"
     assert rows[0].report_text == "new"
     assert rows[0].image_path == "new-path"
+
 
 ###############################################################################
 def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
@@ -132,6 +139,7 @@ def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     assert len(rows) == 1
     assert rows[0].report_text == "stable"
 
+
 ###############################################################################
 def test_identical_dataset_content_reuses_the_existing_version() -> None:
     serializer, database = _serializer()
@@ -152,6 +160,7 @@ def test_identical_dataset_content_reuses_the_existing_version() -> None:
         versions = session.execute(select(DatasetVersion)).scalars().all()
     assert len(versions) == 1
     assert versions[0].version_number == 1
+
 
 ###############################################################################
 def test_processing_run_and_samples_roll_back_together() -> None:
@@ -203,6 +212,7 @@ def test_processing_run_and_samples_roll_back_together() -> None:
     with database.read_session() as session:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
+
 ###############################################################################
 def test_validation_report_children_commit_atomically() -> None:
     dataset_repository, database = _serializer()
@@ -230,15 +240,21 @@ def test_validation_report_children_commit_atomically() -> None:
     with database.read_session() as session:
         assert len(session.execute(select(ValidationRun)).scalars().all()) == 1
 
+
 ###############################################################################
 def test_validation_aggregates_are_stored_on_the_run() -> None:
     _, database = _serializer()
     ValidationRepository(database=database).save_validation_report(
-        {"dataset_name": "Chest", "metrics": [], "pixel_distribution": {"bins": [999], "counts": [1]}}
+        {
+            "dataset_name": "Chest",
+            "metrics": [],
+            "pixel_distribution": {"bins": [999], "counts": [1]},
+        }
     )
     with database.read_session() as session:
         run = session.execute(select(ValidationRun)).scalar_one()
         assert run.pixel_bins_json == [999]
+
 
 ###############################################################################
 def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
@@ -272,6 +288,7 @@ def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
         "metric_configs": {"bleu_score": {"data_fraction": 0.5}},
         "results": {"bleu_score": 0.75},
     }
+
 
 ###############################################################################
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
@@ -308,9 +325,13 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
     )
     with database.read_session() as session:
         runs = session.execute(select(InferenceRun)).scalars().all()
-        reports = session.execute(
-            select(InferenceReport).order_by(InferenceReport.image_index)
-        ).scalars().all()
+        reports = (
+            session.execute(
+                select(InferenceReport).order_by(InferenceReport.image_index)
+            )
+            .scalars()
+            .all()
+        )
     assert len(runs) == 1
     assert runs[0].checkpoint_id is None
     assert runs[0].provider == "huggingface"
@@ -321,7 +342,9 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
     assert len(reports) == 1
     assert reports[0].image_index == 0
     assert reports[0].generated_report == "replayed"
-    assert serializer.list_inference_history(model_ref="huggingface:google/medgemma-1.5-4b-it") == [
+    assert serializer.list_inference_history(
+        model_ref="huggingface:google/medgemma-1.5-4b-it"
+    ) == [
         {
             "request_id": "request-1",
             "provider": "huggingface",

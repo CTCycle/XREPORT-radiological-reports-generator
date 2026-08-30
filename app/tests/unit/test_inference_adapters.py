@@ -6,6 +6,7 @@ import torch
 from server.domain.inference import InferenceImage
 from server.models.inference.providers.adapters import CXRMateEDAdapter, StudyImage
 
+
 ###############################################################################
 def test_cxrmate_ed_passes_clinical_context_and_all_study_images() -> None:
 
@@ -74,6 +75,11 @@ def test_cxrmate_ed_passes_clinical_context_and_all_study_images() -> None:
 
     assert model.prepare_call["indication"] == [["shortness of breath"]]
     assert model.prepare_call["images"].shape == (1, 2, 3, 4, 4)
-    assert not torch.equal(model.prepare_call["images"][0, 0], model.prepare_call["images"][0, 1])
+    assert not torch.equal(
+        model.prepare_call["images"][0, 0], model.prepare_call["images"][0, 1]
+    )
     assert model.generate_call["do_sample"] is False
-    assert result.display_sections == {"findings": "finding", "impression": "impression"}
+    assert result.display_sections == {
+        "findings": "finding",
+        "impression": "impression",
+    }

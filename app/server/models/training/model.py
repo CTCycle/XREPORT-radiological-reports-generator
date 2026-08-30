@@ -19,9 +19,9 @@ from server.models.training.metrics import (
 )
 from server.models.training.scheduler import WarmUpLRScheduler
 
+
 ###############################################################################
 class XREPORTModel:
-
     # -------------------------------------------------------------------------
     def __init__(self, metadata: dict[str, Any], configuration: dict[str, Any]) -> None:
         self.seed = configuration.get("training_seed", 42)
@@ -113,6 +113,7 @@ class XREPORTModel:
             )
 
         return model
+
 
 ###############################################################################
 def build_xreport_model(

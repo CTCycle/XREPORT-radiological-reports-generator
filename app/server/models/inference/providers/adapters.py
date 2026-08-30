@@ -27,12 +27,14 @@ from transformers.utils.hub import HF_MODULES_CACHE
 from server.common.path import is_within_allowed_roots
 from server.domain.inference import GenerationProfile, InferenceImage
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class StudyImage:
     stored: InferenceImage
     image: Image.Image
     original_dimensions: tuple[int, int]
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -44,6 +46,7 @@ class StudyGeneration:
 
 MoveInputs = Callable[[Any, Any], Any]
 StoppingCriteriaValue = Any
+
 
 ###############################################################################
 class _LegacyDecoderPrepareInputs:
@@ -65,21 +68,26 @@ class _LegacyDecoderPrepareInputs:
         if past_key_values is not None and kwargs.get("cache_position") is None:
             try:
                 cached_length = int(past_key_values.get_seq_length())
-            except (AttributeError, TypeError, ValueError):
+            except AttributeError, TypeError, ValueError:
                 cached_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
             kwargs["cache_position"] = torch.tensor(
                 [cached_length],
                 device=getattr(input_ids, "device", None),
                 dtype=torch.long,
             )
-        return self.original(input_ids, *args, past_key_values=past_key_values, **kwargs)
+        return self.original(
+            input_ids, *args, past_key_values=past_key_values, **kwargs
+        )
+
 
 ###############################################################################
 class _LegacyCacheView:
     """Shape-only legacy view used by the archived CXRMate-ED decoder."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, past_key_values: Any, input_ids: Any, inferred_length: int) -> None:
+    def __init__(
+        self, past_key_values: Any, input_ids: Any, inferred_length: int
+    ) -> None:
         self.past_key_values = past_key_values
         self.input_ids = input_ids
         self.inferred_length = inferred_length
@@ -106,6 +114,7 @@ class _LegacyCacheView:
     def __getattr__(self, name: str) -> Any:
         return getattr(self.past_key_values, name)
 
+
 ###############################################################################
 class _CXRMateEDPrepareInputs:
     """Callable compatibility wrapper for CXRMate-ED's archived cache API."""
@@ -124,14 +133,20 @@ class _CXRMateEDPrepareInputs:
         **kwargs: Any,
     ) -> Any:
         if past_key_values is None:
-            return self.original(input_ids, *args, past_key_values=past_key_values, **kwargs)
+            return self.original(
+                input_ids, *args, past_key_values=past_key_values, **kwargs
+            )
         try:
             first_layer = past_key_values[0]
-            first_key = first_layer[0] if isinstance(first_layer, (tuple, list)) else None
-        except (IndexError, KeyError, TypeError):
+            first_key = (
+                first_layer[0] if isinstance(first_layer, (tuple, list)) else None
+            )
+        except IndexError, KeyError, TypeError:
             first_key = None
         if first_key is not None:
-            return self.original(input_ids, *args, past_key_values=past_key_values, **kwargs)
+            return self.original(
+                input_ids, *args, past_key_values=past_key_values, **kwargs
+            )
 
         inferred_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
         legacy_cache = _LegacyCacheView(past_key_values, input_ids, inferred_length)
@@ -139,6 +154,7 @@ class _CXRMateEDPrepareInputs:
         if isinstance(result, dict):
             result["past_key_values"] = past_key_values
         return result
+
 
 ###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
@@ -152,11 +168,16 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     """
     decoder = getattr(model, "decoder", None)
     original = getattr(decoder, "prepare_inputs_for_generation", None)
-    if decoder is None or not callable(original) or getattr(decoder, "_xreport_cache_compat", False):
+    if (
+        decoder is None
+        or not callable(original)
+        or getattr(decoder, "_xreport_cache_compat", False)
+    ):
         return
 
     decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
     decoder._xreport_cache_compat = True
+
 
 ###############################################################################
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
@@ -176,6 +197,7 @@ def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
 
     model.prepare_inputs_for_generation = _CXRMateEDPrepareInputs(original)
     model._xreport_ed_cache_compat = True
+
 
 ###############################################################################
 class StandardImageTextAdapter:
@@ -209,7 +231,9 @@ class StandardImageTextAdapter:
         load_options: dict[str, Any],
     ) -> Any:
         if processor_loader != "auto":
-            raise ValueError(f"Unsupported Transformers processor loader: {processor_loader}")
+            raise ValueError(
+                f"Unsupported Transformers processor loader: {processor_loader}"
+            )
         return AutoProcessor.from_pretrained(snapshot_path, **load_options)
 
     # -------------------------------------------------------------------------
@@ -237,13 +261,15 @@ class StandardImageTextAdapter:
         image: Image.Image,
         prompt: str,
     ) -> tuple[Any, int]:
-        messages = [{
-            "role": "user",
-            "content": [
-                {"type": "image", "image": image},
-                {"type": "text", "text": prompt},
-            ],
-        }]
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
         if hasattr(processor, "apply_chat_template"):
             inputs = processor.apply_chat_template(
                 messages,
@@ -264,9 +290,7 @@ class StandardImageTextAdapter:
         if hasattr(processor, "decode"):
             return str(processor.decode(generated, skip_special_tokens=True))
         if hasattr(processor, "batch_decode"):
-            return str(processor.batch_decode(
-                [generated], skip_special_tokens=True
-            )[0])
+            return str(processor.batch_decode([generated], skip_special_tokens=True)[0])
         raise RuntimeError("Transformers processor cannot decode generated output")
 
     # -------------------------------------------------------------------------
@@ -288,7 +312,9 @@ class StandardImageTextAdapter:
     @staticmethod
     def generation_kwargs(profile: GenerationProfile) -> dict[str, Any]:
         return {
-            "max_new_tokens": {"deterministic": 768, "concise": 384, "detailed": 1536}[profile],
+            "max_new_tokens": {"deterministic": 768, "concise": 384, "detailed": 1536}[
+                profile
+            ],
             "do_sample": False,
         }
 
@@ -300,7 +326,10 @@ class StandardImageTextAdapter:
 
         sections: dict[str, str] = {}
         normalized = report.strip()
-        if len(output_sections) == 1 and output_sections[0] in {"findings", "impression"}:
+        if len(output_sections) == 1 and output_sections[0] in {
+            "findings",
+            "impression",
+        }:
             sections[output_sections[0]] = normalized
             return sections
 
@@ -328,6 +357,7 @@ class StandardImageTextAdapter:
             return None
         return [int(dimension) for dimension in shape]
 
+
 ###############################################################################
 class ChatVisionStudyAdapter(StandardImageTextAdapter):
     """Study adapter for image-text-to-text models using chat templates."""
@@ -348,15 +378,19 @@ class ChatVisionStudyAdapter(StandardImageTextAdapter):
         output_sections: list[str],
     ) -> StudyGeneration:
         prompt = self.prompt(profile, clinical_context)
-        messages = [{
-            "role": "user",
-            "content": [
-                *({"type": "image", "image": item.image} for item in images),
-                {"type": "text", "text": prompt},
-            ],
-        }]
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    *({"type": "image", "image": item.image} for item in images),
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
         if not hasattr(processor, "apply_chat_template"):
-            raise RuntimeError("The selected vision-language processor has no chat template")
+            raise RuntimeError(
+                "The selected vision-language processor has no chat template"
+            )
         inputs = processor.apply_chat_template(
             messages,
             add_generation_prompt=True,
@@ -388,10 +422,13 @@ class ChatVisionStudyAdapter(StandardImageTextAdapter):
                 "width": item.original_dimensions[0],
                 "height": item.original_dimensions[1],
             },
-            "processed_tensor_dimensions": StandardImageTextAdapter.processed_dimensions(inputs),
+            "processed_tensor_dimensions": StandardImageTextAdapter.processed_dimensions(
+                inputs
+            ),
             "processor_loader": "auto",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class CheXOneAdapter(ChatVisionStudyAdapter):
@@ -427,14 +464,18 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             "Return only the final Findings and Impression sections; do not include reasoning traces. "
             f"{self.prompt(profile, clinical_context)}"
         )
-        messages = [{
-            "role": "user",
-            "content": [
-                *({"type": "image", "image": item.image} for item in images),
-                {"type": "text", "text": prompt},
-            ],
-        }]
-        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    *({"type": "image", "image": item.image} for item in images),
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
         vision_info = process_vision_info(messages)
         image_inputs, video_inputs = vision_info[0], vision_info[1]
         inputs = processor(
@@ -448,7 +489,9 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
         inputs = move_inputs(inputs, model)
         output = model.generate(
             **inputs,
-            max_new_tokens={"deterministic": 768, "concise": 384, "detailed": 1024}[profile],
+            max_new_tokens={"deterministic": 768, "concise": 384, "detailed": 1024}[
+                profile
+            ],
             do_sample=False,
             stopping_criteria=stopping_criteria,
         )
@@ -463,6 +506,7 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             display_sections=self.display_sections(report, output_sections),
             metadata=[self._metadata(item, processor, inputs) for item in images],
         )
+
 
 ###############################################################################
 class CXRMateMultiAdapter(StandardImageTextAdapter):
@@ -480,7 +524,9 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
     ) -> Any:
         return {
             "tokenizer": AutoTokenizer.from_pretrained(snapshot_path, **load_options),
-            "image_processor": AutoFeatureExtractor.from_pretrained(snapshot_path, **load_options),
+            "image_processor": AutoFeatureExtractor.from_pretrained(
+                snapshot_path, **load_options
+            ),
         }
 
     # -------------------------------------------------------------------------
@@ -510,12 +556,16 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         image_processor = processor["image_processor"]
         tokenizer = processor["tokenizer"]
         shortest_edge = int(image_processor.size["shortest_edge"])
-        image_transform = transforms.Compose([
-            transforms.Resize(shortest_edge),
-            transforms.CenterCrop((shortest_edge, shortest_edge)),
-            transforms.ToTensor(),
-            transforms.Normalize(image_processor.image_mean, image_processor.image_std),
-        ])
+        image_transform = transforms.Compose(
+            [
+                transforms.Resize(shortest_edge),
+                transforms.CenterCrop((shortest_edge, shortest_edge)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    image_processor.image_mean, image_processor.image_std
+                ),
+            ]
+        )
         tensors: list[torch.Tensor] = [
             cast(torch.Tensor, image_transform(item.image)) for item in images
         ]
@@ -541,7 +591,10 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
         return StudyGeneration(
             report=report,
-            display_sections={"findings": findings[0].strip(), "impression": impression[0].strip()},
+            display_sections={
+                "findings": findings[0].strip(),
+                "impression": impression[0].strip(),
+            },
             metadata=[self._metadata(item, moved["pixel_values"]) for item in images],
         )
 
@@ -558,6 +611,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             "processor_loader": "auto_feature_extractor",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class CXRMateEDAdapter(StandardImageTextAdapter):
@@ -600,10 +654,14 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         snapshot = Path(snapshot_path).resolve()
         processor_snapshot = snapshot / "processor"
         if not (processor_snapshot / "configuration_uniformer.py").is_file():
-            raise RuntimeError("CXRMate-ED verified UniFormer processor code is missing")
+            raise RuntimeError(
+                "CXRMate-ED verified UniFormer processor code is missing"
+            )
         cache_dir = Path(HF_MODULES_CACHE).resolve()
         if not is_within_allowed_roots(cache_dir):
-            raise RuntimeError("CXRMate-ED remote-code cache is outside application storage")
+            raise RuntimeError(
+                "CXRMate-ED remote-code cache is outside application storage"
+            )
         dynamic_options = {
             "cache_dir": str(cache_dir),
             "local_files_only": True,
@@ -682,13 +740,15 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         batch = torch.stack(image_tensors, dim=0).unsqueeze(0)
         batch = move_inputs({"images": batch}, model)["images"]
         context = clinical_context.strip() or None
-        inputs_embeds, attention_mask, token_type_ids, position_ids, bos_token_ids = model.prepare_inputs(
-            tokenizer=processor,
-            images=batch,
-            image_time_deltas=[[model.zero_time_delta_value] * len(images)],
-            study_id=[0],
-            indication=[[context]],
-            history=[[None]],
+        inputs_embeds, attention_mask, token_type_ids, position_ids, bos_token_ids = (
+            model.prepare_inputs(
+                tokenizer=processor,
+                images=batch,
+                image_time_deltas=[[model.zero_time_delta_value] * len(images)],
+                study_id=[0],
+                indication=[[context]],
+                history=[[None]],
+            )
         )
         moved = move_inputs(
             {
@@ -721,7 +781,10 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
         return StudyGeneration(
             report=report,
-            display_sections={"findings": findings[0].strip(), "impression": impression[0].strip()},
+            display_sections={
+                "findings": findings[0].strip(),
+                "impression": impression[0].strip(),
+            },
             metadata=[self._metadata(item, batch) for item in images],
         )
 
@@ -738,6 +801,7 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             "processor_loader": "auto_tokenizer",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class CXRMate2Adapter(StandardImageTextAdapter):
@@ -774,7 +838,10 @@ class CXRMate2Adapter(StandardImageTextAdapter):
         report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
         return StudyGeneration(
             report=report,
-            display_sections={"findings": findings[0].strip(), "impression": impression[0].strip()},
+            display_sections={
+                "findings": findings[0].strip(),
+                "impression": impression[0].strip(),
+            },
             metadata=[self._metadata(item, processed) for item in images],
         )
 
@@ -792,6 +859,7 @@ class CXRMate2Adapter(StandardImageTextAdapter):
             "processor_loader": "auto",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class MedGemmaAdapter(ChatVisionStudyAdapter):

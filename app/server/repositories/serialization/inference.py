@@ -11,6 +11,7 @@ from server.repositories.schemas import InferenceReport, InferenceRun
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.serialization.support import RepositorySupport
 
+
 ###############################################################################
 class InferenceRepository(RepositorySupport):
     """Persistence boundary for inference and checkpoint history."""
@@ -44,7 +45,9 @@ class InferenceRepository(RepositorySupport):
     ) -> None:
         if not reports:
             return
-        normalized_request_id = str(request_id or "").strip() or f"gen_{uuid.uuid4().hex[:12]}"
+        normalized_request_id = (
+            str(request_id or "").strip() or f"gen_{uuid.uuid4().hex[:12]}"
+        )
         checkpoint_id: int | None = None
         if provider == "xreport":
             checkpoint = self.checkpoint_repository.get_checkpoint(
@@ -57,7 +60,9 @@ class InferenceRepository(RepositorySupport):
             checkpoint_id = checkpoint.checkpoint_id
         with self.database.transaction() as session:
             run = session.execute(
-                select(InferenceRun).where(InferenceRun.request_id == normalized_request_id)
+                select(InferenceRun).where(
+                    InferenceRun.request_id == normalized_request_id
+                )
             ).scalar_one_or_none()
             values = {
                 "checkpoint_id": checkpoint_id,
@@ -105,7 +110,9 @@ class InferenceRepository(RepositorySupport):
             raise ValueError("offset must be >= 0")
         stmt = (
             select(InferenceRun)
-            .order_by(InferenceRun.executed_at.desc(), InferenceRun.inference_run_id.desc())
+            .order_by(
+                InferenceRun.executed_at.desc(), InferenceRun.inference_run_id.desc()
+            )
             .limit(limit)
             .offset(offset)
         )
@@ -120,7 +127,9 @@ class InferenceRepository(RepositorySupport):
                 "model_ref": run.model_ref,
                 "model_revision": run.model_revision,
                 "generation_profile": run.generation_profile,
-                "generation_config": self._parse_json(run.generation_config_json, default={}),
+                "generation_config": self._parse_json(
+                    run.generation_config_json, default={}
+                ),
                 "clinical_context": run.clinical_context,
                 "status": run.status,
                 "execution_time_seconds": run.execution_time_seconds,

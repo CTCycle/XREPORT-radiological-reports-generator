@@ -24,9 +24,11 @@ from server.common.utils.logger import logger
 from server.configurations import ServerSettings, get_server_settings
 from server.repositories.database.initializer import prepare_database_for_startup
 
+
 ###############################################################################
 def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
 
 ###############################################################################
 def run_startup_validations(settings: ServerSettings | None = None) -> None:

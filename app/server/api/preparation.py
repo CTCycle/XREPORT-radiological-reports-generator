@@ -22,12 +22,13 @@ from server.domain.training import (
 from server.domain.jobs import (
     JobStartResponse,
 )
+
 if TYPE_CHECKING:
     from server.services.preparation import PreparationService
 
+
 ###############################################################################
 class PreparationEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -81,7 +82,9 @@ class PreparationEndpoint:
     # -------------------------------------------------------------------------
     def browse_directory(
         self,
-        path: str = Query("", description="Directory path to browse. Empty returns drives."),
+        path: str = Query(
+            "", description="Directory path to browse. Empty returns drives."
+        ),
     ) -> BrowseResponse:
         return self.service.browse_directory(path)
 
@@ -185,6 +188,7 @@ class PreparationEndpoint:
             response_model=BrowseResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 
+
 ###############################################################################
 def test_server_app_import_does_not_load_heavy_runtime_modules() -> None:
     root = Path(__file__).parents[3]

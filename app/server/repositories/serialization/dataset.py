@@ -28,13 +28,14 @@ from server.repositories.serialization.support import RepositorySupport
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
+
 ###############################################################################
 class DatasetIntegrityError(ValueError):
     """Raised when a dataset contains missing or unusable image paths."""
 
+
 ###############################################################################
 class DatasetRepository(RepositorySupport):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -113,7 +114,9 @@ class DatasetRepository(RepositorySupport):
             )
 
         if clean_dataset.empty:
-            raise DatasetIntegrityError("Dataset contains no records with valid image paths.")
+            raise DatasetIntegrityError(
+                "Dataset contains no records with valid image paths."
+            )
 
         logger.info("Validated image paths: %s valid records", len(clean_dataset))
 
@@ -297,9 +300,7 @@ class DatasetRepository(RepositorySupport):
                 DatasetRecord.image_path.label("path"),
             )
             .join(DatasetRecord, DatasetRecord.record_id == TrainingSample.record_id)
-            .where(
-                TrainingSample.processing_run_id == latest_run["processing_run_id"]
-            )
+            .where(TrainingSample.processing_run_id == latest_run["processing_run_id"])
             .order_by(TrainingSample.training_sample_id)
         )
         session = self._session()
@@ -315,12 +316,8 @@ class DatasetRepository(RepositorySupport):
         training_data["tokens"] = training_data["tokens"].apply(
             lambda value: DatasetRepository._parse_json(value, default=[])
         )
-        train_data = training_data.loc[
-            training_data["split"] == "train", :
-        ].copy()
-        val_data = training_data.loc[
-            training_data["split"] == "validation", :
-        ].copy()
+        train_data = training_data.loc[training_data["split"] == "train", :].copy()
+        val_data = training_data.loc[training_data["split"] == "validation", :].copy()
         return train_data, val_data, metadata
 
     # -------------------------------------------------------------------------
@@ -352,8 +349,8 @@ class DatasetRepository(RepositorySupport):
         training_payload = training_data.copy()
         record_ids = pd.Series(
             pd.to_numeric(
-            training_payload["record_id"],
-            errors="coerce",
+                training_payload["record_id"],
+                errors="coerce",
             ),
             index=training_payload.index,
         )
@@ -373,7 +370,13 @@ class DatasetRepository(RepositorySupport):
             raise ValueError(
                 f"Training payload has {invalid_split_count} rows with invalid split values"
             )
-        return training_payload, record_ids, normalized_split, dataset_name, source_dataset
+        return (
+            training_payload,
+            record_ids,
+            normalized_split,
+            dataset_name,
+            source_dataset,
+        )
 
     # -------------------------------------------------------------------------
     def _get_or_create_datasets(
@@ -461,9 +464,9 @@ class DatasetRepository(RepositorySupport):
         training_payload: pd.DataFrame,
         normalized_split: pd.Series,
     ) -> None:
-        training_records = training_payload.assign(
-            split=normalized_split
-        ).to_dict("records")
+        training_records = training_payload.assign(split=normalized_split).to_dict(
+            "records"
+        )
         session.add_all(
             TrainingSample(
                 processing_run_id=processing_run_id,
@@ -538,7 +541,9 @@ class DatasetRepository(RepositorySupport):
 
         backend = self.database
         with backend.transaction() as session:
-            for dataset_name, group in dataset_payload.groupby("dataset_name", sort=False):
+            for dataset_name, group in dataset_payload.groupby(
+                "dataset_name", sort=False
+            ):
                 normalized_name = str(dataset_name).strip()
                 dataset_row = session.execute(
                     select(Dataset).where(
@@ -583,11 +588,14 @@ class DatasetRepository(RepositorySupport):
                 ).scalar_one_or_none()
                 if existing_version is not None:
                     continue
-                latest_number = session.execute(
-                    select(func.max(DatasetVersion.version_number)).where(
-                        DatasetVersion.dataset_id == dataset_row.dataset_id
-                    )
-                ).scalar() or 0
+                latest_number = (
+                    session.execute(
+                        select(func.max(DatasetVersion.version_number)).where(
+                            DatasetVersion.dataset_id == dataset_row.dataset_id
+                        )
+                    ).scalar()
+                    or 0
+                )
                 version = DatasetVersion(
                     dataset_id=dataset_row.dataset_id,
                     version_number=int(latest_number) + 1,
@@ -605,4 +613,3 @@ class DatasetRepository(RepositorySupport):
                     )
                     for record in canonical_records
                 )
-

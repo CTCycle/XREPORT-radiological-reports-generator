@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+
 ###############################################################################
 def extract_positive_int(value: Any) -> int | None:
     candidate: int | None = None
@@ -24,16 +25,18 @@ def extract_positive_int(value: Any) -> int | None:
     else:
         try:
             candidate = int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             candidate = None
     if candidate is None or candidate <= 0:
         return None
     return candidate
 
+
 ###############################################################################
 def coerce_positive_int(value: Any, default: int = 1) -> int:
     candidate = extract_positive_int(value)
     return candidate if candidate is not None else default
+
 
 ###############################################################################
 def coerce_bool(value: Any, default: bool) -> bool:
@@ -50,6 +53,7 @@ def coerce_bool(value: Any, default: bool) -> bool:
         return bool(value)
     return default
 
+
 ###############################################################################
 def coerce_int(
     value: Any, default: int, minimum: int | None = None, maximum: int | None = None
@@ -60,13 +64,14 @@ def coerce_int(
     else:
         try:
             candidate = int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             candidate = default
     if minimum is not None and candidate < minimum:
         candidate = minimum
     if maximum is not None and candidate > maximum:
         candidate = maximum
     return candidate
+
 
 ###############################################################################
 def coerce_float(
@@ -77,13 +82,14 @@ def coerce_float(
 ) -> float:
     try:
         candidate = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         candidate = default
     if minimum is not None and candidate < minimum:
         candidate = minimum
     if maximum is not None and candidate > maximum:
         candidate = maximum
     return candidate
+
 
 ###############################################################################
 def coerce_str(value: Any, default: str) -> str:
@@ -94,12 +100,14 @@ def coerce_str(value: Any, default: str) -> str:
         return default
     return str(value).strip() or default
 
+
 ###############################################################################
 def coerce_str_or_none(value: Any) -> str | None:
     if isinstance(value, str):
         stripped = value.strip()
         return stripped or None
     return None
+
 
 ###############################################################################
 def coerce_str_sequence(value: Any, default: Iterable[str]) -> tuple[str, ...]:
@@ -124,6 +132,7 @@ def coerce_str_sequence(value: Any, default: Iterable[str]) -> tuple[str, ...]:
             seen.add(lowered)
             items.append(lowered)
     return tuple(items)
+
 
 ###############################################################################
 def coerce_string_tuple(value: Any) -> tuple[str, ...]:

@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 MAX_INFERENCE_IMAGES = 16
 MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
+
 ###############################################################################
 def map_inference_failure(exc: Exception) -> JobExecutionError:
     if isinstance(exc, JobExecutionError):
@@ -65,7 +66,11 @@ def map_inference_failure(exc: Exception) -> JobExecutionError:
         code, phase = "access_required", "download"
     elif "download" in lowered or "hub" in lowered:
         code, phase = "download_failed", "download"
-    elif "integrity" in lowered or "hash mismatch" in lowered or "size mismatch" in lowered:
+    elif (
+        "integrity" in lowered
+        or "hash mismatch" in lowered
+        or "size mismatch" in lowered
+    ):
         code, phase = "integrity_failed", "verify"
     elif "required runtime modules" in lowered or "requires the qwen" in lowered:
         code, phase = "runtime_dependency_missing", "loading"
@@ -82,13 +87,14 @@ def map_inference_failure(exc: Exception) -> JobExecutionError:
         recoverable=recoverable,
     )
 
+
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
 
+
 ###############################################################################
 class InferenceImageStore:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, list[InferenceImage]] = {}
@@ -123,10 +129,12 @@ class InferenceImageStore:
                 return
             self.storage.pop(request_id, None)
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -135,10 +143,12 @@ def get_huggingface_provider() -> HuggingFaceProvider:
 
     return HuggingFaceProvider(get_server_settings().inference)
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_model_installation_manager() -> ModelInstallationManager:
     return ModelInstallationManager()
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -150,6 +160,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
         installation_manager=get_model_installation_manager(),
         checkpoint_repository=CheckpointRepository(),
     )
+
 
 ###############################################################################
 def report_installation_lifecycle(
@@ -172,12 +183,18 @@ def report_installation_lifecycle(
     start, end = weights.get(phase, (0.0, 100.0))
     downloaded = payload.get("downloaded_bytes")
     total = payload.get("total_bytes")
-    if phase == "downloading" and isinstance(downloaded, (int, float)) and isinstance(total, (int, float)) and total:
+    if (
+        phase == "downloading"
+        and isinstance(downloaded, (int, float))
+        and isinstance(total, (int, float))
+        and total
+    ):
         progress = start + (end - start) * min(1.0, max(0.0, downloaded / total))
     else:
         progress = start
     job_manager.update_progress(job_id, progress)
     job_manager.update_result(job_id, {"lifecycle": payload})
+
 
 ###############################################################################
 def report_inference_progress(
@@ -228,6 +245,7 @@ def report_inference_progress(
     if provenance is not None:
         job_manager.update_result(job_id, {"provenance": provenance})
 
+
 ###############################################################################
 def run_inference_job(
     model_ref: str,
@@ -256,7 +274,9 @@ def run_inference_job(
     started_at = time.perf_counter()
     persisted_provenance: dict[str, Any] = {}
     try:
-        report_progress = partial(report_inference_progress, job_id, job_manager=job_manager)
+        report_progress = partial(
+            report_inference_progress, job_id, job_manager=job_manager
+        )
         execution = runtime.generate(
             model_ref=model_ref,
             model_revision=model_revision,
@@ -299,7 +319,9 @@ def run_inference_job(
         job_result = job_snapshot.get("result") or {}
         persisted_provenance = dict(job_result.get("provenance", provenance))
         if "input_images" not in persisted_provenance:
-            persisted_provenance["input_images"] = job_result.get("inference_metadata", [])
+            persisted_provenance["input_images"] = job_result.get(
+                "inference_metadata", []
+            )
         repository.save_generated_reports(
             [
                 {
@@ -315,7 +337,9 @@ def run_inference_job(
             generation_config={
                 "profile": generation_profile,
                 "inference_metadata": job_result.get("inference_metadata", []),
-                "display_sections": job_result.get("display_sections", display_sections),
+                "display_sections": job_result.get(
+                    "display_sections", display_sections
+                ),
                 "provenance": persisted_provenance,
             },
             clinical_context=clinical_context,
@@ -340,6 +364,7 @@ def run_inference_job(
         "display_sections": display_sections,
         "provenance": persisted_provenance or provenance,
     }
+
 
 ###############################################################################
 def run_model_maintenance_job(
@@ -400,6 +425,7 @@ def run_model_maintenance_job(
         )
         raise
 
+
 ###############################################################################
 class InferenceService:
     """Endpoint for inference and report generation operations."""
@@ -424,7 +450,9 @@ class InferenceService:
         self.model_catalog = model_catalog
         self.installation_manager = installation_manager
         self._runtime = runtime
-        self.repository = repository if repository is not None else InferenceRepository()
+        self.repository = (
+            repository if repository is not None else InferenceRepository()
+        )
         self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
 
     # -------------------------------------------------------------------------
@@ -475,9 +503,13 @@ class InferenceService:
             )
 
         try:
-            from server.models.inference.providers.xreport import XReportCheckpointProvider
+            from server.models.inference.providers.xreport import (
+                XReportCheckpointProvider,
+            )
 
-            return XReportCheckpointProvider().validate_checkpoint(checkpoint_record.path)
+            return XReportCheckpointProvider().validate_checkpoint(
+                checkpoint_record.path
+            )
         except FileNotFoundError as exc:
             raise NotFoundError(detail=str(exc)) from exc
         except ValueError as exc:
@@ -527,9 +559,18 @@ class InferenceService:
 
     # -------------------------------------------------------------------------
     def get_model_update(self, model_ref: str) -> ModelUpdateCheckResponse:
-        selected = next((model for model in self.get_models().models if model.model_ref == model_ref), None)
+        selected = next(
+            (
+                model
+                for model in self.get_models().models
+                if model.model_ref == model_ref
+            ),
+            None,
+        )
         if selected is None or selected.provider != "huggingface":
-            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+            raise NotFoundError(
+                detail=f"Model is not in the local inference catalog: {model_ref}"
+            )
         result = self.installation_manager.check_update(
             model_ref.removeprefix("huggingface:"),
         )
@@ -544,24 +585,42 @@ class InferenceService:
         revision: str | None,
     ) -> JobStartResponse:
         catalog = self.get_models()
-        selected = next((model for model in catalog.models if model.model_ref == model_ref), None)
+        selected = next(
+            (model for model in catalog.models if model.model_ref == model_ref), None
+        )
         if selected is None:
-            raise NotFoundError(detail=f"Model is not in the local inference catalog: {model_ref}")
+            raise NotFoundError(
+                detail=f"Model is not in the local inference catalog: {model_ref}"
+            )
         if selected.provider != "huggingface":
-            raise UnsupportedOperationError(detail="Maintenance is only available for Hugging Face models")
+            raise UnsupportedOperationError(
+                detail="Maintenance is only available for Hugging Face models"
+            )
         manifest = selected.model_dump(mode="json")
         manifest["repository_id"] = model_ref.removeprefix("huggingface:")
         configured_revision = str(manifest["model_revision"])
-        if action not in {"download", "repair", "reinstall", "download_update", "delete_local"}:
-            raise BadRequestError(detail=f"Unsupported model maintenance action: {action}")
+        if action not in {
+            "download",
+            "repair",
+            "reinstall",
+            "download_update",
+            "delete_local",
+        }:
+            raise BadRequestError(
+                detail=f"Unsupported model maintenance action: {action}"
+            )
         target_revision = revision or configured_revision
         if action != "delete_local" and (
             len(target_revision) != 40
             or any(character not in "0123456789abcdef" for character in target_revision)
         ):
-            raise BadRequestError(detail="Maintenance revision must be a 40-character commit SHA")
+            raise BadRequestError(
+                detail="Maintenance revision must be a 40-character commit SHA"
+            )
         if action == "download_update" and revision is None:
-            raise BadRequestError(detail="download_update requires the revision returned by check-update")
+            raise BadRequestError(
+                detail="download_update requires the revision returned by check-update"
+            )
         if action == "delete_local":
             target_revision = configured_revision
         job_id = self.job_manager.start_job(
@@ -578,7 +637,9 @@ class InferenceService:
                 "revision": target_revision,
             },
         )
-        status = self.get_job_status_or_500(job_id, "Failed to initialize model maintenance job")
+        status = self.get_job_status_or_500(
+            job_id, "Failed to initialize model maintenance job"
+        )
         return JobStartResponse(
             job_id=job_id,
             job_type=status["job_type"],
@@ -604,7 +665,12 @@ class InferenceService:
             raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
-        if selected_model.status not in {"ready", "not_installed", "unvalidated", "runtime_unavailable"}:
+        if selected_model.status not in {
+            "ready",
+            "not_installed",
+            "unvalidated",
+            "runtime_unavailable",
+        }:
             raise ConflictError(
                 detail=f"Model is not ready: {model_ref} ({selected_model.status})",
             )
@@ -688,6 +754,7 @@ class InferenceService:
             raise InternalServiceError(
                 detail=str(e),
             ) from e
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

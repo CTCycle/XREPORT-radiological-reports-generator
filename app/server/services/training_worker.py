@@ -29,9 +29,9 @@ from server.repositories.serialization.dataset import (
 from server.repositories.serialization.model import ModelSerializer
 from server.repositories.checkpoints import CheckpointRepository
 
+
 ###############################################################################
 class ProcessLike(Protocol):
-
     # -------------------------------------------------------------------------
     @property
     def pid(self) -> int | None: ...
@@ -49,9 +49,9 @@ class ProcessLike(Protocol):
     # -------------------------------------------------------------------------
     def join(self, timeout: float | None = None) -> None: ...
 
+
 ###############################################################################
 class QueueProgressReporter:
-
     # -------------------------------------------------------------------------
     def __init__(self, target_queue: Any) -> None:
         self.target_queue = target_queue
@@ -77,9 +77,9 @@ class QueueProgressReporter:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to push training update: %s", exc)
 
+
 ###############################################################################
 class WorkerChannels:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -95,9 +95,9 @@ class WorkerChannels:
     def is_interrupted(self) -> bool:
         return bool(self.stop_event.is_set())
 
+
 ###############################################################################
 class ProcessWorker:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -164,7 +164,7 @@ class ProcessWorker:
             message = self.progress_queue.get(timeout=timeout)
         except queue.Empty:
             return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(message, dict):
             return message
@@ -177,7 +177,7 @@ class ProcessWorker:
                 self.progress_queue.get_nowait()
             except queue.Empty:
                 return
-            except (EOFError, OSError):
+            except EOFError, OSError:
                 return
 
     # -------------------------------------------------------------------------
@@ -186,7 +186,7 @@ class ProcessWorker:
             payload = self.result_queue.get_nowait()
         except queue.Empty:
             return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(payload, dict):
             return payload
@@ -235,6 +235,7 @@ class ProcessWorker:
             return None
         return self.process.exitcode
 
+
 ###############################################################################
 def process_target(
     target: Callable[..., None],
@@ -244,6 +245,7 @@ def process_target(
     if os.name != "nt":
         os.setsid()
     target(worker=worker, **kwargs)
+
 
 ###############################################################################
 def prepare_training_data(
@@ -270,6 +272,7 @@ def prepare_training_data(
         validation_data = serializer.validate_img_paths(validation_data)
 
     return train_data, validation_data, metadata
+
 
 ###############################################################################
 def load_resume_training_data(
@@ -301,6 +304,7 @@ def load_resume_training_data(
         validation_data = serializer.validate_img_paths(validation_data)
 
     return train_data, validation_data
+
 
 ###############################################################################
 def run_training_process(
@@ -400,6 +404,7 @@ def run_training_process(
     except Exception as exc:  # noqa: BLE001
         result_queue.put({"error": str(exc)})
 
+
 ###############################################################################
 def run_resume_training_process(
     checkpoint: str,
@@ -415,7 +420,9 @@ def run_resume_training_process(
         if checkpoint_record is None:
             raise ValueError(f"Checkpoint is not registered: {checkpoint}")
         if not checkpoint_record.artifact_complete:
-            raise ValueError(f"Checkpoint artifact is missing or incomplete: {checkpoint}")
+            raise ValueError(
+                f"Checkpoint artifact is missing or incomplete: {checkpoint}"
+            )
         model, train_config, model_metadata, session, checkpoint_path = (
             modser.load_checkpoint(checkpoint_record.path)
         )

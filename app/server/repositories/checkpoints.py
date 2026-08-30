@@ -82,7 +82,9 @@ class CheckpointRepository:
     @staticmethod
     def _assert_complete_artifact(path: Path) -> None:
         if not path.is_dir():
-            raise CheckpointRegistryError(f"Checkpoint artifact directory is missing: {path}")
+            raise CheckpointRegistryError(
+                f"Checkpoint artifact directory is missing: {path}"
+            )
         missing = [
             relative_path
             for relative_path in CHECKPOINT_ARTIFACT_FILES
@@ -96,9 +98,11 @@ class CheckpointRepository:
     # -------------------------------------------------------------------------
     def list_checkpoints(self) -> list[CheckpointRecord]:
         with self.database.read_session() as session:
-            rows = session.execute(
-                select(Checkpoint).order_by(Checkpoint.name_key)
-            ).scalars().all()
+            rows = (
+                session.execute(select(Checkpoint).order_by(Checkpoint.name_key))
+                .scalars()
+                .all()
+            )
         return [self._record(row) for row in rows]
 
     # -------------------------------------------------------------------------
