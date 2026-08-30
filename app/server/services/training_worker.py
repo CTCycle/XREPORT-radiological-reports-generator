@@ -277,14 +277,24 @@ def load_resume_training_data(
     model_metadata: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     serializer = DatasetRepository()
-    current_metadata = serializer.load_training_data(only_metadata=True)
+    dataset_name = str(train_config.get("dataset_name") or "").strip()
+    if not dataset_name:
+        raise ValueError(
+            "Checkpoint configuration does not identify its processed dataset."
+        )
+    current_metadata = serializer.load_training_data(
+        only_metadata=True,
+        dataset_name=dataset_name,
+    )
     is_validated = serializer.validate_metadata(current_metadata, model_metadata)
     if not is_validated:
         raise ValueError(
             "Current dataset metadata doesn't match checkpoint. Please reprocess the dataset."
         )
 
-    train_data, validation_data, _ = serializer.load_training_data()
+    train_data, validation_data, _ = serializer.load_training_data(
+        dataset_name=dataset_name
+    )
     if not train_data.empty:
         train_data = serializer.validate_img_paths(train_data)
     if not validation_data.empty:

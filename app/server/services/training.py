@@ -513,12 +513,6 @@ class TrainingService:
         serializer = DatasetRepository()
         modser = ModelSerializer()
 
-        stored_metadata = serializer.load_training_data(only_metadata=True)
-        if not stored_metadata:
-            raise BadRequestError(
-                detail=self.NO_TRAINING_DATA_MESSAGE,
-            )
-
         try:
             checkpoint = validate_checkpoint_name(request.checkpoint)
         except ValueError as exc:
@@ -537,11 +531,27 @@ class TrainingService:
             )
 
         try:
-            _, _, session = modser.load_training_configuration(checkpoint_record.path)
+            train_config, _, session = modser.load_training_configuration(
+                checkpoint_record.path
+            )
         except Exception as exc:
             raise InternalServiceError(
                 detail=f"Failed to load checkpoint metadata: {exc}",
             ) from exc
+
+        dataset_name = str(train_config.get("dataset_name") or "").strip()
+        if not dataset_name:
+            raise BadRequestError(
+                detail="Checkpoint configuration does not identify its processed dataset",
+            )
+        stored_metadata = serializer.load_training_data(
+            only_metadata=True,
+            dataset_name=dataset_name,
+        )
+        if not stored_metadata:
+            raise BadRequestError(
+                detail=self.NO_TRAINING_DATA_MESSAGE,
+            )
 
         from_epoch = session.get("epochs", 0)
 
