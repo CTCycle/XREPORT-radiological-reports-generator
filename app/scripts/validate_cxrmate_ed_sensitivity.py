@@ -27,12 +27,15 @@ from server.services.model_installation import ModelInstallationManager  # noqa:
 
 
 RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
-DEFAULT_IMAGE_DIR = ROOT_DIR / "assets" / "QA" / "full-e2e-20260821-101310" / "inputs" / "images"
+DEFAULT_IMAGE_DIR = (
+    ROOT_DIR / "assets" / "QA" / "full-e2e-20260821-101310" / "inputs" / "images"
+)
 CASES = (
     ("qa_pa.png", "cough", "detailed"),
     ("qa_lateral.png", "dyspnea", "concise"),
     ("qa_normal.png", "screening", "deterministic"),
 )
+
 
 ###############################################################################
 def _arguments() -> argparse.Namespace:
@@ -50,6 +53,7 @@ def _arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 ###############################################################################
 def _write_log(payload: dict[str, Any]) -> Path:
     RUN_LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -58,13 +62,16 @@ def _write_log(payload: dict[str, Any]) -> Path:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
 
+
 ###############################################################################
 def main() -> int:
     args = _arguments()
     settings = get_server_settings().inference
     catalog = InferenceModelCatalog(settings).list_models()
     model_ref = "huggingface:aehrc/cxrmate-ed"
-    selected = next((model for model in catalog.models if model.model_ref == model_ref), None)
+    selected = next(
+        (model for model in catalog.models if model.model_ref == model_ref), None
+    )
     if selected is None:
         raise SystemExit(f"Model is not configured: {model_ref}")
     if selected.provider != "huggingface" or selected.adapter != "cxrmate_ed":
@@ -144,8 +151,10 @@ def main() -> int:
 
     completed = [case for case in cases if "report" in case]
     input_contract_ok = all(
-        case.get("provenance", {}).get("generation_profile") == case["generation_profile"]
-        and case.get("provenance", {}).get("clinical_context") == case["clinical_context"]
+        case.get("provenance", {}).get("generation_profile")
+        == case["generation_profile"]
+        and case.get("provenance", {}).get("clinical_context")
+        == case["clinical_context"]
         and case.get("input_metadata", [{}])[0].get("filename") == case["filename"]
         for case in completed
     )

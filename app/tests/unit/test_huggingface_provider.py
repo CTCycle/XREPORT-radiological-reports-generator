@@ -15,6 +15,7 @@ from server.models.inference.providers.huggingface import HuggingFaceProvider
 
 REVISION = "a" * 40
 
+
 ###############################################################################
 def _settings() -> InferenceSettings:
     return InferenceSettings(
@@ -24,18 +25,20 @@ def _settings() -> InferenceSettings:
         model_timeout=600,
     )
 
+
 ###############################################################################
 def _png() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (3, 2), "white").save(buffer, format="PNG")
     return buffer.getvalue()
 
+
 ###############################################################################
 class Inputs(dict[str, torch.Tensor]):
-
     # -------------------------------------------------------------------------
     def to(self, *_args: object, **_kwargs: object) -> "Inputs":
         return self
+
 
 ###############################################################################
 def _manifest() -> dict[str, object]:
@@ -49,6 +52,7 @@ def _manifest() -> dict[str, object]:
         "max_current_images": 1,
         "preferred_dtype": "float32",
     }
+
 
 ###############################################################################
 def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
@@ -66,15 +70,21 @@ def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
         lambda _path, **_kwargs: model,
     )
 
-###############################################################################
-def _processor_inputs() -> Inputs:
-    return Inputs({
-        "input_ids": torch.tensor([[1, 2]]),
-        "pixel_values": torch.zeros((1, 3, 8, 9)),
-    })
 
 ###############################################################################
-def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypatch, tmp_path) -> None:
+def _processor_inputs() -> Inputs:
+    return Inputs(
+        {
+            "input_ids": torch.tensor([[1, 2]]),
+            "pixel_values": torch.zeros((1, 3, 8, 9)),
+        }
+    )
+
+
+###############################################################################
+def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setattr(
         huggingface_module,
         "is_within_allowed_roots",
@@ -87,10 +97,12 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
     model.device = torch.device("cpu")
     model.generate.return_value = torch.tensor([[1, 2, 3]])
     processor = MagicMock()
-    processor.apply_chat_template.return_value = Inputs({
-        "input_ids": torch.tensor([[1, 2]]),
-        "pixel_values": torch.zeros((1, 3, 896, 896)),
-    })
+    processor.apply_chat_template.return_value = Inputs(
+        {
+            "input_ids": torch.tensor([[1, 2]]),
+            "pixel_values": torch.zeros((1, 3, 896, 896)),
+        }
+    )
     processor.decode.return_value = "Findings: no acute abnormality."
 
     def load_processor(path: str, **kwargs: object) -> MagicMock:
@@ -116,7 +128,14 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         manifest={**_manifest(), "local_snapshot_path": str(snapshot_path.resolve())},
         profile="deterministic",
         clinical_context="Cough",
-        images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
+        images=[
+            InferenceImage(
+                filename="scan.png",
+                content_type="image/png",
+                data=_png(),
+                size_bytes=69,
+            )
+        ],
         should_stop=lambda: False,
         report_progress=lambda *values: progress.append(values),
     )
@@ -131,7 +150,9 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         assert options["trust_remote_code"] is False
     assert model.generate.call_args.kwargs["do_sample"] is False
     assert result.reports == {"scan.png": "Findings: no acute abnormality."}
-    assert result.display_sections == {"scan.png": {"raw_report": "Findings: no acute abnormality."}}
+    assert result.display_sections == {
+        "scan.png": {"raw_report": "Findings: no acute abnormality."}
+    }
     assert {
         key: progress[0][3][0][key]
         for key in (
@@ -151,11 +172,14 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(monkeypa
         "adapter": "medgemma",
     }
 
+
 ###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:
     manifest = _manifest()
     manifest["revision"] = "main"
-    image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
+    image = InferenceImage(
+        filename="scan.png", content_type="image/png", data=_png(), size_bytes=69
+    )
 
     try:
         HuggingFaceProvider(_settings()).generate(
@@ -172,9 +196,12 @@ def test_provider_rejects_unpinned_revision() -> None:
     else:
         raise AssertionError("Unpinned revision was accepted")
 
+
 ###############################################################################
 def test_provider_rejects_multiple_images() -> None:
-    image = InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)
+    image = InferenceImage(
+        filename="scan.png", content_type="image/png", data=_png(), size_bytes=69
+    )
 
     try:
         HuggingFaceProvider(_settings()).generate(
@@ -190,6 +217,7 @@ def test_provider_rejects_multiple_images() -> None:
         assert "at most 1" in str(exc)
     else:
         raise AssertionError("Multiple images were accepted")
+
 
 ###############################################################################
 def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> None:
@@ -214,7 +242,14 @@ def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> N
         manifest=_manifest(),
         profile="deterministic",
         clinical_context="",
-        images=[InferenceImage(filename="scan.png", content_type="image/png", data=_png(), size_bytes=69)],
+        images=[
+            InferenceImage(
+                filename="scan.png",
+                content_type="image/png",
+                data=_png(),
+                size_bytes=69,
+            )
+        ],
         should_stop=lambda: stop_requested,
         report_progress=lambda *values: progress.append(values),
     )
@@ -223,6 +258,7 @@ def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> N
     assert result.display_sections == {}
     assert result.metadata == []
     assert progress == []
+
 
 ###############################################################################
 def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> None:
@@ -246,7 +282,14 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
         manifest=_manifest(),
         profile="deterministic",
         clinical_context="",
-        images=[InferenceImage(filename="scan.jpg", content_type="image/jpeg", data=buffer.getvalue(), size_bytes=69)],
+        images=[
+            InferenceImage(
+                filename="scan.jpg",
+                content_type="image/jpeg",
+                data=buffer.getvalue(),
+                size_bytes=69,
+            )
+        ],
         should_stop=lambda: False,
         report_progress=lambda *values: progress.append(values),
     )
@@ -259,8 +302,11 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
     assert result.metadata[0]["processed_tensor_dimensions"] == [1, 3, 8, 9]
     assert progress
 
+
 ###############################################################################
-def test_switching_models_and_unload_clear_resident_provider_state(monkeypatch, tmp_path) -> None:
+def test_switching_models_and_unload_clear_resident_provider_state(
+    monkeypatch, tmp_path
+) -> None:
     monkeypatch.setattr(
         huggingface_module,
         "is_within_allowed_roots",

@@ -45,17 +45,22 @@ def _startup_log(phase: str) -> None:
         flush=True,
     )
 
+
 ###############################################################################
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
-    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+    )
     os.replace(temporary, path)
+
 
 ###############################################################################
 def _remove_file(path: Path | None) -> None:
     if path is not None:
-            path.unlink(missing_ok=True)
+        path.unlink(missing_ok=True)
+
 
 ###############################################################################
 def _write_ready(
@@ -85,6 +90,7 @@ def _write_ready(
         },
     )
 
+
 ###############################################################################
 def _sanitize_inherited_environment() -> None:
     """Drop arbitrary parent variables before loading the packaged .env.
@@ -111,6 +117,7 @@ def _sanitize_inherited_environment() -> None:
         if key not in keep:
             os.environ.pop(key, None)
 
+
 ###############################################################################
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="XREPORT packaged backend")
@@ -122,6 +129,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--version", required=True)
     return parser.parse_args()
 
+
 ###############################################################################
 def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
     _sanitize_inherited_environment()
@@ -129,19 +137,28 @@ def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
     os.environ["XREPORT_RUNTIME_VARIANT"] = arguments.variant
     os.environ["XREPORT_RELEASE_VERSION"] = arguments.version
     if len(os.environ.get("XREPORT_DESKTOP_TOKEN", "")) < 32:
-        raise RuntimeError("XREPORT_DESKTOP_TOKEN must be supplied by the desktop shell")
+        raise RuntimeError(
+            "XREPORT_DESKTOP_TOKEN must be supplied by the desktop shell"
+        )
     ready_file = arguments.ready_file.resolve()
-    session_file = (arguments.session_file or ready_file.with_name("desktop-session.json")).resolve()
+    session_file = (
+        arguments.session_file or ready_file.with_name("desktop-session.json")
+    ).resolve()
     os.environ["XREPORT_READY_FILE"] = str(ready_file)
     os.environ["XREPORT_SESSION_FILE"] = str(session_file)
     return ready_file, session_file
+
 
 ###############################################################################
 def _validate_runtime(arguments: argparse.Namespace) -> None:
     layout_module = import_module("server.common.runtime_layout")
     layout = layout_module.runtime_layout_from_environment()
-    if layout.variant != arguments.variant or layout.release_version != arguments.version:
+    if (
+        layout.variant != arguments.variant
+        or layout.release_version != arguments.version
+    ):
         raise RuntimeError("Desktop entry arguments do not match the runtime contract")
+
 
 ###############################################################################
 def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]:
@@ -157,6 +174,7 @@ def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]
     listener.listen(128)
     listener.set_inheritable(True)
     return listener, int(listener.getsockname()[1])
+
 
 ###############################################################################
 def _configure_server_environment(port: int) -> None:
@@ -174,6 +192,7 @@ def _configure_server_environment(port: int) -> None:
     nltk_root.mkdir(parents=True, exist_ok=True)
     os.environ["NLTK_DATA"] = str(nltk_root)
     os.environ["MPLCONFIGDIR"] = str(data_root / "caches" / "matplotlib")
+
 
 ###############################################################################
 def _run_server(
@@ -212,6 +231,7 @@ def _run_server(
     )
     _startup_log("server_configured")
     server.run(sockets=[listener])
+
 
 ###############################################################################
 def main() -> int:

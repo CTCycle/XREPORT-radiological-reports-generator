@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy.types import DateTime, JSON, TypeDecorator
 
+
 ###############################################################################
 class JSONSequence(TypeDecorator):
     """
@@ -29,6 +30,7 @@ class JSONSequence(TypeDecorator):
     def process_result_value(self, value: Any, dialect: Any) -> Any:
         return value
 
+
 ###############################################################################
 class UTCDateTime(TypeDecorator):
     """Store and return timezone-aware UTC datetimes on every backend."""
@@ -37,7 +39,9 @@ class UTCDateTime(TypeDecorator):
     cache_ok = True
 
     # -------------------------------------------------------------------------
-    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
+    def process_bind_param(
+        self, value: datetime | None, dialect: Any
+    ) -> datetime | None:
         if value is None:
             return None
         if value.tzinfo is None:
@@ -45,7 +49,9 @@ class UTCDateTime(TypeDecorator):
         return value.astimezone(timezone.utc)
 
     # -------------------------------------------------------------------------
-    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
+    def process_result_value(
+        self, value: datetime | None, dialect: Any
+    ) -> datetime | None:
         if value is None:
             return None
         if value.tzinfo is None:

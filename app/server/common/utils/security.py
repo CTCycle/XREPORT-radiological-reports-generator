@@ -4,13 +4,13 @@ import re
 from pathlib import Path, PureWindowsPath
 
 
-
 MAX_CHECKPOINT_NAME_LENGTH = 128
 CHECKPOINT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 
 MAX_DATASET_NAME_LENGTH = 128
 DATASET_NAME_ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._ -]+")
 DATASET_NAME_EDGE_TRIM = "._ -"
+
 
 ###############################################################################
 def validate_checkpoint_name(name: str) -> str:
@@ -33,6 +33,7 @@ def validate_checkpoint_name(name: str) -> str:
         )
     return normalized
 
+
 ###############################################################################
 def sanitize_dataset_name(name: str) -> str:
     normalized = str(name or "").strip()
@@ -49,4 +50,3 @@ def sanitize_dataset_name(name: str) -> str:
         if not sanitized:
             raise ValueError("Dataset name is invalid after truncation")
     return sanitized
-

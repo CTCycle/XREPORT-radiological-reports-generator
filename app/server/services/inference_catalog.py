@@ -34,6 +34,7 @@ VALIDATION_RECEIPTS_DIR = (
     else ROOT_DIR / "assets" / "QA" / "inference_validation"
 )
 
+
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     contract = {
@@ -67,8 +68,11 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
             else None
         ),
     }
-    encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
     return hashlib.sha256(encoded).hexdigest()
+
 
 ###############################################################################
 class InferenceModelCatalog:
@@ -128,7 +132,9 @@ class InferenceModelCatalog:
             status_message = "HF_LOCAL_ONLY must remain enabled for local inference."
         elif not entry.enabled:
             status = "disabled"
-            status_message = entry.validation_message or "This model is disabled by policy."
+            status_message = (
+                entry.validation_message or "This model is disabled by policy."
+            )
         else:
             try:
                 status_message = self._runtime_constraint_message(entry)
@@ -139,7 +145,11 @@ class InferenceModelCatalog:
                         entry.repository_id,
                         entry.model_dump(mode="json"),
                     )
-                if status != "incompatible" and installation_state == "active" and local_path:
+                if (
+                    status != "incompatible"
+                    and installation_state == "active"
+                    and local_path
+                ):
                     status = "ready"
                     status_message = None
                 elif status != "incompatible" and installation_state == "staged":
@@ -148,9 +158,15 @@ class InferenceModelCatalog:
                 elif status != "incompatible" and installation_state == "downloading":
                     status = "downloading"
                     status_message = "A local model download is in progress."
-                elif status != "incompatible" and installation_state in {"corrupt", "failed"}:
+                elif status != "incompatible" and installation_state in {
+                    "corrupt",
+                    "failed",
+                }:
                     status = "runtime_unavailable"
-                    status_message = str(metadata.get("last_error") or "The local installation needs repair.")
+                    status_message = str(
+                        metadata.get("last_error")
+                        or "The local installation needs repair."
+                    )
                 elif status != "incompatible":
                     status = "not_installed"
                     status_message = (
@@ -162,74 +178,97 @@ class InferenceModelCatalog:
                 status = "incompatible"
                 status_message = str(exc)
 
-        return ModelAvailability.model_validate({
-            "model_ref": entry.model_ref,
-            "provider": entry.provider,
-            "origin": "public",
-            "display_name": entry.display_name,
-            "description": entry.description,
-            "status": status,
-            "status_message": status_message,
-            "enabled": entry.enabled,
-            "validation_status": entry.validation_status,
-            "validation_message": entry.validation_message,
-            "validation_receipt_status": "passed" if has_validation_evidence else "missing",
-            "validation_receipt_message": (
-                None
+        return ModelAvailability.model_validate(
+            {
+                "model_ref": entry.model_ref,
+                "provider": entry.provider,
+                "origin": "public",
+                "display_name": entry.display_name,
+                "description": entry.description,
+                "status": status,
+                "status_message": status_message,
+                "enabled": entry.enabled,
+                "validation_status": entry.validation_status,
+                "validation_message": entry.validation_message,
+                "validation_receipt_status": "passed"
                 if has_validation_evidence
-                else "No valid real-inference validation receipt is recorded for this revision."
-            ),
-            "category": entry.category,
-            "recommended": entry.recommended,
-            "research_only": entry.research_only,
-            "gated": entry.gated,
-            "access_policy": entry.access_policy,
-            "access_url": entry.access_url,
-            "anatomy_coverage": entry.anatomy_coverage,
-            "coverage_note": entry.coverage_note,
-            "hardware_demand": entry.hardware_demand,
-            "parameter_label": entry.parameter_label,
-            "parameter_size": entry.parameter_size,
-            "download_size_bytes": entry.download_size_bytes or entry.local_size_bytes,
-            "local_size_bytes": entry.local_size_bytes,
-            "input_semantics": entry.input_semantics,
-            "capabilities": entry.capabilities,
-            "model_revision": active_revision or entry.revision,
-            "model_loader": entry.model_loader,
-            "processor_loader": entry.processor_loader,
-            "adapter": entry.adapter,
-            "trust_remote_code": entry.trust_remote_code,
-            "remote_code_approved": entry.remote_code_approved,
-            "output_sections": entry.output_sections,
-            "max_current_images": entry.max_current_images,
-            "supports_prior_images": entry.supports_prior_images,
-            "supports_clinical_context": entry.supports_clinical_context,
-            "preferred_dtype": entry.preferred_dtype,
-            "quantization": entry.quantization,
-            "prompt_profile": entry.prompt_profile,
-            "license": entry.license,
-            "resource_policy": entry.resource_policy,
-            "runtime_constraints": entry.runtime_constraints,
-            "processor_repository_id": entry.processor_repository_id,
-            "processor_revision": entry.processor_revision,
-            "processor_files": entry.processor_files,
-            "processor_target_prefix": entry.processor_target_prefix,
-            "required_files": entry.required_files,
-            "weight_file_sets": entry.weight_file_sets,
-            "installation_state": installation_state if installation_state in {"not_installed", "staged", "active", "corrupt", "failed", "downloading"} else "not_installed",
-            "local_path": ModelInstallationManager._relative(local_path) if local_path else None,
-            "active_revision": active_revision,
-            "candidate_revision": candidate_revision,
-            "integrity_status": str(inspected["integrity"]),
-            "cloud_assessment": metadata.get("cloud_assessment"),
-            "update_available": bool((metadata.get("update_check") or {}).get("update_available")),
-            "available_actions": (
-                ["check_updates", "reinstall", "download_update", "delete_local"]
-                if installation_state == "active"
-                else ["repair", "delete_local"] if installation_state in {"staged", "corrupt", "failed", "downloading"}
-                else ["download"] if status not in {"disabled", "incompatible"} else []
-            ),
-        })
+                else "missing",
+                "validation_receipt_message": (
+                    None
+                    if has_validation_evidence
+                    else "No valid real-inference validation receipt is recorded for this revision."
+                ),
+                "category": entry.category,
+                "recommended": entry.recommended,
+                "research_only": entry.research_only,
+                "gated": entry.gated,
+                "access_policy": entry.access_policy,
+                "access_url": entry.access_url,
+                "anatomy_coverage": entry.anatomy_coverage,
+                "coverage_note": entry.coverage_note,
+                "hardware_demand": entry.hardware_demand,
+                "parameter_label": entry.parameter_label,
+                "parameter_size": entry.parameter_size,
+                "download_size_bytes": entry.download_size_bytes
+                or entry.local_size_bytes,
+                "local_size_bytes": entry.local_size_bytes,
+                "input_semantics": entry.input_semantics,
+                "capabilities": entry.capabilities,
+                "model_revision": active_revision or entry.revision,
+                "model_loader": entry.model_loader,
+                "processor_loader": entry.processor_loader,
+                "adapter": entry.adapter,
+                "trust_remote_code": entry.trust_remote_code,
+                "remote_code_approved": entry.remote_code_approved,
+                "output_sections": entry.output_sections,
+                "max_current_images": entry.max_current_images,
+                "supports_prior_images": entry.supports_prior_images,
+                "supports_clinical_context": entry.supports_clinical_context,
+                "preferred_dtype": entry.preferred_dtype,
+                "quantization": entry.quantization,
+                "prompt_profile": entry.prompt_profile,
+                "license": entry.license,
+                "resource_policy": entry.resource_policy,
+                "runtime_constraints": entry.runtime_constraints,
+                "processor_repository_id": entry.processor_repository_id,
+                "processor_revision": entry.processor_revision,
+                "processor_files": entry.processor_files,
+                "processor_target_prefix": entry.processor_target_prefix,
+                "required_files": entry.required_files,
+                "weight_file_sets": entry.weight_file_sets,
+                "installation_state": installation_state
+                if installation_state
+                in {
+                    "not_installed",
+                    "staged",
+                    "active",
+                    "corrupt",
+                    "failed",
+                    "downloading",
+                }
+                else "not_installed",
+                "local_path": ModelInstallationManager._relative(local_path)
+                if local_path
+                else None,
+                "active_revision": active_revision,
+                "candidate_revision": candidate_revision,
+                "integrity_status": str(inspected["integrity"]),
+                "cloud_assessment": metadata.get("cloud_assessment"),
+                "update_available": bool(
+                    (metadata.get("update_check") or {}).get("update_available")
+                ),
+                "available_actions": (
+                    ["check_updates", "reinstall", "download_update", "delete_local"]
+                    if installation_state == "active"
+                    else ["repair", "delete_local"]
+                    if installation_state
+                    in {"staged", "corrupt", "failed", "downloading"}
+                    else ["download"]
+                    if status not in {"disabled", "incompatible"}
+                    else []
+                ),
+            }
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -254,7 +293,9 @@ class InferenceModelCatalog:
             installed_version = "unavailable"
         current = cls._version_tuple(installed_version)
         constraints = entry.runtime_constraints
-        if constraints.min_transformers and current < cls._version_tuple(constraints.min_transformers):
+        if constraints.min_transformers and current < cls._version_tuple(
+            constraints.min_transformers
+        ):
             return (
                 f"Requires Transformers >= {constraints.min_transformers}; "
                 f"the installed version is {installed_version}."
@@ -301,7 +342,7 @@ class InferenceModelCatalog:
         receipt_path = cls._validation_receipt_path(entry)
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return False
         return (
             isinstance(receipt, dict)
@@ -323,7 +364,10 @@ class InferenceModelCatalog:
             and all(
                 isinstance(sections, dict)
                 and set(sections) == set(entry.output_sections)
-                and all(isinstance(value, str) and bool(value.strip()) for value in sections.values())
+                and all(
+                    isinstance(value, str) and bool(value.strip())
+                    for value in sections.values()
+                )
                 for sections in receipt["display_sections"].values()
             )
             and (
@@ -354,7 +398,9 @@ class InferenceModelCatalog:
         if any(model.status == "ready" for model in hf_models):
             return ProviderAvailability(status="ready")
         selected = min(hf_models, key=lambda model: self._status_priority(model.status))
-        return ProviderAvailability(status=selected.status, message=selected.status_message)
+        return ProviderAvailability(
+            status=selected.status, message=selected.status_message
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -386,20 +432,26 @@ class InferenceModelCatalog:
                     "Local XREPORT checkpoint using the fixed BEiT 224x224x3 "
                     "image encoder"
                 ),
-                status="ready" if checkpoint.artifact_complete else "runtime_unavailable",
+                status="ready"
+                if checkpoint.artifact_complete
+                else "runtime_unavailable",
                 status_message=(
                     None
                     if checkpoint.artifact_complete
                     else "The registered checkpoint artifact is missing or incomplete."
                 ),
                 enabled=True,
-                validation_status="passed" if checkpoint.artifact_complete else "blocked",
+                validation_status="passed"
+                if checkpoint.artifact_complete
+                else "blocked",
                 validation_message=(
                     None
                     if checkpoint.artifact_complete
                     else "Restore the registered checkpoint artifact before using it."
                 ),
-                validation_receipt_status="passed" if checkpoint.artifact_complete else "missing",
+                validation_receipt_status="passed"
+                if checkpoint.artifact_complete
+                else "missing",
                 validation_receipt_message=(
                     None
                     if checkpoint.artifact_complete
@@ -418,8 +470,12 @@ class InferenceModelCatalog:
                 hardware_demand="moderate",
                 parameter_label="Custom checkpoint",
                 local_path=str(checkpoint.path),
-                integrity_status="verified" if checkpoint.artifact_complete else "invalid",
+                integrity_status="verified"
+                if checkpoint.artifact_complete
+                else "invalid",
                 available_actions=["delete_local"],
             )
-            for checkpoint in sorted(checkpoints, key=lambda item: item.name_key, reverse=True)
+            for checkpoint in sorted(
+                checkpoints, key=lambda item: item.name_key, reverse=True
+            )
         ]

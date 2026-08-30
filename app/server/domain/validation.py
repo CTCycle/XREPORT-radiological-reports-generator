@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 ###############################################################################
 class ValidationRequest(BaseModel):
     """Request model for dataset validation."""
@@ -12,12 +13,14 @@ class ValidationRequest(BaseModel):
     seed: int | None = None
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class PixelDistribution(BaseModel):
     """Model for pixel intensity distribution."""
 
     bins: list[int]
     counts: list[int]
+
 
 ###############################################################################
 class ImageStatistics(BaseModel):
@@ -31,6 +34,7 @@ class ImageStatistics(BaseModel):
     mean_noise_std: float
     mean_noise_ratio: float
 
+
 ###############################################################################
 class TextStatistics(BaseModel):
     """Model for text statistics."""
@@ -42,6 +46,7 @@ class TextStatistics(BaseModel):
     min_words_per_report: int
     max_words_per_report: int
 
+
 ###############################################################################
 class ValidationResponse(BaseModel):
     """Response model for dataset validation."""
@@ -51,6 +56,7 @@ class ValidationResponse(BaseModel):
     pixel_distribution: PixelDistribution | None = None
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
+
 
 ###############################################################################
 class ValidationReportResponse(BaseModel):
@@ -65,6 +71,7 @@ class ValidationReportResponse(BaseModel):
     text_statistics: TextStatistics | None = None
     artifacts: dict[str, dict[str, str]] | None = None
 
+
 ###############################################################################
 class CheckpointEvaluationRequest(BaseModel):
     """Request model for checkpoint evaluation."""
@@ -77,6 +84,7 @@ class CheckpointEvaluationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class CheckpointEvaluationResults(BaseModel):
     """Evaluation metric results."""
@@ -85,6 +93,7 @@ class CheckpointEvaluationResults(BaseModel):
     accuracy: float | None = None
     bleu_score: float | None = None
 
+
 ###############################################################################
 class CheckpointEvaluationResponse(BaseModel):
     """Response model for checkpoint evaluation."""
@@ -92,6 +101,7 @@ class CheckpointEvaluationResponse(BaseModel):
     success: bool
     message: str
     results: CheckpointEvaluationResults | None = None
+
 
 ###############################################################################
 class CheckpointEvaluationReportResponse(BaseModel):

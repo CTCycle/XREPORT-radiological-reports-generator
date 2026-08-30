@@ -18,6 +18,7 @@ BOOTSTRAP_PATH = "/__xreport/bootstrap"
 SHUTDOWN_PATH = "/__xreport/shutdown"
 HEALTH_PATH = "/api/health"
 
+
 ###############################################################################
 def desktop_token() -> str:
     token = os.getenv("XREPORT_DESKTOP_TOKEN", "")
@@ -25,9 +26,11 @@ def desktop_token() -> str:
         raise RuntimeError("Packaged XREPORT desktop token is missing or too short")
     return token
 
+
 ###############################################################################
 def token_matches(candidate: str | None) -> bool:
     return bool(candidate) and hmac.compare_digest(candidate, desktop_token())
+
 
 ###############################################################################
 def _security_headers(response: Response) -> Response:
@@ -50,6 +53,7 @@ def _security_headers(response: Response) -> Response:
     response.headers.setdefault("Cache-Control", "no-store")
     return response
 
+
 ###############################################################################
 class DesktopSecurityMiddleware(BaseHTTPMiddleware):
     """Require the per-launch cookie for every packaged UI/API request.
@@ -67,8 +71,12 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         path = request.url.path
         if path == BOOTSTRAP_PATH:
-            if request.method != "GET" or not token_matches(request.query_params.get("token")):
-                return _security_headers(JSONResponse({"detail": "Invalid bootstrap token"}, status_code=403))
+            if request.method != "GET" or not token_matches(
+                request.query_params.get("token")
+            ):
+                return _security_headers(
+                    JSONResponse({"detail": "Invalid bootstrap token"}, status_code=403)
+                )
             response = RedirectResponse(url="/", status_code=303)
             response.set_cookie(
                 SESSION_COOKIE,
@@ -83,12 +91,17 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
         native_probe = token_matches(request.headers.get(PRIVATE_TOKEN_HEADER))
         if path == HEALTH_PATH or path == SHUTDOWN_PATH:
             if not native_probe:
-                return _security_headers(JSONResponse({"detail": "Unauthorized"}, status_code=401))
+                return _security_headers(
+                    JSONResponse({"detail": "Unauthorized"}, status_code=401)
+                )
         elif not token_matches(request.cookies.get(SESSION_COOKIE)):
-            return _security_headers(JSONResponse({"detail": "Desktop session required"}, status_code=401))
+            return _security_headers(
+                JSONResponse({"detail": "Desktop session required"}, status_code=401)
+            )
 
         response = await call_next(request)
         return _security_headers(response)
+
 
 ###############################################################################
 def install_shutdown_event(application: Any) -> asyncio.Event:

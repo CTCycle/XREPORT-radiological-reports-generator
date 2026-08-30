@@ -10,16 +10,19 @@ from dotenv import load_dotenv
 from ..common.path import ENV_EXAMPLE_FILE_PATH, ENV_FILE_PATH
 from ..common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class _EnvironmentState:
     lock: Lock = field(default_factory=Lock)
     loaded: bool = False
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def _environment_state() -> _EnvironmentState:
     return _EnvironmentState()
+
 
 ###############################################################################
 def ensure_environment_file() -> Path:
@@ -44,6 +47,7 @@ def ensure_environment_file() -> Path:
     if created:
         logger.info("Created environment file from template at %s", ENV_FILE_PATH)
     return ENV_FILE_PATH
+
 
 ###############################################################################
 def load_environment(*, force: bool = False) -> Path:

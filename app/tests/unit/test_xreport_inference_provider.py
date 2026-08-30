@@ -11,6 +11,7 @@ from server.domain.inference import InferenceImage
 from server.models.inference.providers import xreport
 from server.models.inference.providers.xreport import XReportCheckpointProvider
 
+
 ###############################################################################
 def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
     configuration_dir = checkpoint_dir / "configuration"
@@ -23,6 +24,7 @@ def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
             archive.writestr("metadata.json", "{}")
     else:
         model_path.write_bytes(b"not-a-keras-archive")
+
 
 ###############################################################################
 def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrupt(
@@ -43,12 +45,14 @@ def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrup
         provider.validate_checkpoint(corrupt)
     assert provider.validate_checkpoint(complete) == "complete"
 
+
 ###############################################################################
-def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_rejects_empty_checkpoint_report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
 
     ###############################################################################
     class FakeModel:
-
         # -------------------------------------------------------------------------
         def summary(self, *, expand_nested: bool) -> None:
             del expand_nested
@@ -67,14 +71,12 @@ def test_generate_rejects_empty_checkpoint_report(monkeypatch: pytest.MonkeyPatc
 
     ###############################################################################
     class FakeTokenizer:
-
         # -------------------------------------------------------------------------
         def get_vocab(self) -> dict[str, int]:
             return {"[CLS]": 0}
 
     ###############################################################################
     class FakeDataLoader:
-
         # -------------------------------------------------------------------------
         def __init__(self, *args, **kwargs) -> None:
             del args, kwargs

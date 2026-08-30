@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class InferenceImage:
@@ -15,6 +16,7 @@ class InferenceImage:
     data: bytes
     size_bytes: int
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ProviderGenerationResult:
@@ -22,6 +24,7 @@ class ProviderGenerationResult:
     display_sections: dict[str, dict[str, str]]
     metadata: list[dict[str, object]]
     provenance: dict[str, object]
+
 
 ###############################################################################
 GenerationProfile = Literal["deterministic", "concise", "detailed"]
@@ -48,6 +51,7 @@ AccessPolicy = Literal["open", "gated"]
 
 _REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
+
 ###############################################################################
 class ModelCapabilities(BaseModel):
     clinical_context: bool = False
@@ -59,12 +63,14 @@ class ModelCapabilities(BaseModel):
 
     model_config = {"extra": "forbid", "strict": True}
 
+
 ###############################################################################
 class ModelResourcePolicy(BaseModel):
     max_snapshot_size_bytes: int | None = Field(default=None, ge=0)
     reason: str | None = None
 
     model_config = {"extra": "forbid", "strict": True}
+
 
 ###############################################################################
 class ModelRuntimeConstraints(BaseModel):
@@ -73,6 +79,7 @@ class ModelRuntimeConstraints(BaseModel):
     required_modules: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "forbid", "strict": True}
+
 
 ###############################################################################
 class InferenceManifestEntry(BaseModel):
@@ -173,13 +180,16 @@ class InferenceManifestEntry(BaseModel):
             or ".." in prefix.parts
             or prefix.name != self.processor_target_prefix
         ):
-            raise ValueError("processor_target_prefix must be a safe relative directory")
+            raise ValueError(
+                "processor_target_prefix must be a safe relative directory"
+            )
         if any(not group for group in self.weight_file_sets):
             raise ValueError("weight_file_sets must contain no empty alternatives")
         if self.remote_code_approved and not self.trust_remote_code:
             raise ValueError("remote_code_approved requires trust_remote_code")
         if self.validation_status == "passed" and not self.enabled:
             raise ValueError("A disabled manifest entry cannot be marked passed")
+
 
 ###############################################################################
 class InferenceManifest(BaseModel):
@@ -192,9 +202,14 @@ class InferenceManifest(BaseModel):
     def model_post_init(self, __context: object) -> None:
         refs = [entry.model_ref for entry in self.models]
         if len(set(refs)) != len(refs):
-            raise ValueError("The public inference catalogue cannot contain duplicate model refs")
+            raise ValueError(
+                "The public inference catalogue cannot contain duplicate model refs"
+            )
         if any(entry.provider != "huggingface" for entry in self.models):
-            raise ValueError("The public inference catalogue may contain only Hugging Face models")
+            raise ValueError(
+                "The public inference catalogue may contain only Hugging Face models"
+            )
+
 
 ###############################################################################
 class ModelAvailability(BaseModel):
@@ -267,6 +282,7 @@ class ModelAvailability(BaseModel):
     update_available: bool = False
     available_actions: list[str] = Field(default_factory=list)
 
+
 ###############################################################################
 class ProviderAvailability(BaseModel):
     status: Literal[
@@ -281,10 +297,12 @@ class ProviderAvailability(BaseModel):
     ]
     message: str | None = None
 
+
 ###############################################################################
 class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
+
 
 ###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
@@ -297,9 +315,11 @@ class ModelUpdateCheckResponse(BaseModel):
     checked_at: str
     error: str | None = None
 
+
 ###############################################################################
 class ModelUpdateCheckRequest(BaseModel):
     model_ref: str
+
 
 ###############################################################################
 class InferenceGenerateRequest(BaseModel):
@@ -307,8 +327,11 @@ class InferenceGenerateRequest(BaseModel):
     generation_profile: GenerationProfile
     clinical_context: str = ""
 
+
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):
     model_ref: str
-    action: Literal["download", "repair", "reinstall", "download_update", "delete_local"]
+    action: Literal[
+        "download", "repair", "reinstall", "download_update", "delete_local"
+    ]
     revision: str | None = None

@@ -10,13 +10,15 @@ from pydantic import ValidationError
 from ..common.path import CONFIGURATION_FILE_PATH
 from .settings import JsonServerSettings, ServerSettings
 
+
 ###############################################################################
 class ConfigurationManager:
-
     # -------------------------------------------------------------------------
     def __init__(self, config_path: str | Path | None = None) -> None:
         self._lock = RLock()
-        self._config_path = Path(config_path) if config_path else CONFIGURATION_FILE_PATH
+        self._config_path = (
+            Path(config_path) if config_path else CONFIGURATION_FILE_PATH
+        )
         self._json_settings: JsonServerSettings | None = None
         self._server_settings: ServerSettings | None = None
         self.reload()
@@ -33,7 +35,9 @@ class ConfigurationManager:
         try:
             payload = json.loads(self._config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            raise RuntimeError(f"Unable to load configuration from {self._config_path}") from exc
+            raise RuntimeError(
+                f"Unable to load configuration from {self._config_path}"
+            ) from exc
         if not isinstance(payload, dict):
             raise RuntimeError("Configuration must be a JSON object.")
         return payload
@@ -52,6 +56,7 @@ class ConfigurationManager:
                 ) from exc
             self._server_settings = self._json_settings.to_server_settings()
             return self._server_settings
+
     # -------------------------------------------------------------------------
     def get_all(self) -> ServerSettings:
         with self._lock:

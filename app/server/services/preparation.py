@@ -49,6 +49,7 @@ LOCAL_FILESYSTEM_DISABLED_ERROR = (
     "Local filesystem endpoints are disabled by server configuration"
 )
 
+
 ###############################################################################
 def _iter_image_paths(folder_path: str) -> Iterator[Path]:
     directory_path = Path(folder_path)
@@ -59,6 +60,7 @@ def _iter_image_paths(folder_path: str) -> Iterator[Path]:
         for filename in filenames:
             if Path(filename).suffix.lower() in VALID_IMAGE_EXTENSIONS:
                 yield Path(root) / filename
+
 
 ###############################################################################
 def scan_image_folder(
@@ -72,9 +74,11 @@ def scan_image_folder(
         if required is None or image_path.stem.casefold() in required
     ]
 
+
 ###############################################################################
 def count_image_files(folder_path: str) -> int:
     return sum(1 for _ in _iter_image_paths(folder_path))
+
 
 ###############################################################################
 def get_windows_drives() -> list[str]:
@@ -85,6 +89,7 @@ def get_windows_drives() -> list[str]:
         if drive.exists():
             drives.append(str(drive))
     return drives
+
 
 ###############################################################################
 def count_images_in_folder(folder_path: str) -> int:
@@ -99,6 +104,7 @@ def count_images_in_folder(folder_path: str) -> int:
             )
     except OSError:
         return 0
+
 
 ###############################################################################
 class PreparationService:
@@ -238,9 +244,7 @@ class PreparationService:
         )
 
     # -------------------------------------------------------------------------
-    def get_processing_metadata(
-        self, dataset_name: str
-    ) -> ProcessingMetadataResponse:
+    def get_processing_metadata(self, dataset_name: str) -> ProcessingMetadataResponse:
         dataset_name = dataset_name.strip()
         if not dataset_name:
             raise BadRequestError(
@@ -381,9 +385,7 @@ class PreparationService:
                 ),
             )
 
-        required_stems = {
-            Path(str(value)).stem for value in df[image_column].tolist()
-        }
+        required_stems = {Path(str(value)).stem for value in df[image_column].tolist()}
         image_paths = scan_image_folder(folder_path, required_stems=required_stems)
         images_mapping = self.build_images_mapping(image_paths)
 
@@ -553,7 +555,9 @@ class PreparationService:
         # List directory contents
         items: list[DirectoryItem] = []
         try:
-            for item_path in sorted(directory_path.iterdir(), key=lambda item: item.name):
+            for item_path in sorted(
+                directory_path.iterdir(), key=lambda item: item.name
+            ):
                 is_dir = item_path.is_dir()
 
                 # Only include directories (not files) for navigation
@@ -660,6 +664,7 @@ class PreparationService:
 
         return str(Path(path).resolve())
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_preparation_service() -> PreparationService:
@@ -677,5 +682,3 @@ def get_preparation_service() -> PreparationService:
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),
     )
-
-

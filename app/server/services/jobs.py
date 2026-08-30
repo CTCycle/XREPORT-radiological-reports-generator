@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class JobState:
@@ -49,6 +50,7 @@ class JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class JobExecutionError(RuntimeError):
     """Typed failure payload supplied by a feature-specific job runner."""
@@ -67,12 +69,13 @@ class JobExecutionError(RuntimeError):
         self.phase = phase
         self.recoverable = recoverable
 
+
 ###############################################################################
 FailureMapper = Callable[[Exception], JobExecutionError]
 
+
 ###############################################################################
 class JobManager:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.jobs: dict[str, JobState] = {}
@@ -240,7 +243,9 @@ class JobManager:
                 result=merged_failure,
                 completed_at=monotonic(),
             )
-            logger.error("Job %s failed [%s]: %s", job_id, failure["code"], failure["message"])
+            logger.error(
+                "Job %s failed [%s]: %s", job_id, failure["code"], failure["message"]
+            )
             logger.debug("Job %s error details", job_id, exc_info=True)
 
     # -------------------------------------------------------------------------
@@ -257,7 +262,11 @@ class JobManager:
             except Exception:  # noqa: BLE001
                 logger.exception("Job failure mapper raised while classifying an error")
         if mapped is None:
-            mapped = exc if isinstance(exc, JobExecutionError) else JobExecutionError(message)
+            mapped = (
+                exc
+                if isinstance(exc, JobExecutionError)
+                else JobExecutionError(message)
+            )
         return {
             "code": mapped.code,
             "message": str(mapped).split("\n")[0][:300],
@@ -269,16 +278,15 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:
                 return True
         return "job_id" in signature.parameters
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_job_manager() -> JobManager:
     return JobManager()
-
-

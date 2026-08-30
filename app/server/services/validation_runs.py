@@ -40,6 +40,7 @@ from server.services.evaluation import (
 )
 from server.configurations import ServerSettings
 
+
 ###############################################################################
 def resolve_metric_fraction(
     config: dict[str, Any] | None,
@@ -52,9 +53,9 @@ def resolve_metric_fraction(
         return default_fraction
     return float(min(1.0, max(0.01, fraction)))
 
+
 ###############################################################################
 class ProgressRange:
-
     # -------------------------------------------------------------------------
     def __init__(self, job_id: str, start: float, end: float) -> None:
         self.job_id = job_id
@@ -66,6 +67,7 @@ class ProgressRange:
         clamped = min(1.0, max(0.0, fraction))
         progress = self.start + (self.end - self.start) * clamped
         get_job_manager().update_progress(self.job_id, progress)
+
 
 ###############################################################################
 def run_validation_job(
@@ -146,6 +148,7 @@ def run_validation_job(
     )
     return result
 
+
 ###############################################################################
 def _run_validation_metrics(
     validator: DatasetValidator,
@@ -183,6 +186,7 @@ def _run_validation_metrics(
         jm.update_progress(job_id, current_progress)
     return result, image_records
 
+
 ###############################################################################
 def _load_validation_dataset(
     repository: DatasetRepository,
@@ -195,6 +199,7 @@ def _load_validation_dataset(
         seed=seed,
         dataset_name=dataset_name,
     )
+
 
 ###############################################################################
 def _run_text_validation_metric(
@@ -215,6 +220,7 @@ def _run_text_validation_metric(
         "max_words_per_report": text_stats.max_words_per_report,
     }
 
+
 ###############################################################################
 def _run_image_validation_metric(
     validator: DatasetValidator,
@@ -234,9 +240,7 @@ def _run_image_validation_metric(
     )
     logger.info(f"[2/3] Image statistics complete: analyzed {image_stats.count} images")
     image_records = (
-        image_records_df.to_dict(orient="records")
-        if not image_records_df.empty
-        else []
+        image_records_df.to_dict(orient="records") if not image_records_df.empty else []
     )
     return {
         "count": image_stats.count,
@@ -247,6 +251,7 @@ def _run_image_validation_metric(
         "mean_noise_std": image_stats.mean_noise_std,
         "mean_noise_ratio": image_stats.mean_noise_ratio,
     }, image_records
+
 
 ###############################################################################
 def _run_pixel_validation_metric(
@@ -267,6 +272,7 @@ def _run_pixel_validation_metric(
     )
     logger.info("[3/3] Pixel distribution complete")
     return {"bins": pixel_dist.bins, "counts": pixel_dist.counts}
+
 
 ###############################################################################
 def _save_validation_report(
@@ -290,6 +296,7 @@ def _save_validation_report(
             "image_records": image_records,
         }
     )
+
 
 ###############################################################################
 def run_checkpoint_evaluation_job(
@@ -360,6 +367,7 @@ def run_checkpoint_evaluation_job(
         "results": results,
     }
 
+
 ###############################################################################
 def _run_checkpoint_metrics(
     evaluator: CheckpointEvaluator,
@@ -404,6 +412,7 @@ def _run_checkpoint_metrics(
         jm.update_progress(job_id, 90.0)
     return results, resolved_metric_configs
 
+
 ###############################################################################
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
@@ -418,6 +427,7 @@ def _load_checkpoint_for_evaluation(
     except FileNotFoundError:
         return None
     return model, train_config, model_metadata
+
 
 ###############################################################################
 def _load_checkpoint_validation_data(
@@ -451,6 +461,7 @@ def _load_checkpoint_validation_data(
             phase="input_validation",
         ) from exc
 
+
 ###############################################################################
 def _run_evaluation_report_metric(
     evaluator: CheckpointEvaluator,
@@ -469,7 +480,9 @@ def _run_evaluation_report_metric(
         eval_data = validation_data.sample(frac=evaluation_fraction, random_state=seed)
     if eval_data.empty:
         return {}, {"data_fraction": evaluation_fraction}
-    validation_dataset = XRAYDataLoader(train_config).build_training_dataloader(eval_data)
+    validation_dataset = XRAYDataLoader(train_config).build_training_dataloader(
+        eval_data
+    )
     try:
         evaluator.preflight_validation_dataset(validation_dataset)
         eval_results = evaluator.evaluate_model(validation_dataset)
@@ -483,6 +496,7 @@ def _run_evaluation_report_metric(
         "loss": eval_results.get("loss"),
         "accuracy": eval_results.get("accuracy"),
     }, {"data_fraction": evaluation_fraction}
+
 
 ###############################################################################
 def _run_bleu_metric(
@@ -502,7 +516,10 @@ def _run_bleu_metric(
     if bleu_fraction < 1.0:
         bleu_samples = max(1, int(len(validation_data) * bleu_fraction))
     config = {"data_fraction": bleu_fraction, "num_samples": bleu_samples}
-    return evaluator.calculate_bleu_score(validation_data, num_samples=bleu_samples), config
+    return evaluator.calculate_bleu_score(
+        validation_data, num_samples=bleu_samples
+    ), config
+
 
 ###############################################################################
 def _save_checkpoint_evaluation_report(
@@ -523,6 +540,7 @@ def _save_checkpoint_evaluation_report(
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to save checkpoint evaluation report: %s", exc)
+
 
 ###############################################################################
 class ValidationService:
@@ -628,7 +646,9 @@ class ValidationService:
 
         checkpoint_record = self.checkpoint_repository.get_checkpoint(checkpoint_name)
         if checkpoint_record is None:
-            raise NotFoundError(detail=f"Checkpoint is not registered: {checkpoint_name}")
+            raise NotFoundError(
+                detail=f"Checkpoint is not registered: {checkpoint_name}"
+            )
         if not checkpoint_record.artifact_complete:
             raise ConflictError(
                 detail=f"Checkpoint artifact is missing or incomplete: {checkpoint_name}"
@@ -660,6 +680,7 @@ class ValidationService:
             poll_interval=self.server_settings.jobs.polling_interval,
         )
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_validation_service() -> ValidationService:
@@ -668,5 +689,3 @@ def get_validation_service() -> ValidationService:
         server_settings=get_server_settings(),
         checkpoint_repository=CheckpointRepository(),
     )
-
-
