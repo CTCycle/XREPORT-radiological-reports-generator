@@ -30,9 +30,13 @@ def _complete_checkpoint_paths() -> list[Path]:
         return []
     return [
         entry
-        for entry in sorted(CHECKPOINTS_DIR.iterdir(), key=lambda item: item.name.casefold())
+        for entry in sorted(
+            CHECKPOINTS_DIR.iterdir(), key=lambda item: item.name.casefold()
+        )
         if entry.is_dir()
-        and all((entry / relative_path).is_file() for relative_path in _CHECKPOINT_FILES)
+        and all(
+            (entry / relative_path).is_file() for relative_path in _CHECKPOINT_FILES
+        )
     ]
 
 
@@ -42,9 +46,11 @@ def _normalized_path(path: str | Path) -> str:
 
 def _register_complete_checkpoints() -> None:
     connection = op.get_bind()
-    existing_rows = connection.execute(
-        sa.text("SELECT name, name_key, path FROM checkpoints")
-    ).mappings().all()
+    existing_rows = (
+        connection.execute(sa.text("SELECT name, name_key, path FROM checkpoints"))
+        .mappings()
+        .all()
+    )
     existing_names = {
         str(row["name_key"]): (str(row["name"]), _normalized_path(str(row["path"])))
         for row in existing_rows
@@ -139,9 +145,16 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table("checkpoint_evaluations", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("status", sa.String(length=16), nullable=False, server_default="succeeded")
+            sa.Column(
+                "status",
+                sa.String(length=16),
+                nullable=False,
+                server_default="succeeded",
+            )
         )
-        batch_op.add_column(sa.Column("request_id", sa.String(length=64), nullable=True))
+        batch_op.add_column(
+            sa.Column("request_id", sa.String(length=64), nullable=True)
+        )
         batch_op.create_unique_constraint(None, ["request_id"])
         batch_op.create_check_constraint(
             "ck_checkpoint_evaluations_status",
@@ -150,9 +163,16 @@ def downgrade() -> None:
 
     with op.batch_alter_table("validation_runs", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("status", sa.String(length=16), nullable=False, server_default="succeeded")
+            sa.Column(
+                "status",
+                sa.String(length=16),
+                nullable=False,
+                server_default="succeeded",
+            )
         )
-        batch_op.add_column(sa.Column("request_id", sa.String(length=64), nullable=True))
+        batch_op.add_column(
+            sa.Column("request_id", sa.String(length=64), nullable=True)
+        )
         batch_op.create_unique_constraint(None, ["request_id"])
         batch_op.create_check_constraint(
             "ck_validation_runs_status",

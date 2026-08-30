@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 JobLifecycleStatus = Literal["pending", "running", "completed", "failed", "cancelled"]
 
+
 ###############################################################################
 class JobStartResponse(BaseModel):
     job_id: str
@@ -13,6 +14,7 @@ class JobStartResponse(BaseModel):
     status: JobLifecycleStatus
     message: str
     poll_interval: float = 1.0
+
 
 ###############################################################################
 class JobStatusResponse(BaseModel):
@@ -23,9 +25,11 @@ class JobStatusResponse(BaseModel):
     result: dict[str, Any] | None = None
     error: str | None = None
 
+
 ###############################################################################
 class JobListResponse(BaseModel):
     jobs: list[JobStatusResponse]
+
 
 ###############################################################################
 class JobCancelResponse(BaseModel):

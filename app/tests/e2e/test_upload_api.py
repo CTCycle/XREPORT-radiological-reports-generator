@@ -2,6 +2,7 @@
 
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
 def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
     api_context: APIRequestContext,
@@ -29,6 +30,7 @@ def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
     assert payload["dataset_name"] == "clinical_dataset"
     assert payload["row_count"] == 2
     assert payload["columns"] == ["id", "image", "text"]
+
 
 ###############################################################################
 def test_upload_rejects_unsupported_file_types(api_context: APIRequestContext) -> None:

@@ -16,6 +16,7 @@ from server.domain.validation import (
 )
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ImageMeasurement:
@@ -28,6 +29,7 @@ class ImageMeasurement:
     maximum: float
     noise_std: float
     noise_ratio: float
+
 
 ###############################################################################
 class DatasetValidator:
@@ -163,10 +165,23 @@ class DatasetValidator:
     # -------------------------------------------------------------------------
     @staticmethod
     def _empty_image_records() -> pd.DataFrame:
-        return pd.DataFrame(columns=[
-            "record_id", "dataset_name", "name", "height", "width", "mean",
-            "median", "std", "min", "max", "pixel_range", "noise_std", "noise_ratio",
-        ])
+        return pd.DataFrame(
+            columns=[
+                "record_id",
+                "dataset_name",
+                "name",
+                "height",
+                "width",
+                "mean",
+                "median",
+                "std",
+                "min",
+                "max",
+                "pixel_range",
+                "noise_std",
+                "noise_ratio",
+            ]
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -241,7 +256,9 @@ class DatasetValidator:
             mean_pixel_value=float(np.mean([item.mean for item in measurements])),
             std_pixel_value=float(np.mean([item.std for item in measurements])),
             mean_noise_std=float(np.mean([item.noise_std for item in measurements])),
-            mean_noise_ratio=float(np.mean([item.noise_ratio for item in measurements])),
+            mean_noise_ratio=float(
+                np.mean([item.noise_ratio for item in measurements])
+            ),
         )
 
     # -------------------------------------------------------------------------

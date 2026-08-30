@@ -35,9 +35,16 @@ from server.models.inference.providers.adapters import (
 
 
 ProgressCallback = Callable[
-    [int, int, dict[str, str], list[dict[str, Any]] | None, dict[str, dict[str, str]] | None],
+    [
+        int,
+        int,
+        dict[str, str],
+        list[dict[str, Any]] | None,
+        dict[str, dict[str, str]] | None,
+    ],
     None,
 ]
+
 
 ###############################################################################
 class _InferenceStoppingCriteria(StoppingCriteria):
@@ -52,6 +59,7 @@ class _InferenceStoppingCriteria(StoppingCriteria):
     def __call__(self, input_ids: Any, scores: Any, **kwargs: Any) -> Any:
         del input_ids, scores, kwargs
         return self.should_stop() or time.monotonic() >= self.deadline
+
 
 ###############################################################################
 class HuggingFaceProvider:
@@ -175,7 +183,9 @@ class HuggingFaceProvider:
                 )
             self._check_deadline(repository_id, deadline)
             if not reports:
-                raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
+                raise TimeoutError(
+                    f"{repository_id} inference exceeded the configured timeout"
+                )
             provenance = self._provenance(normalized, profile, clinical_context)
             provenance["input_images"] = metadata
             provenance["report_scope"] = "study" if adapter.supports_study else "image"
@@ -220,9 +230,11 @@ class HuggingFaceProvider:
             profile=profile,
             clinical_context=clinical_context,
             move_inputs=self._move_inputs,
-            stopping_criteria=StoppingCriteriaList([
-                _InferenceStoppingCriteria(should_stop, deadline),
-            ]),
+            stopping_criteria=StoppingCriteriaList(
+                [
+                    _InferenceStoppingCriteria(should_stop, deadline),
+                ]
+            ),
             output_sections=[
                 str(section)
                 for section in normalized.get("output_sections", ["raw_report"])
@@ -236,21 +248,26 @@ class HuggingFaceProvider:
             repository_id,
             stored_images[0],
             generated.display_sections,
-            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+            [
+                str(section)
+                for section in normalized.get("output_sections", ["raw_report"])
+            ],
         )
         for item in generated.metadata:
-            item.update({
-                "processor_loader": normalized["processor_loader"],
-                "model_loader": normalized["model_loader"],
-                "adapter": normalized["adapter"],
-                "prompt_profile": normalized.get("prompt_profile"),
-                "provider": "huggingface",
-                "model_ref": f"huggingface:{repository_id}",
-                "model_revision": normalized["revision"],
-                "generation_profile": profile,
-                "clinical_context": clinical_context,
-                "research_only": bool(normalized.get("research_only", True)),
-            })
+            item.update(
+                {
+                    "processor_loader": normalized["processor_loader"],
+                    "model_loader": normalized["model_loader"],
+                    "adapter": normalized["adapter"],
+                    "prompt_profile": normalized.get("prompt_profile"),
+                    "provider": "huggingface",
+                    "model_ref": f"huggingface:{repository_id}",
+                    "model_revision": normalized["revision"],
+                    "generation_profile": profile,
+                    "clinical_context": clinical_context,
+                    "research_only": bool(normalized.get("research_only", True)),
+                }
+            )
         return generated
 
     # -------------------------------------------------------------------------
@@ -293,7 +310,9 @@ class HuggingFaceProvider:
     @staticmethod
     def _check_deadline(repository_id: str, deadline: float) -> None:
         if time.monotonic() >= deadline:
-            raise TimeoutError(f"{repository_id} inference exceeded the configured timeout")
+            raise TimeoutError(
+                f"{repository_id} inference exceeded the configured timeout"
+            )
 
     # -------------------------------------------------------------------------
     def _generate_image(
@@ -319,9 +338,11 @@ class HuggingFaceProvider:
             output = model.generate(
                 **inputs,
                 **adapter.generation_kwargs(profile),
-                stopping_criteria=StoppingCriteriaList([
-                    _InferenceStoppingCriteria(should_stop, deadline),
-                ]),
+                stopping_criteria=StoppingCriteriaList(
+                    [
+                        _InferenceStoppingCriteria(should_stop, deadline),
+                    ]
+                ),
             )
         if should_stop():
             return None
@@ -348,13 +369,19 @@ class HuggingFaceProvider:
         }
         sections = adapter.display_sections(
             report,
-            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+            [
+                str(section)
+                for section in normalized.get("output_sections", ["raw_report"])
+            ],
         )
         self._validate_display_sections(
             repository_id,
             stored_image,
             sections,
-            [str(section) for section in normalized.get("output_sections", ["raw_report"])],
+            [
+                str(section)
+                for section in normalized.get("output_sections", ["raw_report"])
+            ],
         )
         return report, metadata, sections
 
@@ -388,7 +415,9 @@ class HuggingFaceProvider:
         sections: Mapping[str, str],
         output_sections: list[str],
     ) -> None:
-        if any(not str(sections.get(section, "")).strip() for section in output_sections):
+        if any(
+            not str(sections.get(section, "")).strip() for section in output_sections
+        ):
             raise RuntimeError(
                 f"{repository_id} returned incomplete report sections for {stored_image.filename}"
             )
@@ -412,9 +441,13 @@ class HuggingFaceProvider:
             if configured_snapshot:
                 snapshot_path = Path(str(configured_snapshot)).resolve()
                 if not is_within_allowed_roots(snapshot_path):
-                    raise RuntimeError("Model snapshot must be inside application storage")
+                    raise RuntimeError(
+                        "Model snapshot must be inside application storage"
+                    )
                 if not snapshot_path.is_dir():
-                    raise RuntimeError(f"Verified local model snapshot is missing: {snapshot_path}")
+                    raise RuntimeError(
+                        f"Verified local model snapshot is missing: {snapshot_path}"
+                    )
             else:
                 raise RuntimeError("Verified local model snapshot path is missing")
             adapter_type = ADAPTERS[adapter_name]
@@ -468,7 +501,9 @@ class HuggingFaceProvider:
         """
         cache_root = Path(HF_MODULES_CACHE).resolve()
         if not is_within_allowed_roots(cache_root):
-            raise RuntimeError("Transformers remote-code cache must remain inside application storage")
+            raise RuntimeError(
+                "Transformers remote-code cache must remain inside application storage"
+            )
         module_path = cache_root / "transformers_modules" / f"_{revision}"
         module_path.mkdir(parents=True, exist_ok=True)
         init_file = module_path / "__init__.py"
@@ -476,15 +511,23 @@ class HuggingFaceProvider:
             init_file.write_text("", encoding="utf-8")
         for filename in required_files:
             relative = Path(str(filename))
-            if relative.suffix not in {".py", ".json"} or relative.is_absolute() or ".." in relative.parts:
+            if (
+                relative.suffix not in {".py", ".json"}
+                or relative.is_absolute()
+                or ".." in relative.parts
+            ):
                 continue
             source = (snapshot_path / relative).resolve()
             try:
                 source.relative_to(snapshot_path.resolve())
             except ValueError as exc:
-                raise RuntimeError("Remote-code manifest points outside the verified snapshot") from exc
+                raise RuntimeError(
+                    "Remote-code manifest points outside the verified snapshot"
+                ) from exc
             if not source.is_file():
-                raise RuntimeError(f"Verified remote-code file is missing: {relative.as_posix()}")
+                raise RuntimeError(
+                    f"Verified remote-code file is missing: {relative.as_posix()}"
+                )
             destination = module_path / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             if not destination.exists() or not destination.samefile(source):
@@ -506,7 +549,9 @@ class HuggingFaceProvider:
         if self.settings.device == "auto":
             return "auto"
         if self.settings.device == "cuda" and not torch.cuda.is_available():
-            raise RuntimeError("CUDA was requested for Hugging Face inference but is unavailable")
+            raise RuntimeError(
+                "CUDA was requested for Hugging Face inference but is unavailable"
+            )
         return self.settings.device
 
     # -------------------------------------------------------------------------
@@ -528,13 +573,22 @@ class HuggingFaceProvider:
         device = getattr(model, "device", None)
         model_dtype = getattr(model, "dtype", None)
         if not isinstance(device, torch.device):
-            return inputs.to(device) if device is not None and hasattr(inputs, "to") else inputs
+            return (
+                inputs.to(device)
+                if device is not None and hasattr(inputs, "to")
+                else inputs
+            )
         if isinstance(inputs, Mapping):
             moved_inputs = dict(inputs)
             for key, value in moved_inputs.items():
                 if not isinstance(value, torch.Tensor):
                     continue
-                dtype = model_dtype if value.is_floating_point() and isinstance(model_dtype, torch.dtype) else value.dtype
+                dtype = (
+                    model_dtype
+                    if value.is_floating_point()
+                    and isinstance(model_dtype, torch.dtype)
+                    else value.dtype
+                )
                 moved_inputs[key] = value.to(device=device, dtype=dtype)
             return moved_inputs
         return inputs.to(device)

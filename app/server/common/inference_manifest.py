@@ -35,9 +35,7 @@ def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> No
 
 
 ###############################################################################
-def _require_manifest_fields(
-    repository_id: str, manifest: Mapping[str, Any]
-) -> None:
+def _require_manifest_fields(repository_id: str, manifest: Mapping[str, Any]) -> None:
     required_fields = (
         "adapter",
         "model_loader",

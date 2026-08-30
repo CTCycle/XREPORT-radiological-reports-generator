@@ -21,9 +21,11 @@ from dotenv import dotenv_values
 RUNTIME_MANIFEST_FORMAT = 2
 RUNTIME_ARCHITECTURE = "windows-x64"
 
+
 ###############################################################################
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -54,7 +56,11 @@ class RuntimeLayout:
     # -------------------------------------------------------------------------
     @property
     def environment_file(self) -> Path:
-        return self.data_root / ".env" if self.packaged else self.runtime_root / "settings" / ".env"
+        return (
+            self.data_root / ".env"
+            if self.packaged
+            else self.runtime_root / "settings" / ".env"
+        )
 
     # -------------------------------------------------------------------------
     @property
@@ -135,6 +141,7 @@ class RuntimeLayout:
             variant,
         )
 
+
 ###############################################################################
 def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
     if destination.exists():
@@ -155,8 +162,11 @@ def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
         return False
     return True
 
+
 ###############################################################################
-def _validate_manifest_contract(payload: dict[str, object], layout: RuntimeLayout) -> None:
+def _validate_manifest_contract(
+    payload: dict[str, object], layout: RuntimeLayout
+) -> None:
     expected_values = {
         "format": RUNTIME_MANIFEST_FORMAT,
         "application": "XREPORT",
@@ -167,11 +177,15 @@ def _validate_manifest_contract(payload: dict[str, object], layout: RuntimeLayou
     }
     for field, expected in expected_values.items():
         if payload.get(field) != expected:
-            raise RuntimeError(f"Packaged runtime manifest {field} does not match the shell")
+            raise RuntimeError(
+                f"Packaged runtime manifest {field} does not match the shell"
+            )
 
     source_commit = payload.get("source_commit")
-    if not isinstance(source_commit, str) or len(source_commit) != 40 or any(
-        character not in "0123456789abcdefABCDEF" for character in source_commit
+    if (
+        not isinstance(source_commit, str)
+        or len(source_commit) != 40
+        or any(character not in "0123456789abcdefABCDEF" for character in source_commit)
     ):
         raise RuntimeError("Packaged runtime manifest has an invalid source commit")
     created_utc = payload.get("created_utc")
@@ -180,9 +194,14 @@ def _validate_manifest_contract(payload: dict[str, object], layout: RuntimeLayou
     try:
         timestamp = datetime.fromisoformat(created_utc.replace("Z", "+00:00"))
     except ValueError as error:
-        raise RuntimeError("Packaged runtime manifest has an invalid creation timestamp") from error
+        raise RuntimeError(
+            "Packaged runtime manifest has an invalid creation timestamp"
+        ) from error
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise RuntimeError("Packaged runtime manifest creation timestamp must include a timezone")
+        raise RuntimeError(
+            "Packaged runtime manifest creation timestamp must include a timezone"
+        )
+
 
 ###############################################################################
 def ensure_packaged_data(layout: RuntimeLayout) -> None:
@@ -209,6 +228,7 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
     ):
         (layout.data_root / name).mkdir(parents=True, exist_ok=True)
 
+
 ###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     """Validate the extracted runtime manifest before importing application code."""
@@ -218,14 +238,19 @@ def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise RuntimeError(f"Invalid packaged runtime manifest: {manifest_path}") from exc
+        raise RuntimeError(
+            f"Invalid packaged runtime manifest: {manifest_path}"
+        ) from exc
     if not isinstance(payload, dict):
         raise RuntimeError("Packaged runtime manifest must be a JSON object")
     _validate_manifest_contract(payload, layout)
     expected = str(payload.get("payload_sha256", "")).lower()
-    if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+    if len(expected) != 64 or any(
+        character not in "0123456789abcdef" for character in expected
+    ):
         raise RuntimeError("Packaged runtime manifest has an invalid payload hash")
     return payload
+
 
 ###############################################################################
 def runtime_layout_from_environment() -> RuntimeLayout:

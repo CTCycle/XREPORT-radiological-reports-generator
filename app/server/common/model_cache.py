@@ -15,6 +15,7 @@ from server.common.path import (
     TORCH_CACHE_DIR,
 )
 
+
 ###############################################################################
 def configure_model_cache() -> Path:
     """Configure all supported model libraries to use project-local storage."""

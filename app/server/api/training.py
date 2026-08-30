@@ -12,12 +12,13 @@ from server.domain.training import (
     StartTrainingRequest,
 )
 from server.domain.jobs import JobStartResponse
+
 if TYPE_CHECKING:
     from server.services.training import TrainingService
 
+
 ###############################################################################
 class TrainingEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -93,6 +94,7 @@ class TrainingEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

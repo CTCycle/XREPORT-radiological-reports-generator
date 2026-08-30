@@ -14,10 +14,12 @@ from server.repositories.schemas import Base
 config = context.config
 target_metadata = Base.metadata
 
+
 ###############################################################################
 def _configured_url() -> str | None:
     value = (config.get_main_option("sqlalchemy.url") or "").strip()
     return value or None
+
 
 ###############################################################################
 def _database_engine() -> tuple[Engine, bool]:
@@ -35,6 +37,7 @@ def _database_engine() -> tuple[Engine, bool]:
     database = Database(get_server_settings().database)
     return database.engine, True
 
+
 ###############################################################################
 def _configure(connection: Connection) -> None:
     context.configure(
@@ -44,6 +47,7 @@ def _configure(connection: Connection) -> None:
         render_as_batch=connection.dialect.name == "sqlite",
         include_schemas=False,
     )
+
 
 ###############################################################################
 def run_migrations_offline() -> None:
@@ -65,6 +69,7 @@ def run_migrations_offline() -> None:
     )
     with context.begin_transaction():
         context.run_migrations()
+
 
 ###############################################################################
 def run_migrations_online() -> None:

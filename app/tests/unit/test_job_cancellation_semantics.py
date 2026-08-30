@@ -5,10 +5,12 @@ import time
 
 from server.services.jobs import JobManager, JobState
 
+
 ###############################################################################
 def blocking_runner(release: threading.Event) -> dict[str, object]:
     release.wait(timeout=3.0)
     return {}
+
 
 ###############################################################################
 def test_cancel_running_job_marks_stop_requested_only() -> None:
@@ -38,6 +40,7 @@ def test_cancel_running_job_marks_stop_requested_only() -> None:
     final_status = manager.get_job_status(job_id)
     assert final_status is not None
     assert final_status["status"] == "cancelled"
+
 
 ###############################################################################
 def test_cancel_pending_job_transitions_to_cancelled() -> None:

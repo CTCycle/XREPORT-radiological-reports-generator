@@ -21,6 +21,7 @@ from server.domain.training import DatasetUploadResponse
 
 MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
+
 ###############################################################################
 class UploadState:
     """Encapsulates temporary dataset storage."""
@@ -50,9 +51,9 @@ class UploadState:
         with self.lock:
             return upload_id in self.storage
 
+
 ###############################################################################
 class UploadService:
-
     # -------------------------------------------------------------------------
     def __init__(self, upload_state: UploadState) -> None:
         self.upload_state = upload_state
@@ -124,6 +125,7 @@ class UploadService:
             raise BadRequestError(
                 detail=f"Failed to parse file: {str(e)}",
             ) from e
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

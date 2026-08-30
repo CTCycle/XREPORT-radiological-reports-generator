@@ -48,7 +48,9 @@ def _manifest_timestamp(value: object) -> None:
     try:
         timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
-        raise ValueError("runtime manifest has an invalid created_utc timestamp") from error
+        raise ValueError(
+            "runtime manifest has an invalid created_utc timestamp"
+        ) from error
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise ValueError("runtime manifest created_utc must include a timezone")
 
@@ -89,7 +91,9 @@ def _verify_zip(
         _validate_member_name(info.filename)
         mode = (info.external_attr >> 16) & 0o170000
         if mode == stat.S_IFLNK:
-            raise ValueError(f"runtime archive contains a symlink member: {info.filename}")
+            raise ValueError(
+                f"runtime archive contains a symlink member: {info.filename}"
+            )
     for name in names:
         parts = Path(name).parts
         lowered = name.lower()
@@ -103,7 +107,9 @@ def _verify_zip(
             raise ValueError(f"runtime archive contains forbidden member: {name}")
     if not REQUIRED_MEMBERS.issubset(names):
         missing = sorted(REQUIRED_MEMBERS.difference(names))
-        raise ValueError(f"runtime archive is missing required members: {', '.join(missing)}")
+        raise ValueError(
+            f"runtime archive is missing required members: {', '.join(missing)}"
+        )
 
     try:
         manifest = json.loads(archive.read("runtime-manifest.json"))
@@ -113,7 +119,9 @@ def _verify_zip(
         raise ValueError("runtime manifest must be a JSON object")
 
     if manifest.get("format") != FORMAT:
-        raise ValueError(f"unsupported runtime manifest format: {manifest.get('format')!r}")
+        raise ValueError(
+            f"unsupported runtime manifest format: {manifest.get('format')!r}"
+        )
     if manifest.get("application") != "XREPORT":
         raise ValueError("runtime manifest application is not XREPORT")
     if manifest.get("version") != expected_version:
@@ -121,7 +129,9 @@ def _verify_zip(
     if manifest.get("variant") != expected_variant:
         raise ValueError("runtime manifest variant does not match the desktop build")
     if manifest.get("architecture") != expected_architecture:
-        raise ValueError("runtime manifest architecture does not match the desktop build")
+        raise ValueError(
+            "runtime manifest architecture does not match the desktop build"
+        )
     source_commit = manifest.get("source_commit")
     if not isinstance(source_commit, str) or not COMMIT_RE.fullmatch(source_commit):
         raise ValueError("runtime manifest source_commit is not a full commit SHA")
@@ -130,7 +140,9 @@ def _verify_zip(
     _manifest_timestamp(manifest.get("created_utc"))
     backend = manifest.get("backend_executable")
     if backend != "backend/XREPORT-backend.exe":
-        raise ValueError("runtime manifest backend path is not the expected frozen executable")
+        raise ValueError(
+            "runtime manifest backend path is not the expected frozen executable"
+        )
     payload_sha256 = manifest.get("payload_sha256")
     if not isinstance(payload_sha256, str) or not SHA256_RE.fullmatch(payload_sha256):
         raise ValueError("runtime manifest payload_sha256 is invalid")
@@ -193,7 +205,9 @@ def verify_archive(
 
 
 class _BoundedFile(io.BufferedIOBase):
-    def __init__(self, file: io.BufferedRandom | io.BufferedReader, start: int, length: int) -> None:
+    def __init__(
+        self, file: io.BufferedRandom | io.BufferedReader, start: int, length: int
+    ) -> None:
         self._file = file
         self._start = start
         self._length = length
@@ -255,7 +269,10 @@ def verify_portable(
         if footer[:8] != b"XRPZIP01":
             raise ValueError("portable executable has no XREPORT runtime overlay")
         offset, length = struct.unpack("<QQ", footer[8:])
-        if offset > file_length - footer_length or length > file_length - footer_length - offset:
+        if (
+            offset > file_length - footer_length
+            or length > file_length - footer_length - offset
+        ):
             raise ValueError("portable runtime overlay bounds are invalid")
         bounded = _BoundedFile(file, offset, length)
         with zipfile.ZipFile(bounded, "r") as archive:

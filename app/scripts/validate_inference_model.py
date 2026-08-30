@@ -41,13 +41,18 @@ import server.services.inference as inference_service  # noqa: E402
 RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
+
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model-ref", required=True, help="Configured model reference to validate")
+    parser.add_argument(
+        "--model-ref", required=True, help="Configured model reference to validate"
+    )
     parser.add_argument("--image", type=Path, required=True)
     parser.add_argument(
-        "--profile", choices=("deterministic", "concise", "detailed"), default="deterministic"
+        "--profile",
+        choices=("deterministic", "concise", "detailed"),
+        default="deterministic",
     )
     parser.add_argument("--clinical-context", default="")
     parser.add_argument(
@@ -67,9 +72,11 @@ def _arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 ###############################################################################
 def _slug(model_ref: str) -> str:
     return model_ref.removeprefix("huggingface:").replace("/", "__")
+
 
 ###############################################################################
 def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
@@ -77,6 +84,7 @@ def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     path = RUN_LOG_DIR / f"{_slug(model_ref)}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
+
 
 ###############################################################################
 def _fixture_metadata(
@@ -91,9 +99,13 @@ def _fixture_metadata(
     fixture_deidentification = deidentification.strip()
     actual_sha256 = hashlib.sha256(data).hexdigest()
     if not fixture_provenance:
-        raise SystemExit("Fixture provenance must identify a public source or dataset accession.")
+        raise SystemExit(
+            "Fixture provenance must identify a public source or dataset accession."
+        )
     if not fixture_deidentification:
-        raise SystemExit("Fixture de-identification provenance must be stated explicitly.")
+        raise SystemExit(
+            "Fixture de-identification provenance must be stated explicitly."
+        )
     if expected_sha256.strip().lower() != actual_sha256:
         raise SystemExit(
             "Fixture SHA-256 does not match the supplied image bytes: "
@@ -106,23 +118,33 @@ def _fixture_metadata(
         "sha256": actual_sha256,
     }
 
+
 ###############################################################################
 def main() -> int:
     args = _arguments()
     settings = get_server_settings().inference
     catalog = InferenceModelCatalog(settings).list_models()
-    selected = next((model for model in catalog.models if model.model_ref == args.model_ref), None)
+    selected = next(
+        (model for model in catalog.models if model.model_ref == args.model_ref), None
+    )
     if selected is None:
-        payload = {"status": "deferred", "reason": f"Model is not configured: {args.model_ref}"}
+        payload = {
+            "status": "deferred",
+            "reason": f"Model is not configured: {args.model_ref}",
+        }
         print(json.dumps(payload, indent=2))
         return 2
-    if selected.provider != "huggingface" or selected.status not in {"ready", "unvalidated"}:
+    if selected.provider != "huggingface" or selected.status not in {
+        "ready",
+        "unvalidated",
+    }:
         payload = {
             "status": "deferred",
             "model_ref": selected.model_ref,
             "revision": selected.model_revision,
             "catalog_status": selected.status,
-            "reason": selected.status_message or "The cache-only validator supports Hugging Face catalogue entries only.",
+            "reason": selected.status_message
+            or "The cache-only validator supports Hugging Face catalogue entries only.",
             "weights_downloaded": False,
         }
         path = _write_run_log(args.model_ref, payload)
@@ -134,7 +156,11 @@ def main() -> int:
         json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     )
     manifest_entry = next(
-        (entry for entry in configured_manifest.models if entry.model_ref == selected.model_ref),
+        (
+            entry
+            for entry in configured_manifest.models
+            if entry.model_ref == selected.model_ref
+        ),
         None,
     )
     if manifest_entry is None:
@@ -160,7 +186,9 @@ def main() -> int:
         deidentification=args.fixture_deidentification,
         expected_sha256=args.fixture_sha256,
     )
-    content_type = mimetypes.guess_type(args.image.name)[0] or "application/octet-stream"
+    content_type = (
+        mimetypes.guess_type(args.image.name)[0] or "application/octet-stream"
+    )
     image = InferenceImage(
         filename=args.image.name,
         content_type=content_type,
@@ -174,7 +202,9 @@ def main() -> int:
         generation_config: dict[str, object] = {}
 
         # -------------------------------------------------------------------------
-        def save_generated_reports(self, reports: list[dict[str, str]], **kwargs: object) -> None:
+        def save_generated_reports(
+            self, reports: list[dict[str, str]], **kwargs: object
+        ) -> None:
             self.saved_reports = list(reports)
             generation_config = kwargs.get("generation_config")
             self.generation_config = (
@@ -233,7 +263,9 @@ def main() -> int:
 
     job_status = job_manager.get_job_status(job_id) or {}
     if job_status.get("status") != "completed":
-        raise RuntimeError(f"Validation job did not complete: {job_status.get('error', job_status.get('status'))}")
+        raise RuntimeError(
+            f"Validation job did not complete: {job_status.get('error', job_status.get('status'))}"
+        )
     api_result = job_status.get("result") or {}
     reports = api_result.get("reports")
     display_sections = api_result.get("display_sections")
@@ -252,21 +284,27 @@ def main() -> int:
     for filename, report in reports.items():
         sections = display_sections.get(filename)
         if not isinstance(sections, dict) or set(sections) != declared_sections:
-            raise RuntimeError(f"Output sections do not match the declared contract for {filename}")
-        if any(not isinstance(value, str) or not value.strip() for value in sections.values()):
+            raise RuntimeError(
+                f"Output sections do not match the declared contract for {filename}"
+            )
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in sections.values()
+        ):
             raise RuntimeError(f"Output sections contain an empty value for {filename}")
         if "raw_report" in declared_sections and sections["raw_report"] != report:
             raise RuntimeError("Raw report text changed before the display contract")
     if recorder.saved_reports != [
-        {"image": filename, "report": report}
-        for filename, report in reports.items()
+        {"image": filename, "report": report} for filename, report in reports.items()
     ]:
         raise RuntimeError("Raw report text changed at the persistence boundary")
     if not {
         "display_sections",
         "provenance",
     }.issubset(recorder.generation_config):
-        raise RuntimeError("Persistence metadata omitted display sections or provenance")
+        raise RuntimeError(
+            "Persistence metadata omitted display sections or provenance"
+        )
 
     payload = {
         "status": "passed",
@@ -286,7 +324,9 @@ def main() -> int:
     RECEIPT_DIR.mkdir(parents=True, exist_ok=True)
     receipt = RECEIPT_DIR / f"{_slug(args.model_ref)}-{selected.model_revision}.json"
     receipt.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    print(json.dumps({**payload, "receipt": str(receipt.relative_to(ROOT_DIR))}, indent=2))
+    print(
+        json.dumps({**payload, "receipt": str(receipt.relative_to(ROOT_DIR))}, indent=2)
+    )
     return 0
 
 

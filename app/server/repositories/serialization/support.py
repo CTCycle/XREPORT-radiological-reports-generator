@@ -11,9 +11,13 @@ from sqlalchemy.orm import Session
 from server.common.constants import DATASETS_TABLE, TABLE_REQUIRED_COLUMNS
 from server.common.utils.logger import logger
 from server.repositories.database import Database, get_database
-from server.repositories.database.utils import validate_sql_identifier, validate_table_name
+from server.repositories.database.utils import (
+    validate_sql_identifier,
+    validate_table_name,
+)
 from server.repositories.schemas import Dataset
 from server.repositories.schemas.normalization import normalize_key
+
 
 ###############################################################################
 class RepositorySupport:
@@ -47,10 +51,18 @@ class RepositorySupport:
     @staticmethod
     def _coerce_datetime(value: Any) -> datetime:
         if isinstance(value, datetime):
-            return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+            return (
+                value
+                if value.tzinfo is not None
+                else value.replace(tzinfo=timezone.utc)
+            )
         if isinstance(value, str) and value.strip():
             parsed = datetime.fromisoformat(value.strip())
-            return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=timezone.utc)
+            return (
+                parsed
+                if parsed.tzinfo is not None
+                else parsed.replace(tzinfo=timezone.utc)
+            )
         return RepositorySupport._now_utc()
 
     # -------------------------------------------------------------------------
@@ -70,7 +82,9 @@ class RepositorySupport:
         table_name: str,
         operation: str,
     ) -> None:
-        missing = [column for column in required_columns if column not in dataset.columns]
+        missing = [
+            column for column in required_columns if column not in dataset.columns
+        ]
         if missing:
             raise ValueError(
                 f"Missing required columns for {table_name} {operation}: {', '.join(missing)}"
@@ -100,7 +114,9 @@ class RepositorySupport:
             return
         required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
         if required_columns:
-            self.validate_required_columns(dataset, required_columns, table_name, "save")
+            self.validate_required_columns(
+                dataset, required_columns, table_name, "save"
+            )
         self.database.save_into_database(dataset, table_name)
 
     # -------------------------------------------------------------------------
@@ -110,7 +126,9 @@ class RepositorySupport:
             return
         required_columns = TABLE_REQUIRED_COLUMNS.get(table_name)
         if required_columns:
-            self.validate_required_columns(dataset, required_columns, table_name, "upsert")
+            self.validate_required_columns(
+                dataset, required_columns, table_name, "upsert"
+            )
         self.database.upsert_into_database(dataset, table_name)
 
     # -------------------------------------------------------------------------

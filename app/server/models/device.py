@@ -8,9 +8,9 @@ from keras.mixed_precision import set_global_policy
 
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 class DeviceConfig:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.configuration = configuration
@@ -37,9 +37,9 @@ class DeviceConfig:
 
         return device
 
+
 ###############################################################################
 class DeviceDataLoader:
-
     # -------------------------------------------------------------------------
     def __init__(self, dataloader: Any, device: torch.device) -> None:
         self.dataloader = dataloader

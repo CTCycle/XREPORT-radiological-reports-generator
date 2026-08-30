@@ -25,6 +25,7 @@ SERVICE_ERROR_STATUS_CODES: dict[type[ServiceError], int] = {
     UnsupportedOperationError: status.HTTP_501_NOT_IMPLEMENTED,
 }
 
+
 ###############################################################################
 async def handle_service_error(_request: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, ServiceError):
@@ -33,6 +34,7 @@ async def handle_service_error(_request: Request, exc: Exception) -> JSONRespons
         status_code=SERVICE_ERROR_STATUS_CODES[type(exc)],
         content={"detail": exc.detail},
     )
+
 
 ###############################################################################
 def register_service_error_handlers(application: FastAPI) -> None:

@@ -23,6 +23,7 @@ from server.repositories.database.utils import (
 )
 from server.repositories.schemas import Base
 
+
 ###############################################################################
 class Database:
     """Shared SQLAlchemy database implementation for SQLite and PostgreSQL."""
@@ -58,7 +59,9 @@ class Database:
             self.engine = sqlalchemy.create_engine(
                 username, future=True, pool_pre_ping=True, connect_args=connect_args
             )
-        self.session = sessionmaker(bind=self.engine, future=True, expire_on_commit=False)
+        self.session = sessionmaker(
+            bind=self.engine, future=True, expire_on_commit=False
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -121,19 +124,27 @@ class Database:
         return pd.DataFrame([dict(row) for row in rows]).reset_index(drop=True)
 
     # -------------------------------------------------------------------------
-    def _insert_dataframe(self, df: pd.DataFrame, table_cls: Any, *, upsert: bool) -> None:
+    def _insert_dataframe(
+        self, df: pd.DataFrame, table_cls: Any, *, upsert: bool
+    ) -> None:
         if df.empty:
             return
         table_name = str(table_cls.__table__.name)
         records = normalize_string_columns(df).to_dict(orient="records")
-        unique_cols, missing_cols = resolve_conflict_columns(table_name, list(df.columns))
+        unique_cols, missing_cols = resolve_conflict_columns(
+            table_name, list(df.columns)
+        )
         if missing_cols:
             raise ValueError(
                 f"Missing conflict columns for {table_name}: {', '.join(missing_cols)}"
             )
         validate_unique_key_values(records, unique_cols, table_name)
         dialect_name = self.engine.dialect.name
-        insert = {"sqlite": sqlite_insert, "postgresql": postgres_insert}.get(dialect_name) if upsert else None
+        insert = (
+            {"sqlite": sqlite_insert, "postgresql": postgres_insert}.get(dialect_name)
+            if upsert
+            else None
+        )
         with self.transaction() as session:
             for start in range(0, len(records), self.insert_batch_size):
                 batch = records[start : start + self.insert_batch_size]
@@ -150,7 +161,9 @@ class Database:
                     if col not in unique_cols
                 }
                 stmt = (
-                    stmt.on_conflict_do_update(index_elements=unique_cols, set_=update_cols)
+                    stmt.on_conflict_do_update(
+                        index_elements=unique_cols, set_=update_cols
+                    )
                     if update_cols
                     else stmt.on_conflict_do_nothing(index_elements=unique_cols)
                 )
@@ -173,4 +186,7 @@ class Database:
     def count_rows(self, table_name: str) -> int:
         table_cls = self.get_table_class(validate_table_name(table_name))
         with self.read_session() as session:
-            return int(session.execute(select(func.count()).select_from(table_cls)).scalar() or 0)
+            return int(
+                session.execute(select(func.count()).select_from(table_cls)).scalar()
+                or 0
+            )

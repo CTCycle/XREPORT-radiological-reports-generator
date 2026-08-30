@@ -7,8 +7,6 @@ from server.configurations import get_server_settings
 from server.repositories.database.initializer import initialize_database
 
 
-
-
 ###############################################################################
 if __name__ == "__main__":
     start = time.perf_counter()

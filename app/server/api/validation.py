@@ -11,12 +11,13 @@ from server.domain.validation import (
     ValidationReportResponse,
     ValidationRequest,
 )
+
 if TYPE_CHECKING:
     from server.services.validation_runs import ValidationService
 
+
 ###############################################################################
 class ValidationEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -52,7 +53,9 @@ class ValidationEndpoint:
         return await self.service.get_checkpoint_evaluation_report(checkpoint)
 
     # -------------------------------------------------------------------------
-    async def get_validation_report(self, dataset_name: str) -> ValidationReportResponse:
+    async def get_validation_report(
+        self, dataset_name: str
+    ) -> ValidationReportResponse:
         return await self.service.get_validation_report(dataset_name)
 
     # -------------------------------------------------------------------------
@@ -85,6 +88,7 @@ class ValidationEndpoint:
             response_model=ValidationReportResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

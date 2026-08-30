@@ -24,16 +24,20 @@ from server.common.path import (
     ROOT_DIR,
     is_within_allowed_roots,
 )
+
 REVISION_PATTERN = r"^[0-9a-f]{40}$"
 ProgressCallback = Callable[[dict[str, Any]], None]
+
 
 ###############################################################################
 class InstallationCancelled(RuntimeError):
     """Raised when the user cancels a download or maintenance operation."""
 
+
 ###############################################################################
 class InstallationError(RuntimeError):
     """Raised when a model cannot be installed or verified safely."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -44,9 +48,11 @@ class InstallationTarget:
     candidate: bool
     operation_id: str | None = None
 
+
 ###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
+
 
 ###############################################################################
 def _sha256(path: Path) -> str:
@@ -55,6 +61,7 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
 
 ###############################################################################
 class ModelInstallationManager:
@@ -114,7 +121,9 @@ class ModelInstallationManager:
         else:
             path = (ROOT_DIR / normalized).resolve()
         if not is_within_allowed_roots(path):
-            raise InstallationError("Model metadata points outside the application roots")
+            raise InstallationError(
+                "Model metadata points outside the application roots"
+            )
         return path
 
     # -------------------------------------------------------------------------
@@ -151,7 +160,14 @@ class ModelInstallationManager:
             or payload.get("schema_version") != 1
             or not required_fields.issubset(payload)
             or payload.get("state")
-            not in {"not_installed", "downloading", "staged", "active", "corrupt", "failed"}
+            not in {
+                "not_installed",
+                "downloading",
+                "staged",
+                "active",
+                "corrupt",
+                "failed",
+            }
         ):
             raise InstallationError(
                 f"Installation metadata for {repository_id} is invalid."
@@ -190,7 +206,11 @@ class ModelInstallationManager:
             }
             self._write_metadata(repository_id, metadata)
         candidate = metadata.get("candidate")
-        candidate_path = self._absolute(candidate.get("relative_path")) if isinstance(candidate, dict) else None
+        candidate_path = (
+            self._absolute(candidate.get("relative_path"))
+            if isinstance(candidate, dict)
+            else None
+        )
         candidate_present = bool(
             candidate_path
             and candidate_path.is_dir()
@@ -219,7 +239,9 @@ class ModelInstallationManager:
         if not path or not revision:
             return None
         try:
-            self.verify_snapshot(path, manifest, inspected["metadata"].get("file_manifest"))
+            self.verify_snapshot(
+                path, manifest, inspected["metadata"].get("file_manifest")
+            )
         except InstallationError as exc:
             self.record_error(
                 str(manifest["repository_id"]),
@@ -228,10 +250,14 @@ class ModelInstallationManager:
                 preserve_active=False,
             )
             raise
-        return InstallationTarget(str(manifest["repository_id"]), str(revision), path, False)
+        return InstallationTarget(
+            str(manifest["repository_id"]), str(revision), path, False
+        )
 
     # -------------------------------------------------------------------------
-    def candidate_target(self, manifest: Mapping[str, Any]) -> InstallationTarget | None:
+    def candidate_target(
+        self, manifest: Mapping[str, Any]
+    ) -> InstallationTarget | None:
         inspected = self.inspect(manifest)
         path = inspected["candidate_path"]
         revision = inspected["candidate_revision"]
@@ -244,7 +270,9 @@ class ModelInstallationManager:
             str(revision),
             path,
             True,
-            str(candidate.get("operation_id")) if candidate.get("operation_id") else None,
+            str(candidate.get("operation_id"))
+            if candidate.get("operation_id")
+            else None,
         )
 
     # -------------------------------------------------------------------------
@@ -259,8 +287,7 @@ class ModelInstallationManager:
             return False
         weight_sets = manifest.get("weight_file_sets", [])
         return any(
-            all((path / str(item)).is_file() for item in group)
-            for group in weight_sets
+            all((path / str(item)).is_file() for item in group) for group in weight_sets
         )
 
     # -------------------------------------------------------------------------
@@ -285,7 +312,9 @@ class ModelInstallationManager:
             if recorded_files and relative in recorded_files:
                 recorded = recorded_files[relative]
                 if recorded.get("size") != size or recorded.get("sha256") != digest:
-                    raise InstallationError(f"Checkpoint integrity mismatch: {relative}")
+                    raise InstallationError(
+                        f"Checkpoint integrity mismatch: {relative}"
+                    )
         return {"files": files, "total_bytes": total_bytes}
 
     # -------------------------------------------------------------------------
@@ -372,7 +401,10 @@ class ModelInstallationManager:
             for revision_root in model_root.iterdir():
                 if not revision_root.is_dir() or revision_root.is_symlink():
                     continue
-                if candidate_path and revision_root.resolve() == candidate_path.resolve():
+                if (
+                    candidate_path
+                    and revision_root.resolve() == candidate_path.resolve()
+                ):
                     continue
                 shutil.rmtree(revision_root)
                 removed += 1
@@ -439,7 +471,10 @@ class ModelInstallationManager:
     ) -> None:
         allowed = set(files) | {f"{name}.incomplete" for name in files}
         for existing in target.rglob("*"):
-            if existing.is_file() and existing.relative_to(target).as_posix() not in allowed:
+            if (
+                existing.is_file()
+                and existing.relative_to(target).as_posix() not in allowed
+            ):
                 existing.unlink()
         cache_dir = target / ".cache"
         if cache_dir.exists():
@@ -685,15 +720,17 @@ class ModelInstallationManager:
                 if resumable is not None:
                     target = resumable
                     operation_id = target.parts[-3]
-            report_progress({
-                "phase": "checking",
-                "message": (
-                    f"Resuming {repository_id} revision {revision[:12]}"
-                    if target.exists() and any(target.iterdir())
-                    else f"Preparing {repository_id} revision {revision[:12]}"
-                ),
-                "revision": revision,
-            })
+            report_progress(
+                {
+                    "phase": "checking",
+                    "message": (
+                        f"Resuming {repository_id} revision {revision[:12]}"
+                        if target.exists() and any(target.iterdir())
+                        else f"Preparing {repository_id} revision {revision[:12]}"
+                    ),
+                    "revision": revision,
+                }
+            )
             if should_stop():
                 raise InstallationCancelled("Model download cancelled")
             self._download(
@@ -707,7 +744,9 @@ class ModelInstallationManager:
             )
             processor_repository_id = manifest.get("processor_repository_id")
             processor_revision = manifest.get("processor_revision")
-            processor_files = [str(item) for item in manifest.get("processor_files", [])]
+            processor_files = [
+                str(item) for item in manifest.get("processor_files", [])
+            ]
             processor_prefix = str(manifest.get("processor_target_prefix", "processor"))
             processor_destinations = {
                 f"{processor_prefix}/{source_name}": source_name
@@ -736,7 +775,9 @@ class ModelInstallationManager:
                     str(processor_repository_id),
                     str(processor_revision),
                 )
-            report_progress({"phase": "verifying", "message": "Verifying downloaded model files"})
+            report_progress(
+                {"phase": "verifying", "message": "Verifying downloaded model files"}
+            )
             verification_manifest = {
                 **manifest,
                 "required_files": [
@@ -788,15 +829,19 @@ class ModelInstallationManager:
                 "last_error": None,
             }
             self._write_metadata(repository_id, metadata)
-            report_progress({
-                "phase": "verified",
-                "message": "Model files verified",
-                "files_completed": len(verification["files"]),
-                "total_files": len(verification["files"]),
-                "downloaded_bytes": verification["total_bytes"],
-                "total_bytes": verification["total_bytes"],
-            })
-            return InstallationTarget(repository_id, revision, target, True, operation_id)
+            report_progress(
+                {
+                    "phase": "verified",
+                    "message": "Model files verified",
+                    "files_completed": len(verification["files"]),
+                    "total_files": len(verification["files"]),
+                    "downloaded_bytes": verification["total_bytes"],
+                    "total_bytes": verification["total_bytes"],
+                }
+            )
+            return InstallationTarget(
+                repository_id, revision, target, True, operation_id
+            )
 
     # -------------------------------------------------------------------------
     def activate(
@@ -813,7 +858,11 @@ class ModelInstallationManager:
             metadata = self.read_metadata(repository_id)
             candidate = metadata.get("candidate") or {}
             candidate_path = self._absolute(candidate.get("relative_path"))
-            if candidate_path != target.path or not candidate_path or not candidate_path.is_dir():
+            if (
+                candidate_path != target.path
+                or not candidate_path
+                or not candidate_path.is_dir()
+            ):
                 raise InstallationError("The staged model candidate is missing")
             installed_target = HF_INSTALLED_DIR / _slug(repository_id) / target.revision
             installed_target.parent.mkdir(parents=True, exist_ok=True)
@@ -890,9 +939,15 @@ class ModelInstallationManager:
     def is_resumable_error(error: str) -> bool:
         """Return whether an installation failure can safely resume staging."""
         message = error.lower()
-        if any(marker in message for marker in ("hash mismatch", "size mismatch", "integrity mismatch")):
+        if any(
+            marker in message
+            for marker in ("hash mismatch", "size mismatch", "integrity mismatch")
+        ):
             return False
-        return any(marker in message for marker in ("cancelled", "download failed", "incomplete download"))
+        return any(
+            marker in message
+            for marker in ("cancelled", "download failed", "incomplete download")
+        )
 
     # -------------------------------------------------------------------------
     def record_error(
@@ -908,8 +963,7 @@ class ModelInstallationManager:
         active_path = self._absolute(metadata.get("active_relative_path"))
         preserves_active = bool(
             preserve_active
-            and
-            metadata.get("active_revision")
+            and metadata.get("active_revision")
             and active_path
             and active_path.is_dir()
         )
@@ -923,7 +977,9 @@ class ModelInstallationManager:
                 "integrity": (
                     "verified"
                     if preserves_active
-                    else "failed" if state == "corrupt" else metadata.get("integrity", "unknown")
+                    else "failed"
+                    if state == "corrupt"
+                    else metadata.get("integrity", "unknown")
                 ),
                 "last_error": error[:500],
                 "interruption": {
@@ -1011,5 +1067,7 @@ class ModelInstallationManager:
             "error": error,
         }
         metadata = self.read_metadata(repository_id)
-        self._write_metadata(repository_id, {**metadata, "cloud_assessment": assessment})
+        self._write_metadata(
+            repository_id, {**metadata, "cloud_assessment": assessment}
+        )
         return assessment

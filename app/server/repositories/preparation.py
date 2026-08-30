@@ -18,9 +18,9 @@ from server.repositories.schemas import (
 )
 from server.repositories.schemas.normalization import normalize_key
 
+
 ###############################################################################
 class PreparationRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: Database) -> None:
         self.database = database
@@ -29,7 +29,10 @@ class PreparationRepository:
     def get_dataset_status(self) -> int:
         session = self.database.session()
         try:
-            return session.execute(select(func.count(DatasetRecord.record_id))).scalar() or 0
+            return (
+                session.execute(select(func.count(DatasetRecord.record_id))).scalar()
+                or 0
+            )
         finally:
             session.close()
 
@@ -43,13 +46,17 @@ class PreparationRepository:
             .group_by(DatasetVersion.dataset_id)
             .subquery()
         )
-        validation_exists = exists().where(ValidationRun.dataset_id == Dataset.dataset_id)
+        validation_exists = exists().where(
+            ValidationRun.dataset_id == Dataset.dataset_id
+        )
         stmt = (
             select(
                 Dataset.name,
                 func.min(DatasetRecord.image_path).label("sample_path"),
                 func.count(DatasetRecord.record_id).label("row_count"),
-                case((validation_exists, True), else_=False).label("has_validation_report"),
+                case((validation_exists, True), else_=False).label(
+                    "has_validation_report"
+                ),
             )
             .join(DatasetRecord, DatasetRecord.dataset_id == Dataset.dataset_id)
             .join(
@@ -80,12 +87,16 @@ class PreparationRepository:
             .group_by(ProcessingRun.dataset_id)
             .subquery()
         )
-        validation_exists = exists().where(ValidationRun.dataset_id == Dataset.dataset_id)
+        validation_exists = exists().where(
+            ValidationRun.dataset_id == Dataset.dataset_id
+        )
         stmt = (
             select(
                 Dataset.name,
                 func.count(TrainingSample.training_sample_id).label("row_count"),
-                case((validation_exists, True), else_=False).label("has_validation_report"),
+                case((validation_exists, True), else_=False).label(
+                    "has_validation_report"
+                ),
             )
             .join(latest_runs, latest_runs.c.dataset_id == Dataset.dataset_id)
             .outerjoin(
@@ -159,7 +170,8 @@ class PreparationRepository:
                     )
                     .where(
                         DatasetRecord.dataset_id == dataset_id,
-                        DatasetVersion.version_number == latest_versions.c.version_number,
+                        DatasetVersion.version_number
+                        == latest_versions.c.version_number,
                     )
                 ).scalar()
                 or 0
@@ -191,7 +203,8 @@ class PreparationRepository:
                 .where(DatasetRecord.dataset_id == dataset_id)
                 .join(
                     DatasetVersion,
-                    DatasetVersion.dataset_version_id == DatasetRecord.dataset_version_id,
+                    DatasetVersion.dataset_version_id
+                    == DatasetRecord.dataset_version_id,
                 )
                 .where(
                     DatasetVersion.version_number == latest_versions.c.version_number,

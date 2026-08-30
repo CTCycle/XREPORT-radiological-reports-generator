@@ -6,10 +6,10 @@ from keras import activations, layers, ops
 from keras.config import floatx
 from keras.saving import register_keras_serializable
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -83,10 +83,10 @@ class PositionalEmbedding(layers.Layer):
     ) -> PositionalEmbedding:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(self, epsilon: float = 10e-5, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
@@ -120,10 +120,10 @@ class AddNorm(layers.Layer):
     def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, dense_units: int, dropout: float = 0.2, seed: int = 42, **kwargs
@@ -170,10 +170,10 @@ class FeedForward(layers.Layer):
     def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, dense_units: int, output_size: int, temperature: float = 1.0, **kwargs
@@ -223,10 +223,10 @@ class SoftMaxClassifier(layers.Layer):
     ) -> SoftMaxClassifier:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, embedding_dims: int, num_heads: int, seed: int, **kwargs
@@ -297,10 +297,10 @@ class TransformerEncoder(layers.Layer):
     ) -> TransformerEncoder:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")
 class TransformerDecoder(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, embedding_dims: int, num_heads: int, seed: int, **kwargs

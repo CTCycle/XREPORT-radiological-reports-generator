@@ -6,12 +6,16 @@ from types import SimpleNamespace
 import pytest
 
 from server.services import model_installation as installation_module
-from server.services.model_installation import InstallationError, ModelInstallationManager
+from server.services.model_installation import (
+    InstallationError,
+    ModelInstallationManager,
+)
 from server.services.model_storage import ModelStorageLifecycle
 
 
 REVISION = "a" * 40
 NEXT_REVISION = "b" * 40
+
 
 ###############################################################################
 def _manifest(revision: str = REVISION) -> dict[str, object]:
@@ -21,6 +25,7 @@ def _manifest(revision: str = REVISION) -> dict[str, object]:
         "required_files": ["config.json", "tokenizer.json"],
         "weight_file_sets": [["model.safetensors"]],
     }
+
 
 ###############################################################################
 def _active_metadata(
@@ -40,9 +45,9 @@ def _active_metadata(
     payload.update(updates)
     return payload
 
+
 ###############################################################################
 class FakeApi:
-
     # -------------------------------------------------------------------------
     def __init__(self, revision: str = REVISION) -> None:
         self.revision = revision
@@ -62,6 +67,7 @@ class FakeApi:
                 ),
             ],
         )
+
 
 ###############################################################################
 class CompleteResponse:
@@ -84,10 +90,12 @@ class CompleteResponse:
     def close(self) -> None:
         return None
 
+
 ###############################################################################
 def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
     filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return CompleteResponse(b"ok" if filename == "model.safetensors" else b"{}")
+
 
 ###############################################################################
 @pytest.fixture
@@ -126,6 +134,7 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
         path.mkdir(parents=True, exist_ok=True)
     return root
 
+
 ###############################################################################
 def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     manager_paths: Path,
@@ -159,6 +168,7 @@ def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     assert metadata["integrity"] == "verified"
     assert metadata["candidate"]["revision"] == REVISION
 
+
 ###############################################################################
 def test_stage_reuses_interrupted_staging_directory(
     manager_paths: Path,
@@ -166,7 +176,12 @@ def test_stage_reuses_interrupted_staging_directory(
 ) -> None:
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
-    partial = installation_module.HF_STAGING_DIR / "resume-op" / "example__report-model" / REVISION
+    partial = (
+        installation_module.HF_STAGING_DIR
+        / "resume-op"
+        / "example__report-model"
+        / REVISION
+    )
     partial.mkdir(parents=True)
     (partial / "config.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(installation_module.requests, "get", complete_get)
@@ -179,6 +194,7 @@ def test_stage_reuses_interrupted_staging_directory(
     )
 
     assert target.path == partial
+
 
 ###############################################################################
 def test_http_downloader_resumes_partial_weight_file(
@@ -236,6 +252,7 @@ def test_http_downloader_resumes_partial_weight_file(
     assert (partial.parent / "model.safetensors").read_bytes() == b"ok"
     assert any(call.get("headers") == {"Range": "bytes=1-"} for call in calls)
 
+
 ###############################################################################
 def test_activation_preserves_previous_revision_for_rollback(
     manager_paths: Path,
@@ -264,11 +281,14 @@ def test_activation_preserves_previous_revision_for_rollback(
     assert metadata["rollback"]["revision"] == REVISION
     assert (installation_module.HF_ROLLBACK_DIR / "example__report-model").exists()
 
+
 ###############################################################################
 def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> None:
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
-    installed = installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
+    installed = (
+        installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
+    )
     installed.mkdir(parents=True)
     for filename in ("config.json", "tokenizer.json", "model.safetensors"):
         (installed / filename).write_text("ok", encoding="utf-8")
@@ -288,11 +308,16 @@ def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> 
     assert metadata["state"] == "corrupt"
     assert metadata["integrity"] == "failed"
 
+
 ###############################################################################
-def test_cancelled_maintenance_preserves_working_active_revision(manager_paths: Path) -> None:
+def test_cancelled_maintenance_preserves_working_active_revision(
+    manager_paths: Path,
+) -> None:
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
-    installed = installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
+    installed = (
+        installation_module.HF_INSTALLED_DIR / "example__report-model" / REVISION
+    )
     installed.mkdir(parents=True)
     for filename in ("config.json", "tokenizer.json", "model.safetensors"):
         (installed / filename).write_text("ok", encoding="utf-8")
@@ -300,7 +325,12 @@ def test_cancelled_maintenance_preserves_working_active_revision(manager_paths: 
         "example/report-model",
         _active_metadata(manager, installed, integrity="verified"),
     )
-    partial = installation_module.HF_STAGING_DIR / "cancelled-op" / "example__report-model" / REVISION
+    partial = (
+        installation_module.HF_STAGING_DIR
+        / "cancelled-op"
+        / "example__report-model"
+        / REVISION
+    )
     partial.mkdir(parents=True)
     (partial / "model.safetensors.incomplete").write_bytes(b"partial")
 
@@ -312,17 +342,24 @@ def test_cancelled_maintenance_preserves_working_active_revision(manager_paths: 
     assert metadata["interruption"]["resumable"] is True
     assert not partial.exists()
 
+
 ###############################################################################
 def test_failed_first_install_keeps_resumable_staging(manager_paths: Path) -> None:
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
-    partial = installation_module.HF_STAGING_DIR / "first-use-op" / "example__report-model" / REVISION
+    partial = (
+        installation_module.HF_STAGING_DIR
+        / "first-use-op"
+        / "example__report-model"
+        / REVISION
+    )
     partial.mkdir(parents=True)
     (partial / "model.safetensors.incomplete").write_bytes(b"partial")
 
     manager.record_error("example/report-model", "cancelled", interrupted=True)
 
     assert partial.exists()
+
 
 ###############################################################################
 def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
@@ -335,10 +372,14 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     staged = installation_module.HF_STAGING_DIR / "operation" / slug / REVISION
     hub_cache = manager_paths / "app" / "resources" / "models" / "huggingface" / "hub"
     cache = hub_cache / "models--example--report-model" / "snapshots" / REVISION
-    unrelated = installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION
+    unrelated = (
+        installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION
+    )
     for path in (installed, rollback, staged, cache, unrelated):
         path.mkdir(parents=True, exist_ok=True)
-        (path / "model.safetensors").write_bytes(b"owned" if path != unrelated else b"keep")
+        (path / "model.safetensors").write_bytes(
+            b"owned" if path != unrelated else b"keep"
+        )
     manager._write_metadata(
         "example/report-model",
         _active_metadata(manager, installed),

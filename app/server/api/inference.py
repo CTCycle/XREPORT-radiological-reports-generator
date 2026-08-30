@@ -14,8 +14,10 @@ from server.domain.inference import (
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import JobStartResponse
+
 if TYPE_CHECKING:
     from server.services.inference import InferenceService
+
 
 ###############################################################################
 def parse_generation_request(
@@ -29,9 +31,9 @@ def parse_generation_request(
         clinical_context=clinical_context,
     )
 
+
 ###############################################################################
 class InferenceEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -55,7 +57,9 @@ class InferenceEndpoint:
         return self.service.get_models()
 
     # -------------------------------------------------------------------------
-    def check_model_update(self, request: ModelUpdateCheckRequest) -> ModelUpdateCheckResponse:
+    def check_model_update(
+        self, request: ModelUpdateCheckRequest
+    ) -> ModelUpdateCheckResponse:
         return self.service.get_model_update(request.model_ref)
 
     # -------------------------------------------------------------------------
@@ -77,7 +81,9 @@ class InferenceEndpoint:
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
         for image in images:
-            filename = (image.filename or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
+            filename = (
+                (image.filename or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
+            )
             content = await image.read()
             parsed_images.append(
                 InferenceImage(
@@ -124,6 +130,8 @@ class InferenceEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
+
+
 ###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/inference", tags=["inference"])

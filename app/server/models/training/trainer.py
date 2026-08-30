@@ -14,9 +14,9 @@ from server.models.callbacks import (
     initialize_training_callbacks,
 )
 
+
 ###############################################################################
 class ModelTrainer:
-
     # -------------------------------------------------------------------------
     @staticmethod
     def _prepare_fit_data(data: Any, device: Any) -> Any:

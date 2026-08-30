@@ -9,6 +9,7 @@ from server.domain.inference import InferenceImage, ProviderGenerationResult
 from server.services.inference import InferenceImageStore, run_inference_job
 from server.services.jobs import JobExecutionError, JobManager, JobState
 
+
 ###############################################################################
 def _image() -> InferenceImage:
     return InferenceImage(
@@ -17,6 +18,7 @@ def _image() -> InferenceImage:
         data=b"fixture",
         size_bytes=7,
     )
+
 
 ###############################################################################
 def _setup_job(
@@ -34,12 +36,12 @@ def _setup_job(
     image_store.store(request_id, [_image()])
     image_store.link_job(job_id, request_id)
 
+
 ###############################################################################
 def _runtime_stub(provider: Any) -> Any:
 
     ###############################################################################
     class RuntimeStub:
-
         # -------------------------------------------------------------------------
         def generate(self, **kwargs):
             generation = provider.generate(**kwargs)
@@ -52,6 +54,7 @@ def _runtime_stub(provider: Any) -> Any:
 
     return RuntimeStub()
 
+
 ###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     manager = JobManager()
@@ -62,7 +65,6 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
 
     ###############################################################################
     class CancellingProvider:
-
         # -------------------------------------------------------------------------
         def generate(self, **_kwargs):
             manager.cancel_job(job_id)
@@ -94,6 +96,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
 
+
 ###############################################################################
 def test_timeout_does_not_persist_reports() -> None:
     manager = JobManager()
@@ -123,6 +126,7 @@ def test_timeout_does_not_persist_reports() -> None:
 
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
+
 
 ###############################################################################
 def test_persistence_failure_fails_inference_job() -> None:

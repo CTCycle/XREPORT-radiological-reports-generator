@@ -3,9 +3,11 @@ from __future__ import annotations
 from server.services.inference import map_inference_failure
 from server.services.jobs import JobExecutionError, JobManager
 
+
 ###############################################################################
 def _snapshot_failure() -> dict[str, object]:
     raise RuntimeError("checkpoint snapshot could not be loaded")
+
 
 ###############################################################################
 def test_generic_job_failure_uses_generic_execution_taxonomy() -> None:
@@ -23,6 +25,7 @@ def test_generic_job_failure_uses_generic_execution_taxonomy() -> None:
         "phase": "execution",
         "recoverable": True,
     }
+
 
 ###############################################################################
 def test_inference_failure_taxonomy_is_injected_by_feature() -> None:
@@ -44,6 +47,7 @@ def test_inference_failure_taxonomy_is_injected_by_feature() -> None:
         "phase": "loading",
         "recoverable": True,
     }
+
 
 ###############################################################################
 def test_typed_job_failure_is_used_without_a_mapper() -> None:

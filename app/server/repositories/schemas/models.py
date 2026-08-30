@@ -19,16 +19,20 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.schemas.types import JSONSequence, UTCDateTime
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class Dataset(Base):
     """Canonical dataset identity."""
 
     __tablename__ = "datasets"
-    dataset_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     name_key: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -65,12 +69,15 @@ class Dataset(Base):
         cascade="all, delete-orphan",
     )
 
+
 ###############################################################################
 class DatasetRecord(Base):
     """Canonical image/report records belonging to a dataset."""
 
     __tablename__ = "dataset_records"
-    record_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    record_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     dataset_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
@@ -114,6 +121,7 @@ class DatasetRecord(Base):
         back_populates="record",
     )
 
+
 ###############################################################################
 class DatasetVersion(Base):
     """Immutable snapshot of one logical imported dataset."""
@@ -134,7 +142,9 @@ class DatasetVersion(Base):
         UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     __table_args__ = (
-        UniqueConstraint("dataset_id", "version_number", name="uq_dataset_versions_number"),
+        UniqueConstraint(
+            "dataset_id", "version_number", name="uq_dataset_versions_number"
+        ),
         UniqueConstraint("dataset_id", "content_hash", name="uq_dataset_versions_hash"),
         Index("ix_dataset_versions_dataset_latest", "dataset_id", "version_number"),
         CheckConstraint("version_number > 0", name="ck_dataset_versions_number"),
@@ -145,12 +155,15 @@ class DatasetVersion(Base):
         "DatasetRecord", back_populates="dataset_version", cascade="all, delete-orphan"
     )
 
+
 ###############################################################################
 class ProcessingRun(Base):
     """Preprocessing run metadata and configuration."""
 
     __tablename__ = "processing_runs"
-    processing_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    processing_run_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     dataset_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
@@ -194,12 +207,15 @@ class ProcessingRun(Base):
         cascade="all, delete-orphan",
     )
 
+
 ###############################################################################
 class TrainingSample(Base):
     """Processed training samples linked to preprocessing runs and source records."""
 
     __tablename__ = "training_samples"
-    training_sample_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    training_sample_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     processing_run_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("processing_runs.processing_run_id", ondelete="CASCADE"),
@@ -227,14 +243,19 @@ class TrainingSample(Base):
     processing_run: Mapped[ProcessingRun] = relationship(
         "ProcessingRun", back_populates="training_samples"
     )
-    record: Mapped[DatasetRecord] = relationship("DatasetRecord", back_populates="training_samples")
+    record: Mapped[DatasetRecord] = relationship(
+        "DatasetRecord", back_populates="training_samples"
+    )
+
 
 ###############################################################################
 class ValidationRun(Base):
     """Validation run metadata and aggregate metric payloads."""
 
     __tablename__ = "validation_runs"
-    validation_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    validation_run_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     dataset_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("datasets.dataset_id", ondelete="CASCADE"),
@@ -269,12 +290,15 @@ class ValidationRun(Base):
     )
     dataset: Mapped[Dataset] = relationship("Dataset", back_populates="validation_runs")
 
+
 ###############################################################################
 class Checkpoint(Base):
     """Canonical checkpoint identity."""
 
     __tablename__ = "checkpoints"
-    checkpoint_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    checkpoint_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
     name_key: Mapped[str] = mapped_column(String(255), nullable=False)
     path: Mapped[str] = mapped_column(Text, nullable=False)
@@ -286,9 +310,7 @@ class Checkpoint(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
-    __table_args__ = (
-        UniqueConstraint("name_key", name="uq_checkpoints_name_key"),
-    )
+    __table_args__ = (UniqueConstraint("name_key", name="uq_checkpoints_name_key"),)
     evaluations: Mapped[list[CheckpointEvaluation]] = relationship(
         "CheckpointEvaluation",
         back_populates="checkpoint",
@@ -300,12 +322,15 @@ class Checkpoint(Base):
         passive_deletes=True,
     )
 
+
 ###############################################################################
 class CheckpointEvaluation(Base):
     """Latest checkpoint evaluation payload."""
 
     __tablename__ = "checkpoint_evaluations"
-    evaluation_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    evaluation_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     checkpoint_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("checkpoints.checkpoint_id", ondelete="RESTRICT"),
@@ -322,14 +347,19 @@ class CheckpointEvaluation(Base):
     __table_args__ = (
         Index("ix_checkpoint_evaluations_checkpoint_id", "checkpoint_id"),
     )
-    checkpoint: Mapped[Checkpoint] = relationship("Checkpoint", back_populates="evaluations")
+    checkpoint: Mapped[Checkpoint] = relationship(
+        "Checkpoint", back_populates="evaluations"
+    )
+
 
 ###############################################################################
 class InferenceRun(Base):
     """Inference execution metadata."""
 
     __tablename__ = "inference_runs"
-    inference_run_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    inference_run_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     checkpoint_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("checkpoints.checkpoint_id", ondelete="RESTRICT"),
@@ -356,19 +386,24 @@ class InferenceRun(Base):
         ),
         UniqueConstraint("request_id", name="uq_inference_runs_request_id"),
     )
-    checkpoint: Mapped[Checkpoint | None] = relationship("Checkpoint", back_populates="inference_runs")
+    checkpoint: Mapped[Checkpoint | None] = relationship(
+        "Checkpoint", back_populates="inference_runs"
+    )
     reports: Mapped[list[InferenceReport]] = relationship(
         "InferenceReport",
         back_populates="inference_run",
         cascade="all, delete-orphan",
     )
 
+
 ###############################################################################
 class InferenceReport(Base):
     """Generated reports linked to inference runs."""
 
     __tablename__ = "inference_reports"
-    inference_report_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    inference_report_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     inference_run_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("inference_runs.inference_run_id", ondelete="CASCADE"),
@@ -394,15 +429,19 @@ class InferenceReport(Base):
         ),
         CheckConstraint("image_index >= 0", name="ck_inference_reports_image_index"),
     )
-    inference_run: Mapped[InferenceRun] = relationship("InferenceRun", back_populates="reports")
+    inference_run: Mapped[InferenceRun] = relationship(
+        "InferenceRun", back_populates="reports"
+    )
     record: Mapped[DatasetRecord | None] = relationship(
         "DatasetRecord", back_populates="inference_reports"
     )
+
 
 ###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
+
 
 ###############################################################################
 @event.listens_for(DatasetRecord, "before_insert")
@@ -410,6 +449,7 @@ def _populate_image_name_key(
     _mapper: Any, _connection: Any, target: DatasetRecord
 ) -> None:
     target.image_name_key = normalize_key(target.image_name)
+
 
 ###############################################################################
 @event.listens_for(Checkpoint, "before_insert")

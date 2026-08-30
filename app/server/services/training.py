@@ -42,6 +42,7 @@ from server.services.training_worker import (
     run_training_process,
 )
 
+
 ###############################################################################
 class TrainingRuntime:
     """Owns only the internal worker handle for the active training job."""
@@ -50,10 +51,12 @@ class TrainingRuntime:
     def __init__(self) -> None:
         self.worker: ProcessWorker | None = None
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_training_runtime() -> TrainingRuntime:
     return TrainingRuntime()
+
 
 ###############################################################################
 def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
@@ -103,6 +106,7 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
             },
         )
 
+
 ###############################################################################
 def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
     while True:
@@ -110,6 +114,7 @@ def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
         if message is None:
             return
         handle_training_progress(job_id, message)
+
 
 ###############################################################################
 def request_worker_stop_if_needed(
@@ -127,6 +132,7 @@ def request_worker_stop_if_needed(
         worker.stop()
 
     return stop_requested_at
+
 
 ###############################################################################
 def enforce_worker_stop_timeout(
@@ -150,11 +156,14 @@ def enforce_worker_stop_timeout(
     worker.terminate()
     return True
 
+
 ###############################################################################
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
     result_payload = worker.read_result()
     if result_payload is None:
-        if worker.exitcode not in (0, None) and not get_job_manager().should_stop(job_id):
+        if worker.exitcode not in (0, None) and not get_job_manager().should_stop(
+            job_id
+        ):
             raise RuntimeError(f"Training process exited with code {worker.exitcode}")
         return {}
 
@@ -174,6 +183,7 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
 
     return {}
 
+
 ###############################################################################
 def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     checkpoint_path = result.get("checkpoint_path")
@@ -182,6 +192,7 @@ def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     path = Path(checkpoint_path)
     CheckpointRepository().register_completed_checkpoint(path.name, path)
     return result
+
 
 ###############################################################################
 def monitor_training_process(
@@ -215,6 +226,7 @@ def monitor_training_process(
 
     return read_worker_result(job_id=job_id, worker=worker)
 
+
 ###############################################################################
 def run_training_job(
     configuration: dict[str, Any],
@@ -242,6 +254,7 @@ def run_training_job(
             worker.join(timeout=5)
         worker.cleanup()
         training_runtime.worker = None
+
 
 ###############################################################################
 def run_resume_training_job(
@@ -274,6 +287,7 @@ def run_resume_training_job(
             worker.join(timeout=5)
         worker.cleanup()
         training_runtime.worker = None
+
 
 ###############################################################################
 class TrainingService:
@@ -355,7 +369,9 @@ class TrainingService:
                 _, _, session = modser.load_training_configuration(checkpoint.path)
                 epochs = session.get("epochs")
                 history = session.get("history")
-                loss_history = history.get("loss") if isinstance(history, dict) else None
+                loss_history = (
+                    history.get("loss") if isinstance(history, dict) else None
+                )
                 val_loss_history = (
                     history.get("val_loss") if isinstance(history, dict) else None
                 )
@@ -577,6 +593,7 @@ class TrainingService:
             initialization_error="Failed to initialize training resume job",
         )
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_training_service() -> TrainingService:
@@ -585,4 +602,3 @@ def get_training_service() -> TrainingService:
         training_runtime=get_training_runtime(),
         checkpoint_repository=CheckpointRepository(),
     )
-

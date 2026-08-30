@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, File, UploadFile, status
 
 from server.domain.training import DatasetUploadResponse
+
 if TYPE_CHECKING:
     from server.services.upload import UploadService
+
 
 ###############################################################################
 class UploadEndpoint:
@@ -50,6 +52,7 @@ class UploadEndpoint:
             response_model=DatasetUploadResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

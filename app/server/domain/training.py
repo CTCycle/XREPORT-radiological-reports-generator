@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+
 ###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(
@@ -14,12 +15,14 @@ class ImagePathRequest(BaseModel):
     )
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class ImagePathResponse(BaseModel):
     valid: bool
     folder_path: str
     image_count: int
     message: str
+
 
 ###############################################################################
 class DatasetUploadResponse(BaseModel):
@@ -31,6 +34,7 @@ class DatasetUploadResponse(BaseModel):
     column_count: int
     columns: list[str]
     message: str
+
 
 ###############################################################################
 class LoadDatasetRequest(BaseModel):
@@ -55,6 +59,7 @@ class LoadDatasetRequest(BaseModel):
     )
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class LoadDatasetResponse(BaseModel):
     success: bool
@@ -65,6 +70,7 @@ class LoadDatasetResponse(BaseModel):
     partial_import: bool = False
     message: str
 
+
 ###############################################################################
 class DirectoryItem(BaseModel):
     name: str
@@ -72,12 +78,14 @@ class DirectoryItem(BaseModel):
     is_dir: bool
     image_count: int = 0
 
+
 ###############################################################################
 class BrowseResponse(BaseModel):
     current_path: str
     parent_path: str | None = None
     items: list[DirectoryItem]
     drives: list[str] = Field(default_factory=list)
+
 
 ###############################################################################
 class StartTrainingRequest(BaseModel):
@@ -132,6 +140,7 @@ class StartTrainingRequest(BaseModel):
     warmup_steps: int = Field(..., ge=0, description="Warmup steps for scheduler")
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class ResumeTrainingRequest(BaseModel):
     checkpoint: str = Field(
@@ -140,8 +149,11 @@ class ResumeTrainingRequest(BaseModel):
         max_length=128,
         description="Checkpoint name to resume from",
     )
-    additional_epochs: int = Field(..., ge=1, le=1000, description="Additional epochs to train")
+    additional_epochs: int = Field(
+        ..., ge=1, le=1000, description="Additional epochs to train"
+    )
     model_config = ConfigDict(extra="forbid")
+
 
 ###############################################################################
 class CheckpointInfo(BaseModel):
@@ -152,9 +164,11 @@ class CheckpointInfo(BaseModel):
     artifact_status: str = "ready"
     message: str | None = None
 
+
 ###############################################################################
 class CheckpointsResponse(BaseModel):
     checkpoints: list[CheckpointInfo]
+
 
 ###############################################################################
 class ProcessDatasetRequest(BaseModel):
@@ -187,6 +201,7 @@ class ProcessDatasetRequest(BaseModel):
     )
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class ProcessDatasetResponse(BaseModel):
     success: bool
@@ -196,12 +211,14 @@ class ProcessDatasetResponse(BaseModel):
     vocabulary_size: int
     message: str
 
+
 ###############################################################################
 class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
     allow_server_browse: bool
     message: str
+
 
 ###############################################################################
 class DatasetInfo(BaseModel):
@@ -210,15 +227,18 @@ class DatasetInfo(BaseModel):
     row_count: int
     has_validation_report: bool = False
 
+
 ###############################################################################
 class DatasetNamesResponse(BaseModel):
     datasets: list[DatasetInfo]
     count: int
 
+
 ###############################################################################
 class ProcessingMetadataResponse(BaseModel):
     dataset_name: str
     metadata: dict[str, Any]
+
 
 ###############################################################################
 class CheckpointMetadataResponse(BaseModel):
@@ -227,15 +247,18 @@ class CheckpointMetadataResponse(BaseModel):
     metadata: dict[str, Any]
     session: dict[str, Any]
 
+
 ###############################################################################
 class DeleteResponse(BaseModel):
     success: bool
     message: str
 
+
 ###############################################################################
 class ImageCountResponse(BaseModel):
     dataset_name: str
     count: int
+
 
 ###############################################################################
 class ImageMetadataResponse(BaseModel):

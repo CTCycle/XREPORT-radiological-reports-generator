@@ -10,9 +10,9 @@ from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+
 ###############################################################################
 class XRAYDataset(Dataset):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -64,9 +64,9 @@ class XRAYDataset(Dataset):
 
         return (image, input_text), output_text  # type: ignore
 
+
 ###############################################################################
 class XRAYDataLoader:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], shuffle: bool = True) -> None:
         self.img_shape = (224, 224)

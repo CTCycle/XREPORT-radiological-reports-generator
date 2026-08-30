@@ -16,6 +16,7 @@ from server.repositories.schemas.normalization import normalize_key
 from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.serialization.support import RepositorySupport
 
+
 ###############################################################################
 class ValidationRepository(RepositorySupport):
     """Persistence boundary for validation and checkpoint evaluation reports."""
@@ -64,19 +65,11 @@ class ValidationRepository(RepositorySupport):
                     text_avg_words=float(
                         text_stats.get("avg_words_per_report", 0.0) or 0.0
                     ),
-                    text_min_words=int(
-                        text_stats.get("min_words_per_report", 0) or 0
-                    ),
-                    text_max_words=int(
-                        text_stats.get("max_words_per_report", 0) or 0
-                    ),
+                    text_min_words=int(text_stats.get("min_words_per_report", 0) or 0),
+                    text_max_words=int(text_stats.get("max_words_per_report", 0) or 0),
                     image_count=int(image_stats.get("count", 0) or 0),
-                    image_mean_height=float(
-                        image_stats.get("mean_height", 0.0) or 0.0
-                    ),
-                    image_mean_width=float(
-                        image_stats.get("mean_width", 0.0) or 0.0
-                    ),
+                    image_mean_height=float(image_stats.get("mean_height", 0.0) or 0.0),
+                    image_mean_width=float(image_stats.get("mean_width", 0.0) or 0.0),
                     image_mean_value=float(
                         image_stats.get("mean_pixel_value", 0.0) or 0.0
                     ),
@@ -242,7 +235,9 @@ class ValidationRepository(RepositorySupport):
             "checkpoint": checkpoint_name,
             "date": self._format_datetime(row[0]),
             "metrics": metrics if isinstance(metrics, list) else [],
-            "metric_configs": metric_configs if isinstance(metric_configs, dict) else {},
+            "metric_configs": metric_configs
+            if isinstance(metric_configs, dict)
+            else {},
             "results": results if isinstance(results, dict) else {},
         }
 
@@ -279,7 +274,10 @@ class ValidationRepository(RepositorySupport):
                 CheckpointEvaluation.results_json,
                 Checkpoint.name,
             )
-            .join(Checkpoint, Checkpoint.checkpoint_id == CheckpointEvaluation.checkpoint_id)
+            .join(
+                Checkpoint,
+                Checkpoint.checkpoint_id == CheckpointEvaluation.checkpoint_id,
+            )
             .order_by(
                 CheckpointEvaluation.executed_at.desc(),
                 CheckpointEvaluation.evaluation_id.desc(),
