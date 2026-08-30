@@ -1,6 +1,6 @@
 # Runtime Modes
 
-Last updated: 2026-08-20
+Last updated: 2026-08-30
 
 ## Supported Modes
 
@@ -35,7 +35,9 @@ Last updated: 2026-08-20
 ## Limitations And Constraints
 
 - First launch can be slow because dependency synchronization includes heavy ML packages.
-- Long-running ML tasks are job-based and poll-driven. No production WebSocket API routes are currently exposed.
+- Long-running ML tasks are job-based and poll-driven through the generic
+  `/api/jobs` resource. No production WebSocket API routes are currently
+  exposed.
 - Local filesystem browsing is feature-gated by `features.allow_local_filesystem_access`.
 - External inference uses the embedded Hugging Face Transformers provider; no Ollama, llama.cpp, vLLM, or separate model server is required.
 - Each Hugging Face entry requires a previously cached snapshot and an exact commit in `settings/inference_models.json`; mutable refs and network resolution are rejected.
