@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-26
+Last updated: 2026-08-30
 
 ## Windows Local Launcher
 
@@ -102,6 +102,10 @@ keeps that ZIP as an installer resource. Do not copy only the raw
 `app/desktop/build/cargo-target/<variant>/release/xreport-desktop.exe`; it is a shell build,
 not a distributable portable artifact.
 
+Release version input is canonicalized in `app/server/pyproject.toml`. The
+launcher validates the client package, backend metadata, Cargo package, Tauri
+CPU/CUDA configurations, and generated OpenAPI version against that value.
+
 ## Manual Backend And Frontend
 
 PowerShell:
@@ -125,11 +129,14 @@ app\tests\run_tests.bat
 The test launcher uses the prepared backend environment and starts required local services when they are not already running.
 
 On backend startup, the shared Alembic coordinator creates the SQLite file or
-PostgreSQL database when necessary, adopts only an exact known unversioned
-schema, and upgrades to the checked-in head before the readiness callback runs.
-The launcher’s explicit database option uses the same coordinator. Startup also
-verifies the tracked configuration file and creates required resource
-directories for logs, models, tokenizers, checkpoints, and templates.
+PostgreSQL database when necessary and upgrades to the checked-in head before
+the readiness callback runs. An existing database with application tables but
+without migration state is rejected; startup never infers or stamps an
+unversioned schema. The launcher’s explicit database option uses the same
+coordinator. Startup also verifies the tracked configuration file and creates
+required resource directories for logs, models, tokenizers, checkpoints, and
+templates. The current head removes obsolete report-job state and registers
+complete checkpoint artifacts in the canonical database registry.
 
 ## Development Cache Locations
 

@@ -1,11 +1,17 @@
 # Runtime Configuration
 
-Last updated: 2026-08-21
+Last updated: 2026-08-30
 
 ## Shared Configuration Sources
 
-- Environment overrides: `settings/.env`
-- Tracked environment template: `settings/.env.example`
+- Deployment and infrastructure configuration: `settings/.env`
+- Application behavior configuration: `settings/configurations.json`
+- Tracked first-run environment template: `settings/.env.example`
+
+The environment file is not a second application-settings store. Inference
+policy, job polling, feature flags, and the global seed are read from
+`settings/configurations.json`; deployment values and database connection
+values are read from `settings/.env`.
 
 ## Packaged desktop configuration
 
@@ -35,7 +41,6 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `EMBEDDED_DATABASE` (`true` for SQLite or `false` for PostgreSQL)
-- `DATABASE_URL`
 - `DATABASE_ENGINE` (`postgres`, `postgresql`, `postgresql+psycopg`, or
   `postgresql+psycopg2` when external mode is selected)
 - `DATABASE_HOST`
@@ -47,13 +52,21 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `DATABASE_SSL_CA`
 - `DATABASE_CONNECT_TIMEOUT`
 - `DATABASE_INSERT_BATCH_SIZE`
-- `HF_LOCAL_ONLY` (must remain `true` for embedded Hugging Face generation)
 - `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)
-- `INFERENCE_DEVICE` (for example, `auto` or `cuda`)
-- `INFERENCE_MAX_LOADED_MODELS` (must remain `1`; the embedded provider keeps one model resident)
-- `INFERENCE_MODEL_TIMEOUT` (generation/model-operation timeout in seconds)
 - `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
   `app/resources`)
+
+`DATABASE_URL` is intentionally unsupported. External database mode requires
+the decomposed `DATABASE_ENGINE`, `DATABASE_HOST`, `DATABASE_PORT`,
+`DATABASE_NAME`, and `DATABASE_USERNAME` values.
+
+The application behavior file contains the following owned sections:
+
+- `global.seed`
+- `features.allow_local_filesystem_access`
+- `jobs.polling_interval`
+- `inference.hf_local_only`, `inference.device`,
+  `inference.max_loaded_models`, and `inference.model_timeout`
 
 `UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
@@ -65,16 +78,23 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 `EMBEDDED_DATABASE` is the strict database-mode selector.
 
 SQLite checks the database file at backend startup and initializes only a
-missing file. Existing SQLite files are not recreated, reseeded, or
-cross-validated. PostgreSQL startup only verifies a connection to the
-configured database; use option `4` in `start_on_windows.ps1` for explicit
-database and schema initialization.
+missing file. Existing SQLite files are not recreated, reseeded, or silently
+adopted when their migration state is absent or incompatible. PostgreSQL
+startup only verifies a connection to the configured database; use option `4`
+in `start_on_windows.ps1` for explicit database and schema initialization.
 
 ## Interoperability
 
 - Frontend calls backend routes through `/api`.
 - Angular dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
 - The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
-- The application derives the portable root from the deployed folder structure and owns all model caches under `<resource root>/models`. `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the backend at startup; hostile or stale user-level cache variables, including deprecated `TRANSFORMERS_CACHE`, are cleared.
+- Source mode derives the runtime root from the repository layout and uses the
+  explicit `XREPORT_RESOURCES_DIR` override when provided. Packaged mode uses
+  the runtime/data roots supplied by the Tauri shell; it does not infer them
+  from the current working directory or executable location.
+- The application owns all model caches under `<resource root>/models`.
+  `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the
+  backend at startup; hostile or stale user-level cache variables, including
+  deprecated `TRANSFORMERS_CACHE`, are cleared.
 - The external catalogue contains exactly five SHA-pinned public report-generation models (four chest-X-ray specialists and the broader gated MedGemma option). Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
 - Installed metadata is stored in `<resource root>/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.
