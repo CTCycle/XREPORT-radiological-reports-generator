@@ -196,7 +196,7 @@ class CheckpointEvaluator:
     def calculate_bleu_score(
         self,
         validation_data: pd.DataFrame,
-        num_samples: int = 10,
+        num_samples: int,
     ) -> float:
         """
         Calculate BLEU score by generating reports for sample images

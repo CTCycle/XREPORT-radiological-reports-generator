@@ -34,7 +34,7 @@ class DatasetValidator:
     """Service class for dataset validation analytics."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, dataset: pd.DataFrame, dataset_name: str = "default") -> None:
+    def __init__(self, dataset: pd.DataFrame, dataset_name: str) -> None:
         self.dataset = dataset
         self.dataset_name = dataset_name
 
