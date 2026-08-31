@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall', 'Update')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Cpu', 'Cuda', 'All')]
@@ -77,12 +77,115 @@ $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 $NodeSha256 = '6c8d54f635feff4df76c2ca80f45332eb2ff57d25226edce36592e51a177ee33'
 $NpmVersion = '10.9.8'
 $RustVersion = '1.95.0'
+$script:NextProgressId = 1
+$script:ActiveProgressIds = [Collections.Generic.HashSet[int]]::new()
 
 function Write-Step([string]$Message) { Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Write-Host "[OK] $Message" -ForegroundColor Green }
 function Write-Info([string]$Message) { Write-Host "[INFO] $Message" -ForegroundColor Gray }
 function Write-Warn([string]$Message) { Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Write-Host "[FATAL] $Message" -ForegroundColor Red }
+
+function Start-LauncherProgress {
+    param([Parameter(Mandatory = $true)][string]$Activity, [string]$Status = 'Starting')
+    $id = $script:NextProgressId++
+    [void]$script:ActiveProgressIds.Add($id)
+    Write-Progress -Id $id -Activity $Activity -Status $Status
+    return $id
+}
+
+function Update-LauncherProgress {
+    param(
+        [Parameter(Mandatory = $true)][int]$Id,
+        [Parameter(Mandatory = $true)][string]$Activity,
+        [Parameter(Mandatory = $true)][string]$Status,
+        [Nullable[int]]$PercentComplete
+    )
+    if (-not $script:ActiveProgressIds.Contains($Id)) { return }
+    $progress = @{ Id = $Id; Activity = $Activity; Status = $Status }
+    if ($null -ne $PercentComplete) { $progress.PercentComplete = $PercentComplete }
+    Write-Progress @progress
+}
+
+function Complete-LauncherProgress {
+    param([int]$Id)
+    if ($script:ActiveProgressIds.Contains($Id)) {
+        Write-Progress -Id $Id -Activity 'XREPORT launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($Id)
+    }
+}
+
+function Clear-LauncherProgress {
+    foreach ($id in @($script:ActiveProgressIds)) {
+        Write-Progress -Id $id -Activity 'XREPORT launcher' -Completed
+        [void]$script:ActiveProgressIds.Remove($id)
+    }
+}
+
+function Invoke-TrackedLauncherAction {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][scriptblock]$Operation
+    )
+    $activity = "XREPORT: $Name"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Starting'
+    Write-Step "Starting $Name"
+    try {
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Running'
+        & $Operation
+        Write-Ok "$Name completed"
+    } catch {
+        Write-Fatal "$Name failed: $($_.Exception.Message)"
+        throw
+    } finally {
+        Complete-LauncherProgress -Id $progressId
+    }
+}
+
+function Assert-MainUpdateCheckout {
+    Push-Location $RepoRoot
+    try {
+        $branchOutput = @(& git branch --show-current 2>$null)
+        $branchExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        $branch = (@($branchOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine).Trim()
+        if ($branchExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($branch)) {
+            throw 'Update requires a non-detached Git checkout.'
+        }
+        if ($branch -ne 'main') {
+            throw "Update requires the main branch to be checked out; current branch is '$branch'. No files were changed."
+        }
+        $statusOutput = @(& git status --porcelain 2>$null)
+        $statusExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        if ($statusExitCode -ne 0) { throw 'Unable to inspect the Git working tree before updating.' }
+        $changes = @($statusOutput | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        if ($changes.Count -gt 0) {
+            throw 'Update requires a clean Git working tree. Commit or safely preserve local changes before retrying.'
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+function Invoke-Update {
+    Assert-MainUpdateCheckout
+    $activity = 'XREPORT: update application from origin/main'
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Pulling origin/main'
+    Write-Step 'Updating application from origin/main (fast-forward only).'
+    try {
+        Push-Location $RepoRoot
+        try {
+            $pullOutput = @(& git pull --ff-only origin main 2>&1)
+            $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        } finally {
+            Pop-Location
+        }
+        foreach ($line in $pullOutput) { Write-Host "  $line" }
+        if ($exitCode -ne 0) { throw "Git update failed with exit code $exitCode." }
+        Write-Ok 'Application update from origin/main completed.'
+    } finally {
+        Complete-LauncherProgress -Id $progressId
+    }
+}
 
 function Invoke-Checked {
     param(
@@ -91,15 +194,24 @@ function Invoke-Checked {
         [string]$WorkingDirectory = $RepoRoot
     )
 
-    Push-Location $WorkingDirectory
+    $display = "$FilePath " + ($ArgumentList -join ' ')
+    $activity = "XREPORT: $display"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Running external command'
+    Write-Step "Running $display"
     try {
-        & $FilePath @ArgumentList
-        if ($LASTEXITCODE -ne 0) {
-            throw "$FilePath failed with exit code $LASTEXITCODE."
+        Push-Location $WorkingDirectory
+        try {
+            & $FilePath @ArgumentList
+        }
+        finally {
+            Pop-Location
         }
     } finally {
-        Pop-Location
+        Complete-LauncherProgress -Id $progressId
     }
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+    if ($exitCode -ne 0) { throw "$FilePath failed with exit code $exitCode." }
+    Write-Ok "Completed $display"
 }
 
 function Initialize-Environment {
@@ -140,17 +252,22 @@ function Invoke-DownloadAndExtract {
         [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F]{64}$')][string]$ExpectedSha256
     )
     $ProgressPreference = 'SilentlyContinue'
-    New-Item -ItemType Directory -Path (Split-Path -Parent $ArchivePath) -Force | Out-Null
-    New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
+    $activity = "XREPORT: download and extract $([IO.Path]::GetFileName($ArchivePath))"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Downloading $Uri"
     try {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $ArchivePath) -Force | Out-Null
+        New-Item -ItemType Directory -Path $DestinationPath -Force | Out-Null
         Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $ArchivePath
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Hashing downloaded archive'
         $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant()
         if ($actualSha256 -ne $ExpectedSha256.ToLowerInvariant()) {
             throw "Downloaded archive hash mismatch for $Uri. Expected $ExpectedSha256; got $actualSha256."
         }
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Extracting archive'
         Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
     } finally {
         Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
+        Complete-LauncherProgress -Id $progressId
     }
 }
 
@@ -186,17 +303,25 @@ function Invoke-HealthCheck {
         [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    do {
-        try {
-            $response = Invoke-WebRequest -UseBasicParsing -Uri $Uri -TimeoutSec 2
-            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
-                return $true
+    $activity = "XREPORT: wait for health $Uri"
+    $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds"
+    try {
+        do {
+            $elapsed = [int](([DateTime]::Now - $deadline.AddSeconds(-$TimeoutSeconds)).TotalSeconds)
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
+            try {
+                $response = Invoke-WebRequest -UseBasicParsing -Uri $Uri -TimeoutSec 2
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                    return $true
+                }
+            } catch {
+                Start-Sleep -Seconds 1
             }
-        } catch {
-            Start-Sleep -Seconds 1
-        }
-    } while ((Get-Date) -lt $deadline)
-    throw "Health check timed out after $TimeoutSeconds seconds: $Uri"
+        } while ((Get-Date) -lt $deadline)
+        throw "Health check timed out after $TimeoutSeconds seconds: $Uri"
+    } finally {
+        Complete-LauncherProgress -Id $progressId
+    }
 }
 
 function Ensure-PortableRuntimes {
@@ -855,107 +980,119 @@ function Invoke-DesktopVariantBuild {
         [ValidateSet('Portable', 'Msi', 'All')][string]$Target = $DesktopTarget,
         [string]$ReleaseVersion = $Version
     )
-    $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
-    $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
-    $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$ReleaseVersion.json"
-    $artifactPrefix = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant"
-    foreach ($staleArtifact in @(
-        "${artifactPrefix}-portable.exe",
-        "${artifactPrefix}.msi",
-        "${artifactPrefix}.sha256",
-        "${artifactPrefix}-build.json"
-    )) {
-        if (Test-Path -LiteralPath $staleArtifact) { Remove-Item -LiteralPath $staleArtifact -Force }
-    }
-    if (Test-Path -LiteralPath $auditPath) { Remove-Item -LiteralPath $auditPath -Force }
-    New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
-    if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
-    $bundleArgs = @(
-        $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
-        '--version', $ReleaseVersion, '--variant', $Variant, '--architecture', $DesktopArchitecture,
-        '--source-commit', $SourceCommit, '--audit', $auditPath
-    )
-    if ($DirtyTree) { $bundleArgs += '--dirty' }
-    Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
-    $runtimeManifestJson = Get-Content -LiteralPath $auditPath -Raw
-    $runtimeManifest = $runtimeManifestJson | ConvertFrom-Json
-    $createdUtcMatch = [regex]::Match($runtimeManifestJson, '"created_utc"\s*:\s*"([^"]+)"')
-    if (-not $createdUtcMatch.Success) { throw "Runtime audit is missing a raw created_utc value: $auditPath" }
-    $createdUtc = $createdUtcMatch.Groups[1].Value
-    Invoke-Checked -FilePath $VenvPython -ArgumentList @(
-        $DesktopRuntimeVerifier, '--archive', $archivePath, '--version', $ReleaseVersion,
-        '--variant', $Variant, '--architecture', $DesktopArchitecture, '--source-commit', $SourceCommit
-    ) -WorkingDirectory $RepoRoot
-
-    $configPath = Get-DesktopConfigPath -Variant $Variant -ReleaseVersion $ReleaseVersion
-    $cargoTargetRoot = Join-Path $DesktopBuildDir "cargo-target\$Variant"
-    if (Test-Path -LiteralPath $cargoTargetRoot) { Remove-Item -LiteralPath $cargoTargetRoot -Recurse -Force }
-    $previousVariant = $env:XREPORT_DESKTOP_VARIANT
-    $previousCargoTarget = $env:CARGO_TARGET_DIR
-    $env:XREPORT_DESKTOP_VARIANT = $Variant
-    $env:CARGO_TARGET_DIR = $cargoTargetRoot
-    $releaseTarget = Join-Path $cargoTargetRoot 'release'
-    $msiDir = Join-Path $releaseTarget 'bundle\msi'
+    $activity = "XREPORT: build desktop $Variant"
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Preparing runtime staging'
     try {
-        $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath, '--ci', '--no-sign')
-        if ($Target -eq 'Msi' -or $Target -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
-        $buildArgs += @('--', '--locked')
-        Write-Step "Building Tauri $Variant release"
-        Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Freezing backend and preparing staging'
+        $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
+        $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
+        $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$ReleaseVersion.json"
+        $artifactPrefix = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant"
+        foreach ($staleArtifact in @(
+            "${artifactPrefix}-portable.exe",
+            "${artifactPrefix}.msi",
+            "${artifactPrefix}.sha256",
+            "${artifactPrefix}-build.json"
+        )) {
+            if (Test-Path -LiteralPath $staleArtifact) { Remove-Item -LiteralPath $staleArtifact -Force }
+        }
+        if (Test-Path -LiteralPath $auditPath) { Remove-Item -LiteralPath $auditPath -Force }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
+        if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
+        $bundleArgs = @(
+            $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
+            '--version', $ReleaseVersion, '--variant', $Variant, '--architecture', $DesktopArchitecture,
+            '--source-commit', $SourceCommit, '--audit', $auditPath
+        )
+        if ($DirtyTree) { $bundleArgs += '--dirty' }
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Creating runtime archive'
+        Invoke-Checked -FilePath $VenvPython -ArgumentList $bundleArgs -WorkingDirectory $RepoRoot
+        $runtimeManifestJson = Get-Content -LiteralPath $auditPath -Raw
+        $runtimeManifest = $runtimeManifestJson | ConvertFrom-Json
+        $createdUtcMatch = [regex]::Match($runtimeManifestJson, '"created_utc"\s*:\s*"([^"]+)"')
+        if (-not $createdUtcMatch.Success) { throw "Runtime audit is missing a raw created_utc value: $auditPath" }
+        $createdUtc = $createdUtcMatch.Groups[1].Value
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Verifying runtime archive'
+        Invoke-Checked -FilePath $VenvPython -ArgumentList @(
+            $DesktopRuntimeVerifier, '--archive', $archivePath, '--version', $ReleaseVersion,
+            '--variant', $Variant, '--architecture', $DesktopArchitecture, '--source-commit', $SourceCommit
+        ) -WorkingDirectory $RepoRoot
+
+        $configPath = Get-DesktopConfigPath -Variant $Variant -ReleaseVersion $ReleaseVersion
+        $cargoTargetRoot = Join-Path $DesktopBuildDir "cargo-target\$Variant"
+        if (Test-Path -LiteralPath $cargoTargetRoot) { Remove-Item -LiteralPath $cargoTargetRoot -Recurse -Force }
+        $previousVariant = $env:XREPORT_DESKTOP_VARIANT
+        $previousCargoTarget = $env:CARGO_TARGET_DIR
+        $env:XREPORT_DESKTOP_VARIANT = $Variant
+        $env:CARGO_TARGET_DIR = $cargoTargetRoot
+        $releaseTarget = Join-Path $cargoTargetRoot 'release'
+        $msiDir = Join-Path $releaseTarget 'bundle\msi'
+        try {
+            $buildArgs = @('exec', '--', 'tauri', 'build', '--config', $configPath, '--ci', '--no-sign')
+            if ($Target -eq 'Msi' -or $Target -eq 'All') { $buildArgs += @('--bundles', 'msi') } else { $buildArgs += '--no-bundle' }
+            $buildArgs += @('--', '--locked')
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status "Building Tauri $Variant release"
+            Write-Step "Building Tauri $Variant release"
+            Invoke-Checked -FilePath $NpmCmd -ArgumentList $buildArgs -WorkingDirectory $DesktopDir
+        }
+        finally {
+            if ($null -eq $previousVariant) { Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue } else { $env:XREPORT_DESKTOP_VARIANT = $previousVariant }
+            if ($null -eq $previousCargoTarget) { Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue } else { $env:CARGO_TARGET_DIR = $previousCargoTarget }
+        }
+
+        Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Packaging desktop artifacts'
+        New-Item -ItemType Directory -Path $DesktopReleaseDir -Force | Out-Null
+        $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-portable.exe"
+        $rawExe = Join-Path $releaseTarget 'xreport-desktop.exe'
+        if (-not (Test-Path -LiteralPath $rawExe)) { throw "Expected Tauri executable not found: $rawExe" }
+        $fileVersion = (Get-Item -LiteralPath $rawExe).VersionInfo.FileVersion
+        if (-not $fileVersion -or $fileVersion -notlike "$ReleaseVersion*") { throw "Tauri executable version mismatch or missing file metadata: $fileVersion" }
+        if ($Target -eq 'Portable' -or $Target -eq 'All') {
+            Add-DesktopRuntimeOverlay -Executable $rawExe -Archive $archivePath
+            Copy-Item -LiteralPath $rawExe -Destination $portablePath -Force
+        }
+
+        $msiPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.msi"
+        if ($Target -eq 'Msi' -or $Target -eq 'All') {
+            $variantToken = if ($Variant -eq 'cpu') { '(?i)cpu' } else { '(?i)cuda' }
+            $candidates = @(Get-ChildItem -LiteralPath $msiDir -File -Filter '*.msi' | Where-Object { $_.Name -match [regex]::Escape($ReleaseVersion) -and $_.Name -match '(?i)xreport' -and $_.Name -match $variantToken })
+            if ($candidates.Count -ne 1) { throw "Expected exactly one versioned $Variant MSI; found $($candidates.Count): $($candidates.Name -join ', ')" }
+            Copy-Item -LiteralPath $candidates[0].FullName -Destination $msiPath -Force
+        }
+
+        $artifactPaths = @()
+        if (Test-Path -LiteralPath $portablePath) { $artifactPaths += $portablePath }
+        if (Test-Path -LiteralPath $msiPath) { $artifactPaths += $msiPath }
+        if ($artifactPaths.Count -eq 0) { throw "No $Variant desktop artifacts were produced" }
+        $checksumPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.sha256"
+        $checksumLines = foreach ($artifact in $artifactPaths) {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($artifact))"
+        }
+        $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
+        $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-build.json"
+        [pscustomobject]@{
+            format = 2
+            application = 'XREPORT'
+            version = $ReleaseVersion
+            variant = $Variant
+            architecture = $DesktopArchitecture
+            source_commit = $SourceCommit
+            dirty_tree = $DirtyTree
+            # Windows PowerShell converts ISO timestamps to DateTime values while
+            # deserializing JSON. Preserve the source string so release metadata
+            # stays locale-independent and matches the runtime audit exactly.
+            created_utc = $createdUtc
+            payload_sha256 = [string]$runtimeManifest.payload_sha256
+            webview2 = if ($OfflineWebView2) { 'offlineInstaller' } else { 'embedBootstrapper' }
+            artifacts = @($artifactPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
+            checksums = [IO.Path]::GetFileName($checksumPath)
+        } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $metadataPath -Encoding utf8
+        Write-Ok "$Variant desktop artifacts written under $DesktopReleaseDir"
     }
     finally {
-        if ($null -eq $previousVariant) { Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue } else { $env:XREPORT_DESKTOP_VARIANT = $previousVariant }
-        if ($null -eq $previousCargoTarget) { Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue } else { $env:CARGO_TARGET_DIR = $previousCargoTarget }
+        Complete-LauncherProgress -Id $progressId
     }
-
-    New-Item -ItemType Directory -Path $DesktopReleaseDir -Force | Out-Null
-    $portablePath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-portable.exe"
-    $rawExe = Join-Path $releaseTarget 'xreport-desktop.exe'
-    if (-not (Test-Path -LiteralPath $rawExe)) { throw "Expected Tauri executable not found: $rawExe" }
-    $fileVersion = (Get-Item -LiteralPath $rawExe).VersionInfo.FileVersion
-    if (-not $fileVersion -or $fileVersion -notlike "$ReleaseVersion*") { throw "Tauri executable version mismatch or missing file metadata: $fileVersion" }
-    if ($Target -eq 'Portable' -or $Target -eq 'All') {
-        Add-DesktopRuntimeOverlay -Executable $rawExe -Archive $archivePath
-        Copy-Item -LiteralPath $rawExe -Destination $portablePath -Force
-    }
-
-    $msiPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.msi"
-    if ($Target -eq 'Msi' -or $Target -eq 'All') {
-        $variantToken = if ($Variant -eq 'cpu') { '(?i)cpu' } else { '(?i)cuda' }
-        $candidates = @(Get-ChildItem -LiteralPath $msiDir -File -Filter '*.msi' | Where-Object { $_.Name -match [regex]::Escape($ReleaseVersion) -and $_.Name -match '(?i)xreport' -and $_.Name -match $variantToken })
-        if ($candidates.Count -ne 1) { throw "Expected exactly one versioned $Variant MSI; found $($candidates.Count): $($candidates.Name -join ', ')" }
-        Copy-Item -LiteralPath $candidates[0].FullName -Destination $msiPath -Force
-    }
-
-    $artifactPaths = @()
-    if (Test-Path -LiteralPath $portablePath) { $artifactPaths += $portablePath }
-    if (Test-Path -LiteralPath $msiPath) { $artifactPaths += $msiPath }
-    if ($artifactPaths.Count -eq 0) { throw "No $Variant desktop artifacts were produced" }
-    $checksumPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant.sha256"
-    $checksumLines = foreach ($artifact in $artifactPaths) {
-        $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $artifact).Hash.ToLowerInvariant()
-        "$hash  $([IO.Path]::GetFileName($artifact))"
-    }
-    $checksumLines | Set-Content -LiteralPath $checksumPath -Encoding ascii
-    $metadataPath = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant-build.json"
-    [pscustomobject]@{
-        format = 2
-        application = 'XREPORT'
-        version = $ReleaseVersion
-        variant = $Variant
-        architecture = $DesktopArchitecture
-        source_commit = $SourceCommit
-        dirty_tree = $DirtyTree
-        # Windows PowerShell converts ISO timestamps to DateTime values while
-        # deserializing JSON. Preserve the source string so release metadata
-        # stays locale-independent and matches the runtime audit exactly.
-        created_utc = $createdUtc
-        payload_sha256 = [string]$runtimeManifest.payload_sha256
-        webview2 = if ($OfflineWebView2) { 'offlineInstaller' } else { 'embedBootstrapper' }
-        artifacts = @($artifactPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
-        checksums = [IO.Path]::GetFileName($checksumPath)
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $metadataPath -Encoding utf8
-    Write-Ok "$Variant desktop artifacts written under $DesktopReleaseDir"
 }
 
 function Invoke-BuildDesktopRelease {
@@ -964,33 +1101,49 @@ function Invoke-BuildDesktopRelease {
         [ValidateSet('Portable', 'Msi', 'All')][string]$Target = $DesktopTarget,
         [string]$ReleaseVersion = $Version
     )
-    $selectedVariants = if ($Variants -and $Variants.Count -gt 0) { @($Variants) } else { @(Get-DesktopVariants) }
-    $invalidVariants = @($selectedVariants | Where-Object { $_ -notin @('cpu', 'cuda') })
-    if ($invalidVariants.Count -gt 0) { throw "Unsupported desktop runtime variant: $($invalidVariants -join ', ')" }
-
-    Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
-    $sourceState = Assert-DesktopSourceState
-    if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) { Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force }
-    foreach ($generatedPath in @(
-        (Join-Path $DesktopTauriDir 'ui'),
-        (Join-Path $DesktopTauriDir 'generated\runtime.zip')
-    )) {
-        if (Test-Path -LiteralPath $generatedPath) {
-            Remove-Item -LiteralPath $generatedPath -Recurse -Force
-        }
-    }
+    $activity = 'XREPORT: build desktop release'
+    $progressId = Start-LauncherProgress -Activity $activity -Status 'Validating release inputs'
     try {
-        Ensure-PortableRuntimes -IncludeRust
-        Install-Dependencies -Settings (Import-XReportEnvironment) -Locked -InstallationType 'Desktop'
-        $frontendDist = Invoke-DesktopFrontendBuild
-        foreach ($variant in $selectedVariants) {
-            Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
+        $selectedVariants = if ($Variants -and $Variants.Count -gt 0) { @($Variants) } else { @(Get-DesktopVariants) }
+        $invalidVariants = @($selectedVariants | Where-Object { $_ -notin @('cpu', 'cuda') })
+        if ($invalidVariants.Count -gt 0) { throw "Unsupported desktop runtime variant: $($invalidVariants -join ', ')" }
+
+        Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
+        $sourceState = Assert-DesktopSourceState
+        if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) {
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Removing forced release output'
+            Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force
         }
+        foreach ($generatedPath in @(
+            (Join-Path $DesktopTauriDir 'ui'),
+            (Join-Path $DesktopTauriDir 'generated\runtime.zip')
+        )) {
+            if (Test-Path -LiteralPath $generatedPath) {
+                Update-LauncherProgress -Id $progressId -Activity $activity -Status "Removing generated path $generatedPath"
+                Remove-Item -LiteralPath $generatedPath -Recurse -Force
+            }
+        }
+        try {
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Preparing portable runtimes'
+            Ensure-PortableRuntimes -IncludeRust
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Installing locked desktop dependencies'
+            Install-Dependencies -Settings (Import-XReportEnvironment) -Locked -InstallationType 'Desktop'
+            Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Building frontend'
+            $frontendDist = Invoke-DesktopFrontendBuild
+            for ($index = 0; $index -lt $selectedVariants.Count; $index++) {
+                $variant = $selectedVariants[$index]
+                Update-LauncherProgress -Id $progressId -Activity $activity -Status "Building desktop variant $($index + 1) of $($selectedVariants.Count): $variant"
+                Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
+            }
+        }
+        finally {
+            Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
+        }
+        Write-Ok 'Desktop release build completed. Unsigned artifacts require WebView2 on the target machine.'
     }
     finally {
-        Remove-Item Env:XREPORT_DESKTOP_VARIANT -ErrorAction SilentlyContinue
+        Complete-LauncherProgress -Id $progressId
     }
-    Write-Ok 'Desktop release build completed. Unsigned artifacts require WebView2 on the target machine.'
 }
 
 function Get-DesktopArtifactDefinitions {
@@ -1267,9 +1420,19 @@ function Invoke-TestSuite {
 
 function Remove-Logs {
     $logDir = Join-Path $RepoRoot 'app\resources\logs'
-    $logs = Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue
-    if ($logs) {
-        $logs | Remove-Item -Force
+    $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue)
+    if ($logs.Count -gt 0) {
+        $progressId = Start-LauncherProgress -Activity 'XREPORT: remove application logs' -Status "0 of $($logs.Count) files"
+        try {
+            for ($index = 0; $index -lt $logs.Count; $index++) {
+                $log = $logs[$index]
+                Update-LauncherProgress -Id $progressId -Activity 'XREPORT: remove application logs' -Status "$($index + 1) of $($logs.Count): $($log.Name)" -PercentComplete ([int](($index + 1) * 100 / $logs.Count))
+                Remove-Item -LiteralPath $log.FullName -Force
+            }
+        }
+        finally {
+            Complete-LauncherProgress -Id $progressId
+        }
         Write-Ok "Removed $($logs.Count) log file(s)"
     } else {
         Write-Info 'No log files found'
@@ -1298,26 +1461,34 @@ function Remove-PathBestEffort {
     if ($root.PSIsContainer) {
         $children = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue |
             Sort-Object @{ Expression = 'PSIsContainer'; Descending = $false }, @{ Expression = { $_.FullName.Length }; Descending = $true })
-        foreach ($child in $children) {
-            if ($child.Name -eq '.gitkeep') { continue }
-            $hasKeepMarker = $child.PSIsContainer -and @($children | Where-Object {
-                $_.Name -eq '.gitkeep' -and
-                $_.FullName.StartsWith("$($child.FullName)\", [StringComparison]::OrdinalIgnoreCase)
-            }).Count -gt 0
-            if ($hasKeepMarker) { continue }
-            try {
-                if ($child.PSIsContainer) {
-                    Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
-                } else {
-                    Remove-Item -LiteralPath $child.FullName -Force -ErrorAction Stop
-                }
-                $removed++
-            } catch {
-                $skipped++
-                if ($skipped -le 5) {
-                    Write-Warn "Skipped locked or protected cache item: $($child.FullName)"
+        $progressId = Start-LauncherProgress -Activity "XREPORT: remove $Label" -Status "0 of $($children.Count) items"
+        try {
+            for ($index = 0; $index -lt $children.Count; $index++) {
+                $child = $children[$index]
+                if ($child.Name -eq '.gitkeep') { continue }
+                $hasKeepMarker = $child.PSIsContainer -and @($children | Where-Object {
+                    $_.Name -eq '.gitkeep' -and
+                    $_.FullName.StartsWith("$($child.FullName)\", [StringComparison]::OrdinalIgnoreCase)
+                }).Count -gt 0
+                if ($hasKeepMarker) { continue }
+                Update-LauncherProgress -Id $progressId -Activity "XREPORT: remove $Label" -Status "$($index + 1) of $($children.Count): $($child.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $children.Count)))
+                try {
+                    if ($child.PSIsContainer) {
+                        Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
+                    } else {
+                        Remove-Item -LiteralPath $child.FullName -Force -ErrorAction Stop
+                    }
+                    $removed++
+                } catch {
+                    $skipped++
+                    if ($skipped -le 5) {
+                        Write-Warn "Skipped locked or protected cache item: $($child.FullName)"
+                    }
                 }
             }
+        }
+        finally {
+            Complete-LauncherProgress -Id $progressId
         }
         if (@($children | Where-Object { $_.Name -eq '.gitkeep' }).Count -gt 0) {
             return [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
@@ -1350,28 +1521,35 @@ function Get-LegacyCacheDirectories {
     $pending = [Collections.Generic.Stack[string]]::new()
     $pending.Push($RepoRoot)
     $found = @()
-    while ($pending.Count -gt 0) {
-        $current = $pending.Pop()
-        try {
-            $childDirectories = @([IO.Directory]::EnumerateDirectories($current))
-        } catch {
-            continue
-        }
-        foreach ($childPath in $childDirectories) {
-            $childName = Split-Path -Leaf $childPath
-            if ($childName -in $excludedNames -or
-                $childPath.Equals($resourcesRoot, [StringComparison]::OrdinalIgnoreCase) -or
-                $childPath.StartsWith("$resourcesRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+    $progressId = Start-LauncherProgress -Activity 'XREPORT: find legacy caches' -Status 'Scanning repository directories'
+    try {
+        while ($pending.Count -gt 0) {
+            $current = $pending.Pop()
+            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: find legacy caches' -Status "Scanning $current"
+            try {
+                $childDirectories = @([IO.Directory]::EnumerateDirectories($current))
+            } catch {
                 continue
             }
-            if ($childName -in $legacyNames) {
-                $found += Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
-                continue
+            foreach ($childPath in $childDirectories) {
+                $childName = Split-Path -Leaf $childPath
+                if ($childName -in $excludedNames -or
+                    $childPath.Equals($resourcesRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                    $childPath.StartsWith("$resourcesRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                    continue
+                }
+                if ($childName -in $legacyNames) {
+                    $found += Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
+                    continue
+                }
+                $pending.Push([string]$childPath)
             }
-            $pending.Push([string]$childPath)
         }
+        @($found | Sort-Object FullName -Descending)
     }
-    @($found | Sort-Object FullName -Descending)
+    finally {
+        Complete-LauncherProgress -Id $progressId
+    }
 }
 
 function Remove-PythonCaches {
@@ -1396,12 +1574,19 @@ function Clear-ApplicationCache {
         (Join-Path $ClientDir 'node_modules\.cache'),
         (Join-Path $ClientDir 'coverage')
     )
+    $legacyCaches = @(Get-LegacyCacheDirectories)
+    $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName }))
     $results = @()
-    foreach ($target in $targets) {
-        $results += Remove-PathBestEffort -Path $target -Label $target
+    $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "0 of $($allTargets.Count) paths"
+    try {
+        for ($index = 0; $index -lt $allTargets.Count; $index++) {
+            $target = $allTargets[$index]
+            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
+            $results += Remove-PathBestEffort -Path $target -Label $target
+        }
     }
-    foreach ($cache in Get-LegacyCacheDirectories) {
-        $results += Remove-PathBestEffort -Path $cache.FullName -Label $cache.FullName
+    finally {
+        Complete-LauncherProgress -Id $progressId
     }
 
     $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
@@ -1423,8 +1608,16 @@ function Uninstall-Application {
         (Join-Path $ClientDir '.angular'),
         (Join-Path $ClientDir 'dist')
     )
-    foreach ($target in $targets) {
-        Remove-PathBestEffort -Path $target -Label $target | Out-Null
+    $progressId = Start-LauncherProgress -Activity 'XREPORT: uninstall application' -Status "0 of $($targets.Count) paths"
+    try {
+        for ($index = 0; $index -lt $targets.Count; $index++) {
+            $target = $targets[$index]
+            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: uninstall application' -Status "$($index + 1) of $($targets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $targets.Count)))
+            Remove-PathBestEffort -Path $target -Label $target | Out-Null
+        }
+    }
+    finally {
+        Complete-LauncherProgress -Id $progressId
     }
     Remove-PythonCaches
     Write-Ok 'Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved.'
@@ -1476,10 +1669,11 @@ function Show-Menu {
     Write-MenuItem -Number '8' -Label 'Remove logs' -Description 'Delete application logs'
     Write-MenuItem -Number '9' -Label 'Clear cache' -Description 'Remove temporary caches'
     Write-MenuItem -Number '10' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
+    Write-MenuItem -Number '11' -Label 'Update application from main' -Description 'Pull origin/main (clean main branch required)'
 
     Write-Host ''
     Write-MenuRule -Color DarkGray
-    Write-MenuItem -Number '11' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
+    Write-MenuItem -Number '12' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
 }
 
@@ -1488,52 +1682,59 @@ if ($Launch -and $Action) {
 }
 
 if ($Launch) {
-    Invoke-Launch
+    Invoke-TrackedLauncherAction -Name 'launch application' -Operation { Invoke-Launch }
     exit 0
 }
 
 if ($Action) {
-    switch ($Action) {
-        'Launch' { Invoke-Launch }
-        'LaunchDesktopDev' { Invoke-LaunchDesktopDev }
-        'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
-        'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
-        'Install' { Invoke-InstallOrUpdate }
-        'RebuildFrontend' { Invoke-RebuildFrontend }
-        'InitializeDatabase' { Invoke-InitializeDatabase }
-        'Test' { Invoke-TestSuite }
-        'RemoveLogs' { Remove-Logs }
-        'ClearCache' { Clear-ApplicationCache }
-        'Uninstall' { Uninstall-Application }
+    Invoke-TrackedLauncherAction -Name "action $Action" -Operation {
+        switch ($Action) {
+            'Launch' { Invoke-Launch }
+            'LaunchDesktopDev' { Invoke-LaunchDesktopDev }
+            'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
+            'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
+            'Install' { Invoke-InstallOrUpdate }
+            'RebuildFrontend' { Invoke-RebuildFrontend }
+            'InitializeDatabase' { Invoke-InitializeDatabase }
+            'Test' { Invoke-TestSuite }
+            'RemoveLogs' { Remove-Logs }
+            'ClearCache' { Clear-ApplicationCache }
+            'Uninstall' { Uninstall-Application }
+            'Update' { Invoke-Update }
+        }
     }
     exit 0
 }
 
 while ($true) {
     Show-Menu
-    $selection = (Read-Host '  Select an option (1-11)').Trim()
-    if ($selection -notmatch '^(?:[1-9]|10|11)$') {
-        Write-Warn 'Invalid option. Enter a number from 1 to 11.'
+    $selection = (Read-Host '  Select an option (1-12)').Trim()
+    if ($selection -notmatch '^(?:[1-9]|10|11|12)$') {
+        Write-Warn 'Invalid option. Enter a number from 1 to 12.'
         [void](Read-Host 'Press Enter to continue')
         continue
     }
-    if ($selection -eq '11') { break }
+    if ($selection -eq '12') { break }
 
     try {
-        switch ($selection) {
-            '1' { Invoke-Launch; exit 0 }
-            '2' { Invoke-InstallOrUpdate }
-            '3' { Invoke-RebuildFrontend }
-            '4' { Invoke-InitializeDatabase }
-            '5' { Invoke-TestSuite }
-            '6' { Invoke-CreateDesktopArtifactsMenu }
-            '7' { Invoke-RemoveDesktopArtifactsMenu }
-            '8' { Remove-Logs }
-            '9' { Clear-ApplicationCache }
-            '10' { Uninstall-Application }
+        Invoke-TrackedLauncherAction -Name "menu option $selection" -Operation {
+            switch ($selection) {
+                '1' { Invoke-Launch; exit 0 }
+                '2' { Invoke-InstallOrUpdate }
+                '3' { Invoke-RebuildFrontend }
+                '4' { Invoke-InitializeDatabase }
+                '5' { Invoke-TestSuite }
+                '6' { Invoke-CreateDesktopArtifactsMenu }
+                '7' { Invoke-RemoveDesktopArtifactsMenu }
+                '8' { Remove-Logs }
+                '9' { Clear-ApplicationCache }
+                '10' { Uninstall-Application }
+                '11' { Invoke-Update }
+            }
         }
     } catch {
         Write-Fatal $_.Exception.Message
+        Clear-LauncherProgress
     }
     Write-Host 'Press any key to return to menu...'
     [void]$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')

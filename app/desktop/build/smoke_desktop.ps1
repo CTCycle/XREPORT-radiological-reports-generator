@@ -27,9 +27,15 @@ $readyFile = Join-Path $stateDir 'desktop-ready.json'
 $shellLog = Join-Path $localAppData 'XREPORT\data\logs\desktop-shell.log'
 $timer = [Diagnostics.Stopwatch]::StartNew()
 $phaseTimings = [ordered]@{}
+$script:SmokeProgressId = 1
+$script:SmokeProgressActive = $true
 function Mark-Phase {
     param([Parameter(Mandatory = $true)][string]$Name)
     $phaseTimings[$Name] = [int64]$timer.ElapsedMilliseconds
+    Write-Host "[PHASE] $Name (+$($phaseTimings[$Name]) ms)" -ForegroundColor Cyan
+    if ($script:SmokeProgressActive) {
+        Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status $Name
+    }
 }
 $previousLocalAppData = $env:LOCALAPPDATA
 $process = $null
@@ -56,17 +62,30 @@ $result = [ordered]@{
     verified_utc = [DateTime]::UtcNow.ToString('o')
 }
 
+Write-Host "[START] Desktop smoke test: $Variant $Version" -ForegroundColor Cyan
+Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status 'Starting'
+
 try {
     New-Item -ItemType Directory -Path $localAppData -Force | Out-Null
     $env:LOCALAPPDATA = $localAppData
     $process = Start-Process -FilePath $portable -WorkingDirectory $qaRoot -PassThru
     Mark-Phase 'process_started'
     $deadline = (Get-Date).AddSeconds(150)
-    do {
-        if ($process.HasExited) { throw "Portable $Variant application exited during startup with code $($process.ExitCode)." }
-        if (Test-Path -LiteralPath $sessionFile) { break }
-        Start-Sleep -Milliseconds 500
-    } while ((Get-Date) -lt $deadline)
+    try {
+        do {
+            if ($process.HasExited) { throw "Portable $Variant application exited during startup with code $($process.ExitCode)." }
+            $elapsedSeconds = [int]$timer.Elapsed.TotalSeconds
+            $percent = [int][Math]::Min(100, ($elapsedSeconds * 100 / 150))
+            Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status "Waiting for desktop session; ${elapsedSeconds}s elapsed" -PercentComplete $percent
+            if (Test-Path -LiteralPath $sessionFile) { break }
+            Start-Sleep -Milliseconds 500
+        } while ((Get-Date) -lt $deadline)
+    }
+    finally {
+        if (-not (Test-Path -LiteralPath $sessionFile)) {
+            Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status 'Startup wait finished'
+        }
+    }
     if (-not (Test-Path -LiteralPath $sessionFile)) { throw "Portable $Variant application did not create desktop-session.json." }
     Mark-Phase 'session_written'
     $session = Get-Content -LiteralPath $sessionFile -Raw | ConvertFrom-Json
@@ -104,47 +123,57 @@ try {
     $result.started = $true
 }
 finally {
-    if ($process -and -not $process.HasExited) {
-        try { $process.CloseMainWindow() | Out-Null } catch { }
-        try { $process.WaitForExit(15000) } catch { }
-        if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            try { $process.WaitForExit(5000) } catch { }
+    try {
+        Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status 'Cleaning up desktop processes'
+        Write-Host '[CLEANUP] Closing desktop processes and listeners.' -ForegroundColor Yellow
+        if ($process -and -not $process.HasExited) {
+            try { $process.CloseMainWindow() | Out-Null } catch { }
+            try { $process.WaitForExit(15000) } catch { }
+            if (-not $process.HasExited) {
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                try { $process.WaitForExit(5000) } catch { }
+            }
         }
-    }
-    if ($process) { $result.closed = $process.HasExited }
-    Mark-Phase 'process_closed'
-    if ($backendPid) {
-        for ($attempt = 0; $attempt -lt 60; $attempt++) {
-            if (-not (Get-Process -Id $backendPid -ErrorAction SilentlyContinue)) { break }
-            Start-Sleep -Milliseconds 250
+        if ($process) { $result.closed = $process.HasExited }
+        Mark-Phase 'process_closed'
+        if ($backendPid) {
+            for ($attempt = 0; $attempt -lt 60; $attempt++) {
+                Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status "Waiting for backend process cleanup; attempt $($attempt + 1) of 60" -PercentComplete ([int](($attempt + 1) * 100 / 60))
+                if (-not (Get-Process -Id $backendPid -ErrorAction SilentlyContinue)) { break }
+                Start-Sleep -Milliseconds 250
+            }
+            $result.backend_process_removed = -not (Get-Process -Id $backendPid -ErrorAction SilentlyContinue)
         }
-        $result.backend_process_removed = -not (Get-Process -Id $backendPid -ErrorAction SilentlyContinue)
-    }
-    if ($port) {
-        for ($attempt = 0; $attempt -lt 60; $attempt++) {
-            if (-not (Get-NetTCPConnection -LocalPort ([int]$port) -State Listen -ErrorAction SilentlyContinue)) { break }
-            Start-Sleep -Milliseconds 250
+        if ($port) {
+            for ($attempt = 0; $attempt -lt 60; $attempt++) {
+                Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Status "Waiting for listener cleanup; attempt $($attempt + 1) of 60" -PercentComplete ([int](($attempt + 1) * 100 / 60))
+                if (-not (Get-NetTCPConnection -LocalPort ([int]$port) -State Listen -ErrorAction SilentlyContinue)) { break }
+                Start-Sleep -Milliseconds 250
+            }
+            $result.listener_removed = -not (Get-NetTCPConnection -LocalPort ([int]$port) -State Listen -ErrorAction SilentlyContinue)
         }
-        $result.listener_removed = -not (Get-NetTCPConnection -LocalPort ([int]$port) -State Listen -ErrorAction SilentlyContinue)
+        $result.contracts_removed = -not (Test-Path -LiteralPath $sessionFile) -and -not (Test-Path -LiteralPath $readyFile)
+        $logReportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version-shell.log"
+        if (Test-Path -LiteralPath $shellLog) {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $logReportPath) -Force | Out-Null
+            Copy-Item -LiteralPath $shellLog -Destination $logReportPath -Force
+            $result.shell_log = [IO.Path]::GetFileName($logReportPath)
+        }
+        if ($ownsQaRoot -and -not $KeepDataRoot -and (Test-Path -LiteralPath $qaRoot)) {
+            Remove-Item -LiteralPath $qaRoot -Recurse -Force -ErrorAction SilentlyContinue
+        } elseif ($KeepDataRoot) {
+            $result.data_root_preserved = $true
+            Write-Host "Preserved smoke data root: $qaRoot"
+        }
+        if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
+        $reportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version.json"
+        New-Item -ItemType Directory -Path (Split-Path -Parent $reportPath) -Force | Out-Null
+        $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
     }
-    $result.contracts_removed = -not (Test-Path -LiteralPath $sessionFile) -and -not (Test-Path -LiteralPath $readyFile)
-    $logReportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version-shell.log"
-    if (Test-Path -LiteralPath $shellLog) {
-        New-Item -ItemType Directory -Path (Split-Path -Parent $logReportPath) -Force | Out-Null
-        Copy-Item -LiteralPath $shellLog -Destination $logReportPath -Force
-        $result.shell_log = [IO.Path]::GetFileName($logReportPath)
+    finally {
+        $script:SmokeProgressActive = $false
+        Write-Progress -Id $script:SmokeProgressId -Activity "XREPORT desktop smoke: $Variant" -Completed
     }
-    if ($ownsQaRoot -and -not $KeepDataRoot -and (Test-Path -LiteralPath $qaRoot)) {
-        Remove-Item -LiteralPath $qaRoot -Recurse -Force -ErrorAction SilentlyContinue
-    } elseif ($KeepDataRoot) {
-        $result.data_root_preserved = $true
-        Write-Host "Preserved smoke data root: $qaRoot"
-    }
-    if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
-    $reportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version.json"
-    New-Item -ItemType Directory -Path (Split-Path -Parent $reportPath) -Force | Out-Null
-    $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
 }
 
 if (-not $result.started -or -not $result.ready_contract -or -not $result.health -or -not $result.frontend -or -not $result.closed -or
