@@ -161,6 +161,8 @@ Select **Clear cache** in the maintenance menu, or run:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
 ```
 
-Cache cleanup is best-effort: locked or administrator-protected files are
-reported and skipped so the launcher can continue removing the remaining
-artifacts.
+Cache cleanup is best-effort and reproducible: it attempts one bulk operation
+per target, then uses deterministic deepest-first item recovery only when the
+bulk operation fails. Locked or administrator-protected files are reported and
+skipped; other cached artifacts continue to be removed. `.gitkeep` sentinels
+remain preserved.

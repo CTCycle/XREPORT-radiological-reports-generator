@@ -901,14 +901,30 @@ function Invoke-DesktopBackendFreeze {
     # layout and its Python DLL dependency graph remain intact.
     Copy-Item -LiteralPath $frozenBackend -Destination (Join-Path $stagingRoot 'backend') -Recurse -Force
     $stagedBackend = Join-Path $stagingRoot 'backend'
-    foreach ($directory in @(Get-ChildItem -LiteralPath $stagedBackend -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
-        $_.Name -in @('__pycache__', '.pytest_cache', '.ruff_cache', 'tests', 'test') -or
+    $pruneDirectoryNames = @('__pycache__', '.pytest_cache', '.ruff_cache', 'tests', 'test')
+    $pruneDirectories = @(Get-ChildItem -LiteralPath $stagedBackend -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -in $pruneDirectoryNames -or
         $_.Name -match '^(pytest|playwright|ruff|pyright|jupyter|notebook|pip|setuptools|uv)([-.].*)?\.dist-info$'
-    } | Sort-Object FullName -Descending)) {
-        Remove-Item -LiteralPath $directory.FullName -Recurse -Force
+    } | Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $false }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+    $pruneRoots = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($directory in $pruneDirectories) {
+        $ancestor = [IO.Path]::GetDirectoryName($directory.FullName)
+        $covered = $false
+        while (-not [string]::IsNullOrWhiteSpace($ancestor) -and $ancestor.StartsWith("$stagedBackend\", [StringComparison]::OrdinalIgnoreCase)) {
+            if ($pruneRoots.Contains($ancestor)) {
+                $covered = $true
+                break
+            }
+            $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+        }
+        if ($covered) { continue }
+        Remove-Item -LiteralPath $directory.FullName -Recurse -Force -Confirm:$false
+        [void]$pruneRoots.Add($directory.FullName)
     }
-    foreach ($file in @(Get-ChildItem -LiteralPath $stagedBackend -File -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.pyc', '.pyo') })) {
-        Remove-Item -LiteralPath $file.FullName -Force
+    foreach ($file in @(Get-ChildItem -LiteralPath $stagedBackend -File -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in @('.pyc', '.pyo') } |
+            Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })) {
+        Remove-Item -LiteralPath $file.FullName -Force -Confirm:$false
     }
     Copy-Item -LiteralPath $FrontendDist -Destination (Join-Path $stagingRoot 'client') -Recurse -Force
     New-Item -ItemType Directory -Path (Join-Path $stagingRoot 'settings') -Force | Out-Null
@@ -1378,20 +1394,29 @@ function Invoke-TestSuite {
 
 function Remove-Logs {
     $logDir = Join-Path $RepoRoot 'app\resources\logs'
-    $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue)
+    $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue |
+        Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
     if ($logs.Count -gt 0) {
+        $removed = 0
+        $skipped = 0
         $progressId = Start-LauncherProgress -Activity 'XREPORT: remove application logs' -Status "0 of $($logs.Count) files"
         try {
             for ($index = 0; $index -lt $logs.Count; $index++) {
                 $log = $logs[$index]
                 Update-LauncherProgress -Id $progressId -Activity 'XREPORT: remove application logs' -Status "$($index + 1) of $($logs.Count): $($log.Name)" -PercentComplete ([int](($index + 1) * 100 / $logs.Count))
-                Remove-Item -LiteralPath $log.FullName -Force
+                $result = Remove-PathBestEffort -Path $log.FullName -Label $log.FullName
+                $removed += $result.Removed
+                $skipped += $result.Skipped
             }
         }
         finally {
             Complete-LauncherProgress -Id $progressId
         }
-        Write-Ok "Removed $($logs.Count) log file(s)"
+        if ($skipped -gt 0) {
+            Write-Warn "Removed $removed log file(s); skipped $skipped locked or protected file(s)."
+        } else {
+            Write-Ok "Removed $removed log file(s)"
+        }
     } else {
         Write-Info 'No log files found'
     }
@@ -1405,70 +1430,125 @@ function Remove-PathBestEffort {
 
     $removed = 0
     $skipped = 0
-    if (-not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) {
-        return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 0 }
-    }
-
-    $root = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if ($null -eq $root) {
+    try {
+        $root = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    } catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
+            return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 0 }
+        }
         Write-Warn "Skipped inaccessible cache path: $Label"
         return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 1 }
     }
-
-    $children = @()
-    if ($root.PSIsContainer) {
-        $children = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue |
-            Sort-Object @{ Expression = 'PSIsContainer'; Descending = $false }, @{ Expression = { $_.FullName.Length }; Descending = $true })
-        $progressId = Start-LauncherProgress -Activity "XREPORT: remove $Label" -Status "0 of $($children.Count) items"
+    if (-not $root.PSIsContainer) {
         try {
-            for ($index = 0; $index -lt $children.Count; $index++) {
-                $child = $children[$index]
-                if ($child.Name -eq '.gitkeep') { continue }
-                $hasKeepMarker = $child.PSIsContainer -and @($children | Where-Object {
-                    $_.Name -eq '.gitkeep' -and
-                    $_.FullName.StartsWith("$($child.FullName)\", [StringComparison]::OrdinalIgnoreCase)
-                }).Count -gt 0
-                if ($hasKeepMarker) { continue }
-                Update-LauncherProgress -Id $progressId -Activity "XREPORT: remove $Label" -Status "$($index + 1) of $($children.Count): $($child.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $children.Count)))
+            Remove-Item -LiteralPath $root.FullName -Force -Confirm:$false -ErrorAction Stop
+            return [pscustomobject]@{ Path = $Path; Removed = 1; Skipped = 0 }
+        } catch {
+            Write-Warn "Skipped locked or protected cache path: $Label"
+            return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 1 }
+        }
+    }
+
+    $enumerationErrors = @()
+    $children = @(Get-ChildItem -LiteralPath $root.FullName -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
+    $skipped = $enumerationErrors.Count
+    $failureMessages = [Collections.Generic.List[string]]::new()
+    foreach ($enumerationError in $enumerationErrors) {
+        [void]$failureMessages.Add("Skipped inaccessible cache path below ${Label}: $($enumerationError.Exception.Message)")
+    }
+
+    $markers = @($children | Where-Object { $_.Name -eq '.gitkeep' })
+    if ($markers.Count -eq 0) {
+        try {
+            Remove-Item -LiteralPath $root.FullName -Recurse -Force -Confirm:$false -ErrorAction Stop
+            foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
+                Write-Warn $failureMessage
+            }
+            return [pscustomobject]@{ Path = $Path; Removed = $children.Count + 1; Skipped = $skipped }
+        } catch {
+        }
+
+        $removalItems = @($children) + @($root)
+        $progressId = Start-LauncherProgress -Activity "XREPORT: recover removal of $Label" -Status "0 of $($removalItems.Count) items"
+        try {
+            for ($index = 0; $index -lt $removalItems.Count; $index++) {
+                $entry = $removalItems[$index]
+                Update-LauncherProgress -Id $progressId -Activity "XREPORT: recover removal of $Label" -Status "$($index + 1) of $($removalItems.Count): $($entry.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $removalItems.Count)))
                 try {
-                    if ($child.PSIsContainer) {
-                        Remove-Item -LiteralPath $child.FullName -Recurse -Force -ErrorAction Stop
-                    } else {
-                        Remove-Item -LiteralPath $child.FullName -Force -ErrorAction Stop
-                    }
+                    Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
                     $removed++
                 } catch {
                     $skipped++
-                    if ($skipped -le 5) {
-                        Write-Warn "Skipped locked or protected cache item: $($child.FullName)"
-                    }
+                    [void]$failureMessages.Add("Skipped locked or protected cache item: $($entry.FullName) ($($_.Exception.Message))")
                 }
             }
         }
         finally {
             Complete-LauncherProgress -Id $progressId
         }
-        if (@($children | Where-Object { $_.Name -eq '.gitkeep' }).Count -gt 0) {
-            return [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
+        foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
+            Write-Warn $failureMessage
+        }
+        return [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
+    }
+
+    $preservedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $rootPrefix = "$($root.FullName.TrimEnd('\'))\"
+    foreach ($marker in $markers) {
+        $ancestor = [IO.Path]::GetDirectoryName($marker.FullName)
+        while (-not [string]::IsNullOrWhiteSpace($ancestor) -and
+            -not $ancestor.Equals($root.FullName, [StringComparison]::OrdinalIgnoreCase) -and
+            $ancestor.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            [void]$preservedDirectories.Add($ancestor)
+            $ancestor = [IO.Path]::GetDirectoryName($ancestor)
         }
     }
 
-    if (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue) {
+    $removalGroups = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($child in $children) {
+        if ($child.Name -eq '.gitkeep' -or
+            ($child.PSIsContainer -and $preservedDirectories.Contains($child.FullName))) {
+            continue
+        }
+        $candidatePath = $child.FullName
+        while ($true) {
+            $parent = [IO.Path]::GetDirectoryName($candidatePath)
+            if ($parent.Equals($root.FullName, [StringComparison]::OrdinalIgnoreCase) -or
+                $preservedDirectories.Contains($parent)) {
+                break
+            }
+            $candidatePath = $parent
+        }
+        if (-not $removalGroups.ContainsKey($candidatePath)) {
+            $removalGroups[$candidatePath] = [Collections.Generic.List[object]]::new()
+        }
+        [void]$removalGroups[$candidatePath].Add($child)
+    }
+
+    foreach ($candidatePath in @($removalGroups.Keys |
+            Sort-Object @{ Expression = { $_.ToUpperInvariant() }; Descending = $false })) {
+        $candidateEntries = @($removalGroups[$candidatePath])
         try {
-            if ($root.PSIsContainer) {
-                Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
-            } else {
-                Remove-Item -LiteralPath $Path -Force -ErrorAction Stop
-            }
-            $removed++
+            Remove-Item -LiteralPath $candidatePath -Recurse -Force -Confirm:$false -ErrorAction Stop
+            $removed += $candidateEntries.Count
         } catch {
-            $skipped++
-            if ($skipped -le 5) {
-                Write-Warn "Skipped locked or protected cache path: $Label"
+            foreach ($entry in @($candidateEntries |
+                    Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })) {
+                try {
+                    Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+                    $removed++
+                } catch {
+                    $skipped++
+                    [void]$failureMessages.Add("Skipped locked or protected cache item: $($entry.FullName) ($($_.Exception.Message))")
+                }
             }
         }
     }
 
+    foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
+        Write-Warn $failureMessage
+    }
     [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
 }
 
@@ -1478,14 +1558,15 @@ function Get-LegacyCacheDirectories {
     $resourcesRoot = Join-Path $RepoRoot 'app\resources'
     $pending = [Collections.Generic.Stack[string]]::new()
     $pending.Push($RepoRoot)
-    $found = @()
+    $found = [Collections.Generic.List[object]]::new()
     $progressId = Start-LauncherProgress -Activity 'XREPORT: find legacy caches' -Status 'Scanning repository directories'
     try {
         while ($pending.Count -gt 0) {
             $current = $pending.Pop()
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: find legacy caches' -Status "Scanning $current"
             try {
-                $childDirectories = @([IO.Directory]::EnumerateDirectories($current))
+                $childDirectories = @([IO.Directory]::EnumerateDirectories($current) |
+                    Sort-Object @{ Expression = { $_.ToUpperInvariant() }; Descending = $false })
             } catch {
                 continue
             }
@@ -1497,13 +1578,17 @@ function Get-LegacyCacheDirectories {
                     continue
                 }
                 if ($childName -in $legacyNames) {
-                    $found += Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
+                    $legacyItem = Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
+                    if ($null -ne $legacyItem) {
+                        [void]$found.Add($legacyItem)
+                    }
                     continue
                 }
                 $pending.Push([string]$childPath)
             }
         }
-        @($found | Sort-Object FullName -Descending)
+        @($found |
+            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
     }
     finally {
         Complete-LauncherProgress -Id $progressId
@@ -1533,14 +1618,16 @@ function Clear-ApplicationCache {
         (Join-Path $ClientDir 'coverage')
     )
     $legacyCaches = @(Get-LegacyCacheDirectories)
-    $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName }))
-    $results = @()
+    $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName })) |
+        ForEach-Object { [IO.Path]::GetFullPath($_) } |
+        Select-Object -Unique
+    $results = [Collections.Generic.List[object]]::new()
     $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "0 of $($allTargets.Count) paths"
     try {
         for ($index = 0; $index -lt $allTargets.Count; $index++) {
             $target = $allTargets[$index]
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
-            $results += Remove-PathBestEffort -Path $target -Label $target
+            [void]$results.Add((Remove-PathBestEffort -Path $target -Label $target))
         }
     }
     finally {
