@@ -7,308 +7,407 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-08-28
+Last updated: 2026-08-31
 
-## 1. Project Overview
+## 1. What XREPORT is
 
-XREPORT is a local-first research application that generates editable draft radiological reports from X-ray images. Models and generated drafts are not clinically approved and require qualified independent review.
-It combines a FastAPI backend and an Angular 22 frontend to take users from source data through dataset preparation, model training, validation, and report generation.
+XREPORT is a local-first research application that generates editable draft
+radiological reports from X-ray images. It helps users prepare image/report
+datasets, train and evaluate local models, and compare report-generation
+models in a single workflow.
 
-The application runs locally as a FastAPI backend with an Angular-served web interface. On Windows, `start_on_windows.ps1` manages the portable runtimes, dependencies, and processes.
+The application is designed to support research and evaluation. It is not a
+diagnostic device, a replacement for a radiologist, or a clinically approved
+reporting system. Models and generated drafts can be wrong even when the text
+looks plausible. A qualified professional must independently review every
+draft before it is used for any research or clinical decision.
 
-Key capabilities:
+### What you can do
 
-- import image folders plus CSV/XLSX report metadata, review matches, and inspect paired records
-- clean, tokenize, split, and build training-ready datasets
-- configure CPU/GPU training, monitor live metrics and logs, save checkpoints, resume, and evaluate
-- use five pinned public Hugging Face report-generation models or locally trained Custom XReport checkpoints
-- generate editable Findings and Impression drafts from up to 16 study images, then copy or export them for qualified review
-- keep validation, model readiness, provenance, and research-use warnings visible in the workflow
+- import image folders and report tables, review matches, and prepare a usable
+  dataset
+- train or resume a local model while monitoring progress and metrics
+- evaluate datasets and saved model checkpoints
+- choose from five curated public report-generation models or use a locally
+  trained Custom XReport model
+- generate an editable draft from a de-identified X-ray study
+- review and edit the generated Findings and Impression, inspect the model
+  information returned with the draft, and copy or export the text for
+  qualified review
+- keep model readiness, validation state, provenance, and research-use
+  warnings visible throughout the workflow
 
+## 2. How it works
 
-## 2. Model and Dataset (Optional)
+XREPORT follows a simple path from source data to a reviewable draft:
 
-XREPORT supports its trained image-captioning checkpoints plus a fixed five-model Hugging Face Transformers catalogue. Selected public models are downloaded on first Generate into the project-local resource cache (under `app/resources` by default), verified, and reused offline on subsequent launches; no separate model server is required.
+1. **Prepare the data.** Images are paired with their corresponding reports.
+   The application checks those pairings and lets you inspect unmatched rows
+   before anything is used downstream.
+2. **Train or evaluate.** A prepared dataset can be used to train a local
+   model, resume a previous run, or evaluate a saved checkpoint. Progress and
+   quality indicators remain visible while a run is active.
+3. **Generate a draft.** A selected model examines one or more study images and
+   produces report text. The selected model determines its supported anatomy,
+   image limit, optional clinical context, and resource requirements.
+4. **Review the result.** The draft remains editable. Findings describe the
+   observations in the images, while Impression provides a shorter summary of
+   the main conclusion. Both sections must be checked against the source
+   images by a qualified reviewer.
 
-Supported data sources:
-- **MIMIC-CXR** (initial validation dataset)
-- **Custom datasets** following the supported image-report pair format
+### The underlying principle
 
+XREPORT uses image-to-text models. These models learn statistical relationships
+between visual patterns and example reports; they do not reason like a human
+radiologist and they do not guarantee that a generated statement is true.
+Training data, model scope, image quality, and the chosen generation settings
+all affect the result. Evaluation metrics can help compare experiments, but
+they are not a substitute for clinical validation.
 
+The application is local-first. Report generation runs on the selected local
+model, and application data is kept on the local machine by default. A public
+model may need to be downloaded and verified the first time it is used. After
+that, the verified local copy can be reused without downloading it again.
 
-## 3. Installation
+## 3. Models and data
 
-### 3.1 Windows (One-Click Setup)
+### Public models
 
-Run:
-- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
+The application presents five curated public model choices. Each model card
+shows the information needed to make an informed choice, including:
 
-The launcher menu can launch the app, install or update dependencies, rebuild the frontend only, initialize the database, run tests, remove logs, clear caches, and uninstall generated dependencies.
+- the anatomy and type of studies the model is intended for
+- whether it is ready locally or needs to be downloaded
+- approximate storage and hardware demand
+- licence and access requirements
+- the report sections and input options it supports
 
-### 3.2 Windows desktop packages
+The first four public choices are specialized for chest X-rays. The fifth is a
+broader medical-imaging option and should not be treated as universally
+validated for every anatomy. Some models are gated by their provider and may
+require accepting terms before they can be downloaded.
 
-The repository also contains a Tauri 2 desktop shell under `app/desktop`. It
-starts the frozen FastAPI service itself, serves the already-built Angular
-client, waits for a dynamic loopback health contract, and shuts the service
-down gracefully. The ordinary browser launcher remains unchanged.
+Public models are downloaded only when needed, verified locally, and reused on
+later launches. Keep an internet connection available for first use and make
+sure the computer has enough free storage for the selected model.
 
-Development shell (source backend and visible consoles):
+### Custom datasets and checkpoints
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
-```
+XREPORT supports:
 
-Release packaging is Windows x64 only. A clean tree is required for a normal
-release; `-AllowDirtyTree` is an explicit diagnostic override:
+- **MIMIC-CXR**, used as the initial validation dataset
+- **Custom datasets** containing image/report pairs in the supported table
+  format
+- **Custom XReport models**, created from local training runs and kept separate
+  from the public model catalogue
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0
-# Diagnostic build of the same four artifacts:
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0 `
-  -AllowDirtyTree -Force
-```
+Use only data that you are authorized to process, and de-identify images and
+reports before importing them. When a table contains rows that cannot be
+matched to images, XREPORT shows the problem instead of silently using those
+rows.
 
-Use `-DesktopRuntime Cpu|Cuda` and `-DesktopTarget Portable|Msi` to narrow a
-build. MSI embeds the WebView2 bootstrapper by default; pass
-`-OfflineWebView2` only when an offline WebView2 installer is intentionally
-available. `-Action RemoveDesktopRelease` removes generated release, staging,
-and Cargo output without touching user data.
+## 4. Installation and launch
 
-From `app/desktop`, `npm run tauri:build` delegates to the same complete
-launcher path (CPU by default):
+### 4.1 Windows: recommended launch
 
-```powershell
-npm run tauri:build
-npm run tauri:build -- -DesktopRuntime Cuda -DesktopTarget All
-```
+From the repository root, run:
 
-The build always recreates the ignored Angular `ui/` directory and variant
-`runtime.zip`; direct raw `tauri build` is not a distributable build command.
+~~~powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
+~~~
 
-The interactive launcher exposes the same workflow under **DESKTOP RELEASE**.
-Choose **Create release artifacts** or **Remove release artifacts**, enter the
-version, and select CPU/CUDA portable or MSI output—or all four packages. The
-interactive removal updates the selected variant's checksum and build metadata
-sidecars; the direct `RemoveDesktopRelease` action remains the full cleanup for
-all release and desktop build output.
+Choose **Launch application**. The launcher prepares the local runtimes and
+dependencies as needed, initializes the application data store, starts the
+services, checks that they are ready, and opens the application in your
+browser.
 
-The automated GitHub workflow is `.github/workflows/desktop-release.yml`. It
-runs for `vX.Y.Z` tags or a manual version dispatch, builds the CPU and CUDA
-matrix on Windows, verifies the expected EXE/MSI/checksum/runtime contracts,
-smoke-tests each portable executable, and publishes the verified asset set to a
-GitHub Release. `.github/workflows/desktop-clean-build.yml` proves the same
-path from an empty generated state on pull requests (CPU) and `develop` pushes
-(CPU and CUDA). Neither workflow signs binaries.
+The first launch may take several minutes while dependencies and the frontend
+are prepared. Allow the process to finish and keep an internet connection
+available. Later launches are normally faster because the prepared resources
+are reused.
 
-Artifacts are written to `release/` with standard SHA-256 manifests:
+For a direct launch without the menu, use:
 
-* `XREPORT-v3.0.0-windows-x64-cpu-portable.exe` and `.msi`
-* `XREPORT-v3.0.0-windows-x64-cuda-portable.exe` and `.msi`
-* one `.sha256` file per variant plus a build metadata JSON file
+~~~powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
+~~~
 
-Portable artifacts are self-contained single EXEs: the frozen runtime ZIP is
-streamed into a PE overlay. MSI artifacts carry the same verified ZIP as an
-immutable installer resource. The raw Tauri shell under
-`app/desktop/build/cargo-target` is not itself a portable release artifact.
+The launcher also provides maintenance actions such as database
+initialization, frontend rebuilding, cache cleanup, and dependency
+preparation. Most users only need **Launch application**.
 
-The builds are currently unsigned. Portable execution requires the maintained
-system WebView2 runtime; MSI installation is per-machine and normally needs
-administrator approval. CPU and CUDA products have separate identifiers and
-shortcuts but share one per-user instance guard, so only one XREPORT desktop
-variant can run at a time.
+### 4.2 Optional Windows desktop packages
 
-### 3.3 macOS / Linux (Manual Setup)
+Some releases are also provided as Windows desktop packages:
 
-Prerequisites:
-- Python 3.14+
-- Node.js 22.x + npm
-- uv
+- **CPU** packages are the general-purpose choice and work without a
+  compatible graphics card.
+- **CUDA** packages are intended for supported NVIDIA hardware and drivers.
+- A **portable** package can be run directly.
+- An **MSI** package installs XREPORT through the normal Windows installer and
+  may request administrator approval.
 
-Setup:
-```bash
+Download the package that matches your hardware from the [GitHub Releases](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) page.
+
+The desktop package uses the same local application workflow as the browser
+version. Portable execution requires a maintained Microsoft WebView2 runtime.
+Only one XREPORT desktop instance can run at a time for the same Windows user.
+Your application data is kept separately from the installed program so normal
+updates do not remove datasets, checkpoints, or downloaded models.
+
+### 4.3 macOS and Linux: manual local launch
+
+There is no equivalent one-click launcher in this repository for macOS or
+Linux. The manual flow requires Python 3.14 or newer, Node.js 22.x with npm,
+and uv.
+
+Install the project dependencies once from the repository root:
+
+~~~bash
 cd app/server
 uv sync --frozen
 cd ../client
 npm ci
 npm run build
-```
+~~~
 
+Then use two terminals and keep both running while you use the application.
 
+In Terminal 1, from the repository root, start the local service:
 
-## 4. How to Use
-
-### 4.1 Launch
-
-Windows:
-- Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` and select **Launch application**.
-
-macOS/Linux (manual, in two terminals):
-
-Terminal 1, from the repository root:
-
-```bash
+~~~bash
 uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
-```
+~~~
 
-Terminal 2:
+In Terminal 2, start the local web interface:
 
-```bash
+~~~bash
 cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
-```
+~~~
 
-Database migrations are applied automatically during installation and backend
-startup. To initialize or upgrade the configured database explicitly:
+Open the local address shown by the frontend preview, normally
+http://127.0.0.1:8003.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InitializeDatabase
-```
+## 5. Using the application
 
-For migration development, run Alembic from `app/server` and review generated
-revisions before committing them:
+### 5.1 Prepare a dataset
 
-```powershell
-uv run alembic -c alembic.ini current --check-heads
-uv run alembic -c alembic.ini revision --autogenerate -m "describe schema change"
-uv run alembic -c alembic.ini upgrade head
-```
+1. Open **Dataset**.
+2. Select the folder containing the images and the table containing the
+   corresponding report text and image references.
+3. Load the source data and review the matched and unmatched counts.
+4. If some rows are unmatched, correct the source data where possible. Import
+   only the matched rows when a deliberately partial dataset is acceptable.
+5. Run the preparation and processing steps, then confirm that the dataset is
+   ready before using it for training or validation.
 
-### 4.2 Core Workflow
+The matching review is important: a report paired with the wrong image can
+produce misleading training results. XREPORT does not silently import rows it
+cannot match.
 
-1. On **Dataset**, upload an image folder and report table, load the source, review matched/unmatched rows, and build a processed dataset.
-2. On **Training**, select a processed dataset, review the five-step configuration wizard, and start or resume a run while watching live metrics, charts, and logs.
-3. On **Inference**, select a public or custom model, add up to 16 images, choose a generation profile, and submit a background generation job.
-4. Review and edit the returned **Findings** and **Impression** fields, inspect model/provider provenance, and copy or export the research-use draft.
-5. Use the Dataset and Training validation actions to check datasets and checkpoints before drawing quality conclusions.
+### 5.2 Train and evaluate a model
 
-### 4.3 UI Snapshots
+1. Open **Training** and select a prepared dataset.
+2. Review the configuration wizard and choose the available CPU or GPU
+   options and training settings.
+3. Start a run, then watch its progress, charts, and metrics.
+4. Stop and resume a run when needed. Completed checkpoints remain available
+   for later evaluation or inference.
+5. Use the dataset-validation and checkpoint-evaluation actions to inspect the
+   result before drawing conclusions from an experiment.
 
-The screenshots below were captured from the current Windows web interface at a consistent 1280×720 desktop viewport. Each image is a focused panel frame rather than a stitched full-page capture, with the relevant scrollable content fit to the frame so text and controls remain readable.
+Training metrics are useful for monitoring and comparing runs. They do not
+establish clinical safety, generalization to new hospitals, or diagnostic
+accuracy.
 
-The 2026-08-28 release-documentation pass used `.\start_on_windows.ps1 -Action Launch`, verified the backend health endpoint and frontend preview, loaded persisted datasets and checkpoints, and completed a public-model draft from two de-identified radiographs. These images document application behavior; they are not clinical evidence.
+### 5.3 Generate and review a report
 
-#### Dataset handling
+1. Open **Inference** and read the research-use warning.
+2. Select a ready public model or a complete Custom XReport checkpoint. Review
+   its anatomy, image limit, resource demand, licence, access status, and
+   readiness information.
+3. Add de-identified images from one study, up to the limit shown for the
+   selected model. Add clinical context only when the model supports it.
+4. Choose a generation profile and submit the request. Generation runs as a
+   background task, so the interface can show progress and allows an active
+   request to be cancelled.
+5. Read and edit the returned draft. Inspect the model, provider, revision,
+   profile, and output information before copying or exporting it.
 
-The Dataset workflow keeps the source and processing controls together, then lets users inspect a populated image/report pair before using it downstream. This preview uses the valid persisted `dataset-upload-matched` sample and shows one of four paired images with its report text.
+Changing the selected model, images, or generation profile clears the current
+draft so that text from an earlier configuration is not mistaken for the new
+result.
+
+### 5.4 Review safely
+
+Treat every result as a research-use draft. Compare the text with every source
+image, check measurements and clinical context independently, and correct or
+discard unsupported statements. Do not place generated text into a clinical
+record or use it to guide care without the required qualified review and local
+approval process.
+
+## 6. Application walkthrough
+
+The screenshots below show representative workflows from the Windows web
+interface. They are included to make the main screens and expected interaction
+easier to recognize; they are not clinical evidence.
+
+### Dataset handling
+
+The Dataset workflow keeps source selection, matching, processing, and record
+inspection together. The example shows a populated image/report pair that is
+ready to continue through the workflow.
 
 ![Dataset image viewer](assets/figures/readme-dataset.png)
 
-#### Training and evaluation
+### Training and evaluation
 
-The Training workspace exposes saved runs and checkpoint actions. This complete evaluation report shows the `XREPORT_20260820T115346` checkpoint after eight epochs, with loss `3.8239` and accuracy `0.6667`.
+The Training workspace exposes saved runs, checkpoint actions, and evaluation
+results so that a user can follow a model experiment from start to finish.
 
 ![Checkpoint evaluation report](assets/figures/readme-training.png)
 
-#### Inference workflow
+### Inference workflow
 
-The public model catalogue makes readiness, installation, validation state, anatomy, output sections, and licence visible before use. The selected CXRMate Multi TF model is an open, lightweight chest-X-ray reporter.
+The public model catalogue shows readiness, anatomy scope, resource demand,
+output sections, and licence or access information before a model is used.
 
 ![Public inference model catalogue](assets/figures/readme-inference.png)
 
-The workflow keeps two de-identified study images, generation controls, and the multi-view input state visible while the draft is produced.
+The image workflow keeps the study images, generation controls, and multi-view
+input state visible while a draft is being produced.
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The editable review panel shows the completed public-model draft from the documented two-image run, with Findings, Impression, model, provider, revision, profile, and output metadata ready for qualified review.
+The review panel presents editable Findings and Impression text together with
+the information needed to identify how the draft was produced.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
 
-#### Help & Tips
+### Help and tips
 
-The Tips & Tricks panel provides contextual onboarding, completed workflow steps, and guidance for resuming from an existing checkpoint.
+The Tips & Tricks panel provides contextual onboarding, completed workflow
+steps, and guidance for resuming from an existing checkpoint.
 
 ![Help and tips](assets/figures/readme-help-and-tips.png)
 
-For operator guidance, see [Getting started](assets/docs/operations/getting_started.md) and [Core workflows](assets/docs/operations/workflows.md).
+## 7. Important limitations and requirements
 
-### 4.4 Release-readiness notes
+- Use de-identified images and reports, and follow the privacy, security, and
+  research policies that apply to your data.
+- Generated reports are not clinically approved. They can omit findings,
+  invent details, or use wording that sounds confident without being correct.
+- Model quality depends on anatomy, image quality, training data, and the
+  selected generation settings. A model intended for chest X-rays should not
+  be assumed to work for other anatomies.
+- First use of a public model may require internet access, additional storage,
+  and several minutes for download, verification, and loading.
+- CPU inference and training are supported but can be slower. CUDA packages
+  can improve performance only when compatible NVIDIA hardware and drivers are
+  available.
+- Long-running training, evaluation, maintenance, and inference actions report
+  progress in the application and may be cancelled. Do not close the
+  application while an operation is still writing important results unless you
+  are willing to repeat it.
+- The current major release is v3.0.0 and is intended for stable local
+  evaluation and testing while the project continues to evolve.
 
-The live documentation pass found one stale development-only dataset record: `dataset_small` points to removed QA image files and is intentionally excluded from the figures above. The persisted `mimic-cxr-training-sample` validation report is complete but currently exposes zero text-statistics values, so it is not presented as quality evidence. Both states should be cleaned or regenerated before using this development database as a release demo.
+## 8. Troubleshooting
 
+### The application does not open or the browser page is unavailable
 
+- On Windows, run the launcher again and choose **Launch application**. Give
+  the first launch time to prepare dependencies and start the local services.
+- If another XREPORT window is already open, close it before starting a second
+  one.
+- On macOS or Linux, confirm that both the service terminal and the frontend
+  preview terminal are still running.
+- If the problem continues, restart the computer and try the launcher once
+  more before removing any application data.
 
-## 5. Documentation and Maintenance
+### The first launch or first model use is slow
 
-Use `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1` on Windows to access the consolidated launch and maintenance menu.
+This is expected when local runtimes, dependencies, or a public model are being
+prepared. Keep the computer connected to the internet, allow enough free disk
+space, and wait for the progress state to finish. Later launches reuse verified
+local resources.
 
-Deeper documentation:
+### A model is unavailable or access is required
+
+Check the model card for its anatomy, readiness, licence, and access status.
+For a model that has not been installed, allow the download and verification to
+complete. For a gated model, accept the provider's terms and complete the
+required account or credential setup before trying again. If the model is too
+large for the computer, choose a lighter public model or a local checkpoint.
+
+### Image and report rows do not match
+
+Make sure the image references in the report table agree with the actual image
+filenames and that the selected image folder is the intended one. Reload the
+source after correcting the data. Do not use a partial import unless you have
+reviewed which records will be included.
+
+### Training cannot start, resume, or evaluate
+
+Confirm that the dataset has completed processing and that its image files are
+still available. A checkpoint also needs all of its required files. If source
+images or checkpoint files were moved or deleted, restore them or choose a
+complete dataset/checkpoint and try again.
+
+### The desktop package shows a startup error
+
+Make sure Microsoft WebView2 is installed and up to date, then restart
+XREPORT. If a CUDA package fails to start or run inference, try the CPU package
+to determine whether the issue is related to NVIDIA hardware or drivers. MSI
+installation may require administrator approval.
+
+### The generated report looks incorrect
+
+Treat the output as an unverified draft. Check the selected model's anatomy and
+input limit, confirm that the images are clear and belong to one study, and
+review the Findings and Impression against the images. Do not try to correct a
+clinical problem by relying on the generated text alone.
+
+### Previous datasets or models are missing
+
+The application normally keeps user data across launches and packaged desktop
+updates. Avoid deleting the local application-data folder unless you have a
+backup and intentionally want a clean reset. If a database initialization
+message appears, use the launcher's **Initialize database** action and preserve
+the existing data if it matters.
+
+For more detailed operator guidance, see [Getting started](assets/docs/operations/getting_started.md), [Core workflows](assets/docs/operations/workflows.md), and [Troubleshooting and initialization](assets/docs/operations/troubleshooting.md).
+
+## 9. Technology at a glance
+
+XREPORT combines a Python and FastAPI local service with an Angular web
+interface. It uses local database and file storage for datasets, checkpoints,
+logs, and model resources, and uses Hugging Face Transformers for the curated
+public model catalogue. Optional Windows desktop packages use a native Tauri
+shell around the same local application.
+
+You normally interact with XREPORT through the browser-based interface or the
+packaged Windows desktop application. No separate model server is required for
+the supported local inference workflow.
+
+## 10. Local data and further documentation
+
+In the source-based web workflow, application data is kept in the project's
+local resource area by default. Packaged Windows builds keep mutable data in
+the Windows user profile rather than beside the installed program. This data
+includes the local database, logs, checkpoints, downloaded models, tokenizers,
+and report templates.
+
+Updates do not normally remove that data. Back up important datasets and
+checkpoints before manually resetting or uninstalling anything. The deeper
+documentation is available for operators and maintainers who need launch,
+runtime, model, or architecture details:
 
 - [Runtime startup and launcher actions](assets/docs/runtime/startup.md)
-- [Runtime configuration and environment variables](assets/docs/runtime/configuration.md)
 - [Local inference models and first-use lifecycle](assets/docs/runtime/local_inference_models.md)
 - [Architecture overview](assets/docs/architecture/system_overview.md)
-- [Troubleshooting and database initialization](assets/docs/operations/troubleshooting.md)
 
+## 11. License
 
-
-## 6. Resources
-
-Runtime data is stored under `app/resources` by default. Set
-`XREPORT_RESOURCES_DIR` in `settings/.env` to use another absolute path or a
-path relative to the repository root:
-- `checkpoints/`
-- `logs/`
-- `models/`
-- `templates/`
-- database file (`database.db`)
-
-On Windows, portable runtimes and runtime virtual environment are stored in `runtimes/`.
-
-Disposable runtime caches are stored under `runtimes/cache`; pytest, Ruff, and
-other development-tool caches are stored under `app/tests/cache`. Use
-`.\start_on_windows.ps1 -Action ClearCache` to remove them. Cleanup skips
-locked or administrator-protected files and continues with the remaining
-artifacts.
-
-Packaged desktop mode never writes mutable state into the installation
-directory. Immutable extracted files live under
-`%LOCALAPPDATA%\XREPORT\runtime\<cpu|cuda>\3.0.0\<payload-sha256>`. Runtime data,
-the seeded `.env`, configuration, SQLite database, logs, checkpoints, model
-downloads, tokenizers, templates, and caches live under
-`%LOCALAPPDATA%\XREPORT\data`. Data intentionally survives MSI upgrades and
-uninstall; remove that directory manually only when a full reset is wanted.
-
-
-## 7. Configuration
-
-- Runtime/process settings: `settings/.env`
-- Backend defaults: `settings/configurations.json`
-- Database configuration: `settings/.env`
-- Curated local inference catalog: `settings/inference_models.json`
-- Optional Hugging Face access token: `HF_TOKEN` for gated models such as MedGemma; do not commit it
-
-### 7.1 Database initialization behavior
-
-- On backend startup, a missing `settings/.env` is copied from
-  `settings/.env.example`. An existing `settings/.env` is never overwritten,
-  and `.env` files are excluded by `.gitignore`.
-- SQLite mode (`EMBEDDED_DATABASE=true`):
-  - On application startup, the Alembic coordinator creates a missing database and upgrades an existing database to the checked-in head.
-  - An exact known legacy schema may be adopted; ambiguous or modified non-empty databases fail closed without mutation.
-- PostgreSQL mode (`EMBEDDED_DATABASE=false`):
-  - Normal startup verifies the configured connection and applies pending revisions when permitted.
-  - Select **Initialize database** in `start_on_windows.ps1` to run the same explicit initialization path without launching the UI.
-
-Public models may require a first-use download and verification. Keep network access available for a model that is not already cached; gated models additionally require the provider's access terms and credentials. Once verified, the local snapshot is reused on later launches.
-
-See also `assets/docs/` for architecture, runtime, operations, and troubleshooting guidance.
-
-Packaged mode ignores a source-relative `XREPORT_RESOURCES_DIR`. The shell
-passes a per-launch 256-bit token to the backend; the one-time bootstrap URL is
-stored only in the user-scoped session file and becomes an HttpOnly,
-host-only, `SameSite=Strict` cookie. Native health/shutdown probes use a
-private header. The packaged server adds same-origin CSP and standard browser
-hardening headers, and it exposes no Tauri filesystem, shell, process, or
-arbitrary-opener capability to the Angular content.
-
-
-
-## 8. Development Status
-
-This project is under active development and may contain incomplete features. The current major release is v3.0.0, intended for stable local evaluation and testing.
-
-## 9. License
-
-This project is licensed under the MIT License. See `LICENSE`.
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
