@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
+import sqlite3
+import time
 from typing import Any, Iterator
 
 import pandas as pd
@@ -68,10 +70,20 @@ class Database:
     def _configure_sqlite(dbapi_connection: Any, _connection_record: Any) -> None:
         cursor = dbapi_connection.cursor()
         try:
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA synchronous=NORMAL")
+            # Install the busy handler before database-wide pragmas so a
+            # concurrent migration can finish instead of failing WAL setup.
             cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA foreign_keys=ON")
+            deadline = time.monotonic() + 30.0
+            while True:
+                try:
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    break
+                except sqlite3.OperationalError as exc:
+                    if "locked" not in str(exc).lower() or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.05)
+            cursor.execute("PRAGMA synchronous=NORMAL")
         finally:
             cursor.close()
 
