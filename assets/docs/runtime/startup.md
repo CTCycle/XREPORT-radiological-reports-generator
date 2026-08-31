@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Windows Local Launcher
 
@@ -25,6 +25,7 @@ The menu can:
 - initialize the database and run tests
 - create or remove selected desktop release artifacts
 - remove logs, clear caches, or uninstall generated dependencies
+- update source from `origin/main` with the clean-`main` guard
 
 The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
 
@@ -49,6 +50,14 @@ by Git.
 Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
 application launch. The default `ALWAYS_REBUILD=false` skips that startup
 build; the install/update option continues to build the frontend.
+
+### Source updates
+
+**Update application from main** is menu option 11 and the direct
+`-Action Update` command. It requires a non-detached, clean checkout of
+`main` and runs `git pull --ff-only origin main`; it does not switch branches or
+modify local changes. This source update is separate from dependency install or
+frontend rebuild actions.
 
 ## Tauri desktop development
 
