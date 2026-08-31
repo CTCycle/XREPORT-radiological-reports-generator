@@ -155,7 +155,9 @@ def downgrade() -> None:
         batch_op.add_column(
             sa.Column("request_id", sa.String(length=64), nullable=True)
         )
-        batch_op.create_unique_constraint(None, ["request_id"])
+        batch_op.create_unique_constraint(
+            "checkpoint_evaluations_request_id_key", ["request_id"]
+        )
         batch_op.create_check_constraint(
             "ck_checkpoint_evaluations_status",
             "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
@@ -173,7 +175,9 @@ def downgrade() -> None:
         batch_op.add_column(
             sa.Column("request_id", sa.String(length=64), nullable=True)
         )
-        batch_op.create_unique_constraint(None, ["request_id"])
+        batch_op.create_unique_constraint(
+            "validation_runs_request_id_key", ["request_id"]
+        )
         batch_op.create_check_constraint(
             "ck_validation_runs_status",
             "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
