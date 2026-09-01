@@ -78,7 +78,8 @@ $NodeSha256 = '6c8d54f635feff4df76c2ca80f45332eb2ff57d25226edce36592e51a177ee33'
 $NpmVersion = '10.9.8'
 $RustVersion = '1.95.0'
 $script:NextProgressId = 1
-$script:ActiveProgressIds = [Collections.Generic.HashSet[int]]::new()
+$script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
+$script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
 
 function Write-Step([string]$Message) { Clear-LauncherProgress; Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Clear-LauncherProgress; Write-Host "[OK] $Message" -ForegroundColor Green }
@@ -89,8 +90,8 @@ function Write-Fatal([string]$Message) { Clear-LauncherProgress; Write-Host "[FA
 function Start-LauncherProgress {
     param([Parameter(Mandatory = $true)][string]$Activity, [Parameter(Mandatory = $true)][string]$Status)
     $id = $script:NextProgressId++
-    [void]$script:ActiveProgressIds.Add($id)
-    Write-Progress -Id $id -Activity $Activity -Status $Status
+    $script:ActiveProgressActivities[$id] = $Activity
+    if ($script:LauncherInteractive) { Write-Progress -Id $id -Activity $Activity -Status $Status }
     return $id
 }
 
@@ -101,24 +102,31 @@ function Update-LauncherProgress {
         [Parameter(Mandatory = $true)][string]$Status,
         [Nullable[int]]$PercentComplete
     )
-    if (-not $script:ActiveProgressIds.Contains($Id)) { return }
-    $progress = @{ Id = $Id; Activity = $Activity; Status = $Status }
+    if (-not $script:ActiveProgressActivities.ContainsKey($Id)) { return }
+    $activity = $script:ActiveProgressActivities[$Id]
+    $progress = @{ Id = $Id; Activity = $activity; Status = $Status }
     if ($null -ne $PercentComplete) { $progress.PercentComplete = $PercentComplete }
-    Write-Progress @progress
+    if ($script:LauncherInteractive) { Write-Progress @progress }
 }
 
 function Complete-LauncherProgress {
     param([int]$Id)
-    if ($script:ActiveProgressIds.Contains($Id)) {
-        Write-Progress -Id $Id -Activity 'XREPORT launcher' -Completed
-        [void]$script:ActiveProgressIds.Remove($Id)
+    if ($script:ActiveProgressActivities.ContainsKey($Id)) {
+        $activity = $script:ActiveProgressActivities[$Id]
+        try {
+            if ($script:LauncherInteractive) {
+                try { Write-Progress -Id $Id -Activity $activity -Completed } catch { }
+            }
+        }
+        finally {
+            [void]$script:ActiveProgressActivities.Remove($Id)
+        }
     }
 }
 
 function Clear-LauncherProgress {
-    foreach ($id in @($script:ActiveProgressIds)) {
-        Write-Progress -Id $id -Activity 'XREPORT launcher' -Completed
-        [void]$script:ActiveProgressIds.Remove($id)
+    foreach ($id in @($script:ActiveProgressActivities.Keys)) {
+        Complete-LauncherProgress -Id $id
     }
 }
 
@@ -134,6 +142,9 @@ function Invoke-TrackedLauncherAction {
     } catch {
         Write-Fatal "$Name failed: $($_.Exception.Message)"
         throw
+    }
+    finally {
+        Clear-LauncherProgress
     }
 }
 
@@ -249,7 +260,7 @@ function Invoke-DownloadAndExtract {
         Update-LauncherProgress -Id $progressId -Activity $activity -Status 'Extracting archive'
         Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath -Force
     } finally {
-        Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue
+        [void](Remove-LauncherPath -Path $ArchivePath -PreserveNames @() -Activity 'XREPORT: remove downloaded archive')
         Complete-LauncherProgress -Id $progressId
     }
 }
@@ -320,7 +331,7 @@ function Ensure-PortableRuntimes {
     }
     if (-not $pythonReady) {
         if (Test-Path -LiteralPath $PythonDir) {
-            Get-ChildItem -LiteralPath $PythonDir -Force | Remove-Item -Recurse -Force
+            [void](Remove-LauncherPath -Path $PythonDir -KeepRoot -PreserveNames @() -Activity 'XREPORT: replace portable Python runtime' -Strict)
         }
         Write-Info "Downloading Python $PythonVersion"
         Invoke-DownloadAndExtract -Uri $PythonUrl -ArchivePath (Join-Path $PythonDir $PythonArchive) -DestinationPath $PythonDir -ExpectedSha256 $PythonSha256
@@ -341,7 +352,7 @@ function Ensure-PortableRuntimes {
     }
     if (-not $uvReady) {
         if (Test-Path -LiteralPath $UvDir) {
-            Get-ChildItem -LiteralPath $UvDir -Force | Remove-Item -Recurse -Force
+            [void](Remove-LauncherPath -Path $UvDir -KeepRoot -PreserveNames @() -Activity 'XREPORT: replace portable uv runtime' -Strict)
         }
         $uvUrl = if ($uvArchitecture -eq 'arm64') { $UvUrlArm64 } else { $UvUrlAmd64 }
         $uvHash = if ($uvArchitecture -eq 'arm64') { $UvSha256Arm64 } else { $UvSha256Amd64 }
@@ -384,7 +395,7 @@ function Ensure-PortableNodeRuntime {
     if (-not (Test-Path -LiteralPath $NodeExe) -or $portableNodeNeedsUpgrade) {
         if ($portableNodeNeedsUpgrade) {
             Write-Info "Upgrading portable Node.js from $existingNodeVersion to $NodeVersion"
-            Get-ChildItem -LiteralPath $NodeDir -Force | Remove-Item -Recurse -Force
+            [void](Remove-LauncherPath -Path $NodeDir -KeepRoot -PreserveNames @() -Activity 'XREPORT: replace portable Node.js runtime' -Strict)
         }
         Write-Info "Downloading Node.js $NodeVersion"
         Invoke-DownloadAndExtract -Uri $NodeUrl -ArchivePath (Join-Path $NodeDir $NodeArchive) -DestinationPath $NodeDir -ExpectedSha256 $NodeSha256
@@ -392,7 +403,7 @@ function Ensure-PortableNodeRuntime {
     $nestedNodeDir = Join-Path $NodeDir "node-v$NodeVersion-win-x64"
     if (Test-Path -LiteralPath (Join-Path $nestedNodeDir 'node.exe')) {
         Get-ChildItem -LiteralPath $nestedNodeDir -Force | Move-Item -Destination $NodeDir -Force
-        Remove-Item -LiteralPath $nestedNodeDir -Recurse -Force
+        [void](Remove-LauncherPath -Path $nestedNodeDir -Activity 'XREPORT: flatten Node.js runtime' -Strict)
     }
     if (-not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)) {
         throw "Portable Node.js or npm was not found in $NodeDir."
@@ -478,7 +489,7 @@ function Install-Dependencies {
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     } catch {
         Write-Warn 'Recreating the project virtual environment after a failed sync'
-        Remove-Item -LiteralPath $VenvDir -Recurse -Force -ErrorAction SilentlyContinue
+        [void](Remove-LauncherPath -Path $VenvDir -Activity 'XREPORT: recreate Python environment' -Strict)
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
     }
 
@@ -840,7 +851,7 @@ function Invoke-DesktopFrontendBuild {
     }
     $frontendDist = Split-Path -Parent $frontendOutput
     $desktopUi = Join-Path $DesktopTauriDir 'ui'
-    if (Test-Path -LiteralPath $desktopUi) { Remove-Item -LiteralPath $desktopUi -Recurse -Force }
+    if (Test-Path -LiteralPath $desktopUi) { [void](Remove-LauncherPath -Path $desktopUi -Activity 'XREPORT: refresh desktop UI staging' -Strict) }
     New-Item -ItemType Directory -Path $desktopUi -Force | Out-Null
     foreach ($entry in @(Get-ChildItem -LiteralPath $frontendDist -Force)) {
         Copy-Item -LiteralPath $entry.FullName -Destination $desktopUi -Recurse -Force
@@ -857,16 +868,16 @@ function Invoke-DesktopBackendFreeze {
     $stagingRoot = Join-Path $DesktopBuildDir "runtime-staging\$Variant"
     $distRoot = Join-Path $DesktopBuildDir "pyinstaller\$Variant\dist"
     $workRoot = Join-Path $DesktopBuildDir "pyinstaller\$Variant\work"
-    if (Test-Path -LiteralPath $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
-    if (Test-Path -LiteralPath $distRoot) { Remove-Item -LiteralPath $distRoot -Recurse -Force }
-    if (Test-Path -LiteralPath $workRoot) { Remove-Item -LiteralPath $workRoot -Recurse -Force }
+    if (Test-Path -LiteralPath $stagingRoot) { [void](Remove-LauncherPath -Path $stagingRoot -Activity 'XREPORT: refresh desktop runtime staging' -Strict) }
+    if (Test-Path -LiteralPath $distRoot) { [void](Remove-LauncherPath -Path $distRoot -Activity 'XREPORT: refresh PyInstaller output' -Strict) }
+    if (Test-Path -LiteralPath $workRoot) { [void](Remove-LauncherPath -Path $workRoot -Activity 'XREPORT: refresh PyInstaller work area' -Strict) }
     New-Item -ItemType Directory -Path $stagingRoot, $distRoot, $workRoot | Out-Null
 
     $previousPythonPath = $env:PYTHONPATH
     $cpuOverlay = Join-Path $DesktopBuildDir 'cpu-overlay'
     try {
         if ($Variant -eq 'cpu') {
-            if (Test-Path -LiteralPath $cpuOverlay) { Remove-Item -LiteralPath $cpuOverlay -Recurse -Force }
+            if (Test-Path -LiteralPath $cpuOverlay) { [void](Remove-LauncherPath -Path $cpuOverlay -Activity 'XREPORT: refresh CPU overlay' -Strict) }
             New-Item -ItemType Directory -Path $cpuOverlay -Force | Out-Null
             Write-Step 'Preparing isolated CPU Torch overlay (the CUDA development environment is unchanged)'
             foreach ($line in @(Invoke-Checked -FilePath $UvExe -ArgumentList @(
@@ -918,13 +929,13 @@ function Invoke-DesktopBackendFreeze {
             $ancestor = [IO.Path]::GetDirectoryName($ancestor)
         }
         if ($covered) { continue }
-        Remove-Item -LiteralPath $directory.FullName -Recurse -Force -Confirm:$false
+        [void](Remove-LauncherPath -Path $directory.FullName -Activity "XREPORT: prune frozen backend $($directory.Name)" -Strict)
         [void]$pruneRoots.Add($directory.FullName)
     }
     foreach ($file in @(Get-ChildItem -LiteralPath $stagedBackend -File -Recurse -Force -ErrorAction SilentlyContinue |
             Where-Object { $_.Extension -in @('.pyc', '.pyo') } |
             Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })) {
-        Remove-Item -LiteralPath $file.FullName -Force -Confirm:$false
+        [void](Remove-LauncherPath -Path $file.FullName -PreserveNames @() -Activity "XREPORT: remove frozen bytecode $($file.Name)" -Strict)
     }
     Copy-Item -LiteralPath $FrontendDist -Destination (Join-Path $stagingRoot 'client') -Recurse -Force
     New-Item -ItemType Directory -Path (Join-Path $stagingRoot 'settings') -Force | Out-Null
@@ -943,7 +954,9 @@ function Add-DesktopRuntimeOverlay {
     # in-memory PowerShell read.  Append it as a PE overlay with a fixed
     # footer; the Rust shell seeks directly to that bounded ZIP region.
     $temporary = "$Executable.runtime-overlay.tmp"
-    if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+    if (Test-Path -LiteralPath $temporary) {
+        [void](Remove-LauncherPath -Path $temporary -PreserveNames @() -Activity 'XREPORT: remove stale runtime overlay' -Strict)
+    }
     $source = $null
     $archiveStream = $null
     $output = $null
@@ -989,11 +1002,17 @@ function Invoke-DesktopVariantBuild {
             "${artifactPrefix}.sha256",
             "${artifactPrefix}-build.json"
         )) {
-            if (Test-Path -LiteralPath $staleArtifact) { Remove-Item -LiteralPath $staleArtifact -Force }
+            if (Test-Path -LiteralPath $staleArtifact) {
+                [void](Remove-LauncherPath -Path $staleArtifact -PreserveNames @() -Activity "XREPORT: remove stale release file $([IO.Path]::GetFileName($staleArtifact))" -Strict)
+            }
         }
-        if (Test-Path -LiteralPath $auditPath) { Remove-Item -LiteralPath $auditPath -Force }
+        if (Test-Path -LiteralPath $auditPath) {
+            [void](Remove-LauncherPath -Path $auditPath -PreserveNames @() -Activity 'XREPORT: remove stale runtime audit' -Strict)
+        }
         New-Item -ItemType Directory -Path (Split-Path -Parent $archivePath), (Split-Path -Parent $auditPath) -Force | Out-Null
-        if (Test-Path -LiteralPath $archivePath) { Remove-Item -LiteralPath $archivePath -Force }
+        if (Test-Path -LiteralPath $archivePath) {
+            [void](Remove-LauncherPath -Path $archivePath -PreserveNames @() -Activity 'XREPORT: remove stale runtime archive' -Strict)
+        }
         $bundleArgs = @(
             $DesktopBundleScript, '--staging', $stagingRoot, '--output', $archivePath,
             '--version', $ReleaseVersion, '--variant', $Variant, '--architecture', $DesktopArchitecture,
@@ -1013,7 +1032,7 @@ function Invoke-DesktopVariantBuild {
 
         $configPath = Get-DesktopConfigPath -Variant $Variant -ReleaseVersion $ReleaseVersion
         $cargoTargetRoot = Join-Path $DesktopBuildDir "cargo-target\$Variant"
-        if (Test-Path -LiteralPath $cargoTargetRoot) { Remove-Item -LiteralPath $cargoTargetRoot -Recurse -Force }
+        if (Test-Path -LiteralPath $cargoTargetRoot) { [void](Remove-LauncherPath -Path $cargoTargetRoot -Activity "XREPORT: refresh Cargo target $Variant" -Strict) }
         $previousVariant = $env:XREPORT_DESKTOP_VARIANT
         $previousCargoTarget = $env:CARGO_TARGET_DIR
         $env:XREPORT_DESKTOP_VARIANT = $Variant
@@ -1095,14 +1114,14 @@ function Invoke-BuildDesktopRelease {
         Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
         $sourceState = Assert-DesktopSourceState
         if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) {
-            Remove-Item -LiteralPath $DesktopReleaseDir -Recurse -Force
+            [void](Remove-LauncherPath -Path $DesktopReleaseDir -PreserveNames @() -Activity 'XREPORT: remove existing desktop release' -Strict)
         }
         foreach ($generatedPath in @(
             (Join-Path $DesktopTauriDir 'ui'),
             (Join-Path $DesktopTauriDir 'generated\runtime.zip')
         )) {
             if (Test-Path -LiteralPath $generatedPath) {
-                Remove-Item -LiteralPath $generatedPath -Recurse -Force
+                [void](Remove-LauncherPath -Path $generatedPath -PreserveNames @() -Activity "XREPORT: remove generated release path $([IO.Path]::GetFileName($generatedPath))" -Strict)
             }
         }
         try {
@@ -1157,11 +1176,16 @@ function Get-DesktopArtifactDefinitions {
 
 function Read-DesktopReleaseVersion {
     param([ValidateSet('Create', 'Remove')][string]$Operation)
+    Clear-LauncherProgress
     $candidate = ([string](Read-Host "Release version to $Operation [$Version]")).Trim()
-    if ([string]::IsNullOrWhiteSpace($candidate)) { return $Version }
+    if ([string]::IsNullOrWhiteSpace($candidate)) {
+        Clear-LauncherProgress
+        return $Version
+    }
     if ($candidate -notmatch '^\d+\.\d+\.\d+$') {
         throw "Invalid release version: $candidate. Use semantic version format such as 3.0.0."
     }
+    Clear-LauncherProgress
     return $candidate
 }
 
@@ -1172,45 +1196,83 @@ function Read-DesktopArtifactSelection {
     )
     $definitions = @(Get-DesktopArtifactDefinitions -ReleaseVersion $ReleaseVersion)
     while ($true) {
-        Clear-Host
+        Clear-LauncherProgress
+        if ($script:LauncherInteractive) { try { Clear-Host } catch { } }
         Write-Host ''
         Write-Host "  DESKTOP RELEASE / $Operation" -ForegroundColor Cyan
         Write-Host "  Version: v$ReleaseVersion" -ForegroundColor DarkGray
         Write-MenuRule
-        for ($index = 0; $index -lt $definitions.Count; $index++) {
-            $definition = $definitions[$index]
-            if ($Operation -eq 'Remove') {
-                $state = if (Test-Path -LiteralPath $definition.Path) { 'present' } else { 'not found' }
-                $description = "$state; update variant manifests"
+        $entries = @(
+            for ($index = 0; $index -lt $definitions.Count; $index++) {
+                $definition = $definitions[$index]
+                if ($Operation -eq 'Remove') {
+                    $state = if (Test-Path -LiteralPath $definition.Path) { 'present' } else { 'not found' }
+                    $description = "$state; update variant manifests"
+                }
+                else {
+                    $description = 'Build or rebuild this package'
+                }
+                [pscustomobject]@{
+                    Key = $definition.Key
+                    Label = $definition.Label
+                    Description = $description
+                    Definition = $definition
+                    Destructive = $Operation -eq 'Remove'
+                }
             }
-            else {
-                $description = 'Build or rebuild this package'
+            [pscustomobject]@{
+                Key = 'All'
+                Label = 'All desktop artifacts'
+                Description = "${Operation} all four packages"
+                Definition = $definitions
+                Destructive = $Operation -eq 'Remove'
             }
-            Write-MenuItem -Number ([string]($index + 1)) -Label $definition.Label -Description $description
+            [pscustomobject]@{
+                Key = 'Back'
+                Label = 'Back'
+                Description = 'Return to the main menu'
+                Definition = $null
+                Destructive = $false
+            }
+        )
+        for ($index = 0; $index -lt $entries.Count; $index++) {
+            $entries[$index] | Add-Member -NotePropertyName Number -NotePropertyValue ($index + 1) -Force
         }
-        Write-Host ''
-        Write-MenuItem -Number ([string]($definitions.Count + 1)) -Label 'All desktop artifacts' -Description "${Operation} all four packages" -NumberColor Green
-        Write-MenuItem -Number 'B' -Label 'Back' -Description 'Return to the main menu' -NumberColor DarkGray
+        $numberWidth = ([string]$entries.Count).Length
+        $labelWidth = ($entries | ForEach-Object { $_.Label.Length } | Measure-Object -Maximum).Maximum
+        foreach ($entry in $entries) {
+            Write-MenuItem -Entry $entry -NumberWidth $numberWidth -LabelWidth $labelWidth
+        }
         Write-Host ''
 
-        $selection = ([string](Read-Host "  Select an artifact (1-$($definitions.Count + 1), B)")).Trim()
-        if ($selection -match '^B$') { return $null }
-        if ($selection -eq [string]($definitions.Count + 1)) { return $definitions }
-        if ($selection -match '^\d+$') {
-            $index = [int]$selection - 1
-            if ($index -ge 0 -and $index -lt $definitions.Count) {
-                return @($definitions[$index])
-            }
+        $selection = ([string](Read-Host "  Select an option (1-$($entries.Count))")).Trim()
+        $selectedNumber = 0
+        if (-not [int]::TryParse($selection, [ref]$selectedNumber) -or $selectedNumber -lt 1 -or $selectedNumber -gt $entries.Count) {
+            Write-Warn "Invalid option. Select a number from 1 through $($entries.Count)."
+            Wait-ForMenu
+            continue
         }
-        Write-Warn 'Invalid artifact selection.'
-        [void](Read-Host 'Press Enter to continue')
+        $selectedEntry = $entries[$selectedNumber - 1]
+        if ($selectedEntry.Key -eq 'Back') {
+            Clear-LauncherProgress
+            return $null
+        }
+        if ($selectedEntry.Key -eq 'All') {
+            Clear-LauncherProgress
+            return @($definitions)
+        }
+        Clear-LauncherProgress
+        return @($selectedEntry.Definition)
     }
 }
 
 function Invoke-CreateDesktopArtifactsMenu {
     $releaseVersion = Read-DesktopReleaseVersion -Operation 'Create'
     $selected = Read-DesktopArtifactSelection -Operation 'Create' -ReleaseVersion $releaseVersion
-    if ($null -eq $selected) { return }
+    if ($null -eq $selected) {
+        Clear-LauncherProgress
+        return
+    }
 
     $selectedDefinitions = @($selected)
     $plan = foreach ($variant in @($selectedDefinitions | Select-Object -ExpandProperty Variant -Unique)) {
@@ -1240,7 +1302,9 @@ function Update-DesktopVariantReleaseMetadata {
 
     if ($payloads.Count -eq 0) {
         foreach ($sidecar in @($checksumPath, $metadataPath)) {
-            if (Test-Path -LiteralPath $sidecar) { Remove-Item -LiteralPath $sidecar -Force }
+            if (Test-Path -LiteralPath $sidecar) {
+                [void](Remove-LauncherPath -Path $sidecar -PreserveNames @() -Activity "XREPORT: remove stale release manifest $([IO.Path]::GetFileName($sidecar))" -Strict)
+            }
         }
         return
     }
@@ -1272,8 +1336,8 @@ function Invoke-RemoveDesktopArtifacts {
     $removed = 0
     foreach ($selection in @($Selections)) {
         if (Test-Path -LiteralPath $selection.Path) {
-            Remove-Item -LiteralPath $selection.Path -Force
-            $removed++
+            $result = Remove-LauncherPath -Path $selection.Path -PreserveNames @() -Activity "XREPORT: remove release file $([IO.Path]::GetFileName($selection.Path))" -Strict
+            $removed += $result.RemovedCount
             Write-Info "Removed $([IO.Path]::GetFileName($selection.Path))"
         }
         else {
@@ -1285,7 +1349,7 @@ function Invoke-RemoveDesktopArtifacts {
         Update-DesktopVariantReleaseMetadata -Variant $variant -ReleaseVersion $ReleaseVersion
     }
     if ((Test-Path -LiteralPath $DesktopReleaseDir -PathType Container) -and -not (Get-ChildItem -LiteralPath $DesktopReleaseDir -Force)) {
-        Remove-Item -LiteralPath $DesktopReleaseDir -Force
+        [void](Remove-LauncherPath -Path $DesktopReleaseDir -PreserveNames @() -Activity 'XREPORT: remove empty release directory' -Strict)
     }
     Write-Ok "Removed $removed selected release payload(s); remaining manifests were synchronized."
 }
@@ -1293,7 +1357,10 @@ function Invoke-RemoveDesktopArtifacts {
 function Invoke-RemoveDesktopArtifactsMenu {
     $releaseVersion = Read-DesktopReleaseVersion -Operation 'Remove'
     $selected = Read-DesktopArtifactSelection -Operation 'Remove' -ReleaseVersion $releaseVersion
-    if ($null -eq $selected) { return }
+    if ($null -eq $selected) {
+        Clear-LauncherProgress
+        return
+    }
     Invoke-RemoveDesktopArtifacts -Selections @($selected) -ReleaseVersion $releaseVersion
 }
 
@@ -1341,7 +1408,7 @@ function Invoke-RemoveDesktopRelease {
         (Join-Path $DesktopTauriDir 'ui')
     ) + $generatedConfigs
     $results = foreach ($target in $targets) {
-        Remove-PathBestEffort -Path $target -Label $target
+        Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target"
     }
     $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
     if ($skipped -gt 0) {
@@ -1352,12 +1419,13 @@ function Invoke-RemoveDesktopRelease {
 }
 
 function Read-InstallationType {
+    Clear-LauncherProgress
     Write-Host '  [1] Development - include Ruff, Pyright, and pytest'
     Write-Host '  [2] Standard    - install runtime dependencies only'
     $selection = (Read-Host '  Select installation profile [1-2]').Trim()
     switch ($selection) {
-        '1' { return 'Development' }
-        '2' { return 'Standard' }
+        '1' { Clear-LauncherProgress; return 'Development' }
+        '2' { Clear-LauncherProgress; return 'Standard' }
         default { throw 'Invalid installation profile. Enter 1 for Development or 2 for Standard.' }
     }
 }
@@ -1404,7 +1472,7 @@ function Remove-Logs {
             for ($index = 0; $index -lt $logs.Count; $index++) {
                 $log = $logs[$index]
                 Update-LauncherProgress -Id $progressId -Activity 'XREPORT: remove application logs' -Status "$($index + 1) of $($logs.Count): $($log.Name)" -PercentComplete ([int](($index + 1) * 100 / $logs.Count))
-                $result = Remove-PathBestEffort -Path $log.FullName -Label $log.FullName
+                $result = Remove-LauncherPath -Path $log.FullName -Activity "XREPORT: remove $($log.FullName)"
                 $removed += $result.Removed
                 $skipped += $result.Skipped
             }
@@ -1422,134 +1490,167 @@ function Remove-Logs {
     }
 }
 
-function Remove-PathBestEffort {
+function Remove-LauncherPath {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$Path,
-        [string]$Label = $Path
+        [switch]$KeepRoot,
+        [string[]]$PreserveNames = @('.gitkeep'),
+        [switch]$Strict,
+        [switch]$WhatIf,
+        [string]$Activity = 'XREPORT: remove files'
     )
 
-    $removed = 0
-    $skipped = 0
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $trimmedPath = $fullPath.TrimEnd('\')
+    $pathRoot = ([IO.Path]::GetPathRoot($fullPath)).TrimEnd('\')
+    if ([string]::IsNullOrWhiteSpace($pathRoot) -or $trimmedPath.Equals($pathRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove filesystem root: $fullPath"
+    }
+    if ($RepoRoot) {
+        $repoRootPath = ([IO.Path]::GetFullPath($RepoRoot)).TrimEnd('\')
+        if ($trimmedPath.Equals($repoRootPath, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove the repository root: $fullPath"
+        }
+    }
+
+    $plannedPaths = [Collections.Generic.List[string]]::new()
+    $removedPaths = [Collections.Generic.List[string]]::new()
+    $preservedPathList = [Collections.Generic.List[string]]::new()
+    $skippedPaths = [Collections.Generic.List[string]]::new()
+    $enumerationMessages = [Collections.Generic.List[string]]::new()
+    $result = [ordered]@{
+        Target = $fullPath
+        Path = $fullPath
+        Planned = 0
+        PlannedCount = 0
+        PlannedPaths = @()
+        Removed = 0
+        RemovedCount = 0
+        RemovedPaths = @()
+        Preserved = 0
+        PreservedCount = 0
+        PreservedEntries = @()
+        PreservedPaths = @()
+        Skipped = 0
+        SkippedCount = 0
+        SkippedPaths = @()
+        EnumerationErrors = @()
+        EnumerationErrorCount = 0
+        WhatIf = [bool]$WhatIf
+    }
     try {
-        $root = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
-    } catch {
-        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
-            return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 0 }
-        }
-        Write-Warn "Skipped inaccessible cache path: $Label"
-        return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 1 }
+        $root = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
     }
-    if (-not $root.PSIsContainer) {
-        try {
-            Remove-Item -LiteralPath $root.FullName -Force -Confirm:$false -ErrorAction Stop
-            return [pscustomobject]@{ Path = $Path; Removed = 1; Skipped = 0 }
-        } catch {
-            Write-Warn "Skipped locked or protected cache path: $Label"
-            return [pscustomobject]@{ Path = $Path; Removed = 0; Skipped = 1 }
-        }
+    catch {
+        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) { return [pscustomobject]$result }
+        $message = "$fullPath ($($_.Exception.Message))"
+        [void]$skippedPaths.Add($message)
+        [void]$enumerationMessages.Add($message)
+        $result.Skipped = 1
+        $result.SkippedCount = 1
+        $result.SkippedPaths = @($skippedPaths)
+        $result.EnumerationErrors = @($enumerationMessages)
+        $result.EnumerationErrorCount = 1
+        Write-Warn "Skipped inaccessible path: $fullPath ($($_.Exception.Message))"
+        if ($Strict) { throw "Removal of '$fullPath' failed: $($_.Exception.Message)" }
+        return [pscustomobject]$result
     }
-
     $enumerationErrors = @()
-    $children = @(Get-ChildItem -LiteralPath $root.FullName -Recurse -Force -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors |
+    $entries = if ($root.PSIsContainer) {
+        @(Get-ChildItem -LiteralPath $root.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors)
+    } else { @($root) }
+    foreach ($enumerationError in @($enumerationErrors)) {
+        if ($null -eq $enumerationError) { continue }
+        $message = "$fullPath ($($enumerationError.Exception.Message))"
+        [void]$enumerationMessages.Add($message)
+        [void]$skippedPaths.Add($message)
+        Write-Warn "Skipped inaccessible path below ${fullPath}: $($enumerationError.Exception.Message)"
+    }
+    $preservedPathSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $protectedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $protectedSubtreePrefixes = [Collections.Generic.List[string]]::new()
+    $preserveNameSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($preserveName in @($PreserveNames)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$preserveName)) {
+            [void]$preserveNameSet.Add([string]$preserveName)
+        }
+    }
+    foreach ($entry in @($entries)) {
+        if ($preserveNameSet.Contains([string]$entry.Name)) {
+            [void]$preservedPathSet.Add($entry.FullName)
+            [void]$preservedPathList.Add($entry.FullName)
+            if ($entry.PSIsContainer) {
+                [void]$protectedSubtreePrefixes.Add($entry.FullName.TrimEnd('\') + '\')
+                [void]$protectedDirectories.Add($entry.FullName)
+            }
+            [void]$protectedDirectories.Add($root.FullName)
+            $ancestor = [IO.Path]::GetDirectoryName($entry.FullName)
+            while ($ancestor -and $ancestor.StartsWith($root.FullName.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                [void]$protectedDirectories.Add($ancestor)
+                $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+            }
+        }
+    }
+    $candidates = @($entries |
+        Where-Object {
+            if ($preservedPathSet.Contains($_.FullName) -or $protectedDirectories.Contains($_.FullName)) {
+                $false
+            } else {
+                $insideProtectedSubtree = $false
+                foreach ($prefix in $protectedSubtreePrefixes) {
+                    if ($_.FullName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+                        $insideProtectedSubtree = $true
+                        break
+                    }
+                }
+                -not $insideProtectedSubtree
+            }
+        } |
         Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    $skipped = $enumerationErrors.Count
-    $failureMessages = [Collections.Generic.List[string]]::new()
-    foreach ($enumerationError in $enumerationErrors) {
-        [void]$failureMessages.Add("Skipped inaccessible cache path below ${Label}: $($enumerationError.Exception.Message)")
-    }
-
-    $markers = @($children | Where-Object { $_.Name -eq '.gitkeep' })
-    if ($markers.Count -eq 0) {
-        try {
-            Remove-Item -LiteralPath $root.FullName -Recurse -Force -Confirm:$false -ErrorAction Stop
-            foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
-                Write-Warn $failureMessage
+    if ($root.PSIsContainer -and -not $KeepRoot -and $preservedPathList.Count -eq 0) { $candidates += $root }
+    foreach ($candidate in @($candidates)) { [void]$plannedPaths.Add($candidate.FullName) }
+    $result.Planned = [int]$plannedPaths.Count
+    $result.PlannedCount = [int]$plannedPaths.Count
+    $result.PlannedPaths = @($plannedPaths)
+    $result.Preserved = [int]$preservedPathList.Count
+    $result.PreservedCount = [int]$preservedPathList.Count
+    $result.PreservedEntries = @($preservedPathList)
+    $result.PreservedPaths = @($preservedPathList)
+    $result.EnumerationErrors = @($enumerationMessages)
+    $result.EnumerationErrorCount = [int]$enumerationMessages.Count
+    $progressId = $null
+    try {
+        if ($plannedPaths.Count -gt 0) { $progressId = Start-LauncherProgress -Activity $Activity -Status "0 of $($plannedPaths.Count) items" }
+        for ($index = 0; $index -lt $plannedPaths.Count; $index++) {
+            $entry = $candidates[$index]
+            if ($null -ne $progressId) {
+                Update-LauncherProgress -Id $progressId -Activity $Activity -Status "$($index + 1) of $($plannedPaths.Count): $($entry.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $plannedPaths.Count)))
             }
-            return [pscustomobject]@{ Path = $Path; Removed = $children.Count + 1; Skipped = $skipped }
-        } catch {
-        }
-
-        $removalItems = @($children) + @($root)
-        $progressId = Start-LauncherProgress -Activity "XREPORT: recover removal of $Label" -Status "0 of $($removalItems.Count) items"
-        try {
-            for ($index = 0; $index -lt $removalItems.Count; $index++) {
-                $entry = $removalItems[$index]
-                Update-LauncherProgress -Id $progressId -Activity "XREPORT: recover removal of $Label" -Status "$($index + 1) of $($removalItems.Count): $($entry.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $removalItems.Count)))
-                try {
-                    Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
-                    $removed++
-                } catch {
-                    $skipped++
-                    [void]$failureMessages.Add("Skipped locked or protected cache item: $($entry.FullName) ($($_.Exception.Message))")
-                }
+            if ($WhatIf) { continue }
+            try {
+                Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+                [void]$removedPaths.Add($entry.FullName)
             }
-        }
-        finally {
-            Complete-LauncherProgress -Id $progressId
-        }
-        foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
-            Write-Warn $failureMessage
-        }
-        return [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
-    }
-
-    $preservedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $rootPrefix = "$($root.FullName.TrimEnd('\'))\"
-    foreach ($marker in $markers) {
-        $ancestor = [IO.Path]::GetDirectoryName($marker.FullName)
-        while (-not [string]::IsNullOrWhiteSpace($ancestor) -and
-            -not $ancestor.Equals($root.FullName, [StringComparison]::OrdinalIgnoreCase) -and
-            $ancestor.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-            [void]$preservedDirectories.Add($ancestor)
-            $ancestor = [IO.Path]::GetDirectoryName($ancestor)
-        }
-    }
-
-    $removalGroups = [Collections.Generic.Dictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($child in $children) {
-        if ($child.Name -eq '.gitkeep' -or
-            ($child.PSIsContainer -and $preservedDirectories.Contains($child.FullName))) {
-            continue
-        }
-        $candidatePath = $child.FullName
-        while ($true) {
-            $parent = [IO.Path]::GetDirectoryName($candidatePath)
-            if ($parent.Equals($root.FullName, [StringComparison]::OrdinalIgnoreCase) -or
-                $preservedDirectories.Contains($parent)) {
-                break
-            }
-            $candidatePath = $parent
-        }
-        if (-not $removalGroups.ContainsKey($candidatePath)) {
-            $removalGroups[$candidatePath] = [Collections.Generic.List[object]]::new()
-        }
-        [void]$removalGroups[$candidatePath].Add($child)
-    }
-
-    foreach ($candidatePath in @($removalGroups.Keys |
-            Sort-Object @{ Expression = { $_.ToUpperInvariant() }; Descending = $false })) {
-        $candidateEntries = @($removalGroups[$candidatePath])
-        try {
-            Remove-Item -LiteralPath $candidatePath -Recurse -Force -Confirm:$false -ErrorAction Stop
-            $removed += $candidateEntries.Count
-        } catch {
-            foreach ($entry in @($candidateEntries |
-                    Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })) {
-                try {
-                    Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
-                    $removed++
-                } catch {
-                    $skipped++
-                    [void]$failureMessages.Add("Skipped locked or protected cache item: $($entry.FullName) ($($_.Exception.Message))")
-                }
+            catch {
+                [void]$skippedPaths.Add("$($entry.FullName) ($($_.Exception.Message))")
+                Write-Warn "Skipped locked or protected path: $($entry.FullName) ($($_.Exception.Message))"
             }
         }
     }
-
-    foreach ($failureMessage in @($failureMessages | Sort-Object -Unique)) {
-        Write-Warn $failureMessage
+    finally {
+        if ($null -ne $progressId) { Complete-LauncherProgress -Id $progressId }
     }
-    [pscustomobject]@{ Path = $Path; Removed = $removed; Skipped = $skipped }
+    $result.Removed = [int]$removedPaths.Count
+    $result.RemovedCount = [int]$removedPaths.Count
+    $result.RemovedPaths = @($removedPaths)
+    $result.Skipped = [int]$skippedPaths.Count
+    $result.SkippedCount = [int]$skippedPaths.Count
+    $result.SkippedPaths = @($skippedPaths)
+    if ($Strict -and ($result.SkippedCount -gt 0 -or $result.EnumerationErrorCount -gt 0)) {
+        throw "Removal of '$fullPath' was incomplete. Skipped $($result.SkippedCount) item(s) and encountered $($result.EnumerationErrorCount) enumeration error(s)."
+    }
+    return [pscustomobject]$result
 }
 
 function Get-LegacyCacheDirectories {
@@ -1597,7 +1698,7 @@ function Get-LegacyCacheDirectories {
 
 function Remove-PythonCaches {
     $caches = @(Get-LegacyCacheDirectories | Where-Object { $_.Name -eq '__pycache__' })
-    $results = @($caches | ForEach-Object { Remove-PathBestEffort -Path $_.FullName -Label $_.FullName })
+    $results = @($caches | ForEach-Object { Remove-LauncherPath -Path $_.FullName -Activity "XREPORT: remove $($_.FullName)" })
     $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
     $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
     if ($skipped -gt 0) {
@@ -1627,7 +1728,7 @@ function Clear-ApplicationCache {
         for ($index = 0; $index -lt $allTargets.Count; $index++) {
             $target = $allTargets[$index]
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
-            [void]$results.Add((Remove-PathBestEffort -Path $target -Label $target))
+            [void]$results.Add((Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target"))
         }
     }
     finally {
@@ -1658,7 +1759,7 @@ function Uninstall-Application {
         for ($index = 0; $index -lt $targets.Count; $index++) {
             $target = $targets[$index]
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: uninstall application' -Status "$($index + 1) of $($targets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $targets.Count)))
-            Remove-PathBestEffort -Path $target -Label $target | Out-Null
+            Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target" | Out-Null
         }
     }
     finally {
@@ -1675,51 +1776,73 @@ function Write-MenuRule {
 
 function Write-MenuItem {
     param(
-        [Parameter(Mandatory = $true)][string]$Number,
-        [Parameter(Mandatory = $true)][string]$Label,
-        [Parameter(Mandatory = $true)][string]$Description,
-        [ConsoleColor]$NumberColor = [ConsoleColor]::Cyan
+        [Parameter(Mandatory = $true)][pscustomobject]$Entry,
+        [Parameter(Mandatory = $true)][int]$NumberWidth,
+        [Parameter(Mandatory = $true)][int]$LabelWidth
     )
 
-    Write-Host ("  [{0}] " -f $Number) -NoNewline -ForegroundColor $NumberColor
-    Write-Host $Label.PadRight(31) -NoNewline -ForegroundColor White
-    Write-Host $Description -ForegroundColor DarkGray
+    $color = if ($Entry.Destructive) { [ConsoleColor]::Yellow } elseif ($Entry.Key -in @('Exit', 'Back')) { [ConsoleColor]::DarkGray } else { [ConsoleColor]::White }
+    Write-Host ("  {0,$NumberWidth}. {1,-$LabelWidth}  {2}" -f $Entry.Number, $Entry.Label, $Entry.Description) -ForegroundColor $color
+}
+
+function Wait-ForMenu {
+    Clear-LauncherProgress
+    if (-not $script:LauncherInteractive) { return }
+    Write-Host ''
+    Write-Host '  Press any key to return to the menu...' -ForegroundColor DarkGray
+    try { [void][Console]::ReadKey($true) } catch { }
+}
+
+function Get-LauncherMenuEntries {
+    @(
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch application'; Description = 'Start local services'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Database'; Label = 'Initialize database'; Description = 'Prepare local data store'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Tests'; Label = 'Run test suite'; Description = 'Execute project checks'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SOURCE CONTROL'; Key = 'Update'; Label = 'Update application'; Description = 'Pull origin/main (clean main branch required)'; Destructive = $false }
+        [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'CreateRelease'; Label = 'Create release artifacts'; Description = 'Build selected desktop packages'; Destructive = $false }
+        [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Delete selected desktop packages'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete application logs'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Cache'; Label = 'Clear cache'; Description = 'Remove temporary caches'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Uninstall'; Label = 'Uninstall application'; Description = 'Remove generated files'; Destructive = $true }
+        [pscustomobject]@{ Section = 'EXIT'; Key = 'Exit'; Label = 'Exit'; Description = 'Close launcher'; Destructive = $false }
+    )
 }
 
 function Show-Menu {
-    Clear-Host
+    Clear-LauncherProgress
+    if ($script:LauncherInteractive) { try { Clear-Host } catch { } }
+    $entries = @(Get-LauncherMenuEntries)
+    for ($index = 0; $index -lt $entries.Count; $index++) {
+        $entries[$index] = [pscustomobject]@{
+            Number = $index + 1
+            Section = $entries[$index].Section
+            Key = $entries[$index].Key
+            Label = $entries[$index].Label
+            Description = $entries[$index].Description
+            Destructive = $entries[$index].Destructive
+        }
+    }
+    $numberWidth = ([string]$entries.Count).Length
+    $labelWidth = ($entries | ForEach-Object { $_.Label.Length } | Measure-Object -Maximum).Maximum
     Write-Host ''
     Write-Host '  XREPORT' -ForegroundColor Cyan -NoNewline
     Write-Host '  /  RADIOLOGICAL REPORTS' -ForegroundColor White
     Write-Host '  Local workspace console' -ForegroundColor DarkGray
     Write-MenuRule
-
-    Write-Host '  APPLICATION' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '1' -Label 'Launch application' -Description 'Start local services'
-    Write-MenuItem -Number '2' -Label 'Install / update dependencies' -Description 'Sync runtimes + packages'
-    Write-MenuItem -Number '3' -Label 'Rebuild frontend only' -Description 'Build client without launching services'
-
-    Write-Host ''
-    Write-Host '  DATA & QUALITY' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '4' -Label 'Initialize database' -Description 'Prepare local data store'
-    Write-MenuItem -Number '5' -Label 'Run test suite' -Description 'Execute project checks'
-
-    Write-Host ''
-    Write-Host '  DESKTOP RELEASE' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '6' -Label 'Create release artifacts' -Description 'Build selected desktop packages'
-    Write-MenuItem -Number '7' -Label 'Remove release artifacts' -Description 'Delete selected desktop packages' -NumberColor Yellow
-
-    Write-Host ''
-    Write-Host '  MAINTENANCE' -ForegroundColor DarkCyan
-    Write-MenuItem -Number '8' -Label 'Remove logs' -Description 'Delete application logs'
-    Write-MenuItem -Number '9' -Label 'Clear cache' -Description 'Remove temporary caches'
-    Write-MenuItem -Number '10' -Label 'Uninstall application' -Description 'Remove generated files' -NumberColor Yellow
-    Write-MenuItem -Number '11' -Label 'Update application from main' -Description 'Pull origin/main (clean main branch required)'
-
-    Write-Host ''
+    $lastSection = $null
+    foreach ($entry in $entries) {
+        if ($entry.Section -ne $lastSection) {
+            if ($null -ne $lastSection) { Write-Host '' }
+            Write-Host ("  {0}" -f $entry.Section) -ForegroundColor DarkCyan
+            $lastSection = $entry.Section
+        }
+        Write-MenuItem -Entry $entry -NumberWidth $numberWidth -LabelWidth $labelWidth
+    }
     Write-MenuRule -Color DarkGray
-    Write-MenuItem -Number '12' -Label 'Exit' -Description 'Close launcher' -NumberColor DarkGray
     Write-Host ''
+    return $entries
 }
 
 if ($Launch -and $Action) {
@@ -1752,35 +1875,43 @@ if ($Action) {
 }
 
 while ($true) {
-    Show-Menu
-    $selection = (Read-Host '  Select an option (1-12)').Trim()
-    if ($selection -notmatch '^(?:[1-9]|10|11|12)$') {
-        Write-Warn 'Invalid option. Enter a number from 1 to 12.'
-        [void](Read-Host 'Press Enter to continue')
+    $entries = @(Show-Menu)
+    $maxOption = $entries.Count
+    if (-not $script:LauncherInteractive) { break }
+    Clear-LauncherProgress
+    $selection = ([string](Read-Host "  Select an option (1-$maxOption)")).Trim()
+    $selectedNumber = 0
+    if (-not [int]::TryParse($selection, [ref]$selectedNumber) -or $selectedNumber -lt 1 -or $selectedNumber -gt $maxOption) {
+        Write-Warn "Invalid option. Select a number from 1 through $maxOption."
+        Wait-ForMenu
         continue
     }
-    if ($selection -eq '12') { break }
+    $entry = $entries[$selectedNumber - 1]
+    if ($entry.Key -eq 'Exit') {
+        Clear-LauncherProgress
+        break
+    }
 
     try {
-        Invoke-TrackedLauncherAction -Name "menu option $selection" -Operation {
-            switch ($selection) {
-                '1' { Invoke-Launch; exit 0 }
-                '2' { Invoke-InstallOrUpdate }
-                '3' { Invoke-RebuildFrontend }
-                '4' { Invoke-InitializeDatabase }
-                '5' { Invoke-TestSuite }
-                '6' { Invoke-CreateDesktopArtifactsMenu }
-                '7' { Invoke-RemoveDesktopArtifactsMenu }
-                '8' { Remove-Logs }
-                '9' { Clear-ApplicationCache }
-                '10' { Uninstall-Application }
-                '11' { Invoke-Update }
+        Invoke-TrackedLauncherAction -Name "menu option $($entry.Number)" -Operation {
+            switch ($entry.Key) {
+                'Launch' { Invoke-Launch; exit 0 }
+                'Install' { Invoke-InstallOrUpdate }
+                'Rebuild' { Invoke-RebuildFrontend }
+                'Database' { Invoke-InitializeDatabase }
+                'Tests' { Invoke-TestSuite }
+                'Update' { Invoke-Update }
+                'CreateRelease' { Invoke-CreateDesktopArtifactsMenu }
+                'RemoveRelease' { Invoke-RemoveDesktopArtifactsMenu }
+                'Logs' { Remove-Logs }
+                'Cache' { Clear-ApplicationCache }
+                'Uninstall' { Uninstall-Application }
             }
         }
     } catch {
         Write-Fatal $_.Exception.Message
         Clear-LauncherProgress
     }
-    Write-Host 'Press any key to return to menu...'
-    [void]$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    if (-not $script:LauncherInteractive) { exit 0 }
+    Wait-ForMenu
 }
