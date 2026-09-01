@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Windows Local Launcher
 
@@ -53,7 +53,7 @@ build; the install/update option continues to build the frontend.
 
 ### Source updates
 
-**Update application from main** is menu option 11 and the direct
+**Update application from main** is menu option 6 and the direct
 `-Action Update` command. It requires a non-detached, clean checkout of
 `main` and runs `git pull --ff-only origin main`; it does not switch branches or
 modify local changes. This source update is separate from dependency install or
@@ -161,8 +161,7 @@ Select **Clear cache** in the maintenance menu, or run:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
 ```
 
-Cache cleanup is best-effort and reproducible: it attempts one bulk operation
-per target, then uses deterministic deepest-first item recovery only when the
-bulk operation fails. Locked or administrator-protected files are reported and
-skipped; other cached artifacts continue to be removed. `.gitkeep` sentinels
-remain preserved.
+Cache cleanup is best-effort and reproducible: each target is enumerated and
+its items are removed individually in deterministic deepest-first order. Locked
+or administrator-protected files are reported and skipped; other cached
+artifacts continue to be removed. `.gitkeep` sentinels remain preserved.
