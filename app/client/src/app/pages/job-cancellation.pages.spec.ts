@@ -9,7 +9,7 @@ import { ValidationApiService } from '../services/validation-api.service';
 import { InferencePage } from './inference.page';
 import { TrainingPage } from './training.page';
 
-type ActiveJobPage = { activeJobId: string | null };
+interface ActiveJobPage { activeJobId: string | null }
 
 function apiResult<T>(result: T) {
   return Promise.resolve({ result, error: null });
