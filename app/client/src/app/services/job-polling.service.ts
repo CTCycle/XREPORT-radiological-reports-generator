@@ -5,13 +5,54 @@ import { JobStatusResponse } from '../types/jobs';
 
 @Injectable({ providedIn: 'root' })
 export class JobPollingService {
+  private readonly maxConsecutiveFailures = 3;
+
   poll(fetchStatus: (jobId: string) => Promise<ApiResult<JobStatusResponse>>, jobId: string, intervalSeconds = 2): Observable<JobStatusResponse> {
     const intervalMs = Math.max(250, intervalSeconds * 1000);
+    let consecutiveFailures = 0;
+    let lastStatus: JobStatusResponse | null = null;
+
     return timer(0, intervalMs).pipe(
-      switchMap(() => defer(() => from(fetchStatus(jobId)))),
-      switchMap((response) => response.error ? of({ job_id: jobId, job_type: 'unknown', status: 'failed' as const, progress: 0, result: null, error: response.error }) : response.result ? of(response.result) : of({ job_id: jobId, job_type: 'unknown', status: 'failed' as const, progress: 0, result: null, error: 'No result returned' })),
+      switchMap(() => defer(() => from(fetchStatus(jobId))).pipe(
+        catchError((error: unknown) => of<ApiResult<JobStatusResponse>>({
+          result: null,
+          error: error instanceof Error ? error.message : String(error),
+        })),
+      )),
+      switchMap((response) => {
+        if (response.result && !response.error) {
+          consecutiveFailures = 0;
+          lastStatus = response.result;
+          return of(response.result);
+        }
+
+        consecutiveFailures += 1;
+        const error = response.error ?? 'No result returned';
+        if (consecutiveFailures >= this.maxConsecutiveFailures) return of(this.failureStatus(jobId, error));
+
+        if (lastStatus) return of({ ...lastStatus, error });
+        return of<JobStatusResponse>({
+          job_id: jobId,
+          job_type: 'unknown',
+          status: 'pending',
+          progress: 0,
+          result: null,
+          error,
+        });
+      }),
       takeWhile((status) => !['completed', 'failed', 'cancelled'].includes(status.status), true),
-      catchError((error: unknown) => of({ job_id: jobId, job_type: 'unknown', status: 'failed' as const, progress: 0, result: null, error: error instanceof Error ? error.message : String(error) })),
+      catchError((error: unknown) => of(this.failureStatus(jobId, error instanceof Error ? error.message : String(error)))),
     );
+  }
+
+  private failureStatus(jobId: string, error: string): JobStatusResponse {
+    return {
+      job_id: jobId,
+      job_type: 'unknown',
+      status: 'failed',
+      progress: 0,
+      result: null,
+      error,
+    };
   }
 }
