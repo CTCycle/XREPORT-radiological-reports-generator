@@ -342,7 +342,7 @@ class InferenceModelCatalog:
         receipt_path = cls._validation_receipt_path(entry)
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except OSError, ValueError:
+        except (OSError, ValueError):
             return False
         return (
             isinstance(receipt, dict)
