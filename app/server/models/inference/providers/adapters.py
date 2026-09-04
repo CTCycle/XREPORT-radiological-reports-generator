@@ -68,7 +68,7 @@ class _LegacyDecoderPrepareInputs:
         if past_key_values is not None and kwargs.get("cache_position") is None:
             try:
                 cached_length = int(past_key_values.get_seq_length())
-            except AttributeError, TypeError, ValueError:
+            except (AttributeError, TypeError, ValueError):
                 cached_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
             kwargs["cache_position"] = torch.tensor(
                 [cached_length],
@@ -141,7 +141,7 @@ class _CXRMateEDPrepareInputs:
             first_key = (
                 first_layer[0] if isinstance(first_layer, (tuple, list)) else None
             )
-        except IndexError, KeyError, TypeError:
+        except (IndexError, KeyError, TypeError):
             first_key = None
         if first_key is not None:
             return self.original(
