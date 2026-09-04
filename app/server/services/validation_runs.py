@@ -93,14 +93,16 @@ def run_validation_job(
         dataset_name,
     )
     if dataset.empty:
-        return {
-            "success": False,
-            "message": (
-                f"No data found for dataset: {dataset_name}."
-                if dataset_name
-                else "No data found in the database to validate."
-            ),
-        }
+        message = (
+            f"No data found for dataset: {dataset_name}."
+            if dataset_name
+            else "No data found in the database to validate."
+        )
+        raise JobExecutionError(
+            message,
+            code="dataset_unavailable",
+            phase="input_validation",
+        )
     logger.info(f"Loaded {len(dataset)} records for validation")
     jm.update_progress(job_id, 15.0)
     if jm.should_stop(job_id):
@@ -114,10 +116,11 @@ def run_validation_job(
             phase="input_validation",
         ) from exc
     if dataset.empty:
-        return {
-            "success": False,
-            "message": "No valid image paths found in the dataset.",
-        }
+        raise JobExecutionError(
+            "No valid image paths found in the dataset.",
+            code="dataset_integrity_failed",
+            phase="input_validation",
+        )
     logger.info(f"Starting analysis on {len(dataset)} validated records")
     jm.update_progress(job_id, 20.0)
     if jm.should_stop(job_id):
@@ -137,7 +140,6 @@ def run_validation_job(
     result.update(metric_results[0])
     image_records = metric_results[1]
     logger.info("Dataset validation completed successfully")
-    jm.update_progress(job_id, 100.0)
     _save_validation_report(
         ValidationRepository(),
         dataset_name,
@@ -146,6 +148,7 @@ def run_validation_job(
         result,
         image_records,
     )
+    jm.update_progress(job_id, 100.0)
     return result
 
 
@@ -309,11 +312,11 @@ def run_checkpoint_evaluation_job(
     try:
         checkpoint = validate_checkpoint_name(str(raw_checkpoint))
     except ValueError as exc:
-        return {
-            "success": False,
-            "message": str(exc),
-            "results": None,
-        }
+        raise JobExecutionError(
+            str(exc),
+            code="invalid_checkpoint",
+            phase="input_validation",
+        ) from exc
     metrics = request_data.get("metrics", [])
     num_samples = request_data.get("num_samples", 10)
     metric_configs = request_data.get("metric_configs") or {}
@@ -328,11 +331,11 @@ def run_checkpoint_evaluation_job(
         return {}
     checkpoint_data = _load_checkpoint_for_evaluation(checkpoint)
     if checkpoint_data is None:
-        return {
-            "success": False,
-            "message": f"Checkpoint not found: {checkpoint}",
-            "results": None,
-        }
+        raise JobExecutionError(
+            f"Checkpoint artifact is missing or unavailable: {checkpoint}",
+            code="checkpoint_unavailable",
+            phase="input_validation",
+        )
     model, train_config, model_metadata = checkpoint_data
     model.summary(expand_nested=True)
     jm.update_progress(job_id, 30.0)
@@ -354,13 +357,13 @@ def run_checkpoint_evaluation_job(
     if metric_results is None:
         return {}
     results, resolved_metric_configs = metric_results
-    jm.update_progress(job_id, 100.0)
     _save_checkpoint_evaluation_report(
         checkpoint,
         metrics,
         resolved_metric_configs,
         results,
     )
+    jm.update_progress(job_id, 100.0)
     return {
         "success": True,
         "message": f"Evaluation completed for {checkpoint}",
@@ -539,7 +542,12 @@ def _save_checkpoint_evaluation_report(
             }
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to save checkpoint evaluation report: %s", exc)
+        logger.exception("Failed to save checkpoint evaluation report")
+        raise JobExecutionError(
+            "Failed to persist checkpoint evaluation report.",
+            code="persistence_failed",
+            phase="persistence",
+        ) from exc
 
 
 ###############################################################################
@@ -568,12 +576,10 @@ class ValidationService:
                 detail="Validation is already in progress",
             )
 
-        # Prepare request data with default seed if not provided
         request_data = request.model_dump()
-        if not request_data.get("seed"):
+        if request_data.get("seed") is None:
             request_data["seed"] = self.server_settings.global_settings.seed
 
-        # Start background job
         job_id = self.job_manager.start_job(
             job_type="validation",
             runner=run_validation_job,
@@ -655,9 +661,10 @@ class ValidationService:
             )
 
         request_data = request.model_dump()
+        if request_data.get("seed") is None:
+            request_data["seed"] = self.server_settings.global_settings.seed
         request_data["checkpoint"] = checkpoint_name
 
-        # Start background job
         job_id = self.job_manager.start_job(
             job_type="checkpoint_evaluation",
             runner=run_checkpoint_evaluation_job,
