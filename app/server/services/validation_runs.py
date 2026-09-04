@@ -78,7 +78,9 @@ def run_validation_job(
     jm = get_job_manager()
     dataset_repository = DatasetRepository()
     sample_size = request_data["sample_size"]
-    seed = request_data.get("seed", 42)
+    seed = request_data.get("seed")
+    if seed is None:
+        seed = 42
     metrics = request_data["metrics"]
     dataset_name = str(request_data["dataset_name"]).strip()
     sample_pct = sample_size * 100
@@ -319,7 +321,9 @@ def run_checkpoint_evaluation_job(
     metric_configs = request_data.get("metric_configs") or {}
     if not isinstance(metric_configs, dict):
         metric_configs = {}
-    seed = request_data.get("seed", 42)
+    seed = request_data.get("seed")
+    if seed is None:
+        seed = 42
 
     logger.info(f"Starting checkpoint evaluation: {checkpoint}")
     logger.info(f"Metrics: {metrics}, Samples: {num_samples}")
@@ -539,7 +543,15 @@ def _save_checkpoint_evaluation_report(
             }
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to save checkpoint evaluation report: %s", exc)
+        logger.exception(
+            "Failed to save checkpoint evaluation report for %s", checkpoint
+        )
+        raise JobExecutionError(
+            "Checkpoint evaluation report could not be persisted.",
+            code="persistence_failed",
+            phase="persistence",
+            recoverable=True,
+        ) from exc
 
 
 ###############################################################################
@@ -570,7 +582,7 @@ class ValidationService:
 
         # Prepare request data with default seed if not provided
         request_data = request.model_dump()
-        if not request_data.get("seed"):
+        if request_data.get("seed") is None:
             request_data["seed"] = self.server_settings.global_settings.seed
 
         # Start background job
@@ -656,6 +668,8 @@ class ValidationService:
 
         request_data = request.model_dump()
         request_data["checkpoint"] = checkpoint_name
+        if request_data.get("seed") is None:
+            request_data["seed"] = self.server_settings.global_settings.seed
 
         # Start background job
         job_id = self.job_manager.start_job(
