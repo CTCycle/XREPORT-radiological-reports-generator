@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -34,7 +34,7 @@ class FakeValidationDatasetRepository:
 
 
 ###############################################################################
-def _job_manager(job_type: str) -> JobManager:
+def _job_manager(job_type: str) -> Any:
     manager = MagicMock(spec=JobManager)
     manager.is_job_running.return_value = False
     manager.start_job.return_value = "job-1"
@@ -46,7 +46,7 @@ def _job_manager(job_type: str) -> JobManager:
         "result": None,
         "error": None,
     }
-    return cast(JobManager, manager)
+    return manager
 
 
 ###############################################################################
