@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { AppStateService } from '../services/app-state.service';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { GuidanceService } from '../services/guidance.service';
@@ -21,7 +22,7 @@ function activeJob(page: object) {
 
 describe('cooperative page cancellation', () => {
   it('keeps inference active until polling observes the terminal state', async () => {
-    const cancel = jasmine.createSpy('cancel').and.callFake(() => apiResult({ job_id: 'generation-1', success: true, message: 'Cancellation requested' }));
+    const cancel = vi.fn(() => apiResult({ job_id: 'generation-1', success: true, message: 'Cancellation requested' }));
     await TestBed.configureTestingModule({
       imports: [InferencePage],
       providers: [
@@ -40,14 +41,15 @@ describe('cooperative page cancellation', () => {
 
     await page.cancelGeneration();
 
-    expect(cancel).toHaveBeenCalledOnceWith('generation-1');
-    expect(appState.inference().isGenerating).toBeTrue();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledWith('generation-1');
+    expect(appState.inference().isGenerating).toBe(true);
     expect(activeJob(page).activeJobId).toBe('generation-1');
     expect(page.progressMessage()).toBe('Cancellation requested…');
   });
 
   it('keeps inference active and surfaces a rejected cancellation', async () => {
-    const cancel = jasmine.createSpy('cancel').and.callFake(() => apiResult({ job_id: 'generation-2', success: false, message: 'Job cannot be cancelled' }));
+    const cancel = vi.fn(() => apiResult({ job_id: 'generation-2', success: false, message: 'Job cannot be cancelled' }));
     await TestBed.configureTestingModule({
       imports: [InferencePage],
       providers: [
@@ -66,13 +68,13 @@ describe('cooperative page cancellation', () => {
 
     await page.cancelGeneration();
 
-    expect(appState.inference().isGenerating).toBeTrue();
+    expect(appState.inference().isGenerating).toBe(true);
     expect(activeJob(page).activeJobId).toBe('generation-2');
     expect(page.generationError()).toBe('Job cannot be cancelled');
   });
 
   it('keeps training active until polling observes the terminal state', async () => {
-    const cancel = jasmine.createSpy('cancel').and.callFake(() => apiResult({ job_id: 'training-1', success: true, message: 'Cancellation requested' }));
+    const cancel = vi.fn(() => apiResult({ job_id: 'training-1', success: true, message: 'Cancellation requested' }));
     await TestBed.configureTestingModule({
       imports: [TrainingPage],
       providers: [
@@ -92,13 +94,14 @@ describe('cooperative page cancellation', () => {
 
     await page.stopTraining();
 
-    expect(cancel).toHaveBeenCalledOnceWith('training-1');
-    expect(appState.training().dashboardState.isTraining).toBeTrue();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledWith('training-1');
+    expect(appState.training().dashboardState.isTraining).toBe(true);
     expect(activeJob(page).activeJobId).toBe('training-1');
   });
 
   it('keeps training active and surfaces a rejected cancellation', async () => {
-    const cancel = jasmine.createSpy('cancel').and.callFake(() => apiResult({ job_id: 'training-2', success: false, message: 'Job cannot be cancelled' }));
+    const cancel = vi.fn(() => apiResult({ job_id: 'training-2', success: false, message: 'Job cannot be cancelled' }));
     await TestBed.configureTestingModule({
       imports: [TrainingPage],
       providers: [
@@ -118,7 +121,7 @@ describe('cooperative page cancellation', () => {
 
     await page.stopTraining();
 
-    expect(appState.training().dashboardState.isTraining).toBeTrue();
+    expect(appState.training().dashboardState.isTraining).toBe(true);
     expect(activeJob(page).activeJobId).toBe('training-2');
     expect(page.trainingError()).toBe('Job cannot be cancelled');
   });
