@@ -94,7 +94,7 @@ def _normalize_int_env(
         return default
     try:
         parsed = int(value.strip())
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f"{name} must be an integer") from None
     if minimum is not None and parsed < minimum:
         raise ValueError(f"{name} must be >= {minimum}")
