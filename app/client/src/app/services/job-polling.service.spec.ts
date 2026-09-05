@@ -27,16 +27,29 @@ describe('JobPollingService', () => {
     expect(calls).toBe(2);
   });
 
-  it('fails locally after three consecutive status request failures', async () => {
+  it('keeps polling through repeated transport failures', async () => {
     const service = new JobPollingService();
     let calls = 0;
     const statuses = await firstValueFrom(service.poll(async () => {
       calls += 1;
       return { result: null, error: 'offline' };
-    }, 'job-3', 0.25).pipe(toArray()));
+    }, 'job-3', 0.25).pipe(take(3), toArray()));
 
-    expect(statuses.map((status) => status.status)).toEqual(['pending', 'pending', 'failed']);
-    expect(statuses.at(-1)).toMatchObject({ job_id: 'job-3', status: 'failed', error: 'offline' });
+    expect(statuses.map((status) => status.status)).toEqual(['pending', 'pending', 'pending']);
+    expect(statuses.at(-1)).toMatchObject({ job_id: 'job-3', status: 'pending', error: 'offline' });
     expect(calls).toBe(3);
+  });
+
+  it('terminates when the backend explicitly reports that the job is missing', async () => {
+    const service = new JobPollingService();
+    let calls = 0;
+    const statuses = await firstValueFrom(service.poll(async () => {
+      calls += 1;
+      return { result: null, error: '404 Not Found: Job not found' };
+    }, 'job-4', 0.25).pipe(toArray()));
+
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toMatchObject({ job_id: 'job-4', status: 'failed', error: '404 Not Found: Job not found' });
+    expect(calls).toBe(1);
   });
 });
