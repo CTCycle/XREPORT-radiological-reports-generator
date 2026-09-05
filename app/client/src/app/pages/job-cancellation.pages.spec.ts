@@ -20,6 +20,13 @@ function activeJob(page: object) {
   return page as ActiveJobPage;
 }
 
+function hiddenGuidance() {
+  return {
+    requestTour: () => undefined,
+    shouldShow: () => false,
+  };
+}
+
 describe('cooperative page cancellation', () => {
   it('keeps inference active until polling observes the terminal state', async () => {
     const cancel = vi.fn(() => apiResult({ job_id: 'generation-1', success: true, message: 'Cancellation requested' }));
@@ -28,7 +35,7 @@ describe('cooperative page cancellation', () => {
       providers: [
         { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [] }) } },
         { provide: JobsApiService, useValue: { cancel } },
-        { provide: GuidanceService, useValue: { requestTour: () => undefined } },
+        { provide: GuidanceService, useValue: hiddenGuidance() },
       ],
     }).compileComponents();
 
@@ -55,7 +62,7 @@ describe('cooperative page cancellation', () => {
       providers: [
         { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [] }) } },
         { provide: JobsApiService, useValue: { cancel } },
-        { provide: GuidanceService, useValue: { requestTour: () => undefined } },
+        { provide: GuidanceService, useValue: hiddenGuidance() },
       ],
     }).compileComponents();
 
