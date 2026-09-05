@@ -1,6 +1,23 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+VALIDATION_METRICS = frozenset(
+    {"text_statistics", "image_statistics", "pixels_distribution"}
+)
+CHECKPOINT_EVALUATION_METRICS = frozenset({"evaluation_report", "bleu_score"})
+
+
+###############################################################################
+def _validate_metric_names(
+    metrics: list[str],
+    supported: frozenset[str],
+    label: str,
+) -> list[str]:
+    unsupported = sorted(set(metrics) - supported)
+    if unsupported:
+        raise ValueError(f"Unsupported {label}: {', '.join(unsupported)}")
+    return metrics
 
 
 ###############################################################################
@@ -12,6 +29,11 @@ class ValidationRequest(BaseModel):
     sample_size: float = Field(..., ge=0.01, le=1.0)
     seed: int | None = None
     model_config = ConfigDict(extra="forbid")
+
+    @field_validator("metrics")
+    @classmethod
+    def validate_metrics(cls, metrics: list[str]) -> list[str]:
+        return _validate_metric_names(metrics, VALIDATION_METRICS, "validation metrics")
 
 
 ###############################################################################
@@ -83,6 +105,15 @@ class CheckpointEvaluationRequest(BaseModel):
     seed: int | None = None
 
     model_config = ConfigDict(extra="forbid")
+
+    @field_validator("metrics")
+    @classmethod
+    def validate_metrics(cls, metrics: list[str]) -> list[str]:
+        return _validate_metric_names(
+            metrics,
+            CHECKPOINT_EVALUATION_METRICS,
+            "checkpoint evaluation metrics",
+        )
 
 
 ###############################################################################
