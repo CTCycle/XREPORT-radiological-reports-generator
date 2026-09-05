@@ -7,6 +7,7 @@ import { InferenceApiService } from '../services/inference-api.service';
 import { JobsApiService } from '../services/jobs-api.service';
 import { TrainingApiService } from '../services/training-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
+import type { CheckpointInfo } from '../types/trainingApi';
 import { InferencePage } from './inference.page';
 import { TrainingPage } from './training.page';
 
@@ -131,5 +132,38 @@ describe('cooperative page cancellation', () => {
     expect(appState.training().dashboardState.isTraining).toBe(true);
     expect(activeJob(page).activeJobId).toBe('training-2');
     expect(page.trainingError()).toBe('Job cannot be cancelled');
+  });
+});
+
+describe('checkpoint evaluation configuration', () => {
+  it('lets the backend apply the configured seed when the UI does not override it', async () => {
+    const evaluateCheckpoint = vi.fn(() => Promise.resolve({ result: null, error: 'stop after request capture' }));
+    await TestBed.configureTestingModule({
+      imports: [TrainingPage],
+      providers: [
+        { provide: DatasetApiService, useValue: { getProcessedNames: () => apiResult({ datasets: [], count: 0 }) } },
+        { provide: TrainingApiService, useValue: { getCheckpoints: () => apiResult({ checkpoints: [] }) } },
+        { provide: ValidationApiService, useValue: { evaluateCheckpoint } },
+        { provide: JobsApiService, useValue: { list: () => apiResult({ jobs: [] }) } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TrainingPage);
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.evaluationCheckpoint.set({ name: 'checkpoint-1' } as CheckpointInfo);
+
+    await page.runEvaluation({
+      metrics: ['evaluation_report'],
+      metricConfigs: { evaluation_report: { dataFraction: 1 } },
+    });
+
+    expect(evaluateCheckpoint).toHaveBeenCalledTimes(1);
+    expect(evaluateCheckpoint).toHaveBeenCalledWith(
+      'checkpoint-1',
+      ['evaluation_report'],
+      10,
+      { evaluation_report: { data_fraction: 1 } },
+    );
   });
 });
