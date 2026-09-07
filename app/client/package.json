@@ -1,6 +1,6 @@
 {
   "name": "xreport-client",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "scripts": {
     "generate:api": "openapi-typescript ../shared/openapi.json -o src/app/types/api.generated.ts",
     "ng": "ng",

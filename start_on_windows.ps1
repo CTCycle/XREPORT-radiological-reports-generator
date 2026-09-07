@@ -1183,7 +1183,7 @@ function Read-DesktopReleaseVersion {
         return $Version
     }
     if ($candidate -notmatch '^\d+\.\d+\.\d+$') {
-        throw "Invalid release version: $candidate. Use semantic version format such as 3.0.0."
+        throw "Invalid release version: $candidate. Use semantic version format such as 3.1.0."
     }
     Clear-LauncherProgress
     return $candidate

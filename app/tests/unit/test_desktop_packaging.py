@@ -32,7 +32,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     monkeypatch.setenv("XREPORT_DESKTOP", "true")
     monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
     monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
-    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.0.0")
+    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.1.0")
     monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
     monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
 
@@ -85,7 +85,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             "--output",
             str(output),
             "--version",
-            "3.0.0",
+            "3.1.0",
             "--variant",
             "cpu",
             "--architecture",
@@ -108,7 +108,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     assert "runtime-manifest.json" not in completed.stdout
     verified = verify_archive(
         output,
-        expected_version="3.0.0",
+        expected_version="3.1.0",
         expected_variant="cpu",
         expected_source_commit="0" * 40,
     )
@@ -116,7 +116,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="architecture"):
         verify_archive(
             output,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
             expected_architecture="other",
@@ -124,7 +124,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="variant"):
         verify_archive(
             output,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cuda",
             expected_source_commit="0" * 40,
         )
@@ -140,7 +140,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="missing required"):
         verify_archive(
             missing_required,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
         )
@@ -153,7 +153,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     assert (
         verify_portable(
             portable,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
         )["format"]
@@ -169,7 +169,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="bounds"):
         verify_portable(
             invalid_overlay,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
         )
@@ -189,7 +189,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="backend path"):
         verify_archive(
             missing_backend,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
         )
@@ -205,7 +205,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             "--output",
             str(tmp_path / "rejected.zip"),
             "--version",
-            "3.0.0",
+            "3.1.0",
             "--variant",
             "cpu",
             "--architecture",
@@ -227,7 +227,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="unsafe member path"):
         verify_archive(
             unsafe,
-            expected_version="3.0.0",
+            expected_version="3.1.0",
             expected_variant="cpu",
         )
 
