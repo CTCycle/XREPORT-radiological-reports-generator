@@ -1128,8 +1128,7 @@ function Invoke-BuildDesktopRelease {
             Ensure-PortableRuntimes -IncludeRust
             Install-Dependencies -Settings (Import-XReportEnvironment) -Locked -InstallationType 'Desktop'
             $frontendDist = Invoke-DesktopFrontendBuild
-            for ($index = 0; $index -lt $selectedVariants.Count; $index++) {
-                $variant = $selectedVariants[$index]
+            foreach ($variant in @($selectedVariants)) {
                 Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
             }
         }
