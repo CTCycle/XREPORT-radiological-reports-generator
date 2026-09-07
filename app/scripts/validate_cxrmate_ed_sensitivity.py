@@ -36,7 +36,6 @@ CASES = (
     ("qa_normal.png", "screening", "deterministic"),
 )
 
-
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -53,7 +52,6 @@ def _arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 ###############################################################################
 def _write_log(payload: dict[str, Any]) -> Path:
     RUN_LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -61,7 +59,6 @@ def _write_log(payload: dict[str, Any]) -> Path:
     path = RUN_LOG_DIR / f"cxrmate-ed-sensitivity-{stamp}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
-
 
 ###############################################################################
 def main() -> int:

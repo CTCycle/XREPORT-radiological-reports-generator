@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from server.domain.validation import CheckpointEvaluationRequest, ValidationRequest
 
-
 ###############################################################################
 def test_dataset_validation_rejects_unknown_metric() -> None:
     with pytest.raises(ValidationError, match="Unsupported validation metrics"):
@@ -14,7 +13,6 @@ def test_dataset_validation_rejects_unknown_metric() -> None:
             metrics=["unknown_metric"],
             sample_size=1.0,
         )
-
 
 ###############################################################################
 def test_checkpoint_evaluation_rejects_unknown_metric() -> None:

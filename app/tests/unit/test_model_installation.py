@@ -16,7 +16,6 @@ from server.services.model_storage import ModelStorageLifecycle
 REVISION = "a" * 40
 NEXT_REVISION = "b" * 40
 
-
 ###############################################################################
 def _manifest(revision: str = REVISION) -> dict[str, object]:
     return {
@@ -25,7 +24,6 @@ def _manifest(revision: str = REVISION) -> dict[str, object]:
         "required_files": ["config.json", "tokenizer.json"],
         "weight_file_sets": [["model.safetensors"]],
     }
-
 
 ###############################################################################
 def _active_metadata(
@@ -45,9 +43,9 @@ def _active_metadata(
     payload.update(updates)
     return payload
 
-
 ###############################################################################
 class FakeApi:
+
     # -------------------------------------------------------------------------
     def __init__(self, revision: str = REVISION) -> None:
         self.revision = revision
@@ -67,7 +65,6 @@ class FakeApi:
                 ),
             ],
         )
-
 
 ###############################################################################
 class CompleteResponse:
@@ -90,12 +87,10 @@ class CompleteResponse:
     def close(self) -> None:
         return None
 
-
 ###############################################################################
 def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
     filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return CompleteResponse(b"ok" if filename == "model.safetensors" else b"{}")
-
 
 ###############################################################################
 @pytest.fixture
@@ -134,7 +129,6 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
         path.mkdir(parents=True, exist_ok=True)
     return root
 
-
 ###############################################################################
 def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     manager_paths: Path,
@@ -168,7 +162,6 @@ def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     assert metadata["integrity"] == "verified"
     assert metadata["candidate"]["revision"] == REVISION
 
-
 ###############################################################################
 def test_stage_reuses_interrupted_staging_directory(
     manager_paths: Path,
@@ -194,7 +187,6 @@ def test_stage_reuses_interrupted_staging_directory(
     )
 
     assert target.path == partial
-
 
 ###############################################################################
 def test_http_downloader_resumes_partial_weight_file(
@@ -252,7 +244,6 @@ def test_http_downloader_resumes_partial_weight_file(
     assert (partial.parent / "model.safetensors").read_bytes() == b"ok"
     assert any(call.get("headers") == {"Range": "bytes=1-"} for call in calls)
 
-
 ###############################################################################
 def test_activation_preserves_previous_revision_for_rollback(
     manager_paths: Path,
@@ -281,7 +272,6 @@ def test_activation_preserves_previous_revision_for_rollback(
     assert metadata["rollback"]["revision"] == REVISION
     assert (installation_module.HF_ROLLBACK_DIR / "example__report-model").exists()
 
-
 ###############################################################################
 def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> None:
     del manager_paths
@@ -307,7 +297,6 @@ def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> 
     metadata = manager.read_metadata("example/report-model")
     assert metadata["state"] == "corrupt"
     assert metadata["integrity"] == "failed"
-
 
 ###############################################################################
 def test_cancelled_maintenance_preserves_working_active_revision(
@@ -342,7 +331,6 @@ def test_cancelled_maintenance_preserves_working_active_revision(
     assert metadata["interruption"]["resumable"] is True
     assert not partial.exists()
 
-
 ###############################################################################
 def test_failed_first_install_keeps_resumable_staging(manager_paths: Path) -> None:
     del manager_paths
@@ -359,7 +347,6 @@ def test_failed_first_install_keeps_resumable_staging(manager_paths: Path) -> No
     manager.record_error("example/report-model", "cancelled", interrupted=True)
 
     assert partial.exists()
-
 
 ###############################################################################
 def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(

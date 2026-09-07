@@ -18,7 +18,6 @@ from server.services.errors import (
     UnsupportedOperationError,
 )
 
-
 ###############################################################################
 @pytest.mark.parametrize(
     ("error_type", "expected_status"),

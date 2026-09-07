@@ -10,7 +10,6 @@ from server.services import evaluation as evaluation_service
 from server.services import validation_runs
 from server.services.jobs import JobExecutionError
 
-
 ###############################################################################
 def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
 
@@ -34,7 +33,6 @@ def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
     ):
         evaluator.preflight_validation_dataset([batch])
 
-
 ###############################################################################
 def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
     requested_names: list[str | None] = []
@@ -42,6 +40,7 @@ def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
 
     ###############################################################################
     class RepositoryStub:
+
         # -------------------------------------------------------------------------
         def load_training_data(self, *, dataset_name=None):
             requested_names.append(dataset_name)
@@ -60,7 +59,6 @@ def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
 
     assert result is validation_data
     assert requested_names == ["qa_pre_release_small"]
-
 
 ###############################################################################
 def test_checkpoint_validation_fails_without_associated_dataset() -> None:

@@ -22,6 +22,7 @@ CHECKPOINT_ARTIFACT_FILES = (
 )
 
 
+###############################################################################
 @dataclass(frozen=True)
 class CheckpointRecord:
     checkpoint_id: int
@@ -31,6 +32,7 @@ class CheckpointRecord:
     created_at: datetime
     last_seen_at: datetime
 
+    # -------------------------------------------------------------------------
     @property
     def artifact_complete(self) -> bool:
         return self.path.is_dir() and all(
@@ -39,17 +41,21 @@ class CheckpointRecord:
         )
 
 
+###############################################################################
 class CheckpointRegistryError(RuntimeError):
     """Raised when a checkpoint cannot be registered or deleted safely."""
 
 
+###############################################################################
 class CheckpointReferencedError(CheckpointRegistryError):
     """Raised when persisted history still references a checkpoint."""
 
 
+###############################################################################
 class CheckpointRepository:
     """Database-owned checkpoint identity with explicit artifact verification."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: Database | None = None) -> None:
         self.database = database or get_database()
 

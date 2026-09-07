@@ -6,7 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -22,24 +21,20 @@ class DatabaseSettings:
     connect_timeout: int
     insert_batch_size: int
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
 class FeatureSettings:
     allow_local_filesystem_access: bool
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -48,7 +43,6 @@ class InferenceSettings:
     device: str
     max_loaded_models: int
     model_timeout: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -59,14 +53,12 @@ class ServerSettings:
     jobs: JobsSettings
     inference: InferenceSettings
 
-
 ###############################################################################
 def _normalize_optional_string(value: Any) -> str | None:
     if value is None:
         return None
     text = str(value).strip()
     return text or None
-
 
 ###############################################################################
 def _parse_bool_env(name: str, *, default: bool) -> bool:
@@ -79,7 +71,6 @@ def _parse_bool_env(name: str, *, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"{name} must be a boolean value")
-
 
 ###############################################################################
 def _normalize_int_env(
@@ -102,14 +93,12 @@ def _normalize_int_env(
         raise ValueError(f"{name} must be <= {maximum}")
     return parsed
 
-
 ###############################################################################
 def _required_env(name: str) -> str:
     value = _normalize_optional_string(os.getenv(name))
     if value is None:
         raise ValueError(f"{name} is required for external database mode")
     return value
-
 
 ###############################################################################
 def _database_env_settings() -> DatabaseSettings:
@@ -156,26 +145,21 @@ def _database_env_settings() -> DatabaseSettings:
         ),
     )
 
-
 ###############################################################################
 class _StrictSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=False)
-
 
 ###############################################################################
 class JsonGlobalSettings(_StrictSettingsModel):
     seed: int = 42
 
-
 ###############################################################################
 class JsonFeatureSettings(_StrictSettingsModel):
     allow_local_filesystem_access: bool = True
 
-
 ###############################################################################
 class JsonJobsSettings(_StrictSettingsModel):
     polling_interval: float = 1.0
-
 
 ###############################################################################
 class JsonInferenceSettings(_StrictSettingsModel):
@@ -183,7 +167,6 @@ class JsonInferenceSettings(_StrictSettingsModel):
     device: str = "auto"
     max_loaded_models: int = Field(default=1, ge=1, le=1)
     model_timeout: int = Field(default=600, ge=1)
-
 
 ###############################################################################
 class JsonServerSettings(_StrictSettingsModel):

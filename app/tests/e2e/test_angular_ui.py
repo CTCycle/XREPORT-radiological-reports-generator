@@ -2,7 +2,6 @@
 
 from playwright.sync_api import Page, expect
 
-
 ###############################################################################
 def test_inference_route_renders_catalog_and_navigation(
     page: Page,
@@ -15,7 +14,6 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
     expect(page.get_by_role("link", name="Dataset")).to_be_visible()
     expect(page.get_by_role("link", name="Training")).to_be_visible()
-
 
 ###############################################################################
 def test_dataset_and_training_routes_render_workflow_surfaces(
@@ -33,7 +31,6 @@ def test_dataset_and_training_routes_render_workflow_surfaces(
     assert response is not None and response.ok
     expect(page.get_by_role("heading", name="XREPORT Transformer")).to_be_visible()
     expect(page.get_by_role("heading", name="Training Dashboard")).to_be_visible()
-
 
 ###############################################################################
 def test_validation_route_reports_missing_dataset_as_user_error(
