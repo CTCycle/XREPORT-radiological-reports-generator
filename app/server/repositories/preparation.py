@@ -18,9 +18,9 @@ from server.repositories.schemas import (
 )
 from server.repositories.schemas.normalization import normalize_key
 
-
 ###############################################################################
 class PreparationRepository:
+
     # -------------------------------------------------------------------------
     def __init__(self, database: Database) -> None:
         self.database = database

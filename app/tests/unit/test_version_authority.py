@@ -9,12 +9,10 @@ from server.common.constants import FASTAPI_VERSION
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 
-
 ###############################################################################
 def _json_version(path: Path) -> str:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return str(payload["version"])
-
 
 ###############################################################################
 def test_release_version_has_one_canonical_source() -> None:

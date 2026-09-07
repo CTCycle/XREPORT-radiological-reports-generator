@@ -25,6 +25,7 @@ _CHECKPOINT_FILES = (
 )
 
 
+###############################################################################
 def _complete_checkpoint_paths() -> list[Path]:
     if not CHECKPOINTS_DIR.is_dir():
         return []
@@ -40,10 +41,12 @@ def _complete_checkpoint_paths() -> list[Path]:
     ]
 
 
+###############################################################################
 def _normalized_path(path: str | Path) -> str:
     return str(Path(path).expanduser().resolve()).casefold()
 
 
+###############################################################################
 def _register_complete_checkpoints() -> None:
     connection = op.get_bind()
     existing_rows = (
@@ -117,6 +120,7 @@ def _register_complete_checkpoints() -> None:
         op.bulk_insert(checkpoints, rows)
 
 
+###############################################################################
 def _drop_request_id_constraint(table_name: str) -> None:
     connection = op.get_bind()
     if connection.dialect.name == "postgresql":
@@ -127,6 +131,7 @@ def _drop_request_id_constraint(table_name: str) -> None:
         )
 
 
+###############################################################################
 def upgrade() -> None:
     _register_complete_checkpoints()
     _drop_request_id_constraint("validation_runs")
@@ -142,6 +147,7 @@ def upgrade() -> None:
         batch_op.drop_column("status")
 
 
+###############################################################################
 def downgrade() -> None:
     with op.batch_alter_table("checkpoint_evaluations", schema=None) as batch_op:
         batch_op.add_column(

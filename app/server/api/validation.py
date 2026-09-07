@@ -15,9 +15,9 @@ from server.domain.validation import (
 if TYPE_CHECKING:
     from server.services.validation_runs import ValidationService
 
-
 ###############################################################################
 class ValidationEndpoint:
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -88,7 +88,6 @@ class ValidationEndpoint:
             response_model=ValidationReportResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -12,14 +12,13 @@ from torch.utils.data import DataLoader
 from server.common.utils.logger import logger
 from server.models.inference import TextGenerator
 
-
 ###############################################################################
 class CheckpointInputMismatchError(ValueError):
     """Raised when checkpoint input shapes do not match evaluation data."""
 
-
 ###############################################################################
 class CheckpointEvaluator:
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
