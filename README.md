@@ -310,7 +310,7 @@ steps, and guidance for resuming from an existing checkpoint.
   progress in the application and may be cancelled. Do not close the
   application while an operation is still writing important results unless you
   are willing to repeat it.
-- The current major release is v3.0.0 and is intended for stable local
+- The current release is v3.1.0 and is intended for stable local
   evaluation and testing while the project continues to evolve.
 
 ## 8. Troubleshooting

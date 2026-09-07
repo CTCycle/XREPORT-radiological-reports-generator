@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-01
+Last updated: 2026-09-07
 
 ## Windows Local Launcher
 
@@ -76,7 +76,7 @@ not replaced by the desktop action.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.0.0
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.1.0
 ```
 
 Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
