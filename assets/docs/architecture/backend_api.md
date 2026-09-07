@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-08-30
+Last updated: 2026-09-07
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -28,8 +28,11 @@ latest or otherwise implicit upload.
 The query parameters are optional filters. Every long-running preparation,
 training, validation, evaluation, and inference start endpoint returns a
 `job_id`; clients poll the generic job resource and use `DELETE` to request
-cancellation. There are no feature-specific job routes and no separate
-training-status endpoint.
+cancellation. The client keeps an active job visible while a transient status
+request fails; an explicit missing-job response or a terminal job status ends
+polling. Cancellation remains active until the backend reports a terminal
+state. There are no feature-specific job routes and no separate training-status
+endpoint.
 
 ## Preparation
 
@@ -69,6 +72,12 @@ and unmatched counts without writing records. A repeat request with
 - `POST /api/validation/checkpoint`
 - `GET /api/validation/checkpoint/reports/{checkpoint}`
 - `GET /api/validation/reports/{dataset_name}`
+
+Dataset validation accepts only `text_statistics`, `image_statistics`, and
+`pixels_distribution`. Checkpoint evaluation accepts only `evaluation_report`
+and `bleu_score`; unsupported metric names are rejected with HTTP 422 before a
+job is created. When a request omits `seed`, checkpoint evaluation uses the
+configured `global.seed` value.
 
 ## Inference
 

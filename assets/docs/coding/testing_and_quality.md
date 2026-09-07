@@ -1,12 +1,15 @@
 # Testing And Quality Rules
 
-Last updated: 2026-08-30
+Last updated: 2026-09-07
 
 ## Tooling And Quality Gates
 
 - Linting and formatting use Ruff or the established project-equivalent toolchain.
 - Typing should remain Pylance-compatible.
 - Testing uses pytest with coverage focused on `tests/unit` plus impacted `tests/e2e`.
+  The Angular client also exposes `npm run test:e2e`, which runs the rendered
+  UI checks in `app/tests/e2e/test_angular_ui.py` against the local services;
+  `app/tests/run_tests.bat` starts those services when needed.
 - Pytest configuration is centralized in `app/server/pyproject.toml`; CI and
   repository test helpers pass that file explicitly instead of relying on a
   root-level pytest configuration file.

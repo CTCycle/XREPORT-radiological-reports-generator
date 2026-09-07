@@ -1,5 +1,7 @@
 # XREPORT Angular client
 
+Last updated: 2026-09-07
+
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.5.
 
 ## Development server
@@ -46,13 +48,20 @@ npm run test:unit
 
 ## Running end-to-end tests
 
-For end-to-end (e2e) testing, run:
+For end-to-end (E2E) testing against the local FastAPI and Angular services, run:
 
 ```bash
-ng e2e
+npm run test:e2e
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+The repository test launcher starts the required local services automatically:
+
+```cmd
+app\tests\run_tests.bat
+```
+
+The E2E checks use the Playwright tests under `app/tests/e2e/` and the local
+service URLs configured by the launcher.
 
 ## Additional Resources
 

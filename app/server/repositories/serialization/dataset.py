@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any, Literal, overload
 
@@ -27,6 +28,19 @@ from server.repositories.schemas.normalization import normalize_key
 from server.repositories.serialization.support import RepositorySupport
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
+
+
+###############################################################################
+def sample_dataset(
+    dataset: pd.DataFrame,
+    sample_size: float,
+    seed: int,
+) -> pd.DataFrame:
+    """Sample a non-empty dataset without allowing a fractional sample to erase it."""
+    if dataset.empty or sample_size >= 1.0:
+        return dataset
+    sample_count = min(len(dataset), max(1, math.ceil(len(dataset) * sample_size)))
+    return dataset.sample(n=sample_count, random_state=seed)
 
 
 ###############################################################################
@@ -195,7 +209,7 @@ class DatasetRepository(RepositorySupport):
         if dataset.empty:
             return dataset
         if sample_size < 1.0:
-            dataset = dataset.sample(frac=sample_size, random_state=seed)
+            dataset = sample_dataset(dataset, sample_size, seed)
         return dataset.reset_index(drop=True)
 
     # -------------------------------------------------------------------------

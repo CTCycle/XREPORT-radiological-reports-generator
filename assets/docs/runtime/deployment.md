@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-08-26
+Last updated: 2026-09-07
 
 ## Deployment Scope
 
@@ -57,6 +57,24 @@ The canonical command is `start_on_windows.ps1 -Action BuildDesktopRelease`.
 launcher (CPU by default; pass `-DesktopRuntime Cuda` or `All` after `--`).
 Raw `tauri build` is an internal shell operation and is not a complete release
 path.
+
+After a release build, verify each variant's checksums, embedded runtime,
+metadata, portable payload, and MSI payload, then launch the actual portable
+executables through the packaged startup smoke test:
+
+```powershell
+.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cpu -Version 3.0.0 -SourceCommit (git rev-parse HEAD)
+.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cuda -Version 3.0.0 -SourceCommit (git rev-parse HEAD)
+.\app\desktop\build\smoke_desktop.ps1 -Variant cpu -Version 3.0.0
+.\app\desktop\build\smoke_desktop.ps1 -Variant cuda -Version 3.0.0
+```
+
+The smoke command uses a short temporary profile by default and writes its
+summary reports under `assets/QA/desktop/`. If `-DataRoot` is supplied for
+preserved runtime evidence, use a short path: a deeply nested repository path
+can exceed the Windows DLL loader's effective path limit for native frozen
+extensions such as `regex._regex`, causing a test-harness startup failure even
+though the same artifact starts correctly under a normal user profile.
 
 The shell extracts atomically to
 `%LOCALAPPDATA%\XREPORT\runtime\<variant>\<version>\<payload-sha256>`. The
