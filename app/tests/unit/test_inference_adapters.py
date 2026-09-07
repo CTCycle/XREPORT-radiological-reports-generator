@@ -6,7 +6,6 @@ import torch
 from server.domain.inference import InferenceImage
 from server.models.inference.providers.adapters import CXRMateEDAdapter, StudyImage
 
-
 ###############################################################################
 def test_cxrmate_ed_passes_clinical_context_and_all_study_images() -> None:
 

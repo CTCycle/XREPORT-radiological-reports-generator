@@ -17,11 +17,9 @@ from server.services.model_installation import (
     ModelInstallationManager,
 )
 
-
 ###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
-
 
 ###############################################################################
 class ModelStorageLifecycle:

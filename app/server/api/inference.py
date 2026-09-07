@@ -18,7 +18,6 @@ from server.domain.jobs import JobStartResponse
 if TYPE_CHECKING:
     from server.services.inference import InferenceService
 
-
 ###############################################################################
 def parse_generation_request(
     model_ref: str = Form(...),
@@ -31,9 +30,9 @@ def parse_generation_request(
         clinical_context=clinical_context,
     )
 
-
 ###############################################################################
 class InferenceEndpoint:
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -130,7 +129,6 @@ class InferenceEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

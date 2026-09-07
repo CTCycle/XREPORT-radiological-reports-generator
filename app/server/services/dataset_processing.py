@@ -17,7 +17,6 @@ from server.repositories.serialization.dataset import (
 )
 from server.services.jobs import JobExecutionError, JobManager
 
-
 ###############################################################################
 def resolve_processed_dataset_name(
     source_dataset_name: str,
@@ -27,7 +26,6 @@ def resolve_processed_dataset_name(
         return custom_name.strip()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{source_dataset_name}_{timestamp}"
-
 
 ###############################################################################
 class DatasetProcessingService:

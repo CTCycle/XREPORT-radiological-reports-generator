@@ -15,9 +15,10 @@ from server.services.validation_runs import ValidationService
 from server.services import validation_runs
 from tests.conftest import run_async_in_thread
 
-
 ###############################################################################
 class FakeValidationDatasetRepository:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         source: pd.DataFrame,
@@ -26,12 +27,13 @@ class FakeValidationDatasetRepository:
         self.source = source
         self.validated = source if validated is None else validated
 
+    # -------------------------------------------------------------------------
     def load_source_dataset(self, **_kwargs: object) -> pd.DataFrame:
         return self.source
 
+    # -------------------------------------------------------------------------
     def validate_img_paths(self, _dataset: pd.DataFrame) -> pd.DataFrame:
         return self.validated
-
 
 ###############################################################################
 def _job_manager(job_type: str) -> Any:
@@ -48,7 +50,6 @@ def _job_manager(job_type: str) -> Any:
     }
     return manager
 
-
 ###############################################################################
 def _settings(seed: int = 123) -> ServerSettings:
     return cast(
@@ -58,7 +59,6 @@ def _settings(seed: int = 123) -> ServerSettings:
             jobs=SimpleNamespace(polling_interval=2.0),
         ),
     )
-
 
 ###############################################################################
 def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -81,7 +81,6 @@ def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.Mo
 
     assert raised.value.code == "dataset_unavailable"
     assert raised.value.phase == "input_validation"
-
 
 ###############################################################################
 def test_validation_job_fails_when_no_image_paths_remain(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -108,7 +107,6 @@ def test_validation_job_fails_when_no_image_paths_remain(monkeypatch: pytest.Mon
     assert raised.value.code == "dataset_integrity_failed"
     assert raised.value.phase == "input_validation"
 
-
 ###############################################################################
 def test_checkpoint_evaluation_persistence_failure_is_terminal(
     monkeypatch: pytest.MonkeyPatch,
@@ -130,7 +128,6 @@ def test_checkpoint_evaluation_persistence_failure_is_terminal(
     assert raised.value.code == "persistence_failed"
     assert raised.value.phase == "persistence"
 
-
 ###############################################################################
 def test_validation_service_preserves_explicit_zero_seed() -> None:
     manager = _job_manager("validation")
@@ -150,7 +147,6 @@ def test_validation_service_preserves_explicit_zero_seed() -> None:
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 0
 
-
 ###############################################################################
 def test_validation_service_uses_global_seed_when_omitted() -> None:
     manager = _job_manager("validation")
@@ -168,7 +164,6 @@ def test_validation_service_uses_global_seed_when_omitted() -> None:
 
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 321
-
 
 ###############################################################################
 def test_checkpoint_evaluation_uses_global_seed_when_omitted() -> None:

@@ -9,7 +9,6 @@ from playwright.sync_api import APIRequestContext
 from server.common.path import CHECKPOINTS_DIR
 from server.repositories.checkpoints import CheckpointRepository
 
-
 ###############################################################################
 def _create_checkpoint_fixture(name: str) -> Path:
     checkpoint_dir = Path(CHECKPOINTS_DIR) / name
@@ -25,7 +24,6 @@ def _create_checkpoint_fixture(name: str) -> Path:
     CheckpointRepository().register_completed_checkpoint(name, checkpoint_dir)
     return checkpoint_dir
 
-
 ###############################################################################
 def test_delete_checkpoint_removes_the_entire_checkpoint_directory(
     api_context: APIRequestContext,
@@ -40,7 +38,6 @@ def test_delete_checkpoint_removes_the_entire_checkpoint_directory(
     finally:
         shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
-
 ###############################################################################
 def test_delete_checkpoint_rejects_path_traversal(
     api_context: APIRequestContext,
@@ -48,7 +45,6 @@ def test_delete_checkpoint_rejects_path_traversal(
     response = api_context.delete("/api/training/checkpoints/%2e%2e%2f%2e%2e%2f")
 
     assert response.status == 400
-
 
 ###############################################################################
 def test_resume_rejects_unknown_checkpoint(api_context: APIRequestContext) -> None:

@@ -16,7 +16,6 @@ from server.repositories.schemas.normalization import normalize_key
 from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.serialization.support import RepositorySupport
 
-
 ###############################################################################
 class ValidationRepository(RepositorySupport):
     """Persistence boundary for validation and checkpoint evaluation reports."""

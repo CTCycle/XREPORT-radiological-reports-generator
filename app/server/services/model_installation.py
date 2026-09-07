@@ -28,16 +28,13 @@ from server.common.path import (
 REVISION_PATTERN = r"^[0-9a-f]{40}$"
 ProgressCallback = Callable[[dict[str, Any]], None]
 
-
 ###############################################################################
 class InstallationCancelled(RuntimeError):
     """Raised when the user cancels a download or maintenance operation."""
 
-
 ###############################################################################
 class InstallationError(RuntimeError):
     """Raised when a model cannot be installed or verified safely."""
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -48,11 +45,9 @@ class InstallationTarget:
     candidate: bool
     operation_id: str | None = None
 
-
 ###############################################################################
 def _slug(repository_id: str) -> str:
     return repository_id.replace("/", "__").replace("\\", "__")
-
 
 ###############################################################################
 def _sha256(path: Path) -> str:
@@ -61,7 +56,6 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
 
 ###############################################################################
 class ModelInstallationManager:

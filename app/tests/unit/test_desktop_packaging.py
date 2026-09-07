@@ -15,7 +15,6 @@ from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 sys.path.insert(0, str(Path(__file__).parents[2] / "desktop" / "build"))
 from verify_runtime_bundle import verify_archive, verify_portable  # noqa: E402
 
-
 ###############################################################################
 def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     tmp_path: Path, monkeypatch
@@ -48,7 +47,6 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     ensure_packaged_data(layout)
     assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
 
-
 ###############################################################################
 def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
     token = "a" * 64
@@ -57,7 +55,6 @@ def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
     assert token_matches(token)
     assert not token_matches("b" * 64)
     assert not token_matches(None)
-
 
 ###############################################################################
 def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
@@ -234,7 +231,6 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             expected_variant="cpu",
         )
 
-
 ###############################################################################
 def test_desktop_build_inputs_are_locked_and_placeholder_free() -> None:
     requirements = (
@@ -249,7 +245,6 @@ def test_desktop_build_inputs_are_locked_and_placeholder_free() -> None:
     ).read_text(encoding="utf-8")
     assert "Desktop runtime has not been generated" in build_rs
     assert "runtime archive placeholder" not in build_rs
-
 
 ###############################################################################
 def test_packaged_desktop_processes_are_windowless() -> None:

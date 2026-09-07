@@ -19,11 +19,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.schemas.types import JSONSequence, UTCDateTime
 
-
 ###############################################################################
 class Base(DeclarativeBase):
     pass
-
 
 ###############################################################################
 class Dataset(Base):
@@ -68,7 +66,6 @@ class Dataset(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
     )
-
 
 ###############################################################################
 class DatasetRecord(Base):
@@ -121,7 +118,6 @@ class DatasetRecord(Base):
         back_populates="record",
     )
 
-
 ###############################################################################
 class DatasetVersion(Base):
     """Immutable snapshot of one logical imported dataset."""
@@ -154,7 +150,6 @@ class DatasetVersion(Base):
     records: Mapped[list[DatasetRecord]] = relationship(
         "DatasetRecord", back_populates="dataset_version", cascade="all, delete-orphan"
     )
-
 
 ###############################################################################
 class ProcessingRun(Base):
@@ -207,7 +202,6 @@ class ProcessingRun(Base):
         cascade="all, delete-orphan",
     )
 
-
 ###############################################################################
 class TrainingSample(Base):
     """Processed training samples linked to preprocessing runs and source records."""
@@ -246,7 +240,6 @@ class TrainingSample(Base):
     record: Mapped[DatasetRecord] = relationship(
         "DatasetRecord", back_populates="training_samples"
     )
-
 
 ###############################################################################
 class ValidationRun(Base):
@@ -290,7 +283,6 @@ class ValidationRun(Base):
     )
     dataset: Mapped[Dataset] = relationship("Dataset", back_populates="validation_runs")
 
-
 ###############################################################################
 class Checkpoint(Base):
     """Canonical checkpoint identity."""
@@ -322,7 +314,6 @@ class Checkpoint(Base):
         passive_deletes=True,
     )
 
-
 ###############################################################################
 class CheckpointEvaluation(Base):
     """Latest checkpoint evaluation payload."""
@@ -350,7 +341,6 @@ class CheckpointEvaluation(Base):
     checkpoint: Mapped[Checkpoint] = relationship(
         "Checkpoint", back_populates="evaluations"
     )
-
 
 ###############################################################################
 class InferenceRun(Base):
@@ -395,7 +385,6 @@ class InferenceRun(Base):
         cascade="all, delete-orphan",
     )
 
-
 ###############################################################################
 class InferenceReport(Base):
     """Generated reports linked to inference runs."""
@@ -436,12 +425,10 @@ class InferenceReport(Base):
         "DatasetRecord", back_populates="inference_reports"
     )
 
-
 ###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
-
 
 ###############################################################################
 @event.listens_for(DatasetRecord, "before_insert")
@@ -449,7 +436,6 @@ def _populate_image_name_key(
     _mapper: Any, _connection: Any, target: DatasetRecord
 ) -> None:
     target.image_name_key = normalize_key(target.image_name)
-
 
 ###############################################################################
 @event.listens_for(Checkpoint, "before_insert")

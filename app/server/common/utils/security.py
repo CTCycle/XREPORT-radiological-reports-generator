@@ -11,7 +11,6 @@ MAX_DATASET_NAME_LENGTH = 128
 DATASET_NAME_ALLOWED_CHARS = re.compile(r"[^A-Za-z0-9._ -]+")
 DATASET_NAME_EDGE_TRIM = "._ -"
 
-
 ###############################################################################
 def validate_checkpoint_name(name: str) -> str:
     normalized = str(name or "").strip()
@@ -32,7 +31,6 @@ def validate_checkpoint_name(name: str) -> str:
             "Checkpoint name can only include letters, numbers, hyphen, and underscore"
         )
     return normalized
-
 
 ###############################################################################
 def sanitize_dataset_name(name: str) -> str:

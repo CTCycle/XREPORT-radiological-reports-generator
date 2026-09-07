@@ -7,7 +7,6 @@ from server.repositories.database.engine import Database
 
 # [DATABASE]
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database() -> Database:

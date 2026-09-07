@@ -8,7 +8,6 @@ import pytest
 from server.domain.inference import InferenceManifest
 from server.services.inference_runtime import InferenceRuntimeCoordinator
 
-
 ###############################################################################
 def test_embedded_catalog_contains_exactly_five_unique_sha_pinned_public_models() -> (
     None
@@ -29,7 +28,6 @@ def test_embedded_catalog_contains_exactly_five_unique_sha_pinned_public_models(
         "cxrmate2",
         "medgemma",
     }
-
 
 ###############################################################################
 def test_runtime_rejects_incomplete_model_manifest() -> None:

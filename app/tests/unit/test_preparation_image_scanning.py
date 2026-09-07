@@ -21,7 +21,6 @@ from server.repositories.serialization.dataset import (
     DatasetRepository,
 )
 
-
 ###############################################################################
 def test_image_scanning_counts_recursively_and_filters_required_stems() -> None:
     with TemporaryDirectory(dir=Path.cwd()) as temp_dir:
@@ -44,7 +43,6 @@ def test_image_scanning_counts_recursively_and_filters_required_stems() -> None:
 
         assert [Path(path).name for path in matched] == ["two.PNG"]
 
-
 ###############################################################################
 def _preparation_service(upload_state: UploadState, repository) -> PreparationService:
     service = PreparationService.__new__(PreparationService)
@@ -55,7 +53,6 @@ def _preparation_service(upload_state: UploadState, repository) -> PreparationSe
     service.upload_state = upload_state
     service.dataset_repository = repository
     return service
-
 
 ###############################################################################
 def test_load_dataset_reports_unmatched_rows_before_persisting() -> None:
@@ -93,7 +90,6 @@ def test_load_dataset_reports_unmatched_rows_before_persisting() -> None:
         assert preview.matched_records == 1
         assert preview.unmatched_records == 1
         assert upload_state.contains(upload_id) is True
-
 
 ###############################################################################
 def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
@@ -135,7 +131,6 @@ def test_load_dataset_confirmation_persists_explicit_partial_import() -> None:
         assert len(saved[0]) == 1
         assert upload_state.contains(upload_id) is False
 
-
 ###############################################################################
 def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> None:
     with TemporaryDirectory(dir=Path.cwd()) as temp_dir:
@@ -164,7 +159,6 @@ def test_load_dataset_rejects_missing_text_column_without_clearing_upload() -> N
 
         assert upload_state.contains(upload_id) is True
 
-
 ###############################################################################
 def test_load_dataset_requires_the_explicit_upload_id() -> None:
     with TemporaryDirectory(dir=Path.cwd()) as temp_dir:
@@ -191,7 +185,6 @@ def test_load_dataset_requires_the_explicit_upload_id() -> None:
                     confirm_unmatched=False,
                 )
             )
-
 
 ###############################################################################
 def test_validate_img_paths_fails_closed_for_deleted_images() -> None:

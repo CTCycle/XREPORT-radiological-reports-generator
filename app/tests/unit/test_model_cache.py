@@ -4,7 +4,6 @@ import os
 
 from server.common import model_cache
 
-
 ###############################################################################
 def test_model_cache_bootstrap_overwrites_hostile_global_cache_values(
     monkeypatch,
