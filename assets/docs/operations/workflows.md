@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-08-21
+Last updated: 2026-09-07
 
 ## Prepare A Dataset
 
@@ -12,6 +12,9 @@ Last updated: 2026-08-21
    partial import is acceptable.
 4. Run preparation and processing.
 5. Confirm dataset status and metadata before training.
+
+For a non-empty dataset, fractional sampling retains at least one record so a
+small dataset cannot be reduced to an empty validation or processing job.
 
 Expected result:
 

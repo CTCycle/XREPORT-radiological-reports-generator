@@ -17,7 +17,7 @@ from server.repositories.schemas import (
     ProcessingRun,
     ValidationRun,
 )
-from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.dataset import DatasetRepository, sample_dataset
 from server.repositories.serialization.inference import InferenceRepository
 from server.repositories.serialization.validation import ValidationRepository
 
@@ -92,6 +92,16 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     assert rows[0].image_name_key == "a.png"
     assert rows[0].report_text == "new"
     assert rows[0].image_path == "new-path"
+
+
+###############################################################################
+def test_fractional_sampling_retains_one_row_for_small_nonempty_dataset() -> None:
+    dataset = pd.DataFrame([{"record_id": 1}, {"record_id": 2}])
+
+    sampled = sample_dataset(dataset, sample_size=0.2, seed=42)
+
+    assert len(sampled) == 1
+    assert sampled.iloc[0]["record_id"] in {1, 2}
 
 
 ###############################################################################

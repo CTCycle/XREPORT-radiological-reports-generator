@@ -38,7 +38,7 @@ from server.configurations.startup import get_server_settings
 from server.services.upload import UploadState, get_upload_state
 from server.services.dataset_processing import DatasetProcessingService
 from server.repositories.preparation import PreparationRepository
-from server.repositories.serialization.dataset import DatasetRepository
+from server.repositories.serialization.dataset import DatasetRepository, sample_dataset
 from server.common.constants import (
     DATASET_RECORDS_TABLE,
 )
@@ -363,7 +363,7 @@ class PreparationService:
 
         # Apply sample size if needed
         if sample_size < 1.0:
-            df = df.sample(frac=sample_size, random_state=seed)
+            df = sample_dataset(df, sample_size, seed)
 
         if "text" not in df.columns:
             raise BadRequestError(
