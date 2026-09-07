@@ -9,9 +9,9 @@ os.environ.setdefault("KERAS_BACKEND", "torch")
 
 from server.services import training as training_module
 
-
 ###############################################################################
 class FakeProcessWorker:
+
     # -------------------------------------------------------------------------
     def __init__(
         self, *, interrupted: bool, max_alive_checks: int, exitcode: int | None
@@ -58,7 +58,6 @@ class FakeProcessWorker:
     def read_result(self):
         return None
 
-
 ###############################################################################
 def test_training_cancel_requests_graceful_stop_before_forced_termination(
     monkeypatch: pytest.MonkeyPatch,
@@ -77,7 +76,6 @@ def test_training_cancel_requests_graceful_stop_before_forced_termination(
     assert worker.stop_called is True
     assert worker.terminate_called is False
     assert result == {}
-
 
 ###############################################################################
 def test_training_cancel_forces_termination_after_timeout(

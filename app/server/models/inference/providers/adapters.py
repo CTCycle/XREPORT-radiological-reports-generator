@@ -27,14 +27,12 @@ from transformers.utils.hub import HF_MODULES_CACHE
 from server.common.path import is_within_allowed_roots
 from server.domain.inference import GenerationProfile, InferenceImage
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class StudyImage:
     stored: InferenceImage
     image: Image.Image
     original_dimensions: tuple[int, int]
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -46,7 +44,6 @@ class StudyGeneration:
 
 MoveInputs = Callable[[Any, Any], Any]
 StoppingCriteriaValue = Any
-
 
 ###############################################################################
 class _LegacyDecoderPrepareInputs:
@@ -78,7 +75,6 @@ class _LegacyDecoderPrepareInputs:
         return self.original(
             input_ids, *args, past_key_values=past_key_values, **kwargs
         )
-
 
 ###############################################################################
 class _LegacyCacheView:
@@ -113,7 +109,6 @@ class _LegacyCacheView:
     # -------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
         return getattr(self.past_key_values, name)
-
 
 ###############################################################################
 class _CXRMateEDPrepareInputs:
@@ -155,7 +150,6 @@ class _CXRMateEDPrepareInputs:
             result["past_key_values"] = past_key_values
         return result
 
-
 ###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     """Bridge old remote-code decoders to Transformers' cache-position API.
@@ -178,7 +172,6 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
     decoder._xreport_cache_compat = True
 
-
 ###############################################################################
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
     """Keep the published CXRMate-ED decoder compatible with DynamicCache.
@@ -197,7 +190,6 @@ def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
 
     model.prepare_inputs_for_generation = _CXRMateEDPrepareInputs(original)
     model._xreport_ed_cache_compat = True
-
 
 ###############################################################################
 class StandardImageTextAdapter:
@@ -357,7 +349,6 @@ class StandardImageTextAdapter:
             return None
         return [int(dimension) for dimension in shape]
 
-
 ###############################################################################
 class ChatVisionStudyAdapter(StandardImageTextAdapter):
     """Study adapter for image-text-to-text models using chat templates."""
@@ -428,7 +419,6 @@ class ChatVisionStudyAdapter(StandardImageTextAdapter):
             "processor_loader": "auto",
             "input_scope": "study",
         }
-
 
 ###############################################################################
 class CheXOneAdapter(ChatVisionStudyAdapter):
@@ -506,7 +496,6 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             display_sections=self.display_sections(report, output_sections),
             metadata=[self._metadata(item, processor, inputs) for item in images],
         )
-
 
 ###############################################################################
 class CXRMateMultiAdapter(StandardImageTextAdapter):
@@ -611,7 +600,6 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             "processor_loader": "auto_feature_extractor",
             "input_scope": "study",
         }
-
 
 ###############################################################################
 class CXRMateEDAdapter(StandardImageTextAdapter):
@@ -802,7 +790,6 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
-
 ###############################################################################
 class CXRMate2Adapter(StandardImageTextAdapter):
     """Published CXRMate-2 processor and findings/impression decoder."""
@@ -859,7 +846,6 @@ class CXRMate2Adapter(StandardImageTextAdapter):
             "processor_loader": "auto",
             "input_scope": "study",
         }
-
 
 ###############################################################################
 class MedGemmaAdapter(ChatVisionStudyAdapter):

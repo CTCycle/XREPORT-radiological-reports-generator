@@ -10,9 +10,9 @@ from pydantic import ValidationError
 from ..common.path import CONFIGURATION_FILE_PATH
 from .settings import JsonServerSettings, ServerSettings
 
-
 ###############################################################################
 class ConfigurationManager:
+
     # -------------------------------------------------------------------------
     def __init__(self, config_path: str | Path | None = None) -> None:
         self._lock = RLock()

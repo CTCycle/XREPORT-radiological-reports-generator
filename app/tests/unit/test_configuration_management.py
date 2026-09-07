@@ -6,7 +6,6 @@ import pytest
 
 from server.configurations.management import ConfigurationManager
 
-
 ###############################################################################
 def _configuration_payload() -> dict[str, object]:
     return {
@@ -20,7 +19,6 @@ def _configuration_payload() -> dict[str, object]:
             "model_timeout": 120,
         },
     }
-
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -44,7 +42,6 @@ def clear_database_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "INFERENCE_MODEL_TIMEOUT",
     ):
         monkeypatch.delenv(key, raising=False)
-
 
 ###############################################################################
 def test_configuration_uses_json_for_application_settings_and_env_for_database(
@@ -76,7 +73,6 @@ def test_configuration_uses_json_for_application_settings_and_env_for_database(
     assert settings.inference.device == "cpu"
     assert settings.inference.model_timeout == 120
 
-
 ###############################################################################
 def test_configuration_rejects_invalid_files(tmp_path) -> None:
     invalid_json = tmp_path / "invalid.json"
@@ -88,7 +84,6 @@ def test_configuration_rejects_invalid_files(tmp_path) -> None:
     invalid_root.write_text(json.dumps([1, 2, 3]), encoding="utf-8")
     with pytest.raises(RuntimeError, match="Configuration must be a JSON object"):
         ConfigurationManager(config_path=str(invalid_root))
-
 
 ###############################################################################
 def test_inference_settings_are_owned_by_json_not_environment(
@@ -107,7 +102,6 @@ def test_inference_settings_are_owned_by_json_not_environment(
     assert settings.inference.device == "cpu"
     assert settings.inference.model_timeout == 120
 
-
 ###############################################################################
 def test_application_configuration_rejects_unknown_keys(tmp_path) -> None:
     config_path = tmp_path / "configurations.json"
@@ -117,7 +111,6 @@ def test_application_configuration_rejects_unknown_keys(tmp_path) -> None:
 
     with pytest.raises(RuntimeError, match="Invalid application configuration"):
         ConfigurationManager(config_path=str(config_path))
-
 
 ###############################################################################
 def test_database_url_is_not_an_alternate_connection_source(
@@ -130,7 +123,6 @@ def test_database_url_is_not_an_alternate_connection_source(
 
     with pytest.raises(ValueError, match="DATABASE_URL is not supported"):
         ConfigurationManager(config_path=str(config_path))
-
 
 ###############################################################################
 def test_invalid_environment_values_fail_instead_of_using_defaults(

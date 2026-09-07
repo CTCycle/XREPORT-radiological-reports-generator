@@ -37,13 +37,11 @@ from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
 
-
 ###############################################################################
 def redirect_root_to_docs() -> RedirectResponse | FileResponse:
     if PACKAGED_MODE:
         return FileResponse(CLIENT_DIST_DIR / "index.html")
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
-
 
 ###############################################################################
 def health_check(request: Request) -> HealthResponse:
@@ -58,14 +56,12 @@ def health_check(request: Request) -> HealthResponse:
         runtime_port=request.url.port,
     )
 
-
 ###############################################################################
 def request_shutdown(request: Request) -> ShutdownResponse:
     event = getattr(request.app.state, "desktop_shutdown_event", None)
     if event is not None:
         event.set()
     return ShutdownResponse(status="shutting_down")
-
 
 ###############################################################################
 async def wait_for_desktop_shutdown(
@@ -74,7 +70,6 @@ async def wait_for_desktop_shutdown(
 ) -> None:
     await shutdown_event.wait()
     desktop_server.should_exit = True  # type: ignore[attr-defined]
-
 
 ###############################################################################
 def serve_packaged_frontend(path: str) -> FileResponse:
@@ -87,7 +82,6 @@ def serve_packaged_frontend(path: str) -> FileResponse:
     if not candidate.is_file():
         candidate = CLIENT_DIST_DIR / "index.html"
     return FileResponse(candidate)
-
 
 ###############################################################################
 @asynccontextmanager
@@ -139,7 +133,6 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
                 await shutdown_task
             except asyncio.CancelledError:
                 pass
-
 
 ###############################################################################
 def create_app() -> FastAPI:

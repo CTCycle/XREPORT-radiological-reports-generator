@@ -7,7 +7,6 @@ VALIDATION_METRICS = frozenset(
 )
 CHECKPOINT_EVALUATION_METRICS = frozenset({"evaluation_report", "bleu_score"})
 
-
 ###############################################################################
 def _validate_metric_names(
     metrics: list[str],
@@ -19,7 +18,6 @@ def _validate_metric_names(
         raise ValueError(f"Unsupported {label}: {', '.join(unsupported)}")
     return metrics
 
-
 ###############################################################################
 class ValidationRequest(BaseModel):
     """Request model for dataset validation."""
@@ -30,11 +28,11 @@ class ValidationRequest(BaseModel):
     seed: int | None = None
     model_config = ConfigDict(extra="forbid")
 
+    # -------------------------------------------------------------------------
     @field_validator("metrics")
     @classmethod
     def validate_metrics(cls, metrics: list[str]) -> list[str]:
         return _validate_metric_names(metrics, VALIDATION_METRICS, "validation metrics")
-
 
 ###############################################################################
 class PixelDistribution(BaseModel):
@@ -42,7 +40,6 @@ class PixelDistribution(BaseModel):
 
     bins: list[int]
     counts: list[int]
-
 
 ###############################################################################
 class ImageStatistics(BaseModel):
@@ -56,7 +53,6 @@ class ImageStatistics(BaseModel):
     mean_noise_std: float
     mean_noise_ratio: float
 
-
 ###############################################################################
 class TextStatistics(BaseModel):
     """Model for text statistics."""
@@ -68,7 +64,6 @@ class TextStatistics(BaseModel):
     min_words_per_report: int
     max_words_per_report: int
 
-
 ###############################################################################
 class ValidationResponse(BaseModel):
     """Response model for dataset validation."""
@@ -78,7 +73,6 @@ class ValidationResponse(BaseModel):
     pixel_distribution: PixelDistribution | None = None
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
-
 
 ###############################################################################
 class ValidationReportResponse(BaseModel):
@@ -93,7 +87,6 @@ class ValidationReportResponse(BaseModel):
     text_statistics: TextStatistics | None = None
     artifacts: dict[str, dict[str, str]] | None = None
 
-
 ###############################################################################
 class CheckpointEvaluationRequest(BaseModel):
     """Request model for checkpoint evaluation."""
@@ -106,6 +99,7 @@ class CheckpointEvaluationRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # -------------------------------------------------------------------------
     @field_validator("metrics")
     @classmethod
     def validate_metrics(cls, metrics: list[str]) -> list[str]:
@@ -115,7 +109,6 @@ class CheckpointEvaluationRequest(BaseModel):
             "checkpoint evaluation metrics",
         )
 
-
 ###############################################################################
 class CheckpointEvaluationResults(BaseModel):
     """Evaluation metric results."""
@@ -124,7 +117,6 @@ class CheckpointEvaluationResults(BaseModel):
     accuracy: float | None = None
     bleu_score: float | None = None
 
-
 ###############################################################################
 class CheckpointEvaluationResponse(BaseModel):
     """Response model for checkpoint evaluation."""
@@ -132,7 +124,6 @@ class CheckpointEvaluationResponse(BaseModel):
     success: bool
     message: str
     results: CheckpointEvaluationResults | None = None
-
 
 ###############################################################################
 class CheckpointEvaluationReportResponse(BaseModel):

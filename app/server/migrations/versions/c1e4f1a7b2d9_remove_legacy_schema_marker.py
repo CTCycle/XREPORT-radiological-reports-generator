@@ -11,12 +11,10 @@ down_revision: Union[str, None] = "ad03b780d44b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-
 ###############################################################################
 def upgrade() -> None:
     """Remove the marker now that Alembic owns schema versioning."""
     op.drop_table("schema_metadata", if_exists=True)
-
 
 ###############################################################################
 def downgrade() -> None:

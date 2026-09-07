@@ -16,7 +16,6 @@ from server.domain.validation import (
 )
 from server.common.utils.logger import logger
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class ImageMeasurement:
@@ -29,7 +28,6 @@ class ImageMeasurement:
     maximum: float
     noise_std: float
     noise_ratio: float
-
 
 ###############################################################################
 class DatasetValidator:

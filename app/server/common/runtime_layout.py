@@ -21,11 +21,9 @@ from dotenv import dotenv_values
 RUNTIME_MANIFEST_FORMAT = 2
 RUNTIME_ARCHITECTURE = "windows-x64"
 
-
 ###############################################################################
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -141,7 +139,6 @@ class RuntimeLayout:
             variant,
         )
 
-
 ###############################################################################
 def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
     if destination.exists():
@@ -161,7 +158,6 @@ def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
         temporary_path.unlink(missing_ok=True)
         return False
     return True
-
 
 ###############################################################################
 def _validate_manifest_contract(
@@ -202,7 +198,6 @@ def _validate_manifest_contract(
             "Packaged runtime manifest creation timestamp must include a timezone"
         )
 
-
 ###############################################################################
 def ensure_packaged_data(layout: RuntimeLayout) -> None:
     """Create the data tree and seed first-run files without overwriting edits."""
@@ -228,7 +223,6 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
     ):
         (layout.data_root / name).mkdir(parents=True, exist_ok=True)
 
-
 ###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     """Validate the extracted runtime manifest before importing application code."""
@@ -250,7 +244,6 @@ def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     ):
         raise RuntimeError("Packaged runtime manifest has an invalid payload hash")
     return payload
-
 
 ###############################################################################
 def runtime_layout_from_environment() -> RuntimeLayout:

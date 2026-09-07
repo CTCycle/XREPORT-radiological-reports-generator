@@ -10,7 +10,6 @@ from server.configurations import InferenceSettings
 from server.services.inference_catalog import InferenceModelCatalog
 from server.services.model_installation import ModelInstallationManager
 
-
 ###############################################################################
 def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
@@ -19,7 +18,6 @@ def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
         max_loaded_models=1,
         model_timeout=600,
     )
-
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -39,12 +37,10 @@ def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
         },
     )
 
-
 ###############################################################################
 def _catalog(checkpoints: list[object]) -> InferenceModelCatalog:
     repository = SimpleNamespace(list_checkpoints=lambda: checkpoints)
     return InferenceModelCatalog(_settings(), checkpoint_repository=repository)
-
 
 ###############################################################################
 def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> object:
@@ -54,7 +50,6 @@ def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> 
         path=Path("app/resources/models/checkpoints") / name,
         artifact_complete=complete,
     )
-
 
 ###############################################################################
 def test_catalog_exposes_available_public_and_custom_model_sources() -> None:
@@ -70,7 +65,6 @@ def test_catalog_exposes_available_public_and_custom_model_sources() -> None:
     assert response.providers["xreport"].status == "ready"
     assert all(model.available_actions == ["download"] for model in public)
 
-
 ###############################################################################
 def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled() -> None:
     catalog = _catalog([_checkpoint()])
@@ -82,14 +76,12 @@ def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled() -
     assert all(model.status == "disabled" for model in public)
     assert response.providers["huggingface"].status == "disabled"
 
-
 ###############################################################################
 def test_catalog_hides_xreport_provider_without_registered_checkpoints() -> None:
     response = _catalog([]).list_models()
 
     assert not any(model.provider == "xreport" for model in response.models)
     assert response.providers["xreport"].status == "not_installed"
-
 
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:

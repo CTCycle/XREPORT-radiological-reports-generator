@@ -5,7 +5,6 @@ from typing import Any
 
 from sqlalchemy.types import DateTime, JSON, TypeDecorator
 
-
 ###############################################################################
 class JSONSequence(TypeDecorator):
     """
@@ -29,7 +28,6 @@ class JSONSequence(TypeDecorator):
     # -------------------------------------------------------------------------
     def process_result_value(self, value: Any, dialect: Any) -> Any:
         return value
-
 
 ###############################################################################
 class UTCDateTime(TypeDecorator):

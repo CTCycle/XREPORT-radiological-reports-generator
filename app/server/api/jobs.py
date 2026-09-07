@@ -7,7 +7,10 @@ from server.services.errors import NotFoundError
 from server.services.jobs import JobManager, get_job_manager
 
 
+###############################################################################
 class JobsEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self, router: APIRouter, job_manager: JobManager | None = None
     ) -> None:
@@ -75,6 +78,7 @@ class JobsEndpoint:
         )
 
 
+###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/jobs", tags=["jobs"])
     JobsEndpoint(router=router).add_routes()

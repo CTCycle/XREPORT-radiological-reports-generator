@@ -7,7 +7,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class InferenceImage:
@@ -15,7 +14,6 @@ class InferenceImage:
     content_type: str
     data: bytes
     size_bytes: int
-
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -51,7 +49,6 @@ AccessPolicy = Literal["open", "gated"]
 
 _REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
-
 ###############################################################################
 class ModelCapabilities(BaseModel):
     clinical_context: bool = False
@@ -63,14 +60,12 @@ class ModelCapabilities(BaseModel):
 
     model_config = {"extra": "forbid", "strict": True}
 
-
 ###############################################################################
 class ModelResourcePolicy(BaseModel):
     max_snapshot_size_bytes: int | None = Field(default=None, ge=0)
     reason: str | None = None
 
     model_config = {"extra": "forbid", "strict": True}
-
 
 ###############################################################################
 class ModelRuntimeConstraints(BaseModel):
@@ -79,7 +74,6 @@ class ModelRuntimeConstraints(BaseModel):
     required_modules: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "forbid", "strict": True}
-
 
 ###############################################################################
 class InferenceManifestEntry(BaseModel):
@@ -190,7 +184,6 @@ class InferenceManifestEntry(BaseModel):
         if self.validation_status == "passed" and not self.enabled:
             raise ValueError("A disabled manifest entry cannot be marked passed")
 
-
 ###############################################################################
 class InferenceManifest(BaseModel):
     schema_version: Literal[3]
@@ -209,7 +202,6 @@ class InferenceManifest(BaseModel):
             raise ValueError(
                 "The public inference catalogue may contain only Hugging Face models"
             )
-
 
 ###############################################################################
 class ModelAvailability(BaseModel):
@@ -282,7 +274,6 @@ class ModelAvailability(BaseModel):
     update_available: bool = False
     available_actions: list[str] = Field(default_factory=list)
 
-
 ###############################################################################
 class ProviderAvailability(BaseModel):
     status: Literal[
@@ -297,12 +288,10 @@ class ProviderAvailability(BaseModel):
     ]
     message: str | None = None
 
-
 ###############################################################################
 class InferenceModelsResponse(BaseModel):
     models: list[ModelAvailability]
     providers: dict[str, ProviderAvailability]
-
 
 ###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
@@ -315,18 +304,15 @@ class ModelUpdateCheckResponse(BaseModel):
     checked_at: str
     error: str | None = None
 
-
 ###############################################################################
 class ModelUpdateCheckRequest(BaseModel):
     model_ref: str
-
 
 ###############################################################################
 class InferenceGenerateRequest(BaseModel):
     model_ref: str
     generation_profile: GenerationProfile
     clinical_context: str = ""
-
 
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):

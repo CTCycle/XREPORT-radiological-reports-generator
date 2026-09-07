@@ -12,14 +12,13 @@ from keras.callbacks import Callback
 
 from server.common.utils.logger import logger
 
-
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
     pass
 
-
 ###############################################################################
 class TrainingInterruptCallback(Callback):
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -93,9 +92,9 @@ class TrainingInterruptCallback(Callback):
         self.raise_if_interrupted()
         self.apply_stop_if_requested()
 
-
 ###############################################################################
 class TrainingProgressCallback(Callback):
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -194,9 +193,9 @@ class TrainingProgressCallback(Callback):
         if self.progress_callback is not None:
             self.progress_callback(message)
 
-
 ###############################################################################
 class RealTimeMetricsCallback(Callback):
+
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -382,7 +381,6 @@ class RealTimeMetricsCallback(Callback):
         if self.epoch_boundaries:
             payload["epoch_boundary"] = self.epoch_boundaries[-1]
         self.progress_callback(payload)
-
 
 ###############################################################################
 def initialize_training_callbacks(

@@ -34,7 +34,6 @@ VALIDATION_RECEIPTS_DIR = (
     else ROOT_DIR / "assets" / "QA" / "inference_validation"
 )
 
-
 ###############################################################################
 def validation_contract_hash(entry: InferenceManifestEntry) -> str:
     contract = {
@@ -72,7 +71,6 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "utf-8"
     )
     return hashlib.sha256(encoded).hexdigest()
-
 
 ###############################################################################
 class InferenceModelCatalog:

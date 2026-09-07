@@ -49,7 +49,6 @@ LOCAL_FILESYSTEM_DISABLED_ERROR = (
     "Local filesystem endpoints are disabled by server configuration"
 )
 
-
 ###############################################################################
 def _iter_image_paths(folder_path: str) -> Iterator[Path]:
     directory_path = Path(folder_path)
@@ -60,7 +59,6 @@ def _iter_image_paths(folder_path: str) -> Iterator[Path]:
         for filename in filenames:
             if Path(filename).suffix.lower() in VALID_IMAGE_EXTENSIONS:
                 yield Path(root) / filename
-
 
 ###############################################################################
 def scan_image_folder(
@@ -74,11 +72,9 @@ def scan_image_folder(
         if required is None or image_path.stem.casefold() in required
     ]
 
-
 ###############################################################################
 def count_image_files(folder_path: str) -> int:
     return sum(1 for _ in _iter_image_paths(folder_path))
-
 
 ###############################################################################
 def get_windows_drives() -> list[str]:
@@ -89,7 +85,6 @@ def get_windows_drives() -> list[str]:
         if drive.exists():
             drives.append(str(drive))
     return drives
-
 
 ###############################################################################
 def count_images_in_folder(folder_path: str) -> int:
@@ -104,7 +99,6 @@ def count_images_in_folder(folder_path: str) -> int:
             )
     except OSError:
         return 0
-
 
 ###############################################################################
 class PreparationService:
@@ -663,7 +657,6 @@ class PreparationService:
             )
 
         return str(Path(path).resolve())
-
 
 ###############################################################################
 @lru_cache(maxsize=1)

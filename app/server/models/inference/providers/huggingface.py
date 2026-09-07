@@ -45,7 +45,6 @@ ProgressCallback = Callable[
     None,
 ]
 
-
 ###############################################################################
 class _InferenceStoppingCriteria(StoppingCriteria):
     """Stop generation cooperatively when cancellation or the deadline fires."""
@@ -59,7 +58,6 @@ class _InferenceStoppingCriteria(StoppingCriteria):
     def __call__(self, input_ids: Any, scores: Any, **kwargs: Any) -> Any:
         del input_ids, scores, kwargs
         return self.should_stop() or time.monotonic() >= self.deadline
-
 
 ###############################################################################
 class HuggingFaceProvider:

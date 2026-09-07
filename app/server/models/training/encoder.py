@@ -12,7 +12,6 @@ from server.common.path import ENCODERS_DIR
 
 # [PRETRAINED IMAGE ENCODER]
 
-
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):
