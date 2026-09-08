@@ -1751,7 +1751,7 @@ function Remove-LauncherPath {
 }
 
 function Get-LegacyCacheDirectories {
-    $legacyNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.pyright')
+    $legacyNames = @('__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.pyright')
     $excludedNames = @('.git', '.venv', 'node_modules', 'dist', 'build', 'release', 'target')
     $resourcesRoot = Join-Path $RepoRoot 'app\resources'
     $pending = [Collections.Generic.Stack[string]]::new()
@@ -1847,6 +1847,7 @@ function Uninstall-Application {
     if (-not (Confirm-DestructiveAction 'remove application runtimes, dependencies, and build outputs')) { return }
     $targets = @(
         $RuntimesDir,
+        $ToolCacheDir,
         $VenvDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
@@ -1865,6 +1866,9 @@ function Uninstall-Application {
         Complete-LauncherProgress -Id $progressId
     }
     Remove-PythonCaches
+    foreach ($legacyCache in @(Get-LegacyCacheDirectories)) {
+        Remove-LauncherPath -Path $legacyCache.FullName -Activity "XREPORT: remove $($legacyCache.FullName)" | Out-Null
+    }
     Write-Ok 'Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved.'
 }
 
