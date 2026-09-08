@@ -10,6 +10,8 @@ Last updated: 2026-09-07
 .\start_on_windows.ps1 -Action LaunchDesktopDev
 .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.1.0
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
+.\start_on_windows.ps1 -Action RemoveCheckpoints
+.\start_on_windows.ps1 -Action RemoveAllData
 ```
 
 The equivalent complete desktop wrapper from `app/desktop` is:
@@ -30,6 +32,9 @@ From the interactive launcher, use the **DESKTOP RELEASE** section to create
 or remove CPU/CUDA portable and MSI payloads individually, or select all four.
 Interactive removal updates the selected variant manifests; the direct remove
 action above removes the complete desktop release build output.
+All removal actions require an interactive `[y/N]` confirmation and fail closed
+when input is redirected. `RemoveAllData` targets only the configured local
+resource data; external databases and tracked application files are preserved.
 Packaged logs are `%LOCALAPPDATA%\XREPORT\data\logs\desktop-shell.log` and the
 timestamped backend logs beside it. Readiness/session files in
 `%LOCALAPPDATA%\XREPORT\data\state` are temporary and are removed at exit.

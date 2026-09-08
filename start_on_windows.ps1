@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'Uninstall', 'Update')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'Update')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Cpu', 'Cuda', 'All')]
@@ -86,6 +86,19 @@ function Write-Ok([string]$Message) { Clear-LauncherProgress; Write-Host "[OK] $
 function Write-Info([string]$Message) { Clear-LauncherProgress; Write-Host "[INFO] $Message" -ForegroundColor Gray }
 function Write-Warn([string]$Message) { Clear-LauncherProgress; Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Clear-LauncherProgress; Write-Host "[FATAL] $Message" -ForegroundColor Red }
+
+function Confirm-DestructiveAction([string]$Description) {
+    if (-not $script:LauncherInteractive) {
+        throw "The destructive action '$Description' requires an interactive console; no files were changed."
+    }
+    Clear-LauncherProgress
+    $confirmation = ([string](Read-Host "Continue to $($Description)? [y/N]")).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
+        Write-Info 'Operation cancelled. No changes were made.'
+        return $false
+    }
+    return $true
+}
 
 function Start-LauncherProgress {
     param([Parameter(Mandatory = $true)][string]$Activity, [Parameter(Mandatory = $true)][string]$Status)
@@ -1114,6 +1127,7 @@ function Invoke-BuildDesktopRelease {
         Assert-DesktopVersion -ExpectedVersion $ReleaseVersion
         $sourceState = Assert-DesktopSourceState
         if ($Force -and (Test-Path -LiteralPath $DesktopReleaseDir)) {
+            if (-not (Confirm-DestructiveAction 'replace the existing desktop release output')) { return }
             [void](Remove-LauncherPath -Path $DesktopReleaseDir -PreserveNames @() -Activity 'XREPORT: remove existing desktop release' -Strict)
         }
         foreach ($generatedPath in @(
@@ -1332,6 +1346,7 @@ function Invoke-RemoveDesktopArtifacts {
         [Parameter(Mandatory = $true)][object[]]$Selections,
         [Parameter(Mandatory = $true)][string]$ReleaseVersion
     )
+    if (-not (Confirm-DestructiveAction 'remove the selected desktop release artifacts')) { return }
     $removed = 0
     foreach ($selection in @($Selections)) {
         if (Test-Path -LiteralPath $selection.Path) {
@@ -1395,6 +1410,7 @@ function Invoke-LaunchDesktopDev {
 }
 
 function Invoke-RemoveDesktopRelease {
+    if (-not (Confirm-DestructiveAction 'remove all desktop release outputs and generated release state')) { return }
     $generatedConfigs = @(Get-ChildItem -LiteralPath $DesktopBuildDir -File -Filter 'tauri-*.json' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     $targets = @(
         $DesktopReleaseDir,
@@ -1459,8 +1475,90 @@ function Invoke-TestSuite {
     Write-Ok 'Test suite completed successfully'
 }
 
+function Get-ConfiguredResourceRoot {
+    $processResourceOverride = [string]$env:XREPORT_RESOURCES_DIR
+    $settings = Import-XReportEnvironment
+    $configuredRoot = if (-not [string]::IsNullOrWhiteSpace($processResourceOverride)) {
+        $processResourceOverride
+    } elseif ($settings.ContainsKey('XREPORT_RESOURCES_DIR')) {
+        [string]$settings['XREPORT_RESOURCES_DIR']
+    } else {
+        'app/resources'
+    }
+    if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
+        $configuredRoot = 'app/resources'
+    }
+    $expandedRoot = [Environment]::ExpandEnvironmentVariables($configuredRoot.Trim())
+    if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
+        $expandedRoot = Join-Path $RepoRoot $expandedRoot
+    }
+    $resourceRoot = [IO.Path]::GetFullPath($expandedRoot).TrimEnd('\')
+    $filesystemRoot = ([IO.Path]::GetPathRoot($resourceRoot)).TrimEnd('\')
+    $repositoryRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')
+    if ([string]::IsNullOrWhiteSpace($resourceRoot) -or $resourceRoot -eq $filesystemRoot -or $resourceRoot -eq $repositoryRoot -or $repositoryRoot.StartsWith("$resourceRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove data from the configured resource root '$resourceRoot'."
+    }
+    return $resourceRoot
+}
+
+function Get-XReportUserDataTargets {
+    param([switch]$CheckpointsOnly)
+
+    $resourceRoot = Get-ConfiguredResourceRoot
+    if ($CheckpointsOnly) {
+        return @((Join-Path $resourceRoot 'checkpoints'))
+    }
+
+    $databasePath = Join-Path $resourceRoot 'database.db'
+    return @(
+        $databasePath,
+        "$databasePath-wal",
+        "$databasePath-shm",
+        "$databasePath-journal",
+        (Join-Path $resourceRoot 'checkpoints'),
+        (Join-Path $resourceRoot 'models'),
+        (Join-Path $resourceRoot 'models\tokenizers'),
+        (Join-Path $resourceRoot 'logs')
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_) } | Select-Object -Unique
+}
+
+function Remove-XReportUserDataTargets {
+    param([Parameter(Mandatory = $true)][string[]]$Targets)
+
+    $removed = 0
+    $skipped = 0
+    foreach ($target in @($Targets | Select-Object -Unique)) {
+        $isContainer = Test-Path -LiteralPath $target -PathType Container
+        $result = Remove-LauncherPath -Path $target -KeepRoot:$isContainer -Activity "XREPORT: remove user data $target"
+        $removed += $result.Removed
+        $skipped += $result.Skipped
+    }
+    return [pscustomobject]@{ Removed = $removed; Skipped = $skipped }
+}
+
+function Remove-Checkpoints {
+    if (-not (Confirm-DestructiveAction 'remove all saved checkpoints')) { return }
+    $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets -CheckpointsOnly)
+    if ($result.Skipped -gt 0) {
+        Write-Warn "Removed $($result.Removed) checkpoint item(s); skipped $($result.Skipped) locked or protected item(s)."
+    } else {
+        Write-Ok "Removed $($result.Removed) checkpoint item(s)."
+    }
+}
+
+function Remove-AllData {
+    if (-not (Confirm-DestructiveAction 'remove all local user-generated data')) { return }
+    $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets)
+    if ($result.Skipped -gt 0) {
+        Write-Warn "Removed $($result.Removed) local data item(s); skipped $($result.Skipped) locked or protected item(s). External databases were not modified."
+    } else {
+        Write-Ok "Removed $($result.Removed) local data item(s); external databases were not modified. Application files and settings were preserved."
+    }
+}
+
 function Remove-Logs {
-    $logDir = Join-Path $RepoRoot 'app\resources\logs'
+    if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
+    $logDir = Join-Path (Get-ConfiguredResourceRoot) 'logs'
     $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue |
         Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
     if ($logs.Count -gt 0) {
@@ -1708,6 +1806,7 @@ function Remove-PythonCaches {
 }
 
 function Clear-ApplicationCache {
+    if (-not (Confirm-DestructiveAction 'clear application caches')) { return }
     $targets = @(
         $RuntimeCacheDir,
         $ToolCacheDir,
@@ -1745,6 +1844,7 @@ function Clear-ApplicationCache {
 }
 
 function Uninstall-Application {
+    if (-not (Confirm-DestructiveAction 'remove application runtimes, dependencies, and build outputs')) { return }
     $targets = @(
         $RuntimesDir,
         $VenvDir,
@@ -1804,6 +1904,8 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Delete selected desktop packages'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete application logs'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Cache'; Label = 'Clear cache'; Description = 'Remove temporary caches'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Checkpoints'; Label = 'Remove checkpoints'; Description = 'Delete saved model checkpoints'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'AllData'; Label = 'Remove all data'; Description = 'Delete local database and user-generated data'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Uninstall'; Label = 'Uninstall application'; Description = 'Remove generated files'; Destructive = $true }
         [pscustomobject]@{ Section = 'EXIT'; Key = 'Exit'; Label = 'Exit'; Description = 'Close launcher'; Destructive = $false }
     )
@@ -1866,6 +1968,8 @@ if ($Action) {
             'Test' { Invoke-TestSuite }
             'RemoveLogs' { Remove-Logs }
             'ClearCache' { Clear-ApplicationCache }
+            'RemoveCheckpoints' { Remove-Checkpoints }
+            'RemoveAllData' { Remove-AllData }
             'Uninstall' { Uninstall-Application }
             'Update' { Invoke-Update }
         }
@@ -1904,6 +2008,8 @@ while ($true) {
                 'RemoveRelease' { Invoke-RemoveDesktopArtifactsMenu }
                 'Logs' { Remove-Logs }
                 'Cache' { Clear-ApplicationCache }
+                'Checkpoints' { Remove-Checkpoints }
+                'AllData' { Remove-AllData }
                 'Uninstall' { Uninstall-Application }
             }
         }
