@@ -165,3 +165,10 @@ Cache cleanup is best-effort and reproducible: each target is enumerated and
 its items are removed individually in deterministic deepest-first order. Locked
 or administrator-protected files are reported and skipped; other cached
 artifacts continue to be removed. `.gitkeep` sentinels remain preserved.
+
+The maintenance menu and direct actions also expose `RemoveCheckpoints` and
+`RemoveAllData`. They use the same interactive `[y/N]` confirmation as log,
+cache, uninstall, and desktop-release removal actions. `RemoveAllData` clears
+the configured resource root's database sidecars, checkpoints, models,
+tokenizers, and logs while preserving application files, templates, and
+`.gitkeep` sentinels; external databases are not modified.
