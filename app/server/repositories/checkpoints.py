@@ -21,7 +21,6 @@ CHECKPOINT_ARTIFACT_FILES = (
     "configuration/session_history.json",
 )
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class CheckpointRecord:
@@ -40,16 +39,13 @@ class CheckpointRecord:
             for relative_path in CHECKPOINT_ARTIFACT_FILES
         )
 
-
 ###############################################################################
 class CheckpointRegistryError(RuntimeError):
     """Raised when a checkpoint cannot be registered or deleted safely."""
 
-
 ###############################################################################
 class CheckpointReferencedError(CheckpointRegistryError):
     """Raised when persisted history still references a checkpoint."""
-
 
 ###############################################################################
 class CheckpointRepository:
