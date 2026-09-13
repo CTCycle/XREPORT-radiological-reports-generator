@@ -6,7 +6,6 @@ from server.domain.jobs import JobCancelResponse, JobListResponse, JobStatusResp
 from server.services.errors import NotFoundError
 from server.services.jobs import JobManager, get_job_manager
 
-
 ###############################################################################
 class JobsEndpoint:
 
@@ -76,7 +75,6 @@ class JobsEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:
