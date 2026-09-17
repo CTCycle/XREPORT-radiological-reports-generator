@@ -2196,6 +2196,10 @@
             ],
             "title": "Status"
           },
+          "poll_interval": {
+            "type": "number",
+            "title": "Poll Interval"
+          },
           "progress": {
             "type": "number",
             "title": "Progress"
@@ -2229,6 +2233,7 @@
           "job_id",
           "job_type",
           "status",
+          "poll_interval",
           "progress"
         ],
         "title": "JobStatusResponse"

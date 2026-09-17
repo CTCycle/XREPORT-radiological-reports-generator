@@ -9,11 +9,9 @@ ROOT_DIR = RUNTIME_LAYOUT.runtime_root
 APP_DIR = ROOT_DIR / "app"
 SCRIPTS_DIR = APP_DIR / "scripts"
 SERVER_DIR = APP_DIR / "server"
-SETTINGS_DIR = ROOT_DIR / "settings"
 SHARED_DIR = APP_DIR / "shared"
 TESTS_DIR = APP_DIR / "tests"
 
-CONFIGURATION_FILE_PATH = RUNTIME_LAYOUT.configuration_file
 ENV_FILE_PATH = RUNTIME_LAYOUT.environment_file
 ENV_EXAMPLE_FILE_PATH = RUNTIME_LAYOUT.settings_template
 DEFAULT_RESOURCES_DIR = APP_DIR / "resources"

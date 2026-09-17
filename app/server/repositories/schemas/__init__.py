@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from server.repositories.schemas.models import (
+    ApplicationSettingsRecord,
     Base,
     Checkpoint,
     CheckpointEvaluation,
@@ -17,6 +18,7 @@ from server.repositories.schemas.types import JSONSequence
 
 __all__ = [
     "Base",
+    "ApplicationSettingsRecord",
     "JSONSequence",
     "Dataset",
     "DatasetRecord",

@@ -953,8 +953,6 @@ function Invoke-DesktopBackendFreeze {
     Copy-Item -LiteralPath $FrontendDist -Destination (Join-Path $stagingRoot 'client') -Recurse -Force
     New-Item -ItemType Directory -Path (Join-Path $stagingRoot 'settings') -Force | Out-Null
     Copy-Item -LiteralPath $EnvExample -Destination (Join-Path $stagingRoot 'settings\.env.example') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\configurations.json') -Destination (Join-Path $stagingRoot 'settings\configurations.json') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\inference_models.json') -Destination (Join-Path $stagingRoot 'settings\inference_models.json') -Force
     return $stagingRoot
 }
 

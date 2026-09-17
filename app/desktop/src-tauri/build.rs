@@ -24,8 +24,6 @@ fn validate_release_inputs(archive_path: &std::path::Path, ui: &std::path::Path)
         "client/error.html",
         "backend/xreport-backend.exe",
         "settings/.env.example",
-        "settings/configurations.json",
-        "settings/inference_models.json",
         "runtime-manifest.json",
     ];
     let mut names = HashSet::new();
@@ -124,12 +122,11 @@ fn main() {
     if profile == "release" {
         validate_release_inputs(&archive, &ui);
     }
-    // `tauri_build` validates bundle resources even for a debug/test compile.
-    // Ordinary debug tests intentionally run without generated release assets;
-    // the official release/dev paths are prepared by the launcher.
-    if profile == "release" || std::env::var("XREPORT_DESKTOP_DEV").is_ok() {
-        tauri_build::build();
-    }
+    // Tauri's build step generates the ACL/capability map consumed by
+    // `tauri::generate_context!()`. It must run for debug checks as well as
+    // release builds; the base config intentionally has no release-only
+    // runtime resource, while generated release configs add it back.
+    tauri_build::build();
     let variant = std::env::var("XREPORT_DESKTOP_VARIANT").unwrap_or_else(|_| "cpu".to_string());
     println!("cargo:rustc-env=XREPORT_DESKTOP_VARIANT={variant}");
     println!("cargo:rerun-if-changed=generated/runtime.zip");

@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-08-21
+Last updated: 2026-09-17
 
 ## Troubleshooting Quick Guide
 
@@ -32,13 +32,14 @@ variant-specific immutable runtime archives.
   - expected when dependencies and runtimes are being initialized
 - model unavailable:
   - inspect `GET /api/inference/models` for provider and model status
-  - Hugging Face model snapshots must already be cached at the exact revision declared in `settings/inference_models.json`
+  - Hugging Face model snapshots must already be cached at the exact revision declared in the typed catalogue at `app/server/configurations/inference_models.py`
   - Hugging Face requires a cached snapshot and an exact configured commit
 - first Generate action is slow or reports an access error:
   - allow time for the selected public model to download, verify, and load
   - for gated models, accept the provider terms and configure `HF_TOKEN` or the standard local Hugging Face credential store
 - startup validation failure:
-  - verify `settings/configurations.json` exists
+  - inspect the database migration status and confirm the `application_settings`
+    singleton row exists and passes its constraints
   - check write permissions under the configured resource root
 
 ## Database Initialization
