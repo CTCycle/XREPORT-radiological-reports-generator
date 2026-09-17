@@ -10,12 +10,11 @@ from server.common.path import (
     DATA_ROOT,
     PACKAGED_MODE,
     ROOT_DIR,
-    SETTINGS_DIR,
 )
 from server.common.inference_manifest import validate_manifest
 from server.configurations import InferenceSettings
+from server.configurations.inference_models import embedded_inference_models
 from server.domain.inference import (
-    InferenceManifest,
     InferenceManifestEntry,
     InferenceModelsResponse,
     ModelAvailability,
@@ -26,7 +25,6 @@ from server.services.model_installation import ModelInstallationManager
 from server.repositories.checkpoints import CheckpointRepository
 
 
-CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
 CXRMATE_ED_PROFILE_CONTRACT_VERSION = 1
 VALIDATION_RECEIPTS_DIR = (
     DATA_ROOT / "validation_receipts"
@@ -106,9 +104,10 @@ class InferenceModelCatalog:
 
     # -------------------------------------------------------------------------
     def _configured_models(self) -> list[ModelAvailability]:
-        payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        manifest = InferenceManifest.model_validate(payload)
-        return [self._configured_model(entry) for entry in manifest.models]
+        return [
+            self._configured_model(entry)
+            for entry in embedded_inference_models()
+        ]
 
     # -------------------------------------------------------------------------
     def _configured_model(
@@ -340,7 +339,7 @@ class InferenceModelCatalog:
         receipt_path = cls._validation_receipt_path(entry)
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except OSError, ValueError:
+        except (OSError, ValueError):
             return False
         return (
             isinstance(receipt, dict)

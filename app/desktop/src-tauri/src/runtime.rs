@@ -12,13 +12,11 @@ const OVERLAY_MAGIC: &[u8; 8] = b"XRPZIP01";
 const OVERLAY_FOOTER_LEN: u64 = 8 + 8 + 8;
 const RUNTIME_MANIFEST_FORMAT: u8 = 2;
 const DESKTOP_ARCHITECTURE: &str = "windows-x64";
-const REQUIRED_RUNTIME_MEMBERS: [&str; 6] = [
+const REQUIRED_RUNTIME_MEMBERS: [&str; 4] = [
     "backend/XREPORT-backend.exe",
     "client/index.html",
     "client/error.html",
     "settings/.env.example",
-    "settings/configurations.json",
-    "settings/inference_models.json",
 ];
 
 /// A seekable view over a region of a file.

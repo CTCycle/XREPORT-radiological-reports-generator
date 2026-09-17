@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
@@ -22,6 +24,45 @@ from server.repositories.schemas.types import JSONSequence, UTCDateTime
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
+###############################################################################
+class ApplicationSettingsRecord(Base):
+    """Singleton persisted application settings row."""
+
+    __tablename__ = "application_settings"
+    settings_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    global_seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    allow_local_filesystem_access: Mapped[bool] = mapped_column(
+        Boolean, nullable=False
+    )
+    job_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
+    inference_hf_local_only: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    inference_device: Mapped[str] = mapped_column(String(16), nullable=False)
+    inference_model_timeout: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    __table_args__ = (
+        CheckConstraint("settings_id = 1", name="ck_application_settings_singleton"),
+        CheckConstraint(
+            "global_seed >= 0 AND global_seed <= 4294967295",
+            name="ck_application_settings_seed",
+        ),
+        CheckConstraint(
+            "job_polling_interval >= 0.25 AND job_polling_interval <= 60",
+            name="ck_application_settings_polling_interval",
+        ),
+        CheckConstraint(
+            "inference_device IN ('auto', 'cpu', 'cuda')",
+            name="ck_application_settings_device",
+        ),
+        CheckConstraint(
+            "inference_model_timeout >= 1",
+            name="ck_application_settings_model_timeout",
+        ),
+    )
 
 ###############################################################################
 class Dataset(Base):

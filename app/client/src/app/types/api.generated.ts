@@ -870,6 +870,8 @@ export interface components {
              * @enum {string}
              */
             status: "pending" | "running" | "completed" | "failed" | "cancelled";
+            /** Poll Interval */
+            poll_interval: number;
             /** Progress */
             progress: number;
             /** Result */

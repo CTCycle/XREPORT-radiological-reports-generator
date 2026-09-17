@@ -12,7 +12,6 @@ import time
 
 import pandas as pd
 
-from server.configurations.startup import get_server_settings
 from server.common.utils.logger import logger
 from server.models.callbacks import (
     TrainingInterruptCallback,
@@ -164,7 +163,7 @@ class ProcessWorker:
             message = self.progress_queue.get(timeout=timeout)
         except queue.Empty:
             return None
-        except EOFError, OSError:
+        except (EOFError, OSError):
             return None
         if isinstance(message, dict):
             return message
@@ -177,7 +176,7 @@ class ProcessWorker:
                 self.progress_queue.get_nowait()
             except queue.Empty:
                 return
-            except EOFError, OSError:
+            except (EOFError, OSError):
                 return
 
     # -------------------------------------------------------------------------
@@ -186,7 +185,7 @@ class ProcessWorker:
             payload = self.result_queue.get_nowait()
         except queue.Empty:
             return None
-        except EOFError, OSError:
+        except (EOFError, OSError):
             return None
         if isinstance(payload, dict):
             return payload
@@ -319,8 +318,6 @@ def run_training_process(
                 "sets contain data."
             )
 
-        configuration["polling_interval"] = get_server_settings().jobs.polling_interval
-
         if stop_event.is_set():
             result_queue.put({"result": {}})
             return
@@ -405,6 +402,7 @@ def run_resume_training_process(
     checkpoint: str,
     additional_epochs: int,
     worker: Any,
+    poll_interval: float = 1.0,
 ) -> None:
     progress_queue = worker.progress_queue
     result_queue = worker.result_queue
@@ -422,7 +420,7 @@ def run_resume_training_process(
             modser.load_checkpoint(checkpoint_record.path)
         )
         train_config["additional_epochs"] = additional_epochs
-        train_config["polling_interval"] = get_server_settings().jobs.polling_interval
+        train_config["polling_interval"] = poll_interval
 
         train_data, validation_data = load_resume_training_data(
             train_config, model_metadata

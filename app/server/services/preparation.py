@@ -504,6 +504,7 @@ class PreparationService:
         job_id = self.job_manager.start_job(
             job_type=self.JOB_TYPE,
             runner=self.processing_service.run,
+            poll_interval=settings.jobs.polling_interval,
             kwargs={
                 "configuration": configuration,
             },
