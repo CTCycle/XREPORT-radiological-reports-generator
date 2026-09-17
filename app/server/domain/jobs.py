@@ -19,6 +19,7 @@ class JobStatusResponse(BaseModel):
     job_id: str
     job_type: str
     status: JobLifecycleStatus
+    poll_interval: float
     progress: float
     result: dict[str, Any] | None = None
     error: str | None = None

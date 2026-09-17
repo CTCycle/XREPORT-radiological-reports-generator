@@ -578,6 +578,7 @@ class ValidationService:
         job_id = self.job_manager.start_job(
             job_type="validation",
             runner=run_validation_job,
+            poll_interval=settings.jobs.polling_interval,
             kwargs={
                 "request_data": request_data,
             },
@@ -664,6 +665,7 @@ class ValidationService:
         job_id = self.job_manager.start_job(
             job_type="checkpoint_evaluation",
             runner=run_checkpoint_evaluation_job,
+            poll_interval=settings.jobs.polling_interval,
             kwargs={
                 "request_data": request_data,
             },

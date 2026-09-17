@@ -21,11 +21,13 @@ if str(APP_DIR) not in sys.path:
 
 from server.common.path import ROOT_DIR  # noqa: E402
 from server.configurations.startup import get_server_settings  # noqa: E402
-from server.domain.inference import InferenceImage, InferenceManifest  # noqa: E402
+from server.domain.inference import InferenceImage  # noqa: E402
+from server.configurations.inference_models import (  # noqa: E402
+    embedded_inference_models,
+)
 from server.models.inference.providers.huggingface import HuggingFaceProvider  # noqa: E402
 from server.services.jobs import JobManager, JobState  # noqa: E402
 from server.services.inference_catalog import (  # noqa: E402
-    CATALOG_PATH,
     InferenceModelCatalog,
     validation_contract_hash,
 )
@@ -147,13 +149,10 @@ def main() -> int:
         return 2
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
-    configured_manifest = InferenceManifest.model_validate(
-        json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    )
     manifest_entry = next(
         (
             entry
-            for entry in configured_manifest.models
+            for entry in embedded_inference_models()
             if entry.model_ref == selected.model_ref
         ),
         None,

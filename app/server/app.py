@@ -33,7 +33,7 @@ from server.common.desktop_security import (
 )
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
 from server.common.path import RUNTIME_VARIANT
-from server.configurations import get_server_settings
+from server.configurations import get_database_settings
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
@@ -93,17 +93,19 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             "Packaged startup phase=lifespan_entered elapsed_ms=%.0f",
             (perf_counter() - startup_started) * 1000,
         )
+    run_startup_validations(get_database_settings())
+    if startup_started is not None:
+        logger.info(
+            "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
+            (perf_counter() - startup_started) * 1000,
+        )
+
+    from server.configurations import get_server_settings
+
     settings = get_server_settings()
     if startup_started is not None:
         logger.info(
             "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
-            (perf_counter() - startup_started) * 1000,
-        )
-
-    run_startup_validations(settings)
-    if startup_started is not None:
-        logger.info(
-            "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
             (perf_counter() - startup_started) * 1000,
         )
 

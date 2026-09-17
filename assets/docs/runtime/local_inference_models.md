@@ -1,17 +1,19 @@
 # Local Inference Models
 
-Last updated: 2026-08-30
+Last updated: 2026-09-17
 
 ## Safety scope
 
 All catalogue models and generated reports are research-use drafts. They are not
 clinically approved and require qualified review and independent verification.
 
-## Public catalogue (schema 3)
+## Public catalogue (typed, immutable policy)
 
 `GET /api/inference/models` always exposes exactly five public entries. Each
-entry is pinned to the commit recorded in `settings/inference_models.json`; the
-catalogue is not changed when local files are removed.
+entry is pinned to the revision declared in the typed definitions at
+`app/server/configurations/inference_models.py`; the catalogue is not changed
+when local files are removed. The definitions are reviewed application policy,
+not user settings and not a runtime JSON file.
 
 | Model | Positioning | Demand and storage | Anatomy / access |
 | --- | --- | --- | --- |

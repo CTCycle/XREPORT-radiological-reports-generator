@@ -20,6 +20,7 @@ class JobState:
     job_id: str
     job_type: str
     status: str
+    poll_interval: float = 1.0
     progress: float = 0.0
     result: dict[str, Any] | None = None
     error: str | None = None
@@ -42,6 +43,7 @@ class JobState:
                 "job_id": self.job_id,
                 "job_type": self.job_type,
                 "status": self.status,
+                "poll_interval": self.poll_interval,
                 "progress": self.progress,
                 "result": self.result,
                 "error": self.error,
@@ -88,9 +90,15 @@ class JobManager:
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         failure_mapper: FailureMapper | None = None,
+        poll_interval: float = 1.0,
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
-        state = JobState(job_id=job_id, job_type=job_type, status="pending")
+        state = JobState(
+            job_id=job_id,
+            job_type=job_type,
+            status="pending",
+            poll_interval=float(poll_interval),
+        )
         runner_kwargs = kwargs.copy() if kwargs else {}
 
         # Inject job_id if the runner accepts it
@@ -276,7 +284,7 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:

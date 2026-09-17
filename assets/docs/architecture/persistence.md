@@ -8,8 +8,11 @@ The sources of truth are deliberately separated:
 
 - `settings/.env` owns deployment and infrastructure values such as the
   runtime host, ports, resource root, database mode, and database connection.
-- `settings/configurations.json` owns application behavior such as the global
-  seed, feature flags, job polling interval, and inference runtime policy.
+- The singleton `application_settings` database row owns mutable application
+  behavior such as the global seed, filesystem-access flag, job polling
+  interval, inference timeout, and hidden inference process policy.
+- `app/server/configurations/inference_models.py` owns the immutable, reviewed
+  inference catalogue and its safety/runtime contract.
 
 From `settings/.env`:
 
@@ -22,7 +25,12 @@ From `settings/.env`:
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
 Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`d62f3ab4e8c1`) and stores the applied revision in `alembic_version`.
+one head (`f48a7c2e91b6`) and stores the applied revision in `alembic_version`.
+The `f48a7c2e91b6` upgrade creates `application_settings` and, when upgrading
+an installation that still has the legacy JSON file, imports its validated
+values exactly once. The migration is the only compatibility reader; it does
+not import environment values. After the upgrade commits, startup removes the
+legacy file and never recreates or consults it.
 
 ### SQLite
 
@@ -32,10 +40,11 @@ one head (`d62f3ab4e8c1`) and stores the applied revision in `alembic_version`.
   never silently stamped, rewritten, or inferred as a compatible legacy schema;
   use the explicit migration/initialization workflow after reviewing the
   database state.
-- Head migration `d62f3ab4e8c1` removes obsolete validation and checkpoint-
-  evaluation job-state columns, then registers each complete checkpoint
-  artifact found in the configured checkpoint directory exactly once. Name and
-  normalized path collisions fail the migration.
+- The migration stream creates the singleton application-settings row, removes
+  obsolete validation and checkpoint-evaluation job-state columns, then
+  registers each complete checkpoint artifact found in the configured
+  checkpoint directory exactly once. Name and normalized path collisions fail
+  the migration.
 - Partial, modified, or unexpected schemas fail without repair or stamping. Migration failures roll back the shared transaction.
 
 ### PostgreSQL
@@ -111,6 +120,16 @@ erDiagram
         int record_id FK
         int image_index
     }
+    APPLICATION_SETTINGS {
+        int settings_id PK
+        bigint global_seed
+        boolean allow_local_filesystem_access
+        float job_polling_interval
+        boolean inference_hf_local_only
+        string inference_device
+        bigint inference_model_timeout
+        datetime updated_at
+    }
 
     DATASETS ||--o{ DATASET_VERSIONS : versions
     DATASETS ||--o{ DATASET_RECORDS : contains
@@ -151,20 +170,21 @@ SQLite connections enable foreign-key enforcement, WAL journaling, normal synchr
 
 ## Non-Database Artifacts
 
-Application behavior settings are persisted in the effective
-`settings/configurations.json` path, not in the database. The Settings service
-updates that JSON document through a sibling temporary file, flushes and fsyncs
-it, then uses an atomic replacement. The in-memory configuration snapshot is
-replaced only after the filesystem replacement succeeds. A failed write leaves
-both the previous file and the running snapshot intact.
+Application settings are persisted transactionally in the singleton
+`application_settings` row. `ApplicationSettingsRepository` validates the
+complete typed model while applying partial updates, locks the row for update
+on PostgreSQL, and commits only a valid result. Reads happen at operation
+boundaries so the database remains authoritative across processes; long-running
+jobs capture the relevant values at their start.
 
-In packaged mode the effective path is the per-user writable file below
-`%LOCALAPPDATA%\\XREPORT\\data\\settings`; the immutable bundled JSON remains
-the seed for first-run initialization. In source mode the existing tracked
-`settings/configurations.json` remains authoritative, so using Settings from a
-source checkout changes that local file.
+The four public values are returned by `GET /api/settings` and can be changed
+with partial `PATCH /api/settings` or restored with
+`POST /api/settings/reset`. The hidden `inference.hf_local_only` and
+`inference.device` values remain in the row but are not exposed through those
+routes. `inference.max_loaded_models` was unused and is not persisted.
 
-No settings table or Alembic migration is required.
+The typed inference catalogue is immutable application code. It is not a
+database preference, a user-editable setting, or a bundled JSON file.
 
 - Checkpoint artifacts and model artifacts under `<resource root>/checkpoints`
   and `<resource root>/models`; checkpoint identity and history references stay

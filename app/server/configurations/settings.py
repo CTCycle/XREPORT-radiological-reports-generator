@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,7 +41,6 @@ class JobsSettings:
 class InferenceSettings:
     hf_local_only: bool
     device: str
-    max_loaded_models: int
     model_timeout: int
 
 ###############################################################################
@@ -85,7 +84,7 @@ def _normalize_int_env(
         return default
     try:
         parsed = int(value.strip())
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f"{name} must be an integer") from None
     if minimum is not None and parsed < minimum:
         raise ValueError(f"{name} must be >= {minimum}")
@@ -146,53 +145,51 @@ def _database_env_settings() -> DatabaseSettings:
     )
 
 ###############################################################################
-class _StrictSettingsModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=False)
+class ApplicationSettingsValues(BaseModel):
+    """Strict persisted application settings, including private runtime policy."""
 
-###############################################################################
-class JsonGlobalSettings(_StrictSettingsModel):
-    seed: int = 42
+    model_config = ConfigDict(extra="forbid", strict=True)
 
-###############################################################################
-class JsonFeatureSettings(_StrictSettingsModel):
-    allow_local_filesystem_access: bool = True
-
-###############################################################################
-class JsonJobsSettings(_StrictSettingsModel):
-    polling_interval: float = 1.0
-
-###############################################################################
-class JsonInferenceSettings(_StrictSettingsModel):
-    hf_local_only: bool = True
-    device: str = "auto"
-    max_loaded_models: int = Field(default=1, ge=1, le=1)
-    model_timeout: int = Field(default=600, ge=1)
-
-###############################################################################
-class JsonServerSettings(_StrictSettingsModel):
-    global_settings: JsonGlobalSettings = Field(
-        default_factory=JsonGlobalSettings,
-        alias="global",
+    global_seed: int = Field(ge=0, le=4_294_967_295)
+    allow_local_filesystem_access: bool
+    job_polling_interval: float = Field(
+        ge=0.25,
+        le=60.0,
+        allow_inf_nan=False,
     )
-    features: JsonFeatureSettings = Field(default_factory=JsonFeatureSettings)
-    jobs: JsonJobsSettings = Field(default_factory=JsonJobsSettings)
-    inference: JsonInferenceSettings = Field(default_factory=JsonInferenceSettings)
+    inference_hf_local_only: bool
+    inference_device: Literal["auto", "cpu", "cuda"]
+    inference_model_timeout: int = Field(ge=1)
 
-    # -------------------------------------------------------------------------
-    def to_server_settings(
-        self, database: DatabaseSettings | None = None
-    ) -> ServerSettings:
-        return ServerSettings(
-            database=database or _database_env_settings(),
-            global_settings=GlobalSettings(seed=self.global_settings.seed),
-            features=FeatureSettings(
-                allow_local_filesystem_access=self.features.allow_local_filesystem_access
-            ),
-            jobs=JobsSettings(polling_interval=self.jobs.polling_interval),
-            inference=InferenceSettings(
-                hf_local_only=self.inference.hf_local_only,
-                device=self.inference.device,
-                max_loaded_models=self.inference.max_loaded_models,
-                model_timeout=self.inference.model_timeout,
-            ),
-        )
+
+DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
+    global_seed=42,
+    allow_local_filesystem_access=True,
+    job_polling_interval=1.0,
+    inference_hf_local_only=True,
+    inference_device="auto",
+    inference_model_timeout=600,
+)
+
+###############################################################################
+def application_settings_to_server_settings(
+    values: ApplicationSettingsValues,
+    database: DatabaseSettings,
+) -> ServerSettings:
+    return ServerSettings(
+        database=database,
+        global_settings=GlobalSettings(seed=values.global_seed),
+        features=FeatureSettings(
+            allow_local_filesystem_access=values.allow_local_filesystem_access
+        ),
+        jobs=JobsSettings(polling_interval=values.job_polling_interval),
+        inference=InferenceSettings(
+            hf_local_only=values.inference_hf_local_only,
+            device=values.inference_device,
+            model_timeout=values.inference_model_timeout,
+        ),
+    )
+
+
+def database_settings_from_environment() -> DatabaseSettings:
+    return _database_env_settings()

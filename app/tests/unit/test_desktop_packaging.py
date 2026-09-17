@@ -26,9 +26,6 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     (runtime / "settings" / ".env.example").write_text(
         "EMBEDDED_DATABASE=true\n", encoding="utf-8"
     )
-    (runtime / "settings" / "configurations.json").write_text(
-        '{"global": {"seed": 42}}', encoding="utf-8"
-    )
     monkeypatch.setenv("XREPORT_DESKTOP", "true")
     monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
     monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
@@ -39,9 +36,8 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     layout = RuntimeLayout.from_environment()
     ensure_packaged_data(layout)
     env_path = data / ".env"
-    config_path = data / "settings" / "configurations.json"
     assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
-    assert config_path.is_file()
+    assert not (data / "settings").exists()
 
     env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
     ensure_packaged_data(layout)
@@ -68,8 +64,6 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
         "<html><div id='status'></div></html>", encoding="utf-8"
     )
     (staging / "settings" / ".env.example").write_text("", encoding="utf-8")
-    (staging / "settings" / "configurations.json").write_text("{}", encoding="utf-8")
-    (staging / "settings" / "inference_models.json").write_text("{}", encoding="utf-8")
     script = (
         Path(__file__).parents[2] / "desktop" / "build" / "create_runtime_bundle.py"
     )
@@ -101,6 +95,9 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     )
     manifest = json.loads(audit.read_text(encoding="utf-8"))
     assert output.is_file()
+    with zipfile.ZipFile(output) as archive:
+        assert "settings/configurations.json" not in archive.namelist()
+        assert "settings/inference_models.json" not in archive.namelist()
     assert manifest["format"] == 2
     assert manifest["architecture"] == "windows-x64"
     assert manifest["source_commit"] == "0" * 40

@@ -20,7 +20,6 @@ def _settings() -> InferenceSettings:
     return InferenceSettings(
         hf_local_only=True,
         device="cpu",
-        max_loaded_models=1,
         model_timeout=600,
     )
 

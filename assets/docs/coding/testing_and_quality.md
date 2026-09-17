@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-09-07
+Last updated: 2026-09-17
 
 ## Tooling And Quality Gates
 
@@ -14,6 +14,9 @@ Last updated: 2026-09-07
   repository test helpers pass that file explicitly instead of relying on a
   root-level pytest configuration file.
 - Validate changed API contracts and job-lifecycle behavior with targeted tests.
+- Run `cargo check` from `app/desktop/src-tauri` for the Rust desktop shell;
+  `build.rs` must always invoke `tauri_build` so the checked-in capability
+  files are available to `tauri::generate_context!()` during debug builds.
 - Keep `app/shared/openapi.json` synchronized with `app.server.app:app` and
   regenerate Angular types with `npm run generate:api` after contract changes.
 - Verify the generic `/api/jobs` resource and explicit upload/checkpoint

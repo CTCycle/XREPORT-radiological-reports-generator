@@ -61,7 +61,12 @@ class FeatureSettingsPatch(_PatchModel):
 
 
 class JobSettingsPatch(_PatchModel):
-    polling_interval: float | None = Field(default=None, ge=0.25, le=60.0)
+    polling_interval: float | None = Field(
+        default=None,
+        ge=0.25,
+        le=60.0,
+        allow_inf_nan=False,
+    )
 
 
 class InferenceSettingsPatch(_PatchModel):

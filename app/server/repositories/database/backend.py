@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from server.configurations import get_server_settings
+from server.configurations import get_database_settings
 from server.repositories.database.engine import Database
 
 
@@ -10,7 +10,7 @@ from server.repositories.database.engine import Database
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database() -> Database:
-    return Database(get_server_settings().database)
+    return Database(get_database_settings())
 
 
 __all__ = [

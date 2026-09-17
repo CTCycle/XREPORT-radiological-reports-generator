@@ -625,10 +625,12 @@ class InferenceService:
             )
         if action == "delete_local":
             target_revision = configured_revision
+        settings = self._current_settings()
         job_id = self.job_manager.start_job(
             job_type="model_maintenance",
             runner=run_model_maintenance_job,
             failure_mapper=map_inference_failure,
+            poll_interval=settings.jobs.polling_interval,
             kwargs={
                 "job_manager": self.job_manager,
                 "installation_manager": self.installation_manager,
@@ -647,7 +649,7 @@ class InferenceService:
             job_type=status["job_type"],
             status=status["status"],
             message=f"Model {action} started for {model_ref}",
-            poll_interval=self._current_settings().jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -708,6 +710,7 @@ class InferenceService:
             )
 
         request_id = uuid.uuid4().hex[:12]
+        settings = self._current_settings()
         try:
             self.inference_image_store.store(request_id, images)
 
@@ -716,6 +719,7 @@ class InferenceService:
                 job_type=self.JOB_TYPE,
                 runner=run_inference_job,
                 failure_mapper=map_inference_failure,
+                poll_interval=settings.jobs.polling_interval,
                 kwargs={
                     "job_manager": self.job_manager,
                     "inference_image_store": self.inference_image_store,
@@ -744,7 +748,7 @@ class InferenceService:
                 job_type=job_status["job_type"],
                 status=job_status["status"],
                 message=f"Inference job started for {len(images)} images",
-                poll_interval=self._current_settings().jobs.polling_interval,
+                poll_interval=settings.jobs.polling_interval,
             )
 
         except ServiceError:

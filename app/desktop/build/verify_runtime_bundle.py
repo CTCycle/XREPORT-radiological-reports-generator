@@ -21,8 +21,6 @@ REQUIRED_MEMBERS = {
     "client/error.html",
     "backend/XREPORT-backend.exe",
     "settings/.env.example",
-    "settings/configurations.json",
-    "settings/inference_models.json",
     "runtime-manifest.json",
 }
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")

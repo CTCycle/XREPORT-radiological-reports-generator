@@ -15,13 +15,13 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from server.common.path import ROOT_DIR  # noqa: E402
+from server.configurations.inference_models import (  # noqa: E402
+    embedded_inference_models,
+)
 from server.configurations.startup import get_server_settings  # noqa: E402
 from server.domain.inference import InferenceImage  # noqa: E402
 from server.models.inference.providers.huggingface import HuggingFaceProvider  # noqa: E402
-from server.services.inference_catalog import (  # noqa: E402
-    CATALOG_PATH,
-    InferenceModelCatalog,
-)
+from server.services.inference_catalog import InferenceModelCatalog  # noqa: E402
 from server.services.inference_runtime import InferenceRuntimeCoordinator  # noqa: E402
 from server.services.model_installation import ModelInstallationManager  # noqa: E402
 
@@ -85,14 +85,15 @@ def main() -> int:
         print(json.dumps({**payload, "log": str(path.relative_to(ROOT_DIR))}, indent=2))
         return 2
 
-    manifest_payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
     manifest_entry = next(
-        entry for entry in manifest_payload["models"] if entry["model_ref"] == model_ref
+        entry
+        for entry in embedded_inference_models()
+        if entry.model_ref == model_ref
     )
     manifest = selected.model_dump(mode="json")
     manifest.update(
         {
-            "repository_id": manifest_entry["repository_id"],
+            "repository_id": manifest_entry.repository_id,
             "revision": selected.model_revision,
         }
     )

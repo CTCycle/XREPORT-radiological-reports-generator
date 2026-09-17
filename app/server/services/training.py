@@ -250,6 +250,7 @@ def run_resume_training_job(
     checkpoint: str,
     additional_epochs: int,
     job_id: str,
+    poll_interval: float = 1.0,
 ) -> dict[str, Any]:
     """Blocking resume training function that runs in background thread."""
     training_runtime = get_training_runtime()
@@ -261,6 +262,7 @@ def run_resume_training_job(
             kwargs={
                 "checkpoint": checkpoint,
                 "additional_epochs": additional_epochs,
+                "poll_interval": poll_interval,
             },
         )
 
@@ -329,6 +331,7 @@ class TrainingService:
         job_id: str,
         message: str,
         initialization_error: str,
+        poll_interval: float | None = None,
     ) -> JobStartResponse:
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -341,7 +344,11 @@ class TrainingService:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=message,
-            poll_interval=get_server_settings().jobs.polling_interval,
+            poll_interval=(
+                get_server_settings().jobs.polling_interval
+                if poll_interval is None
+                else poll_interval
+            ),
         )
 
     # -------------------------------------------------------------------------
@@ -468,6 +475,7 @@ class TrainingService:
         configuration = request.model_dump()
 
         self.apply_runtime_training_configuration(configuration)
+        poll_interval = float(configuration["polling_interval"])
 
         dataset_name = configuration.get("dataset_name")
         stored_metadata = serializer.load_training_data(
@@ -490,6 +498,7 @@ class TrainingService:
         job_id = self.job_manager.start_job(
             job_type="training",
             runner=run_training_job,
+            poll_interval=poll_interval,
             kwargs={
                 "configuration": configuration,
             },
@@ -504,6 +513,7 @@ class TrainingService:
             job_id=job_id,
             message="Training job started",
             initialization_error="Failed to initialize training job",
+            poll_interval=poll_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -558,14 +568,17 @@ class TrainingService:
             )
 
         from_epoch = session.get("epochs", 0)
+        poll_interval = get_server_settings().jobs.polling_interval
 
         # Start background job
         job_id = self.job_manager.start_job(
             job_type="training",
             runner=run_resume_training_job,
+            poll_interval=poll_interval,
             kwargs={
                 "checkpoint": checkpoint,
                 "additional_epochs": request.additional_epochs,
+                "poll_interval": poll_interval,
             },
         )
 
@@ -579,6 +592,7 @@ class TrainingService:
             job_id=job_id,
             message=f"Training resumed from epoch {from_epoch}",
             initialization_error="Failed to initialize training resume job",
+            poll_interval=poll_interval,
         )
 
 ###############################################################################

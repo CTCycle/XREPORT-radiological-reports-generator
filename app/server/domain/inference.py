@@ -185,25 +185,6 @@ class InferenceManifestEntry(BaseModel):
             raise ValueError("A disabled manifest entry cannot be marked passed")
 
 ###############################################################################
-class InferenceManifest(BaseModel):
-    schema_version: Literal[3]
-    models: list[InferenceManifestEntry] = Field(min_length=5, max_length=5)
-
-    model_config = {"extra": "forbid", "strict": True}
-
-    # -------------------------------------------------------------------------
-    def model_post_init(self, __context: object) -> None:
-        refs = [entry.model_ref for entry in self.models]
-        if len(set(refs)) != len(refs):
-            raise ValueError(
-                "The public inference catalogue cannot contain duplicate model refs"
-            )
-        if any(entry.provider != "huggingface" for entry in self.models):
-            raise ValueError(
-                "The public inference catalogue may contain only Hugging Face models"
-            )
-
-###############################################################################
 class ModelAvailability(BaseModel):
     model_ref: str
     provider: Literal["huggingface", "xreport"]
