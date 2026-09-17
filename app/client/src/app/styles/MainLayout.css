@@ -159,14 +159,6 @@
     margin-top: 0.35rem;
 }
 
-.app-nav-settings:disabled,
-.app-nav-settings:disabled:hover {
-    color: var(--text-secondary);
-    background: transparent;
-    opacity: 0.45;
-    cursor: not-allowed;
-}
-
 .app-nav-footer {
     display: flex;
     flex-direction: column;

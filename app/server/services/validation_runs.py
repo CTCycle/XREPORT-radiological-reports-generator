@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
@@ -547,10 +548,19 @@ class ValidationService:
         job_manager: JobManager,
         server_settings: ServerSettings,
         checkpoint_repository: CheckpointRepository | None = None,
+        settings_provider: Callable[[], ServerSettings] | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.server_settings = server_settings
+        self.settings_provider = settings_provider
         self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
+
+    # -------------------------------------------------------------------------
+    def _current_settings(self) -> ServerSettings:
+        provider = getattr(self, "settings_provider", None)
+        if provider is not None:
+            return provider()
+        return self.server_settings
 
     # -------------------------------------------------------------------------
     async def run_validation(self, request: ValidationRequest) -> JobStartResponse:
@@ -560,9 +570,10 @@ class ValidationService:
                 detail="Validation is already in progress",
             )
 
+        settings = self._current_settings()
         request_data = request.model_dump()
         if request_data.get("seed") is None:
-            request_data["seed"] = self.server_settings.global_settings.seed
+            request_data["seed"] = settings.global_settings.seed
 
         job_id = self.job_manager.start_job(
             job_type="validation",
@@ -583,7 +594,7 @@ class ValidationService:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message="Validation job started",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -644,9 +655,10 @@ class ValidationService:
                 detail=f"Checkpoint artifact is missing or incomplete: {checkpoint_name}"
             )
 
+        settings = self._current_settings()
         request_data = request.model_dump()
         if request_data.get("seed") is None:
-            request_data["seed"] = self.server_settings.global_settings.seed
+            request_data["seed"] = settings.global_settings.seed
         request_data["checkpoint"] = checkpoint_name
 
         job_id = self.job_manager.start_job(
@@ -668,7 +680,7 @@ class ValidationService:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Checkpoint evaluation job started for {checkpoint_name}",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
 
 ###############################################################################
@@ -678,4 +690,5 @@ def get_validation_service() -> ValidationService:
         job_manager=get_job_manager(),
         server_settings=get_server_settings(),
         checkpoint_repository=CheckpointRepository(),
+        settings_provider=get_server_settings,
     )

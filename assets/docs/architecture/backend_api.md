@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-09-07
+Last updated: 2026-09-17
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -105,6 +105,24 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 ## Health
 
 - `GET /api/health`
+
+## Runtime Settings
+
+- `GET /api/settings`
+- `PATCH /api/settings`
+- `POST /api/settings/reset`
+
+The Settings API exposes only the four runtime-managed application values:
+`global.seed`, `features.allow_local_filesystem_access`,
+`jobs.polling_interval`, and `inference.model_timeout`. PATCH requests are
+nested partial updates and are validated by the backend before the authoritative
+configuration file is atomically replaced. Reset restores those four public
+values while preserving static inference policy, environment configuration,
+database settings, and the model catalogue.
+
+Database credentials, `.env` values, Hugging Face tokens, runtime paths,
+`inference.device`, `inference.hf_local_only`, and
+`inference.max_loaded_models` are never returned by this API.
 
 The health response reports backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
 

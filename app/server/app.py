@@ -13,6 +13,7 @@ from server.api.inference import router as inference_router
 from server.api.errors import register_service_error_handlers
 from server.api.jobs import router as jobs_router
 from server.api.preparation import router as preparation_router
+from server.api.settings import router as settings_router
 from server.api.training import router as training_router
 from server.api.upload import router as upload_router
 from server.api.validation import router as validation_router
@@ -155,6 +156,7 @@ def create_app() -> FastAPI:
         validation_router,
         inference_router,
         jobs_router,
+        settings_router,
     ):
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
     application.add_api_route(
