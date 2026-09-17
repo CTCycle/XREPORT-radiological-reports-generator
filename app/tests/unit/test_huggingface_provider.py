@@ -352,3 +352,52 @@ def test_switching_models_and_unload_clear_resident_provider_state(
     assert provider._model is None
     assert provider._processor is None
     assert provider._adapter is None
+
+###############################################################################
+def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) -> None:
+    timeout_reads = 0
+
+    def read_timeout() -> int:
+        nonlocal timeout_reads
+        timeout_reads += 1
+        return 5
+
+    provider = HuggingFaceProvider(_settings(), timeout_provider=read_timeout)
+    adapter = MagicMock()
+    adapter.supports_study = False
+    deadlines: list[float] = []
+    monkeypatch.setattr(
+        HuggingFaceProvider,
+        "validate_manifest",
+        classmethod(lambda _cls, _repository_id, payload: payload),
+    )
+    monkeypatch.setattr(
+        HuggingFaceProvider,
+        "_validate_images",
+        staticmethod(lambda _repository_id, _manifest, _images: None),
+    )
+    monkeypatch.setattr(provider, "_load", lambda _manifest: (object(), object(), adapter))
+    monkeypatch.setattr(
+        provider,
+        "_generate_image",
+        lambda **kwargs: (
+            deadlines.append(kwargs["deadline"]),
+            ("report", {}, {"raw_report": "report"}),
+        )[1],
+    )
+    monkeypatch.setattr(provider, "_check_deadline", lambda _repository_id, _deadline: None)
+    monkeypatch.setattr(huggingface_module.time, "monotonic", lambda: 100.0)
+
+    result = provider.generate(
+        repository_id="model",
+        manifest={**_manifest(), "repository_id": "model", "output_sections": ["raw_report"]},
+        profile="deterministic",
+        clinical_context="",
+        images=[InferenceImage("image.png", "image/png", _png(), len(_png()))],
+        should_stop=lambda: False,
+        report_progress=lambda *_values: None,
+    )
+
+    assert result.reports == {"image.png": "report"}
+    assert timeout_reads == 1
+    assert deadlines == [105.0]

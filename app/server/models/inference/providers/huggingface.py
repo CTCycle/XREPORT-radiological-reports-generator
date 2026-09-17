@@ -64,8 +64,13 @@ class HuggingFaceProvider:
     """One-model, offline-only, manifest-driven Transformers runtime."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, settings: InferenceSettings) -> None:
+    def __init__(
+        self,
+        settings: InferenceSettings,
+        timeout_provider: Callable[[], int] | None = None,
+    ) -> None:
         self.settings = settings
+        self.timeout_provider = timeout_provider
         self._lock = threading.RLock()
         self._loaded_key: tuple[str, str, str, str, str] | None = None
         self._model: Any = None
@@ -89,7 +94,12 @@ class HuggingFaceProvider:
         if should_stop():
             return self._empty_result(normalized, profile, clinical_context)
 
-        deadline = time.monotonic() + self.settings.model_timeout
+        timeout = (
+            self.timeout_provider()
+            if self.timeout_provider is not None
+            else self.settings.model_timeout
+        )
+        deadline = time.monotonic() + timeout
         with self._lock:
             if should_stop():
                 return self._empty_result(

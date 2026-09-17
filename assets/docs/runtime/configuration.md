@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-08-30
+Last updated: 2026-09-17
 
 ## Shared Configuration Sources
 
@@ -67,6 +67,26 @@ The application behavior file contains the following owned sections:
 - `jobs.polling_interval`
 - `inference.hf_local_only`, `inference.device`,
   `inference.max_loaded_models`, and `inference.model_timeout`
+
+The supported runtime editing workflow is the Settings page in the Angular
+application. It uses `GET /api/settings`, partial `PATCH /api/settings`, and
+`POST /api/settings/reset`. The backend validates the complete JSON document and
+atomically persists successful updates. Manual JSON editing remains supported
+for startup recovery and legacy deployments, but a process does not watch the
+file for live external edits.
+
+Only these values are user-editable through Settings:
+
+- `global.seed` (`0` through `4,294,967,295`)
+- `features.allow_local_filesystem_access`
+- `jobs.polling_interval` (`0.25` through `60` seconds)
+- `inference.model_timeout` (at least `1` second)
+
+Changing a seed, polling interval, or inference timeout applies to newly started
+work. Running jobs and generations keep the value captured at their start.
+`inference.device`, `inference.hf_local_only`, and
+`inference.max_loaded_models` remain static runtime policy and are not exposed
+by the Settings API. Theme selection remains a frontend-local preference.
 
 `UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 

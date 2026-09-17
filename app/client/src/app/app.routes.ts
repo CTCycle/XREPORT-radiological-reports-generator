@@ -10,6 +10,7 @@ export const routes: Routes = [
       { path: 'dataset', loadComponent: () => import('./pages/dataset.page').then((m) => m.DatasetPage) },
       { path: 'training', loadComponent: () => import('./pages/training.page').then((m) => m.TrainingPage) },
       { path: 'dataset/validate/:datasetName', loadComponent: () => import('./pages/dataset-validation.page').then((m) => m.DatasetValidationPage) },
+      { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage) },
     ],
   },
 ];

@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-08-20
+Last updated: 2026-09-17
 
 ## Core UX Journeys
 
@@ -25,6 +25,18 @@ Last updated: 2026-08-20
 - The selected preference is shown with a selected state and `aria-pressed`; the control remains keyboard accessible on desktop and mobile.
 - System follows the browser or operating-system `prefers-color-scheme` setting while selected. Manual preferences are not overridden by OS changes.
 - Theme changes apply immediately without a page refresh and remain functional when the backend is unavailable.
+
+## Runtime settings
+
+- Settings is available from the existing navigation footer gear and remains
+  keyboard accessible on desktop and mobile.
+- The page uses explicit loading, load-error, dirty, validation, saving,
+  resetting, success, and failure states.
+- Save is disabled until a valid change exists and sends only changed fields.
+- Reset asks the backend for authoritative defaults rather than calculating a
+  second frontend copy of them.
+- Help text explains that seed, polling interval, and inference timeout changes
+  apply to new work; active jobs and generations retain their starting values.
 
 ## Contextual Guidance
 

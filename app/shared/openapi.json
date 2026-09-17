@@ -1147,10 +1147,155 @@
           }
         }
       }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Settings",
+        "operationId": "get_settings_api_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Update Settings",
+        "operationId": "update_settings_api_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/reset": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Reset Settings",
+        "operationId": "reset_settings_api_settings_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ApplicationSettingsPatch": {
+        "properties": {
+          "global": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GlobalSettingsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeatureSettingsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jobs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobSettingsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InferenceSettingsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ApplicationSettingsPatch"
+      },
+      "ApplicationSettingsResponse": {
+        "properties": {
+          "values": {
+            "$ref": "#/components/schemas/RuntimeApplicationSettings"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/RuntimeApplicationSettings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "values",
+          "defaults"
+        ],
+        "title": "ApplicationSettingsResponse"
+      },
       "Body_generate_reports_api_inference_generate_post": {
         "properties": {
           "images": {
@@ -1692,6 +1837,44 @@
         ],
         "title": "DirectoryItem"
       },
+      "FeatureSettingsPatch": {
+        "properties": {
+          "allow_local_filesystem_access": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow Local Filesystem Access"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeatureSettingsPatch"
+      },
+      "GlobalSettingsPatch": {
+        "properties": {
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4294967295.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GlobalSettingsPatch"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1874,6 +2057,25 @@
         ],
         "title": "InferenceModelsResponse"
       },
+      "InferenceSettingsPatch": {
+        "properties": {
+          "model_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Timeout"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "InferenceSettingsPatch"
+      },
       "JobCancelResponse": {
         "properties": {
           "job_id": {
@@ -1912,6 +2114,26 @@
           "jobs"
         ],
         "title": "JobListResponse"
+      },
+      "JobSettingsPatch": {
+        "properties": {
+          "polling_interval": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 60.0,
+                "minimum": 0.25
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polling Interval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "JobSettingsPatch"
       },
       "JobStartResponse": {
         "properties": {
@@ -2966,6 +3188,87 @@
           "additional_epochs"
         ],
         "title": "ResumeTrainingRequest"
+      },
+      "RuntimeApplicationSettings": {
+        "properties": {
+          "global": {
+            "$ref": "#/components/schemas/RuntimeGlobalSettings"
+          },
+          "features": {
+            "$ref": "#/components/schemas/RuntimeFeatureSettings"
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/RuntimeJobSettings"
+          },
+          "inference": {
+            "$ref": "#/components/schemas/RuntimeInferenceSettings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "global",
+          "features",
+          "jobs",
+          "inference"
+        ],
+        "title": "RuntimeApplicationSettings"
+      },
+      "RuntimeFeatureSettings": {
+        "properties": {
+          "allow_local_filesystem_access": {
+            "type": "boolean",
+            "title": "Allow Local Filesystem Access"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "allow_local_filesystem_access"
+        ],
+        "title": "RuntimeFeatureSettings"
+      },
+      "RuntimeGlobalSettings": {
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seed"
+        ],
+        "title": "RuntimeGlobalSettings"
+      },
+      "RuntimeInferenceSettings": {
+        "properties": {
+          "model_timeout": {
+            "type": "integer",
+            "title": "Model Timeout"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model_timeout"
+        ],
+        "title": "RuntimeInferenceSettings"
+      },
+      "RuntimeJobSettings": {
+        "properties": {
+          "polling_interval": {
+            "type": "number",
+            "title": "Polling Interval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "polling_interval"
+        ],
+        "title": "RuntimeJobSettings"
       },
       "StartTrainingRequest": {
         "properties": {

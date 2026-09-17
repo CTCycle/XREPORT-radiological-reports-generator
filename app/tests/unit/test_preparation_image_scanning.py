@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from server.domain.training import LoadDatasetRequest
-from server.services.errors import BadRequestError
+from server.services.errors import BadRequestError, ForbiddenError
 from server.services.preparation import (
     PreparationService,
     count_image_files,
@@ -193,3 +193,21 @@ def test_validate_img_paths_fails_closed_for_deleted_images() -> None:
         repository.validate_img_paths(
             pd.DataFrame({"path": [str(Path.cwd() / "does-not-exist.png")]})
         )
+
+###############################################################################
+def test_preparation_reads_filesystem_permission_from_current_settings() -> None:
+    settings = SimpleNamespace(
+        global_settings=SimpleNamespace(seed=42),
+        features=SimpleNamespace(allow_local_filesystem_access=True),
+        jobs=SimpleNamespace(polling_interval=1.0),
+    )
+    service = PreparationService.__new__(PreparationService)
+    service.server_settings = settings
+    service.settings_provider = lambda: settings
+    service.allow_local_filesystem_access = True
+
+    service.ensure_local_filesystem_access()
+    settings.features.allow_local_filesystem_access = False
+
+    with pytest.raises(ForbiddenError, match="Local filesystem endpoints"):
+        service.ensure_local_filesystem_access()

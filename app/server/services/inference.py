@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -137,7 +138,10 @@ def get_inference_image_store() -> InferenceImageStore:
 def get_huggingface_provider() -> HuggingFaceProvider:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
 
-    return HuggingFaceProvider(get_server_settings().inference)
+    return HuggingFaceProvider(
+        get_server_settings().inference,
+        timeout_provider=lambda: get_server_settings().inference.model_timeout,
+    )
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -432,10 +436,12 @@ class InferenceService:
         runtime: InferenceRuntimeCoordinator | None = None,
         repository: InferenceRepository | None = None,
         checkpoint_repository: CheckpointRepository | None = None,
+        settings_provider: Callable[[], ServerSettings] | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
         self.server_settings = server_settings
+        self.settings_provider = settings_provider
         self.model_catalog = model_catalog
         self.installation_manager = installation_manager
         self._runtime = runtime
@@ -450,6 +456,13 @@ class InferenceService:
         if self._runtime is None:
             self._runtime = get_inference_runtime()
         return self._runtime
+
+    # -------------------------------------------------------------------------
+    def _current_settings(self) -> ServerSettings:
+        provider = getattr(self, "settings_provider", None)
+        if provider is not None:
+            return provider()
+        return self.server_settings
 
     # -------------------------------------------------------------------------
     def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
@@ -634,7 +647,7 @@ class InferenceService:
             job_type=status["job_type"],
             status=status["status"],
             message=f"Model {action} started for {model_ref}",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=self._current_settings().jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -731,7 +744,7 @@ class InferenceService:
                 job_type=job_status["job_type"],
                 status=job_status["status"],
                 message=f"Inference job started for {len(images)} images",
-                poll_interval=self.server_settings.jobs.polling_interval,
+                poll_interval=self._current_settings().jobs.polling_interval,
             )
 
         except ServiceError:
@@ -760,4 +773,5 @@ def get_inference_service() -> InferenceService:
         installation_manager=installation_manager,
         repository=InferenceRepository(),
         checkpoint_repository=CheckpointRepository(),
+        settings_provider=get_server_settings,
     )

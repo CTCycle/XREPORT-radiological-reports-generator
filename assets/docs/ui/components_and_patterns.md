@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-08-18
+Last updated: 2026-09-17
 
 ## Reusable Patterns
 
@@ -59,8 +59,15 @@ Last updated: 2026-08-18
 - Training page: training start or resume, checkpoint management, and metrics dashboards
 - Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable Findings/Impression drafting with copy, regenerate, and export actions
 - Dataset validation page: validation orchestration and report review
+- Settings page: one-column runtime configuration form with General, Data
+  access, and Advanced sections; save sends only changed fields and reset is
+  delegated to the backend.
 
 ## Layout Composition
 
 - `MainLayout` provides top branding, primary navigation, and routed content.
 - Route pages own functional modules while reusing shared components for consistency.
+
+The Settings route reuses the existing footer gear navigation control and
+`app-nav-button` active styling. It does not duplicate the theme selector or
+expose deployment, database, secret, or static inference policy values.

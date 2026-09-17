@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 import pandas as pd
@@ -115,6 +115,7 @@ class PreparationService:
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
+        settings_provider: Callable[[], ServerSettings] | None = None,
     ) -> None:
         self.repository = repository
         self.dataset_repository = dataset_repository
@@ -122,13 +123,29 @@ class PreparationService:
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
+        self.settings_provider = settings_provider
         self.allow_local_filesystem_access = (
             self.server_settings.features.allow_local_filesystem_access
         )
 
     # -------------------------------------------------------------------------
+    def _current_settings(self) -> ServerSettings:
+        provider = getattr(self, "settings_provider", None)
+        if provider is not None:
+            return provider()
+        return self.server_settings
+
+    # -------------------------------------------------------------------------
+    def _local_filesystem_access_enabled(self) -> bool:
+        settings = self._current_settings()
+        features = getattr(settings, "features", None)
+        if features is None:
+            return getattr(self, "allow_local_filesystem_access", True)
+        return features.allow_local_filesystem_access
+
+    # -------------------------------------------------------------------------
     def ensure_local_filesystem_access(self) -> None:
-        if self.allow_local_filesystem_access:
+        if self._local_filesystem_access_enabled():
             return
         raise ForbiddenError(
             detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
@@ -186,7 +203,7 @@ class PreparationService:
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
-            allow_server_browse=self.allow_local_filesystem_access,
+            allow_server_browse=self._local_filesystem_access_enabled(),
             message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
             if row_count > 0
             else f"No data found in {DATASET_RECORDS_TABLE} table",
@@ -334,7 +351,7 @@ class PreparationService:
         self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
-        seed = self.server_settings.global_settings.seed
+        seed = self._current_settings().global_settings.seed
 
         # Validate folder path
         directory_path = Path(folder_path)
@@ -463,8 +480,9 @@ class PreparationService:
                 detail="Dataset processing is already in progress",
             )
 
+        settings = self._current_settings()
         configuration = request.model_dump()
-        configuration["seed"] = self.server_settings.global_settings.seed
+        configuration["seed"] = settings.global_settings.seed
         dataset_name = configuration.get("dataset_name", "").strip()
         if not dataset_name:
             raise BadRequestError(
@@ -502,7 +520,7 @@ class PreparationService:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -674,4 +692,5 @@ def get_preparation_service() -> PreparationService:
         job_manager=job_manager,
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),
+        settings_provider=get_server_settings,
     )

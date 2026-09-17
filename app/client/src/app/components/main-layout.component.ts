@@ -42,9 +42,9 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
             <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
               <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
             </button>
-            <button type="button" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings" disabled>
+            <a routerLink="/settings" routerLinkActive="active" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings">
               <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>
-            </button>
+            </a>
             <app-theme-selector />
           </div>
         </nav>
