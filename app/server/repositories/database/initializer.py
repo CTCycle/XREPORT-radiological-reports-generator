@@ -26,16 +26,17 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from server.common.path import DATABASE_FILE_PATH
+from server.common.path import DATABASE_FILE_PATH, RUNTIME_LAYOUT
+from server.common.runtime_layout import remove_legacy_configuration_file
 from server.common.utils.logger import logger
-from server.configurations import DatabaseSettings, get_server_settings
+from server.configurations import DatabaseSettings, get_database_settings
 from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.schemas import Base
 
 # Kept as the current repository head for diagnostics and integration tests;
 # the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "d62f3ab4e8c1"
+HEAD_REVISION = "f48a7c2e91b6"
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
@@ -616,18 +617,20 @@ def _run_database_action(
 
 ###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_server_settings().database
+    resolved_settings = settings or get_database_settings()
     _run_database_action(
         "Database initialization",
         run_database_initialization,
         resolved_settings,
     )
+    remove_legacy_configuration_file(RUNTIME_LAYOUT)
 
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_server_settings().database
+    resolved_settings = settings or get_database_settings()
     _run_database_action(
         "Database startup migration",
         run_database_initialization,
         resolved_settings,
     )
+    remove_legacy_configuration_file(RUNTIME_LAYOUT)

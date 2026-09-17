@@ -116,13 +116,13 @@ The Settings API exposes only the four runtime-managed application values:
 `global.seed`, `features.allow_local_filesystem_access`,
 `jobs.polling_interval`, and `inference.model_timeout`. PATCH requests are
 nested partial updates and are validated by the backend before the authoritative
-configuration file is atomically replaced. Reset restores those four public
-values while preserving static inference policy, environment configuration,
-database settings, and the model catalogue.
+`application_settings` row is updated transactionally. Reset restores those
+four public values while preserving static inference policy, environment
+configuration, database settings, and the model catalogue.
 
 Database credentials, `.env` values, Hugging Face tokens, runtime paths,
 `inference.device`, `inference.hf_local_only`, and
-`inference.max_loaded_models` are never returned by this API.
+the obsolete `inference.max_loaded_models` key are never returned by this API.
 
 The health response reports backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
 

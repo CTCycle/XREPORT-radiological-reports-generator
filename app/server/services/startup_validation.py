@@ -5,7 +5,6 @@ from time import perf_counter
 
 from server.common.path import (
     CHECKPOINTS_DIR,
-    CONFIGURATION_FILE_PATH,
     LOGS_DIR,
     MODELS_DIR,
     RESOURCES_DIR,
@@ -21,7 +20,12 @@ from server.common.path import (
     TORCH_CACHE_DIR,
 )
 from server.common.utils.logger import logger
-from server.configurations import ServerSettings, get_server_settings
+from server.configurations import (
+    DatabaseSettings,
+    ServerSettings,
+    get_database_settings,
+    get_server_settings,
+)
 from server.repositories.database.initializer import prepare_database_for_startup
 
 ###############################################################################
@@ -29,18 +33,25 @@ def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 ###############################################################################
-def run_startup_validations(settings: ServerSettings | None = None) -> None:
+def run_startup_validations(
+    settings: ServerSettings | DatabaseSettings | None = None,
+) -> None:
     started = perf_counter()
-    resolved_settings = settings or get_server_settings()
+    if isinstance(settings, DatabaseSettings):
+        database_settings = settings
+        resolved_settings: ServerSettings | None = None
+    else:
+        database_settings = (
+            settings.database if settings is not None else get_database_settings()
+        )
+        resolved_settings = settings
 
-    prepare_database_for_startup(resolved_settings.database)
+    prepare_database_for_startup(database_settings)
+    resolved_settings = resolved_settings or get_server_settings()
     logger.info(
         "Startup phase=database_validated elapsed_ms=%.0f",
         (perf_counter() - started) * 1000,
     )
-
-    if not CONFIGURATION_FILE_PATH.is_file():
-        raise RuntimeError(f"Configuration file not found: {CONFIGURATION_FILE_PATH}")
 
     for directory in (
         RESOURCES_DIR,

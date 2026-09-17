@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-07
+Last updated: 2026-09-17
 
 ## Windows Local Launcher
 
@@ -142,10 +142,12 @@ PostgreSQL database when necessary and upgrades to the checked-in head before
 the readiness callback runs. An existing database with application tables but
 without migration state is rejected; startup never infers or stamps an
 unversioned schema. The launcher’s explicit database option uses the same
-coordinator. Startup also verifies the tracked configuration file and creates
-required resource directories for logs, models, tokenizers, checkpoints, and
-templates. The current head removes obsolete report-job state and registers
-complete checkpoint artifacts in the canonical database registry.
+coordinator. The `application_settings` singleton is created or migrated from
+the one-time legacy import before readiness; after that, settings are read only
+from the database. Startup creates required resource directories for logs,
+models, tokenizers, checkpoints, and templates. The migration stream removes
+obsolete report-job state and registers complete checkpoint artifacts in the
+canonical database registry.
 
 ## Development Cache Locations
 
