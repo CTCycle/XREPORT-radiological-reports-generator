@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-30
+Last updated: 2026-09-17
 
 ## Database Backend Selection
 
@@ -150,6 +150,21 @@ Foreign-key behavior is explicit: dataset-owned records and processing data casc
 SQLite connections enable foreign-key enforcement, WAL journaling, normal synchronous mode, and a 30-second busy timeout. Dataframe persistence batches run inside one transaction and roll back together on failure.
 
 ## Non-Database Artifacts
+
+Application behavior settings are persisted in the effective
+`settings/configurations.json` path, not in the database. The Settings service
+updates that JSON document through a sibling temporary file, flushes and fsyncs
+it, then uses an atomic replacement. The in-memory configuration snapshot is
+replaced only after the filesystem replacement succeeds. A failed write leaves
+both the previous file and the running snapshot intact.
+
+In packaged mode the effective path is the per-user writable file below
+`%LOCALAPPDATA%\\XREPORT\\data\\settings`; the immutable bundled JSON remains
+the seed for first-run initialization. In source mode the existing tracked
+`settings/configurations.json` remains authoritative, so using Settings from a
+source checkout changes that local file.
+
+No settings table or Alembic migration is required.
 
 - Checkpoint artifacts and model artifacts under `<resource root>/checkpoints`
   and `<resource root>/models`; checkpoint identity and history references stay

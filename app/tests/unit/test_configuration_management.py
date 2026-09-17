@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+import server.configurations.management as management
 from server.configurations.management import ConfigurationManager
 
 ###############################################################################
@@ -135,3 +136,64 @@ def test_invalid_environment_values_fail_instead_of_using_defaults(
 
     with pytest.raises(ValueError, match="EMBEDDED_DATABASE must be a boolean"):
         ConfigurationManager(config_path=str(config_path))
+
+###############################################################################
+def test_partial_application_update_preserves_hidden_settings(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMBEDDED_DATABASE", "true")
+    config_path = tmp_path / "configurations.json"
+    config_path.write_text(json.dumps(_configuration_payload()), encoding="utf-8")
+    manager = ConfigurationManager(config_path=config_path)
+
+    updated = manager.update_application_settings({"inference": {"model_timeout": 900}})
+
+    assert updated.inference.model_timeout == 900
+    assert updated.inference.device == "cpu"
+    assert updated.inference.hf_local_only is False
+    persisted = json.loads(config_path.read_text(encoding="utf-8"))
+    assert persisted["inference"] == {
+        "hf_local_only": False,
+        "device": "cpu",
+        "max_loaded_models": 1,
+        "model_timeout": 900,
+    }
+
+###############################################################################
+def test_sequential_partial_updates_do_not_overwrite_each_other(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMBEDDED_DATABASE", "true")
+    config_path = tmp_path / "configurations.json"
+    config_path.write_text(json.dumps(_configuration_payload()), encoding="utf-8")
+    manager = ConfigurationManager(config_path=config_path)
+
+    manager.update_application_settings({"global": {"seed": 321}})
+    manager.update_application_settings({"jobs": {"polling_interval": 4.5}})
+
+    current = manager.get_all()
+    assert current.global_settings.seed == 321
+    assert current.jobs.polling_interval == 4.5
+
+###############################################################################
+def test_failed_atomic_write_preserves_file_and_cached_settings(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("EMBEDDED_DATABASE", "true")
+    config_path = tmp_path / "configurations.json"
+    config_path.write_text(json.dumps(_configuration_payload()), encoding="utf-8")
+    manager = ConfigurationManager(config_path=config_path)
+    original_text = config_path.read_text(encoding="utf-8")
+
+    def fail_replace(_source, _target) -> None:
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(management.os, "replace", fail_replace)
+    with pytest.raises(RuntimeError, match="Unable to persist application configuration"):
+        manager.update_application_settings({"global": {"seed": 999}})
+
+    assert config_path.read_text(encoding="utf-8") == original_text
+    assert manager.get_all().global_settings.seed == 123
