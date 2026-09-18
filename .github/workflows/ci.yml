@@ -41,8 +41,35 @@ jobs:
       - name: Configure runner-local caches
         shell: bash
         run: |
-          echo "XDG_CACHE_HOME=$RUNNER_TEMP/xreport-cache" >> "$GITHUB_ENV"
-          echo "RUFF_CACHE_DIR=$RUNNER_TEMP/xreport-ruff" >> "$GITHUB_ENV"
+          cache_root="${{ github.workspace }}/runtimes/cache"
+          mkdir -p "$cache_root" \
+            "$cache_root/uv" "$cache_root/pip" "$cache_root/npm" \
+            "$cache_root/playwright-browsers" "$cache_root/pytest" \
+            "$cache_root/pytest-tmp" "$cache_root/ruff" "$cache_root/mypy" \
+            "$cache_root/python" "$cache_root/coverage" "$cache_root/angular" \
+            "$cache_root/huggingface/hub" "$cache_root/huggingface/modules" \
+            "$cache_root/huggingface/datasets" "$cache_root/torch" \
+            "$cache_root/keras" "$cache_root/matplotlib"
+          echo "XREPORT_CACHE_ROOT=$cache_root" >> "$GITHUB_ENV"
+          echo "XDG_CACHE_HOME=$cache_root" >> "$GITHUB_ENV"
+          echo "UV_CACHE_DIR=$cache_root/uv" >> "$GITHUB_ENV"
+          echo "PIP_CACHE_DIR=$cache_root/pip" >> "$GITHUB_ENV"
+          echo "NPM_CONFIG_CACHE=$cache_root/npm" >> "$GITHUB_ENV"
+          echo "npm_config_cache=$cache_root/npm" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$cache_root/playwright-browsers" >> "$GITHUB_ENV"
+          echo "PYTEST_CACHE_DIR=$cache_root/pytest" >> "$GITHUB_ENV"
+          echo "PYTEST_BASETEMP=$cache_root/pytest-tmp" >> "$GITHUB_ENV"
+          echo "RUFF_CACHE_DIR=$cache_root/ruff" >> "$GITHUB_ENV"
+          echo "MYPY_CACHE_DIR=$cache_root/mypy" >> "$GITHUB_ENV"
+          echo "PYTHONPYCACHEPREFIX=$cache_root/python" >> "$GITHUB_ENV"
+          echo "COVERAGE_FILE=$cache_root/coverage/.coverage" >> "$GITHUB_ENV"
+          echo "HF_HOME=$cache_root/huggingface" >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=$cache_root/huggingface/hub" >> "$GITHUB_ENV"
+          echo "HF_MODULES_CACHE=$cache_root/huggingface/modules" >> "$GITHUB_ENV"
+          echo "HF_DATASETS_CACHE=$cache_root/huggingface/datasets" >> "$GITHUB_ENV"
+          echo "TORCH_HOME=$cache_root/torch" >> "$GITHUB_ENV"
+          echo "KERAS_HOME=$cache_root/keras" >> "$GITHUB_ENV"
+          echo "MPLCONFIGDIR=$cache_root/matplotlib" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -53,8 +80,6 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.11.30"
-          enable-cache: true
-          cache-dependency-glob: app/server/uv.lock
 
       - name: Synchronize locked backend dependencies
         working-directory: app/server
@@ -65,7 +90,7 @@ jobs:
         run: .venv/bin/ruff check .
 
       - name: Run backend unit tests
-        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp app/tests/cache/pytest-tmp
+        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp runtimes/cache/pytest-tmp/unit -o "cache_dir=runtimes/cache/pytest"
 
       - name: Run Pyright
         working-directory: app/server
@@ -79,11 +104,11 @@ jobs:
           XREPORT_TEST_DATABASE_NAME: xreport
           XREPORT_TEST_DATABASE_USERNAME: xreport
           XREPORT_TEST_DATABASE_PASSWORD: xreport
-        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/integration -q --basetemp app/tests/cache/pytest-integration-tmp
+        run: app/server/.venv/bin/python -m pytest -c app/server/pyproject.toml app/tests/integration -q --basetemp runtimes/cache/pytest-tmp/integration -o "cache_dir=runtimes/cache/pytest"
 
       - name: Run retained API E2E tests
         run: |
-          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5003 --log-level warning > /tmp/xreport-api.log 2>&1 &
+          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5003 --log-level warning > runtimes/cache/ci-xreport-api.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
@@ -92,20 +117,18 @@ jobs:
             fi
             sleep 1
           done
-          curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat /tmp/xreport-api.log; exit 1; }
+          curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat runtimes/cache/ci-xreport-api.log; exit 1; }
           APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest \
             -c app/server/pyproject.toml \
             app/tests/e2e/test_inference_api.py \
             app/tests/e2e/test_training_api.py \
             app/tests/e2e/test_upload_api.py \
-            -q --basetemp app/tests/cache/pytest-e2e-tmp
+            -q --basetemp runtimes/cache/pytest-tmp/e2e -o "cache_dir=runtimes/cache/pytest"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22.22.3"
-          cache: npm
-          cache-dependency-path: app/client/package-lock.json
 
       - name: Verify Node toolchain
         shell: bash
@@ -137,5 +160,4 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
           path: |
-            /tmp/xreport-api.log
-            app/tests/cache/
+            runtimes/cache/

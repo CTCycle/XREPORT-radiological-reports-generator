@@ -53,7 +53,7 @@ timestamped backend logs beside it. Readiness/session files in
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp app/tests/cache/pytest-tmp -o "cache_dir=app/tests/cache/pytest"`
+- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp runtimes/cache/pytest-tmp/manual -o "cache_dir=runtimes/cache/pytest"`
 - `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_cxrmate_ed_sensitivity.py" --fixture-provenance "<approved source>" --fixture-deidentification "<approved de-identification statement>"`
 
 The CXRMate-ED canary is cache-only and writes its real-inference evidence to
@@ -63,8 +63,7 @@ passing validation receipt.
 
 ### Development cache locations
 
-- runtime caches: `runtimes/cache/{uv,npm,pip,playwright-browsers}`
-- test and development-tool caches: `app/tests/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular}`
+- all disposable caches: `runtimes/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular,uv,npm,pip,playwright-browsers,huggingface,torch,keras,matplotlib}`
 - best-effort cleanup: `.\start_on_windows.ps1 -Action ClearCache`
 
 Locked or administrator-protected cache files are reported and skipped during
@@ -105,7 +104,8 @@ requires one linear head and never performs downgrades automatically.
 - runtime data root: `app/resources` by default; override with `XREPORT_RESOURCES_DIR`
 - SQLite database file: `<resource root>/database.db`
 - checkpoints: `<resource root>/checkpoints`
-- model cache/artifacts: `<resource root>/models`
+- persistent model installations and lifecycle metadata: `<resource root>/models`
+- transient model/tool caches: `<runtime root>/runtimes/cache` (or packaged `<data root>/runtimes/cache`)
 - tokenizer resources: `<resource root>/tokenizers`
 - report templates: `<resource root>/templates`
 - logs: `<resource root>/logs`

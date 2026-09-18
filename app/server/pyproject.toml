@@ -55,7 +55,8 @@ desktop = [
 packages = ["server"] 
 
 [tool.pytest.ini_options]
-cache_dir = "../../app/tests/cache/pytest"
+cache_dir = "../../runtimes/cache/pytest"
+norecursedirs = ["cache"]
 
 [[tool.uv.index]]
 name = "pytorch-cu130"
@@ -68,7 +69,7 @@ torchvision = { index = "pytorch-cu130" }
 # torchaudio  = { index = "pytorch-cu130" }
 
 [tool.ruff]
-cache-dir = "../../app/tests/cache/ruff"
+cache-dir = "../../runtimes/cache/ruff"
 
 [tool.ruff.lint]
 extend-select = ["C901", "PLR0912", "PLR0915"]

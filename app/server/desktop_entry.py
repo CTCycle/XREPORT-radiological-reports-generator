@@ -102,6 +102,7 @@ def _sanitize_inherited_environment() -> None:
             "XREPORT_DATA_ROOT",
             "XREPORT_RELEASE_VERSION",
             "XREPORT_RUNTIME_VARIANT",
+            "XREPORT_CACHE_ROOT",
             "XREPORT_DESKTOP_TOKEN",
             "XREPORT_CLIENT_DIST_DIR",
             "XREPORT_READY_FILE",
@@ -175,13 +176,23 @@ def _configure_server_environment(port: int) -> None:
     os.environ["KERAS_BACKEND"] = "torch"
     os.environ["MPLBACKEND"] = "Agg"
     data_root = Path(os.environ["XREPORT_DATA_ROOT"])
+    runtime_layout = import_module("server.common.runtime_layout").runtime_layout_from_environment()
+    cache_root = runtime_layout.cache_root
+    cache_root.mkdir(parents=True, exist_ok=True)
     # NLTK resolves its default download directory at import time.  Packaged
     # launches deliberately strip arbitrary user-environment variables, so a
     # deterministic user-data directory must be supplied explicitly.
     nltk_root = data_root / "nltk"
     nltk_root.mkdir(parents=True, exist_ok=True)
     os.environ["NLTK_DATA"] = str(nltk_root)
-    os.environ["MPLCONFIGDIR"] = str(data_root / "caches" / "matplotlib")
+    os.environ["XREPORT_CACHE_ROOT"] = str(cache_root)
+    os.environ["XDG_CACHE_HOME"] = str(cache_root)
+    python_cache_root = cache_root / "python"
+    matplotlib_root = cache_root / "matplotlib"
+    python_cache_root.mkdir(parents=True, exist_ok=True)
+    matplotlib_root.mkdir(parents=True, exist_ok=True)
+    os.environ["PYTHONPYCACHEPREFIX"] = str(python_cache_root)
+    os.environ["MPLCONFIGDIR"] = str(matplotlib_root)
 
 ###############################################################################
 def _run_server(

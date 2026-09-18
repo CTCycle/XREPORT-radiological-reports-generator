@@ -10,7 +10,7 @@
     "cache": {
       "enabled": true,
       "environment": "all",
-      "path": "../tests/cache/angular"
+      "path": "../../runtimes/cache/angular"
     }
   },
   "newProjectRoot": "projects",
