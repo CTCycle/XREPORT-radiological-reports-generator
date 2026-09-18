@@ -164,6 +164,14 @@ and uv.
 Install the project dependencies once from the repository root:
 
 ~~~bash
+export XREPORT_CACHE_ROOT="$PWD/runtimes/cache"
+export XDG_CACHE_HOME="$XREPORT_CACHE_ROOT"
+export UV_CACHE_DIR="$XREPORT_CACHE_ROOT/uv"
+export PIP_CACHE_DIR="$XREPORT_CACHE_ROOT/pip"
+export NPM_CONFIG_CACHE="$XREPORT_CACHE_ROOT/npm"
+export PLAYWRIGHT_BROWSERS_PATH="$XREPORT_CACHE_ROOT/playwright-browsers"
+export PYTHONPYCACHEPREFIX="$XREPORT_CACHE_ROOT/python"
+export MPLCONFIGDIR="$XREPORT_CACHE_ROOT/matplotlib"
 cd app/server
 uv sync --frozen
 cd ../client
@@ -188,6 +196,10 @@ npm run preview -- --host 127.0.0.1 --port 8003
 
 Open the local address shown by the frontend preview, normally
 http://127.0.0.1:8003.
+
+All disposable source-mode application, ML, frontend, and test caches resolve
+under `runtimes/cache`. Persistent models, checkpoints, databases, logs, and
+tokenizers remain under the configured application data root.
 
 ## 5. Using the application
 
