@@ -488,7 +488,6 @@ function Import-XReportEnvironment {
         UI_PORT = '8003'
         UI_API_BASE_URL = '/api'
         RELOAD = 'false'
-        BACKEND_VISIBLE = 'false'
         ALWAYS_REBUILD = 'false'
     }
 
@@ -869,23 +868,14 @@ function Invoke-Launch {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
     $backendAppPath = Join-Path $RepoRoot 'app'
-    $backendArgs = "-m uvicorn server.app:app --app-dir `"$backendAppPath`" --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-    if ($settings.RELOAD -eq 'true') { $backendArgs += ' --reload' }
-
     Write-Step 'Starting backend'
-    if ($settings.BACKEND_VISIBLE -eq 'true') {
-        $escapedPython = $VenvPython.Replace("'", "''")
-        $escapedApp = $backendAppPath.Replace("'", "''")
-        $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-        if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
-        $backendProcess = Start-Process -FilePath 'powershell.exe' `
-            -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
-            -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
-    }
-    else {
-        $backendProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
-    }
+    $escapedPython = $VenvPython.Replace("'", "''")
+    $escapedApp = $backendAppPath.Replace("'", "''")
+    $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
+    if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
+    $backendProcess = Start-Process -FilePath 'powershell.exe' `
+        -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
+        -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
     Write-Step "Waiting for backend health at $healthUrl"
