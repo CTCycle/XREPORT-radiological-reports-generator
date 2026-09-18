@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ## Windows Local Launcher
 
@@ -15,6 +15,16 @@ For direct, non-interactive launch use:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
+
+To force-stop XREPORT source services, desktop development shells, and
+packaged XREPORT processes, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action KillProcesses
+```
+
+This action also clears the configured backend and frontend listeners. It
+does not close the browser window.
 
 The menu can:
 

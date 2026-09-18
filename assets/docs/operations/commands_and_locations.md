@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-07
+Last updated: 2026-09-18
 
 ## Primary Commands
 
@@ -8,6 +8,7 @@ Last updated: 2026-09-07
 
 ```powershell
 .\start_on_windows.ps1 -Action LaunchDesktopDev
+.\start_on_windows.ps1 -Action KillProcesses
 .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.1.0
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 .\start_on_windows.ps1 -Action RemoveCheckpoints

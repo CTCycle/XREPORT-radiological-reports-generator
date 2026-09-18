@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'Update')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Cpu', 'Cuda', 'All')]
@@ -686,9 +686,13 @@ function Test-DependenciesReady {
 }
 
 function Stop-PortListener {
-    param([Parameter(Mandatory = $true)][int]$Port)
+    param(
+        [Parameter(Mandatory = $true)][int]$Port,
+        [int[]]$ExcludeProcessIds = @()
+    )
 
     $listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Where-Object { $ExcludeProcessIds -notcontains [int]$_.OwningProcess } |
         Select-Object -ExpandProperty OwningProcess -Unique
     foreach ($processId in $listeners) {
         Write-Info "Releasing port $Port from PID $processId"
@@ -705,6 +709,138 @@ function Get-PortProcessId {
     param([int]$Port)
     Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
         Select-Object -First 1 -ExpandProperty OwningProcess
+}
+
+function Get-XReportProcessTable {
+    try {
+        return @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+    }
+    catch {
+        throw "Unable to inspect Windows processes for XREPORT cleanup: $($_.Exception.Message)"
+    }
+}
+
+function Get-XReportApplicationProcessIds {
+    param([Parameter(Mandatory = $true)][object[]]$ProcessTable)
+
+    $repoPattern = [regex]::Escape(([IO.Path]::GetFullPath($RepoRoot)).TrimEnd('\'))
+    $processIds = foreach ($process in $ProcessTable) {
+        $commandLine = [string]$process.CommandLine
+        $executablePath = [string]$process.ExecutablePath
+        $processName = [IO.Path]::GetFileNameWithoutExtension([string]$process.Name)
+        $repoScoped = ($commandLine -match $repoPattern) -or ($executablePath -match $repoPattern)
+        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|\buvicorn\b)')
+        $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*\bpreview\b')
+        $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
+        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop')
+
+        if ($isBackend -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication) {
+            [int]$process.ProcessId
+        }
+    }
+    return @($processIds | Sort-Object -Unique)
+}
+
+function Get-XReportProcessTreeIds {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$ProcessTable,
+        [Parameter(Mandatory = $true)][int[]]$RootProcessIds
+    )
+
+    $processIds = @($RootProcessIds | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    do {
+        $childProcessIds = @(
+            foreach ($process in $ProcessTable) {
+                $processId = [int]$process.ProcessId
+                $parentProcessId = [int]$process.ParentProcessId
+                if ($processId -gt 0 -and $processIds -contains $parentProcessId -and $processIds -notcontains $processId) {
+                    $processId
+                }
+            }
+        )
+        $nextProcessIds = @($processIds + $childProcessIds | Sort-Object -Unique)
+        $changed = $nextProcessIds.Count -gt $processIds.Count
+        $processIds = $nextProcessIds
+    } while ($changed)
+
+    return $processIds
+}
+
+function Stop-XReportProcesses {
+    $settings = Import-XReportEnvironment
+    $processTable = Get-XReportProcessTable
+    $protectedProcessIds = @([int]$PID)
+    $currentProcessId = [int]$PID
+    while ($true) {
+        $currentProcess = @($processTable | Where-Object { [int]$_.ProcessId -eq $currentProcessId } | Select-Object -First 1)
+        if ($currentProcess.Count -eq 0) { break }
+        $parentProcessId = [int]$currentProcess[0].ParentProcessId
+        if ($parentProcessId -le 0 -or $protectedProcessIds -contains $parentProcessId) { break }
+        $protectedProcessIds += $parentProcessId
+        $currentProcessId = $parentProcessId
+    }
+
+    $configuredPorts = @($settings.FASTAPI_PORT, $settings.UI_PORT) |
+        ForEach-Object { [int]$_ } |
+        Sort-Object -Unique
+    $rootProcessIds = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    foreach ($port in $configuredPorts) {
+        $portProcessId = Get-PortProcessId -Port $port
+        if ($null -ne $portProcessId) { $rootProcessIds += [int]$portProcessId }
+    }
+    $rootProcessIds = @(
+        $rootProcessIds |
+            Where-Object { $protectedProcessIds -notcontains [int]$_ } |
+            ForEach-Object { [int]$_ } |
+            Sort-Object -Unique
+    )
+
+    if ($rootProcessIds.Count -eq 0) {
+        foreach ($port in $configuredPorts) {
+            Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
+        }
+        Write-Info 'No XREPORT application processes or configured listeners were found.'
+        return
+    }
+
+    $treeProcessIds = @(
+        Get-XReportProcessTreeIds -ProcessTable $processTable -RootProcessIds $rootProcessIds |
+            Where-Object { $protectedProcessIds -notcontains [int]$_ } |
+            ForEach-Object { [int]$_ } |
+            Sort-Object -Unique
+    )
+    Write-Info "Stopping $($treeProcessIds.Count) XREPORT process(es)."
+
+    foreach ($rootProcessId in $rootProcessIds) {
+        $processInfo = @($processTable | Where-Object { [int]$_.ProcessId -eq $rootProcessId } | Select-Object -First 1)
+        $processName = if ($processInfo.Count -gt 0) { [string]$processInfo[0].Name } else { 'process' }
+        Write-Info "Stopping $processName (PID $rootProcessId)"
+        $null = & taskkill.exe /PID $rootProcessId /T /F 2>$null
+    }
+
+    $remainingProcessIds = @(
+        $treeProcessIds | Where-Object {
+            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
+        }
+    )
+    foreach ($processId in ($remainingProcessIds | Sort-Object -Descending)) {
+        try { Stop-Process -Id ([int]$processId) -Force -ErrorAction Stop } catch { }
+    }
+
+    foreach ($port in $configuredPorts) {
+        Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
+    }
+
+    $remainingProcessIds = @(
+        $treeProcessIds | Where-Object {
+            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
+        }
+    )
+    if ($remainingProcessIds.Count -gt 0) {
+        throw "Unable to stop XREPORT process(es): $($remainingProcessIds -join ', ')."
+    }
+    Write-Ok 'All XREPORT application processes and configured listeners were stopped.'
 }
 
 function Invoke-Launch {
@@ -2008,6 +2144,7 @@ function Wait-ForMenu {
 function Get-LauncherMenuEntries {
     @(
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch application'; Description = 'Start local services'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT services and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Database'; Label = 'Initialize database'; Description = 'Prepare local data store'; Destructive = $false }
@@ -2084,6 +2221,7 @@ if ($Action) {
             'RemoveCheckpoints' { Remove-Checkpoints }
             'RemoveAllData' { Remove-AllData }
             'Uninstall' { Uninstall-Application }
+            'KillProcesses' { Stop-XReportProcesses }
             'Update' { Invoke-Update }
         }
     }
@@ -2112,6 +2250,7 @@ while ($true) {
         Invoke-TrackedLauncherAction -Name "menu option $($entry.Number)" -Operation {
             switch ($entry.Key) {
                 'Launch' { Invoke-Launch; exit 0 }
+                'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
                 'Rebuild' { Invoke-RebuildFrontend }
                 'Database' { Invoke-InitializeDatabase }
