@@ -172,7 +172,6 @@ def _configure_server_environment(port: int) -> None:
     os.environ["FASTAPI_HOST"] = "127.0.0.1"
     os.environ["FASTAPI_PORT"] = str(port)
     os.environ["RELOAD"] = "false"
-    os.environ["BACKEND_VISIBLE"] = "false"
     os.environ["KERAS_BACKEND"] = "torch"
     os.environ["MPLBACKEND"] = "Agg"
     data_root = Path(os.environ["XREPORT_DATA_ROOT"])

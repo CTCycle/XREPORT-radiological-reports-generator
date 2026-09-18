@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ## Shared Configuration Sources
 
@@ -45,7 +45,6 @@ logs are all below the data root.
 - `UI_PORT`
 - `UI_API_BASE_URL`
 - `RELOAD`
-- `BACKEND_VISIBLE`
 - `ALWAYS_REBUILD` (set to `true` to rebuild the frontend whenever the Windows
   launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
@@ -102,7 +101,7 @@ work. Running jobs and generations keep the value captured at their start.
 the static model catalogue remain runtime policy and are not exposed by the
 Settings API. Theme selection remains a frontend-local preference.
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
 ## Database Mode Switch
 
