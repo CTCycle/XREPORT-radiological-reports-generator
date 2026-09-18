@@ -26,6 +26,20 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Initiali
 
 ### macOS Or Linux Manual Flow
 
+From the repository root, set the canonical disposable-cache environment once
+before running the manual commands:
+
+```bash
+export XREPORT_CACHE_ROOT="$PWD/runtimes/cache"
+export XDG_CACHE_HOME="$XREPORT_CACHE_ROOT"
+export UV_CACHE_DIR="$XREPORT_CACHE_ROOT/uv"
+export PIP_CACHE_DIR="$XREPORT_CACHE_ROOT/pip"
+export NPM_CONFIG_CACHE="$XREPORT_CACHE_ROOT/npm"
+export PLAYWRIGHT_BROWSERS_PATH="$XREPORT_CACHE_ROOT/playwright-browsers"
+export PYTHONPYCACHEPREFIX="$XREPORT_CACHE_ROOT/python"
+export MPLCONFIGDIR="$XREPORT_CACHE_ROOT/matplotlib"
+```
+
 1. Start the backend:
 
 ```bash

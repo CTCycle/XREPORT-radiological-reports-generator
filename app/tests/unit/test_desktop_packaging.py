@@ -16,50 +16,32 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "desktop" / "build"))
 from verify_runtime_bundle import verify_archive, verify_portable  # noqa: E402
 
 ###############################################################################
-def test_packaged_layout_seeds_data_without_overwriting_user_edits(
-    tmp_path: Path, monkeypatch
+def _copy_archive_with_member(
+    source_path: Path,
+    target_path: Path,
+    member_name: str,
+    payload: bytes,
 ) -> None:
-    runtime = tmp_path / "runtime"
-    data = tmp_path / "data"
-    (runtime / "settings").mkdir(parents=True)
-    (runtime / "client").mkdir()
-    (runtime / "settings" / ".env.example").write_text(
-        "EMBEDDED_DATABASE=true\n", encoding="utf-8"
-    )
-    monkeypatch.setenv("XREPORT_DESKTOP", "true")
-    monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
-    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
-    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.1.0")
-    monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
-    monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
+    with (
+        zipfile.ZipFile(source_path) as source,
+        zipfile.ZipFile(target_path, "w") as target,
+    ):
+        for info in source.infolist():
+            target.writestr(info, source.read(info))
+        target.writestr(member_name, payload)
 
-    layout = RuntimeLayout.from_environment()
-    ensure_packaged_data(layout)
-    env_path = data / ".env"
-    assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
-    assert not (data / "settings").exists()
 
-    env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
-    ensure_packaged_data(layout)
-    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
-
-###############################################################################
-def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
-    token = "a" * 64
-    monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
-
-    assert token_matches(token)
-    assert not token_matches("b" * 64)
-    assert not token_matches(None)
-
-###############################################################################
-def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
+def _build_runtime_bundle(
+    tmp_path: Path,
+) -> tuple[Path, dict[str, object], str, Path, Path]:
     staging = tmp_path / "staging"
     (staging / "backend").mkdir(parents=True)
     (staging / "client").mkdir()
     (staging / "settings").mkdir()
     (staging / "backend" / "XREPORT-backend.exe").write_bytes(b"stub")
-    (staging / "client" / "index.html").write_text("<html></html>", encoding="utf-8")
+    (staging / "client" / "index.html").write_text(
+        "<html></html>", encoding="utf-8"
+    )
     (staging / "client" / "error.html").write_text(
         "<html><div id='status'></div></html>", encoding="utf-8"
     )
@@ -67,7 +49,6 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     script = (
         Path(__file__).parents[2] / "desktop" / "build" / "create_runtime_bundle.py"
     )
-
     output = tmp_path / "runtime.zip"
     audit = tmp_path / "audit.json"
     completed = subprocess.run(
@@ -93,7 +74,91 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
         text=True,
         check=True,
     )
-    manifest = json.loads(audit.read_text(encoding="utf-8"))
+    return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
+
+
+def _assert_log_staging_is_rejected(
+    tmp_path: Path, staging: Path, script: Path
+) -> None:
+    (staging / "logs").mkdir()
+    (staging / "logs" / "backend.log").write_text("forbidden", encoding="utf-8")
+    rejected = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--staging",
+            str(staging),
+            "--output",
+            str(tmp_path / "rejected.zip"),
+            "--version",
+            "3.1.0",
+            "--variant",
+            "cpu",
+            "--architecture",
+            "windows-x64",
+            "--source-commit",
+            "0" * 40,
+            "--audit",
+            str(tmp_path / "rejected.json"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "forbidden runtime staging entry" in rejected.stderr
+
+
+###############################################################################
+def test_packaged_layout_seeds_data_without_overwriting_user_edits(
+    tmp_path: Path, monkeypatch
+) -> None:
+    runtime = tmp_path / "runtime"
+    data = tmp_path / "data"
+    (runtime / "settings").mkdir(parents=True)
+    (runtime / "client").mkdir()
+    (runtime / "settings" / ".env.example").write_text(
+        "EMBEDDED_DATABASE=true\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("XREPORT_DESKTOP", "true")
+    monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
+    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.1.0")
+    monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
+    monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
+
+    layout = RuntimeLayout.from_environment()
+    ensure_packaged_data(layout)
+    env_path = data / ".env"
+    assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
+    assert not (data / "settings").exists()
+    assert layout.cache_root == data / "runtimes" / "cache"
+    assert layout.cache_root.is_dir()
+    assert layout.cache_root != data / "caches"
+    persistent_model = data / "models" / "huggingface" / "installed" / "marker"
+    persistent_database = data / "database.db"
+    persistent_model.mkdir(parents=True)
+    persistent_model.joinpath("model.bin").write_bytes(b"persistent")
+    persistent_database.write_bytes(b"database")
+    layout.cache_root.joinpath("transient").write_bytes(b"cache")
+
+    env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
+    ensure_packaged_data(layout)
+    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
+    assert persistent_model.joinpath("model.bin").read_bytes() == b"persistent"
+    assert persistent_database.read_bytes() == b"database"
+
+###############################################################################
+def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
+    token = "a" * 64
+    monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
+
+    assert token_matches(token)
+    assert not token_matches("b" * 64)
+    assert not token_matches(None)
+
+###############################################################################
+def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
+    output, manifest, stdout, staging, script = _build_runtime_bundle(tmp_path)
     assert output.is_file()
     with zipfile.ZipFile(output) as archive:
         assert "settings/configurations.json" not in archive.namelist()
@@ -102,7 +167,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     assert manifest["architecture"] == "windows-x64"
     assert manifest["source_commit"] == "0" * 40
     assert manifest["payload_sha256"]
-    assert "runtime-manifest.json" not in completed.stdout
+    assert "runtime-manifest.json" not in stdout
     verified = verify_archive(
         output,
         expected_version="3.1.0",
@@ -137,6 +202,16 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="missing required"):
         verify_archive(
             missing_required,
+            expected_version="3.1.0",
+            expected_variant="cpu",
+            expected_source_commit="0" * 40,
+    )
+
+    cache_archive = tmp_path / "cache-member.zip"
+    _copy_archive_with_member(output, cache_archive, "runtimes/cache/marker", b"forbidden")
+    with pytest.raises(ValueError, match="contains forbidden member"):
+        verify_archive(
+            cache_archive,
             expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
@@ -191,32 +266,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             expected_source_commit="0" * 40,
         )
 
-    (staging / "logs").mkdir()
-    (staging / "logs" / "backend.log").write_text("forbidden", encoding="utf-8")
-    rejected = subprocess.run(
-        [
-            sys.executable,
-            str(script),
-            "--staging",
-            str(staging),
-            "--output",
-            str(tmp_path / "rejected.zip"),
-            "--version",
-            "3.1.0",
-            "--variant",
-            "cpu",
-            "--architecture",
-            "windows-x64",
-            "--source-commit",
-            "0" * 40,
-            "--audit",
-            str(tmp_path / "rejected.json"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert rejected.returncode != 0
-    assert "forbidden runtime staging entry" in rejected.stderr
+    _assert_log_staging_is_rejected(tmp_path, staging, script)
 
     unsafe = tmp_path / "unsafe.zip"
     with zipfile.ZipFile(unsafe, "w") as archive:
