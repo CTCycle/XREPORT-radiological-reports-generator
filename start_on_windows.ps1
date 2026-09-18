@@ -26,14 +26,41 @@ $UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
 $NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
 $PipCacheDir = Join-Path $RuntimeCacheDir 'pip'
 $PlaywrightBrowsersCacheDir = Join-Path $RuntimeCacheDir 'playwright-browsers'
-$ToolCacheDir = Join-Path $RepoRoot 'app\tests\cache'
-$PytestCacheDir = Join-Path $ToolCacheDir 'pytest'
-$PytestTempDir = Join-Path $ToolCacheDir 'pytest-tmp'
-$RuffCacheDir = Join-Path $ToolCacheDir 'ruff'
-$MypyCacheDir = Join-Path $ToolCacheDir 'mypy'
-$PythonCacheDir = Join-Path $ToolCacheDir 'python'
-$CoverageCacheDir = Join-Path $ToolCacheDir 'coverage'
-$AngularCacheDir = Join-Path $ToolCacheDir 'angular'
+$HuggingFaceCacheDir = Join-Path $RuntimeCacheDir 'huggingface'
+$HuggingFaceHubCacheDir = Join-Path $HuggingFaceCacheDir 'hub'
+$HuggingFaceModulesCacheDir = Join-Path $HuggingFaceCacheDir 'modules'
+$HuggingFaceDatasetsCacheDir = Join-Path $HuggingFaceCacheDir 'datasets'
+$TorchCacheDir = Join-Path $RuntimeCacheDir 'torch'
+$KerasCacheDir = Join-Path $RuntimeCacheDir 'keras'
+$MatplotlibCacheDir = Join-Path $RuntimeCacheDir 'matplotlib'
+$PytestCacheDir = Join-Path $RuntimeCacheDir 'pytest'
+$PytestTempDir = Join-Path $RuntimeCacheDir 'pytest-tmp'
+$RuffCacheDir = Join-Path $RuntimeCacheDir 'ruff'
+$MypyCacheDir = Join-Path $RuntimeCacheDir 'mypy'
+$PythonCacheDir = Join-Path $RuntimeCacheDir 'python'
+$CoverageCacheDir = Join-Path $RuntimeCacheDir 'coverage'
+$AngularCacheDir = Join-Path $RuntimeCacheDir 'angular'
+$CanonicalCacheDirectories = @(
+    $RuntimeCacheDir,
+    $UvCacheDir,
+    $NpmCacheDir,
+    $PipCacheDir,
+    $PlaywrightBrowsersCacheDir,
+    $HuggingFaceCacheDir,
+    $HuggingFaceHubCacheDir,
+    $HuggingFaceModulesCacheDir,
+    $HuggingFaceDatasetsCacheDir,
+    $TorchCacheDir,
+    $KerasCacheDir,
+    $MatplotlibCacheDir,
+    $PytestCacheDir,
+    $PytestTempDir,
+    $RuffCacheDir,
+    $MypyCacheDir,
+    $PythonCacheDir,
+    $CoverageCacheDir,
+    $AngularCacheDir
+)
 $NodeDir = Join-Path $RuntimesDir 'nodejs'
 $NodeExe = Join-Path $NodeDir 'node.exe'
 $NpmCmd = Join-Path $NodeDir 'npm.cmd'
@@ -222,22 +249,30 @@ function Invoke-Checked {
 }
 
 function Initialize-Environment {
-    New-Item -ItemType Directory -Path @(
-        $RuntimeCacheDir, $UvCacheDir, $NpmCacheDir, $PipCacheDir,
-        $PlaywrightBrowsersCacheDir, $ToolCacheDir, $PytestCacheDir,
-        $PytestTempDir, $RuffCacheDir, $MypyCacheDir, $PythonCacheDir,
-        $CoverageCacheDir, $AngularCacheDir
-    ) -Force | Out-Null
+    New-Item -ItemType Directory -Path $CanonicalCacheDirectories -Force | Out-Null
+    $env:XREPORT_CACHE_ROOT = $RuntimeCacheDir
+    $env:XDG_CACHE_HOME = $RuntimeCacheDir
     $env:UV_CACHE_DIR = $UvCacheDir
     $env:PIP_CACHE_DIR = $PipCacheDir
     $env:NPM_CONFIG_CACHE = $NpmCacheDir
     $env:npm_config_cache = $NpmCacheDir
     $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightBrowsersCacheDir
-    $env:XDG_CACHE_HOME = $ToolCacheDir
+    $env:PYTEST_CACHE_DIR = $PytestCacheDir
+    $env:PYTEST_BASETEMP = $PytestTempDir
     $env:RUFF_CACHE_DIR = $RuffCacheDir
     $env:MYPY_CACHE_DIR = $MypyCacheDir
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:COVERAGE_FILE = Join-Path $CoverageCacheDir '.coverage'
+    $env:HF_HOME = $HuggingFaceCacheDir
+    $env:HF_HUB_CACHE = $HuggingFaceHubCacheDir
+    $env:HF_MODULES_CACHE = $HuggingFaceModulesCacheDir
+    $env:HF_DATASETS_CACHE = $HuggingFaceDatasetsCacheDir
+    $env:TORCH_HOME = $TorchCacheDir
+    $env:KERAS_HOME = $KerasCacheDir
+    $env:MPLCONFIGDIR = $MatplotlibCacheDir
+    $env:HF_HUB_DISABLE_IMPLICIT_TOKEN = '1'
+    Remove-Item Env:HF_CACHE_DIR -ErrorAction SilentlyContinue
+    Remove-Item Env:TRANSFORMERS_CACHE -ErrorAction SilentlyContinue
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:UV_LINK_MODE = 'copy'
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
@@ -925,7 +960,7 @@ function Invoke-DesktopBackendFreeze {
     # layout and its Python DLL dependency graph remain intact.
     Copy-Item -LiteralPath $frozenBackend -Destination (Join-Path $stagingRoot 'backend') -Recurse -Force
     $stagedBackend = Join-Path $stagingRoot 'backend'
-    $pruneDirectoryNames = @('__pycache__', '.pytest_cache', '.ruff_cache', 'tests', 'test')
+    $pruneDirectoryNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.cache', 'cache', 'caches', 'tests', 'test')
     $pruneDirectories = @(Get-ChildItem -LiteralPath $stagedBackend -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
         $_.Name -in $pruneDirectoryNames -or
         $_.Name -match '^(pytest|playwright|ruff|pyright|jupyter|notebook|pip|setuptools|uv)([-.].*)?\.dist-info$'
@@ -1724,7 +1759,7 @@ function Remove-LauncherPath {
             }
             if ($WhatIf) { continue }
             try {
-                Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+                Remove-Item -LiteralPath $entry.FullName -Force -Recurse -Confirm:$false -ErrorAction Stop
                 [void]$removedPaths.Add($entry.FullName)
             }
             catch {
@@ -1749,12 +1784,86 @@ function Remove-LauncherPath {
 }
 
 function Get-LegacyCacheDirectories {
-    $legacyNames = @('__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.pyright')
+    $legacyPaths = @(
+        (Join-Path $RepoRoot 'app\tests\cache'),
+        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
+        (Join-Path $RepoRoot '.pytest_cache'),
+        (Join-Path $RepoRoot '.ruff_cache'),
+        (Join-Path $RepoRoot '.mypy_cache'),
+        (Join-Path $RepoRoot '.pyright'),
+        (Join-Path $RepoRoot '.uv-cache'),
+        (Join-Path $RepoRoot '.pytest-tmp'),
+        (Join-Path $RuntimesDir '.uv-cache'),
+        (Join-Path $ServerDir 'runtimes\cache'),
+        (Join-Path $ClientDir '.angular\cache'),
+        (Join-Path $ClientDir 'node_modules\.cache'),
+        (Join-Path $ClientDir 'coverage')
+    )
+    $resourceRoots = @(
+        (Join-Path $RepoRoot 'app\resources'),
+        (Get-ConfiguredResourceRoot)
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
+    foreach ($resourceRoot in $resourceRoots) {
+        $legacyPaths += @(
+            (Join-Path $resourceRoot 'cache'),
+            (Join-Path $resourceRoot 'caches'),
+            (Join-Path $resourceRoot '.cache'),
+            (Join-Path $resourceRoot '__pycache__'),
+            (Join-Path $resourceRoot 'models\.cache'),
+            (Join-Path $resourceRoot 'models\huggingface\hub-cache'),
+            (Join-Path $resourceRoot 'models\huggingface\.cache'),
+            (Join-Path $resourceRoot 'models\huggingface\cache'),
+            (Join-Path $resourceRoot 'models\torch'),
+            (Join-Path $resourceRoot 'models\keras'),
+            (Join-Path $resourceRoot 'matplotlib')
+        )
+    }
+    $qaRoots = @(
+        (Join-Path $RepoRoot 'assets\QA'),
+        (Join-Path $RepoRoot 'app\server\assets\QA')
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
+    foreach ($qaRoot in $qaRoots) {
+        if (Test-Path -LiteralPath $qaRoot -PathType Container) {
+            $legacyPaths += @(
+                Get-ChildItem -LiteralPath $qaRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+                    Where-Object {
+                        $_.Name -in @('.pytest_cache', '.ruff_cache', '.mypy_cache') -or
+                        $_.Name -like 'pytest-cache*'
+                    }
+            )
+        }
+    }
+
+    $legacyNames = @(
+        '__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache',
+        '.pyright', '.cache', 'cache', 'caches'
+    )
     $excludedNames = @('.git', '.venv', 'node_modules', 'dist', 'build', 'release', 'target')
-    $resourcesRoot = Join-Path $RepoRoot 'app\resources'
+    $skipSubtrees = @(
+        $RuntimesDir,
+        $VenvDir,
+        (Join-Path $RepoRoot '.venv'),
+        (Join-Path $ClientDir 'node_modules'),
+        (Join-Path $DesktopDir 'node_modules'),
+        $DesktopTargetDir,
+        $qaRoots,
+        (Join-Path $ClientDir '.angular'),
+        (Join-Path $RepoRoot 'app\tests\cache'),
+        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
+        (Join-Path $ServerDir 'runtimes\cache')
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
     $pending = [Collections.Generic.Stack[string]]::new()
     $pending.Push($RepoRoot)
     $found = [Collections.Generic.List[object]]::new()
+    $foundPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($legacyPath in @($legacyPaths)) {
+        $candidatePath = if ($legacyPath -is [IO.FileSystemInfo]) { $legacyPath.FullName } else { [string]$legacyPath }
+        if (-not (Test-Path -LiteralPath $candidatePath)) { continue }
+        $legacyItem = Get-Item -LiteralPath $candidatePath -Force -ErrorAction SilentlyContinue
+        if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
+            [void]$found.Add($legacyItem)
+        }
+    }
     $progressId = Start-LauncherProgress -Activity 'XREPORT: find legacy caches' -Status 'Scanning repository directories'
     try {
         while ($pending.Count -gt 0) {
@@ -1768,14 +1877,22 @@ function Get-LegacyCacheDirectories {
             }
             foreach ($childPath in $childDirectories) {
                 $childName = Split-Path -Leaf $childPath
-                if ($childName -in $excludedNames -or
-                    $childPath.Equals($resourcesRoot, [StringComparison]::OrdinalIgnoreCase) -or
-                    $childPath.StartsWith("$resourcesRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                $isSkippedSubtree = $false
+                foreach ($skipRoot in $skipSubtrees) {
+                    if ($childPath.Equals($skipRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                        $childPath.StartsWith("$skipRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                        $isSkippedSubtree = $true
+                        break
+                    }
+                }
+                if ($isSkippedSubtree -or $childName -in $excludedNames -or
+                    $childPath.StartsWith((Join-Path $RepoRoot 'app\resources') + '\', [StringComparison]::OrdinalIgnoreCase)) {
                     continue
                 }
-                if ($childName -in $legacyNames) {
+                $isPytestCache = $childName -match '^pytest[-_](cache|tmp|integration|e2e|release|full|runtime|settings)'
+                if ($childName -in $legacyNames -or $isPytestCache) {
                     $legacyItem = Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
-                    if ($null -ne $legacyItem) {
+                    if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
                         [void]$found.Add($legacyItem)
                     }
                     continue
@@ -1806,13 +1923,7 @@ function Remove-PythonCaches {
 function Clear-ApplicationCache {
     if (-not (Confirm-DestructiveAction 'clear application caches')) { return }
     $targets = @(
-        $RuntimeCacheDir,
-        $ToolCacheDir,
-        (Join-Path $RuntimesDir '.uv-cache'),
-        (Join-Path $RepoRoot '.pytest-tmp'),
-        (Join-Path $ClientDir '.angular\cache'),
-        (Join-Path $ClientDir 'node_modules\.cache'),
-        (Join-Path $ClientDir 'coverage')
+        $RuntimeCacheDir
     )
     $legacyCaches = @(Get-LegacyCacheDirectories)
     $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName })) |
@@ -1824,7 +1935,8 @@ function Clear-ApplicationCache {
         for ($index = 0; $index -lt $allTargets.Count; $index++) {
             $target = $allTargets[$index]
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
-            [void]$results.Add((Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target"))
+            $preserveNames = if ([IO.Path]::GetFullPath($target).TrimEnd('\').Equals([IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) { @('.gitkeep') } else { @() }
+            [void]$results.Add((Remove-LauncherPath -Path $target -PreserveNames $preserveNames -Activity "XREPORT: remove $target"))
         }
     }
     finally {
@@ -1838,14 +1950,13 @@ function Clear-ApplicationCache {
     } else {
         Write-Ok "Application caches cleared: removed $removed item(s)."
     }
-    New-Item -ItemType Directory -Path $RuntimeCacheDir, $ToolCacheDir -Force | Out-Null
+    Initialize-Environment
 }
 
 function Uninstall-Application {
     if (-not (Confirm-DestructiveAction 'remove application runtimes, dependencies, and build outputs')) { return }
     $targets = @(
         $RuntimesDir,
-        $ToolCacheDir,
         $VenvDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),

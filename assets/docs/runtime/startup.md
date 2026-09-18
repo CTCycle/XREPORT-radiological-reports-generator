@@ -117,6 +117,13 @@ CPU/CUDA configurations, and generated OpenAPI version against that value.
 
 ## Manual Backend And Frontend
 
+Source-mode manual commands use the repository's canonical disposable-cache
+root. From the repository root, set `XREPORT_CACHE_ROOT="$PWD/runtimes/cache"`
+and the related `XDG_CACHE_HOME`, `UV_CACHE_DIR`, `PIP_CACHE_DIR`,
+`NPM_CONFIG_CACHE`, `PLAYWRIGHT_BROWSERS_PATH`, `PYTHONPYCACHEPREFIX`, and
+`MPLCONFIGDIR` variables below that root before running these commands. The
+Windows launcher exports the same locations automatically.
+
 PowerShell:
 
 ```powershell
@@ -151,11 +158,18 @@ canonical database registry.
 
 ## Development Cache Locations
 
-Disposable runtime caches are kept under `runtimes/cache`, with separate
-subdirectories for uv, npm, pip, and Playwright browser downloads. Pytest,
-Ruff, Python bytecode, coverage, and other development-tool caches are kept
-under `app/tests/cache`. The test runner uses
-`app/tests/cache/pytest-tmp` for pytest's temporary test directory.
+All disposable application, ML, frontend, runtime, and test caches are kept
+under the single canonical `runtimes/cache` root. Its subdirectories include
+`pytest`, `pytest-tmp`, `ruff`, `python`, `coverage`, `angular`, `uv`, `pip`,
+`npm`, `playwright-browsers`, `huggingface`, `torch`, `keras`, and
+`matplotlib`. Packaged launches use the same hierarchy below the writable
+`<data-root>/runtimes/cache` path; persistent models and application data stay
+outside it.
+
+The cleanup action also performs a narrowly scoped, cleanup-only sweep for
+legacy root pytest/Ruff/uv directories, the former `app/tests/cache` trees,
+client-local cache directories, and old transient model-cache paths. Those
+legacy paths are never active configuration and are not recreated.
 
 Select **Clear cache** in the maintenance menu, or run:
 

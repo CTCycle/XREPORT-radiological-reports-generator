@@ -126,9 +126,11 @@ in `start_on_windows.ps1` for explicit database and schema initialization.
   explicit `XREPORT_RESOURCES_DIR` override when provided. Packaged mode uses
   the runtime/data roots supplied by the Tauri shell; it does not infer them
   from the current working directory or executable location.
-- The application owns all model caches under `<resource root>/models`.
-  `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the
-  backend at startup; hostile or stale user-level cache variables, including
-  deprecated `TRANSFORMERS_CACHE`, are cleared.
+- The application owns all transient model/tool caches under the canonical
+  `<runtime root>/runtimes/cache` path in source mode or
+  `<data root>/runtimes/cache` in packaged mode. `HF_HOME`, `HF_HUB_CACHE`,
+  `HF_MODULES_CACHE`, `HF_DATASETS_CACHE`, `TORCH_HOME`, `KERAS_HOME`, and
+  `MPLCONFIGDIR` are set to subdirectories below that root at startup; hostile
+  global cache values, including deprecated `TRANSFORMERS_CACHE`, are cleared.
 - The external catalogue contains exactly five SHA-pinned public report-generation models (four chest-X-ray specialists and the broader gated MedGemma option). Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
 - Installed metadata is stored in `<resource root>/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.

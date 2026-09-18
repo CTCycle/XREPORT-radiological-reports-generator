@@ -213,7 +213,7 @@ fn safe_member(name: &str) -> Result<PathBuf, String> {
         || lower.split('/').any(|part| {
             matches!(
                 part,
-                "__pycache__" | ".pytest_cache" | ".ruff_cache" | "node_modules"
+                "__pycache__" | ".pytest_cache" | ".ruff_cache" | ".cache" | "node_modules"
             )
         })
         || lower.starts_with("models/")
@@ -222,7 +222,7 @@ fn safe_member(name: &str) -> Result<PathBuf, String> {
         || lower.starts_with("resources/")
         || lower
             .split('/')
-            .any(|part| matches!(part, ".git" | "tests" | "test" | "caches"))
+            .any(|part| matches!(part, ".git" | "tests" | "test" | "cache" | "caches"))
     {
         return Err(format!("forbidden runtime archive member: {name}"));
     }

@@ -124,7 +124,7 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
         installation_module.HF_INSTALLED_DIR,
         installation_module.HF_ROLLBACK_DIR,
         installation_module.HF_METADATA_DIR,
-        resources / "models" / "huggingface" / "hub",
+        root / "runtimes" / "cache" / "huggingface" / "hub",
     ):
         path.mkdir(parents=True, exist_ok=True)
     return root
@@ -357,7 +357,7 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     installed = installation_module.HF_INSTALLED_DIR / slug / REVISION
     rollback = installation_module.HF_ROLLBACK_DIR / slug / NEXT_REVISION
     staged = installation_module.HF_STAGING_DIR / "operation" / slug / REVISION
-    hub_cache = manager_paths / "app" / "resources" / "models" / "huggingface" / "hub"
+    hub_cache = manager_paths / "runtimes" / "cache" / "huggingface" / "hub"
     cache = hub_cache / "models--example--report-model" / "snapshots" / REVISION
     unrelated = (
         installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION

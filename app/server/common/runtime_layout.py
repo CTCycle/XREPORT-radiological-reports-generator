@@ -56,6 +56,13 @@ class RuntimeLayout:
         )
 
     # -------------------------------------------------------------------------
+    @property
+    def cache_root(self) -> Path:
+        """Return the writable disposable-cache root for this runtime mode."""
+        owner_root = self.data_root if self.packaged else self.runtime_root
+        return owner_root / "runtimes" / "cache"
+
+    # -------------------------------------------------------------------------
     @classmethod
     def from_environment(cls) -> "RuntimeLayout":
         packaged = _truthy(os.getenv("XREPORT_DESKTOP"))
@@ -198,6 +205,7 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
         "validation_receipts",
     ):
         (layout.data_root / name).mkdir(parents=True, exist_ok=True)
+    layout.cache_root.mkdir(parents=True, exist_ok=True)
 
 ###############################################################################
 def remove_legacy_configuration_file(layout: RuntimeLayout) -> None:

@@ -35,6 +35,8 @@ FORBIDDEN_PARTS = {
     "tests",
     "test",
     "logs",
+    "cache",
+    ".cache",
     "caches",
 }
 FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pyc", ".pyo"}

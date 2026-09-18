@@ -4,10 +4,50 @@ Provides fixtures for Playwright page objects and API client.
 """
 
 import os
+from pathlib import Path
+import sys
 import threading
 from queue import Queue
 
 import pytest
+
+
+###############################################################################
+def _configure_test_cache_environment() -> None:
+    """Keep direct pytest invocations on the same cache layout as launchers."""
+    cache_root = Path(__file__).resolve().parents[2] / "runtimes" / "cache"
+    paths = {
+        "XREPORT_CACHE_ROOT": cache_root,
+        "XDG_CACHE_HOME": cache_root,
+        "UV_CACHE_DIR": cache_root / "uv",
+        "PIP_CACHE_DIR": cache_root / "pip",
+        "NPM_CONFIG_CACHE": cache_root / "npm",
+        "npm_config_cache": cache_root / "npm",
+        "PLAYWRIGHT_BROWSERS_PATH": cache_root / "playwright-browsers",
+        "PYTEST_CACHE_DIR": cache_root / "pytest",
+        "PYTEST_BASETEMP": cache_root / "pytest-tmp",
+        "RUFF_CACHE_DIR": cache_root / "ruff",
+        "MYPY_CACHE_DIR": cache_root / "mypy",
+        "PYTHONPYCACHEPREFIX": cache_root / "python",
+        "COVERAGE_FILE": cache_root / "coverage" / ".coverage",
+        "HF_HOME": cache_root / "huggingface",
+        "HF_HUB_CACHE": cache_root / "huggingface" / "hub",
+        "HF_MODULES_CACHE": cache_root / "huggingface" / "modules",
+        "HF_DATASETS_CACHE": cache_root / "huggingface" / "datasets",
+        "TORCH_HOME": cache_root / "torch",
+        "KERAS_HOME": cache_root / "keras",
+        "MPLCONFIGDIR": cache_root / "matplotlib",
+    }
+    for path in {value for value in paths.values() if isinstance(value, Path)}:
+        path.mkdir(parents=True, exist_ok=True)
+    for name, value in paths.items():
+        os.environ[name] = str(value)
+    sys.pycache_prefix = str(cache_root / "python")
+    os.environ.pop("HF_CACHE_DIR", None)
+    os.environ.pop("TRANSFORMERS_CACHE", None)
+
+
+_configure_test_cache_environment()
 
 ###############################################################################
 def _normalize_host(value: str) -> str:

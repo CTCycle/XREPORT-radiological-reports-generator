@@ -296,7 +296,7 @@ class ModelInstallationManager:
         files: dict[str, dict[str, Any]] = {}
         total_bytes = 0
         for path in sorted(snapshot.rglob("*")):
-            if not path.is_file() or ".cache" in path.parts:
+            if not path.is_file():
                 continue
             relative = path.relative_to(snapshot).as_posix()
             size = path.stat().st_size
@@ -441,24 +441,6 @@ class ModelInstallationManager:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _recover_cached_partials(
-        target: Path,
-        files: Mapping[str, Mapping[str, Any]],
-    ) -> None:
-        for cached_partial in target.rglob("*.incomplete"):
-            if ".cache" not in cached_partial.parts:
-                continue
-            for name, details in files.items():
-                expected_hash = str(details.get("sha256") or "")
-                if expected_hash and expected_hash in cached_partial.name:
-                    destination = target / f"{name}.incomplete"
-                    if not destination.exists():
-                        destination.parent.mkdir(parents=True, exist_ok=True)
-                        os.replace(cached_partial, destination)
-                    break
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _clean_unapproved_files(
         target: Path,
         files: Mapping[str, Mapping[str, Any]],
@@ -470,9 +452,6 @@ class ModelInstallationManager:
                 and existing.relative_to(target).as_posix() not in allowed
             ):
                 existing.unlink()
-        cache_dir = target / ".cache"
-        if cache_dir.exists():
-            shutil.rmtree(cache_dir, ignore_errors=True)
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -620,7 +599,6 @@ class ModelInstallationManager:
                 repository_id,
                 source_files,
             )
-            self._recover_cached_partials(target, files)
             if clean_unapproved:
                 self._clean_unapproved_files(target, files)
             total_bytes = sum(

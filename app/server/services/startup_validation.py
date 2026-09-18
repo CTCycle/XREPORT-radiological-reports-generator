@@ -4,9 +4,23 @@ from pathlib import Path
 from time import perf_counter
 
 from server.common.path import (
+    ANGULAR_CACHE_DIR,
     CHECKPOINTS_DIR,
+    COVERAGE_CACHE_DIR,
+    HF_DATASETS_CACHE_DIR,
     LOGS_DIR,
+    HF_MODULES_CACHE_DIR,
     MODELS_DIR,
+    MATPLOTLIB_CACHE_DIR,
+    MYPY_CACHE_DIR,
+    NPM_CACHE_DIR,
+    PIP_CACHE_DIR,
+    PLAYWRIGHT_BROWSERS_CACHE_DIR,
+    PYTHON_CACHE_DIR,
+    PYTEST_BASETEMP_DIR,
+    PYTEST_CACHE_DIR,
+    RUNTIME_CACHE_DIR,
+    RUFF_CACHE_DIR,
     RESOURCES_DIR,
     TEMPLATES_DIR,
     TOKENIZERS_DIR,
@@ -18,6 +32,7 @@ from server.common.path import (
     HUGGINGFACE_MODELS_DIR,
     KERAS_CACHE_DIR,
     TORCH_CACHE_DIR,
+    UV_CACHE_DIR,
 )
 from server.common.utils.logger import logger
 from server.configurations import (
@@ -54,6 +69,21 @@ def run_startup_validations(
     )
 
     for directory in (
+        RUNTIME_CACHE_DIR,
+        UV_CACHE_DIR,
+        PIP_CACHE_DIR,
+        NPM_CACHE_DIR,
+        PLAYWRIGHT_BROWSERS_CACHE_DIR,
+        PYTEST_CACHE_DIR,
+        PYTEST_BASETEMP_DIR,
+        RUFF_CACHE_DIR,
+        MYPY_CACHE_DIR,
+        PYTHON_CACHE_DIR,
+        COVERAGE_CACHE_DIR,
+        ANGULAR_CACHE_DIR,
+        HF_DATASETS_CACHE_DIR,
+        HF_MODULES_CACHE_DIR,
+        MATPLOTLIB_CACHE_DIR,
         RESOURCES_DIR,
         LOGS_DIR,
         MODELS_DIR,

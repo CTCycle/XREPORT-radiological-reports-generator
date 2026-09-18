@@ -141,11 +141,31 @@ fn read_ready(path: &Path, version: &str, variant: &str) -> Result<Option<ReadyC
 
 fn configure_process(command: &mut Command, data_root: &Path) -> Result<(), String> {
     let nltk_root = data_root.join("nltk");
-    let matplotlib_root = data_root.join("caches").join("matplotlib");
+    let cache_root = data_root.join("runtimes").join("cache");
+    let huggingface_root = cache_root.join("huggingface");
+    let huggingface_hub_root = huggingface_root.join("hub");
+    let huggingface_modules_root = huggingface_root.join("modules");
+    let huggingface_datasets_root = huggingface_root.join("datasets");
+    let torch_root = cache_root.join("torch");
+    let keras_root = cache_root.join("keras");
+    let python_cache_root = cache_root.join("python");
+    let matplotlib_root = cache_root.join("matplotlib");
     fs::create_dir_all(&nltk_root)
         .map_err(|error| format!("create NLTK data directory: {error}"))?;
     fs::create_dir_all(&matplotlib_root)
         .map_err(|error| format!("create Matplotlib cache directory: {error}"))?;
+    for (name, path) in [
+        ("Hugging Face cache", &huggingface_root),
+        ("Hugging Face hub cache", &huggingface_hub_root),
+        ("Hugging Face modules cache", &huggingface_modules_root),
+        ("Hugging Face datasets cache", &huggingface_datasets_root),
+        ("Torch cache", &torch_root),
+        ("Keras cache", &keras_root),
+    ] {
+        fs::create_dir_all(path).map_err(|error| format!("create {name}: {error}"))?;
+    }
+    fs::create_dir_all(&python_cache_root)
+        .map_err(|error| format!("create Python cache directory: {error}"))?;
     command
         .env_clear()
         .env("PATH", std::env::var("PATH").unwrap_or_default())
@@ -156,6 +176,15 @@ fn configure_process(command: &mut Command, data_root: &Path) -> Result<(), Stri
         .env("WINDIR", std::env::var("WINDIR").unwrap_or_default())
         .env("TEMP", std::env::var("TEMP").unwrap_or_default())
         .env("TMP", std::env::var("TMP").unwrap_or_default())
+        .env("XREPORT_CACHE_ROOT", &cache_root)
+        .env("XDG_CACHE_HOME", &cache_root)
+        .env("HF_HOME", &huggingface_root)
+        .env("HF_HUB_CACHE", &huggingface_hub_root)
+        .env("HF_MODULES_CACHE", &huggingface_modules_root)
+        .env("HF_DATASETS_CACHE", &huggingface_datasets_root)
+        .env("TORCH_HOME", &torch_root)
+        .env("KERAS_HOME", &keras_root)
+        .env("PYTHONPYCACHEPREFIX", &python_cache_root)
         .env("USERNAME", std::env::var("USERNAME").unwrap_or_default())
         .env(
             "USERPROFILE",

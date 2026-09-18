@@ -60,10 +60,20 @@ app/resources/
 │   ├── installed/<model>/<revision>/    # active verified snapshot
 │   ├── staging/<operation>/<model>/<revision>/
 │   ├── rollback/<model>/<revision>/
-│   ├── metadata/<model>.json             # lifecycle and integrity metadata
-│   └── hub-cache/<model-cache>/           # model-specific Hub cache
+│   └── metadata/<model>.json             # lifecycle and integrity metadata
 ├── tokenizers/
 ├── XRAYEncoder/
+```
+
+Transient Hub, Torch, and Keras data is kept outside the persistent model tree
+under `runtimes/cache/huggingface`, `runtimes/cache/torch`, and
+`runtimes/cache/keras` (or the equivalent packaged data-root cache). The
+cleanup action may remove those caches without removing installed snapshots,
+metadata, checkpoints, or tokenizers.
+
+```text
+runtimes/cache/
+├── huggingface/{hub,modules,datasets}/
 ├── torch/
 └── keras/
 ```
@@ -86,8 +96,9 @@ replaces a working active revision.
 
 Delete local files is explicit and confirmation-gated. The runtime lock refuses
 deletion while inference is active, unloads an idle resident model, and removes
-only that public repository's active, candidate/staging, rollback, metadata, and
-model-specific Hub-cache paths. The response reports bytes reclaimed. The JSON
+only that public repository's active, candidate/staging, rollback, and metadata
+paths. Transient cache data lives below the canonical cache root and is not part
+of persistent model installation. The response reports bytes reclaimed. The JSON
 catalogue and all custom XREPORT checkpoints remain untouched, so the same
 public card returns to `not_downloaded` and can be downloaded again.
 

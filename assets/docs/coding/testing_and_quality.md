@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-09-17
+Last updated: 2026-09-18
 
 ## Tooling And Quality Gates
 
@@ -27,7 +27,9 @@ Last updated: 2026-09-17
 - Maintain compatibility with existing CMD launcher and build scripts where those scripts are the operational entrypoints.
 - Use PowerShell for advanced scripting and automation when needed.
 - Keep environment variable names and path semantics consistent with current scripts.
-- The Windows test runner uses the ignored repository-local `.pytest-tmp` path as pytest's basetemp so managed user temp ACLs do not prevent test setup.
+- All disposable test and tooling state belongs under `runtimes/cache`; the
+  Windows test runner passes `runtimes/cache/pytest-tmp` as pytest's basetemp
+  and `runtimes/cache/pytest` as its cache directory.
 - Synchronous tests that await application coroutines must use the shared thread helper in `tests.conftest` when Playwright's synchronous E2E plugin is enabled.
 
 ## Documentation And Change Discipline
