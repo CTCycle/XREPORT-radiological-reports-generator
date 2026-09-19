@@ -36,6 +36,7 @@ describe('SettingsPage', () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
     const page = fixture.componentInstance;
 
     expect(page.draft()?.global.seed).toBe(42);
@@ -62,6 +63,31 @@ describe('SettingsPage', () => {
 
     expect(page.validationErrors().polling_interval).toBeTruthy();
     expect(api.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('switches logical categories while keeping the shared settings form', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(page.activeTab()).toBe('general');
+    expect(element.querySelector('#default-seed')).not.toBeNull();
+    expect(element.querySelector('#local-filesystem-access')).toBeNull();
+
+    (element.querySelector('#settings-tab-data') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(page.activeTab()).toBe('data');
+    expect(element.querySelector('#default-seed')).toBeNull();
+    expect(element.querySelector('#local-filesystem-access')).not.toBeNull();
+
+    (element.querySelector('#settings-tab-advanced') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(page.activeTab()).toBe('advanced');
+    expect(element.querySelector('#polling-interval')).not.toBeNull();
+    expect(element.querySelector('#inference-timeout')).not.toBeNull();
   });
 
   it('delegates reset and replaces the local baseline with the server response', async () => {
