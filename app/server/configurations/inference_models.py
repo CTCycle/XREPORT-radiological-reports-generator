@@ -231,7 +231,6 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
             "config.json",
             "generation_config.json",
             "preprocessor_config.json",
-            "processor_config.json",
             "chat_template.jinja",
             "special_tokens_map.json",
             "tokenizer.json",

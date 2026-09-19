@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-09-17
+Last updated: 2026-09-19
 
 ## Safety scope
 
@@ -36,17 +36,43 @@ multi-view/section-decoding contracts; CheXOne and MedGemma use the shared
 chat-style vision-language path. Custom remote code is imported only from the
 integrity-verified local snapshot.
 
+### Generation profiles and runtime evidence
+
+Every public adapter consumes the selected XREPORT generation profile. The
+deterministic profile uses greedy, non-sampling generation; concise lowers the
+decoder budget and avoids unnecessary beam search on the CXRMate Multi,
+CXRMate-ED, and CXRMate-2 adapters; detailed enables the model-specific larger
+budget and beam settings where the published decoder supports them. CheXOne
+and MedGemma use their chat-style token budgets while retaining non-sampling
+generation. The selected profile is recorded in provenance.
+
+The provider supplies every study adapter with the same cooperative
+`StoppingCriteriaList`. Cancellation requests and the configured deadline are
+checked during Transformers generation; a cancelled or timed-out result is not
+persisted as a completed report.
+
+Inference provenance also records the requested device policy (`auto`, `cpu`,
+or `cuda`), resolved device topology, effective model dtype, CUDA availability,
+and whether a model was actually placed on CUDA. Accelerate/device-map models
+may therefore report a topology such as `cuda:0` plus `cpu`; CUDA availability
+alone is never reported as CUDA execution.
+
+The catalogue currently has no mandatory FlashAttention or quantization path.
+Executable integration, automated contract coverage, and real image-to-report
+quality validation remain separate claims; a successful generation only proves
+that the local technical path executed.
+
 ### CXRMate-ED validation status
 
 CXRMate-ED remains selectable and runnable for research use, but its catalog
-`validation_status` is currently `degraded`. The real three-case canary reaches
-the image tensor, clinical context, and selected generation settings, yet two
-of the three supplied fixtures still produce identical report text. The UI
-shows the warning before generation, and every generated provenance record
-contains `validation_status=degraded`, the warning text, and
-`quality_warnings=["sensitivity_canary_failed"]`. The latest canary record is
-stored under `assets/QA/inference_validation_runs/`; a stale passing receipt
-cannot promote this model while the manifest remains degraded.
+`validation_status` is currently `degraded`. The last completed three-case
+canary reached the image tensor, clinical context, and selected generation
+settings, yet two of the three supplied fixtures still produced identical
+report text. The UI shows the warning before generation, and every generated
+provenance record contains `validation_status=degraded`, the warning text, and
+`quality_warnings=["sensitivity_canary_failed"]`. Cache-only canary attempts
+are recorded under `assets/QA/inference_validation_runs/`; a deferred attempt
+does not promote this model while the manifest remains degraded.
 
 ## Project-local lifecycle
 

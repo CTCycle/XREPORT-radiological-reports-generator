@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from PIL import Image
+import pytest
 import torch
+from transformers import StoppingCriteriaList
 
 from server.configurations import InferenceSettings
 from server.domain.inference import InferenceImage
-from server.models.inference.providers.adapters import MedGemmaAdapter
+from server.models.inference.providers.adapters import (
+    MedGemmaAdapter,
+    StudyGeneration,
+)
 from server.models.inference.providers import huggingface as huggingface_module
 from server.models.inference.providers.huggingface import HuggingFaceProvider
 
@@ -400,3 +406,209 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
     assert result.reports == {"image.png": "report"}
     assert timeout_reads == 1
     assert deadlines == [105.0]
+
+
+def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
+    monkeypatch,
+) -> None:
+    provider = HuggingFaceProvider(_settings())
+    observed: dict[str, object] = {}
+
+    class StudyAdapter:
+        supports_study = True
+
+        def generate_study(self, **kwargs: object) -> StudyGeneration:
+            observed["grad_enabled"] = torch.is_grad_enabled()
+            observed["stopping_criteria"] = kwargs["stopping_criteria"]
+            return StudyGeneration(
+                report="study report",
+                display_sections={"raw_report": "study report"},
+                metadata=[{"filename": "image.png"}],
+            )
+
+    monkeypatch.setattr(
+        HuggingFaceProvider,
+        "validate_manifest",
+        classmethod(lambda _cls, _repository_id, payload: payload),
+    )
+    monkeypatch.setattr(
+        HuggingFaceProvider,
+        "_validate_images",
+        staticmethod(lambda _repository_id, _manifest, _images: None),
+    )
+    model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.float32)
+    monkeypatch.setattr(
+        provider,
+        "_load",
+        lambda _manifest: (model, object(), StudyAdapter()),
+    )
+
+    with torch.enable_grad():
+        result = provider.generate(
+            repository_id="model",
+            manifest={
+                **_manifest(),
+                "repository_id": "model",
+                "output_sections": ["raw_report"],
+            },
+            profile="deterministic",
+            clinical_context="",
+            images=[InferenceImage("image.png", "image/png", _png(), len(_png()))],
+            should_stop=lambda: False,
+            report_progress=lambda *_values: None,
+        )
+
+    assert observed["grad_enabled"] is False
+    assert isinstance(observed["stopping_criteria"], StoppingCriteriaList)
+    assert result.provenance["runtime"] == {
+        "requested_device": "cpu",
+        "resolved_device": "cpu",
+        "resolved_devices": ["cpu"],
+        "model_dtype": "torch.float32",
+        "cuda_available": bool(torch.cuda.is_available()),
+        "cuda_used": False,
+    }
+
+
+def test_device_policy_and_dtype_selection(monkeypatch) -> None:
+    assert HuggingFaceProvider(_settings())._device_map() == "cpu"
+    assert HuggingFaceProvider(
+        InferenceSettings(hf_local_only=True, device="auto", model_timeout=600)
+    )._device_map() == "auto"
+
+    monkeypatch.setattr(huggingface_module.torch.cuda, "is_available", lambda: False)
+    with pytest.raises(RuntimeError, match="CUDA.*unavailable"):
+        HuggingFaceProvider(
+            InferenceSettings(hf_local_only=True, device="cuda", model_timeout=600)
+        )._device_map()
+    assert HuggingFaceProvider._dtype("auto") is torch.float32
+
+    monkeypatch.setattr(huggingface_module.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(
+        huggingface_module.torch.cuda, "is_bf16_supported", lambda: True
+    )
+    assert HuggingFaceProvider._dtype("auto") is torch.bfloat16
+    monkeypatch.setattr(
+        huggingface_module.torch.cuda, "is_bf16_supported", lambda: False
+    )
+    assert HuggingFaceProvider._dtype("auto") is torch.float16
+
+
+def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
+    model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.float16)
+    inputs = {
+        "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
+        "attention_mask": torch.ones((1, 2), dtype=torch.long),
+        "pixel_values": torch.zeros((1, 3, 4, 4), dtype=torch.float32),
+    }
+
+    moved = HuggingFaceProvider._move_inputs(inputs, model)
+
+    assert moved["input_ids"].dtype is torch.long
+    assert moved["attention_mask"].dtype is torch.long
+    assert moved["pixel_values"].dtype is torch.float16
+    assert moved["pixel_values"].device == torch.device("cpu")
+
+
+def test_move_inputs_casts_nested_generation_inputs() -> None:
+    model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.bfloat16)
+    inputs = {
+        "time_deltas": [torch.zeros((1, 2), dtype=torch.float32)],
+        "input_ids": [torch.tensor([1, 2], dtype=torch.long)],
+    }
+
+    moved = HuggingFaceProvider._move_inputs(inputs, model)
+
+    assert moved["time_deltas"][0].dtype is torch.bfloat16
+    assert moved["time_deltas"][0].device == torch.device("cpu")
+    assert moved["input_ids"][0].dtype is torch.long
+
+
+def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
+    model = SimpleNamespace(
+        hf_device_map={"": "cpu", "model.layers.0": "cpu"},
+        dtype=torch.bfloat16,
+    )
+    inputs = {
+        "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
+        "pixel_values": torch.zeros((1, 3, 4, 4), dtype=torch.float32),
+    }
+
+    moved = HuggingFaceProvider._move_inputs(inputs, model)
+
+    assert HuggingFaceProvider._input_device(model) == torch.device("cpu")
+    assert moved["input_ids"].dtype is torch.long
+    assert moved["pixel_values"].dtype is torch.bfloat16
+    assert moved["pixel_values"].device == torch.device("cpu")
+
+    monkeypatch.setattr(huggingface_module.torch.cuda, "is_available", lambda: True)
+    distributed = SimpleNamespace(
+        hf_device_map={"model.embed_tokens": "cuda:0", "lm_head": "cpu"},
+        dtype=torch.bfloat16,
+    )
+    runtime = HuggingFaceProvider(_settings())._runtime_metadata(distributed)
+    assert runtime["resolved_devices"] == ["cuda:0", "cpu"]
+    assert runtime["resolved_device"] == "cuda:0"
+    assert runtime["model_dtype"] == "torch.bfloat16"
+    assert runtime["cuda_available"] is True
+    assert runtime["cuda_used"] is True
+
+
+def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch) -> None:
+    calls: list[tuple[object, ...]] = []
+
+    def fake_to(self, *args: object, **kwargs: object):
+        calls.append((args, kwargs))
+        return self
+
+    monkeypatch.setattr(torch.Tensor, "to", fake_to)
+    model = SimpleNamespace(device=torch.device("cuda:0"), dtype=torch.float16)
+    inputs = {
+        "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
+        "pixel_values": torch.zeros((1, 3, 4, 4), dtype=torch.float32),
+    }
+
+    moved = HuggingFaceProvider._move_inputs(inputs, model)
+
+    assert moved is not inputs
+    assert len(calls) == 2
+    assert calls[0][1]["dtype"] is torch.long
+    assert calls[1][1]["dtype"] is torch.float16
+    assert calls[0][1]["device"] == torch.device("cuda:0")
+
+
+def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        huggingface_module,
+        "is_within_allowed_roots",
+        lambda path: path.resolve().is_relative_to(tmp_path.resolve()),
+    )
+    model = MagicMock()
+    processor = MagicMock()
+    load_calls = 0
+
+    def load_model(_path: str, **_kwargs: object) -> MagicMock:
+        nonlocal load_calls
+        load_calls += 1
+        return model
+
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        lambda _path, **_kwargs: processor,
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        load_model,
+    )
+    provider = HuggingFaceProvider(_settings())
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    manifest = {
+        **_manifest(),
+        "repository_id": "model",
+        "local_snapshot_path": str(snapshot),
+    }
+
+    assert provider._load(manifest)[0] is model
+    assert provider._load(manifest)[0] is model
+    assert load_calls == 1

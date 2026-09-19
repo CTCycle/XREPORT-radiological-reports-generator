@@ -7,8 +7,8 @@ import re
 import shutil
 import threading
 import time
-from collections.abc import Callable, Mapping
-from typing import Any
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, cast
 
 import torch
 from PIL import Image, ImageOps
@@ -195,6 +195,7 @@ class HuggingFaceProvider:
                     f"{repository_id} inference exceeded the configured timeout"
                 )
             provenance = self._provenance(normalized, profile, clinical_context)
+            provenance["runtime"] = self._runtime_metadata(model)
             provenance["input_images"] = metadata
             provenance["report_scope"] = "study" if adapter.supports_study else "image"
             return ProviderGenerationResult(
@@ -231,23 +232,24 @@ class HuggingFaceProvider:
                     original_dimensions=original_dimensions,
                 )
             )
-        generated = adapter.generate_study(
-            model=model,
-            processor=processor,
-            images=study_images,
-            profile=profile,
-            clinical_context=clinical_context,
-            move_inputs=self._move_inputs,
-            stopping_criteria=StoppingCriteriaList(
-                [
-                    _InferenceStoppingCriteria(should_stop, deadline),
-                ]
-            ),
-            output_sections=[
-                str(section)
-                for section in normalized.get("output_sections", ["raw_report"])
-            ],
-        )
+        with torch.inference_mode():
+            generated = adapter.generate_study(
+                model=model,
+                processor=processor,
+                images=study_images,
+                profile=profile,
+                clinical_context=clinical_context,
+                move_inputs=self._move_inputs,
+                stopping_criteria=StoppingCriteriaList(
+                    [
+                        _InferenceStoppingCriteria(should_stop, deadline),
+                    ]
+                ),
+                output_sections=[
+                    str(section)
+                    for section in normalized.get("output_sections", ["raw_report"])
+                ],
+            )
         if should_stop():
             return None
         self._check_deadline(repository_id, deadline)
@@ -577,29 +579,207 @@ class HuggingFaceProvider:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _move_inputs(inputs: Any, model: Any) -> Any:
-        device = getattr(model, "device", None)
-        model_dtype = getattr(model, "dtype", None)
-        if not isinstance(device, torch.device):
-            return (
-                inputs.to(device)
-                if device is not None and hasattr(inputs, "to")
-                else inputs
+    def _as_device(value: Any) -> torch.device | None:
+        if isinstance(value, torch.device):
+            return value
+        if isinstance(value, int) and not isinstance(value, bool):
+            return torch.device(f"cuda:{value}")
+        if isinstance(value, str) and value.strip():
+            try:
+                return torch.device(value.strip())
+            except (RuntimeError, TypeError):
+                return None
+        return None
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _device_label(value: Any) -> str | None:
+        if isinstance(value, int) and not isinstance(value, bool):
+            return f"cuda:{value}"
+        if isinstance(value, torch.device):
+            return str(value)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        return None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _embedding_device(cls, model: Any) -> torch.device | None:
+        get_input_embeddings = getattr(model, "get_input_embeddings", None)
+        if not callable(get_input_embeddings):
+            return None
+        try:
+            embeddings = get_input_embeddings()
+            weight = getattr(embeddings, "weight", None)
+            device = cls._as_device(getattr(weight, "device", None))
+        except (AttributeError, RuntimeError, TypeError):
+            return None
+        return device if device is not None and device.type != "meta" else None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _hook_device(cls, model: Any) -> torch.device | None:
+        hook = getattr(model, "_hf_hook", None)
+        execution_device = cls._as_device(getattr(hook, "execution_device", None))
+        return (
+            execution_device
+            if execution_device is not None and execution_device.type != "meta"
+            else None
+        )
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _device_map_input_device(cls, model: Any) -> torch.device | None:
+        device_map = getattr(model, "hf_device_map", None)
+        if not isinstance(device_map, Mapping):
+            return None
+        preferred_keys = (
+            "",
+            "model.embed_tokens",
+            "embed_tokens",
+            "language_model.model.embed_tokens",
+            "language_model.embed_tokens",
+            "language_model",
+            "decoder",
+            "transformer.wte",
+            "model",
+            "vision_tower",
+            "visual",
+        )
+        for key in preferred_keys:
+            if key not in device_map:
+                continue
+            device = cls._as_device(device_map[key])
+            if device is not None and device.type != "meta":
+                return device
+        for value in device_map.values():
+            device = cls._as_device(value)
+            if device is not None and device.type != "meta":
+                return device
+        return None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _parameter_device(cls, model: Any) -> torch.device | None:
+        parameters: Any = getattr(model, "parameters", None)
+        if not callable(parameters):
+            return None
+        try:
+            parameter = next(iter(cast(Iterable[Any], parameters())))
+            device = cls._as_device(getattr(parameter, "device", None))
+        except (AttributeError, RuntimeError, StopIteration, TypeError):
+            return None
+        return device if device is not None and device.type != "meta" else None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _input_device(cls, model: Any) -> torch.device | None:
+        """Resolve the device expected by the model's first input tensors."""
+        for resolver in (
+            cls._embedding_device,
+            cls._hook_device,
+            cls._device_map_input_device,
+        ):
+            device = resolver(model)
+            if device is not None:
+                return device
+        device = cls._as_device(getattr(model, "device", None))
+        if device is not None and device.type != "meta":
+            return device
+        return cls._parameter_device(model)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _model_dtype(model: Any) -> torch.dtype | None:
+        dtype = getattr(model, "dtype", None)
+        if isinstance(dtype, torch.dtype):
+            return dtype
+        parameters: Any = getattr(model, "parameters", None)
+        if callable(parameters):
+            try:
+                parameter = next(iter(cast(Iterable[Any], parameters())))
+                parameter_dtype = getattr(parameter, "dtype", None)
+                if isinstance(parameter_dtype, torch.dtype):
+                    return parameter_dtype
+            except (AttributeError, RuntimeError, StopIteration, TypeError):
+                pass
+        return None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _resolved_devices(cls, model: Any) -> list[str]:
+        labels: list[str] = []
+        device_map = getattr(model, "hf_device_map", None)
+        if isinstance(device_map, Mapping):
+            labels.extend(
+                label
+                for value in device_map.values()
+                if (label := cls._device_label(value)) is not None
+                and label != "meta"
             )
-        if isinstance(inputs, Mapping):
-            moved_inputs = dict(inputs)
-            for key, value in moved_inputs.items():
-                if not isinstance(value, torch.Tensor):
-                    continue
+        if not labels:
+            for value in (
+                cls._input_device(model),
+                getattr(model, "device", None),
+            ):
+                label = cls._device_label(value)
+                if label is not None and label != "meta":
+                    labels.append(label)
+            if not labels:
+                parameters: Any = getattr(model, "parameters", None)
+                if callable(parameters):
+                    try:
+                        parameter = next(iter(cast(Iterable[Any], parameters())))
+                        label = cls._device_label(getattr(parameter, "device", None))
+                        if label is not None and label != "meta":
+                            labels.append(label)
+                    except (AttributeError, RuntimeError, StopIteration, TypeError):
+                        pass
+        return list(dict.fromkeys(labels))
+
+    # -------------------------------------------------------------------------
+    def _runtime_metadata(self, model: Any) -> dict[str, Any]:
+        resolved_devices = self._resolved_devices(model)
+        input_device = self._device_label(self._input_device(model))
+        resolved_device = input_device or (resolved_devices[0] if resolved_devices else None)
+        cuda_used = any(
+            device == "cuda" or device.startswith("cuda:")
+            for device in resolved_devices
+        )
+        model_dtype = self._model_dtype(model)
+        return {
+            "requested_device": self.settings.device,
+            "resolved_device": resolved_device,
+            "resolved_devices": resolved_devices,
+            "model_dtype": str(model_dtype) if model_dtype is not None else None,
+            "cuda_available": bool(torch.cuda.is_available()),
+            "cuda_used": cuda_used,
+        }
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _move_inputs(cls, inputs: Any, model: Any) -> Any:
+        device = cls._input_device(model)
+        model_dtype = cls._model_dtype(model)
+
+        def move(value: Any) -> Any:
+            if isinstance(value, torch.Tensor):
+                target_device = device or value.device
                 dtype = (
                     model_dtype
-                    if value.is_floating_point()
-                    and isinstance(model_dtype, torch.dtype)
+                    if value.is_floating_point() and model_dtype is not None
                     else value.dtype
                 )
-                moved_inputs[key] = value.to(device=device, dtype=dtype)
-            return moved_inputs
-        return inputs.to(device)
+                return value.to(device=target_device, dtype=dtype)
+            if isinstance(value, Mapping):
+                return {key: move(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [move(item) for item in value]
+            if isinstance(value, tuple):
+                return tuple(move(item) for item in value)
+            return value
+
+        return move(inputs)
 
     # -------------------------------------------------------------------------
     @staticmethod

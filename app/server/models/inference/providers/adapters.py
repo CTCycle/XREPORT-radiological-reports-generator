@@ -151,6 +151,21 @@ class _CXRMateEDPrepareInputs:
         return result
 
 ###############################################################################
+class _CXRMate2PrepareInputs:
+    """Cast generated CXRMate-2 auxiliary tensors to the resident model dtype."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, original: Callable[..., Any], move_inputs: MoveInputs, model: Any) -> None:
+        self.original = original
+        self.move_inputs = move_inputs
+        self.model = model
+        self.__wrapped__ = original
+
+    # -------------------------------------------------------------------------
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.move_inputs(self.original(*args, **kwargs), self.model)
+
+###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     """Bridge old remote-code decoders to Transformers' cache-position API.
 
@@ -171,6 +186,19 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
 
     decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
     decoder._xreport_cache_compat = True
+
+###############################################################################
+def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> None:
+    """Keep remote CXRMate-2 generation-time float tensors aligned with the model."""
+    if getattr(model, "_xreport_cxrmate2_dtype_compat", False):
+        return
+    original = getattr(model, "prepare_inputs_for_generation", None)
+    if not callable(original):
+        return
+    model.prepare_inputs_for_generation = _CXRMate2PrepareInputs(
+        original, move_inputs, model
+    )
+    model._xreport_cxrmate2_dtype_compat = True
 
 ###############################################################################
 def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
@@ -502,6 +530,23 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
     """Published CXRMate multi-view encoder-decoder preprocessing contract."""
 
     supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_length": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_length": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_length": 256,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
 
     # -------------------------------------------------------------------------
     def load_processor(
@@ -541,7 +586,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         stopping_criteria: StoppingCriteriaValue,
         output_sections: list[str],
     ) -> StudyGeneration:
-        del profile, clinical_context, stopping_criteria
+        del clinical_context, output_sections
         image_processor = processor["image_processor"]
         tokenizer = processor["tokenizer"]
         shortest_edge = int(image_processor.size["shortest_edge"])
@@ -561,6 +606,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         batch = torch.stack(tensors, dim=0).unsqueeze(0)
         moved = move_inputs({"pixel_values": batch}, model)
         _ensure_legacy_decoder_cache_compatibility(model)
+        generation_kwargs = self.generation_profiles[profile]
         output = model.generate(
             pixel_values=moved["pixel_values"],
             special_token_ids=[tokenizer.sep_token_id],
@@ -569,8 +615,8 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             pad_token_id=tokenizer.pad_token_id,
             return_dict_in_generate=True,
             use_cache=True,
-            max_length=256,
-            num_beams=4,
+            **generation_kwargs,
+            stopping_criteria=stopping_criteria,
         )
         findings, impression = model.split_and_decode_sections(
             output.sequences,
@@ -795,6 +841,23 @@ class CXRMate2Adapter(StandardImageTextAdapter):
     """Published CXRMate-2 processor and findings/impression decoder."""
 
     supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_length": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_length": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_length": 256,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
 
     # -------------------------------------------------------------------------
     def generate_study(
@@ -809,16 +872,19 @@ class CXRMate2Adapter(StandardImageTextAdapter):
         stopping_criteria: StoppingCriteriaValue,
         output_sections: list[str],
     ) -> StudyGeneration:
-        del profile
+        del output_sections
         processed = processor(
-            images=[item.image for item in images],
+            # CXRMate-2's published processor treats each outer entry as one
+            # study and each inner entry as a current/prior view.
+            images=[[item.image for item in images]],
             indication=clinical_context.strip() or None,
         )
         processed = move_inputs(processed, model)
+        _ensure_cxrmate2_generation_dtype(model, move_inputs)
+        generation_kwargs = self.generation_profiles[profile]
         generated_ids = model.generate(
             **processed,
-            max_length=256,
-            num_beams=4,
+            **generation_kwargs,
             stopping_criteria=stopping_criteria,
         )
         findings, impression = processor.split_and_decode_sections(generated_ids)
