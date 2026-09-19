@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-09-18
+Last updated: 2026-09-19
 
 ## Shared Configuration Sources
 
@@ -81,6 +81,13 @@ The same database row also stores the hidden process policy values
 are not returned by the public Settings API, and are not user-editable.
 `inference.max_loaded_models` was unused and is no longer part of the runtime
 settings model.
+
+Completed local Hugging Face inference records the requested device policy and
+the effective runtime topology and dtype in provenance. For `auto`, the
+Transformers/Accelerate placement is observed after loading; an available CUDA
+device is not treated as used unless the loaded model is actually placed on a
+CUDA device. This metadata is diagnostic evidence and does not imply clinical
+quality validation.
 
 The supported runtime editing workflow is the Settings page in the Angular
 application. It uses `GET /api/settings`, partial `PATCH /api/settings`, and
