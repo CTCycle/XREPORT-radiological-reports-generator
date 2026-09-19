@@ -11,7 +11,6 @@ from queue import Queue
 
 import pytest
 
-
 ###############################################################################
 def _configure_test_cache_environment() -> None:
     """Keep direct pytest invocations on the same cache layout as launchers."""

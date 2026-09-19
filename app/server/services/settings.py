@@ -17,14 +17,17 @@ from server.repositories.application_settings import ApplicationSettingsReposito
 from server.services.errors import InternalServiceError
 
 
+###############################################################################
 class SettingsService:
     """Public projection and persistence boundary for application settings."""
 
+    # -------------------------------------------------------------------------
     def __init__(
         self, repository: ApplicationSettingsRepository | None = None
     ) -> None:
         self.repository = repository or ApplicationSettingsRepository()
 
+    # -------------------------------------------------------------------------
     def get_settings(self) -> ApplicationSettingsResponse:
         try:
             values = self.repository.get_settings()
@@ -34,6 +37,7 @@ class SettingsService:
             ) from exc
         return self._response(values)
 
+    # -------------------------------------------------------------------------
     def update_settings(
         self, patch: ApplicationSettingsPatch
     ) -> ApplicationSettingsResponse:
@@ -45,6 +49,7 @@ class SettingsService:
             ) from exc
         return self._response(values)
 
+    # -------------------------------------------------------------------------
     def reset_settings(self) -> ApplicationSettingsResponse:
         try:
             values = self.repository.reset_public_settings(DEFAULT_APPLICATION_SETTINGS)
@@ -54,6 +59,7 @@ class SettingsService:
             ) from exc
         return self._response(values)
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _flat_patch(patch: ApplicationSettingsPatch) -> dict[str, object]:
         changes: dict[str, object] = {}
@@ -75,6 +81,7 @@ class SettingsService:
             raise ValueError("At least one application setting must be provided")
         return changes
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _response(
         cls, values: ApplicationSettingsValues
@@ -84,6 +91,7 @@ class SettingsService:
             defaults=cls._public_settings(DEFAULT_APPLICATION_SETTINGS),
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _public_settings(
         values: ApplicationSettingsValues,
@@ -104,6 +112,7 @@ class SettingsService:
         )
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_settings_service() -> SettingsService:
     return SettingsService()

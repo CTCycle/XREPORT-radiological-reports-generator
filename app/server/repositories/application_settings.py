@@ -22,12 +22,15 @@ _PUBLIC_COLUMNS = frozenset(
 )
 
 
+###############################################################################
 class ApplicationSettingsRepository:
     """Database authority for the singleton application-settings row."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, database: Database | None = None) -> None:
         self.database = database or get_database()
 
+    # -------------------------------------------------------------------------
     def get_settings(self) -> ApplicationSettingsValues:
         with self.database.read_session() as session:
             record = session.execute(
@@ -39,6 +42,7 @@ class ApplicationSettingsRepository:
             raise RuntimeError("Application settings row is missing")
         return self._validate_record(record)
 
+    # -------------------------------------------------------------------------
     def update_public_settings(
         self, changes: Mapping[str, Any]
     ) -> ApplicationSettingsValues:
@@ -75,6 +79,7 @@ class ApplicationSettingsRepository:
             session.flush()
         return values
 
+    # -------------------------------------------------------------------------
     def reset_public_settings(
         self, defaults: ApplicationSettingsValues
     ) -> ApplicationSettingsValues:
@@ -89,6 +94,7 @@ class ApplicationSettingsRepository:
             }
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _validate_record(
         record: ApplicationSettingsRecord,
