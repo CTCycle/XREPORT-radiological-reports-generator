@@ -6,7 +6,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight,
   lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle,
-  lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2,
+  lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2, lucideX,
 } from '@ng-icons/lucide';
 import { asRecord, readNumber, readString, readStringArray } from '../common/parsers';
 import { InferenceApiService } from '../services/inference-api.service';
@@ -26,7 +26,7 @@ const SECTION_LABELS: Record<OutputSection, string> = { raw_report: 'Raw report'
   standalone: true,
   selector: 'app-inference-page',
   imports: [CommonModule, FormsModule, NgIcon, FeatureTipComponent, HelpPopoverComponent],
-  providers: [provideIcons({ lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle, lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2 })],
+  providers: [provideIcons({ lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle, lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2, lucideX })],
   template: `
     <main class="inference-workspace">
       <header class="workspace-heading"><div class="workspace-title"><h1>Turn a radiograph into a draft report</h1><p>Select a local model, provide the study, then review the generated text before it leaves the workspace.</p></div><div class="research-warning" role="alert"><ng-icon name="lucideAlertTriangle" aria-hidden="true"/><div><strong>Research use only</strong><span>Models and generated drafts are not clinically approved. Qualified review and independent verification are required.</span></div></div></header>
@@ -52,7 +52,7 @@ const SECTION_LABELS: Record<OutputSection, string> = { raw_report: 'Raw report'
               </div>
             </aside>
             @if (selectedModel(); as model) {
-              <div class="model-details"><div class="model-details-top"><div><span class="provider-pill">{{ model.origin === 'custom' ? 'Custom XReport' : 'Public model' }}</span>@if (model.recommended) { <span class="recommended-pill">Recommended</span> }</div></div><h3>{{ model.display_name }}</h3><p class="model-description">{{ model.description }}</p>@if (model.status_message) { <p class="model-note" role="status">{{ model.status_message }}</p> }@if (model.validation_message) { <p class="model-note">Policy: {{ model.validation_message }}</p> }@if (model.validation_receipt_message) { <p class="model-note">Evidence: {{ model.validation_receipt_message }}</p> }<dl class="model-meta-grid"><div><dt>Status</dt><dd>{{ pretty(model.status) }}</dd></div><div><dt>Installation</dt><dd>{{ model.installation_state }} · {{ model.integrity_status }}</dd></div><div><dt>Validation policy</dt><dd>{{ model.validation_status }}</dd></div><div><dt>Validation evidence</dt><dd>{{ model.validation_receipt_status }}</dd></div><div><dt>Anatomy</dt><dd>{{ pretty(model.anatomy_coverage) }}</dd></div><div><dt>Hardware demand</dt><dd>{{ pretty(model.hardware_demand) }}</dd></div><div><dt>Input</dt><dd>{{ pretty(model.input_semantics) }}</dd></div><div><dt>Revision</dt><dd class="wrap-value">{{ model.active_revision || model.model_revision || 'Not configured' }}</dd></div><div><dt>Output</dt><dd>{{ outputLabels(model.output_sections ?? []) }}</dd></div>@if (model.license) { <div><dt>Licence</dt><dd>{{ model.license }}</dd></div> }</dl><div class="capability-list">@for (capability of capabilities(model); track capability) { <span>{{ capability }}</span> }</div>@if (model.origin === 'public') { <div class="maintenance-controls">@if (model.access_policy === 'gated' && model.access_url) { <a class="text-button" [href]="model.access_url" target="_blank" rel="noreferrer">Open model access page</a> }@if (hasAction(model, 'download') || hasAction(model, 'repair')) { <button type="button" class="secondary-button" (click)="maintain(model, modelMaintenanceAction(model))" [disabled]="maintenanceBusy() || !(hasAction(model, 'download') || hasAction(model, 'repair'))">{{ maintenanceJobId() ? 'Downloading…' : modelMaintenanceLabel(model) }}</button> }<button type="button" class="secondary-button" (click)="checkUpdate(model)" [disabled]="maintenanceBusy()">Check for updates</button>@if (maintenanceJobId()) { <div class="maintenance-progress" role="status" aria-live="polite"><div class="progress-heading"><span>{{ maintenanceProgressMessage() }}</span><strong>{{ maintenanceProgress() | number:'1.0-0' }}%</strong></div><div class="progress-track"><span [style.width.%]="maintenanceProgress()"></span></div><small>{{ maintenanceProgressDetail() }}</small><button type="button" class="secondary-button cancel-button" (click)="cancelMaintenance()" [disabled]="maintenanceCancellationRequested()">{{ maintenanceCancellationRequested() ? 'Stopping download…' : 'Cancel download' }}</button></div> }@if (maintenanceMessage()) { <span role="status">{{ maintenanceMessage() }}</span> }</div> }</div>
+              <div class="model-details"><div class="model-details-top"><div><span class="provider-pill">{{ model.origin === 'custom' ? 'Custom XReport' : 'Public model' }}</span>@if (model.recommended) { <span class="recommended-pill">Recommended</span> }</div></div><h3>{{ model.display_name }}</h3><p class="model-description">{{ model.description }}</p>@if (modelNotice(); as notice) { <div class="model-info-banner" role="status"><ng-icon name="lucideAlertTriangle" aria-hidden="true"/><span>{{ notice }}</span><button type="button" class="model-info-dismiss" aria-label="Dismiss model information" title="Dismiss model information" (click)="dismissModelNotice()"><ng-icon name="lucideX" aria-hidden="true"/></button></div> }<dl class="model-meta-grid"><div><dt>Status</dt><dd>{{ pretty(model.status) }}</dd></div><div><dt>Installation</dt><dd>{{ model.installation_state }} · {{ model.integrity_status }}</dd></div><div><dt>Validation policy</dt><dd>{{ model.validation_status }}</dd></div><div><dt>Validation evidence</dt><dd>{{ model.validation_receipt_status }}</dd></div><div><dt>Anatomy</dt><dd>{{ pretty(model.anatomy_coverage) }}</dd></div><div><dt>Hardware demand</dt><dd>{{ pretty(model.hardware_demand) }}</dd></div><div><dt>Input</dt><dd>{{ pretty(model.input_semantics) }}</dd></div><div><dt>Revision</dt><dd class="wrap-value">{{ model.active_revision || model.model_revision || 'Not configured' }}</dd></div><div><dt>Output</dt><dd>{{ outputLabels(model.output_sections ?? []) }}</dd></div>@if (model.license) { <div><dt>Licence</dt><dd>{{ model.license }}</dd></div> }</dl><div class="capability-list">@for (capability of capabilities(model); track capability) { <span>{{ capability }}</span> }</div>@if (model.origin === 'public') { <div class="maintenance-controls">@if (model.access_policy === 'gated' && model.access_url) { <a class="text-button" [href]="model.access_url" target="_blank" rel="noreferrer">Open model access page</a> }@if (hasAction(model, 'download') || hasAction(model, 'repair')) { <button type="button" class="secondary-button" (click)="maintain(model, modelMaintenanceAction(model))" [disabled]="maintenanceBusy() || !(hasAction(model, 'download') || hasAction(model, 'repair'))">{{ maintenanceJobId() ? 'Downloading…' : modelMaintenanceLabel(model) }}</button> }<button type="button" class="secondary-button" (click)="checkUpdate(model)" [disabled]="maintenanceBusy()">Check for updates</button>@if (maintenanceJobId()) { <div class="maintenance-progress" role="status" aria-live="polite"><div class="progress-heading"><span>{{ maintenanceProgressMessage() }}</span><strong>{{ maintenanceProgress() | number:'1.0-0' }}%</strong></div><div class="progress-track"><span [style.width.%]="maintenanceProgress()"></span></div><small>{{ maintenanceProgressDetail() }}</small><button type="button" class="secondary-button cancel-button" (click)="cancelMaintenance()" [disabled]="maintenanceCancellationRequested()">{{ maintenanceCancellationRequested() ? 'Stopping download…' : 'Cancel download' }}</button></div> }@if (maintenanceMessage()) { <span role="status">{{ maintenanceMessage() }}</span> }</div> }</div>
             } @else { <div class="model-details model-details-empty"><strong>Select a model to inspect its contract.</strong><span>The local catalog reports readiness, installation, validation, and supported inputs here.</span></div> }
           </div>
         </section>
@@ -84,6 +84,7 @@ export class InferencePage implements AfterViewInit {
   readonly maintenanceProgressMessage = signal('Preparing model download…');
   readonly maintenanceProgressDetail = signal('');
   readonly maintenanceCancellationRequested = signal(false);
+  readonly modelNoticeDismissedFor = signal<string | null>(null);
   private readonly currentUrl = signal<string | null>(null);
   private readonly drafts = signal<Record<number, DraftSections>>({});
   private readonly studyReport = signal(false);
@@ -97,6 +98,28 @@ export class InferencePage implements AfterViewInit {
   readonly maxImages = computed(() => this.selectedModel()?.max_current_images ?? 1);
   readonly outputSections = computed(() => this.selectedModel()?.output_sections ?? []);
   readonly canGenerate = computed(() => { const status = this.selectedModel()?.status; return Boolean(status && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(status)); });
+  readonly modelNotice = computed(() => {
+    const model = this.selectedModel();
+    if (!model || this.modelNoticeDismissedFor() === model.model_ref) return null;
+    const notices: string[] = [];
+    if (model.access_policy === 'gated' || model.gated) {
+      notices.push('Access is required before this model can be downloaded.');
+    } else if (model.installation_state === 'not_installed' || model.status === 'not_installed' || model.status_message?.toLowerCase().includes('download')) {
+      notices.push('Downloads locally on first Generate.');
+    }
+    if (model.validation_status !== 'passed' || model.validation_receipt_status !== 'passed') {
+      if (model.validation_message || model.validation_receipt_message || model.validation_status !== 'passed') {
+        notices.push('Local files are checked before readiness is promoted by real image-to-report validation.');
+      }
+    }
+    if (!notices.length) {
+      const fallback = [model.status_message, model.validation_message, model.validation_receipt_message]
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value));
+      return [...new Set(fallback)].join(' ') || null;
+    }
+    return notices.join(' ');
+  });
   readonly hasDraft = computed(() => Object.values(this.drafts()[this.state().currentIndex] ?? {}).some((value) => Boolean(value?.trim())) || Boolean(this.state().generatedReport.trim()));
   get modelFilterValue() { return this.modelFilter(); }
   set modelFilterValue(value: string) { this.modelFilter.set(value); }
@@ -117,7 +140,8 @@ export class InferencePage implements AfterViewInit {
   }
   startInferenceTour() { this.guidance.requestTour(INFERENCE_TOUR_ID); }
   private async loadModels() { this.appState.updateInference((state) => ({ ...state, isLoadingModels: true })); this.catalogError.set(null); markStartupPhase('catalog_request_started'); const response = await this.api.getModels(); if (response.result) { this.appState.updateInference((state) => ({ ...state, modelAvailability: response.result!.models, selectedModelRef: response.result!.models.some((model) => model.model_ref === state.selectedModelRef) ? state.selectedModelRef : response.result!.models[0]?.model_ref ?? '', isLoadingModels: false })); markStartupPhase('catalog_loaded'); } else { this.catalogError.set(response.error ?? 'Unable to load the local model catalog.'); this.appState.updateInference((state) => ({ ...state, isLoadingModels: false })); markStartupPhase('catalog_failed'); } }
-  selectModel(model: ModelAvailability) { if (this.maintenanceBusy()) return; this.appState.updateInference((state) => ({ ...state, selectedModelRef: model.model_ref, images: state.images.slice(0, model.max_current_images), currentIndex: 0, clinicalContext: model.capabilities.clinical_context ? state.clinicalContext : '', reports: {}, generatedReport: '', isCopied: false })); this.drafts.set({}); this.studyReport.set(false); this.generationError.set(null); this.maintenanceMessage.set(null); }
+  selectModel(model: ModelAvailability) { if (this.maintenanceBusy()) return; this.appState.updateInference((state) => ({ ...state, selectedModelRef: model.model_ref, images: state.images.slice(0, model.max_current_images), currentIndex: 0, clinicalContext: model.capabilities.clinical_context ? state.clinicalContext : '', reports: {}, generatedReport: '', isCopied: false })); this.modelNoticeDismissedFor.set(null); this.drafts.set({}); this.studyReport.set(false); this.generationError.set(null); this.maintenanceMessage.set(null); }
+  dismissModelNotice() { const model = this.selectedModel(); if (model) this.modelNoticeDismissedFor.set(model.model_ref); }
   onDrop(event: DragEvent) { event.preventDefault(); this.addFiles(event.dataTransfer?.files ?? null); }
   addFiles(files: FileList | null) { if (!files?.length || this.state().isGenerating) return; const accepted = Array.from(files).filter((file) => file.type.startsWith('image/')); const images = this.maxImages() === 1 ? accepted.slice(0, 1) : [...this.state().images, ...accepted].slice(0, Math.min(this.maxImages(), 16)); this.appState.updateInference((state) => ({ ...state, images, currentIndex: 0, reports: {}, generatedReport: '', isCopied: false })); this.setPreview(images[0] ?? null); this.drafts.set({}); this.studyReport.set(false); }
   private setPreview(file: File | null) { const old = this.currentUrl(); if (old) URL.revokeObjectURL(old); this.currentUrl.set(file ? URL.createObjectURL(file) : null); }

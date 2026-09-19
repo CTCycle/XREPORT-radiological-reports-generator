@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from server.services.errors import (
     BadRequestError,
@@ -29,18 +29,15 @@ from server.common.utils.security import (
 )
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.dataset import DatasetRepository
-from server.repositories.serialization.model import ModelSerializer
 from server.repositories.checkpoints import (
     CheckpointReferencedError,
     CheckpointRegistryError,
     CheckpointRepository,
 )
 from server.configurations.startup import get_server_settings
-from server.services.training_worker import (
-    ProcessWorker,
-    run_resume_training_process,
-    run_training_process,
-)
+
+if TYPE_CHECKING:
+    from server.services.training_worker import ProcessWorker
 
 ###############################################################################
 class TrainingRuntime:
@@ -223,6 +220,11 @@ def run_training_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking training function that runs in background thread."""
+    from server.services.training_worker import (
+        ProcessWorker,
+        run_training_process,
+    )
+
     training_runtime = get_training_runtime()
     worker = ProcessWorker()
     training_runtime.worker = worker
@@ -253,6 +255,11 @@ def run_resume_training_job(
     poll_interval: float = 1.0,
 ) -> dict[str, Any]:
     """Blocking resume training function that runs in background thread."""
+    from server.services.training_worker import (
+        ProcessWorker,
+        run_resume_training_process,
+    )
+
     training_runtime = get_training_runtime()
     worker = ProcessWorker()
     training_runtime.worker = worker
@@ -354,6 +361,8 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         """Get registered checkpoints and report explicit artifact state."""
+        from server.repositories.serialization.model import ModelSerializer
+
         modser = ModelSerializer()
         checkpoints = []
         for checkpoint in self.checkpoint_repository.list_checkpoints():
@@ -402,6 +411,8 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
         try:
+            from server.repositories.serialization.model import ModelSerializer
+
             checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
             raise BadRequestError(
@@ -525,6 +536,8 @@ class TrainingService:
 
         # Initialize serializers
         serializer = DatasetRepository()
+        from server.repositories.serialization.model import ModelSerializer
+
         modser = ModelSerializer()
 
         try:
