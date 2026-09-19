@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-09-17
+Last updated: 2026-09-19
 
 ## Troubleshooting Quick Guide
 
@@ -41,6 +41,22 @@ variant-specific immutable runtime archives.
   - inspect the database migration status and confirm the `application_settings`
     singleton row exists and passes its constraints
   - check write permissions under the configured resource root
+
+### ML import deadlocks after startup
+
+Lightweight endpoints such as dataset names/status, checkpoint listing, settings,
+and the inference model catalogue must not initialize Keras, PyTorch, torchvision,
+Transformers, or a model provider. The model package initializers are intentionally
+empty, and service factories keep runtime imports inside tokenization, training,
+checkpoint loading, validation, and inference execution paths.
+
+If logs contain `_ModuleLock` deadlocks, `partially initialized module 'torch'`,
+`torch.utils`, or Keras/PyTorch circular-import errors, restart from a clean
+process and check that the request was not importing a concrete runtime module at
+factory time. Use the clean-subprocess regression test and call the lightweight
+endpoints before starting any ML job. A genuine runtime dependency failure should
+remain attached to its job result and should be fixed in the execution path rather
+than suppressed with retries or broad exception handling.
 
 ## Database Initialization
 

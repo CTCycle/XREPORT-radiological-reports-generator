@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-08-30
+Last updated: 2026-09-19
 
 ## Layer Responsibilities
 
@@ -73,6 +73,12 @@ Factories compose runtime dependencies at the service boundary instead of hiding
 - `get_preparation_service` creates one `DatasetRepository`, `JobManager`, and `DatasetProcessingService`, then injects them into `PreparationService`.
 - `get_inference_service` composes the catalog, installation manager, inference runtime, repository, and job manager used by inference methods.
 - Job functions accept the job manager and relevant repository/runtime dependencies explicitly, which keeps them testable without global service state.
+
+## Lightweight Service Factories And Runtime Imports
+
+The `server.models`, `server.models.training`, and `server.models.inference` package initializers are intentionally importless. Service factories and metadata/status endpoints may import repositories, domain contracts, and lightweight serializers, but they must not initialize Keras, PyTorch, torchvision, Transformers, or a runtime inference provider.
+
+Framework-dependent modules are imported only inside the execution paths that need them: dataset tokenization, training worker processes, checkpoint loading, validation data-loader construction, and actual inference generation. `ModelSerializer.load_training_configuration()` reads JSON metadata without loading Keras; `load_checkpoint()` is the explicit boundary for model deserialization. This keeps concurrent FastAPI request threads from recursively initializing ML frameworks and ensures a failed runtime job does not poison later service imports.
 
 ## Generic Job Runtime
 

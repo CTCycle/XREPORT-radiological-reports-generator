@@ -5,12 +5,9 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from keras import Model
 from nltk.translate.bleu_score import corpus_bleu
-from torch.utils.data import DataLoader
 
 from server.common.utils.logger import logger
-from server.models.inference import TextGenerator
 
 ###############################################################################
 class CheckpointInputMismatchError(ValueError):
@@ -22,7 +19,7 @@ class CheckpointEvaluator:
     # -------------------------------------------------------------------------
     def __init__(
         self,
-        model: Model,
+        model: Any,
         train_config: dict[str, Any],
         model_metadata: dict[str, Any],
     ) -> None:
@@ -32,7 +29,7 @@ class CheckpointEvaluator:
         self.max_report_size = model_metadata.get("max_report_size", 200)
 
     # -------------------------------------------------------------------------
-    def evaluate_model(self, validation_dataset: DataLoader) -> dict[str, float]:
+    def evaluate_model(self, validation_dataset: Any) -> dict[str, float]:
         logger.info("Running model evaluation on validation dataset...")
         try:
             validation_results = self.model.evaluate(
@@ -59,7 +56,7 @@ class CheckpointEvaluator:
             raise
 
     # -------------------------------------------------------------------------
-    def preflight_validation_dataset(self, validation_dataset: DataLoader) -> None:
+    def preflight_validation_dataset(self, validation_dataset: Any) -> None:
         """Validate and, when necessary, build the model from a real data batch."""
         try:
             batch = next(iter(validation_dataset))
@@ -217,6 +214,8 @@ class CheckpointEvaluator:
             return 0.0
 
         # Initialize text generator
+        from server.models.inference.generator import TextGenerator
+
         generator = TextGenerator(self.model, self.model_metadata, self.max_report_size)
 
         # Sample from validation data

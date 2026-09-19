@@ -1,21 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from server.common.utils.logger import logger
-from server.models.training.processing import (
-    TextSanitizer,
-    TokenizerHandler,
-    TrainValidationSplit,
-)
 from server.repositories.serialization.dataset import (
     DatasetIntegrityError,
     DatasetRepository,
 )
 from server.services.jobs import JobExecutionError, JobManager
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 ###############################################################################
 def resolve_processed_dataset_name(
@@ -26,6 +22,16 @@ def resolve_processed_dataset_name(
         return custom_name.strip()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{source_dataset_name}_{timestamp}"
+
+###############################################################################
+def _load_processing_components() -> tuple[Any, Any, Any]:
+    from server.models.training.processing import (
+        TextSanitizer,
+        TokenizerHandler,
+        TrainValidationSplit,
+    )
+
+    return TextSanitizer, TokenizerHandler, TrainValidationSplit
 
 ###############################################################################
 class DatasetProcessingService:
@@ -69,12 +75,16 @@ class DatasetProcessingService:
         logger.info("Preprocessed data saved to database with hash: %s", hashcode)
 
     # -------------------------------------------------------------------------
-    def run(
+    def run(  # noqa: PLR0915
         self,
         configuration: dict[str, Any],
         job_id: str,
     ) -> dict[str, Any]:
         """Blocking dataset processing function used by the job runtime."""
+        TextSanitizer, TokenizerHandler, TrainValidationSplit = (
+            _load_processing_components()
+        )
+
         source_dataset_name_raw = configuration.get("dataset_name")
         source_dataset_name = (
             str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""

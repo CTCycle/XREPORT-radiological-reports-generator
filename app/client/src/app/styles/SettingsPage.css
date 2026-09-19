@@ -4,7 +4,9 @@
 }
 
 .settings-page {
-  width: min(100%, 920px);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 2.5rem clamp(1rem, 4vw, 3rem) 3rem;
 }
@@ -37,16 +39,62 @@
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  min-width: 0;
   border-top: 1px solid var(--border-color);
 }
 
-.settings-section {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.5fr);
-  gap: 2rem;
-  padding: 1.65rem 0;
+.settings-tabs {
+  display: flex;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow-x: auto;
   border-bottom: 1px solid var(--border-color);
+  scrollbar-width: none;
+}
+
+.settings-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: var(--control-height-md);
+  padding: 0.55rem 0.85rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-tab:hover,
+.settings-tab.active {
+  color: var(--text-primary);
+}
+
+.settings-tab.active {
+  border-bottom-color: var(--accent-color);
+}
+
+.settings-tab:focus-visible,
+.settings-panel:focus-visible,
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.settings-checkbox-control:focus-within {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.settings-panel {
+  min-width: 0;
+  padding: 1.65rem 0 0;
+}
+
+.settings-section-heading {
+  margin-bottom: 0.4rem;
 }
 
 .settings-section-heading h2 {
@@ -56,43 +104,93 @@
 }
 
 .settings-section-heading p {
+  max-width: 70ch;
   margin: 0.4rem 0 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
+.settings-fields {
+  min-width: 0;
+}
+
 .settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  max-width: 520px;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.4fr);
+  gap: 2rem;
+  min-width: 0;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.settings-field + .settings-field {
-  margin-top: 1.35rem;
+.settings-field-copy,
+.settings-field-control {
+  min-width: 0;
 }
 
-.settings-field label,
-.settings-toggle strong {
+.settings-field-copy h3 {
+  margin: 0;
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: 700;
+  line-height: 1.35;
 }
 
-.settings-field input[type='number'] {
-  width: min(100%, 240px);
+.settings-field-copy p {
+  max-width: 52ch;
+  margin: 0.4rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.settings-field-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.settings-field-control input[type='number'] {
+  box-sizing: border-box;
+  width: min(100%, 260px);
   min-height: var(--control-height-md);
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
-.settings-field input[type='number']:disabled {
+.settings-field-control input[type='number']:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+.settings-checkbox-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: var(--control-height-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-checkbox-control input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.settings-checkbox-control input:disabled {
+  cursor: not-allowed;
+}
+
 .settings-help {
+  max-width: 68ch;
   color: var(--text-secondary);
   font-size: var(--text-xs);
   line-height: 1.45;
@@ -107,27 +205,6 @@
 .settings-error {
   color: var(--error-color);
   font-size: var(--text-xs);
-}
-
-.settings-toggle {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  max-width: 520px;
-  cursor: pointer;
-}
-
-.settings-toggle input {
-  width: 1.05rem;
-  height: 1.05rem;
-  margin: 0.1rem 0 0;
-  flex: 0 0 auto;
-}
-
-.settings-toggle > span {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
 }
 
 .settings-state {
@@ -195,14 +272,20 @@
   opacity: 0.55;
 }
 
+@media (max-width: 720px) {
+  .settings-field {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .settings-field-control input[type='number'] {
+    width: min(100%, 320px);
+  }
+}
+
 @media (max-width: 680px) {
   .settings-page {
     padding-top: 1.5rem;
-  }
-
-  .settings-section {
-    grid-template-columns: 1fr;
-    gap: 1.1rem;
   }
 
   .settings-actions {

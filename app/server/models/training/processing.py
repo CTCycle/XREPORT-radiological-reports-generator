@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from transformers import AutoTokenizer
 
 from server.common.path import TOKENIZERS_DIR
 
@@ -79,6 +78,8 @@ class TokenizerHandler:
     ) -> None | tuple[Any, int]:
         if tokenizer_name is None:
             return None
+
+        from transformers import AutoTokenizer
 
         tokenizer_path = TOKENIZERS_DIR / tokenizer_name
         tokenizer_path.mkdir(parents=True, exist_ok=True)

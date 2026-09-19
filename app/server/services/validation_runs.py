@@ -31,10 +31,8 @@ from server.repositories.serialization.dataset import (
     DatasetIntegrityError,
     DatasetRepository,
 )
-from server.repositories.serialization.model import ModelSerializer
 from server.repositories.checkpoints import CheckpointRepository
 from server.configurations.startup import get_server_settings
-from server.models.training.dataloader import XRAYDataLoader
 from server.services.evaluation import (
     CheckpointEvaluator,
     CheckpointInputMismatchError,
@@ -410,6 +408,8 @@ def _run_checkpoint_metrics(
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
 ) -> tuple[Any, Any, Any] | None:
+    from server.repositories.serialization.model import ModelSerializer
+
     checkpoint_record = CheckpointRepository().get_checkpoint(checkpoint)
     if checkpoint_record is None or not checkpoint_record.artifact_complete:
         return None
@@ -461,6 +461,8 @@ def _run_evaluation_report_metric(
     metric_config: Any,
     seed: Any,
 ) -> tuple[dict[str, Any], dict[str, float] | None]:
+    from server.models.training.dataloader import XRAYDataLoader
+
     logger.info("Running evaluation report (loss and accuracy)...")
     if validation_data is None or validation_data.empty:
         logger.warning("No validation data available for evaluation report")
