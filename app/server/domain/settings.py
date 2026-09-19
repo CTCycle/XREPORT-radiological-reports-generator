@@ -3,26 +3,32 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+###############################################################################
 class _StrictSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
+###############################################################################
 class RuntimeGlobalSettings(_StrictSettingsModel):
     seed: int
 
 
+###############################################################################
 class RuntimeFeatureSettings(_StrictSettingsModel):
     allow_local_filesystem_access: bool
 
 
+###############################################################################
 class RuntimeJobSettings(_StrictSettingsModel):
     polling_interval: float
 
 
+###############################################################################
 class RuntimeInferenceSettings(_StrictSettingsModel):
     model_timeout: int
 
 
+###############################################################################
 class RuntimeApplicationSettings(_StrictSettingsModel):
     global_settings: RuntimeGlobalSettings = Field(alias="global")
     features: RuntimeFeatureSettings
@@ -36,12 +42,16 @@ class RuntimeApplicationSettings(_StrictSettingsModel):
     )
 
 
+###############################################################################
 class ApplicationSettingsResponse(_StrictSettingsModel):
     values: RuntimeApplicationSettings
     defaults: RuntimeApplicationSettings
 
 
+###############################################################################
 class _PatchModel(_StrictSettingsModel):
+
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def reject_explicit_nulls(self) -> _PatchModel:
         for field_name in self.model_fields_set:
@@ -52,14 +62,17 @@ class _PatchModel(_StrictSettingsModel):
         return self
 
 
+###############################################################################
 class GlobalSettingsPatch(_PatchModel):
     seed: int | None = Field(default=None, ge=0, le=4_294_967_295)
 
 
+###############################################################################
 class FeatureSettingsPatch(_PatchModel):
     allow_local_filesystem_access: bool | None = None
 
 
+###############################################################################
 class JobSettingsPatch(_PatchModel):
     polling_interval: float | None = Field(
         default=None,
@@ -69,10 +82,12 @@ class JobSettingsPatch(_PatchModel):
     )
 
 
+###############################################################################
 class InferenceSettingsPatch(_PatchModel):
     model_timeout: int | None = Field(default=None, ge=1)
 
 
+###############################################################################
 class ApplicationSettingsPatch(_StrictSettingsModel):
     global_settings: GlobalSettingsPatch | None = Field(default=None, alias="global")
     features: FeatureSettingsPatch | None = None
@@ -85,6 +100,7 @@ class ApplicationSettingsPatch(_StrictSettingsModel):
         populate_by_name=False,
     )
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_patch(self) -> ApplicationSettingsPatch:
         if not self.model_fields_set:

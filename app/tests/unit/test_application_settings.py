@@ -17,6 +17,7 @@ from server.services.errors import InternalServiceError
 from server.services.settings import SettingsService
 
 
+###############################################################################
 def _sqlite_settings() -> DatabaseSettings:
     return DatabaseSettings(
         backend="sqlite",
@@ -33,6 +34,7 @@ def _sqlite_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Database:
     path = tmp_path / "database.db"
     monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
@@ -54,6 +56,7 @@ def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Database:
     return database
 
 
+###############################################################################
 def test_legacy_json_is_imported_once_during_alembic_upgrade(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -95,6 +98,7 @@ def test_legacy_json_is_imported_once_during_alembic_upgrade(
     assert path.is_file()
 
 
+###############################################################################
 def test_legacy_json_with_non_singleton_model_limit_rolls_back(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -133,6 +137,7 @@ def test_legacy_json_with_non_singleton_model_limit_rolls_back(
             engine.dispose()
 
 
+###############################################################################
 def test_fresh_upgrade_without_legacy_json_uses_typed_defaults(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -156,6 +161,7 @@ def test_fresh_upgrade_without_legacy_json_uses_typed_defaults(
     }
 
 
+###############################################################################
 def test_public_projection_excludes_private_inference_policy(tmp_path, monkeypatch) -> None:
     database = _database(tmp_path, monkeypatch)
     response = SettingsService(ApplicationSettingsRepository(database)).get_settings()
@@ -175,6 +181,7 @@ def test_public_projection_excludes_private_inference_policy(tmp_path, monkeypat
     }
 
 
+###############################################################################
 def test_update_and_reset_preserve_private_inference_policy(tmp_path, monkeypatch) -> None:
     database = _database(tmp_path, monkeypatch)
     repository = ApplicationSettingsRepository(database)
@@ -196,6 +203,7 @@ def test_update_and_reset_preserve_private_inference_policy(tmp_path, monkeypatc
     assert persisted.inference_hf_local_only is False
 
 
+###############################################################################
 def test_patch_rejects_empty_unknown_and_null_values() -> None:
     with pytest.raises(ValueError):
         ApplicationSettingsPatch.model_validate({})
@@ -205,12 +213,14 @@ def test_patch_rejects_empty_unknown_and_null_values() -> None:
         ApplicationSettingsPatch.model_validate({"global": {"seed": None}})
 
 
+###############################################################################
 def test_repository_rejects_private_columns(tmp_path, monkeypatch) -> None:
     repository = ApplicationSettingsRepository(_database(tmp_path, monkeypatch))
     with pytest.raises(ValueError, match="Unsupported application setting"):
         repository.update_public_settings({"inference_device": "cuda"})
 
 
+###############################################################################
 def test_repository_validates_candidate_before_persisting(tmp_path, monkeypatch) -> None:
     repository = ApplicationSettingsRepository(_database(tmp_path, monkeypatch))
     with pytest.raises(ValueError):
@@ -218,6 +228,7 @@ def test_repository_validates_candidate_before_persisting(tmp_path, monkeypatch)
     assert repository.get_settings().global_seed == 123
 
 
+###############################################################################
 def test_persistence_failure_is_translated_to_safe_service_error(
     tmp_path, monkeypatch
 ) -> None:

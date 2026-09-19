@@ -108,6 +108,7 @@ def test_cxrmate_ed_passes_clinical_context_and_all_study_images(
     }
 
 
+###############################################################################
 def _study_images() -> list[StudyImage]:
     return [
         StudyImage(
@@ -123,6 +124,7 @@ def _study_images() -> list[StudyImage]:
     ]
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_length", "num_beams"),
     (("deterministic", 256, 1), ("concise", 160, 1), ("detailed", 256, 4)),
@@ -130,25 +132,33 @@ def _study_images() -> list[StudyImage]:
 def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
     profile: str, max_length: int, num_beams: int
 ) -> None:
+
+    ###############################################################################
     class ImageProcessorStub:
         size = {"shortest_edge": 4}
         image_mean = (0.5, 0.5, 0.5)
         image_std = (0.5, 0.5, 0.5)
 
+    ###############################################################################
     class TokenizerStub:
         sep_token_id = 10
         bos_token_id = 11
         eos_token_id = 12
         pad_token_id = 13
 
+    ###############################################################################
     class ModelStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.generate_call: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
             return type("Generation", (), {"sequences": torch.tensor([[1, 2]])})()
 
+        # -------------------------------------------------------------------------
         def split_and_decode_sections(self, _output, _token_ids, _tokenizer):
             return ["finding"], ["impression"]
 
@@ -182,6 +192,7 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
     }
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_length", "num_beams"),
     (("deterministic", 256, 1), ("concise", 160, 1), ("detailed", 256, 4)),
@@ -189,10 +200,15 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
 def test_cxrmate2_forwards_study_and_profile_to_published_processor(
     profile: str, max_length: int, num_beams: int
 ) -> None:
+
+    ###############################################################################
     class ProcessorStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.process_call: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def __call__(self, **kwargs: object):
             self.process_call = kwargs
             return {
@@ -200,13 +216,18 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
                 "input_ids": torch.ones((1, 2), dtype=torch.long),
             }
 
+        # -------------------------------------------------------------------------
         def split_and_decode_sections(self, _generated_ids):
             return ["finding"], ["impression"]
 
+    ###############################################################################
     class ModelStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.generate_call: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
             return torch.tensor([[1, 2]])
@@ -237,11 +258,15 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
     }
 
 
+###############################################################################
 def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
+
+    ###############################################################################
     class ModelStub:
         device = torch.device("cpu")
         dtype = torch.bfloat16
 
+        # -------------------------------------------------------------------------
         def prepare_inputs_for_generation(self, *_args, **_kwargs):
             return {"time_deltas": torch.zeros((1, 2), dtype=torch.float32)}
 
@@ -261,6 +286,7 @@ def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
     assert prepared["time_deltas"].dtype is torch.bfloat16
 
 
+###############################################################################
 def test_cxrmate_ed_generation_profiles_are_model_specific() -> None:
     assert CXRMateEDAdapter.generation_profiles == {
         "deterministic": {"max_length": 256, "num_beams": 1, "do_sample": False},
@@ -269,6 +295,7 @@ def test_cxrmate_ed_generation_profiles_are_model_specific() -> None:
     }
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens"),
     (
@@ -289,21 +316,29 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
 
     monkeypatch.setattr(adapters_module, "process_vision_info", process_vision_info)
 
+    ###############################################################################
     class ProcessorStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.template_messages = None
             self.processor_call: dict[str, object] = {}
             self.decoded_ids = None
 
+        # -------------------------------------------------------------------------
         def apply_chat_template(self, messages, **_kwargs: object) -> str:
             self.template_messages = messages
             return "rendered chat prompt"
 
+        # -------------------------------------------------------------------------
         def __call__(self, **kwargs: object):
             self.processor_call = kwargs
+
+            ###############################################################################
             class VisionInputs(dict[str, torch.Tensor]):
                 input_ids = torch.tensor([[1, 2]])
 
+                # -------------------------------------------------------------------------
                 def __init__(self) -> None:
                     super().__init__(
                         input_ids=self.input_ids,
@@ -312,11 +347,15 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
 
             return VisionInputs()
 
+        # -------------------------------------------------------------------------
         def batch_decode(self, generated_ids, **_kwargs: object) -> list[str]:
             self.decoded_ids = generated_ids
             return ["Findings: clear\nImpression: normal"]
 
+    ###############################################################################
     class ModelStub:
+
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
             return [torch.tensor([1, 2, 3, 4])]
@@ -349,6 +388,7 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
     }
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens"),
     (("deterministic", 768), ("concise", 384), ("detailed", 1536)),
@@ -358,10 +398,14 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
 ) -> None:
     images = _study_images()
 
+    ###############################################################################
     class ProcessorStub:
+
+        # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.messages = None
 
+        # -------------------------------------------------------------------------
         def apply_chat_template(self, messages, **_kwargs: object):
             self.messages = messages
             return {
@@ -369,11 +413,15 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
                 "pixel_values": torch.zeros((1, 2, 3, 4, 4)),
             }
 
+        # -------------------------------------------------------------------------
         def decode(self, generated, **_kwargs: object) -> str:
             assert torch.equal(generated, torch.tensor([3, 4]))
             return "raw report"
 
+    ###############################################################################
     class ModelStub:
+
+        # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
             return [torch.tensor([1, 2, 3, 4])]

@@ -31,6 +31,7 @@ def _copy_archive_with_member(
         target.writestr(member_name, payload)
 
 
+###############################################################################
 def _build_runtime_bundle(
     tmp_path: Path,
 ) -> tuple[Path, dict[str, object], str, Path, Path]:
@@ -77,6 +78,7 @@ def _build_runtime_bundle(
     return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
 
 
+###############################################################################
 def _assert_log_staging_is_rejected(
     tmp_path: Path, staging: Path, script: Path
 ) -> None:
@@ -106,7 +108,6 @@ def _assert_log_staging_is_rejected(
     )
     assert rejected.returncode != 0
     assert "forbidden runtime staging entry" in rejected.stderr
-
 
 ###############################################################################
 def test_packaged_layout_seeds_data_without_overwriting_user_edits(
