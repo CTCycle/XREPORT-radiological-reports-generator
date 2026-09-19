@@ -408,15 +408,18 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
     assert deadlines == [105.0]
 
 
+###############################################################################
 def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
     monkeypatch,
 ) -> None:
     provider = HuggingFaceProvider(_settings())
     observed: dict[str, object] = {}
 
+    ###############################################################################
     class StudyAdapter:
         supports_study = True
 
+        # -------------------------------------------------------------------------
         def generate_study(self, **kwargs: object) -> StudyGeneration:
             observed["grad_enabled"] = torch.is_grad_enabled()
             observed["stopping_criteria"] = kwargs["stopping_criteria"]
@@ -470,6 +473,7 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
     }
 
 
+###############################################################################
 def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider(_settings())._device_map() == "cpu"
     assert HuggingFaceProvider(
@@ -494,6 +498,7 @@ def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider._dtype("auto") is torch.float16
 
 
+###############################################################################
 def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.float16)
     inputs = {
@@ -510,6 +515,7 @@ def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     assert moved["pixel_values"].device == torch.device("cpu")
 
 
+###############################################################################
 def test_move_inputs_casts_nested_generation_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.bfloat16)
     inputs = {
@@ -524,6 +530,7 @@ def test_move_inputs_casts_nested_generation_inputs() -> None:
     assert moved["input_ids"][0].dtype is torch.long
 
 
+###############################################################################
 def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
     model = SimpleNamespace(
         hf_device_map={"": "cpu", "model.layers.0": "cpu"},
@@ -554,6 +561,7 @@ def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
     assert runtime["cuda_used"] is True
 
 
+###############################################################################
 def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch) -> None:
     calls: list[tuple[object, ...]] = []
 
@@ -577,6 +585,7 @@ def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch)
     assert calls[0][1]["device"] == torch.device("cuda:0")
 
 
+###############################################################################
 def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
         huggingface_module,

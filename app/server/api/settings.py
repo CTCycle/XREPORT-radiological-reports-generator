@@ -13,7 +13,10 @@ if TYPE_CHECKING:
     from server.services.settings import SettingsService
 
 
+###############################################################################
 class SettingsEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(
         self,
         router: APIRouter,
@@ -70,6 +73,7 @@ class SettingsEndpoint:
         )
 
 
+###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/settings", tags=["settings"])
     SettingsEndpoint(router=router).add_routes()

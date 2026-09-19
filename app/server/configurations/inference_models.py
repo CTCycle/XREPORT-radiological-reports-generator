@@ -3,6 +3,7 @@ from __future__ import annotations
 from server.domain.inference import InferenceManifestEntry
 
 
+###############################################################################
 def _entry(payload: dict[str, object]) -> InferenceManifestEntry:
     return InferenceManifestEntry.model_validate(payload)
 
@@ -423,6 +424,7 @@ if len({entry.model_ref for entry in EMBEDDED_INFERENCE_MODELS}) != 5:
     raise RuntimeError("The embedded inference catalogue contains duplicate refs")
 
 
+###############################################################################
 def embedded_inference_models() -> list[InferenceManifestEntry]:
     return [entry.model_copy(deep=True) for entry in EMBEDDED_INFERENCE_MODELS]
 
