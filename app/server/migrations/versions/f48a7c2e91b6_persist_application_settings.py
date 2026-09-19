@@ -29,6 +29,7 @@ _DEFAULTS: dict[str, object] = {
 _ROOT_KEYS = {"global", "features", "jobs", "inference"}
 
 
+###############################################################################
 def _legacy_configuration_path() -> Path:
     if os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
         "1",
@@ -43,24 +44,28 @@ def _legacy_configuration_path() -> Path:
     return repository_root / "settings" / "configurations.json"
 
 
+###############################################################################
 def _required_mapping(value: object, name: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise RuntimeError(f"Legacy application configuration section {name!r} is invalid")
     return value
 
 
+###############################################################################
 def _required_int(value: object, name: str) -> int:
     if type(value) is not int:
         raise RuntimeError(f"Legacy application configuration value {name!r} is invalid")
     return value
 
 
+###############################################################################
 def _required_bool(value: object, name: str) -> bool:
     if type(value) is not bool:
         raise RuntimeError(f"Legacy application configuration value {name!r} is invalid")
     return value
 
 
+###############################################################################
 def _legacy_payload(path: Path) -> dict[str, dict[str, object]] | None:
     if not path.is_file():
         return None
@@ -102,6 +107,7 @@ def _legacy_payload(path: Path) -> dict[str, dict[str, object]] | None:
     }
 
 
+###############################################################################
 def _legacy_values(path: Path) -> dict[str, object]:
     payload = _legacy_payload(path)
     if payload is None:
@@ -147,6 +153,7 @@ def _legacy_values(path: Path) -> dict[str, object]:
     }
 
 
+###############################################################################
 def upgrade() -> None:
     op.create_table(
         "application_settings",
@@ -200,5 +207,6 @@ def upgrade() -> None:
     )
 
 
+###############################################################################
 def downgrade() -> None:
     op.drop_table("application_settings")

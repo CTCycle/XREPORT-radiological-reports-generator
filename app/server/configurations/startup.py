@@ -11,6 +11,7 @@ from .settings import (
 )
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_database_settings() -> DatabaseSettings:
     """Load only environment-owned database settings."""
@@ -19,6 +20,7 @@ def get_database_settings() -> DatabaseSettings:
     return database_settings_from_environment()
 
 
+###############################################################################
 def get_server_settings() -> ServerSettings:
     """Compose environment database settings with persisted application values."""
 
@@ -28,6 +30,7 @@ def get_server_settings() -> ServerSettings:
     return application_settings_to_server_settings(values, get_database_settings())
 
 
+###############################################################################
 def reload_settings_for_tests() -> ServerSettings:
     load_environment(force=True)
     get_database_settings.cache_clear()

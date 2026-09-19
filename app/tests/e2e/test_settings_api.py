@@ -3,6 +3,7 @@ from __future__ import annotations
 from playwright.sync_api import APIRequestContext
 
 
+###############################################################################
 def test_settings_api_allowlist_patch_and_reset(api_context: APIRequestContext) -> None:
     initial_response = api_context.get("/api/settings")
     assert initial_response.ok
