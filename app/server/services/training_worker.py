@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 import multiprocessing
 
 import os
@@ -10,23 +10,15 @@ import signal
 import subprocess
 import time
 
-import pandas as pd
-
 from server.common.utils.logger import logger
-from server.models.callbacks import (
-    TrainingInterruptCallback,
-    WorkerInterrupted,
-)
-from server.models.device import DeviceConfig
-from server.models.training.dataloader import XRAYDataLoader
-from server.models.training.model import build_xreport_model
-from server.models.training.trainer import ModelTrainer
 from server.repositories.serialization.dataset import (
     DatasetIntegrityError,
     DatasetRepository,
 )
-from server.repositories.serialization.model import ModelSerializer
 from server.repositories.checkpoints import CheckpointRepository
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 ###############################################################################
 class ProcessLike(Protocol):
@@ -306,6 +298,13 @@ def run_training_process(
     configuration: dict[str, Any],
     worker: Any,
 ) -> None:
+    from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
+    from server.models.device import DeviceConfig
+    from server.models.training.dataloader import XRAYDataLoader
+    from server.models.training.model import build_xreport_model
+    from server.models.training.trainer import ModelTrainer
+    from server.repositories.serialization.model import ModelSerializer
+
     progress_queue = worker.progress_queue
     result_queue = worker.result_queue
     stop_event = worker.stop_event
@@ -404,6 +403,12 @@ def run_resume_training_process(
     worker: Any,
     poll_interval: float = 1.0,
 ) -> None:
+    from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
+    from server.models.device import DeviceConfig
+    from server.models.training.dataloader import XRAYDataLoader
+    from server.models.training.trainer import ModelTrainer
+    from server.repositories.serialization.model import ModelSerializer
+
     progress_queue = worker.progress_queue
     result_queue = worker.result_queue
     stop_event = worker.stop_event
