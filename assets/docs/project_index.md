@@ -1,16 +1,17 @@
 # XREPORT Project Overview
 
-Last updated: 2026-08-20
+Last updated: 2026-09-20
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
 ## How To Navigate
 
 1. Start with this file only.
-2. Identify the topic area that matches the task.
-3. Open the smallest leaf file that covers the needed detail.
-4. Open sibling files only when the task clearly crosses topic boundaries.
-5. Do not read the entire tree unless the task explicitly requires broad context.
+2. Read `project_status_ledger.md` before substantial implementation or validation work to understand current operational state, active issues, and validation debt.
+3. Identify the topic area that matches the task.
+4. Open the smallest leaf file that covers the needed detail.
+5. Open sibling files only when the task clearly crosses topic boundaries.
+6. Do not read the entire tree unless the task explicitly requires broad context.
 
 ## Naming Rules
 
@@ -24,6 +25,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 - `project_index.md`
   - Documentation index, navigation rules, and environment guidance.
+- `project_status_ledger.md`
+  - Canonical current operational status, evidence summary, open issues, resolved findings, and validation debt.
 
 ### Architecture
 
@@ -83,15 +86,18 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 ## Reading Order
 
 1. Read `project_index.md`.
-2. Open the smallest leaf file that answers the question.
-3. Expand to adjacent files only when the task crosses topic boundaries.
-4. Return here before jumping to a different topic branch.
+2. Read `project_status_ledger.md` when the task involves implementation, debugging, release, or validation.
+3. Open the smallest leaf file that answers the question.
+4. Expand to adjacent files only when the task crosses topic boundaries.
+5. Return here before jumping to a different topic branch.
 
 ## Context Rules
 
 - Read documentation files only when required by the active task.
 - Defer reading until the task proves the file is needed.
 - Keep affected docs updated whenever implementation changes alter behavior.
+- Keep `project_status_ledger.md` synchronized after implementation, regression discovery, meaningful validation, blocker changes, or issue resolution and revalidation.
+- Treat the ledger as the canonical current-state summary; keep architecture documents authoritative for structure and contracts, validation reports authoritative for detailed evidence, and implementation plans authoritative for intended work.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select relevant docs from folder structure and user intent before opening more files.
 
