@@ -478,8 +478,9 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
         stopping_criteria = kwargs["stopping_criteria"]
         output_sections: list[str] = kwargs["output_sections"]
         prompt = (
-            "Write a radiology report for the supplied chest radiograph study. "
-            "Return only the final Findings and Impression sections; do not include reasoning traces. "
+            "Write only the Findings section for the supplied chest radiograph study. "
+            "Return the final findings text only; do not add a separate Impression section "
+            "or reasoning trace. "
             f"{self.prompt(profile, clinical_context)}"
         )
         messages = [
