@@ -34,10 +34,23 @@ def test_embedded_catalog_contains_exactly_five_unique_sha_pinned_public_models(
     } == {
         "huggingface:aehrc/cxrmate-multi-tf": "770983f4b6d02fe550d739106838a4834719dad0b0d54258c9738790af0d0ddd",
         "huggingface:aehrc/cxrmate-ed": "d7e426e7df0ee447fe84f0dfcd57cab4e16c9b5e4d72cdef94142784ad0584fe",
-        "huggingface:StanfordAIMI/CheXOne": "0b55bfd6edd786b14ba7a7af198caeb5c9f5759c797cf72cd8c6c75c19497dc9",
+        "huggingface:StanfordAIMI/CheXOne": "e3fe82011143281cd89b95575fafcc55aa01e40f154cef83c233313dcb728b3d",
         "huggingface:aehrc/cxrmate-2": "ef9bf48a66e2e6a6df964da4fbcef1d9c3be0d783ee4a95376f900650e4c59ca",
         "huggingface:google/medgemma-1.5-4b-it": "db8398f1c7a5dfd7d1c5b41a67cb67109f9e77865dc7ad3836cc86bd796b761d",
     }
+
+###############################################################################
+def test_embedded_chexone_manifest_declares_findings_only() -> None:
+    chexone = next(
+        entry
+        for entry in embedded_inference_models()
+        if entry.model_ref == "huggingface:StanfordAIMI/CheXOne"
+    )
+
+    assert chexone.output_sections == ["findings"]
+    assert chexone.capabilities.findings is True
+    assert chexone.capabilities.impression is False
+    assert chexone.capabilities.grounding is True
 
 ###############################################################################
 def test_runtime_rejects_incomplete_model_manifest() -> None:

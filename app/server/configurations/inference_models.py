@@ -182,7 +182,7 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
         "provider": "huggingface",
         "enabled": True,
         "display_name": "CheXOne",
-        "description": "Higher-capability chest-X-ray vision-language model for report drafting, reasoning, and grounding.",
+        "description": "Higher-capability chest-X-ray vision-language model for Findings drafting and grounding.",
         "category": "chest_xray_report_generation",
         "recommended": False,
         "research_only": True,
@@ -203,8 +203,7 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
         "adapter": "chexone",
         "prompt_profile": "chexone-instruct-report",
         "output_sections": [
-            "findings",
-            "impression"
+            "findings"
         ],
         "input_semantics": "single_study",
         "max_current_images": 8,
@@ -252,7 +251,7 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
             "prior_report": False,
             "multiple_current_views": True,
             "findings": True,
-            "impression": True,
+            "impression": False,
             "grounding": True
         }
     }),

@@ -83,6 +83,21 @@ def test_catalog_hides_xreport_provider_without_registered_checkpoints() -> None
     assert response.providers["xreport"].status == "not_installed"
 
 ###############################################################################
+def test_catalog_exposes_chexone_findings_only_contract() -> None:
+    chexone = next(
+        model
+        for model in _catalog([]).list_models().models
+        if model.model_ref == "huggingface:StanfordAIMI/CheXOne"
+    )
+
+    assert chexone.output_sections == ["findings"]
+    assert chexone.capabilities.findings is True
+    assert chexone.capabilities.impression is False
+    assert chexone.provider == "huggingface"
+    assert chexone.origin == "public"
+    assert chexone.adapter == "chexone"
+
+###############################################################################
 def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
     active_path = (
         ROOT_DIR
