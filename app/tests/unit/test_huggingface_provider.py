@@ -81,6 +81,44 @@ def _processor_inputs() -> Inputs:
     )
 
 ###############################################################################
+def _stored_image() -> InferenceImage:
+    return InferenceImage(
+        filename="scan.png",
+        content_type="image/png",
+        data=_png(),
+        size_bytes=69,
+    )
+
+###############################################################################
+def test_validate_display_sections_accepts_non_empty_findings_only_contract() -> None:
+    HuggingFaceProvider._validate_display_sections(
+        "model",
+        _stored_image(),
+        {"findings": "No acute cardiopulmonary abnormality."},
+        ["findings"],
+    )
+
+###############################################################################
+def test_validate_display_sections_rejects_empty_findings_only_contract() -> None:
+    with pytest.raises(RuntimeError, match="incomplete report sections"):
+        HuggingFaceProvider._validate_display_sections(
+            "model",
+            _stored_image(),
+            {"findings": ""},
+            ["findings"],
+        )
+
+###############################################################################
+def test_validate_display_sections_keeps_two_section_contract_strict() -> None:
+    with pytest.raises(RuntimeError, match="incomplete report sections"):
+        HuggingFaceProvider._validate_display_sections(
+            "model",
+            _stored_image(),
+            {"findings": "Finding text"},
+            ["findings", "impression"],
+        )
+
+###############################################################################
 def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
     monkeypatch, tmp_path
 ) -> None:
