@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-08-21
+Last updated: 2026-09-20
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -62,8 +62,8 @@ npm run preview -- --host 127.0.0.1 --port 8003
    and credentials.
 3. Add a de-identified radiograph or study, choose a supported generation
    profile, and submit the background job.
-4. Review the editable **Findings** and **Impression** fields and inspect the
-   returned model, provider, revision, profile, and output metadata before
-   copying or exporting the draft.
+4. Review the editable report sections declared by the selected model and
+   inspect the returned model, provider, revision, profile, and output metadata
+   before copying or exporting the draft.
 
 Generated reports are research-use drafts, not clinically approved reports.

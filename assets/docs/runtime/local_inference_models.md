@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 ## Safety scope
 
@@ -19,7 +19,7 @@ not user settings and not a runtime JSON file.
 | --- | --- | --- | --- |
 | `aehrc/cxrmate-multi-tf` (`330721b9aa5bba201a3eb88eba4dd9a6607f3e7a`) | Lightweight multi-view chest reporter | Low; about 0.1B parameters and 451 MB selected weights | Chest radiographs; Apache-2.0; open |
 | `aehrc/cxrmate-ed` (`68251c7605067ddbea330413aade032713fd2192`) | Compact context-aware chest reporter | Low; about 0.2B parameters and 793 MB selected weights | Chest radiographs plus optional indication/history; Apache-2.0; open |
-| `StanfordAIMI/CheXOne` (`0c350e6852ea08f9d9baf3b7595c1a10d4849927`) | Higher-capability vision-language chest model | High; about 4B parameters and 8.15 GB selected weights | Chest radiographs; CC-BY-NC-4.0 research licence; open |
+| `StanfordAIMI/CheXOne` (`0c350e6852ea08f9d9baf3b7595c1a10d4849927`) | Higher-capability vision-language chest model for Findings drafting and grounding | High; about 4B parameters and 8.15 GB selected weights | Chest radiographs; CC-BY-NC-4.0 research licence; open |
 | `aehrc/cxrmate-2` (`aa8e2d16470e20671acf049687b4707c9bf2f2b5`) | Flagship specialist with structured findings/impression | Very high; about 3B parameters and 13.31 GB full-precision weights | Chest radiographs; Apache-2.0; open |
 | `google/medgemma-1.5-4b-it` (`91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b`) | Broader medical-imaging baseline | High; about 4B parameters and 8.64 GB selected weights | Broader medical imaging, not validated for every anatomy; Health AI Developer Foundations terms; gated |
 
@@ -30,11 +30,15 @@ scope, and access policy before a model is selected.
 
 The public entries use focused adapters behind one study-level provider
 contract: load and validate the pinned snapshot, preprocess the complete study,
-generate, normalize findings/impression or raw-report output, and return the
-common `ProviderGenerationResult`. CXRMate adapters retain their published
-multi-view/section-decoding contracts; CheXOne and MedGemma use the shared
-chat-style vision-language path. Custom remote code is imported only from the
-integrity-verified local snapshot.
+generate, normalize the model-declared Findings, Impression, or raw-report
+output, and return the common `ProviderGenerationResult`. CXRMate adapters
+retain their published multi-view/section-decoding contracts. CheXOne uses the
+Qwen-style chat vision-language path, while MedGemma uses the shared chat-style
+path. XREPORT exposes CheXOne as a Findings-generating model; a separate
+Impression is not part of its current validated contract. Real local
+image-to-report inference remains
+required before validation evidence is marked passed. Custom remote code is
+imported only from the integrity-verified local snapshot.
 
 ### Generation profiles and runtime evidence
 

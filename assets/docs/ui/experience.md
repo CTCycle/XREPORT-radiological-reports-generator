@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-09-17
+Last updated: 2026-09-20
 
 ## Core UX Journeys
 
@@ -10,7 +10,7 @@ Last updated: 2026-09-17
   - visible progress or loading
   - terminal success, error, or cancel feedback
 - Keep the inference research-use warning visible above the drafting workspace. Model status and capabilities must be clear before image upload or generation.
-- Generated report text remains an editable draft split into Findings and Impression; it is never presented as a clinically approved result.
+- Generated report text remains an editable draft using the output sections declared by the selected model. Models may expose Findings, Impression, both sections, or a raw report; it is never presented as a clinically approved result.
 
 ## Interaction Consistency
 

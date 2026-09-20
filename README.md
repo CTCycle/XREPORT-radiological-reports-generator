@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-08-31
+Last updated: 2026-09-20
 
 ## 1. What XREPORT is
 
@@ -30,8 +30,8 @@ draft before it is used for any research or clinical decision.
 - choose from five curated public report-generation models or use a locally
   trained Custom XReport model
 - generate an editable draft from a de-identified X-ray study
-- review and edit the generated Findings and Impression, inspect the model
-  information returned with the draft, and copy or export the text for
+- review and edit the generated model-declared report sections, inspect the
+  model information returned with the draft, and copy or export the text for
   qualified review
 - keep model readiness, validation state, provenance, and research-use
   warnings visible throughout the workflow
@@ -49,10 +49,10 @@ XREPORT follows a simple path from source data to a reviewable draft:
 3. **Generate a draft.** A selected model examines one or more study images and
    produces report text. The selected model determines its supported anatomy,
    image limit, optional clinical context, and resource requirements.
-4. **Review the result.** The draft remains editable. Findings describe the
-   observations in the images, while Impression provides a shorter summary of
-   the main conclusion. Both sections must be checked against the source
-   images by a qualified reviewer.
+4. **Review the result.** The draft remains editable and uses the output
+   sections declared by the selected model. Review Findings, Impression, both,
+   or raw report text as applicable against the source images by a qualified
+   reviewer.
 
 ### The underlying principle
 
@@ -291,7 +291,7 @@ input state visible while a draft is being produced.
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The review panel presents editable Findings and Impression text together with
+The review panel presents editable model-declared report sections together with
 the information needed to identify how the draft was produced.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
@@ -377,7 +377,7 @@ installation may require administrator approval.
 
 Treat the output as an unverified draft. Check the selected model's anatomy and
 input limit, confirm that the images are clear and belong to one study, and
-review the Findings and Impression against the images. Do not try to correct a
+review the declared report sections against the images. Do not try to correct a
 clinical problem by relying on the generated text alone.
 
 ### Previous datasets or models are missing
