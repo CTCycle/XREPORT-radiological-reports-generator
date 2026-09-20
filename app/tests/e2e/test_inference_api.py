@@ -22,3 +22,20 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
 
     assert response.status == 404
     assert "catalog" in response.json()["detail"]
+
+###############################################################################
+def test_inference_catalog_exposes_chexone_findings_only_contract(
+    api_context: APIRequestContext,
+) -> None:
+    response = api_context.get("/api/inference/models")
+
+    assert response.ok
+    chexone = next(
+        model
+        for model in response.json()["models"]
+        if model["model_ref"] == "huggingface:StanfordAIMI/CheXOne"
+    )
+
+    assert chexone["output_sections"] == ["findings"]
+    assert chexone["capabilities"]["findings"] is True
+    assert chexone["capabilities"]["impression"] is False
