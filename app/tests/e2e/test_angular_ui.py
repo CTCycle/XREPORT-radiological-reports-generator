@@ -19,6 +19,37 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page.get_by_role("link", name="Training")).to_be_visible()
 
 ###############################################################################
+def test_chexone_details_render_findings_only_catalog_contract(
+    page: Page,
+    base_url: str,
+) -> None:
+    console_errors: list[str] = []
+    request_failures: list[str] = []
+    page.on(
+        "console",
+        lambda message: console_errors.append(message.text)
+        if message.type == "error"
+        else None,
+    )
+    page.on(
+        "requestfailed",
+        lambda request: request_failures.append(f"{request.method} {request.url}"),
+    )
+
+    response = page.goto(f"{base_url}/inference")
+    assert response is not None and response.ok
+    page.get_by_role("button", name=re.compile(r"CheXOne")).click()
+
+    details = page.locator(".model-details")
+    expect(details.get_by_role("heading", name="CheXOne")).to_be_visible()
+    output_row = details.locator("dt").filter(has_text="Output").locator("xpath=..")
+    expect(output_row.locator("dd")).to_have_text("Findings")
+    expect(details.locator(".capability-list").get_by_text("Findings", exact=True)).to_be_visible()
+    expect(details.get_by_text("Impression", exact=True)).to_have_count(0)
+    assert not console_errors, console_errors
+    assert not request_failures, request_failures
+
+###############################################################################
 def test_settings_route_persists_and_resets_runtime_values(
     page: Page,
     base_url: str,
