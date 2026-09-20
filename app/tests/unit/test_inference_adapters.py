@@ -350,7 +350,9 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         # -------------------------------------------------------------------------
         def batch_decode(self, generated_ids, **_kwargs: object) -> list[str]:
             self.decoded_ids = generated_ids
-            return ["Findings: clear\nImpression: normal"]
+            return [
+                "No focal airspace opacity. No pleural effusion or pneumothorax."
+            ]
 
     ###############################################################################
     class ModelStub:
@@ -371,20 +373,27 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         clinical_context="cough",
         move_inputs=lambda inputs, _model: inputs,
         stopping_criteria=stopping_criteria,
-        output_sections=["findings", "impression"],
+        output_sections=["findings"],
     )
 
     assert vision_call["messages"] == processor.template_messages
     assert processor.processor_call["images"] == [item.image for item in images]
+    assert processor.processor_call["text"] == ["rendered chat prompt"]
     prompt = processor.template_messages[0]["content"][-1]["text"]
-    assert "final Findings and Impression" in prompt
-    assert "reasoning traces" in prompt
+    assert "Write only the Findings section" in prompt
+    assert "do not add a separate Impression section" in prompt
+    assert "or reasoning trace" in prompt
+    assert "final Findings and Impression" not in prompt
+    assert "Clinical context: cough" in prompt
     assert model.generate_call["max_new_tokens"] == max_new_tokens
+    assert model.generate_call["do_sample"] is False
     assert model.generate_call["stopping_criteria"] is stopping_criteria
     assert torch.equal(processor.decoded_ids[0], torch.tensor([3, 4]))
+    assert result.report == (
+        "No focal airspace opacity. No pleural effusion or pneumothorax."
+    )
     assert result.display_sections == {
-        "findings": "clear",
-        "impression": "normal",
+        "findings": "No focal airspace opacity. No pleural effusion or pneumothorax."
     }
 
 
