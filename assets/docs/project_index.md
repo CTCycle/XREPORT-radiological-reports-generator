@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -8,10 +8,11 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 1. Start with this file only.
 2. Read `project_status_ledger.md` before substantial implementation or validation work to understand current operational state, active issues, and validation debt.
-3. Identify the topic area that matches the task.
-4. Open the smallest leaf file that covers the needed detail.
-5. Open sibling files only when the task clearly crosses topic boundaries.
-6. Do not read the entire tree unless the task explicitly requires broad context.
+3. Read `validation_campaign_ledger.md` when planning or executing a validation slice, or when interpreting QA evidence.
+4. Identify the topic area that matches the task.
+5. Open the smallest leaf file that covers the needed detail.
+6. Open sibling files only when the task clearly crosses topic boundaries.
+7. Do not read the entire tree unless the task explicitly requires broad context.
 
 ## Naming Rules
 
@@ -27,6 +28,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
   - Documentation index, navigation rules, and environment guidance.
 - `project_status_ledger.md`
   - Canonical current operational status, evidence summary, open issues, resolved findings, and validation debt.
+- `validation_campaign_ledger.md`
+  - Subordinate slice ledger for the long-term validation campaign, hard-gate order, durable evidence rules, and current Tier 0 execution state.
 
 ### Architecture
 
@@ -87,9 +90,10 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 1. Read `project_index.md`.
 2. Read `project_status_ledger.md` when the task involves implementation, debugging, release, or validation.
-3. Open the smallest leaf file that answers the question.
-4. Expand to adjacent files only when the task crosses topic boundaries.
-5. Return here before jumping to a different topic branch.
+3. Read `validation_campaign_ledger.md` for validation work and use its slice IDs to select evidence.
+4. Open the smallest leaf file that answers the question.
+5. Expand to adjacent files only when the task crosses topic boundaries.
+6. Return here before jumping to a different topic branch.
 
 ## Context Rules
 
@@ -97,6 +101,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Defer reading until the task proves the file is needed.
 - Keep affected docs updated whenever implementation changes alter behavior.
 - Keep `project_status_ledger.md` synchronized after implementation, regression discovery, meaningful validation, blocker changes, or issue resolution and revalidation.
+- Keep `validation_campaign_ledger.md` synchronized after each executed slice; it must preserve the distinction between implementation, automated coverage, exercised behavior, and observed outcome.
 - Treat the ledger as the canonical current-state summary; keep architecture documents authoritative for structure and contracts, validation reports authoritative for detailed evidence, and implementation plans authoritative for intended work.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select relevant docs from folder structure and user intent before opening more files.

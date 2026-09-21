@@ -43,6 +43,25 @@ Angular shell displays the XREPORT startup surface while it polls
 `/api/health`; routed pages are not created until the backend reports
 `status: "ok"`.
 
+## Foundational Startup Validation
+
+Startup validation is the Tier 0 foundation of the campaign in
+[`validation_campaign_ledger.md`](../validation_campaign_ledger.md):
+
+- S01 uses a disposable `XREPORT_RESOURCES_DIR` to prove fresh SQLite startup,
+  Alembic head readiness, required resource creation, restart reuse, and
+  fail-closed rejection of a non-empty database without `alembic_version`.
+- S02 opens the frontend before backend readiness and verifies that routed
+  feature surfaces and model-catalogue requests remain suppressed until
+  `/api/health` succeeds. The shell must represent ready, slow, unavailable,
+  retry/recovery, and post-ready feature-error states without returning to the
+  startup gate for an ordinary API error.
+
+The acceptance boundary is rendered behavior plus backend evidence, not merely
+an HTTP 200 from the preview server. Keep the slice summary and screenshots in
+the tracked campaign evidence directory when the result is intended to be
+reused by another checkout.
+
 Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
 frontend dependencies as needed, rebuild the Angular client, and leave backend
 services untouched. The same operation can be run directly with:
