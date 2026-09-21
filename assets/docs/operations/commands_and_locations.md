@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
 ## Primary Commands
 
@@ -61,6 +61,41 @@ The CXRMate-ED canary is cache-only and writes its real-inference evidence to
 `assets/QA/inference_validation_runs/`. A failed canary is an expected,
 explicit degraded result for research access; it must not be treated as a
 passing validation receipt.
+
+### Tier 0 validation
+
+The hard-gated foundational campaign is documented in
+[`validation_campaign_ledger.md`](../validation_campaign_ledger.md). Run its
+current-head sequence in this order:
+
+```powershell
+uv sync --locked --extra test --python 3.14.7
+Set-Location app/server
+.\.venv\Scripts\ruff.exe check .
+.\.venv\Scripts\pyright.exe .
+Set-Location ../..
+app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp runtimes/cache/pytest-tmp/tier0-unit -o "cache_dir=runtimes/cache/pytest"
+Set-Location app/client
+npm ci --no-audit --no-fund
+npm run build
+npm run lint
+npm run test:unit
+```
+
+For the rendered startup gate, use the official launcher, then run the focused
+test against the live pair:
+
+```powershell
+Set-Location ../..
+.\start_on_windows.ps1 -Action Launch
+$env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
+$env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
+app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/e2e/test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health -q --basetemp runtimes/cache/pytest-tmp/tier0-s02 -o "cache_dir=runtimes/cache/pytest"
+```
+
+Durable campaign summaries belong under `assets/QA/validation_campaign/`;
+transient caches, server logs, and generated bundles remain under
+`runtimes/cache` unless a slice summary explicitly promotes them to evidence.
 
 ### Development cache locations
 
