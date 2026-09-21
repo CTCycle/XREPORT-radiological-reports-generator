@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
 ## Windows Local Launcher
 
@@ -37,7 +37,11 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 - update source from `origin/main` with the clean-`main` guard
 
-The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
+The launch option starts the backend and frontend preview together, waits only
+for the UI port to respond, opens the browser, and then exits the menu. The
+Angular shell displays the XREPORT startup surface while it polls
+`/api/health`; routed pages are not created until the backend reports
+`status: "ok"`.
 
 Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
 frontend dependencies as needed, rebuild the Angular client, and leave backend
@@ -72,8 +76,9 @@ frontend rebuild actions.
 ## Tauri desktop development
 
 `LaunchDesktopDev` builds Angular once, starts the source FastAPI backend on
-the configured 5003 port, starts the preview on 8003, leaves both consoles
-visible, and opens the debug Tauri shell:
+the configured 5003 port, starts the preview on 8003, waits only for the
+preview, leaves both consoles visible, and opens the debug Tauri shell. The
+same Angular startup gate remains visible until backend readiness:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev

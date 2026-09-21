@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 ## Core UX Journeys
 
@@ -11,6 +11,24 @@ Last updated: 2026-09-20
   - terminal success, error, or cancel feedback
 - Keep the inference research-use warning visible above the drafting workspace. Model status and capabilities must be clear before image upload or generation.
 - Generated report text remains an editable draft using the output sections declared by the selected model. Models may expose Findings, Impression, both sections, or a raw report; it is never presented as a clinically approved result.
+
+## Application startup
+
+- The browser interface opens as soon as the frontend preview is reachable;
+  backend initialization continues behind the shell-level startup surface.
+- The startup surface uses four states: `starting`, `slow`, `unavailable`, and
+  `ready`. It does not claim that a backend has crashed when the browser can
+  only observe that readiness has not arrived.
+- `slow` appears after approximately 15 seconds. `unavailable` appears after
+  60 seconds, keeps automatic low-frequency polling active, and exposes
+  **Retry connection**. A later successful `/api/health` response recovers
+  without a browser refresh.
+- Only a health response with `status: "ok"` unlocks routing. The startup gate
+  is terminal for that application instance and never returns for ordinary
+  feature-level API errors after the workspace is visible.
+- The radiograph illustration and report bars are decorative. The live status
+  text is exposed through an accessible status region, and reduced-motion users
+  receive a static composition with only the short ready transition.
 
 ## Interaction Consistency
 

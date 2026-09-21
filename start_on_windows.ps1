@@ -878,32 +878,32 @@ function Invoke-Launch {
         -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
-    Write-Step "Waiting for backend health at $healthUrl"
-    Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 60
-
-    Write-Step 'Starting frontend preview'
     $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
-    $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
-        'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT
-    ) `
-        -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+    $frontendProcess = $null
     try {
+        Write-Step 'Starting frontend preview while the backend initializes'
+        $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
+            'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT
+        ) `
+            -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
         Write-Step "Waiting for frontend at $uiUrl"
         Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60
+
+        Start-Process $uiUrl
+
+        Write-Ok 'XREPORT interface started. Backend initialization is continuing in the application.'
+        Write-Host "Backend: $healthUrl (initializing; launcher PID $($backendProcess.Id))"
+        Write-Host "Frontend: $uiUrl (PID $($frontendProcess.Id))"
     }
     catch {
         if ($frontendProcess -and -not $frontendProcess.HasExited) {
             & taskkill.exe /PID $frontendProcess.Id /T /F | Out-Null
         }
+        if ($backendProcess -and -not $backendProcess.HasExited) {
+            & taskkill.exe /PID $backendProcess.Id /T /F | Out-Null
+        }
         throw
     }
-
-    Start-Process $uiUrl
-
-    $backendPid = Get-PortProcessId -Port ([int]$settings.FASTAPI_PORT)
-    Write-Ok 'Application started successfully'
-    Write-Host "Backend: $healthUrl (PID $backendPid)"
-    Write-Host "Frontend: $uiUrl (PID $($frontendProcess.Id))"
 }
 
 function Invoke-InstallOrUpdate {
@@ -1553,7 +1553,6 @@ function Invoke-LaunchDesktopDev {
     $frontendCommand = "& '$($NpmCmd.Replace("'", "''"))' run preview -- --host $($settings.UI_HOST) --port $($settings.UI_PORT)"
     $frontendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $frontendCommand) -WorkingDirectory $ClientDir -WindowStyle Normal -PassThru
     try {
-        Invoke-HealthCheck -Uri "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health" -TimeoutSeconds 60
         Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
         $env:XREPORT_DESKTOP_DEV = '1'
         $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version
