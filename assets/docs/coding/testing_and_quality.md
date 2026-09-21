@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-09-18
+Last updated: 2026-09-21
 
 ## Tooling And Quality Gates
 
@@ -31,6 +31,39 @@ Last updated: 2026-09-18
   Windows test runner passes `runtimes/cache/pytest-tmp` as pytest's basetemp
   and `runtimes/cache/pytest` as its cache directory.
 - Synchronous tests that await application coroutines must use the shared thread helper in `tests.conftest` when Playwright's synchronous E2E plugin is enabled.
+
+## Validation Campaign Gates
+
+The long-term validation campaign is tracked in
+[`validation_campaign_ledger.md`](../validation_campaign_ledger.md). Its first
+hard gate is Tier 0 (Gate A):
+
+`S00 → S01 → S03 → S02`
+
+S00 restores the current CI baseline, S01 proves source backend and SQLite
+readiness, S03 reruns the cheap deterministic quality and build gates, and S02
+proves the Angular startup/recovery shell. Do not advance to feature workflows
+while S00 remains red on the current revision, even when a different operating
+system passes locally.
+
+Every executed slice must record the exact revision, dirty-tree state,
+environment, scenarios, result, regressions, issue references, and durable
+evidence under `assets/QA/validation_campaign/`. A passing unit or build gate
+does not promote a feature workflow to end-to-end `VALIDATED`; the workflow must
+also be exercised and observed at the appropriate boundary.
+
+Use repository-local disposable state for the campaign:
+
+```powershell
+app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp runtimes/cache/pytest-tmp/tier0-unit -o "cache_dir=runtimes/cache/pytest"
+$env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
+$env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
+```
+
+If a failure is reproducible, use the sequence
+**inspect → execute → observe → diagnose → surgically fix → retest → record**.
+Capture the original failure before changing code, run the narrow regression
+set after the fix, and keep unrelated cleanup out of the remediation.
 
 ## Documentation And Change Discipline
 

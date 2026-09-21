@@ -8,9 +8,11 @@ unvalidated, or absent, and points to the detailed architecture and QA evidence
 that supports each claim. It is a current-state index, not a development diary,
 issue tracker replacement, release approval, or clinical-quality statement.
 
-Snapshot: `develop` at `6c38954` (`qa: record real CheXOne validation receipt`).
-Statuses describe the evidence available for that checkout and must be refreshed
-when the checkout or its validation evidence changes.
+Validation baseline: `develop` at `481605b1b87035b8deb03edaefdbfc090f8f1b23`.
+This update adds campaign documentation and evidence without changing the
+application code under validation. Statuses remain tied to the exact evidence
+revision and must be refreshed when the checkout or its validation evidence
+changes.
 
 ## Maintenance Rules
 
@@ -27,11 +29,12 @@ Future coding and validation agents must:
 9. link detailed reports instead of copying long narratives into this ledger;
 10. keep this ledger synchronized with the actual repository state.
 
-Evidence under `assets/QA/` is often local and ignored by Git. A link is valid
-for this checkout, but if the artifact is absent in another checkout, its claim
-must be treated as unvalidated until the evidence is restored or the check is
-rerun. The ledger never upgrades a claim merely because source code or a unit
-test exists.
+Evidence under `assets/QA/` is split by retention intent. Durable campaign
+summaries under `assets/QA/validation_campaign/` are tracked; large or
+transient captures elsewhere may remain local and ignored. If a linked artifact
+is absent in another checkout, its claim must be treated as unvalidated until
+the evidence is restored or the check is rerun. The ledger never upgrades a
+claim merely because source code or a unit test exists.
 
 ## Status Taxonomy
 
@@ -54,8 +57,14 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- Source-mode backend startup, lightweight API reachability, and the rendered
-  Angular smoke surface have recent evidence.
+- Tier 0 is not cleared. The current remote CI run `35598132452` is red on the
+  validation baseline because `test_concurrent_service_initialization_keeps_ml_imports_lazy`
+  failed after `131` passing backend tests; see the subordinate [validation
+  campaign ledger](validation_campaign_ledger.md).
+- The same lazy-import test passed ten consecutive times on Windows and the
+  complete local backend unit suite passed (`132 passed`). S01 source startup,
+  S02 rendered startup-gate recovery, and S03 local static/client gates passed
+  within their recorded Windows scope.
 - Settings persistence and reset have browser and automated evidence from
   2026-09-17; responsive settings, dataset, and inference evidence was captured
   again on 2026-09-19/20.
@@ -67,8 +76,9 @@ form of evidence exists for the stated scope.
 - Full dataset, training, successful validation/evaluation, PostgreSQL, and
   packaged desktop workflows remain validation debt even where implementation
   and focused tests exist.
-- No current component is classified `BROKEN` from the inspected evidence.
-  Historical failures that were superseded are listed separately below.
+- The current CI failure is recorded as an active issue rather than being
+  softened by the passing Windows reproduction. Historical failures that were
+  superseded are listed separately below.
 
 ## Current Component Ledger
 
@@ -76,7 +86,7 @@ form of evidence exists for the stated scope.
 
 | Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `runtime.source.startup` | `VALIDATED` | Source-mode FastAPI startup, SQLite migration/resource checks, health readiness, and lightweight endpoint reachability. | [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [2026-09-21 Python 3.14.7 validation](../QA/xreport-python-3.14.7-validation-20260921.md); [backend smoke log](../QA/xreport-backend-smoke-20260919.log) | Checkpoint listing emits warnings for incomplete test artifacts; see `ISSUE-003`. | — | 2026-09-21 | integration + E2E + manual | [startup](runtime/startup.md); [system overview](architecture/system_overview.md) | Repeat the source smoke after launcher, migration, or startup changes. |
+| `runtime.source.startup` | `VALIDATED` | Source-mode FastAPI startup, SQLite migration/resource checks, health readiness, and lightweight endpoint reachability. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [backend smoke log](../QA/xreport-backend-smoke-20260919.log) | Checkpoint listing emits warnings for incomplete test artifacts; see `ISSUE-003`. | — | 2026-09-21 | integration + E2E + manual | [startup](runtime/startup.md); [system overview](architecture/system_overview.md) | Repeat the source smoke after launcher, migration, or startup changes. |
 | `runtime.desktop.packaged` | `UNVALIDATED` | Tauri CPU/CUDA runtime extraction, portable/MSI packaging, startup, shutdown, and user-data-root isolation. | [desktop packaging tests](../../app/tests/unit/test_desktop_packaging.py); [2026-09-17 E2E note](../QA/e2e-validation-20260917.md) records `cargo check` passed. | No current CPU/CUDA portable/MSI smoke report is present under `assets/QA/desktop/`. | — | 2026-09-17 | unit + build-check | [deployment](runtime/deployment.md); [runtime modes](runtime/modes.md) | Build both variants and run the documented packaged smoke checks, preserving reports under `assets/QA/desktop/`. |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | Containerized runtime or image-based deployment. | [runtime modes](runtime/modes.md) explicitly records this mode as absent. | No container build, image, or deployment contract exists. | — | — | None | [runtime modes](runtime/modes.md); [deployment](runtime/deployment.md) | Define a supported container contract only if deployment scope expands. |
 | `configuration.runtime_settings` | `VALIDATED` | Database-backed public settings: seed, filesystem access, polling interval, and inference timeout, including save, reload, reset, and allowlisting. | [settings validation](../QA/settings-migration-validation-20260917.md); [settings E2E](../../app/tests/e2e/test_settings_api.py); [settings page E2E](../../app/tests/e2e/test_angular_ui.py) | Hidden infrastructure, credential, and static model-policy values remain intentionally unavailable to the Settings API. | — | 2026-09-17 | unit + integration + E2E + manual | [configuration](runtime/configuration.md); [persistence](architecture/persistence.md); [UI experience](ui/experience.md) | Revalidate save/reset and migration behavior after settings or schema changes. |
@@ -88,7 +98,7 @@ form of evidence exists for the stated scope.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `backend.api.contracts` | `VALIDATED` | Tested health, model catalogue, dataset status/name, checkpoint, and settings surfaces plus typed error behavior. | [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [backend API tests](../../app/tests/e2e/test_inference_api.py); [OpenAPI tests](../../app/tests/unit/test_openapi_schema.py) | This status covers the exercised surface, not every endpoint or every long-running happy path. | — | 2026-09-19 | unit + integration + E2E | [backend API](architecture/backend_api.md); [system overview](architecture/system_overview.md) | Extend endpoint-level E2E coverage when a route or response contract changes. |
 | `backend.jobs.lifecycle` | `VALIDATED` | Generic start, poll, cancellation, terminal failure, recoverability, and persistence-failure semantics. | [architecture review](architecture/architecture_review.md); [job failure tests](../../app/tests/unit/test_job_failure_semantics.py); [job cancellation tests](../../app/tests/unit/test_job_cancellation_semantics.py) | No current issue recorded for the generic lifecycle contract. | — | 2026-09-17 | unit | [execution and data flow](architecture/execution_and_data_flow.md); [backend API](architecture/backend_api.md) | Revalidate the affected job path after changes to a feature service or polling contract. |
-| `backend.ml_import_boundaries` | `VALIDATED` | Lightweight endpoints avoid eager Keras/PyTorch/Transformers/provider imports and remain usable before an ML job. | [clean backend smoke](../QA/xreport-backend-smoke-20260919.log) has no deadlock/partial-import/HTTP-500 matches; [import-boundary tests](../../app/tests/unit/test_ml_import_boundaries.py) | The rule is a regression boundary; actual model execution remains provider-specific below. | — | 2026-09-19 | unit + integration + manual | [execution and data flow](architecture/execution_and_data_flow.md); [troubleshooting](operations/troubleshooting.md) | Repeat the clean-subprocess and lightweight-endpoint checks after model/service import changes. |
+| `backend.ml_import_boundaries` | `PARTIAL` | Lightweight endpoints avoid eager Keras/PyTorch/Transformers/provider imports and remain usable before an ML job. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [clean backend smoke](../QA/xreport-backend-smoke-20260919.log) has no deadlock/partial-import/HTTP-500 matches; [import-boundary tests](../../app/tests/unit/test_ml_import_boundaries.py) | Current remote CI still fails the concurrent service-initialization test on the validation baseline; Windows reproduction passes. | — | 2026-09-21 | unit + integration + manual | [execution and data flow](architecture/execution_and_data_flow.md); [troubleshooting](operations/troubleshooting.md) | Capture the full remote traceback, classify the cross-platform defect, remediate only its owner, and rerun S00. |
 | `persistence.sqlite_migrations` | `VALIDATED` | SQLite startup/initialization reaches the checked-in Alembic head and persists application settings without implicit schema stamping. | [backend smoke](../QA/xreport-backend-smoke-20260919.log) records head `f48a7c2e91b6`; [database initialization tests](../../app/tests/unit/test_database_initialization.py); [settings migration validation](../QA/settings-migration-validation-20260917.md) | Existing unversioned or incompatible schemas intentionally fail closed. | — | 2026-09-19 | unit + integration + manual | [persistence](architecture/persistence.md); [architecture review](architecture/architecture_review.md) | Recheck migration upgrade and rollback safety for every new revision. |
 | `persistence.postgresql` | `UNVALIDATED` | External PostgreSQL creation, locking, migration, and repository contract. | [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) requires external test settings; no current PostgreSQL QA artifact was found. | No current live PostgreSQL evidence. | — | — | None | [persistence](architecture/persistence.md); [deployment](runtime/deployment.md) | Run the integration contract against the supported PostgreSQL versions/configuration. |
 | `persistence.checkpoint_registry` | `PARTIAL` | Database-owned checkpoint identity, complete-artifact registration, listing, and safe deletion. | [backend smoke](../QA/xreport-backend-smoke-20260919.log); [checkpoint/deletion tests](../../app/tests/e2e/test_training_api.py) | Four incomplete `e2e_delete_*` registrations produce warnings while the listing endpoint still returns HTTP 200; see `ISSUE-003`. | — | 2026-09-19 | unit + integration + manual | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) | Reconcile incomplete fixture registrations and rerun startup plus checkpoint listing. |
@@ -120,7 +130,7 @@ form of evidence exists for the stated scope.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ui.settings` | `VALIDATED` | Settings route navigation, four public controls, save/reload/reset, explicit states, and responsive layout. | [settings E2E](../../app/tests/e2e/test_angular_ui.py); [2026-09-17 E2E note](../QA/e2e-validation-20260917.md); [responsive screenshots](../QA/xreport-settings-narrow-dark.png) | No current issue recorded for the exercised settings surface. | — | 2026-09-20 | E2E + manual | [UI experience](ui/experience.md); [UI patterns](ui/components_and_patterns.md) | Revalidate persistence and responsive states after route, contract, or token changes. |
 | `ui.inference.catalogue_and_sections` | `VALIDATED` | Rendered inference route, model-card grid, banner behavior, responsive layout, and model-declared report sections. | [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [2026-09-21 Python 3.14.7 validation](../QA/xreport-python-3.14.7-validation-20260921.md); [inference screenshot](../QA/xreport-inference-narrow-dark.png); [CheXOne UI contract test](../../app/tests/e2e/test_angular_ui.py) | Live browser Generate/Cancel/edit/export coverage is not established for every provider. | — | 2026-09-21 | E2E + manual | [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Add a rendered Generate/Cancel/provenance flow against a current installed model. |
-| `ui.startup_gate` | `VALIDATED` | Shell-level startup surface, serialized `/api/health` readiness polling, route suppression before readiness, slow/unavailable recovery, ready transition, and responsive 1024x720 composition. | [startup screenshot](../QA/xreport-startup-gate.png); [startup E2E](../../app/tests/e2e/test_angular_ui.py); [frontend unit suite](../../app/client/src/app/services/startup-readiness.service.spec.ts) | Real `start_on_windows.ps1 -Action Launch` timing and packaged desktop smoke remain separate validation work. | — | 2026-09-21 | unit + E2E + manual | [startup](runtime/startup.md); [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Recheck launcher timing and packaged CPU/CUDA startup after the next desktop validation run. |
+| `ui.startup_gate` | `VALIDATED` | Shell-level startup surface, serialized `/api/health` readiness polling, route suppression before readiness, recovery, ready transition, and responsive 1024x720 composition. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [startup screenshot](../QA/xreport-startup-gate.png); [startup E2E](../../app/tests/e2e/test_angular_ui.py); [frontend unit suite](../../app/client/src/app/services/startup-readiness.service.spec.ts) | Explicit slow/unavailable/retry timing and ordinary post-ready feature-error manual evidence remain open; launcher browser-open and KillProcesses actions hit managed Windows access limits in this run. | — | 2026-09-21 | unit + E2E + manual | [startup](runtime/startup.md); [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Recheck explicit recovery states, launcher timing, and packaged CPU/CUDA startup after the next desktop validation run. |
 | `ui.dataset_and_training_surfaces` | `WORKING` | Dataset and Training route rendering, navigation, and responsive surface. | [route-render E2E](../../app/tests/e2e/test_angular_ui.py); [dataset screenshot](../QA/xreport-dataset-narrow-dark.png) | Route rendering is evidenced, but complete dataset and training workflows remain unvalidated. | — | 2026-09-20 | E2E + manual | [UI patterns](ui/components_and_patterns.md); [workflows](operations/workflows.md) | Pair the surface checks with live dataset and minimal-training workflow evidence. |
 | `ui.validation.report_review` | `PARTIAL` | Validation route, missing-data error feedback, successful report display, and metric review. | [missing-dataset E2E](../../app/tests/e2e/test_angular_ui.py); [validation component patterns](ui/components_and_patterns.md) | Error-path rendering is covered; successful report review is not evidenced. | — | 2026-09-17 | E2E error path | [UI experience](ui/experience.md); [workflows](operations/workflows.md) | Run a successful validation and inspect the rendered report/metric state. |
 | `test.infrastructure.windows_cache` | `PARTIAL` | Repeatable Windows test startup and disposable-cache routing. | [testing rules](coding/testing_and_quality.md); [settings validation](../QA/settings-migration-validation-20260917.md); [E2E validation](../QA/e2e-validation-20260917.md) | Passing runs still emit warnings for pre-existing protected pytest/cache directories; see `ISSUE-004`. | Existing filesystem ACLs on protected cache paths. | 2026-09-19 | integration + E2E | [startup](runtime/startup.md); [commands](operations/commands_and_locations.md) | Rerun the test runner after routing/cleanup and confirm warnings are removed or explicitly accepted. |
@@ -137,6 +147,7 @@ Only actionable current problems belong here.
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | The gated MedGemma entry cannot be installed or generated without provider terms acceptance and a Hugging Face credential. | One of the five catalogue entries is unavailable in the current environment. | [public-model run](../QA/inference_validation_runs/public-inference-models-20260919T165746Z.json): `state=deferred_access_required`. | Not a confirmed software defect. | Provider terms plus `HF_TOKEN` or an approved local credential. | `BLOCKED` — waiting for authorized access configuration. | Download the exact pinned revision, run real inference, and capture a receipt before changing status. | [gated access](runtime/local_inference_models.md); [configuration](runtime/configuration.md) |
 | `ISSUE-003` | `persistence.checkpoint_registry` | `LOW` | Clean backend smoke lists four incomplete `e2e_delete_*` checkpoint registrations and logs warnings. | The checkpoint endpoint still returns HTTP 200, but the catalogue is noisy and may expose stale test registrations. | [backend smoke log](../QA/xreport-backend-smoke-20260919.log) shows the four warning names during checkpoint listing. | Stale test-generated registrations are plausible but not confirmed. | — | `OPEN` — reconcile incomplete registrations before treating checkpoint listing as clean. | Remove or repair the fixtures in a disposable database, rerun startup/listing, and confirm zero warnings. | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) |
 | `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | Test/E2E runs pass but emit permission warnings for pre-existing protected pytest/cache directories. | Results remain usable, but cleanup and reproducibility are less clear on Windows. | [settings QA](../QA/settings-migration-validation-20260917.md) and [E2E QA](../QA/e2e-validation-20260917.md) record the warnings. | Protected pre-existing cache ACLs, as documented by the validation runs. | Filesystem permission/ownership of the legacy cache paths. | `OPEN` — keep active caches under `runtimes/cache` and report any protected legacy paths explicitly. | Rerun the relevant tests and confirm no unexpected cache-permission warnings remain. | [testing rules](coding/testing_and_quality.md); [startup](runtime/startup.md) |
+| `ISSUE-005` | `validation.tier0.s00` | `HIGH` | Current remote CI run `35598132452` fails the concurrent service-initialization lazy-import test on the validation baseline; Windows reproduction passes. | Gate A cannot be declared green and later CI stages are skipped on the affected run. | [Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260921.md); [CI run 35598132452](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35598132452). | Cross-platform defect or test/environment state is not classified because the full remote traceback is not retained in the inspection. | Current CI environment and missing full traceback. | `OPEN` — do not weaken the test or pre-create undeclared global state; capture stderr, classify the owner, and rerun the current-head gate. | Ten consecutive passes of the isolated test, full backend units, every skipped CI stage, and a green current-head run. | [validation campaign ledger](validation_campaign_ledger.md); [testing rules](coding/testing_and_quality.md) |
 
 ## Validation Debt
 
@@ -145,6 +156,7 @@ current confidence is too low or too narrow to support a stronger status.
 
 | Component | Current Confidence | Missing Validation | Priority |
 | --- | --- | --- | --- |
+| `validation.tier0.current_head` | Low | Current remote CI baseline is red on S00 despite a passing Windows reproduction; cross-platform traceback, remediation classification, and green current-head rerun are missing. | Critical |
 | `runtime.desktop.packaged` | Low | CPU/CUDA portable and MSI build, launch, readiness, shutdown, data-root isolation, and artifact verification. | High |
 | `persistence.postgresql` | Low | Live schema/migration/repository contract against the supported PostgreSQL configuration. | Medium |
 | `workflow.dataset_upload_and_preparation` | Low | Non-empty upload through image matching, unmatched confirmation, processing, and persisted metadata. | High |
@@ -174,6 +186,10 @@ mistaken for active issues. They do not change the current ledger status.
   and persistence ownership. They remain the detailed technical authority.
 - QA reports, test files, screenshots, logs, and receipts explain how a status
   was established. They are evidence, not substitutes for current status.
+- [`validation_campaign_ledger.md`](validation_campaign_ledger.md) is the
+  subordinate slice authority for campaign order and remaining gaps; its
+  durable Tier 0 execution summary is retained under
+  `assets/QA/validation_campaign/`.
 - Implementation plans describe intended work and do not change a component's
   status until implementation and evidence exist.
 - This ledger is the canonical current operational summary. When detailed
