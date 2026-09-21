@@ -13,7 +13,11 @@ runtimes/**
 runtimes/cache/
 !runtimes/cache/
 !runtimes/cache/.gitkeep
+# Keep large/transient QA captures local by default. Durable validation campaign
+# summaries are explicitly retained so future checkouts can inspect prior gates.
 assets/QA/**
+!assets/QA/validation_campaign/
+!assets/QA/validation_campaign/**
 
 # Python
 *.egg-info/
