@@ -117,8 +117,10 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 
 Choose **Launch application**. The launcher prepares the local runtimes and
 dependencies as needed, initializes the application data store, starts the
-services, checks that they are ready, and opens the application in your
-browser.
+services, and opens the browser as soon as the frontend preview is reachable.
+XREPORT then shows its initialization surface while the local FastAPI service
+finishes preparing the database and runtime resources. The normal workspace is
+revealed only after `/api/health` reports that the backend is ready.
 
 The first launch may take several minutes while dependencies and the frontend
 are prepared. Allow the process to finish and keep an internet connection
