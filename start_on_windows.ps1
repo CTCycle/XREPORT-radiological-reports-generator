@@ -89,10 +89,10 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     if ([string]::IsNullOrWhiteSpace($Version)) { throw 'Could not read the canonical version from app/server/pyproject.toml.' }
 }
 
-$PythonVersion = '3.14.2'
+$PythonVersion = '3.14.7'
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
-$PythonSha256 = 'f05e28d161c6b15af64a7cb7f08b4a22b3a6b03eee71baee24ea557b3bdd5798'
+$PythonSha256 = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
 $UvVersion = '0.11.9'
 $UvUrlAmd64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-x86_64-pc-windows-msvc.zip"
 $UvUrlArm64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-aarch64-pc-windows-msvc.zip"
@@ -391,6 +391,14 @@ function Ensure-PortableRuntimes {
     }
     Write-Ok "Python ready: $foundVersion"
 
+    if (Test-Path -LiteralPath $VenvPython) {
+        $venvVersion = (& $VenvPython --version 2>&1 | Out-String).Trim()
+        if ($venvVersion -ne "Python $PythonVersion") {
+            Write-Info "Recreating project virtual environment for Python $PythonVersion"
+            [void](Remove-LauncherPath -Path $VenvDir -Activity 'XREPORT: replace project Python environment' -Strict)
+        }
+    }
+
     $uvArchitecture = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
     $uvExpectedVersion = "uv $UvVersion"
     $uvReady = $false
@@ -672,12 +680,14 @@ function Test-DependenciesReady {
         return $false
     }
 
-    & $PythonExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    $pythonVersionOutput = (& $PythonExe --version 2>&1 | Out-String).Trim()
+    if ($pythonVersionOutput -ne "Python $PythonVersion") { return $false }
     & $UvExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
     & $NodeExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
+    $venvVersionOutput = (& $VenvPython --version 2>&1 | Out-String).Trim()
+    if ($venvVersionOutput -ne "Python $PythonVersion") { return $false }
     & $VenvPython -c 'import fastapi, uvicorn' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
