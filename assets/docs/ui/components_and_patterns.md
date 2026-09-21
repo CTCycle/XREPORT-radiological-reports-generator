@@ -1,12 +1,22 @@
 # UI Components And Patterns
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
 
 ## Reusable Patterns
 
 - Buttons, cards, forms, modal shells, dashboards, and navigation all follow tokenized spacing, color, radius, and shadow rules.
 - Use `--focus-ring` for visible keyboard focus feedback.
 - Disabled controls must communicate both visually and behaviorally.
+
+### Application startup gate
+
+The root shell owns a dedicated startup gate before it creates the
+`RouterOutlet`. `StartupReadinessService` polls `/api/health` serially and
+keeps route components, including the inference catalogue request, out of the
+DOM until the response contains `status: "ok"`. The `StartupScreenComponent`
+provides the shared XREPORT radiograph-to-report loading surface, phase copy,
+retry action, accessibility status, and ready exit transition. This is a
+shell-level lifecycle component, not a feature-page loading state.
 
 ## Required Interactive States
 

@@ -19,6 +19,53 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page.get_by_role("link", name="Training")).to_be_visible()
 
 ###############################################################################
+def test_startup_gate_holds_inference_until_backend_health(
+    page: Page,
+    base_url: str,
+) -> None:
+    """The shell stays visible and suppresses page API work until health recovers."""
+    health_calls = 0
+    requested_urls: list[str] = []
+
+    def capture_request(request) -> None:
+        requested_urls.append(request.url)
+
+    def respond_to_health(route) -> None:
+        nonlocal health_calls
+        health_calls += 1
+        if health_calls < 3:
+            route.fulfill(
+                status=503,
+                content_type="application/json",
+                body='{"detail":"backend is still starting"}',
+            )
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"status":"ok"}',
+        )
+
+    page.on("request", capture_request)
+    page.route("**/api/health", respond_to_health)
+    page.set_viewport_size({"width": 1024, "height": 720})
+    response = page.goto(f"{base_url}/")
+
+    assert response is not None and response.ok
+    expect(page.get_by_role("heading", name="Preparing XREPORT")).to_be_visible()
+    expect(page.locator("app-inference-page")).to_have_count(0)
+    expect(page.get_by_text("Model catalogue", exact=True)).to_have_count(0)
+    assert not any("/api/inference/models" in url for url in requested_urls)
+
+    qa_dir = Path(__file__).parents[3] / "assets" / "QA"
+    qa_dir.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(qa_dir / "xreport-startup-gate.png"), full_page=False)
+
+    expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible(timeout=10_000)
+    assert health_calls == 3
+    page.unroute("**/api/health", respond_to_health)
+
+###############################################################################
 def test_chexone_details_render_findings_only_catalog_contract(
     page: Page,
     base_url: str,

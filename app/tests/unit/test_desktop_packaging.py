@@ -307,3 +307,16 @@ def test_packaged_desktop_processes_are_windowless() -> None:
     assert "XREPORT_PYINSTALLER_CONSOLE" not in spec
     assert "creation_flags(&mut command, 0x08000000)" in backend
     assert 'windows_subsystem = "windows"' in shell
+
+###############################################################################
+def test_packaged_client_keeps_the_startup_shell_assets() -> None:
+    client_root = Path(__file__).parents[2] / "client"
+    index = (client_root / "src" / "index.html").read_text(encoding="utf-8")
+    shell = (client_root / "public" / "desktop-shell.js").read_text(encoding="utf-8")
+    startup_css = client_root / "public" / "startup.css"
+
+    assert 'id="desktop-startup"' in index
+    assert 'id="status"' in index
+    assert "startup.css" in index
+    assert "desktop-startup" in shell
+    assert startup_css.is_file()

@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-09-17
+Last updated: 2026-09-21
 
 XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
@@ -18,7 +18,12 @@ XREPORT is a local-first client/server system for radiological report generation
   `app/server/services/jobs.py` lifecycle and `/api/jobs` resource.
 - Startup validation: Alembic database creation/upgrade and required resource-directory checks before the API serves requests.
 
-The Angular application and FastAPI application are separate runtimes. The Windows launcher starts them as coordinated local processes; the backend root redirects to FastAPI documentation, while the Angular runtime owns the user interface.
+The Angular application and FastAPI application are separate runtimes. The
+Windows launcher starts them as coordinated local processes and opens the
+frontend as soon as its server responds; the Angular shell then owns readiness
+presentation and polls `/api/health` before creating routed application
+content. The backend root redirects to FastAPI documentation, while the
+Angular runtime owns the user interface.
 
 ### Packaged Windows topology
 
