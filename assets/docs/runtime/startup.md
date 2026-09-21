@@ -57,6 +57,10 @@ installation profile:
 - `Development` includes Ruff, Pyright, and pytest.
 - `Standard` installs runtime dependencies only.
 
+If the project virtual environment was created by an older pinned Python
+patch release, the launcher recreates that disposable environment before
+synchronizing the locked dependencies.
+
 At backend startup, a missing `settings/.env` is created from
 `settings/.env.example`. Existing environment files are preserved and ignored
 by Git.

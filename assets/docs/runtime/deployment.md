@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-09-17
+Last updated: 2026-09-21
 
 ## Deployment Scope
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-17
 ## Runtime Prerequisites
 
 - Windows prerequisites are downloaded into `runtimes/` by the launcher.
-- Manual environments require Python 3.14.2, uv 0.11.9, Node.js 22.22.3/npm
+- Manual environments require Python 3.14.7, uv 0.11.9, Node.js 22.22.3/npm
   10.9.8, rustup with Rust 1.95.0, and the Windows MSVC Build Tools/SDK for
   desktop packaging.
 
