@@ -112,7 +112,7 @@ fn start_packaged_backend(window: WebviewWindow, state: DesktopState) {
     let backend_store = state.backend.clone();
     let data_root = state.data_root.clone();
     thread::spawn(move || {
-        let _ = window.eval("document.getElementById('status').textContent = 'Extracting the verified local runtime…';");
+        let _ = window.eval("document.getElementById('status').textContent = 'Preparing the verified local runtime...';");
         match backend::start_backend(&data_root, RELEASE_VERSION, RUNTIME_VARIANT) {
             Ok(handle) => {
                 let handle = Arc::new(handle);
