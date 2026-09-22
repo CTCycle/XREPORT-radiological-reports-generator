@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-09-19
+Last updated: 2026-09-22
 
 ## Shared Configuration Sources
 
@@ -45,8 +45,6 @@ logs are all below the data root.
 - `UI_PORT`
 - `UI_API_BASE_URL`
 - `RELOAD`
-- `ALWAYS_REBUILD` (set to `true` to rebuild the frontend whenever the Windows
-  launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `EMBEDDED_DATABASE` (`true` for SQLite or `false` for PostgreSQL)
@@ -126,8 +124,12 @@ in `start_on_windows.ps1` for explicit database and schema initialization.
 ## Interoperability
 
 - Frontend calls backend routes through `/api`.
-- Angular dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
-- The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
+- Angular `start` and `dev` proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
+- The `preview` script serves `dist/client-angular/browser` with a built-in Node
+  static server, Angular SPA fallback, and the same `/api` reverse proxy.
+- The Windows launcher starts FastAPI plus that built-bundle server, waits for
+  the UI port, and opens the configured UI URL. It rebuilds only when the
+  deterministic frontend build-state manifest is missing or stale.
 - Source mode derives the runtime root from the repository layout and uses the
   explicit `XREPORT_RESOURCES_DIR` override when provided. Packaged mode uses
   the runtime/data roots supplied by the Tauri shell; it does not infer them
