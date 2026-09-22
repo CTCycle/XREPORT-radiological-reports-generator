@@ -663,16 +663,23 @@ function Get-FrontendProductionInputRelativePaths {
         'tsconfig.json',
         'tsconfig.app.json'
     )
+    $clientRoot = [IO.Path]::GetFullPath($ClientDir)
+    $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $clientRootPrefix = $clientRoot.TrimEnd($separators) + [IO.Path]::DirectorySeparatorChar
     foreach ($root in @('public', 'src')) {
         $rootPath = Join-Path $ClientDir $root
         if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
         foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -Recurse -File)) {
-            $relative = [IO.Path]::GetRelativePath($ClientDir, $file.FullName).Replace('\', '/')
+            $fullPath = [IO.Path]::GetFullPath($file.FullName)
+            if (-not $fullPath.StartsWith($clientRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Frontend production input escaped the client directory: $($file.FullName)"
+            }
+            $relative = $fullPath.Substring($clientRootPrefix.Length).Replace('\', '/')
             if ($relative -match '(?i)^src/.+\.spec\.ts$' -or $relative -ieq 'src/proxy.conf.cjs') { continue }
             $relativePaths += $relative
         }
     }
-    return @($relativePaths | Sort-Object -Unique)
+    return @($relativePaths)
 }
 
 function Get-FrontendDependencyRelativePaths {
@@ -689,12 +696,24 @@ function Get-FrontendFingerprint {
     $stream = [IO.MemoryStream]::new()
     $hash = [Security.Cryptography.SHA256]::Create()
     try {
-        foreach ($value in @($Context | Sort-Object)) {
+        $sortedContext = [string[]]@($Context)
+        [Array]::Sort($sortedContext, [StringComparer]::Ordinal)
+        foreach ($value in $sortedContext) {
             $contextBytes = $utf8.GetBytes("CONTEXT:$value`n")
             $stream.Write($contextBytes, 0, $contextBytes.Length)
         }
-        foreach ($relative in @($RelativePaths | Sort-Object -Unique)) {
-            $normalized = ([string]$relative).Replace('\', '/').ToLowerInvariant()
+        $normalizedPaths = [string[]]@(
+            $RelativePaths | ForEach-Object {
+                ([string]$_).Replace('\', '/').ToLowerInvariant()
+            }
+        )
+        [Array]::Sort($normalizedPaths, [StringComparer]::Ordinal)
+        $previousPath = $null
+        foreach ($normalized in $normalizedPaths) {
+            if ($null -ne $previousPath -and [StringComparer]::Ordinal.Equals($normalized, $previousPath)) {
+                continue
+            }
+            $previousPath = $normalized
             $pathBytes = $utf8.GetBytes("PATH:$normalized`n")
             $stream.Write($pathBytes, 0, $pathBytes.Length)
             $absolute = Join-Path $ClientDir ($normalized.Replace('/', '\'))
