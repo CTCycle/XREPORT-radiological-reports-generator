@@ -46,40 +46,32 @@ The dependency chain is:
 
 ## Current Campaign State
 
-- Code revision at campaign start: `481605b1b87035b8deb03edaefdbfc090f8f1b23` (`develop`). The 2026-09-22 implementation was tested in a worktree based on that revision before commit; see the dated execution summary.
-- Remote CI run `35598132452` is red on this revision: backend unit tests recorded
-  `131 passed, 1 failed` in
-  `test_concurrent_service_initialization_keeps_ml_imports_lazy`; later CI
-  stages were skipped. The last verified fully green baseline is run
-  `35348243935` at `5d469126385f1f414023d91845a8c8a317702d3f`, which predates
-  the current model-import and startup-gate changes.
-- Windows reproduced the named test successfully once and for ten consecutive
-  repetitions, and the complete backend unit suite passed (`132 passed`). This
-  does not clear S00 because the current remote CI result remains unresolved.
-- On 2026-09-22, the source launcher, built frontend server, rendered startup
-  gate, and local static/client/backend gates passed within the recorded
-  Windows scope. S01–S03 evidence is refreshed in
-  [the 2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md).
-  S00 remains **NOT CLEARED**: the last observed remote run is still the red
-  baseline above, and no current-change remote CI result is available here.
+- Initial local launch timing and port-preflight evidence came from a Windows `develop` working tree based on `481605b1b87035b8deb03edaefdbfc090f8f1b23`; its uncommitted runtime source was not identified by that base SHA alone. The dated summary retains this scope separately from the current-revision recheck.
+- Current Tier 0 code/test revision: `3f180d229278aff379358a9f8d3eddf3b07dee5c` (`develop`). Hosted CI run `35748390899` passed on this exact revision: 135 backend unit tests, Ruff, Pyright, the PostgreSQL contract, retained API E2E, client dependency installation/build, built-server tests, lint, and client unit tests (36 tests).
+- Hosted diagnostic run `35743413087` exposed that the concurrency test depended on an ambient migrated database; its child queried the default resources path before the test initialized the schema, and a clean worker failed with `no such table: application_settings`. The test now creates an isolated SQLite resources directory, initializes its schema before concurrent service creation, and performs ten fresh-process repetitions while retaining the lazy-ML assertions. No production code change was made.
+- Windows revalidation on the current revision passed the complete backend unit suite (`135 passed`), Pyright, and the built-server tests (`9 passed`). Ruff passed with warnings from protected pre-existing cache directories. The initial built-server check observed Windows `ECONNRESET` for the unavailable-backend path; its test now asserts the stable 502 response and accepts `ECONNREFUSED` or `ECONNRESET`.
+- A separate normal source-launch and rendered-readiness check was repeated from the committed `3f180d229278aff379358a9f8d3eddf3b07dee5c` checkout. The launcher passed port, dependency, and build checks; it started the backend and frontend and reported the UI URL, then its automatic Windows browser-open step returned `Access denied`. Opening the URL in the Codex in-app browser showed the ready inference workspace and model catalogue; both health URLs returned HTTP 200, and the exact server processes were stopped afterward. Hosted CI did not execute this Windows launcher or rendered-browser flow. The original launch/port-preflight scenarios and remaining edge cases are distinguished in [the 2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md).
 
 ## Tier 0 Slice Ledger — Current Execution
 
 | Slice | Capability | Exists | Exercised | Status | Scenarios and regressions | Evidence | Remaining gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `S00` | Restore current CI baseline | yes | yes | `FAIL` | Named lazy-import test passed 10/10 on Windows; full backend unit suite passed. The last observed remote CI failed 131/1 on the starting revision; no current-change CI result is available. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [CI run 35598132452](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35598132452) | Obtain the full remote traceback, classify the platform/state defect, apply only the narrow owner fix if needed, rerun the test at least 10 times, then rerun every skipped CI stage. |
-| `S01` | Source backend startup and SQLite readiness | yes | yes | `PASS` | The normal Windows launcher started FastAPI and the built UI; the in-browser readiness gate reached ready state and loaded the catalogue. Full local Python run passed 149 tests, including unchanged migration/schema-drift checks. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [2026-09-21 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md) | Complete the still-open launcher port-race/failure and build dependency-invalidation scenarios before broadening the source-startup claim. |
-| `S02` | Built frontend startup gate and backend recovery | yes | yes | `PASS` | `run_tests.bat` and focused startup-gate E2E passed; the in-app browser observed the launch shell transition to the ready inference UI. Nine built-server unit tests passed for static files, SPA fallback, API proxy/body/status, 502 recovery, traversal, and symlink protection. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [startup screenshot](../QA/xreport-startup-gate.png) | Explicit slow/unavailable/retry timing and post-ready ordinary feature-error evidence remain open. |
-| `S03` | Static quality, API contract, and client build gates | yes | yes | `PASS` | Ruff and Pyright passed; portable Node 22.22.3 production build and explicit launcher rebuild passed; client lint and 29 unit tests passed; the full Python suite passed 149/1 skipped. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md) | `npm ci` and remote current-head CI were not run for this change set; S00 remains open until current-head CI is green. |
+| `S00` | Restore current CI baseline | yes | yes | `PASS` | The isolated concurrency/import test passed through ten fresh subprocesses; the complete backend unit suite passed 135/135 locally and in hosted CI. All hosted workflow stages passed on the same revision, including PostgreSQL, API E2E, client build/server, lint, and client unit tests. | [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md); [CI run 35748390899](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35748390899) | — |
+| `S01` | Source backend startup and SQLite readiness | yes | yes | `PASS` | On committed code/test SHA `3f180d2`, the Windows launcher passed port/dependency/build checks, started FastAPI and the built UI, and reported the UI URL; the browser auto-open returned `Access denied`, after which the local URL was opened manually and the ready workspace/catalogue loaded. Both health URLs returned HTTP 200. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md) | Complete the still-open launcher port-race/failure and build dependency-invalidation scenarios before broadening the source-startup claim. |
+| `S02` | Built frontend startup gate and backend recovery | yes | yes | `PASS` | On committed code/test SHA `3f180d2`, the in-app browser rendered the ready inference workspace after the launch shell; hosted and local built-server tests passed 9/9 for static files, SPA fallback, API proxy/body/status, controlled 502, traversal, and symlink protection. The Windows unavailable-backend response reported `ECONNRESET`; its test accepts that or `ECONNREFUSED` while asserting the stable 502 body. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [CI run 35748390899](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35748390899) | Explicit slow/unavailable/retry timing and post-ready ordinary feature-error evidence remain open. |
+| `S03` | Static quality, API contract, and client build gates | yes | yes | `PASS` | Hosted CI passed Ruff, Pyright (0 errors), client build, client lint, and 36 client unit tests; it also passed 135 backend unit tests, the PostgreSQL contract, and retained API E2E. Current-scope local Windows production build and rendered checks remain in the dated execution summary. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [CI run 35748390899](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35748390899) | — |
 
 ### Tier 0 Evidence Notes
 
 The 2026-09-21 launcher attempt to open the URL through Windows `Start-Process`
-returned access denied in the managed environment. On 2026-09-22 the corrected
-launcher completed successfully; the same local URL was opened in the Codex
-in-app browser and rendered the ready workspace. Its launch-owned process trees
-were terminated by verified roots and ports `5003` and `8003` were confirmed
-clear. Port-guard cases not exercised are enumerated in the dated summary.
+returned access denied in the managed environment. An earlier 2026-09-22 run
+completed its browser-open step on the then-current working tree. A follow-up
+from committed code/test SHA `3f180d2` again reached backend and frontend
+readiness, but its automatic browser-open step returned access denied; the URL
+was opened manually in the Codex in-app browser and rendered the ready
+workspace. The follow-up processes were stopped by verified paths and ports
+`5003` and `8003` were confirmed clear. Port-guard cases not exercised are
+enumerated in the dated summary.
 
 On 2026-09-21, an `npm ci` attempt encountered `EPERM` unlinking the launch-held
 `esbuild.exe`; after the verified XREPORT frontend tree was stopped, `npm ci`
@@ -101,7 +93,7 @@ tests constitute workflow validation.
 | `S11` | Runtime settings persistence, limits, reset, and hidden-field protection | `S01` | `VALIDATED` for current exercised surface | GET/PATCH/reset payloads, database row before/after, restart persistence, bounds, and captured-value behavior for active jobs. |
 | `S12` | Generic job lifecycle | `S01` | `PARTIAL` | Deterministic start/list/filter/poll/complete, unknown ID, cancellation, transient poll failure, and typed recoverable failure timeline. |
 | `S13` | SQLite migration and restart persistence | `S01` | `PARTIAL` | Settings and representative data before/after restart, current head, incompatible schema, interrupted migration, foreign-key behavior. |
-| `S14` | PostgreSQL persistence contract | `S00` | `UNTESTED` | PostgreSQL 16 migration, transactions, restart, advisory locking, and sanitized connection failure. |
+| `S14` | PostgreSQL persistence contract | `S00` | `PARTIAL` | Hosted CI passed a PostgreSQL 16 metadata-schema and transaction smoke (`Base.metadata.create_all`, `SELECT 1`, cleanup). Still needed: application migrations, restart persistence, advisory locking, and sanitized connection failure. |
 | `S15` | Local filesystem access and path controls | `S11` | `PARTIAL` | Enable/disable browse, permitted and invalid paths, empty folder, image selection, and UI recovery. |
 
 ### Tier 2 — Dataset and Train/Evaluate Backbone

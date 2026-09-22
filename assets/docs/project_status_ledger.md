@@ -11,8 +11,10 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Statuses remain tied to the evidence revision and must be refreshed when the
-checkout or its validation evidence changes.
+Current Tier 0 validation revision: `3f180d229278aff379358a9f8d3eddf3b07dee5c`
+(`develop`); its pushed hosted CI run passed. Statuses remain tied to the
+evidence revision and must be refreshed when the checkout or its validation
+evidence changes.
 
 ## Maintenance Rules
 
@@ -57,14 +59,27 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- Tier 0 is not cleared. The current remote CI run `35598132452` is red on the
-  validation baseline because `test_concurrent_service_initialization_keeps_ml_imports_lazy`
-  failed after `131` passing backend tests; see the subordinate [validation
-  campaign ledger](validation_campaign_ledger.md).
-- The same lazy-import test passed ten consecutive times on Windows and the
-  complete local backend unit suite passed (`132 passed`). S01 source startup,
-  S02 rendered startup-gate recovery, and S03 local static/client gates passed
-  within their recorded Windows scope.
+- Tier 0 is cleared through S00–S03 on revision
+  `3f180d229278aff379358a9f8d3eddf3b07dee5c`. Hosted CI run `35748390899`
+  passed every workflow stage, including `135` backend unit tests, Ruff,
+  Pyright, the PostgreSQL contract, retained API E2E, client build/server
+  checks, lint, and `36` client unit tests; see the [validation campaign
+  ledger](validation_campaign_ledger.md) and [2026-09-22 Tier 0
+  summary](../QA/validation_campaign/tier-0/summary-20260922.md).
+- The hosted diagnostic run exposed a test precondition: on a clean runner, the
+  service factories queried `application_settings` before the subprocess had
+  initialized its database. The regression now uses an isolated SQLite
+  resources directory and runs migrations before concurrent service creation;
+  it retains ten fresh-process repetitions and all lazy-ML assertions. No
+  production code change was needed.
+- The named test and complete backend unit suite passed locally on Windows
+  (`135 passed` in the suite). S01 source startup and S02 rendered readiness
+  were rechecked from committed code/test SHA `3f180d2`; the launcher started
+  both services and the manually opened in-app browser showed the ready
+  workspace, although Windows denied the launcher's automatic browser-open
+  step. Hosted CI on that SHA reran backend startup/API tests, built-server
+  checks, and S03 static/client gates; it did not run the Windows launcher or
+  rendered startup-browser flow.
 - On 2026-09-22, the changed launcher and built-frontend path passed local
   Windows checks: `run_tests.bat` completed with 149 Python tests passed and
   one skipped, client unit/E2E slices passed, the explicit production rebuild
@@ -79,12 +94,11 @@ form of evidence exists for the stated scope.
   do not establish clinical quality or catalog validation promotion.
 - CXRMate-ED has an active degraded three-case sensitivity finding. MedGemma is
   access-blocked by its gated provider terms and credential requirement.
-- Full dataset, training, successful validation/evaluation, PostgreSQL, and
-  packaged desktop workflows remain validation debt even where implementation
-  and focused tests exist.
-- The current CI failure is recorded as an active issue rather than being
-  softened by the passing Windows reproduction. Historical failures that were
-  superseded are listed separately below.
+- Full dataset, training, successful validation/evaluation, the broader
+  PostgreSQL workflow, and packaged desktop workflows remain validation debt
+  even where implementation and focused tests exist.
+- The earlier red runs remain in the historical ledger; the current CI result
+  supersedes their S00 status.
 
 ## Current Component Ledger
 
@@ -104,10 +118,10 @@ form of evidence exists for the stated scope.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `backend.api.contracts` | `VALIDATED` | Tested health, model catalogue, dataset status/name, checkpoint, settings, and inference-history list/detail/filter/error surfaces plus typed error behavior. | [2026-09-22 reports validation](../QA/validation_campaign/reports-history-validation-20260922.md); [backend API tests](../../app/tests/e2e/test_inference_api.py); [OpenAPI tests](../../app/tests/unit/test_openapi_schema.py) | This status covers the exercised surface, not every endpoint or every long-running happy path. | — | 2026-09-22 | unit + integration + E2E | [backend API](architecture/backend_api.md); [system overview](architecture/system_overview.md) | Extend endpoint-level E2E coverage when a route or response contract changes. |
 | `backend.jobs.lifecycle` | `VALIDATED` | Generic start, poll, cancellation, terminal failure, recoverability, and persistence-failure semantics. | [architecture review](architecture/architecture_review.md); [job failure tests](../../app/tests/unit/test_job_failure_semantics.py); [job cancellation tests](../../app/tests/unit/test_job_cancellation_semantics.py) | No current issue recorded for the generic lifecycle contract. | — | 2026-09-17 | unit | [execution and data flow](architecture/execution_and_data_flow.md); [backend API](architecture/backend_api.md) | Revalidate the affected job path after changes to a feature service or polling contract. |
-| `backend.ml_import_boundaries` | `PARTIAL` | Lightweight endpoints avoid eager Keras/PyTorch/Transformers/provider imports and remain usable before an ML job. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [clean backend smoke](../QA/xreport-backend-smoke-20260919.log) has no deadlock/partial-import/HTTP-500 matches; [import-boundary tests](../../app/tests/unit/test_ml_import_boundaries.py) | Current remote CI still fails the concurrent service-initialization test on the validation baseline; Windows reproduction passes. | — | 2026-09-21 | unit + integration + manual | [execution and data flow](architecture/execution_and_data_flow.md); [troubleshooting](operations/troubleshooting.md) | Capture the full remote traceback, classify the cross-platform defect, remediate only its owner, and rerun S00. |
+| `backend.ml_import_boundaries` | `VALIDATED` | Lightweight service imports and concurrent service construction keep the listed Keras/PyTorch/Transformers/provider modules unloaded across ten fresh subprocess runs with an initialized isolated database. | [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md); [import-boundary tests](../../app/tests/unit/test_ml_import_boundaries.py); hosted CI run `35748390899` | The assertion covers the named import boundary and service factories, not every endpoint or later ML job. | — | 2026-09-22 | unit + hosted CI | [execution and data flow](architecture/execution_and_data_flow.md); [troubleshooting](operations/troubleshooting.md) | Revalidate after changes to service initialization or optional-ML import boundaries. |
 | `persistence.sqlite_migrations` | `VALIDATED` | SQLite startup/initialization reaches the checked-in Alembic head `e91a4f6c2d73` and persists application settings without implicit schema stamping. | [2026-09-22 reports validation](../QA/validation_campaign/reports-history-validation-20260922.md); [database initialization tests](../../app/tests/unit/test_database_initialization.py); [settings migration validation](../QA/settings-migration-validation-20260917.md) | Existing unversioned or incompatible schemas intentionally fail closed. | — | 2026-09-22 | unit + integration + manual | [persistence](architecture/persistence.md); [architecture review](architecture/architecture_review.md) | Recheck migration upgrade and rollback safety for every new revision. |
 | `persistence.inference_history` | `VALIDATED` | Durable session list/detail, generated-versus-edited report text, atomic updates, and cascade deletion using the existing `InferenceRun` and `InferenceReport` entities. | [2026-09-22 reports validation](../QA/validation_campaign/reports-history-validation-20260922.md); [repository persistence tests](../../app/tests/unit/test_repository_persistence.py); [backend API tests](../../app/tests/e2e/test_inference_api.py) | No current issue recorded for the scoped CRUD contract. | — | 2026-09-22 | unit + integration + E2E + manual | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) | Revalidate the history contract after schema or API changes. |
-| `persistence.postgresql` | `UNVALIDATED` | External PostgreSQL creation, locking, migration, and repository contract. | [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) requires external test settings; no current PostgreSQL QA artifact was found. | No current live PostgreSQL evidence. | — | — | None | [persistence](architecture/persistence.md); [deployment](runtime/deployment.md) | Run the integration contract against the supported PostgreSQL versions/configuration. |
+| `persistence.postgresql` | `PARTIAL` | PostgreSQL 16 schema contract and a transaction smoke passed in hosted CI. | [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py); [CI run 35748390899](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35748390899) | This check creates/drops ORM tables and executes `SELECT 1`; migration startup, restart persistence, advisory-lock behavior, and sanitized connection failure are not covered. | — | 2026-09-22 | integration | [persistence](architecture/persistence.md); [deployment](runtime/deployment.md) | Complete the broader PostgreSQL gate, including migrations, restart, locking, and failure behavior. |
 | `persistence.checkpoint_registry` | `PARTIAL` | Database-owned checkpoint identity, complete-artifact registration, listing, and safe deletion. | [backend smoke](../QA/xreport-backend-smoke-20260919.log); [checkpoint/deletion tests](../../app/tests/e2e/test_training_api.py) | Four incomplete `e2e_delete_*` registrations produce warnings while the listing endpoint still returns HTTP 200; see `ISSUE-003`. | — | 2026-09-19 | unit + integration + manual | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) | Reconcile incomplete fixture registrations and rerun startup plus checkpoint listing. |
 
 ### Domain workflows
@@ -155,7 +169,6 @@ Only actionable current problems belong here.
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | The gated MedGemma entry cannot be installed or generated without provider terms acceptance and a Hugging Face credential. | One of the five catalogue entries is unavailable in the current environment. | [public-model run](../QA/inference_validation_runs/public-inference-models-20260919T165746Z.json): `state=deferred_access_required`. | Not a confirmed software defect. | Provider terms plus `HF_TOKEN` or an approved local credential. | `BLOCKED` — waiting for authorized access configuration. | Download the exact pinned revision, run real inference, and capture a receipt before changing status. | [gated access](runtime/local_inference_models.md); [configuration](runtime/configuration.md) |
 | `ISSUE-003` | `persistence.checkpoint_registry` | `LOW` | Clean backend smoke lists four incomplete `e2e_delete_*` checkpoint registrations and logs warnings. | The checkpoint endpoint still returns HTTP 200, but the catalogue is noisy and may expose stale test registrations. | [backend smoke log](../QA/xreport-backend-smoke-20260919.log) shows the four warning names during checkpoint listing. | Stale test-generated registrations are plausible but not confirmed. | — | `OPEN` — reconcile incomplete registrations before treating checkpoint listing as clean. | Remove or repair the fixtures in a disposable database, rerun startup/listing, and confirm zero warnings. | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) |
 | `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | Test/E2E runs pass but emit permission warnings for pre-existing protected pytest/cache directories. | Results remain usable, but cleanup and reproducibility are less clear on Windows. | [settings QA](../QA/settings-migration-validation-20260917.md) and [E2E QA](../QA/e2e-validation-20260917.md) record the warnings. | Protected pre-existing cache ACLs, as documented by the validation runs. | Filesystem permission/ownership of the legacy cache paths. | `OPEN` — keep active caches under `runtimes/cache` and report any protected legacy paths explicitly. | Rerun the relevant tests and confirm no unexpected cache-permission warnings remain. | [testing rules](coding/testing_and_quality.md); [startup](runtime/startup.md) |
-| `ISSUE-005` | `validation.tier0.s00` | `HIGH` | Current remote CI run `35598132452` fails the concurrent service-initialization lazy-import test on the validation baseline; Windows reproduction passes. | Gate A cannot be declared green and later CI stages are skipped on the affected run. | [Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260921.md); [CI run 35598132452](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35598132452). | Cross-platform defect or test/environment state is not classified because the full remote traceback is not retained in the inspection. | Current CI environment and missing full traceback. | `OPEN` — do not weaken the test or pre-create undeclared global state; capture stderr, classify the owner, and rerun the current-head gate. | Ten consecutive passes of the isolated test, full backend units, every skipped CI stage, and a green current-head run. | [validation campaign ledger](validation_campaign_ledger.md); [testing rules](coding/testing_and_quality.md) |
 
 ## Validation Debt
 
@@ -164,7 +177,6 @@ current confidence is too low or too narrow to support a stronger status.
 
 | Component | Current Confidence | Missing Validation | Priority |
 | --- | --- | --- | --- |
-| `validation.tier0.current_head` | Low | Current remote CI baseline is red on S00 despite a passing Windows reproduction; cross-platform traceback, remediation classification, and green current-head rerun are missing. | Critical |
 | `runtime.desktop.packaged` | Low | CPU/CUDA portable and MSI build, launch, readiness, shutdown, data-root isolation, and artifact verification. | High |
 | `persistence.postgresql` | Low | Live schema/migration/repository contract against the supported PostgreSQL configuration. | Medium |
 | `workflow.dataset_upload_and_preparation` | Low | Non-empty upload through image matching, unmatched confirmation, processing, and persisted metadata. | High |
@@ -187,6 +199,7 @@ mistaken for active issues. They do not change the current ledger status.
 | `HIST-002` | `runtime.desktop.toolchain` | A settings-migration QA note recorded a pre-existing Tauri capability error during `cargo check`. | The later [2026-09-17 E2E note](../QA/e2e-validation-20260917.md) records `cargo check` passed. | Packaged artifact smoke remains validation debt under `runtime.desktop.packaged`. |
 | `HIST-003` | `configuration.runtime_settings` | Application settings previously had a JSON persistence path and competing runtime authority. | [settings migration validation](../QA/settings-migration-validation-20260917.md) records the database migration, API allowlist, and rollback checks; [persistence](architecture/persistence.md) documents the one-time compatibility import. | Legacy JSON reading is intentionally bounded to the migration; revalidate only when schema/settings behavior changes. |
 | `HIST-004` | `backend.ml_import_boundaries` | Prior validation identified startup import/deadlock risk around ML frameworks. | [2026-09-19 backend smoke](../QA/xreport-backend-smoke-20260919.log) reports zero `_ModuleLock`, partially initialized torch, circular Keras/PyTorch, and HTTP 500 matches. | Keep the clean-subprocess and lightweight-endpoint checks as regression gates. |
+| `HIST-005` | `validation.tier0.s00` | Hosted CI on the original test revision failed `test_concurrent_service_initialization_keeps_ml_imports_lazy`; the test relied on ambient database state and hid child stderr. | Diagnostic run `35743413087` exposed `no such table: application_settings`; current revision `3f180d229278aff379358a9f8d3eddf3b07dee5c` initializes an isolated test database before service construction and passed hosted CI run `35748390899`. | No production race was established; keep the repeated clean-process regression and current CI gate. |
 
 ## Evidence and Ownership Boundaries
 
