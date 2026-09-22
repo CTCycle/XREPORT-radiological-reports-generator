@@ -91,23 +91,32 @@ print(json.dumps({
 }))
 """
 
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=root,
-        env=environment,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=90,
-    )
-    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    payloads = []
+    repetitions = 10
+    for attempt in range(repetitions):
+        completed = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=root,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+        assert completed.returncode == 0, (
+            f"Concurrent service initialization failed on repetition "
+            f"{attempt + 1}/{repetitions}.\n"
+            f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+        )
+        payloads.append(json.loads(completed.stdout.strip().splitlines()[-1]))
 
-    assert payload["factory_types"] == [
-        "PreparationService",
-        "TrainingService",
-        "ValidationService",
-    ]
-    assert payload["checkpoint_epochs"] == 2
-    assert payload["heavy_modules"] == []
-    assert payload["serializer_loaded"] is True
-    assert payload["serializer_type"] == "ModelSerializer"
+    for payload in payloads:
+        assert payload["factory_types"] == [
+            "PreparationService",
+            "TrainingService",
+            "ValidationService",
+        ]
+        assert payload["checkpoint_epochs"] == 2
+        assert payload["heavy_modules"] == []
+        assert payload["serializer_loaded"] is True
+        assert payload["serializer_type"] == "ModelSerializer"
