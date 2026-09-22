@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Reusable Patterns
 
@@ -61,6 +61,7 @@ shell-level lifecycle component, not a feature-page loading state.
 - dashboard cards
 - chart sections
 - progress bars
+- report history cards and detail editors
 - report modals
 
 ## Route-Level Page Structure
@@ -68,6 +69,8 @@ shell-level lifecycle component, not a feature-page loading state.
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
 - Training page: training start or resume, checkpoint management, and metrics dashboards
 - Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable model-declared report sections with copy, regenerate, and export actions
+- Reports page: filterable persisted inference sessions, explicit loading/empty/error states, paginated summaries, and links to detail views
+- Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review
 - Settings page: one-column runtime configuration form with General, Data
   access, and Advanced sections; save sends only changed fields and reset is
@@ -77,6 +80,11 @@ shell-level lifecycle component, not a feature-page loading state.
 
 - `MainLayout` provides top branding, primary navigation, and routed content.
 - Route pages own functional modules while reusing shared components for consistency.
+
+`ReportDraftEditorComponent` is shared by the live inference draft and
+persisted report detail page. It renders the model-declared output sections,
+keeps raw-report output intact, and supports read-only rendering when a
+session is not in a successful editable state.
 
 The Settings route reuses the existing footer gear navigation control and
 `app-nav-button` active styling. It does not duplicate the theme selector or

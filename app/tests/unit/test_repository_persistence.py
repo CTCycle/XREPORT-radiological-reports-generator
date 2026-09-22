@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pandas as pd
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -344,17 +347,118 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
     assert reports[0].generated_report == "replayed"
     assert serializer.list_inference_history(
         model_ref="huggingface:google/medgemma-1.5-4b-it"
-    ) == [
-        {
-            "request_id": "request-1",
-            "provider": "huggingface",
-            "model_ref": "huggingface:google/medgemma-1.5-4b-it",
-            "model_revision": None,
-            "generation_profile": "concise",
-            "generation_config": {"temperature": 0},
-            "clinical_context": "Updated",
-            "status": "succeeded",
-            "execution_time_seconds": 1.25,
-            "date": runs[0].executed_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-    ]
+    ) == {
+        "items": [
+            {
+                "request_id": "request-1",
+                "provider": "huggingface",
+                "model_ref": "huggingface:google/medgemma-1.5-4b-it",
+                "model_revision": None,
+                "generation_profile": "concise",
+                "clinical_context": "Updated",
+                "status": "succeeded",
+                "execution_time_seconds": 1.25,
+                "date": runs[0].executed_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "reports": [
+                    {
+                        "image_index": 0,
+                        "input_image_name": "A.PNG",
+                        "preview": "replayed",
+                        "edited": False,
+                        "edited_at": None,
+                    }
+                ],
+                "image_names": ["A.PNG"],
+                "report_count": 1,
+                "provenance_available": False,
+            }
+        ],
+        "total": 1,
+        "limit": 50,
+        "offset": 0,
+    }
+
+
+###############################################################################
+def test_inference_history_crud_preserves_original_text_and_isolated_deletion() -> None:
+    _, database = _serializer()
+    repository = InferenceRepository(database=database)
+    repository.save_generated_reports(
+        [
+            {"image": "older.png", "report": "Findings\nClear lungs"},
+            {"image": "second.png", "report": "Findings\nNo acute disease"},
+        ],
+        provider="huggingface",
+        model_ref="huggingface:example/model",
+        model_revision="a" * 40,
+        generation_profile="deterministic",
+        generation_config={
+            "display_sections": {
+                "older.png": {"findings": "Clear lungs"},
+                "second.png": {"findings": "No acute disease"},
+            },
+            "provenance": {"model_revision": "a" * 40},
+        },
+        clinical_context="Follow-up",
+        request_id="older-request",
+        status="succeeded",
+        execution_time_seconds=1.0,
+        executed_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    repository.save_generated_reports(
+        [{"image": "newer.png", "report": "Impression\nStable"}],
+        provider="huggingface",
+        model_ref="huggingface:example/model",
+        model_revision="b" * 40,
+        generation_profile="concise",
+        generation_config={},
+        clinical_context="",
+        request_id="newer-request",
+        status="failed",
+        execution_time_seconds=None,
+        executed_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+
+    newest = repository.list_inference_history(limit=1)
+    assert newest["total"] == 2
+    assert newest["items"][0]["request_id"] == "newer-request"
+    oldest_failed = repository.list_inference_history(status="failed", sort="oldest")
+    assert [item["request_id"] for item in oldest_failed["items"]] == ["newer-request"]
+
+    detail = repository.get_inference_history("older-request")
+    assert detail is not None
+    assert [report["image_index"] for report in detail["reports"]] == [0, 1]
+    assert detail["reports"][0]["sections"] == {"findings": "Clear lungs"}
+    assert detail["reports"][0]["generated_report"] == "Findings\nClear lungs"
+
+    with pytest.raises(ValueError, match="unique"):
+        repository.update_inference_reports(
+            "older-request",
+            [
+                {"image_index": 0, "edited_report": "one"},
+                {"image_index": 0, "edited_report": "two"},
+            ],
+        )
+    with pytest.raises(ValueError, match="Unknown"):
+        repository.update_inference_reports(
+            "older-request", [{"image_index": 9, "edited_report": "missing"}]
+        )
+
+    updated = repository.update_inference_reports(
+        "older-request", [{"image_index": 0, "edited_report": "Edited draft"}]
+    )
+    assert updated is not None
+    assert updated["reports"][0]["generated_report"] == "Findings\nClear lungs"
+    assert updated["reports"][0]["edited_report"] == "Edited draft"
+    assert updated["reports"][0]["effective_report"] == "Edited draft"
+
+    cleared = repository.update_inference_reports(
+        "older-request",
+        [{"image_index": 0, "edited_report": "Findings\nClear lungs"}],
+    )
+    assert cleared is not None
+    assert cleared["reports"][0]["edited_report"] is None
+    assert cleared["reports"][0]["edited_at"] is None
+    assert repository.delete_inference_history("older-request") is True
+    assert repository.get_inference_history("older-request") is None
+    assert repository.get_inference_history("newer-request") is not None

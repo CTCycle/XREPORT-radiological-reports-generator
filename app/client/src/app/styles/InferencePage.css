@@ -18,9 +18,7 @@
 .step-title,
 .model-card-body,
 .study-settings,
-.model-details,
-.draft-editor,
-.declared-section {
+.model-details {
     min-width: 0;
 }
 
@@ -879,7 +877,6 @@
 }
 
 .context-input,
-.draft-editor textarea,
 .generation-controls select {
     width: 100%;
     border: 1px solid var(--border-color);
@@ -1009,29 +1006,6 @@
     max-width: 420px;
 }
 
-.draft-editor {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: var(--space-3);
-}
-
-.declared-section {
-    display: grid;
-    grid-template-rows: auto minmax(220px, 1fr);
-    gap: var(--space-2);
-}
-
-.draft-editor label {
-    font-weight: 700;
-}
-
-.draft-editor textarea {
-    min-height: 220px;
-    resize: vertical;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-}
-
 .runtime-metadata {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1098,16 +1072,6 @@ textarea:disabled {
 
     .model-meta-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (min-width: 901px) {
-    .model-selection {
-        align-items: start;
-    }
-
-    .catalog-panel {
-        max-height: min(42rem, calc(100dvh - 18rem));
     }
 }
 
@@ -1184,9 +1148,6 @@ textarea:disabled {
         width: 100%;
     }
 
-    .draft-editor {
-        grid-template-columns: 1fr;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

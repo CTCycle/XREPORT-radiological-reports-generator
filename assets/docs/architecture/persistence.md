@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-09-17
+Last updated: 2026-09-22
 
 ## Database Backend Selection
 
@@ -25,12 +25,19 @@ From `settings/.env`:
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
 Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`f48a7c2e91b6`) and stores the applied revision in `alembic_version`.
+one head (`e91a4f6c2d73`) and stores the applied revision in `alembic_version`.
 The `f48a7c2e91b6` upgrade creates `application_settings` and, when upgrading
 an installation that still has the legacy JSON file, imports its validated
 values exactly once. The migration is the only compatibility reader; it does
 not import environment values. After the upgrade commits, startup removes the
 legacy file and never recreates or consults it.
+
+The `e91a4f6c2d73` upgrade adds nullable `edited_report` and `edited_at`
+columns to `inference_reports`. The generated `generated_report` column remains the
+immutable model output; an edited value is stored separately and the effective
+draft is resolved at read time. Saving text equal to the generated output
+clears the edit override, and deleting an inference run cascades to its report
+rows.
 
 ### SQLite
 
@@ -119,6 +126,8 @@ erDiagram
         int inference_run_id FK
         int record_id FK
         int image_index
+        string edited_report
+        datetime edited_at
     }
     APPLICATION_SETTINGS {
         int settings_id PK
@@ -164,6 +173,9 @@ Foreign-key behavior is explicit: dataset-owned records and processing data casc
   values. Job lifecycle state is owned by `JobManager`, not persisted as
   feature-specific report status columns.
 - Inference history enforces unique request IDs and unique report image names and indexes.
+- Inference report edits preserve the generated model output, store an
+  optional user draft and timestamp, and are updated atomically per inference
+  session.
 - Dataset, processing, validation, checkpoint-evaluation, and report lookups have focused indexes defined in the schema models.
 
 SQLite connections enable foreign-key enforcement, WAL journaling, normal synchronous mode, and a 30-second busy timeout. Dataframe persistence batches run inside one transaction and roll back together on failure.

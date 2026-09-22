@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -294,6 +294,83 @@ class InferenceGenerateRequest(BaseModel):
     model_ref: str
     generation_profile: GenerationProfile
     clinical_context: str = ""
+
+###############################################################################
+InferenceHistoryStatus = Literal[
+    "queued", "running", "succeeded", "failed", "cancelled"
+]
+InferenceHistorySort = Literal["newest", "oldest"]
+
+
+class InferenceHistoryReportSummary(BaseModel):
+    image_index: int = Field(ge=0)
+    input_image_name: str
+    preview: str
+    edited: bool = False
+    edited_at: str | None = None
+
+
+class InferenceHistoryReport(BaseModel):
+    image_index: int = Field(ge=0)
+    input_image_name: str
+    generated_report: str
+    edited_report: str | None = None
+    effective_report: str
+    edited: bool = False
+    edited_at: str | None = None
+    sections: dict[str, str] = Field(default_factory=dict)
+
+
+class InferenceHistorySummary(BaseModel):
+    request_id: str
+    provider: str
+    model_ref: str
+    model_revision: str | None = None
+    generation_profile: str
+    clinical_context: str | None = None
+    status: InferenceHistoryStatus
+    execution_time_seconds: float | None = None
+    date: str | None = None
+    reports: list[InferenceHistoryReportSummary]
+    image_names: list[str]
+    report_count: int = Field(ge=0)
+    provenance_available: bool = False
+
+
+class InferenceHistoryResponse(BaseModel):
+    items: list[InferenceHistorySummary]
+    total: int = Field(ge=0)
+    limit: int = Field(ge=1, le=500)
+    offset: int = Field(ge=0)
+
+
+class InferenceHistoryDetail(BaseModel):
+    request_id: str
+    provider: str
+    model_ref: str
+    model_revision: str | None = None
+    generation_profile: str
+    generation_config: dict[str, Any]
+    clinical_context: str | None = None
+    status: InferenceHistoryStatus
+    execution_time_seconds: float | None = None
+    date: str | None = None
+    reports: list[InferenceHistoryReport]
+    output_sections: list[str]
+
+
+class InferenceHistoryReportUpdate(BaseModel):
+    image_index: int = Field(ge=0)
+    edited_report: str = Field(max_length=1_000_000)
+
+
+class InferenceHistoryUpdateRequest(BaseModel):
+    reports: list[InferenceHistoryReportUpdate] = Field(min_length=1)
+
+
+class InferenceHistoryDeleteResponse(BaseModel):
+    success: bool
+    message: str
 
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):

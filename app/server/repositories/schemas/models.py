@@ -448,6 +448,10 @@ class InferenceReport(Base):
     input_image_name_key: Mapped[str] = mapped_column(String(512), nullable=False)
     image_index: Mapped[int] = mapped_column(Integer, nullable=False)
     generated_report: Mapped[str] = mapped_column(Text, nullable=False)
+    edited_report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    edited_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
     __table_args__ = (
         UniqueConstraint(
             "inference_run_id",

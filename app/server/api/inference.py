@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
     InferenceGenerateRequest,
+    InferenceHistoryDeleteResponse,
+    InferenceHistoryDetail,
+    InferenceHistoryResponse,
+    InferenceHistorySort,
+    InferenceHistoryStatus,
+    InferenceHistoryUpdateRequest,
     InferenceModelsResponse,
     ModelMaintenanceRequest,
     ModelUpdateCheckRequest,
@@ -70,6 +76,37 @@ class InferenceEndpoint:
         )
 
     # -------------------------------------------------------------------------
+    def list_history(
+        self,
+        model_ref: str | None = Query(default=None),
+        status_filter: str | None = Query(default=None, alias="status"),
+        sort: str = Query(default="newest"),
+        limit: int = Query(default=50),
+        offset: int = Query(default=0),
+    ) -> InferenceHistoryResponse:
+        return self.service.list_history(
+            model_ref=model_ref,
+            status=cast(InferenceHistoryStatus | None, status_filter),
+            sort=cast(InferenceHistorySort, sort),
+            limit=limit,
+            offset=offset,
+        )
+
+    # -------------------------------------------------------------------------
+    def get_history(self, request_id: str) -> InferenceHistoryDetail:
+        return self.service.get_history(request_id)
+
+    # -------------------------------------------------------------------------
+    def update_history(
+        self, request_id: str, request: InferenceHistoryUpdateRequest
+    ) -> InferenceHistoryDetail:
+        return self.service.update_history(request_id, request)
+
+    # -------------------------------------------------------------------------
+    def delete_history(self, request_id: str) -> InferenceHistoryDeleteResponse:
+        return self.service.delete_history(request_id)
+
+    # -------------------------------------------------------------------------
     async def generate_reports(
         self,
         request: Annotated[
@@ -121,6 +158,34 @@ class InferenceEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/history",
+            self.list_history,
+            methods=["GET"],
+            response_model=InferenceHistoryResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.get_history,
+            methods=["GET"],
+            response_model=InferenceHistoryDetail,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.update_history,
+            methods=["PATCH"],
+            response_model=InferenceHistoryDetail,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.delete_history,
+            methods=["DELETE"],
+            response_model=InferenceHistoryDeleteResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/generate",

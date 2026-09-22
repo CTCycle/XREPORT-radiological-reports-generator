@@ -960,6 +960,233 @@
         }
       }
     },
+    "/api/inference/history": {
+      "get": {
+        "tags": [
+          "inference"
+        ],
+        "summary": "List History",
+        "operationId": "list_history_api_inference_history_get",
+        "parameters": [
+          {
+            "name": "model_ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model Ref"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "newest",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferenceHistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inference/history/{request_id}": {
+      "get": {
+        "tags": [
+          "inference"
+        ],
+        "summary": "Get History",
+        "operationId": "get_history_api_inference_history__request_id__get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferenceHistoryDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "inference"
+        ],
+        "summary": "Update History",
+        "operationId": "update_history_api_inference_history__request_id__patch",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InferenceHistoryUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferenceHistoryDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "inference"
+        ],
+        "summary": "Delete History",
+        "operationId": "delete_history_api_inference_history__request_id__delete",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InferenceHistoryDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/inference/generate": {
       "post": {
         "tags": [
@@ -2032,6 +2259,416 @@
         ],
         "title": "ImageStatistics",
         "description": "Model for image statistics."
+      },
+      "InferenceHistoryDeleteResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "InferenceHistoryDeleteResponse"
+      },
+      "InferenceHistoryDetail": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model_ref": {
+            "type": "string",
+            "title": "Model Ref"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "generation_profile": {
+            "type": "string",
+            "title": "Generation Profile"
+          },
+          "generation_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Generation Config"
+          },
+          "clinical_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Context"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "execution_time_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Time Seconds"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceHistoryReport"
+            },
+            "type": "array",
+            "title": "Reports"
+          },
+          "output_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Output Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "provider",
+          "model_ref",
+          "generation_profile",
+          "generation_config",
+          "status",
+          "reports",
+          "output_sections"
+        ],
+        "title": "InferenceHistoryDetail"
+      },
+      "InferenceHistoryReport": {
+        "properties": {
+          "image_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Image Index"
+          },
+          "input_image_name": {
+            "type": "string",
+            "title": "Input Image Name"
+          },
+          "generated_report": {
+            "type": "string",
+            "title": "Generated Report"
+          },
+          "edited_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited Report"
+          },
+          "effective_report": {
+            "type": "string",
+            "title": "Effective Report"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "default": false
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          },
+          "sections": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_index",
+          "input_image_name",
+          "generated_report",
+          "effective_report"
+        ],
+        "title": "InferenceHistoryReport"
+      },
+      "InferenceHistoryReportSummary": {
+        "properties": {
+          "image_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Image Index"
+          },
+          "input_image_name": {
+            "type": "string",
+            "title": "Input Image Name"
+          },
+          "preview": {
+            "type": "string",
+            "title": "Preview"
+          },
+          "edited": {
+            "type": "boolean",
+            "title": "Edited",
+            "default": false
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_index",
+          "input_image_name",
+          "preview"
+        ],
+        "title": "InferenceHistoryReportSummary"
+      },
+      "InferenceHistoryReportUpdate": {
+        "properties": {
+          "image_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Image Index"
+          },
+          "edited_report": {
+            "type": "string",
+            "maxLength": 1000000,
+            "title": "Edited Report"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_index",
+          "edited_report"
+        ],
+        "title": "InferenceHistoryReportUpdate"
+      },
+      "InferenceHistoryResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceHistorySummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "InferenceHistoryResponse"
+      },
+      "InferenceHistorySummary": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model_ref": {
+            "type": "string",
+            "title": "Model Ref"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "generation_profile": {
+            "type": "string",
+            "title": "Generation Profile"
+          },
+          "clinical_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Context"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "execution_time_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Time Seconds"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceHistoryReportSummary"
+            },
+            "type": "array",
+            "title": "Reports"
+          },
+          "image_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Image Names"
+          },
+          "report_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Report Count"
+          },
+          "provenance_available": {
+            "type": "boolean",
+            "title": "Provenance Available",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "provider",
+          "model_ref",
+          "generation_profile",
+          "status",
+          "reports",
+          "image_names",
+          "report_count"
+        ],
+        "title": "InferenceHistorySummary"
+      },
+      "InferenceHistoryUpdateRequest": {
+        "properties": {
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceHistoryReportUpdate"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Reports"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reports"
+        ],
+        "title": "InferenceHistoryUpdateRequest"
       },
       "InferenceModelsResponse": {
         "properties": {

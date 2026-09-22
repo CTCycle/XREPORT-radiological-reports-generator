@@ -15,8 +15,101 @@ def test_inference_route_renders_catalog_and_navigation(
     assert response is not None and response.ok
     expect(page.get_by_role("heading", name="Turn a radiograph into a draft report")).to_be_visible()
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
+    expect(page.get_by_role("link", name="Reports")).to_be_visible()
     expect(page.get_by_role("link", name="Dataset")).to_be_visible()
     expect(page.get_by_role("link", name="Training")).to_be_visible()
+
+
+###############################################################################
+def test_reports_route_renders_history_or_explicit_empty_state(
+    page: Page,
+    base_url: str,
+) -> None:
+    response = page.goto(f"{base_url}/reports")
+
+    assert response is not None and response.ok
+    expect(page.get_by_role("heading", name="Reports")).to_be_visible()
+    expect(page.get_by_role("link", name="Inference")).to_be_visible()
+    expect(page.locator(".report-card, .reports-empty").first).to_be_visible()
+    assert page.locator(".report-card, .reports-empty").count() > 0
+    overflow = page.evaluate(
+        "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    )
+    assert overflow
+
+
+###############################################################################
+def test_reports_detail_edit_reload_and_confirmed_delete(
+    page: Page,
+    base_url: str,
+    seeded_history: str,
+) -> None:
+    response = page.goto(f"{base_url}/reports")
+
+    assert response is not None and response.ok
+    card = page.locator(f'a.report-card[href="/reports/{seeded_history}"]')
+    expect(card).to_be_visible()
+    expect(card).to_contain_text("e2e/reports")
+    card.click()
+
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    findings = page.get_by_role("textbox", name="Findings").first
+    expect(findings).to_have_value("Clear lungs.")
+    findings.fill("Clear lungs after review.")
+    page.get_by_role("button", name="Save edits").click()
+    expect(page.get_by_text("Edits saved.", exact=False)).to_be_visible()
+
+    page.reload()
+    expect(page.get_by_role("textbox", name="Findings").first).to_have_value(
+        "Clear lungs after review."
+    )
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.get_by_role("button", name="Delete session").click()
+    expect(page).to_have_url(f"{base_url}/reports")
+    expect(page.locator(f'a.report-card[href="/reports/{seeded_history}"]')).to_have_count(0)
+
+
+###############################################################################
+def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
+    page: Page,
+    base_url: str,
+) -> None:
+    page.set_viewport_size({"width": 1440, "height": 900})
+    response = page.goto(f"{base_url}/inference")
+
+    assert response is not None and response.ok
+    expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
+    metrics = page.evaluate(
+        """
+        () => {
+          const selection = document.querySelector('.model-selection');
+          const catalog = document.querySelector('.catalog-panel');
+          const details = document.querySelector('.model-details');
+          const groups = document.querySelector('.model-groups');
+          return {
+            selectionContainsCatalog: Boolean(selection && catalog && selection.contains(catalog)),
+            catalogHeight: catalog?.getBoundingClientRect().height ?? 0,
+            detailsHeight: details?.getBoundingClientRect().height ?? 0,
+            overflowY: groups ? getComputedStyle(groups).overflowY : '',
+          };
+        }
+        """,
+    )
+    assert metrics["selectionContainsCatalog"]
+    assert abs(metrics["catalogHeight"] - metrics["detailsHeight"]) <= 1
+    assert metrics["overflowY"] in {"auto", "scroll"}
+
+    page.get_by_placeholder("Filter by model, anatomy, or origin").fill("CheXOne")
+    filtered_metrics = page.evaluate(
+        """
+        () => ({
+          catalogHeight: document.querySelector('.catalog-panel')?.getBoundingClientRect().height ?? 0,
+          detailsHeight: document.querySelector('.model-details')?.getBoundingClientRect().height ?? 0,
+        })
+        """,
+    )
+    assert abs(filtered_metrics["catalogHeight"] - filtered_metrics["detailsHeight"]) <= 1
 
 ###############################################################################
 def test_startup_gate_holds_inference_until_backend_health(
