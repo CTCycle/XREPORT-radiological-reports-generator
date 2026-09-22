@@ -429,6 +429,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/inference/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List History */
+        get: operations["list_history_api_inference_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/inference/history/{request_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get History */
+        get: operations["get_history_api_inference_history__request_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete History */
+        delete: operations["delete_history_api_inference_history__request_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update History */
+        patch: operations["update_history_api_inference_history__request_id__patch"];
+        trace?: never;
+    };
     "/api/inference/generate": {
         parameters: {
             query?: never;
@@ -806,6 +842,146 @@ export interface components {
             mean_noise_std: number;
             /** Mean Noise Ratio */
             mean_noise_ratio: number;
+        };
+        /** InferenceHistoryDeleteResponse */
+        InferenceHistoryDeleteResponse: {
+            /** Success */
+            success: boolean;
+            /** Message */
+            message: string;
+        };
+        /** InferenceHistoryDetail */
+        InferenceHistoryDetail: {
+            /** Request Id */
+            request_id: string;
+            /** Provider */
+            provider: string;
+            /** Model Ref */
+            model_ref: string;
+            /** Model Revision */
+            model_revision?: string | null;
+            /** Generation Profile */
+            generation_profile: string;
+            /** Generation Config */
+            generation_config: {
+                [key: string]: unknown;
+            };
+            /** Clinical Context */
+            clinical_context?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+            /** Execution Time Seconds */
+            execution_time_seconds?: number | null;
+            /** Date */
+            date?: string | null;
+            /** Reports */
+            reports: components["schemas"]["InferenceHistoryReport"][];
+            /** Output Sections */
+            output_sections: string[];
+        };
+        /** InferenceHistoryReport */
+        InferenceHistoryReport: {
+            /** Image Index */
+            image_index: number;
+            /** Input Image Name */
+            input_image_name: string;
+            /** Generated Report */
+            generated_report: string;
+            /** Edited Report */
+            edited_report?: string | null;
+            /** Effective Report */
+            effective_report: string;
+            /**
+             * Edited
+             * @default false
+             */
+            edited: boolean;
+            /** Edited At */
+            edited_at?: string | null;
+            /**
+             * Sections
+             * @default {}
+             */
+            sections: {
+                [key: string]: string;
+            };
+        };
+        /** InferenceHistoryReportSummary */
+        InferenceHistoryReportSummary: {
+            /** Image Index */
+            image_index: number;
+            /** Input Image Name */
+            input_image_name: string;
+            /** Preview */
+            preview: string;
+            /**
+             * Edited
+             * @default false
+             */
+            edited: boolean;
+            /** Edited At */
+            edited_at?: string | null;
+        };
+        /** InferenceHistoryReportUpdate */
+        InferenceHistoryReportUpdate: {
+            /** Image Index */
+            image_index: number;
+            /** Edited Report */
+            edited_report: string;
+        };
+        /** InferenceHistoryResponse */
+        InferenceHistoryResponse: {
+            /** Items */
+            items: components["schemas"]["InferenceHistorySummary"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** InferenceHistorySummary */
+        InferenceHistorySummary: {
+            /** Request Id */
+            request_id: string;
+            /** Provider */
+            provider: string;
+            /** Model Ref */
+            model_ref: string;
+            /** Model Revision */
+            model_revision?: string | null;
+            /** Generation Profile */
+            generation_profile: string;
+            /** Clinical Context */
+            clinical_context?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+            /** Execution Time Seconds */
+            execution_time_seconds?: number | null;
+            /** Date */
+            date?: string | null;
+            /** Reports */
+            reports: components["schemas"]["InferenceHistoryReportSummary"][];
+            /** Image Names */
+            image_names: string[];
+            /** Report Count */
+            report_count: number;
+            /**
+             * Provenance Available
+             * @default false
+             */
+            provenance_available: boolean;
+        };
+        /** InferenceHistoryUpdateRequest */
+        InferenceHistoryUpdateRequest: {
+            /** Reports */
+            reports: components["schemas"]["InferenceHistoryReportUpdate"][];
         };
         /** InferenceModelsResponse */
         InferenceModelsResponse: {
@@ -2249,6 +2425,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_history_api_inference_history_get: {
+        parameters: {
+            query?: {
+                model_ref?: string | null;
+                status?: string | null;
+                sort?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_history_api_inference_history__request_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceHistoryDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_history_api_inference_history__request_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceHistoryDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_history_api_inference_history__request_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InferenceHistoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InferenceHistoryDetail"];
                 };
             };
             /** @description Validation Error */

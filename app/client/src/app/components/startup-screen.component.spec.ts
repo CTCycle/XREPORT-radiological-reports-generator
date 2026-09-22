@@ -27,7 +27,11 @@ describe('StartupScreenComponent', () => {
     expect(element.textContent).toContain('FINDINGS');
     expect(element.textContent).toContain('IMPRESSION');
     expect(element.textContent).not.toMatch(/pneumonia|fracture|mass|effusion/i);
-    expect(element.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    const svg = element.querySelector('svg');
+    expect(svg?.getAttribute('aria-hidden')).toBe('true');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 360 420');
+    expect(svg?.querySelector('image')).toBeNull();
+    expect(svg?.querySelector('.startup-xray-scan')).not.toBeNull();
   });
 
   it('shows the phase copy and exposes retry only when unavailable', async () => {

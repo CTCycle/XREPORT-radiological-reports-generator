@@ -3,7 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings } from '@ng-icons/lucide';
+import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings } from '@ng-icons/lucide';
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
@@ -13,7 +13,7 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
 @Component({
   selector: 'app-main-layout',
   imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, ThemeSelectorComponent, TipsAndTricksComponent],
-  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings })],
+  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings })],
   template: `
     <div class="main-layout">
       <div class="main-layout-chrome">
@@ -28,6 +28,9 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
           <div class="app-nav-list">
             <a routerLink="/inference" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="app-nav-button app-nav-button-primary" title="Inference" aria-label="Inference">
               <ng-icon name="lucideFileSearch" size="16" /> <span>Inference</span>
+            </a>
+            <a routerLink="/reports" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }" class="app-nav-button" title="Reports" aria-label="Reports">
+              <ng-icon name="lucideFileText" size="16" /> <span>Reports</span>
             </a>
             <span class="app-nav-separator" aria-hidden="true"></span>
             <span class="app-nav-group-label">Model development</span>

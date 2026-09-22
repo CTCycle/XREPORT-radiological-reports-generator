@@ -21,6 +21,12 @@ from server.services.errors import (
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
+    InferenceHistoryDetail,
+    InferenceHistoryDeleteResponse,
+    InferenceHistoryResponse,
+    InferenceHistorySort,
+    InferenceHistoryStatus,
+    InferenceHistoryUpdateRequest,
     InferenceModelsResponse,
     ModelUpdateCheckResponse,
 )
@@ -650,6 +656,87 @@ class InferenceService:
             status=status["status"],
             message=f"Model {action} started for {model_ref}",
             poll_interval=settings.jobs.polling_interval,
+        )
+
+    # -------------------------------------------------------------------------
+    def list_history(
+        self,
+        *,
+        model_ref: str | None = None,
+        status: InferenceHistoryStatus | None = None,
+        sort: InferenceHistorySort = "newest",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> InferenceHistoryResponse:
+        allowed_statuses: set[str] = {
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+        }
+        if model_ref is not None and not model_ref.strip():
+            raise BadRequestError(detail="model_ref cannot be empty")
+        if status is not None and status not in allowed_statuses:
+            raise BadRequestError(detail=f"Unsupported history status: {status}")
+        if sort not in {"newest", "oldest"}:
+            raise BadRequestError(detail="sort must be newest or oldest")
+        try:
+            payload = self.repository.list_inference_history(
+                model_ref=model_ref.strip() if model_ref else None,
+                status=status,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to list inference history")
+            raise InternalServiceError(detail="Unable to load inference history") from exc
+        return InferenceHistoryResponse.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def get_history(self, request_id: str) -> InferenceHistoryDetail:
+        try:
+            payload = self.repository.get_inference_history(request_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to load inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to load inference history") from exc
+        if payload is None:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDetail.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def update_history(
+        self, request_id: str, request: InferenceHistoryUpdateRequest
+    ) -> InferenceHistoryDetail:
+        try:
+            payload = self.repository.update_inference_reports(
+                request_id,
+                [report.model_dump() for report in request.reports],
+            )
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to update inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to update inference history") from exc
+        if payload is None:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDetail.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def delete_history(self, request_id: str) -> InferenceHistoryDeleteResponse:
+        try:
+            deleted = self.repository.delete_inference_history(request_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to delete inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to delete inference history") from exc
+        if not deleted:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDeleteResponse(
+            success=True,
+            message="Inference history deleted",
         )
 
     # -------------------------------------------------------------------------
