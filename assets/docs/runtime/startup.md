@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Windows Local Launcher
 
@@ -37,11 +37,20 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 - update source from `origin/main` with the clean-`main` guard
 
-The launch option starts the backend and frontend preview together, waits only
-for the UI port to respond, opens the browser, and then exits the menu. The
-Angular shell displays the XREPORT startup surface while it polls
-`/api/health`; routed pages are not created until the backend reports
-`status: "ok"`.
+The launch option starts FastAPI and a lightweight Node server for the existing
+production Angular bundle, waits only for the UI port to respond, opens the
+browser, and then exits the menu. The Node server serves the bundle, applies
+Angular SPA fallback, and proxies `/api` to FastAPI. The Angular shell displays
+the XREPORT startup surface while it polls `/api/health`; routed pages are not
+created until the backend reports `status: "ok"`.
+
+Before dependency preparation or service startup, Launch checks both configured
+ports. If listeners are found, the launcher lists each unique PID, process
+metadata when available, and every configured port it owns. Interactive Launch
+asks once before terminating the listed process trees. A declined prompt
+cancels without starting services; non-interactive Launch fails closed without
+terminating anything. A launcher or ancestor process owning a configured port,
+failed termination, or a newly appearing owner aborts the launch.
 
 ## Foundational Startup Validation
 
@@ -84,9 +93,16 @@ At backend startup, a missing `settings/.env` is created from
 `settings/.env.example`. Existing environment files are preserved and ignored
 by Git.
 
-Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
-application launch. The default `ALWAYS_REBUILD=false` skips that startup
-build; the install/update option continues to build the frontend.
+Normal Launch reuses a valid `app/client/dist/client-angular` bundle. After a
+successful production build, the launcher writes the ignored
+`.xreport-build-state.json` manifest beside that bundle. Its SHA-256 inputs are
+the production Angular source, public assets, build configuration, dependency
+manifests, and the expected Node toolchain version; test files, the dev proxy
+configuration, backend files, documentation, and port-only environment edits
+do not invalidate it. A missing or stale bundle rebuilds, and a dependency
+manifest change runs `npm ci` before rebuilding. A current bundle never invokes
+the Angular CLI during normal Launch. The explicit **Rebuild frontend** and
+install/update actions always refresh the production bundle and state manifest.
 
 ### Source updates
 
@@ -99,8 +115,8 @@ frontend rebuild actions.
 ## Tauri desktop development
 
 `LaunchDesktopDev` builds Angular once, starts the source FastAPI backend on
-the configured 5003 port, starts the preview on 8003, waits only for the
-preview, leaves both consoles visible, and opens the debug Tauri shell. The
+the configured 5003 port, starts the built-bundle server on 8003, waits only
+for the frontend, leaves both consoles visible, and opens the debug Tauri shell. The
 same Angular startup gate remains visible until backend readiness:
 
 ```powershell
@@ -170,7 +186,11 @@ Set-Location app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
-Use host and port values from `settings/.env`. `UI_API_BASE_URL` should remain `/api` for the proxied local flow.
+Use host and port values from `settings/.env`. Run `npm run build` before the
+first manual preview start. The `preview` script serves the built bundle and
+proxies `UI_API_BASE_URL` (normally `/api`) to the FastAPI host and port from
+the environment. Use `npm start` or `npm run dev` when an Angular development
+server is required.
 
 ## Test Runtime
 

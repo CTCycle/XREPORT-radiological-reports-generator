@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Primary Commands
 
@@ -49,7 +49,7 @@ timestamped backend logs beside it. Readiness/session files in
 ### Manual Backend And Frontend
 
 - `uv run --project app/server python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
-- `cd app/client && npm run preview -- --host <host> --port <port>`
+- `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (preview serves the existing production bundle)
 
 ### Tests
 
