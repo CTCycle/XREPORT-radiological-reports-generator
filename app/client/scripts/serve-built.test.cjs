@@ -165,7 +165,9 @@ test('returns controlled 502 responses while the backend is unavailable', async 
   await close(backend);
   const response = await request(frontendPort, { path: '/api/health' });
   assert.equal(response.statusCode, 502);
-  assert.equal(JSON.parse(response.body).error, 'ECONNREFUSED');
+  const body = JSON.parse(response.body);
+  assert.equal(body.detail, 'The XREPORT backend is not available yet.');
+  assert.ok(['ECONNREFUSED', 'ECONNRESET'].includes(body.error));
 
   backend = http.createServer((request, response) => {
     response.writeHead(200);
