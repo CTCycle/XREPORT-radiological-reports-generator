@@ -7,13 +7,18 @@ import subprocess
 import sys
 
 ###############################################################################
-def test_concurrent_service_initialization_keeps_ml_imports_lazy() -> None:
+def test_concurrent_service_initialization_keeps_ml_imports_lazy(
+    tmp_path: Path,
+) -> None:
     root = Path(__file__).parents[3]
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(root / "app")
     environment["KERAS_BACKEND"] = "torch"
     environment["MPLBACKEND"] = "Agg"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["EMBEDDED_DATABASE"] = "true"
+    environment["XREPORT_RESOURCES_DIR"] = str(tmp_path / "resources")
+    environment.pop("DATABASE_URL", None)
     environment.pop("XREPORT_DESKTOP", None)
     code = """
 import importlib
@@ -23,6 +28,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import sys
+
+from server.configurations import get_database_settings
+from server.repositories.database.initializer import initialize_database
+
+# Service factories read the singleton row, so model normal startup first.
+initialize_database(get_database_settings())
 
 module_names = (
     "server.services.preparation",
