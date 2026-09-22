@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ## Core UX Journeys
 
@@ -11,6 +11,7 @@ Last updated: 2026-09-21
   - terminal success, error, or cancel feedback
 - Keep the inference research-use warning visible above the drafting workspace. Model status and capabilities must be clear before image upload or generation.
 - Generated report text remains an editable draft using the output sections declared by the selected model. Models may expose Findings, Impression, both sections, or a raw report; it is never presented as a clinically approved result.
+- Keep completed inference sessions discoverable from Reports. The list exposes model, status, images, timing, and a short preview; the detail page exposes provenance and metadata while preserving generated output separately from user edits.
 
 ## Application startup
 
@@ -29,12 +30,26 @@ Last updated: 2026-09-21
 - The radiograph illustration and report bars are decorative. The live status
   text is exposed through an accessible status region, and reduced-motion users
   receive a static composition with only the short ready transition.
+- The startup illustration uses a restrained structural radiograph and one
+  scanning accent; decorative marker dots and enclosing card chrome are not
+  required for readiness communication.
 
 ## Interaction Consistency
 
 - Use consistent button labels and affordances for primary, cancel, and destructive actions.
 - Keep modal close behavior predictable.
 - Keep empty, loading, and error states explicit. Avoid silent failures.
+
+## Reports history
+
+- Reports is a durable review surface for persisted inference sessions; source
+  radiographs are not retained there.
+- List filters are explicit and reversible: model reference, lifecycle status,
+  sort order, and pagination.
+- A successful session can be edited by report image and declared output
+  section. Save is atomic, disabled until a draft changes, and never replaces
+  the generated model output. Deleting a session is explicit and returns the
+  user to the history list.
 
 ## Theme selection
 

@@ -41,19 +41,14 @@ const PHASE_COPY: Record<StartupPhase, { title: string; message: string }> = {
         <div class="startup-layout">
           <div class="startup-visual" aria-hidden="true">
             <div class="startup-xray-frame">
-              <svg class="startup-xray" viewBox="0 0 420 470" focusable="false" aria-hidden="true">
-                <path class="startup-xray-rib startup-xray-rib--left" d="M210 74C153 77 105 115 94 184c-8 49 10 117 55 166 21 23 42 37 61 43" />
-                <path class="startup-xray-rib startup-xray-rib--right" d="M210 74c57 3 105 41 116 110 8 49-10 117-55 166-21 23-42 37-61 43" />
-                <path class="startup-xray-spine" d="M210 87v292" />
-                <path class="startup-xray-lung startup-xray-lung--left" d="M202 119c-42 7-69 41-72 91-3 48 15 105 48 145 10 12 18 18 24 21Z" />
-                <path class="startup-xray-lung startup-xray-lung--right" d="M218 119c42 7 69 41 72 91 3 48-15 105-48 145-10 12-18 18-24 21Z" />
-                <path class="startup-xray-mediastinum" d="M207 119c-9 38-10 69-1 94 6 16 9 35 9 58" />
-                <line class="startup-scan-line" x1="91" x2="329" y1="84" y2="84" />
-                <g class="startup-xray-markers">
-                  <circle cx="151" cy="181" r="7" />
-                  <circle cx="268" cy="253" r="7" />
-                  <circle cx="185" cy="326" r="7" />
-                </g>
+              <svg class="startup-xray" viewBox="0 0 360 420" focusable="false" aria-hidden="true">
+                <path class="startup-xray-thorax" d="M180 34C129 36 82 70 65 122c-17 51-12 124 19 183 21 39 57 67 96 77 39-10 75-38 96-77 31-59 36-132 19-183C278 70 231 36 180 34Z" />
+                <path class="startup-xray-lung startup-xray-lung--left" d="M170 87c-35 5-59 35-65 78-7 50 8 105 39 146 9 12 18 20 27 26 6-39 8-78 7-115-1-47-3-91-8-135Z" />
+                <path class="startup-xray-lung startup-xray-lung--right" d="M190 87c35 5 59 35 65 78 7 50-8 105-39 146-9 12-18 20-27 26-6-39-8-78-7-115 1-47 3-91 8-135Z" />
+                <path class="startup-xray-spine" d="M180 62v288" />
+                <path class="startup-xray-sternum" d="M180 82c-8 31-9 68-3 105 4 23 5 47 3 73" />
+                <path class="startup-xray-diaphragm" d="M91 302c28 15 57 22 89 22s61-7 89-22" />
+                <line class="startup-xray-scan" x1="55" x2="305" y1="52" y2="52" />
               </svg>
             </div>
           </div>
