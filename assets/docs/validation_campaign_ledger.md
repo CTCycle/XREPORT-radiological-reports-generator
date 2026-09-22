@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 This is the subordinate slice ledger for the long-term XREPORT validation
 campaign. [`project_status_ledger.md`](project_status_ledger.md) remains the
@@ -46,7 +46,7 @@ The dependency chain is:
 
 ## Current Campaign State
 
-- Current code revision at campaign start: `481605b1b87035b8deb03edaefdbfc090f8f1b23` (`develop`).
+- Code revision at campaign start: `481605b1b87035b8deb03edaefdbfc090f8f1b23` (`develop`). The 2026-09-22 implementation was tested in a worktree based on that revision before commit; see the dated execution summary.
 - Remote CI run `35598132452` is red on this revision: backend unit tests recorded
   `131 passed, 1 failed` in
   `test_concurrent_service_initialization_keeps_ml_imports_lazy`; later CI
@@ -56,35 +56,36 @@ The dependency chain is:
 - Windows reproduced the named test successfully once and for ten consecutive
   repetitions, and the complete backend unit suite passed (`132 passed`). This
   does not clear S00 because the current remote CI result remains unresolved.
-- S01, S02, and S03 were exercised locally on the current code revision and
-  passed within their stated Windows scope. Gate A therefore remains
-  **NOT CLEARED** until a current-head CI run is green or the cross-platform
-  failure is reproduced, diagnosed, and retested.
+- On 2026-09-22, the source launcher, built frontend server, rendered startup
+  gate, and local static/client/backend gates passed within the recorded
+  Windows scope. S01–S03 evidence is refreshed in
+  [the 2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md).
+  S00 remains **NOT CLEARED**: the last observed remote run is still the red
+  baseline above, and no current-change remote CI result is available here.
 
 ## Tier 0 Slice Ledger — Current Execution
 
 | Slice | Capability | Exists | Exercised | Status | Scenarios and regressions | Evidence | Remaining gap |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `S00` | Restore current CI baseline | yes | yes | `FAIL` | Named lazy-import test passed 10/10 on Windows; full backend unit suite passed. Remote current-head CI failed 131/1. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [CI run 35598132452](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35598132452) | Obtain the full remote traceback, classify the platform/state defect, apply only the narrow owner fix if needed, rerun the test at least 10 times, then rerun every skipped CI stage. |
-| `S01` | Source backend startup and SQLite readiness | yes | yes | `PASS` | Fresh disposable resource root; `/api/health`; Alembic head; restart reuse; non-empty schema without `alembic_version` rejected with exit code 3 and a clear error. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md) | Repeat after database/startup changes and preserve the resource-tree/schema evidence. |
-| `S02` | Angular startup gate and backend recovery | yes | yes | `PASS` | Official launcher reached frontend/backend readiness; rendered in-app browser showed ready inference shell and catalogue; focused startup-gate E2E passed and confirmed feature requests were suppressed during simulated 503 health responses. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [startup screenshot](../QA/xreport-startup-gate.png) | Exercise and retain explicit slow/unavailable/retry and post-ready ordinary feature-error evidence; the launcher browser-open step is environment-limited in this run. |
-| `S03` | Static quality, API contract, and client build gates | yes | yes | `PASS` | Locked sync, Ruff, Pyright, backend units, `npm ci`, Angular build, lint, and client unit tests passed locally on the same code revision. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md) | These local gates must be rerun by a green current-head CI job before Gate A is closed. |
+| `S00` | Restore current CI baseline | yes | yes | `FAIL` | Named lazy-import test passed 10/10 on Windows; full backend unit suite passed. The last observed remote CI failed 131/1 on the starting revision; no current-change CI result is available. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [CI run 35598132452](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35598132452) | Obtain the full remote traceback, classify the platform/state defect, apply only the narrow owner fix if needed, rerun the test at least 10 times, then rerun every skipped CI stage. |
+| `S01` | Source backend startup and SQLite readiness | yes | yes | `PASS` | The normal Windows launcher started FastAPI and the built UI; the in-browser readiness gate reached ready state and loaded the catalogue. Full local Python run passed 149 tests, including unchanged migration/schema-drift checks. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [2026-09-21 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md) | Complete the still-open launcher port-race/failure and build dependency-invalidation scenarios before broadening the source-startup claim. |
+| `S02` | Built frontend startup gate and backend recovery | yes | yes | `PASS` | `run_tests.bat` and focused startup-gate E2E passed; the in-app browser observed the launch shell transition to the ready inference UI. Nine built-server unit tests passed for static files, SPA fallback, API proxy/body/status, 502 recovery, traversal, and symlink protection. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md); [startup screenshot](../QA/xreport-startup-gate.png) | Explicit slow/unavailable/retry timing and post-ready ordinary feature-error evidence remain open. |
+| `S03` | Static quality, API contract, and client build gates | yes | yes | `PASS` | Ruff and Pyright passed; portable Node 22.22.3 production build and explicit launcher rebuild passed; client lint and 29 unit tests passed; the full Python suite passed 149/1 skipped. | [2026-09-22 execution summary](../QA/validation_campaign/tier-0/summary-20260922.md) | `npm ci` and remote current-head CI were not run for this change set; S00 remains open until current-head CI is green. |
 
 ### Tier 0 Evidence Notes
 
-The official launcher reached readiness but its attempt to open the URL through
-Windows `Start-Process` returned access denied in the managed environment. The
-same live URL was opened through the Codex in-app browser and rendered the
-ready shell and model catalogue. The launch-owned process trees were then
-terminated by their verified roots and ports `5003` and `8003` were confirmed
-clear. The launcher `KillProcesses` action itself could not inspect processes in
-this environment and was recorded as an environment limitation, not silently
-treated as application success.
+The 2026-09-21 launcher attempt to open the URL through Windows `Start-Process`
+returned access denied in the managed environment. On 2026-09-22 the corrected
+launcher completed successfully; the same local URL was opened in the Codex
+in-app browser and rendered the ready workspace. Its launch-owned process trees
+were terminated by verified roots and ports `5003` and `8003` were confirmed
+clear. Port-guard cases not exercised are enumerated in the dated summary.
 
-The first `npm ci` attempt also encountered `EPERM` unlinking the launch-held
-`esbuild.exe`. After the verified XREPORT frontend tree was stopped, `npm ci`
-completed successfully. This is retained as cleanup evidence and remains
-related to the existing Windows cache/process issue, not a client build defect.
+On 2026-09-21, an `npm ci` attempt encountered `EPERM` unlinking the launch-held
+`esbuild.exe`; after the verified XREPORT frontend tree was stopped, `npm ci`
+completed successfully. This is historical cleanup evidence related to the
+Windows cache/process issue, not a client build defect. No `npm ci` was needed
+or run for the 2026-09-22 change set because dependency manifests were unchanged.
 
 ## Remaining Slice Ledger
 

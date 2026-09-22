@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
@@ -34,9 +34,12 @@ the Windows Job Object, navigation policy, and shutdown. FastAPI owns the API,
 SPA fallback, cookie bootstrap, and same-origin security headers. Immutable
 runtime files are separated from mutable `%LOCALAPPDATA%\XREPORT\data`.
 
-The source topology remains FastAPI on 5003 plus Angular preview on 8003.
-`LaunchDesktopDev` exercises it through a debug Tauri window; `Launch` keeps
-the normal browser workflow.
+The source topology remains FastAPI on 5003 plus a lightweight Node server on
+8003. That server serves the current `dist/client-angular/browser` bundle,
+falls back to `index.html` for Angular routes, and proxies same-origin `/api`
+requests to FastAPI. Angular CLI remains available through `start` and `dev`.
+`LaunchDesktopDev` exercises the built-bundle topology through a debug Tauri
+window; `Launch` keeps the normal browser workflow.
 
 ## Dependency Direction
 

@@ -50,7 +50,7 @@ def _ensure_directory(path: Path) -> None:
 ###############################################################################
 def run_startup_validations(
     settings: ServerSettings | DatabaseSettings | None = None,
-) -> None:
+) -> ServerSettings:
     started = perf_counter()
     if isinstance(settings, DatabaseSettings):
         database_settings = settings
@@ -106,3 +106,4 @@ def run_startup_validations(
         (perf_counter() - started) * 1000,
         resolved_settings.database.backend,
     )
+    return resolved_settings

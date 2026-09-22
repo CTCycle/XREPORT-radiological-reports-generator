@@ -8,9 +8,10 @@
     "dev": "ng serve --proxy-config src/proxy.conf.cjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "preview": "ng serve --configuration production --proxy-config src/proxy.conf.cjs",
+    "preview": "node scripts/serve-built.cjs",
     "test": "ng test --watch=false",
     "test:unit": "ng test --watch=false",
+    "test:built-server": "node --test scripts/serve-built.test.cjs",
     "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_angular_e2e.ps1",
     "lint": "ng lint"
   },

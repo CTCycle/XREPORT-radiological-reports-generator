@@ -1,13 +1,14 @@
 # Runtime Modes
 
-Last updated: 2026-09-17
+Last updated: 2026-09-22
 
 ## Supported Modes
 
 ### Local Web Mode
 
 - Backend: FastAPI in `app/server/app.py`.
-- Frontend: Vite preview or dev server in `app/client`.
+- Frontend: Angular development server for `start`/`dev`, or the lightweight
+  built-bundle static/proxy server for `preview` and normal Windows Launch.
 - The Windows operator flow uses `start_on_windows.ps1`.
 - macOS and Linux use the documented manual backend and frontend commands.
 
