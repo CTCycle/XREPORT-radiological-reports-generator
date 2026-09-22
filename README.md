@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-09-20
+Last updated: 2026-09-22
 
 ## 1. What XREPORT is
 
@@ -116,16 +116,20 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 ~~~
 
 Choose **Launch application**. The launcher prepares the local runtimes and
-dependencies as needed, initializes the application data store, starts the
-services, and opens the browser as soon as the frontend preview is reachable.
+dependencies as needed, initializes the application data store, starts FastAPI
+and a lightweight server for the existing production Angular bundle, and opens
+the browser as soon as the frontend is reachable.
 XREPORT then shows its initialization surface while the local FastAPI service
 finishes preparing the database and runtime resources. The normal workspace is
 revealed only after `/api/health` reports that the backend is ready.
 
 The first launch may take several minutes while dependencies and the frontend
-are prepared. Allow the process to finish and keep an internet connection
-available. Later launches are normally faster because the prepared resources
-are reused.
+bundle are prepared. Allow the process to finish and keep an internet
+connection available. Later launches reuse the deterministic build-state
+manifest and skip Angular compilation while the frontend inputs remain current.
+If either configured port is occupied, Launch shows the owning processes before
+asking once for permission to terminate them; a decline or non-interactive
+launch leaves those processes untouched.
 
 For a direct launch without the menu, use:
 
@@ -195,7 +199,7 @@ cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ~~~
 
-Open the local address shown by the frontend preview, normally
+Open the local address shown by the built-bundle frontend server, normally
 http://127.0.0.1:8003.
 
 All disposable source-mode application, ML, frontend, and test caches resolve
@@ -332,8 +336,9 @@ steps, and guidance for resuming from an existing checkpoint.
 
 - On Windows, run the launcher again and choose **Launch application**. Give
   the first launch time to prepare dependencies and start the local services.
-- If another XREPORT window is already open, close it before starting a second
-  one.
+- If another process owns a configured port, read the launcher diagnostics and
+  approve termination only when the listed process is safe to stop. A `No`
+  response or non-interactive launch cancels/fails without killing it.
 - On macOS or Linux, confirm that both the service terminal and the frontend
   preview terminal are still running.
 - If the problem continues, restart the computer and try the launcher once

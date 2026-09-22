@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-09-19
+Last updated: 2026-09-22
 
 ## Troubleshooting Quick Guide
 
@@ -24,6 +24,14 @@ variant-specific immutable runtime archives.
 - UI not reachable:
   - check `UI_HOST` and `UI_PORT` in `settings/.env`
   - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
+- configured port already in use:
+  - interactive Launch lists the owning PIDs, ports, and available process metadata before asking once for termination
+  - answer `No` to cancel without stopping processes or starting services
+  - non-interactive Launch fails closed; free the ports or rerun interactively
+  - a failed termination, launcher/ancestor owner, or new owner appearing after approval aborts the launch without killing the new process
+- frontend bundle is stale or missing:
+  - run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`
+  - inspect the launcher timing and build-state reason; dependency manifest changes run `npm ci` before the rebuild
 - jobs stay running too long:
   - poll the status endpoint and inspect backend logs under `<resource root>/logs`
 - missing artifacts or checkpoints:

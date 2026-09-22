@@ -144,6 +144,10 @@ jobs:
         working-directory: app/client
         run: npm run build
 
+      - name: Test built frontend server
+        working-directory: app/client
+        run: npm run test:built-server
+
       - name: Lint client
         working-directory: app/client
         run: npm run lint

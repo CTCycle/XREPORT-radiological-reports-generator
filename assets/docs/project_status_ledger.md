@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 This is the canonical high-level operational status catalog for the current
 XREPORT checkout. It summarizes what is working, validated, partial, blocked,
@@ -8,11 +8,11 @@ unvalidated, or absent, and points to the detailed architecture and QA evidence
 that supports each claim. It is a current-state index, not a development diary,
 issue tracker replacement, release approval, or clinical-quality statement.
 
-Validation baseline: `develop` at `481605b1b87035b8deb03edaefdbfc090f8f1b23`.
-This update adds campaign documentation and evidence without changing the
-application code under validation. Statuses remain tied to the exact evidence
-revision and must be refreshed when the checkout or its validation evidence
-changes.
+Validation baseline: `develop` started at
+`481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
+was validated in that worktree before commit; see the dated Tier 0 summary.
+Statuses remain tied to the evidence revision and must be refreshed when the
+checkout or its validation evidence changes.
 
 ## Maintenance Rules
 
@@ -65,6 +65,12 @@ form of evidence exists for the stated scope.
   complete local backend unit suite passed (`132 passed`). S01 source startup,
   S02 rendered startup-gate recovery, and S03 local static/client gates passed
   within their recorded Windows scope.
+- On 2026-09-22, the changed launcher and built-frontend path passed local
+  Windows checks: `run_tests.bat` completed with 149 Python tests passed and
+  one skipped, client unit/E2E slices passed, the explicit production rebuild
+  refreshed build state, a warm launch reused that build, and the rendered app
+  reached its ready workspace. Detailed scope and remaining edge cases are in
+  the [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md).
 - Settings persistence and reset have browser and automated evidence from
   2026-09-17; responsive settings, dataset, and inference evidence was captured
   again on 2026-09-19/20.
@@ -86,7 +92,7 @@ form of evidence exists for the stated scope.
 
 | Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `runtime.source.startup` | `VALIDATED` | Source-mode FastAPI startup, SQLite migration/resource checks, health readiness, and lightweight endpoint reachability. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [backend smoke log](../QA/xreport-backend-smoke-20260919.log) | Checkpoint listing emits warnings for incomplete test artifacts; see `ISSUE-003`. | — | 2026-09-21 | integration + E2E + manual | [startup](runtime/startup.md); [system overview](architecture/system_overview.md) | Repeat the source smoke after launcher, migration, or startup changes. |
+| `runtime.source.startup` | `PARTIAL` | Windows source warm launch, current-build reuse, lightweight Node static/API proxy, rendered readiness, database startup checks, and selected port/build-freshness cases. | [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md); [2026-09-21 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260921.md); [backend smoke log](../QA/xreport-backend-smoke-20260919.log) | Permission-denied termination, post-consent PID takeover, a still-bound owner, output deletion, rebuild-after-source-change, package-lock invalidation/npm-ci recovery, and edit-during-build are not yet exercised end to end. | — | 2026-09-22 | unit + integration + E2E + manual | [startup](runtime/startup.md); [system overview](architecture/system_overview.md) | Complete the remaining launcher race/failure and dependency-invalidation cases before upgrading this scoped status. |
 | `runtime.desktop.packaged` | `UNVALIDATED` | Tauri CPU/CUDA runtime extraction, portable/MSI packaging, startup, shutdown, and user-data-root isolation. | [desktop packaging tests](../../app/tests/unit/test_desktop_packaging.py); [2026-09-17 E2E note](../QA/e2e-validation-20260917.md) records `cargo check` passed. | No current CPU/CUDA portable/MSI smoke report is present under `assets/QA/desktop/`. | — | 2026-09-17 | unit + build-check | [deployment](runtime/deployment.md); [runtime modes](runtime/modes.md) | Build both variants and run the documented packaged smoke checks, preserving reports under `assets/QA/desktop/`. |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | Containerized runtime or image-based deployment. | [runtime modes](runtime/modes.md) explicitly records this mode as absent. | No container build, image, or deployment contract exists. | — | — | None | [runtime modes](runtime/modes.md); [deployment](runtime/deployment.md) | Define a supported container contract only if deployment scope expands. |
 | `configuration.runtime_settings` | `VALIDATED` | Database-backed public settings: seed, filesystem access, polling interval, and inference timeout, including save, reload, reset, and allowlisting. | [settings validation](../QA/settings-migration-validation-20260917.md); [settings E2E](../../app/tests/e2e/test_settings_api.py); [settings page E2E](../../app/tests/e2e/test_angular_ui.py) | Hidden infrastructure, credential, and static model-policy values remain intentionally unavailable to the Settings API. | — | 2026-09-17 | unit + integration + E2E + manual | [configuration](runtime/configuration.md); [persistence](architecture/persistence.md); [UI experience](ui/experience.md) | Revalidate save/reset and migration behavior after settings or schema changes. |
@@ -130,7 +136,7 @@ form of evidence exists for the stated scope.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ui.settings` | `VALIDATED` | Settings route navigation, four public controls, save/reload/reset, explicit states, and responsive layout. | [settings E2E](../../app/tests/e2e/test_angular_ui.py); [2026-09-17 E2E note](../QA/e2e-validation-20260917.md); [responsive screenshots](../QA/xreport-settings-narrow-dark.png) | No current issue recorded for the exercised settings surface. | — | 2026-09-20 | E2E + manual | [UI experience](ui/experience.md); [UI patterns](ui/components_and_patterns.md) | Revalidate persistence and responsive states after route, contract, or token changes. |
 | `ui.inference.catalogue_and_sections` | `VALIDATED` | Rendered inference route, model-card grid, banner behavior, responsive layout, and model-declared report sections. | [2026-09-19 validation note](../QA/xreport-validation-2026-09-19.md); [2026-09-21 Python 3.14.7 validation](../QA/xreport-python-3.14.7-validation-20260921.md); [inference screenshot](../QA/xreport-inference-narrow-dark.png); [CheXOne UI contract test](../../app/tests/e2e/test_angular_ui.py) | Live browser Generate/Cancel/edit/export coverage is not established for every provider. | — | 2026-09-21 | E2E + manual | [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Add a rendered Generate/Cancel/provenance flow against a current installed model. |
-| `ui.startup_gate` | `VALIDATED` | Shell-level startup surface, serialized `/api/health` readiness polling, route suppression before readiness, recovery, ready transition, and responsive 1024x720 composition. | [Tier 0 execution summary](../QA/validation_campaign/tier-0/summary-20260921.md); [startup screenshot](../QA/xreport-startup-gate.png); [startup E2E](../../app/tests/e2e/test_angular_ui.py); [frontend unit suite](../../app/client/src/app/services/startup-readiness.service.spec.ts) | Explicit slow/unavailable/retry timing and ordinary post-ready feature-error manual evidence remain open; launcher browser-open and KillProcesses actions hit managed Windows access limits in this run. | — | 2026-09-21 | unit + E2E + manual | [startup](runtime/startup.md); [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Recheck explicit recovery states, launcher timing, and packaged CPU/CUDA startup after the next desktop validation run. |
+| `ui.startup_gate` | `VALIDATED` | Shell-level startup surface, serialized `/api/health` readiness polling, route suppression before readiness, recovery, ready transition, responsive composition, and readiness through the current built-bundle launcher. | [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md); [startup screenshot](../QA/xreport-startup-gate.png); [startup E2E](../../app/tests/e2e/test_angular_ui.py); [frontend unit suite](../../app/client/src/app/services/startup-readiness.service.spec.ts) | Explicit slow/unavailable/retry timing and ordinary post-ready feature-error manual evidence remain open; packaged CPU/CUDA startup is not covered. | — | 2026-09-22 | unit + E2E + manual | [startup](runtime/startup.md); [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) | Recheck explicit recovery states and packaged CPU/CUDA startup after the next desktop validation run. |
 | `ui.dataset_and_training_surfaces` | `WORKING` | Dataset and Training route rendering, navigation, and responsive surface. | [route-render E2E](../../app/tests/e2e/test_angular_ui.py); [dataset screenshot](../QA/xreport-dataset-narrow-dark.png) | Route rendering is evidenced, but complete dataset and training workflows remain unvalidated. | — | 2026-09-20 | E2E + manual | [UI patterns](ui/components_and_patterns.md); [workflows](operations/workflows.md) | Pair the surface checks with live dataset and minimal-training workflow evidence. |
 | `ui.validation.report_review` | `PARTIAL` | Validation route, missing-data error feedback, successful report display, and metric review. | [missing-dataset E2E](../../app/tests/e2e/test_angular_ui.py); [validation component patterns](ui/components_and_patterns.md) | Error-path rendering is covered; successful report review is not evidenced. | — | 2026-09-17 | E2E error path | [UI experience](ui/experience.md); [workflows](operations/workflows.md) | Run a successful validation and inspect the rendered report/metric state. |
 | `test.infrastructure.windows_cache` | `PARTIAL` | Repeatable Windows test startup and disposable-cache routing. | [testing rules](coding/testing_and_quality.md); [settings validation](../QA/settings-migration-validation-20260917.md); [E2E validation](../QA/e2e-validation-20260917.md) | Passing runs still emit warnings for pre-existing protected pytest/cache directories; see `ISSUE-004`. | Existing filesystem ACLs on protected cache paths. | 2026-09-19 | integration + E2E | [startup](runtime/startup.md); [commands](operations/commands_and_locations.md) | Rerun the test runner after routing/cleanup and confirm warnings are removed or explicitly accepted. |
