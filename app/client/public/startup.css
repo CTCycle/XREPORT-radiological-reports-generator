@@ -73,57 +73,34 @@
   padding: clamp(0.25rem, 1vw, 0.75rem);
 }
 
-.startup-xray {
+.startup-xray-image {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-}
-
-.startup-xray-thorax,
-.startup-xray-spine,
-.startup-xray-sternum,
-.startup-xray-diaphragm {
-  fill: none;
-  stroke: var(--text-secondary, #5f728c);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.5;
-}
-
-.startup-xray-thorax {
-  stroke-width: 2.5;
-}
-
-.startup-xray-spine {
-  stroke-width: 4;
-  opacity: 0.28;
-}
-
-.startup-xray-sternum {
-  stroke-width: 3;
-  opacity: 0.35;
-}
-
-.startup-xray-diaphragm {
-  stroke-width: 2.5;
-  opacity: 0.38;
-}
-
-.startup-xray-lung {
-  fill: var(--accent-soft, rgba(79, 134, 234, 0.1));
-  stroke: var(--startup-accent);
-  stroke-width: 1.8;
-  opacity: 0.72;
+  object-fit: contain;
 }
 
 .startup-xray-scan {
-  stroke: var(--startup-accent-strong);
-  stroke-width: 1.8;
-  stroke-linecap: round;
+  position: absolute;
+  top: 9%;
+  left: 18%;
+  z-index: 1;
+  width: 64%;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--startup-accent) 18%, transparent) 30%,
+    color-mix(in srgb, var(--startup-accent-strong) 80%, var(--on-media, #fff)) 48%,
+    var(--on-media, #fff) 50%,
+    color-mix(in srgb, var(--startup-accent-strong) 80%, var(--on-media, #fff)) 52%,
+    color-mix(in srgb, var(--startup-accent) 18%, transparent) 70%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--startup-accent-strong) 75%, transparent);
   opacity: 0;
-  transform-box: view-box;
-  transform-origin: center;
+  pointer-events: none;
   animation: startup-scan 2.8s ease-in-out infinite;
 }
 
@@ -152,6 +129,7 @@
 }
 
 .startup-report-section + .startup-report-section {
+  --startup-section-delay: 0.48s;
   margin-top: 1rem;
   padding-top: 1.2rem;
   border-top: 1px solid var(--border-subtle, #e5ebf3);
@@ -170,12 +148,15 @@
   margin: 0.55rem 0;
   border-radius: 999px;
   background: var(--neutral-soft, rgba(100, 116, 139, 0.14));
+  transform: scaleX(0.76);
+  transform-origin: left center;
   animation: startup-placeholder 2.8s ease-in-out infinite;
+  animation-delay: calc(var(--startup-line-delay, 0s) + var(--startup-section-delay, 0s));
 }
 
-.startup-placeholder--wide { width: 92%; }
-.startup-placeholder--medium { width: 73%; animation-delay: 0.16s; }
-.startup-placeholder--short { width: 48%; animation-delay: 0.32s; }
+.startup-placeholder--wide { width: 92%; --startup-line-delay: 0s; }
+.startup-placeholder--medium { width: 73%; --startup-line-delay: 0.16s; }
+.startup-placeholder--short { width: 48%; --startup-line-delay: 0.32s; }
 
 .startup-status {
   min-height: 6.2rem;
@@ -234,20 +215,20 @@
 
 .startup-ready .startup-xray-scan {
   opacity: 0.35;
-  transform: translateY(312px);
-  transition: opacity 160ms ease, transform 160ms ease;
+  top: 86%;
+  transition: opacity 160ms ease, top 160ms ease;
 }
 
 @keyframes startup-scan {
-  0%, 10% { opacity: 0; transform: translateY(0); }
-  18% { opacity: 0.9; }
-  72% { opacity: 0.8; transform: translateY(312px); }
-  84%, 100% { opacity: 0; transform: translateY(312px); }
+  0%, 8% { top: 9%; opacity: 0; }
+  16% { opacity: 0.95; }
+  78% { top: 86%; opacity: 0.82; }
+  92%, 100% { top: 86%; opacity: 0; }
 }
 
 @keyframes startup-placeholder {
-  0%, 100% { opacity: 0.45; }
-  48%, 66% { opacity: 0.9; }
+  0%, 100% { opacity: 0.28; transform: scaleX(0.76); }
+  14%, 70% { opacity: 0.88; transform: scaleX(1); }
 }
 
 @keyframes startup-fade-out {
@@ -347,7 +328,13 @@
   }
 
   .startup-screen:not(.startup-ready) .startup-xray-scan {
-    opacity: 0.35;
+    opacity: 0.62;
+    top: 52%;
+  }
+
+  .startup-screen:not(.startup-ready) .startup-placeholder {
+    opacity: 0.65;
+    transform: none;
   }
 
   .startup-ready {

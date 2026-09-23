@@ -41,15 +41,8 @@ const PHASE_COPY: Record<StartupPhase, { title: string; message: string }> = {
         <div class="startup-layout">
           <div class="startup-visual" aria-hidden="true">
             <div class="startup-xray-frame">
-              <svg class="startup-xray" viewBox="0 0 360 420" focusable="false" aria-hidden="true">
-                <path class="startup-xray-thorax" d="M180 34C129 36 82 70 65 122c-17 51-12 124 19 183 21 39 57 67 96 77 39-10 75-38 96-77 31-59 36-132 19-183C278 70 231 36 180 34Z" />
-                <path class="startup-xray-lung startup-xray-lung--left" d="M170 87c-35 5-59 35-65 78-7 50 8 105 39 146 9 12 18 20 27 26 6-39 8-78 7-115-1-47-3-91-8-135Z" />
-                <path class="startup-xray-lung startup-xray-lung--right" d="M190 87c35 5 59 35 65 78 7 50-8 105-39 146-9 12-18 20-27 26-6-39-8-78-7-115 1-47 3-91 8-135Z" />
-                <path class="startup-xray-spine" d="M180 62v288" />
-                <path class="startup-xray-sternum" d="M180 82c-8 31-9 68-3 105 4 23 5 47 3 73" />
-                <path class="startup-xray-diaphragm" d="M91 302c28 15 57 22 89 22s61-7 89-22" />
-                <line class="startup-xray-scan" x1="55" x2="305" y1="52" y2="52" />
-              </svg>
+              <img class="startup-xray-image" src="startup-radiograph.png" alt="" aria-hidden="true" />
+              <span class="startup-xray-scan" aria-hidden="true"></span>
             </div>
           </div>
 
