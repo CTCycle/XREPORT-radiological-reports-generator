@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-09-07
+Last updated: 2026-09-23
 
 ## Prepare A Dataset
 
@@ -20,6 +20,7 @@ Expected result:
 
 - missing required columns produce a structured error without discarding the
   upload
+- image identifiers are matched by filename stem without regard to letter case
 - unmatched rows are never silently imported; confirmed partial imports are
   visibly labeled with their counts
 - the dataset is available in a prepared, usable state for downstream training or validation

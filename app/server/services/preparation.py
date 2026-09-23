@@ -164,7 +164,7 @@ class PreparationService:
         mapping: dict[str, str] = {}
         for path in image_paths:
             image_path = Path(path)
-            mapping[image_path.stem] = str(image_path)
+            mapping[image_path.stem.casefold()] = str(image_path)
         return mapping
 
     # -------------------------------------------------------------------------
@@ -402,7 +402,7 @@ class PreparationService:
 
         # Match records to image paths
         df["_path"] = df[image_column].map(
-            lambda value: images_mapping.get(Path(str(value)).stem)
+            lambda value: images_mapping.get(Path(str(value)).stem.casefold())
         )
         matched = df.dropna(subset=["_path"])
         unmatched = len(df) - len(matched)
