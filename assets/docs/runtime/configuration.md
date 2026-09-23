@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-09-22
+Last updated: 2026-09-23
 
 ## Shared Configuration Sources
 
@@ -106,7 +106,7 @@ work. Running jobs and generations keep the value captured at their start.
 the static model catalogue remain runtime policy and are not exposed by the
 Settings API. Theme selection remains a frontend-local preference.
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Environment initialization preserves an explicit process-level value over a value in `settings/.env`, so spawned job workers inherit the same resource root resolved by the parent. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
 ## Database Mode Switch
 
