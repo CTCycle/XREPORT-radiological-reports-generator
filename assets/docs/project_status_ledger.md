@@ -11,12 +11,12 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Current application source revision: `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`;
-validation/test revision: `906b455d90c4a938704a8a62d843455d75ab41fe` (`develop`).
-Hosted CI run `35834323975` passed on the validation revision. S02 and S13 were
-revalidated on 2026-09-23, with a focused foreign-key test added for S13; the
-dated summaries and validation campaign ledger record the exact evidence scope.
-Statuses remain tied to their stated evidence scope.
+Current application source revision: `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`;
+validation/test revision: `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63` (`develop`).
+Hosted CI run `35841152401` passed on the current revision. S02, S13, and S14
+were revalidated on 2026-09-23; the dated summaries and validation campaign
+ledger record the exact evidence scope. Statuses remain tied to their stated
+evidence scope.
 
 ## Maintenance Rules
 
@@ -61,9 +61,9 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- The current Tier 0 validation/test revision is `906b455d90c4a938704a8a62d843455d75ab41fe`,
-  based on application revision `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`.
-  Hosted CI run `35834323975` passed on the validation revision. On 2026-09-23 the focused S02 gate
+- The current validation/test revision is `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`.
+  Hosted CI run `35841152401` passed all configured gates on this revision.
+  On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
   summary](../QA/validation_campaign/tier-0/summary-20260923.md) and the
@@ -107,14 +107,20 @@ form of evidence exists for the stated scope.
   test verified SQLite foreign-key enforcement, orphan rejection, and cascade
   deletion. The [S13 summary](../QA/validation_campaign/s13/summary-20260923.md)
   records the exact scope and the occupied-port launcher limitation.
+- S14 passed on 2026-09-23 against PostgreSQL 16 in hosted CI. Application
+  migrations reached Alembic head `e91a4f6c2d73`; a settings value survived
+  reinitialization, concurrent first-time initializers completed through the
+  advisory locks, and a refused connection did not expose credentials in the
+  error or logs. The [S14 summary](../QA/validation_campaign/s14/summary-20260923.md)
+  records the scenario results and initial schema-check defect fix.
 - Real single-fixture technical inference has been observed for the three
   CXRMate public models on 2026-09-19 and CheXOne on 2026-09-20. These receipts
   do not establish clinical quality or catalog validation promotion.
 - CXRMate-ED has an active degraded three-case sensitivity finding. MedGemma is
   access-blocked by its gated provider terms and credential requirement.
-- Full dataset, training, successful validation/evaluation, the broader
-  PostgreSQL workflow, and packaged desktop workflows remain validation debt
-  even where implementation and focused tests exist.
+- Full dataset, training, successful validation/evaluation, and packaged
+  desktop workflows remain validation debt even where implementation and
+  focused tests exist.
 - The earlier red runs remain in the historical ledger; the current CI result
   supersedes their S00 status.
 
@@ -139,7 +145,7 @@ form of evidence exists for the stated scope.
 | `backend.ml_import_boundaries` | `VALIDATED` | Lightweight service imports and concurrent service construction keep the listed Keras/PyTorch/Transformers/provider modules unloaded across ten fresh subprocess runs with an initialized isolated database. | [2026-09-22 Tier 0 summary](../QA/validation_campaign/tier-0/summary-20260922.md); [import-boundary tests](../../app/tests/unit/test_ml_import_boundaries.py); hosted CI run `35748390899` | The assertion covers the named import boundary and service factories, not every endpoint or later ML job. | — | 2026-09-22 | unit + hosted CI | [execution and data flow](architecture/execution_and_data_flow.md); [troubleshooting](operations/troubleshooting.md) | Revalidate after changes to service initialization or optional-ML import boundaries. |
 | `persistence.sqlite_migrations` | `VALIDATED` | SQLite startup/initialization reaches the checked-in Alembic head `e91a4f6c2d73`, persists application settings across restart, and fails closed for incompatible schemas and interrupted migrations. | [2026-09-23 S13 summary](../QA/validation_campaign/s13/summary-20260923.md); [database initialization tests](../../app/tests/unit/test_database_initialization.py); [2026-09-22 reports validation](../QA/validation_campaign/reports-history-validation-20260922.md) | Existing unversioned or incompatible schemas intentionally fail closed. | — | 2026-09-23 | unit + integration + manual | [persistence](architecture/persistence.md); [architecture review](architecture/architecture_review.md) | Recheck migration upgrade and rollback safety for every new revision. |
 | `persistence.inference_history` | `VALIDATED` | Durable session list/detail, generated-versus-edited report text, atomic updates, restart persistence of a synthetic run with linked report, and cascade deletion using the existing `InferenceRun` and `InferenceReport` entities. | [2026-09-23 S13 summary](../QA/validation_campaign/s13/summary-20260923.md); [2026-09-22 reports validation](../QA/validation_campaign/reports-history-validation-20260922.md); [repository persistence tests](../../app/tests/unit/test_repository_persistence.py); [backend API tests](../../app/tests/e2e/test_inference_api.py) | No current issue recorded for the scoped CRUD contract. | — | 2026-09-23 | unit + integration + E2E + manual | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) | Revalidate the history contract after schema or API changes. |
-| `persistence.postgresql` | `PARTIAL` | PostgreSQL 16 schema contract and a transaction smoke passed in hosted CI. | [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py); [CI run 35748390899](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35748390899) | This check creates/drops ORM tables and executes `SELECT 1`; migration startup, restart persistence, advisory-lock behavior, and sanitized connection failure are not covered. | — | 2026-09-22 | integration | [persistence](architecture/persistence.md); [deployment](runtime/deployment.md) | Complete the broader PostgreSQL gate, including migrations, restart, locking, and failure behavior. |
+| `persistence.postgresql` | `VALIDATED` | PostgreSQL 16 application migrations reach Alembic head; schema contract, settings persistence across reinitialization, concurrent initialization, advisory locks, and sanitized connection failure pass. | [2026-09-23 S14 summary](../QA/validation_campaign/s14/summary-20260923.md); [PostgreSQL contract tests](../../app/tests/integration/test_persistence_contract.py); [CI run 35841152401](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35841152401) | Scope is the exercised PostgreSQL 16 contract; it does not establish behavior for every production database configuration. | — | 2026-09-23 | unit + integration + hosted CI | [persistence](architecture/persistence.md); [deployment](runtime/deployment.md) | Revalidate after migration, connection, or database-initialization changes. |
 | `persistence.checkpoint_registry` | `PARTIAL` | Database-owned checkpoint identity, complete-artifact registration, listing, and safe deletion. | [backend smoke](../QA/xreport-backend-smoke-20260919.log); [checkpoint/deletion tests](../../app/tests/e2e/test_training_api.py) | Four incomplete `e2e_delete_*` registrations produce warnings while the listing endpoint still returns HTTP 200; see `ISSUE-003`. | — | 2026-09-19 | unit + integration + manual | [persistence](architecture/persistence.md); [backend API](architecture/backend_api.md) | Reconcile incomplete fixture registrations and rerun startup plus checkpoint listing. |
 
 ### Domain workflows
@@ -197,7 +203,6 @@ current confidence is too low or too narrow to support a stronger status.
 | Component | Current Confidence | Missing Validation | Priority |
 | --- | --- | --- | --- |
 | `runtime.desktop.packaged` | Low | CPU/CUDA portable and MSI build, launch, readiness, shutdown, data-root isolation, and artifact verification. | High |
-| `persistence.postgresql` | Low | Live schema/migration/repository contract against the supported PostgreSQL configuration. | Medium |
 | `workflow.dataset_upload_and_preparation` | Low | Non-empty upload through image matching, unmatched confirmation, processing, and persisted metadata. | High |
 | `workflow.training_and_resume` | Low | Minimal real training, checkpoint registration, cancellation, resume, and cleanup. | High |
 | `workflow.dataset_validation` | Low | Successful dataset validation, artifact persistence, and rendered report review. | Medium |
