@@ -71,7 +71,8 @@ def test_load_dataset_reports_unmatched_rows_before_persisting(tmp_path: Path) -
             ),
         },
     )
-    repository = SimpleNamespace(upsert_source_dataset=lambda data: None)
+    saved: list[pd.DataFrame] = []
+    repository = SimpleNamespace(upsert_source_dataset=saved.append)
     service = _preparation_service(upload_state, repository)
 
     preview = service.load_dataset(
@@ -87,6 +88,7 @@ def test_load_dataset_reports_unmatched_rows_before_persisting(tmp_path: Path) -
     assert preview.requires_confirmation is True
     assert preview.matched_records == 1
     assert preview.unmatched_records == 1
+    assert saved == []
     assert upload_state.contains(upload_id) is True
 
 ###############################################################################
@@ -129,6 +131,107 @@ def test_load_dataset_confirmation_persists_explicit_partial_import(
     assert len(saved) == 1
     assert len(saved[0]) == 1
     assert upload_state.contains(upload_id) is False
+
+###############################################################################
+def test_load_dataset_matches_image_stems_case_insensitively(tmp_path: Path) -> None:
+    image_path = tmp_path / "Present.PNG"
+    image_path.write_bytes(b"image")
+    upload_state = UploadState()
+    upload_id = "upload-case-fold"
+    upload_state.store(
+        upload_id,
+        {
+            "dataset_name": "case-fold",
+            "dataframe": pd.DataFrame(
+                {"image": ["present.jpg"], "text": ["present report"]}
+            ),
+        },
+    )
+    saved: list[pd.DataFrame] = []
+    service = _preparation_service(
+        upload_state,
+        SimpleNamespace(upsert_source_dataset=saved.append),
+    )
+
+    result = service.load_dataset(
+        LoadDatasetRequest(
+            upload_id=upload_id,
+            image_folder_path=str(tmp_path),
+            sample_size=1.0,
+            confirm_unmatched=False,
+        )
+    )
+
+    assert result.success is True
+    assert result.matched_records == 1
+    assert result.unmatched_records == 0
+    assert len(saved) == 1
+    assert saved[0].iloc[0]["image_path"] == str(image_path)
+
+###############################################################################
+def test_load_dataset_rejects_no_matching_rows_without_persisting(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "present.jpg").write_bytes(b"image")
+    upload_state = UploadState()
+    upload_id = "upload-no-match"
+    upload_state.store(
+        upload_id,
+        {
+            "dataset_name": "no-match",
+            "dataframe": pd.DataFrame(
+                {"image": ["missing.jpg"], "text": ["missing report"]}
+            ),
+        },
+    )
+    saved: list[pd.DataFrame] = []
+    service = _preparation_service(
+        upload_state,
+        SimpleNamespace(upsert_source_dataset=saved.append),
+    )
+
+    with pytest.raises(BadRequestError, match="No dataset rows matched"):
+        service.load_dataset(
+            LoadDatasetRequest(
+                upload_id=upload_id,
+                image_folder_path=str(tmp_path),
+                sample_size=1.0,
+                confirm_unmatched=False,
+            )
+        )
+
+    assert saved == []
+    assert upload_state.contains(upload_id) is True
+
+###############################################################################
+def test_load_dataset_rejects_missing_image_column_without_clearing_upload(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "present.jpg").write_bytes(b"image")
+    upload_state = UploadState()
+    upload_id = "upload-no-image-column"
+    upload_state.store(
+        upload_id,
+        {
+            "dataset_name": "no-image-column",
+            "dataframe": pd.DataFrame(
+                {"text": ["present report"], "other": ["present.jpg"]}
+            ),
+        },
+    )
+    service = _preparation_service(upload_state, SimpleNamespace())
+
+    with pytest.raises(BadRequestError, match="image column"):
+        service.load_dataset(
+            LoadDatasetRequest(
+                upload_id=upload_id,
+                image_folder_path=str(tmp_path),
+                sample_size=1.0,
+                confirm_unmatched=False,
+            )
+        )
+
+    assert upload_state.contains(upload_id) is True
 
 ###############################################################################
 def test_load_dataset_rejects_missing_text_column_without_clearing_upload(
