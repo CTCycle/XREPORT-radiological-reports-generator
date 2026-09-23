@@ -11,11 +11,13 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Current application source revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`;
-current validation/test revision: `2c1825645f7dffbbd669cfa58f7ced5ebc783bdc`
-(`develop`). S20 passed its focused local API and service checks on the
-application source revision; see the [S20
-summary](../QA/validation_campaign/s20/summary-20260923.md). Hosted CI run
+Current application source and validation/test revision:
+`ad819fdce96bfd237b1eab5586023eb68d932bab` (`develop`). S20 passed its focused
+local API and service checks on the earlier application revision; see the [S20
+summary](../QA/validation_campaign/s20/summary-20260923.md). S21 and S22 passed
+on the current revision and promoted the dataset upload/preparation workflow
+to `VALIDATED`; see the current snapshot and the dated S21/S22 summaries. Hosted
+CI run
 `35865126628` passed every configured gate on validation/test revision
 `2c18256`, including the client unit suite. The preceding docs-only revision
 `caa4a41` failed run `35862434438` on two desktop-dialog assertions; the repaired
@@ -82,6 +84,18 @@ form of evidence exists for the stated scope.
   unhealthy health responses; see the [2026-09-23 Tier 0
   summary](../QA/validation_campaign/tier-0/summary-20260923.md) and the
   [validation campaign ledger](validation_campaign_ledger.md).
+- S21 and S22 passed on source/test revision
+  `ad819fdce96bfd237b1eab5586023eb68d932bab`. Local checks passed (10 image
+  preparation unit tests, the minimum-one sampling regression, three API/UI
+  E2E tests, Ruff, and `git diff --check`). A rendered partial-import preview
+  showed matched/unmatched counts and persisted nothing until confirmation;
+  real DistilBERT processing retained four rows at a 50% sample, then eight at
+  100% under the same processed name. Both splits, missing-image rejection,
+  two processing-run records, and metadata after backend restart were verified
+  in isolated synthetic resources. The dataset upload/preparation workflow is
+  now `VALIDATED` for this scope; no scale, training, or clinical-quality claim
+  is made. See the [S21 summary](../QA/validation_campaign/s21/summary-20260923.md)
+  and [S22 summary](../QA/validation_campaign/s22/summary-20260923.md).
 - The hosted diagnostic run exposed a test precondition: on a clean runner, the
   service factories queried `application_settings` before the subprocess had
   initialized its database. The regression now uses an isolated SQLite
@@ -173,7 +187,7 @@ form of evidence exists for the stated scope.
 
 | Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `workflow.dataset_upload_and_preparation` | `UNVALIDATED` | Non-empty upload, image matching, unmatched-row confirmation, processing, persistence, and downstream-ready dataset. | [upload E2E tests](../../app/tests/e2e/test_upload_api.py); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py); [S15 filesystem selection evidence](../QA/validation_campaign/s15/summary-20260923.md); [S20 upload evidence](../QA/validation_campaign/s20/summary-20260923.md) | S15 validates filesystem access/path selection and S20 validates parsing/identity only; no complete upload-to-persistence happy path is evidenced. | — | 2026-09-23 | focused upload API + unit + rendered selection subflow | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a disposable non-empty dataset through load, partial-confirmation, processing, and persisted metadata checks. |
+| `workflow.dataset_upload_and_preparation` | `VALIDATED` | Synthetic non-empty upload through image matching, partial confirmation, processing, persistence, and downstream-ready processed dataset. | [S21 summary](../QA/validation_campaign/s21/summary-20260923.md); [S22 summary](../QA/validation_campaign/s22/summary-20260923.md); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py); [dataset API/UI tests](../../app/tests/e2e/test_dataset_workflow_api.py); [dataset page test](../../app/tests/e2e/test_dataset_workflow_ui.py) | Evidence uses an eight-row synthetic corpus; large/real-world data, packaged desktop operation, viewer/deletion, training, and clinical quality remain outside this status. | — | 2026-09-23 | unit + API/UI E2E + live processing + restart persistence | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Revalidate when import, matching, or processing contracts change; continue with S23 viewer/deletion. |
 | `workflow.training_and_resume` | `UNVALIDATED` | Real training, checkpoint creation/registration, stop, resume, and later model use. | [training API tests](../../app/tests/e2e/test_training_api.py); [training worker tests](../../app/tests/unit/test_training_stop_mechanism.py); [training memory tests](../../app/tests/unit/test_training_memory_guards.py) | Route and guard evidence exists, but no recent real training/resume receipt is recorded. | — | 2026-09-17 | unit + endpoint E2E | [workflows](operations/workflows.md); [execution and data flow](architecture/execution_and_data_flow.md) | Run the documented minimal CPU training smoke, then verify checkpoint metadata, resume, cancellation, and cleanup. |
 | `workflow.dataset_validation` | `PARTIAL` | Successful dataset validation, metric artifact persistence, and report review. | [validation route E2E](../../app/tests/e2e/test_angular_ui.py) confirms the missing-dataset error path; [validation contract tests](../../app/tests/unit/test_validation_contract_metrics.py) cover metric bounds. | A successful non-empty validation run and report review are not in current QA evidence. | — | 2026-09-17 | unit + E2E error path | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Validate a prepared dataset through completion and inspect the saved report/artifacts. |
 | `workflow.checkpoint_evaluation` | `UNVALIDATED` | Compatible checkpoint evaluation, associated dataset resolution, metrics, and report persistence. | [evaluation tests](../../app/tests/unit/test_evaluation.py); [validation job tests](../../app/tests/unit/test_validation_job_semantics.py) | Preflight and failure semantics are tested; a successful live evaluation is not evidenced. | — | 2026-09-17 | unit | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a compatible checkpoint evaluation and retrieve its persisted report. |
@@ -224,7 +238,6 @@ current confidence is too low or too narrow to support a stronger status.
 | Component | Current Confidence | Missing Validation | Priority |
 | --- | --- | --- | --- |
 | `runtime.desktop.packaged` | Low | CPU/CUDA portable and MSI build, launch, readiness, shutdown, data-root isolation, and artifact verification. | High |
-| `workflow.dataset_upload_and_preparation` | Low | Non-empty upload through image matching, unmatched confirmation, processing, and persisted metadata. | High |
 | `workflow.training_and_resume` | Low | Minimal real training, checkpoint registration, cancellation, resume, and cleanup. | High |
 | `workflow.dataset_validation` | Low | Successful dataset validation, artifact persistence, and rendered report review. | Medium |
 | `workflow.checkpoint_evaluation` | Low | Successful compatible checkpoint evaluation and report retrieval. | Medium |
