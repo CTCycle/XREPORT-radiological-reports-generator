@@ -14,10 +14,12 @@ was validated in that worktree before commit; see the dated Tier 0 summary.
 Current application and validation/test revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`
 (`develop`). S20 passed its focused local API and service checks on this
 revision; see the [S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-The latest recorded hosted CI run, `35841152401`, passed on the prior source/test
-revision `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`; a hosted recheck of S20 is
-pending. S02, S13, S14, and S15 were also revalidated on 2026-09-23; their dated
-summaries and the validation campaign ledger retain their exact evidence scope.
+The pushed ledger/evidence revision is `16794b40948badfb1af4e4705048d1e6a56e5376`;
+hosted CI run `35859367232` passed all gates on that revision. The initial CI
+attempt failed two client desktop-dialog assertions, then the failed-job rerun
+passed on the same SHA. S02, S13, S14, and S15 were also revalidated on
+2026-09-23; their dated summaries and the validation campaign ledger retain
+their exact evidence scope.
 
 ## Maintenance Rules
 
@@ -65,8 +67,9 @@ form of evidence exists for the stated scope.
 - S20 passed its focused upload API and service tests (`12 passed`) on committed
   source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`; see the
   [2026-09-23 S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-  The latest hosted CI run `35841152401` passed on prior revision `f6ee0a9`; a
-  hosted recheck for the S20 revision is pending, so S00 is not yet current-green.
+  Hosted CI run `35859367232` passed all configured gates on pushed revision
+  `16794b4`; its initial attempt failed two client desktop-dialog assertions,
+  which passed on the same-SHA failed-job rerun. S00 is current-green.
   On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
