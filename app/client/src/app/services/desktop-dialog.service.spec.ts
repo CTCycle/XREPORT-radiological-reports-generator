@@ -1,40 +1,61 @@
 import { vi } from 'vitest';
 
-const { isTauriMock, openMock } = vi.hoisted(() => ({
-  isTauriMock: vi.fn(),
-  openMock: vi.fn(),
-}));
-
-vi.mock('@tauri-apps/api/core', () => ({ isTauri: isTauriMock }));
-vi.mock('@tauri-apps/plugin-dialog', () => ({ open: openMock }));
-
 import { DesktopDialogService } from './desktop-dialog.service';
 
+const invokeMock = vi.fn();
+
 describe('DesktopDialogService', () => {
+  let originalInternalsDescriptor: PropertyDescriptor | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
-  });
+    vi.stubGlobal('isTauri', false);
 
-  it('returns a selected native folder path on the Tauri surface', async () => {
-    isTauriMock.mockReturnValue(true);
-    openMock.mockResolvedValue('C:\\fixtures\\images');
-    const service = new DesktopDialogService();
-
-    await expect(service.openImageFolder()).resolves.toBe('C:\\fixtures\\images');
-    expect(openMock).toHaveBeenCalledWith({
-      directory: true,
-      multiple: false,
-      title: 'Select image folder',
+    originalInternalsDescriptor = Object.getOwnPropertyDescriptor(window, '__TAURI_INTERNALS__');
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: { invoke: invokeMock },
     });
   });
 
-  it('keeps cancellation as null and does not open the plugin in browser mode', async () => {
-    isTauriMock.mockReturnValueOnce(true).mockReturnValueOnce(false);
-    openMock.mockResolvedValue(null);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+
+    if (originalInternalsDescriptor) {
+      Object.defineProperty(window, '__TAURI_INTERNALS__', originalInternalsDescriptor);
+    } else {
+      Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    }
+  });
+
+  it('returns a selected native folder path and sends the expected dialog options', async () => {
+    vi.stubGlobal('isTauri', true);
+    invokeMock.mockResolvedValue('C:\\fixtures\\images');
+    const service = new DesktopDialogService();
+
+    await expect(service.openImageFolder()).resolves.toBe('C:\\fixtures\\images');
+    expect(invokeMock).toHaveBeenCalledWith('plugin:dialog|open', {
+      options: {
+        directory: true,
+        multiple: false,
+        title: 'Select image folder',
+      },
+    }, undefined);
+  });
+
+  it('keeps cancellation as null', async () => {
+    vi.stubGlobal('isTauri', true);
+    invokeMock.mockResolvedValue(null);
     const service = new DesktopDialogService();
 
     await expect(service.openImageFolder()).resolves.toBeNull();
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not invoke the Tauri bridge in browser mode', async () => {
+    const service = new DesktopDialogService();
+
     await expect(service.openImageFolder()).resolves.toBeNull();
-    expect(openMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 });
