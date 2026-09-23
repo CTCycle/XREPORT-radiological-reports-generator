@@ -11,12 +11,12 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Current application revision: `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`
-(`develop`); hosted CI run `35829720104` passed on that revision. S02 and S13
-were revalidated on this checkout on 2026-09-23, with a focused foreign-key
-test added for S13. Their exact evidence and final pushed revision are recorded
-in the dated summaries and validation campaign ledger. Statuses remain tied to
-their stated evidence scope.
+Current application source revision: `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`;
+validation/test revision: `906b455d90c4a938704a8a62d843455d75ab41fe` (`develop`).
+Hosted CI run `35834323975` passed on the validation revision. S02 and S13 were
+revalidated on 2026-09-23, with a focused foreign-key test added for S13; the
+dated summaries and validation campaign ledger record the exact evidence scope.
+Statuses remain tied to their stated evidence scope.
 
 ## Maintenance Rules
 
@@ -61,8 +61,9 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- The current Tier 0 application revision is `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`.
-  Hosted CI run `35829720104` passed on it. On 2026-09-23 the focused S02 gate
+- The current Tier 0 validation/test revision is `906b455d90c4a938704a8a62d843455d75ab41fe`,
+  based on application revision `fdb4a8bf9af37eadea648851cb1a0b54e187f7b3`.
+  Hosted CI run `35834323975` passed on the validation revision. On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
   summary](../QA/validation_campaign/tier-0/summary-20260923.md) and the
