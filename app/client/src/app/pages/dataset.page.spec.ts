@@ -3,6 +3,7 @@ import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { DatasetPage } from './dataset.page';
 import { DatasetApiService } from '../services/dataset-api.service';
@@ -11,6 +12,7 @@ import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
 import { JobsApiService } from '../services/jobs-api.service';
 import { DesktopDialogService } from '../services/desktop-dialog.service';
+import type { DatasetInfo } from '../types/trainingApi';
 
 describe('DatasetPage filesystem access', () => {
   const api = {
@@ -130,6 +132,94 @@ describe('DatasetPage filesystem access', () => {
     expect(fixture.nativeElement.textContent).toContain('images');
     expect(fixture.nativeElement.textContent).toContain('1 images');
     expect(api.validateImagePath).toHaveBeenCalledWith('C:\\fixtures\\images');
+    fixture.destroy();
+  });
+
+  it('loads the saved report timestamp when a validation job completes', async () => {
+    const validationReport = {
+      dataset_name: 'fixture',
+      date: '2026-09-23 21:25:05',
+      sample_size: 1,
+      metrics: ['text_statistics'],
+      text_statistics: {
+        count: 1,
+        total_words: 3,
+        unique_words: 3,
+        avg_words_per_report: 3,
+        min_words_per_report: 3,
+        max_words_per_report: 3,
+      },
+      image_statistics: null,
+      pixel_distribution: null,
+      artifacts: null,
+    };
+    const validationApi = {
+      run: vi.fn().mockResolvedValue({
+        result: { job_id: 'validation-1', poll_interval: 1 },
+        error: null,
+      }),
+      getReport: vi.fn().mockResolvedValue({ result: validationReport, error: null }),
+      parseResponse: vi.fn().mockReturnValue({ success: true, message: 'completed' }),
+    };
+    const completedJob = {
+      status: 'completed',
+      progress: 100,
+      result: { success: true, message: 'completed' },
+    };
+    const polling = { poll: vi.fn(() => of(completedJob)) };
+    const dataset = {
+      name: 'fixture',
+      folder_path: 'fixture-images',
+      row_count: 1,
+      has_validation_report: false,
+    } as DatasetInfo;
+    appState = new AppStateService();
+    api.getStatus.mockResolvedValue({
+      result: { allow_server_browse: true, has_data: false, row_count: 0 },
+      error: null,
+    });
+    api.getNames.mockResolvedValue({ result: { datasets: [dataset], count: 1 }, error: null });
+
+    TestBed.configureTestingModule({
+      imports: [DatasetPage],
+      providers: [
+        { provide: DatasetApiService, useValue: api },
+        { provide: ValidationApiService, useValue: validationApi },
+        { provide: AppStateService, useValue: appState },
+        { provide: JobPollingService, useValue: polling },
+        { provide: JobsApiService, useValue: { get: vi.fn() } },
+        { provide: Router, useValue: {} },
+        { provide: DesktopDialogService, useValue: { isTauriSurface: () => false } },
+      ],
+    });
+    TestBed.overrideComponent(DatasetPage, {
+      set: {
+        imports: [CommonModule, FormsModule],
+        schemas: [NO_ERRORS_SCHEMA],
+      },
+    });
+
+    const fixture = TestBed.createComponent(DatasetPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await fixture.componentInstance.confirmValidation({
+      row: dataset,
+      metrics: ['text_statistics'],
+      sampleFraction: 1,
+    });
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.validationJobs()['fixture']?.status).toBe('completed');
+    expect(fixture.componentInstance.reportDataset()?.name).toBe('fixture');
+    expect(validationApi.run).toHaveBeenCalledOnce();
+    expect(polling.poll).toHaveBeenCalledOnce();
+    expect(validationApi.parseResponse).toHaveBeenCalledOnce();
+    expect(validationApi.getReport).toHaveBeenCalledWith('fixture');
+    expect(fixture.componentInstance.reportMetadata()).toEqual({
+      date: validationReport.date,
+      sampleSize: 1,
+      metrics: ['text_statistics'],
+    });
     fixture.destroy();
   });
 });

@@ -1,0 +1,32 @@
+{
+  "upload_http_status": 200,
+  "upload_response": {
+    "success": true,
+    "upload_id": "5a56575461a540d48cfc534f298ef412",
+    "filename": "s27_technical_fixture.csv",
+    "dataset_name": "s27_technical_fixture",
+    "row_count": 8,
+    "column_count": 2,
+    "columns": [
+      "text",
+      "image_name"
+    ],
+    "message": "Successfully parsed s27_technical_fixture.csv"
+  },
+  "load_request": {
+    "upload_id": "5a56575461a540d48cfc534f298ef412",
+    "image_folder_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s27-s28-20260923\\images",
+    "sample_size": 1.0,
+    "confirm_unmatched": false
+  },
+  "load_http_status": 200,
+  "load_response": {
+    "success": true,
+    "total_images": 8,
+    "matched_records": 8,
+    "unmatched_records": 0,
+    "requires_confirmation": false,
+    "partial_import": false,
+    "message": "Successfully loaded dataset with 8 matched records from 8 images"
+  }
+}
