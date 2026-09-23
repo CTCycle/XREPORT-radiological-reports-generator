@@ -14,10 +14,14 @@ was validated in that worktree before commit; see the dated Tier 0 summary.
 Current application and validation/test revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`
 (`develop`). S20 passed its focused local API and service checks on this
 revision; see the [S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-The pushed ledger/evidence revision is `16794b40948badfb1af4e4705048d1e6a56e5376`;
-hosted CI run `35859367232` passed all gates on that revision. The initial CI
-attempt failed two client desktop-dialog assertions, then the failed-job rerun
-passed on the same SHA. S02, S13, S14, and S15 were also revalidated on
+The latest pushed ledger/evidence revision is
+`5cbe2a7c86ec828ff8d9cecd35a55b94f9e9d0e3`; hosted CI run `35860925179` failed
+the client unit stage on this docs-only descendant of S20 source/test revision
+`37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`. The same-SHA failed-job rerun
+reproduced two desktop-dialog assertions. The other configured stages passed.
+An earlier docs-only descendant, `16794b4`, passed run `35859367232` after a
+same-SHA rerun. S00 and S03 remain partial pending resolution of the repeatable
+client unit gate failure. S02, S13, S14, and S15 were also revalidated on
 2026-09-23; their dated summaries and the validation campaign ledger retain
 their exact evidence scope.
 
@@ -67,9 +71,11 @@ form of evidence exists for the stated scope.
 - S20 passed its focused upload API and service tests (`12 passed`) on committed
   source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`; see the
   [2026-09-23 S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-  Hosted CI run `35859367232` passed all configured gates on pushed revision
-  `16794b4`; its initial attempt failed two client desktop-dialog assertions,
-  which passed on the same-SHA failed-job rerun. S00 is current-green.
+  The most recent hosted run `35860925179` on pushed revision `5cbe2a7` passed
+  the backend, API, and client build gates but failed the client unit stage;
+  its same-SHA rerun repeated two desktop-dialog assertion failures. S00 and S03
+  remain partial. An earlier same-code revision passed hosted run `35859367232`
+  after its own failed-job rerun.
   On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
