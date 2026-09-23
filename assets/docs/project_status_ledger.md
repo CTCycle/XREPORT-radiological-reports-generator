@@ -17,7 +17,7 @@ The S23–S26 campaign began from `3846609cc68646b501cd480c2a11938fa2278f8b`.
 S20 passed its focused
 local API and service checks on the earlier application revision; see the [S20
 summary](../QA/validation_campaign/s20/summary-20260923.md). S21 and S22 passed
-on the current revision and promoted the dataset upload/preparation workflow
+on their recorded revision and promoted the dataset upload/preparation workflow
 to `VALIDATED`; see the current snapshot and the dated S21/S22 summaries. Hosted
 CI run [35880057345](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35880057345)
 passed every configured backend and client gate on ledger revision
@@ -30,6 +30,12 @@ Tauri bridge fixture passes locally (`3` focused and `39` complete client tests)
 and in hosted CI. S00 and S03 are now `PASS` at the recorded Tier 0 gate scope.
 S02, S13, S14, and S15 were also revalidated on 2026-09-23; their dated
 summaries and the validation campaign ledger retain their exact evidence scope.
+The S23–S26 changes and campaign evidence were committed as
+`d665ee078ef5a878113f3db03c518834b5afdd68`; hosted CI run
+[35904882475](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35904882475)
+passed every configured backend and client gate. S23 remains partial due to
+source deletion emptying the surviving processed dataset; S24–S26 passed at
+their synthetic technical scope. See the [S23–S26 campaign summary](../QA/validation_campaign/s23-s26/summary-20260923.md).
 
 ## Maintenance Rules
 
@@ -101,6 +107,12 @@ form of evidence exists for the stated scope.
   now `VALIDATED` for this scope; no scale, training, or clinical-quality claim
   is made. See the [S21 summary](../QA/validation_campaign/s21/summary-20260923.md)
   and [S22 summary](../QA/validation_campaign/s22/summary-20260923.md).
+- S23–S26 passed at their recorded scope on commit
+  `d665ee078ef5a878113f3db03c518834b5afdd68`; hosted CI run
+  [35904882475](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35904882475)
+  passed. S23 stays `PARTIAL` because source deletion empties the surviving
+  processed dataset; S24–S26 passed on an eight-row synthetic training path.
+  See the [S23–S26 summary](../QA/validation_campaign/s23-s26/summary-20260923.md).
 - The hosted diagnostic run exposed a test precondition: on a clean runner, the
   service factories queried `application_settings` before the subprocess had
   initialized its database. The regression now uses an isolated SQLite
