@@ -158,9 +158,18 @@ def _format_diffs(diffs: list[object]) -> str:
 ###############################################################################
 def _normalize_check_expression(expression: object) -> str:
     normalized = re.sub(r"\s+", " ", str(expression).strip().lower())
-    normalized = re.sub(r"::[a-z_][a-z0-9_ ]*", "", normalized)
     normalized = re.sub(
-        r"=\s*any\s*\(\s*array\s*\[([^]]*)\]\s*\)",
+        r"([<>=])\s*'(-?\d+(?:\.\d+)?)'::(?:numeric|integer|bigint|smallint|real|double precision)\b",
+        r"\1\2",
+        normalized,
+    )
+    normalized = re.sub(
+        r"::(?:character varying|double precision|[a-z_][a-z0-9_]*)(?:\s*\[\])?",
+        "",
+        normalized,
+    )
+    normalized = re.sub(
+        r"=\s*any\s*\(\s*array\s*\[([^]]*)\]\s*(?:\[\])?\s*\)",
         r"in (\1)",
         normalized,
     )
@@ -274,6 +283,7 @@ def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> li
                 bool(index.get("unique")),
             )
             for index in inspector.get_indexes(table_name)
+            if index.get("duplicates_constraint") is None
         )
         if actual_indexes != expected_indexes:
             diffs.append(
