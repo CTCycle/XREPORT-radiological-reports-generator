@@ -272,3 +272,75 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
         initializer.prepare_database_for_startup(_postgres_settings())
 
     assert "secret" not in str(exc_info.value).lower()
+
+###############################################################################
+@pytest.mark.parametrize(
+    ("expected", "reflected"),
+    [
+        (
+            "job_polling_interval >= 0.25 AND job_polling_interval <= 60",
+            "job_polling_interval >= 0.25::double precision AND "
+            "job_polling_interval <= 60::double precision",
+        ),
+        (
+            "inference_device IN ('auto', 'cpu', 'cuda')",
+            "inference_device = ANY (ARRAY['auto'::character varying, "
+            "'cpu'::character varying, 'cuda'::character varying]::character varying[])",
+        ),
+        (
+            "global_seed >= 0 AND global_seed <= 4294967295",
+            "global_seed >= 0 AND global_seed <= '4294967295'::numeric",
+        ),
+    ],
+)
+def test_postgres_check_constraint_normalization_matches_orm(
+    expected: str,
+    reflected: str,
+) -> None:
+    assert initializer._normalize_check_expression(expected) == (
+        initializer._normalize_check_expression(reflected)
+    )
+
+###############################################################################
+def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    metadata = sqlalchemy.MetaData()
+    sqlalchemy.Table(
+        "sample",
+        metadata,
+        sqlalchemy.Column("sample_id", sqlalchemy.Integer, primary_key=True),
+        sqlalchemy.Column("name_key", sqlalchemy.String, nullable=False),
+        sqlalchemy.UniqueConstraint("name_key", name="uq_sample_name_key"),
+    )
+
+    class ReflectedSchema:
+        def get_pk_constraint(self, _table_name: str) -> dict[str, list[str]]:
+            return {"constrained_columns": ["sample_id"]}
+
+        def get_unique_constraints(self, _table_name: str) -> list[dict[str, object]]:
+            return [{"name": "uq_sample_name_key", "column_names": ["name_key"]}]
+
+        def get_foreign_keys(self, _table_name: str) -> list[dict[str, object]]:
+            return []
+
+        def get_indexes(self, _table_name: str) -> list[dict[str, object]]:
+            return [
+                {
+                    "name": "uq_sample_name_key",
+                    "column_names": ["name_key"],
+                    "unique": True,
+                    "duplicates_constraint": "uq_sample_name_key",
+                }
+            ]
+
+        def get_check_constraints(self, _table_name: str) -> list[dict[str, object]]:
+            return []
+
+    monkeypatch.setattr(initializer, "inspect", lambda _connection: ReflectedSchema())
+    engine = sqlalchemy.create_engine("sqlite://")
+    try:
+        with engine.connect() as connection:
+            assert initializer._semantic_constraint_diffs(connection, metadata) == []
+    finally:
+        engine.dispose()
