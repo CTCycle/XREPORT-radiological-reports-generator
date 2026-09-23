@@ -11,19 +11,19 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Current application and validation/test revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`
-(`develop`). S20 passed its focused local API and service checks on this
-revision; see the [S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-The latest hosted validation revision is
-`5cbe2a7c86ec828ff8d9cecd35a55b94f9e9d0e3`, a docs-only descendant of S20
-source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`. Hosted CI run
-`35860925179` failed the client unit stage on that revision; the same-SHA
-failed-job rerun reproduced two desktop-dialog assertions. The other configured
-stages passed.
-An earlier docs-only descendant, `16794b4`, passed run `35859367232` after a
-same-SHA rerun. S00 and S03 remain partial pending resolution of the repeatable
-client unit gate failure. S02, S13, S14, and S15 were also revalidated on
-2026-09-23; their dated summaries and the validation campaign ledger retain
+Latest committed application and validation/test revision before the current
+follow-up: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e` (`develop`). S20 passed
+its focused local API and service checks on this revision; see the [S20
+summary](../QA/validation_campaign/s20/summary-20260923.md). Latest pushed
+revision: `caa4a4144be9b54bc762df4c054a82fee21ec99b`; hosted CI run
+`35862434438` failed the client unit stage on the two desktop-dialog assertions
+also seen in run `35860925179`. The other configured stages passed.
+The current working-tree repair replaces module mocks with stubs at the Tauri
+runtime bridge. On Windows, the focused desktop-dialog spec passed (`3 passed`)
+and the complete client unit suite passed (`39 passed`). These local results do
+not yet restore the hosted baseline: S00 and S03 remain partial pending green
+hosted CI on the committed repair. S02, S13, S14, and S15 were also revalidated
+on 2026-09-23; their dated summaries and the validation campaign ledger retain
 their exact evidence scope.
 
 ## Maintenance Rules
@@ -72,11 +72,13 @@ form of evidence exists for the stated scope.
 - S20 passed its focused upload API and service tests (`12 passed`) on committed
   source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`; see the
   [2026-09-23 S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-  The most recent hosted run `35860925179` on pushed revision `5cbe2a7` passed
-  the backend, API, and client build gates but failed the client unit stage;
-  its same-SHA rerun repeated two desktop-dialog assertion failures. S00 and S03
-  remain partial. An earlier same-code revision passed hosted run `35859367232`
-  after its own failed-job rerun.
+  The latest hosted run `35862434438` on pushed revision `caa4a41` passed the
+  backend, database, API, client build/server, and lint gates but failed the
+  client unit stage on two desktop-dialog assertions; run `35860925179` showed
+  the same failures. The current working-tree test repair passes locally
+  (`3` focused and `39` complete client tests), but S00 and S03 remain partial
+  until hosted CI passes on the committed repair. An earlier same-code revision
+  passed run `35859367232` after its own failed-job rerun.
   On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
