@@ -1,0 +1,99 @@
+{
+  "environment": {
+    "os": "Windows 11",
+    "branch": "develop",
+    "base_revision": "3846609cc68646b501cd480c2a11938fa2278f8b",
+    "isolated_resources": "runtimes/cache/s23-s26-resources",
+    "backend_port": 5015,
+    "frontend_port": 8015,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "gpu_memory_mib": 6144,
+    "fixture": {
+      "rows": 8,
+      "train_rows": 6,
+      "validation_rows": 2,
+      "csv_sha256": "1667d0f07be8865b4d3527f04a04fef3d7ccba44ce8c198d0e7314c3c7275649",
+      "image_sha256_all_eight": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    "tokenizer": {
+      "name": "distilbert-base-uncased",
+      "snapshot_revision": "12040accade4e8a0f71eabdb258fecc2e7e948be",
+      "tokenizer_json_sha256": "ce64fce797c24f68df90b40a3f74f579b336a493db14bd583fd520ea0d8c9a98",
+      "vocabulary_size": 30522
+    },
+    "image_encoder": {
+      "name": "microsoft/beit-base-patch16-224",
+      "revision": "f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+      "weights_file": "model.safetensors",
+      "weights_bytes": 349877750,
+      "weights_sha256": "873a67558f17cdd9d9018eaf308288f6dc72d030af20391df9ccbb7e10be89cc",
+      "frozen": true
+    }
+  },
+  "S24": {
+    "job_id": "b6635fdf",
+    "status": "completed",
+    "epochs_requested": 1,
+    "epochs_completed": 1,
+    "active_device": "cuda:0",
+    "checkpoint": "s23-s24-one-epoch",
+    "checkpoint_artifact_status_before_resume": "ready",
+    "first_epoch_loss": 10.539274215698242,
+    "first_epoch_validation_loss": 9.920717239379883,
+    "log_observations": [
+      "19:52:16 Started job b6635fdf (type=training).",
+      "19:53:34 GPU (cuda:0) is set as the active device.",
+      "19:53:38 Starting training for 1 epochs.",
+      "19:55:50 Training session is over. Model s23-s24-one-epoch has been saved.",
+      "19:55:54 Job b6635fdf completed successfully."
+    ]
+  },
+  "S25": {
+    "job_id": "254082b6",
+    "status": "cancelled",
+    "epochs_requested": 100,
+    "progress_at_cancel_percent": 5,
+    "epoch_at_cancel": 5,
+    "cancellation_accepted": true,
+    "worker_exit": "After terminal cancellation, the worker process was absent; only the backend remained in the process snapshot.",
+    "log_observations": [
+      "19:57:12 Started job 254082b6 (type=training).",
+      "19:57:23 Starting training for 100 epochs.",
+      "19:57:23 GPU (cuda:0) is set as the active device.",
+      "19:57:30 Cancellation requested for job 254082b6."
+    ]
+  },
+  "resume": {
+    "job_id": "218464c5",
+    "status": "completed",
+    "additional_epochs": 1,
+    "epochs_before_resume": 1,
+    "epochs_after_resume": 2,
+    "history_lengths": {
+      "loss": 2,
+      "val_loss": 2
+    },
+    "final_loss": 9.32154369354248,
+    "final_validation_loss": 8.92704963684082,
+    "active_device": "cuda:0",
+    "api_evidence": "s26-checkpoint-api.json",
+    "log_observations": [
+      "19:58:04 Started job 218464c5 (type=training).",
+      "19:58:18 Resuming training from epoch 1 to 2.",
+      "19:58:28 Training session is over. Model s23-s24-one-epoch has been saved.",
+      "19:58:30 Job 218464c5 completed successfully."
+    ]
+  },
+  "initial_failure_and_fix": {
+    "job_id": "29f7392a",
+    "observed_failure": "No training metadata found. Please process a dataset first.",
+    "root_cause": "The backend imported its runtime layout from process-level XREPORT_RESOURCES_DIR, then dotenv loading replaced that environment variable from settings/.env. The spawned worker inherited the overwritten empty value and resolved the default database instead of the parent's isolated database.",
+    "fix": "Preserve an explicit non-empty process-level XREPORT_RESOURCES_DIR across dotenv override so spawned workers resolve the same resources directory.",
+    "regression": "app/tests/unit/test_environment_initialization.py::test_explicit_resource_root_override_survives_environment_loading"
+  },
+  "limitations": [
+    "The corpus and training objective are synthetic and are used only to validate the software path; no clinical-quality, diagnostic, model-quality, or performance claim is made.",
+    "An unrelated llama-server was also using the GPU during part of the run, so GPU utilization and memory attribution are not exclusive to XREPORT.",
+    "The generated checkpoint was intentionally deleted after registry and deletion validation; the durable API receipt records its ready state, metadata, and persisted history before deletion."
+  ]
+}

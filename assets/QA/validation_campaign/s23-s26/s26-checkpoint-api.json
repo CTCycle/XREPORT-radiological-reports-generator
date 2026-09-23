@@ -1,0 +1,138 @@
+{
+  "job": {
+    "job_id": "218464c5",
+    "job_type": "training",
+    "status": "completed",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "current_epoch": 2,
+      "total_epochs": 2,
+      "loss": 9.32154369354248,
+      "val_loss": 8.92704963684082,
+      "accuracy": 0.10000000149011612,
+      "val_accuracy": 0.20000000298023224,
+      "progress_percent": 100,
+      "elapsed_seconds": 1,
+      "chart_data": [],
+      "epoch_boundaries": [],
+      "available_metrics": [],
+      "epochs": 2,
+      "final_loss": 9.32154369354248,
+      "final_val_loss": 8.92704963684082,
+      "checkpoint_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\checkpoints\\s23-s24-one-epoch"
+    },
+    "error": null
+  },
+  "ready_listing_before_delete": {
+    "checkpoints": [
+      {
+        "name": "s23-s24-one-epoch",
+        "epochs": 2,
+        "loss": 9.32154369354248,
+        "val_loss": 8.92704963684082,
+        "artifact_status": "ready",
+        "message": null
+      }
+    ]
+  },
+  "metadata_before_delete": {
+    "checkpoint": "s23-s24-one-epoch",
+    "configuration": {
+      "dataset_name": "s23-s26-processed",
+      "epochs": 1,
+      "batch_size": 1,
+      "num_encoders": 1,
+      "num_decoders": 1,
+      "embedding_dims": 64,
+      "attention_heads": 1,
+      "train_temp": 1.0,
+      "freeze_img_encoder": true,
+      "use_img_augmentation": false,
+      "shuffle_with_buffer": false,
+      "shuffle_size": 8,
+      "save_checkpoints": true,
+      "checkpoint_id": "s23-s24-one-epoch",
+      "use_device_GPU": true,
+      "device_ID": 0,
+      "jit_compile": false,
+      "jit_backend": "eager",
+      "use_mixed_precision": false,
+      "dataloader_workers": 0,
+      "prefetch_factor": 1,
+      "pin_memory": false,
+      "persistent_workers": false,
+      "plot_training_metrics": false,
+      "use_scheduler": false,
+      "target_LR": 0.0001,
+      "warmup_steps": 0,
+      "training_seed": 42,
+      "polling_interval": 1.0,
+      "additional_epochs": 1
+    },
+    "metadata": {
+      "name": "s23-s26-processed",
+      "source_dataset": "s23-s26",
+      "hashcode": "b49c75e454d3b13c38191e67763daeedeaa7a7311a3268c855288c76e3d222b0",
+      "date": "2026-09-23 17:13:15",
+      "seed": 42,
+      "sample_size": 1.0,
+      "validation_size": 0.25,
+      "split_seed": 42,
+      "vocabulary_size": 30522,
+      "max_report_size": 200,
+      "tokenizer": "distilbert-base-uncased",
+      "processing_run_id": 1,
+      "dataset_id": 2,
+      "source_dataset_id": 1
+    },
+    "session": {
+      "history": {
+        "MaskedAccuracy": [
+          0.0,
+          0.10000000149011612
+        ],
+        "loss": [
+          10.539274215698242,
+          9.32154369354248
+        ],
+        "val_MaskedAccuracy": [
+          0.0,
+          0.20000000298023224
+        ],
+        "val_loss": [
+          9.920717239379883,
+          8.92704963684082
+        ]
+      },
+      "epochs": 2
+    }
+  },
+  "reference_guard": {
+    "status": 409,
+    "body": {
+      "detail": "Checkpoint cannot be deleted while persisted history references it: s23-s24-one-epoch"
+    },
+    "artifact_retained": true,
+    "registry_retained": true,
+    "assertion": "Checkpoint artifact and registry record both remained present immediately after the 409 response; both were removed only by the later unreferenced DELETE."
+  },
+  "unsafe_path_guard": {
+    "status": 400,
+    "body": {
+      "detail": "Checkpoint name must not contain path separators"
+    }
+  },
+  "safe_delete": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "message": "Deleted checkpoint s23-s24-one-epoch"
+    },
+    "artifact_removed": true,
+    "registry_removed": true
+  },
+  "listing_after_delete": {
+    "checkpoints": []
+  }
+}

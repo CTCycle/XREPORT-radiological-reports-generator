@@ -188,6 +188,10 @@
     align-items: center;
 }
 
+.dataset-table-row > * {
+    min-width: 0;
+}
+
 .dataset-table-row:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
@@ -214,6 +218,7 @@
 
 .dataset-table-row .dataset-name {
     font-weight: 500;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -222,6 +227,7 @@
 .dataset-table-row .dataset-path {
     color: var(--text-secondary);
     font-size: 0.75rem;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

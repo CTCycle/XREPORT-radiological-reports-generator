@@ -1,0 +1,35 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "dataset_row": {
+    "source_path": "Rendered source cell stayed within row bounds, used nowrap/hidden/ellipsis/min-width:0, exposed full path in title.",
+    "source_row_count": 8,
+    "viewer_first_image": "image-01.jpg, 1 / 8",
+    "viewer_next_image": "image-02.jpg, 2 / 8"
+  },
+  "screenshots": {
+    "s23-long-source-path-row.png": {
+      "sha256": "9b657491c00fd52801bd600cbe011a2f848e006d88196840079c185a561901a5",
+      "bytes": 116594,
+      "width": 1920,
+      "height": 1080,
+      "format": "PNG"
+    },
+    "s23-image-viewer-first.png": {
+      "sha256": "27c843e716f75bc30d7fb6118e715954a6cd58108fa983f577820a3309351003",
+      "bytes": 73385,
+      "width": 1920,
+      "height": 1080,
+      "format": "PNG"
+    },
+    "s23-image-viewer-next.png": {
+      "sha256": "79dae9bea43b4e7febcac2660ebf18f5b377264f30e58e33a172c2f4c0523160",
+      "bytes": 74400,
+      "width": 1920,
+      "height": 1080,
+      "format": "PNG"
+    }
+  }
+}
