@@ -11,12 +11,14 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Current application source revision: `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`;
-validation/test revision: `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63` (`develop`).
-Hosted CI run `35841152401` passed on the current revision. S02, S13, and S14
-were revalidated on 2026-09-23; the dated summaries and validation campaign
-ledger record the exact evidence scope. Statuses remain tied to their stated
-evidence scope.
+Previously recorded application and validation/test revision:
+`f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63` (`develop`); hosted CI run
+`35841152401` passed on that revision. S15 was validated on application source
+revision `0ace867ea8087a112305bb9acce1770f259e2f2c`; its focused tests and
+evidence are recorded in the [S15 summary](../QA/validation_campaign/s15/summary-20260923.md).
+S02, S13, S14, and S15 were revalidated on 2026-09-23; the dated summaries and
+validation campaign ledger record the exact evidence scope. Statuses remain
+tied to their stated evidence scope.
 
 ## Maintenance Rules
 
@@ -113,6 +115,13 @@ form of evidence exists for the stated scope.
   advisory locks, and a refused connection did not expose credentials in the
   error or logs. The [S14 summary](../QA/validation_campaign/s14/summary-20260923.md)
   records the scenario results and initial schema-check defect fix.
+- S15 passed on 2026-09-23 from application source revision
+  `0ace867ea8087a112305bb9acce1770f259e2f2c`. API regressions and the rendered
+  Dataset page covered disabled/enabled access, invalid-path recovery,
+  empty-folder feedback, and successful selection of a folder with one image.
+  This is filesystem access and selection evidence only; it does not validate
+  upload, matching, processing, or persisted dataset metadata. See the
+  [S15 summary](../QA/validation_campaign/s15/summary-20260923.md).
 - Real single-fixture technical inference has been observed for the three
   CXRMate public models on 2026-09-19 and CheXOne on 2026-09-20. These receipts
   do not establish clinical quality or catalog validation promotion.
@@ -152,7 +161,7 @@ form of evidence exists for the stated scope.
 
 | Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `workflow.dataset_upload_and_preparation` | `UNVALIDATED` | Non-empty upload, image matching, unmatched-row confirmation, processing, persistence, and downstream-ready dataset. | [upload E2E tests](../../app/tests/e2e/test_upload_api.py); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py) | Current evidence covers parsers, guards, and route surfaces, not a complete live happy path. | — | 2026-09-17 | unit + endpoint E2E | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a disposable non-empty dataset through load, partial-confirmation, processing, and persisted metadata checks. |
+| `workflow.dataset_upload_and_preparation` | `UNVALIDATED` | Non-empty upload, image matching, unmatched-row confirmation, processing, persistence, and downstream-ready dataset. | [upload E2E tests](../../app/tests/e2e/test_upload_api.py); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py); [S15 filesystem selection evidence](../QA/validation_campaign/s15/summary-20260923.md) | S15 covers only filesystem access/path selection; no complete upload-to-persistence happy path is evidenced. | — | 2026-09-23 | focused API + rendered selection subflow | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a disposable non-empty dataset through load, partial-confirmation, processing, and persisted metadata checks. |
 | `workflow.training_and_resume` | `UNVALIDATED` | Real training, checkpoint creation/registration, stop, resume, and later model use. | [training API tests](../../app/tests/e2e/test_training_api.py); [training worker tests](../../app/tests/unit/test_training_stop_mechanism.py); [training memory tests](../../app/tests/unit/test_training_memory_guards.py) | Route and guard evidence exists, but no recent real training/resume receipt is recorded. | — | 2026-09-17 | unit + endpoint E2E | [workflows](operations/workflows.md); [execution and data flow](architecture/execution_and_data_flow.md) | Run the documented minimal CPU training smoke, then verify checkpoint metadata, resume, cancellation, and cleanup. |
 | `workflow.dataset_validation` | `PARTIAL` | Successful dataset validation, metric artifact persistence, and report review. | [validation route E2E](../../app/tests/e2e/test_angular_ui.py) confirms the missing-dataset error path; [validation contract tests](../../app/tests/unit/test_validation_contract_metrics.py) cover metric bounds. | A successful non-empty validation run and report review are not in current QA evidence. | — | 2026-09-17 | unit + E2E error path | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Validate a prepared dataset through completion and inspect the saved report/artifacts. |
 | `workflow.checkpoint_evaluation` | `UNVALIDATED` | Compatible checkpoint evaluation, associated dataset resolution, metrics, and report persistence. | [evaluation tests](../../app/tests/unit/test_evaluation.py); [validation job tests](../../app/tests/unit/test_validation_job_semantics.py) | Preflight and failure semantics are tested; a successful live evaluation is not evidenced. | — | 2026-09-17 | unit | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a compatible checkpoint evaluation and retrieve its persisted report. |
