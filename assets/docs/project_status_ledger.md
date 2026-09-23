@@ -11,14 +11,13 @@ issue tracker replacement, release approval, or clinical-quality statement.
 Validation baseline: `develop` started at
 `481605b1b87035b8deb03edaefdbfc090f8f1b23`. The 2026-09-22 startup change set
 was validated in that worktree before commit; see the dated Tier 0 summary.
-Previously recorded application and validation/test revision:
-`f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63` (`develop`); hosted CI run
-`35841152401` passed on that revision. S15 was validated on application source
-revision `0ace867ea8087a112305bb9acce1770f259e2f2c`; its focused tests and
-evidence are recorded in the [S15 summary](../QA/validation_campaign/s15/summary-20260923.md).
-S02, S13, S14, and S15 were revalidated on 2026-09-23; the dated summaries and
-validation campaign ledger record the exact evidence scope. Statuses remain
-tied to their stated evidence scope.
+Current application and validation/test revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`
+(`develop`). S20 passed its focused local API and service checks on this
+revision; see the [S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
+The latest recorded hosted CI run, `35841152401`, passed on the prior source/test
+revision `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`; a hosted recheck of S20 is
+pending. S02, S13, S14, and S15 were also revalidated on 2026-09-23; their dated
+summaries and the validation campaign ledger retain their exact evidence scope.
 
 ## Maintenance Rules
 
@@ -63,8 +62,11 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- The current validation/test revision is `f6ee0a9dacf4b024cf2b8cea75c6f025c2dc7d63`.
-  Hosted CI run `35841152401` passed all configured gates on this revision.
+- S20 passed its focused upload API and service tests (`12 passed`) on committed
+  source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`; see the
+  [2026-09-23 S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
+  The latest hosted CI run `35841152401` passed on prior revision `f6ee0a9`; a
+  hosted recheck for the S20 revision is pending, so S00 is not yet current-green.
   On 2026-09-23 the focused S02 gate
   again rendered the current loading screen and ready workspace after two
   unhealthy health responses; see the [2026-09-23 Tier 0
@@ -161,7 +163,7 @@ form of evidence exists for the stated scope.
 
 | Component | Status | Scope | Evidence | Known Issues | Blocker | Last Validated | Validation Level | Related Docs | Next Action |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `workflow.dataset_upload_and_preparation` | `UNVALIDATED` | Non-empty upload, image matching, unmatched-row confirmation, processing, persistence, and downstream-ready dataset. | [upload E2E tests](../../app/tests/e2e/test_upload_api.py); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py); [S15 filesystem selection evidence](../QA/validation_campaign/s15/summary-20260923.md) | S15 covers only filesystem access/path selection; no complete upload-to-persistence happy path is evidenced. | — | 2026-09-23 | focused API + rendered selection subflow | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a disposable non-empty dataset through load, partial-confirmation, processing, and persisted metadata checks. |
+| `workflow.dataset_upload_and_preparation` | `UNVALIDATED` | Non-empty upload, image matching, unmatched-row confirmation, processing, persistence, and downstream-ready dataset. | [upload E2E tests](../../app/tests/e2e/test_upload_api.py); [image scanning tests](../../app/tests/unit/test_preparation_image_scanning.py); [S15 filesystem selection evidence](../QA/validation_campaign/s15/summary-20260923.md); [S20 upload evidence](../QA/validation_campaign/s20/summary-20260923.md) | S15 validates filesystem access/path selection and S20 validates parsing/identity only; no complete upload-to-persistence happy path is evidenced. | — | 2026-09-23 | focused upload API + unit + rendered selection subflow | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a disposable non-empty dataset through load, partial-confirmation, processing, and persisted metadata checks. |
 | `workflow.training_and_resume` | `UNVALIDATED` | Real training, checkpoint creation/registration, stop, resume, and later model use. | [training API tests](../../app/tests/e2e/test_training_api.py); [training worker tests](../../app/tests/unit/test_training_stop_mechanism.py); [training memory tests](../../app/tests/unit/test_training_memory_guards.py) | Route and guard evidence exists, but no recent real training/resume receipt is recorded. | — | 2026-09-17 | unit + endpoint E2E | [workflows](operations/workflows.md); [execution and data flow](architecture/execution_and_data_flow.md) | Run the documented minimal CPU training smoke, then verify checkpoint metadata, resume, cancellation, and cleanup. |
 | `workflow.dataset_validation` | `PARTIAL` | Successful dataset validation, metric artifact persistence, and report review. | [validation route E2E](../../app/tests/e2e/test_angular_ui.py) confirms the missing-dataset error path; [validation contract tests](../../app/tests/unit/test_validation_contract_metrics.py) cover metric bounds. | A successful non-empty validation run and report review are not in current QA evidence. | — | 2026-09-17 | unit + E2E error path | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Validate a prepared dataset through completion and inspect the saved report/artifacts. |
 | `workflow.checkpoint_evaluation` | `UNVALIDATED` | Compatible checkpoint evaluation, associated dataset resolution, metrics, and report persistence. | [evaluation tests](../../app/tests/unit/test_evaluation.py); [validation job tests](../../app/tests/unit/test_validation_job_semantics.py) | Preflight and failure semantics are tested; a successful live evaluation is not evidenced. | — | 2026-09-17 | unit | [workflows](operations/workflows.md); [backend API](architecture/backend_api.md) | Run a compatible checkpoint evaluation and retrieve its persisted report. |
