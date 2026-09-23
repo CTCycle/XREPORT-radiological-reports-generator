@@ -12,6 +12,7 @@ import server.repositories.database.engine as database_engine
 import server.repositories.database.initializer as initializer
 from server.configurations.settings import DatabaseSettings
 from server.repositories.schemas import Base
+from server.repositories.schemas.models import InferenceReport, InferenceRun
 
 ###############################################################################
 def _sqlite_settings() -> DatabaseSettings:
@@ -164,6 +165,68 @@ def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="differs from the current ORM schema"):
         initializer.prepare_database_for_startup(_sqlite_settings())
+
+###############################################################################
+def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
+    tmp_path, monkeypatch
+) -> None:
+    database_path = tmp_path / "database.db"
+    _patch_sqlite_path(monkeypatch, database_path)
+    initializer.initialize_database(_sqlite_settings())
+    database = database_engine.Database(_sqlite_settings())
+
+    try:
+        with database.engine.connect() as connection:
+            assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+
+        with database.transaction() as session:
+            inference_run = InferenceRun(
+                provider="huggingface",
+                model_ref="huggingface:validation/foreign-key-test",
+                generation_profile="deterministic",
+                generation_config_json={},
+                request_id="foreign-key-parent",
+                status="succeeded",
+            )
+            inference_run.reports.append(
+                InferenceReport(
+                    input_image_name="foreign-key.png",
+                    input_image_name_key="foreign-key.png",
+                    image_index=0,
+                    generated_report="Findings\nFixture report.",
+                )
+            )
+            session.add(inference_run)
+            session.flush()
+            inference_run_id = inference_run.inference_run_id
+
+        with pytest.raises(sqlalchemy.exc.IntegrityError):
+            with database.engine.begin() as connection:
+                connection.exec_driver_sql(
+                    "INSERT INTO inference_reports "
+                    "(inference_run_id, input_image_name, input_image_name_key, "
+                    "image_index, generated_report) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        inference_run_id + 1,
+                        "orphan.png",
+                        "orphan.png",
+                        1,
+                        "Findings\nOrphan fixture.",
+                    ),
+                )
+
+        with database.engine.begin() as connection:
+            connection.exec_driver_sql(
+                "DELETE FROM inference_runs WHERE inference_run_id = ?",
+                (inference_run_id,),
+            )
+            remaining_reports = connection.exec_driver_sql(
+                "SELECT count(*) FROM inference_reports WHERE inference_run_id = ?",
+                (inference_run_id,),
+            ).scalar_one()
+            assert remaining_reports == 0
+    finally:
+        database.engine.dispose()
 
 ###############################################################################
 def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None:
