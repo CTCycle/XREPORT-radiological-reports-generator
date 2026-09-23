@@ -121,9 +121,14 @@ export class DatasetPage {
       const next = { ...job, status: status.status, progress: status.progress };
       this.validationJobs.update((jobs) => ({ ...jobs, [datasetName]: next }));
       if (this.reportDataset()?.name === datasetName) { this.reportProgress.set(status.progress ?? 0); this.reportStatus.set(status.status); this.reportLoading.set(!['completed', 'failed', 'cancelled'].includes(status.status)); }
-      if (status.status === 'completed' && status.result && this.reportDataset()?.name === datasetName) { this.reportResult.set(this.validationApi.parseResponse(status.result)); this.reportLoading.set(false); }
+      if (status.status === 'completed' && status.result && this.reportDataset()?.name === datasetName) { this.reportResult.set(this.validationApi.parseResponse(status.result)); this.reportLoading.set(false); void this.refreshReportMetadata(datasetName); }
       if (status.status !== 'completed' && ['failed', 'cancelled'].includes(status.status) && this.reportDataset()?.name === datasetName) { this.reportLoading.set(false); this.reportError.set(status.error ?? `Validation ${status.status}`); }
     });
+  }
+  private async refreshReportMetadata(datasetName: string) {
+    const report = await this.validationApi.getReport(datasetName);
+    if (this.reportDataset()?.name !== datasetName || !report.result) return;
+    this.reportMetadata.set({ date: report.result.date, sampleSize: report.result.sample_size, metrics: report.result.metrics });
   }
   openValidation(dataset: DatasetInfo) { this.viewerDataset.set(null); void this.router.navigate(['/dataset/validate', dataset.name]); }
 }
