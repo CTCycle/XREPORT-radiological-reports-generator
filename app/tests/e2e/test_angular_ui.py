@@ -147,6 +147,16 @@ def test_startup_gate_holds_inference_until_backend_health(
 
     assert response is not None and response.ok
     expect(page.get_by_role("heading", name="Preparing XREPORT")).to_be_visible()
+    startup_images = page.locator(".startup-xray-image")
+    assert startup_images.count() > 0
+    page.wait_for_function(
+        "() => { const images = [...document.querySelectorAll('.startup-xray-image')]; "
+        "return images.length > 0 && images.every(image => image instanceof HTMLImageElement "
+        "&& image.getAttribute('src') === 'startup-radiograph.png' "
+        "&& image.getAttribute('alt') === '' && image.getAttribute('aria-hidden') === 'true' "
+        "&& image.complete && image.naturalWidth > 0); }",
+        timeout=5_000,
+    )
     expect(page.locator("app-inference-page")).to_have_count(0)
     expect(page.get_by_text("Model catalogue", exact=True)).to_have_count(0)
     assert not any("/api/inference/models" in url for url in requested_urls)
@@ -156,6 +166,7 @@ def test_startup_gate_holds_inference_until_backend_health(
 
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible(timeout=10_000)
     assert health_calls == 3
+    page.screenshot(path=str(qa_dir / "xreport-startup-ready.png"), full_page=False)
     page.unroute("**/api/health", respond_to_health)
 
 ###############################################################################
