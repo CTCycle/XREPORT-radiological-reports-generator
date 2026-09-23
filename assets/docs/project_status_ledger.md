@@ -17,7 +17,10 @@ local API and service checks on the earlier application revision; see the [S20
 summary](../QA/validation_campaign/s20/summary-20260923.md). S21 and S22 passed
 on the current revision and promoted the dataset upload/preparation workflow
 to `VALIDATED`; see the current snapshot and the dated S21/S22 summaries. Hosted
-CI run
+CI run [35880057345](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/35880057345)
+passed every configured backend and client gate on ledger revision
+`a4e83cd619f9514cdf1c384a8ce47cacd16eae31`, including source/test revision
+`ad819fdce96bfd237b1eab5586023eb68d932bab`. The previous CI run
 `35865126628` passed every configured gate on validation/test revision
 `2c18256`, including the client unit suite. The preceding docs-only revision
 `caa4a41` failed run `35862434438` on two desktop-dialog assertions; the repaired
