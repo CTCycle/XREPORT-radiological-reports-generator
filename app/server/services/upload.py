@@ -91,7 +91,7 @@ class UploadService:
             if ext == ".csv":
                 df = pd.read_csv(io.BytesIO(contents), sep=None, engine="python")
             else:
-                df = pd.read_excel(io.BytesIO(contents))
+                df = pd.read_excel(io.BytesIO(contents), engine="openpyxl")
 
             upload_id = uuid.uuid4().hex
             self.upload_state.store(
