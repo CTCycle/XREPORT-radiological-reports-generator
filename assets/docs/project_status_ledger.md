@@ -14,11 +14,12 @@ was validated in that worktree before commit; see the dated Tier 0 summary.
 Current application and validation/test revision: `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`
 (`develop`). S20 passed its focused local API and service checks on this
 revision; see the [S20 summary](../QA/validation_campaign/s20/summary-20260923.md).
-The latest pushed ledger/evidence revision is
-`5cbe2a7c86ec828ff8d9cecd35a55b94f9e9d0e3`; hosted CI run `35860925179` failed
-the client unit stage on this docs-only descendant of S20 source/test revision
-`37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`. The same-SHA failed-job rerun
-reproduced two desktop-dialog assertions. The other configured stages passed.
+The latest hosted validation revision is
+`5cbe2a7c86ec828ff8d9cecd35a55b94f9e9d0e3`, a docs-only descendant of S20
+source/test revision `37a4b78e6ca939f8a2b6cb9e29c8fa7d46a3d41e`. Hosted CI run
+`35860925179` failed the client unit stage on that revision; the same-SHA
+failed-job rerun reproduced two desktop-dialog assertions. The other configured
+stages passed.
 An earlier docs-only descendant, `16794b4`, passed run `35859367232` after a
 same-SHA rerun. S00 and S03 remain partial pending resolution of the repeatable
 client unit gate failure. S02, S13, S14, and S15 were also revalidated on
