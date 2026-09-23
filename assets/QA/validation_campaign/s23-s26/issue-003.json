@@ -1,0 +1,23 @@
+{
+  "issue": "ISSUE-003",
+  "result": "resolved",
+  "root_cause_trace": {
+    "fixture_helper": "app/tests/e2e/test_training_api.py::_create_checkpoint_fixture",
+    "before": "The fixture wrote an empty object to configuration/session_history.json. The checkpoint listing code treats missing epochs or empty loss/val_loss history as an incomplete artifact and emits a warning.",
+    "cleanup_gap": "Test cleanup removed the artifact directory but did not guarantee removal of a registry row when the API rejected deletion of an incomplete fixture.",
+    "change": "The fixture now registers a complete one-epoch history; deletion tests verify listing removal, clean up the registry in finally, and cover rejection of deletion while a checkpoint evaluation references it."
+  },
+  "verification": {
+    "focused_suite": "app/tests/e2e/test_training_api.py was included in the 8-test focused dataset/training E2E run.",
+    "checkpoint_list_status": 200,
+    "checkpoint_list_after_suite": [],
+    "e2e_delete_registry_rows": 0,
+    "matching_stale_or_incomplete_checkpoint_warnings": 0,
+    "sqlite_integrity_check": "ok",
+    "foreign_key_violations": 0,
+    "evidence": [
+      "s26-checkpoint-api.json",
+      "focused-e2e.log"
+    ]
+  }
+}
