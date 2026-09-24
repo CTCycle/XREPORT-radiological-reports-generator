@@ -36,6 +36,7 @@ from server.domain.jobs import (
 from server.common.constants import (
     INFERENCE_IMAGE_CONTENT_TYPES,
     INFERENCE_IMAGE_EXTENSIONS,
+    MAX_TOTAL_IMAGE_BYTES,
 )
 from server.common.utils.logger import logger
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
@@ -56,7 +57,6 @@ if TYPE_CHECKING:
 
 
 MAX_INFERENCE_IMAGES = 16
-MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
 ###############################################################################
 def map_inference_failure(exc: Exception) -> JobExecutionError:

@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "job_id": "e34fb746",
+      "job_type": "inference",
+      "status": "running",
+      "poll_interval": 1.0,
+      "progress": 12.28284129450168,
+      "result": {
+        "lifecycle": {
+          "phase": "downloading",
+          "message": "Downloading model-00001-of-00002.safetensors",
+          "current_file": "model-00001-of-00002.safetensors",
+          "file_index": 5,
+          "files_completed": 4,
+          "total_files": 13,
+          "downloaded_bytes": 912889080,
+          "total_bytes": 8147615443
+        }
+      },
+      "error": null
+    }
+  ]
+}

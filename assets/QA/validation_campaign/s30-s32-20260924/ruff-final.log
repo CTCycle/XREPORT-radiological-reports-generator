@@ -1,0 +1,5 @@
+Lint command: app/server/.venv/Scripts/ruff.exe check --config app/server/pyproject.toml --cache-dir runtimes/cache/validation-campaign-s30-s32-20260924/ruff-cache app/server/api/inference.py app/server/common/constants.py app/server/services/inference.py app/tests/e2e/test_inference_api.py app/tests/unit/test_inference_model_catalog.py
+Format command: app/server/.venv/Scripts/ruff.exe format --check --config app/server/pyproject.toml --cache-dir runtimes/cache/validation-campaign-s30-s32-20260924/ruff-cache app/server/api/inference.py app/server/common/constants.py app/tests/e2e/test_inference_api.py app/tests/unit/test_inference_model_catalog.py
+Format check excludes app/server/services/inference.py because formatting its existing code style would create broad unrelated formatting changes; its changed lines are lint-checked.
+All checks passed!
+4 files already formatted

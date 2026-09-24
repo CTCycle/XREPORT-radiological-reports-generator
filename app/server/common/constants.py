@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tomllib
 
+
 ###############################################################################
 def _application_version() -> str:
     """Read the canonical source version or the packaged shell contract."""
@@ -66,6 +67,7 @@ INFERENCE_IMAGE_CONTENT_TYPES = {
     "image/webp",
     "image/tiff",
 }
+MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
 
 # [DATABASE TABLES]

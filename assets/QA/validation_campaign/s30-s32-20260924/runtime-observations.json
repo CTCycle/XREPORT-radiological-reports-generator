@@ -1,0 +1,63 @@
+{
+  "observed_on": "2026-09-24T15:58:40+02:00",
+  "launcher_command": "$env:XREPORT_RESOURCES_DIR = 'G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\validation-campaign-s30-s32-20260924\\resources'; & '.\\start_on_windows.ps1' -Action Launch",
+  "api_base_url": "http://127.0.0.1:5003",
+  "resource_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\validation-campaign-s30-s32-20260924\\resources",
+  "health": {
+    "status": "ok",
+    "application": "XREPORT Backend",
+    "version": "3.1.0",
+    "runtime_mode": "sqlite",
+    "runtime_variant": null,
+    "runtime_port": 5003
+  },
+  "public_model_count": 5,
+  "custom_model_count": 0,
+  "public_installation_states": [
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+      "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "status": "not_installed",
+      "installation_state": "not_installed",
+      "validation_status": "pending",
+      "access_policy": "open"
+    },
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+      "status": "not_installed",
+      "installation_state": "not_installed",
+      "validation_status": "degraded",
+      "access_policy": "open"
+    },
+    {
+      "model_ref": "huggingface:StanfordAIMI/CheXOne",
+      "model_revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "status": "not_installed",
+      "installation_state": "not_installed",
+      "validation_status": "pending",
+      "access_policy": "open"
+    },
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "status": "not_installed",
+      "installation_state": "not_installed",
+      "validation_status": "pending",
+      "access_policy": "open"
+    },
+    {
+      "model_ref": "huggingface:google/medgemma-1.5-4b-it",
+      "model_revision": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
+      "status": "not_installed",
+      "installation_state": "not_installed",
+      "validation_status": "pending",
+      "access_policy": "gated"
+    }
+  ],
+  "jobs": {
+    "jobs": []
+  },
+  "hf_token_in_validation_process": false,
+  "hf_token_configured_in_settings_env": false
+}

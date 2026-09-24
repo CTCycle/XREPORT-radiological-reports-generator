@@ -1,0 +1,29 @@
+.....F                                                                   [100%]
+================================== FAILURES ===================================
+____________ test_inference_history_crud_preserves_original_output ____________
+
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x000002356B904050>
+seeded_history = 'e2e_history_0ef7fa062b83496db9dd7713c38c1055'
+
+    def test_inference_history_crud_preserves_original_output(
+        api_context: APIRequestContext,
+        seeded_history: str,
+    ) -> None:
+        listing = api_context.get(
+            "/api/inference/history",
+            params={
+                "model_ref": "huggingface:e2e/reports",
+                "status": "succeeded",
+                "limit": 10,
+            },
+        )
+        assert listing.ok
+>       item = next(
+            item for item in listing.json()["items"] if item["request_id"] == seeded_history
+        )
+E       StopIteration
+
+app\tests\e2e\test_inference_api.py:290: StopIteration
+=========================== short test summary info ===========================
+FAILED app/tests/e2e/test_inference_api.py::test_inference_history_crud_preserves_original_output
+1 failed, 5 passed in 2.87s

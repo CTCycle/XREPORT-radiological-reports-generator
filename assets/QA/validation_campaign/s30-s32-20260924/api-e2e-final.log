@@ -1,0 +1,5 @@
+Environment: XREPORT_RESOURCES_DIR=G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\validation-campaign-s30-s32-20260924\resources
+Environment: PYTHONPYCACHEPREFIX=G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\validation-campaign-s30-s32-20260924\pycache-api-final
+Command: & 'G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\server\.venv\Scripts\python.exe' -m pytest 'G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\tests\e2e\test_inference_api.py' -q --basetemp 'G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\validation-campaign-s30-s32-20260924\pytest-api-final-tmp' -o 'cache_dir=G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\validation-campaign-s30-s32-20260924\pytest-api-final-cache'
+......                                                                   [100%]
+6 passed in 3.42s
