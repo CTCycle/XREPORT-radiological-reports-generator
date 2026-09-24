@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-22
+Last updated: 2026-09-24
 
 ## Windows Local Launcher
 
@@ -38,8 +38,10 @@ The menu can:
 - update source from `origin/main` with the clean-`main` guard
 
 The launch option starts FastAPI and a lightweight Node server for the existing
-production Angular bundle, waits only for the UI port to respond, opens the
-browser, and then exits the menu. The Node server serves the bundle, applies
+production Angular bundle, waits only for the UI port to respond, attempts to
+open the browser, and then exits the menu. If Windows denies the automatic
+browser launch, both services remain running and the launcher prints the UI URL
+for manual opening. The Node server serves the bundle, applies
 Angular SPA fallback, and proxies `/api` to FastAPI. The Angular shell displays
 the XREPORT startup surface while it polls `/api/health`; routed pages are not
 created until the backend reports `status: "ok"`.
@@ -51,6 +53,11 @@ asks once before terminating the listed process trees. A declined prompt
 cancels without starting services; non-interactive Launch fails closed without
 terminating anything. A launcher or ancestor process owning a configured port,
 failed termination, or a newly appearing owner aborts the launch.
+
+For isolated startup validation, a process-level `XREPORT_RESOURCES_DIR`
+override takes precedence over the same key in `settings/.env`. This lets a
+disposable database be selected without editing the developer's environment
+file or application resources.
 
 ## Foundational Startup Validation
 
