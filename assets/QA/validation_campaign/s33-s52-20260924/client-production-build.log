@@ -1,0 +1,34 @@
+
+> xreport-client@3.1.0 build
+> ng build
+
+> Building...
+√ Building...
+Initial chunk files | Names                   |  Raw size | Estimated transfer size
+chunk-DB_LSvcg.js   | -                       | 186.32 kB |                54.44 kB
+main-5KSD4ASG.js    | main                    |  99.86 kB |                25.64 kB
+styles-OZFISHZZ.css | styles                  |   5.66 kB |                 1.60 kB
+
+                    | Initial total           | 291.85 kB |                81.68 kB
+
+Lazy chunk files    | Names                   |  Raw size | Estimated transfer size
+chunk-T7KCLriu.js   | training-page           | 126.70 kB |                19.48 kB
+chunk-LxrGKr8y.js   | main-layout-component   |  82.40 kB |                11.33 kB
+chunk-DlaVpUPP.js   | dataset-page            |  82.28 kB |                15.93 kB
+chunk-CdwCCHhe.js   | -                       |  69.23 kB |                15.73 kB
+chunk-REnkPuli.js   | inference-page          |  57.97 kB |                12.26 kB
+chunk-Dh7B3Cxa.js   | -                       |  52.34 kB |                10.70 kB
+chunk-CR3OL_3p.js   | dataset-validation-page |  29.36 kB |                 6.41 kB
+chunk-C4Cstgl5.js   | -                       |  25.70 kB |                 4.75 kB
+chunk-D3Epxoyp.js   | settings-page           |  18.62 kB |                 4.40 kB
+chunk-JDVhGU2_.js   | -                       |  17.74 kB |                 3.17 kB
+chunk-5tfhG5Xj.js   | reports-page            |  14.93 kB |                 3.94 kB
+chunk-CMZkut3s.js   | report-detail-page      |  14.88 kB |                 3.94 kB
+chunk-kqo_xRB3.js   | -                       |   9.12 kB |                 2.58 kB
+chunk-Cte8cDBW.js   | -                       |   3.68 kB |                 1.25 kB
+chunk-Bu7x8ozB.js   | -                       |   3.59 kB |                 1.40 kB
+...and 5 more lazy chunks files. Use "--verbose" to show all the files.
+
+Application bundle generation complete. [4.936 seconds] - 2026-09-24T22:01:00.792Z
+
+Output location: G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\client\dist\client-angular
