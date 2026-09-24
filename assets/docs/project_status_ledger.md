@@ -39,6 +39,9 @@ code and regression test passed locally on revision
 while processed dependents exist, preserving their training samples. S24–S26
 remain passed at their synthetic technical scope. See the [S23 follow-up](../QA/validation_campaign/s23/summary-20260924.md)
 and [original S23–S26 campaign summary](../QA/validation_campaign/s23-s26/summary-20260923.md).
+The S23 code/test revision was pushed to `develop`; no hosted CI result for
+that revision was available in this session, so the recorded S00/S03 hosted
+`PASS` evidence remains scoped to earlier revisions.
 
 ## Maintenance Rules
 
