@@ -44,9 +44,13 @@ code and regression test passed locally on revision
 while processed dependents exist, preserving their training samples. S24–S26
 remain passed at their synthetic technical scope. See the [S23 follow-up](../QA/validation_campaign/s23/summary-20260924.md)
 and [original S23–S26 campaign summary](../QA/validation_campaign/s23-s26/summary-20260923.md).
-The S23 code/test revision was pushed to `develop`; no hosted CI result for
-that revision was available in this session, so the recorded S00/S03 hosted
-`PASS` evidence remains scoped to earlier revisions.
+The 2026-09-24 S23 code/test revision `a00897ff74887e39a4270b933f9f3bdde8cb9b64`
+initially had no hosted CI result. The subsequent validation commit
+`15b45a5d276a9ebf0453b0989fb92e39e404025f` was pushed to `develop`; hosted CI
+run [36014118210](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/36014118210)
+passed every configured backend and client gate on that exact revision,
+including PostgreSQL persistence. The full local Windows runner also passed
+after a test-only S15 async-state assertion fix; see the [ISSUE-004 summary](../QA/validation_campaign/issue-004-windows-cache-20260924/summary.md).
 
 ## Maintenance Rules
 
