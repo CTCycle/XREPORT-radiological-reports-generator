@@ -26,4 +26,6 @@ The runner reported pytest's cache at `runtimes/cache/pytest`; its per-run baset
 
 Git directory scans still emit access-denied warnings for some historical cache paths elsewhere in the checkout. Those paths were not cleaned or modified because their ownership/access is unresolved. This leaves `test.infrastructure.windows_cache` and `ISSUE-004` `PARTIAL` / `OPEN`: the supported runner and its configured cache roots are validated, while safe disposition of the old protected cache paths remains outstanding.
 
-No application source change was needed. This run does not replace hosted CI, and the three PostgreSQL checks remain unexercised locally.
+The pushed validation commit `15b45a5d276a9ebf0453b0989fb92e39e404025f` also passed [hosted CI run 36014118210](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/36014118210), including PostgreSQL persistence and every configured backend/client gate. GitHub emitted platform notices that Node 20 is deprecated and `ubuntu-latest` will migrate to Ubuntu 26 beginning 2026-10-19; no gate failed.
+
+No application source change was needed. The three PostgreSQL checks were skipped only in the local Windows runner; hosted CI exercised that contract.
