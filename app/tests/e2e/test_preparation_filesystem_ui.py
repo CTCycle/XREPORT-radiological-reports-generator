@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import re
 
-from playwright.sync_api import APIRequestContext, Page
+from playwright.sync_api import APIRequestContext, Page, expect
 
 
 _ONE_PIXEL_PNG = (
@@ -52,7 +52,7 @@ def test_s15_dataset_folder_access_and_recovery(
         folder_button = page.get_by_role(
             "button", name="Upload Image Folder", exact=False
         )
-        assert folder_button.is_disabled()
+        expect(folder_button).to_be_disabled()
         assert "Disabled by server configuration" in folder_button.inner_text()
         page.screenshot(path=str(evidence_dir / "s15-disabled-browse.png"), full_page=True)
 
@@ -61,7 +61,7 @@ def test_s15_dataset_folder_access_and_recovery(
         folder_button = page.get_by_role(
             "button", name="Upload Image Folder", exact=False
         )
-        assert folder_button.is_enabled()
+        expect(folder_button).to_be_enabled()
         folder_button.click()
         dialog = page.get_by_role("dialog", name="Select image folder")
         path_input = dialog.get_by_placeholder("Server folder path")
