@@ -1,0 +1,148 @@
+{
+  "observed_at_utc": "2026-09-24T21:59:29.8914103Z",
+  "source_baseline": "994429f6d2f9ad5efee0056486ef6f2bb5795dfc",
+  "ui_url": "http://127.0.0.1:8003/inference",
+  "fixture": {
+    "path": "assets/QA/inference_validation_runs/fixture-covid-chest-xray.jpg",
+    "de_identification": "No direct identifier in the public research fixture; local validation only.",
+    "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; 000001-1.jpg",
+    "bytes": 421556,
+    "sha256": "4570a9524d57cb2697ea577ac5d36553cf28e0d190d347edda1fe12f07d54751",
+    "filename": "fixture-covid-chest-xray.jpg"
+  },
+  "model": {
+    "integrity_status": "verified",
+    "provider": "huggingface",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "installation_state": "active",
+    "status": "ready",
+    "validation_receipt_status": "passed",
+    "cuda_used": true,
+    "report_scope": "study",
+    "resolved_device": "cuda:0",
+    "validation_status": "pending",
+    "sections": [
+      "findings",
+      "impression"
+    ],
+    "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+  },
+  "jobs": [
+    {
+      "job_id": "699a91f7",
+      "status": "completed",
+      "progress": 100.0
+    },
+    {
+      "job_id": "14883ccf",
+      "status": "cancelled",
+      "progress": 100.0
+    },
+    {
+      "job_id": "65cdb860",
+      "status": "completed",
+      "progress": 100.0
+    },
+    {
+      "job_id": "ea3ba0ab",
+      "status": "cancelled",
+      "progress": 100.0
+    }
+  ],
+  "history_details": [
+    {
+      "request_id": "934d348b7529",
+      "status": "succeeded",
+      "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+      "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "generation_profile": "deterministic",
+      "execution_time_seconds": 3.253861900011543,
+      "report_count": 1,
+      "image_name": "fixture-covid-chest-xray.jpg",
+      "edited": true,
+      "edited_at": "2026-09-24 21:33:16",
+      "original_output_retained": true,
+      "provenance_available": true
+    },
+    {
+      "request_id": "8050f4ec1491",
+      "status": "succeeded",
+      "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+      "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "generation_profile": "deterministic",
+      "execution_time_seconds": 1.3840932000020985,
+      "report_count": 1,
+      "image_name": "fixture-covid-chest-xray.jpg",
+      "edited": false,
+      "edited_at": null,
+      "original_output_retained": true,
+      "provenance_available": true
+    }
+  ],
+  "browser": {
+    "modal": {
+      "focusable_controls": 15,
+      "escape_closes": true,
+      "focus_restored_to": "Help and tips",
+      "tab_cycle_returns_to_first_control": true,
+      "aria_modal": true,
+      "role": "dialog"
+    },
+    "copy": {
+      "clipboard_contains_findings_and_impression": true,
+      "clipboard_length": 398,
+      "button_enabled": true
+    },
+    "history": {
+      "initial_request_id": "934d348b7529",
+      "visible_session_count": 2,
+      "retry_request_id": "8050f4ec1491"
+    },
+    "viewport_checks": [
+      {
+        "viewport": "320x720",
+        "horizontal_overflow": false,
+        "scroll_width": 320
+      },
+      {
+        "viewport": "768x1024",
+        "horizontal_overflow": false,
+        "scroll_width": 768
+      },
+      {
+        "viewport": "1024x720",
+        "horizontal_overflow": false,
+        "scroll_width": 1024
+      },
+      {
+        "viewport": "1440x900",
+        "horizontal_overflow": false,
+        "scroll_width": 1440
+      }
+    ],
+    "editing": {
+      "saved_edits_survived_reload": true,
+      "original_model_output_still_available": true,
+      "request_id": "934d348b7529"
+    },
+    "keyboard_tab_navigation": {
+      "visible_focus_indicator": "3px blue focus ring",
+      "named_controls_reachable": true,
+      "file_chooser_name": "Scegli file (native chooser)"
+    },
+    "export": {
+      "path": "C:\\Users\\Thomas V\\Downloads\\xreport-fixture-covid-chest-xray.txt",
+      "button_enabled": true,
+      "sha256": "69f6ff150090c7152211cc5d22cf973e8ed560eee61e5c84e8a41723614486d0",
+      "file_present": true,
+      "browser_download_event_observed": false,
+      "length": 398,
+      "output_sections_content_verified": true
+    },
+    "reduced_motion": {
+      "stylesheet_support_present": true,
+      "runtime_preference_emulation_performed": false,
+      "current_preference_reduce": false
+    }
+  }
+}
