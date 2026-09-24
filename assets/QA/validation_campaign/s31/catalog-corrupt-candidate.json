@@ -1,0 +1,96 @@
+{
+  "model": {
+    "access_policy": "open",
+    "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+    "active_revision": null,
+    "adapter": "cxrmate_multi",
+    "anatomy_coverage": "chest_xray",
+    "available_actions": [
+      "repair",
+      "delete_local"
+    ],
+    "candidate_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "capabilities": {
+      "clinical_context": false,
+      "findings": true,
+      "grounding": false,
+      "impression": true,
+      "multiple_current_views": true,
+      "prior_report": false
+    },
+    "category": "chest_xray_report_generation",
+    "cloud_assessment": null,
+    "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+    "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+    "display_name": "CXRMate Multi TF",
+    "download_size_bytes": 451000000,
+    "enabled": true,
+    "gated": false,
+    "hardware_demand": "low",
+    "input_semantics": "single_study",
+    "installation_state": "staged",
+    "integrity_status": "verified",
+    "license": "Apache-2.0",
+    "local_path": null,
+    "local_size_bytes": 451000000,
+    "max_current_images": 16,
+    "model_loader": "auto_model",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "origin": "public",
+    "output_sections": [
+      "findings",
+      "impression"
+    ],
+    "parameter_label": "0.1B parameters",
+    "parameter_size": "0.1B",
+    "preferred_dtype": "float32",
+    "processor_files": [],
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_target_prefix": "processor",
+    "prompt_profile": "cxrmate-multi-findings-impression",
+    "provider": "huggingface",
+    "quantization": [
+      "none"
+    ],
+    "recommended": true,
+    "remote_code_approved": true,
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "preprocessor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "modelling_multi.py"
+    ],
+    "research_only": true,
+    "resource_policy": {
+      "max_snapshot_size_bytes": 2000000000,
+      "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+    },
+    "runtime_constraints": {
+      "max_transformers_exclusive": null,
+      "min_transformers": "4.57.0",
+      "required_modules": []
+    },
+    "status": "unvalidated",
+    "status_message": "A verified candidate is installed and must pass real inference before activation.",
+    "supports_clinical_context": false,
+    "supports_prior_images": false,
+    "trust_remote_code": true,
+    "update_available": false,
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_receipt_message": null,
+    "validation_receipt_status": "passed",
+    "validation_status": "pending",
+    "weight_file_sets": [
+      [
+        "model.safetensors"
+      ]
+    ]
+  },
+  "observed_at_utc": "2026-09-24T15:04:10.611697+00:00"
+}

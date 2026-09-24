@@ -1,0 +1,16 @@
+{
+  "observed_at": "2026-09-24T15:03:15.8199775Z",
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "status": "unvalidated",
+  "installation_state": "staged",
+  "integrity_status": "verified",
+  "validation_receipt_status": "passed",
+  "available_actions": [
+    "repair",
+    "delete_local"
+  ],
+  "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "candidate_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "catalog_local_path": null,
+  "maintenance_candidate_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+}
