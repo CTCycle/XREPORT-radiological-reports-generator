@@ -1,0 +1,98 @@
+.FF...                                                                   [100%]
+================================== FAILURES ===================================
+___ test_inference_generate_enforces_model_context_profile_and_image_limits ___
+
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x000002228015E850>
+
+    def test_inference_generate_enforces_model_context_profile_and_image_limits(
+        api_context: APIRequestContext,
+    ) -> None:
+        catalog = api_context.get("/api/inference/models").json()
+        chexone = next(
+            model
+            for model in catalog["models"]
+            if model["model_ref"] == "huggingface:StanfordAIMI/CheXOne"
+        )
+        maximum_images = chexone["max_current_images"]
+
+        for profile in ("deterministic", "concise", "detailed"):
+            response = api_context.post(
+                "/api/inference/generate",
+                multipart={
+                    "model_ref": chexone["model_ref"],
+                    "generation_profile": profile,
+                    "clinical_context": "Follow-up for cough",
+                    "images": _image_upload(),
+                },
+            )
+>           assert response.status == 400
+E           AssertionError: assert 202 == 400
+E            +  where 202 = <APIResponse url='http://127.0.0.1:5003/api/inference/generate' status=202 status_text='Accepted'>.status
+
+app\tests\e2e\test_inference_api.py:101: AssertionError
+_______ test_inference_generate_rejects_image_payload_over_total_limit ________
+
+api_context = <playwright._impl._fetch.APIRequestContext object at 0x000002228015DBD0>
+
+    def test_inference_generate_rejects_image_payload_over_total_limit(
+        api_context: APIRequestContext,
+    ) -> None:
+>       response = api_context.post(
+            "/api/inference/generate",
+            multipart={
+                "model_ref": "huggingface:aehrc/cxrmate-ed",
+                "generation_profile": "deterministic",
+                "clinical_context": "",
+                "images": _image_upload(data=b"x" * (64 * 1024 * 1024 + 1)),
+            },
+            timeout=30000,
+        )
+
+app\tests\e2e\test_inference_api.py:164:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\server\.venv\Lib\site-packages\playwright\sync_api\_generated.py:19421: in post
+    self._sync(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:280: in post
+    return await self.fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:319: in fetch
+    return await self._inner_fetch(
+app\server\.venv\Lib\site-packages\playwright\_impl\_fetch.py:410: in _inner_fetch
+    response = await self._channel.send(
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x000002228010EA50>
+cb = <function Channel.send.<locals>.<lambda> at 0x0000022280181E80>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: APIRequestContext.post: read ECONNRESET
+E           Call log:
+E             - \u2192 POST http://127.0.0.1:5003/api/inference/generate
+E               - user-agent: Playwright/1.59.1 (x64; windows 10.0) python/3.14
+E               - accept: */*
+E               - accept-encoding: gzip,deflate,br
+E               - content-type: multipart/form-data; boundary=----WebKitFormBoundarycDRW7AMK7rmGCBAU
+E               - content-length: 67109290
+
+app\server\.venv\Lib\site-packages\playwright\_impl\_connection.py:559: Error
+=========================== short test summary info ===========================
+FAILED app\server::test_inference_generate_enforces_model_context_profile_and_image_limits
+FAILED app\server::test_inference_generate_rejects_image_payload_over_total_limit
+2 failed, 4 passed in 24.02s
