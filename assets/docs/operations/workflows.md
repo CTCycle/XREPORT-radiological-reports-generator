@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 ## Prepare A Dataset
 
@@ -24,6 +24,8 @@ Expected result:
 - unmatched rows are never silently imported; confirmed partial imports are
   visibly labeled with their counts
 - the dataset is available in a prepared, usable state for downstream training or validation
+- deleting a source dataset with processed dependents returns a conflict that
+  names those dependents; delete the processed datasets first
 
 ## Train A Model
 
