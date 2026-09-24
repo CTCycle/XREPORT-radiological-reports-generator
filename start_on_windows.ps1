@@ -493,6 +493,7 @@ function Ensure-RustToolchain {
 }
 
 function Import-XReportEnvironment {
+    $processResourceOverride = [string]$env:XREPORT_RESOURCES_DIR
     $values = @{
         FASTAPI_HOST = '127.0.0.1'
         FASTAPI_PORT = '5003'
@@ -518,6 +519,10 @@ function Import-XReportEnvironment {
         $parts = $trimmed.Split('=', 2)
         $key = $parts[0].Trim()
         $value = $parts[1].Trim().Trim('"').Trim("'")
+        # Keep disposable process-level resource roots ahead of project settings.
+        if ($key -eq 'XREPORT_RESOURCES_DIR' -and -not [string]::IsNullOrWhiteSpace($processResourceOverride)) {
+            $value = $processResourceOverride
+        }
         if ($key) {
             $values[$key] = $value
             [Environment]::SetEnvironmentVariable($key, $value, 'Process')
@@ -939,8 +944,39 @@ function Get-PortConflicts {
     )
 
     $configuredPorts = @($FastApiPort, $UiPort) | Sort-Object -Unique
-    $connections = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
-        Where-Object { $configuredPorts -contains [int]$_.LocalPort -and [int]$_.OwningProcess -gt 0 })
+    $connections = @()
+    $connectionLookupError = $null
+    try {
+        $connections = @(Get-NetTCPConnection -State Listen -ErrorAction Stop |
+            Where-Object { $configuredPorts -contains [int]$_.LocalPort -and [int]$_.OwningProcess -gt 0 })
+    }
+    catch {
+        $connectionLookupError = $_.Exception.Message
+    }
+
+    if ($connections.Count -eq 0) {
+        try {
+            $netstatOutput = @(& netstat.exe -ano -p tcp 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "netstat.exe exited with code $LASTEXITCODE."
+            }
+            $connections = @(
+                foreach ($line in $netstatOutput) {
+                    if ([string]$line -match '^\s*TCP\s+\S+:(?<localPort>\d+)\s+\S+\s+LISTENING\s+(?<processId>\d+)\s*$') {
+                        $localPort = [int]$Matches.localPort
+                        $processId = [int]$Matches.processId
+                        if ($configuredPorts -contains $localPort -and $processId -gt 0) {
+                            [pscustomobject]@{ LocalPort = $localPort; OwningProcess = $processId }
+                        }
+                    }
+                }
+            )
+        }
+        catch {
+            $netstatError = $_.Exception.Message
+            throw "Unable to inspect configured TCP listeners. Get-NetTCPConnection: $connectionLookupError; netstat.exe: $netstatError"
+        }
+    }
     if ($connections.Count -eq 0) { return @() }
     if ($ProcessTable.Count -eq 0) {
         try { $ProcessTable = @(Get-XReportProcessTable) } catch { $ProcessTable = @() }
@@ -1044,13 +1080,16 @@ function Resolve-LaunchPortConflicts {
     Write-Warn 'Configured launch ports are occupied:'
     foreach ($conflict in $conflicts) { Write-Host "  $(Format-PortConflict -Conflict $conflict)" -ForegroundColor Yellow }
 
+    if (-not $script:LauncherInteractive) {
+        throw 'Launch ports are occupied and this invocation is non-interactive; no process was terminated. Free the listed ports or rerun interactively.'
+    }
+    if ($processTable.Count -eq 0) {
+        throw 'Process metadata is unavailable for the occupied launch ports; no process was terminated. Free the ports and rerun.'
+    }
     $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
     $protectedConflicts = @($conflicts | Where-Object { $protectedProcessIds -contains [int]$_.ProcessId })
     if ($protectedConflicts.Count -gt 0) {
         throw "A launcher or ancestor process owns a configured port. Stop it explicitly before launching: $(($protectedConflicts | ForEach-Object { "PID $($_.ProcessId)" }) -join ', ')."
-    }
-    if (-not $script:LauncherInteractive) {
-        throw 'Launch ports are occupied and this invocation is non-interactive; no process was terminated. Free the listed ports or rerun interactively.'
     }
 
     Clear-LauncherProgress
@@ -1281,7 +1320,12 @@ function Invoke-Launch {
         Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60
         Write-Info "Launch timing phase=ui_reachable elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $uiReachabilityStarted)"
 
-        Start-Process $uiUrl
+        try {
+            Start-Process -FilePath $uiUrl -ErrorAction Stop | Out-Null
+        }
+        catch {
+            Write-Warn "Automatic browser launch failed. Open the interface manually at $uiUrl. $($_.Exception.Message)"
+        }
 
         Write-Ok 'XREPORT interface started. Backend initialization is continuing in the application.'
         Write-Host "Backend: $healthUrl (initializing; launcher PID $($backendProcess.Id))"

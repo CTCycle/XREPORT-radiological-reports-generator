@@ -169,6 +169,80 @@ def test_startup_gate_holds_inference_until_backend_health(
     page.screenshot(path=str(qa_dir / "xreport-startup-ready.png"), full_page=False)
     page.unroute("**/api/health", respond_to_health)
 
+
+###############################################################################
+def test_startup_timing_retry_and_post_ready_feature_error(
+    page: Page,
+    base_url: str,
+) -> None:
+    """Slow/unavailable recovery and a later catalogue error stay in the app."""
+    health_calls = 0
+    health_available = False
+    page.clock.install()
+
+    def respond_to_health(route) -> None:
+        nonlocal health_calls
+        health_calls += 1
+        if not health_available:
+            route.fulfill(
+                status=503,
+                content_type="application/json",
+                body='{"detail":"backend is still starting"}',
+            )
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"status":"ok"}',
+        )
+
+    def fail_model_catalogue(route) -> None:
+        route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"detail":"Synthetic model catalogue outage"}',
+        )
+
+    page.route("**/api/health", respond_to_health)
+    page.route("**/api/inference/models", fail_model_catalogue)
+    page.set_viewport_size({"width": 1024, "height": 720})
+    response = page.goto(f"{base_url}/")
+
+    assert response is not None and response.ok
+    expect(page.get_by_role("heading", name="Preparing XREPORT")).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Turn a radiograph into a draft report")
+    ).to_have_count(0)
+
+    qa_dir = _e2e_screenshot_dir("validation_campaign/tier-0/s02-20260924")
+    page.clock.run_for(15_000)
+    expect(page.get_by_text("XREPORT is still initializing")).to_be_visible(timeout=5_000)
+    slow_health_calls = health_calls
+    page.screenshot(path=str(qa_dir / "startup-slow.png"), full_page=False)
+
+    page.clock.run_for(45_000)
+    retry = page.get_by_role("button", name="Retry connection")
+    expect(retry).to_be_visible(timeout=5_000)
+    unavailable_health_calls = health_calls
+    page.screenshot(path=str(qa_dir / "startup-unavailable.png"), full_page=False)
+    health_available = True
+    retry.click()
+    page.clock.run_for(1_000)
+
+    expect(
+        page.get_by_role("heading", name="Turn a radiograph into a draft report")
+    ).to_be_visible(timeout=10_000)
+    expect(page.locator("app-startup-screen")).to_have_count(0)
+    expect(page.locator(".catalog-state.error")).to_contain_text(
+        "Synthetic model catalogue outage"
+    )
+    assert unavailable_health_calls > slow_health_calls
+    assert health_calls > unavailable_health_calls
+    page.screenshot(
+        path=str(qa_dir / "startup-feature-error-after-ready.png"), full_page=False
+    )
+
+
 ###############################################################################
 def test_chexone_details_render_findings_only_catalog_contract(
     page: Page,
