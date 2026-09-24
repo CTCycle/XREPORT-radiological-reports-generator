@@ -1,0 +1,8 @@
+{
+  "de_identification": "Public research fixture released by the dataset repository; no direct identifier is included in the downloaded image; local validation only.",
+  "filename": "fixture-covid-chest-xray.jpg",
+  "path": "assets/QA/inference_validation_runs/fixture-covid-chest-xray.jpg",
+  "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; file 000001-1.jpg; https://github.com/ieee8023/covid-chestxray-dataset",
+  "sha256": "4570a9524d57cb2697ea577ac5d36553cf28e0d190d347edda1fe12f07d54751",
+  "size_bytes": 421556
+}
