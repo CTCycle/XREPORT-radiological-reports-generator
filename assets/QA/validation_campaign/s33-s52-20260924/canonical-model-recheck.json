@@ -1,0 +1,75 @@
+{
+  "observed_at_utc": "2026-09-24T21:54:56.4890112Z",
+  "reference_manifest": "assets/QA/validation_campaign/s31/snapshot-manifest.json",
+  "canonical_path": "app/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "expected_file_count": 8,
+  "actual_file_count": 8,
+  "file_checks": [
+    {
+      "file": "config.json",
+      "expected_size": 78452,
+      "actual_size": 78452,
+      "expected_sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+      "actual_sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+      "matches": true
+    },
+    {
+      "file": "generation_config.json",
+      "expected_size": 90,
+      "actual_size": 90,
+      "expected_sha256": "622401277a5856b1c873698cf77ab4aa9b803b8353af62356fd21af3f6a7bd81",
+      "actual_sha256": "622401277a5856b1c873698cf77ab4aa9b803b8353af62356fd21af3f6a7bd81",
+      "matches": true
+    },
+    {
+      "file": "model.safetensors",
+      "expected_size": 449521072,
+      "actual_size": 449521072,
+      "expected_sha256": "6640d7d1687ce14e46f620f37c7df0eaf57bc9534a8314950e41e5faf08eed3e",
+      "actual_sha256": "6640d7d1687ce14e46f620f37c7df0eaf57bc9534a8314950e41e5faf08eed3e",
+      "matches": true
+    },
+    {
+      "file": "modelling_multi.py",
+      "expected_size": 17211,
+      "actual_size": 18493,
+      "expected_sha256": "528e8d471658802c0ba40fd37a8839cfcd29c342179adeb412f22e04bb7856ee",
+      "actual_sha256": "4b06e742bbd3f27b6fd61ef0adfcc693ab7b944fc25b41cc5c6cddc45459f5a9",
+      "matches": false
+    },
+    {
+      "file": "preprocessor_config.json",
+      "expected_size": 679,
+      "actual_size": 679,
+      "expected_sha256": "94c4e3ccbde74bf3a73951d44dd03f6106c16e25f47806ab888b301b637464ca",
+      "actual_sha256": "94c4e3ccbde74bf3a73951d44dd03f6106c16e25f47806ab888b301b637464ca",
+      "matches": true
+    },
+    {
+      "file": "special_tokens_map.json",
+      "expected_size": 1088,
+      "actual_size": 1088,
+      "expected_sha256": "a4574967068c533f5619217a06d3f6946ca173904515a7bcf393b633296d1033",
+      "actual_sha256": "a4574967068c533f5619217a06d3f6946ca173904515a7bcf393b633296d1033",
+      "matches": true
+    },
+    {
+      "file": "tokenizer.json",
+      "expected_size": 1331932,
+      "actual_size": 1331932,
+      "expected_sha256": "5e9c6bbfd562d8aaf2f03e6b9bf842d49d3aeacf925a674a0ef494adf1be338e",
+      "actual_sha256": "5e9c6bbfd562d8aaf2f03e6b9bf842d49d3aeacf925a674a0ef494adf1be338e",
+      "matches": true
+    },
+    {
+      "file": "tokenizer_config.json",
+      "expected_size": 2474,
+      "actual_size": 2474,
+      "expected_sha256": "ead38c041b06672891e166f1cbeb01db6a9cadbdcc07525a6d3998267f763bb4",
+      "actual_sha256": "ead38c041b06672891e166f1cbeb01db6a9cadbdcc07525a6d3998267f763bb4",
+      "matches": true
+    }
+  ],
+  "all_match": false
+}

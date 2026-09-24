@@ -1,0 +1,70 @@
+{
+  "observed_at_utc": "2026-09-24T21:58:27.1912037Z",
+  "repository_head": "994429f6d2f9ad5efee0056486ef6f2bb5795dfc",
+  "S28": {
+    "status": "UNTESTED",
+    "encoder_and_checkpoint_checks": [
+      {
+        "path": "app/resources/XRAYEncoder",
+        "exists": false,
+        "error": "ItemNotFoundException"
+      },
+      {
+        "path": "runtimes/cache/s27-s28-20260923/models/XRAYEncoder",
+        "exists": false,
+        "error": "ItemNotFoundException"
+      },
+      {
+        "path": "runtimes/cache/huggingface/hub/models--microsoft--beit-base-patch16-224",
+        "exists": false,
+        "error": "ItemNotFoundException"
+      },
+      {
+        "path": "runtimes/cache/s23-s26-resources/checkpoints",
+        "exists": false,
+        "error": "ItemNotFoundException"
+      },
+      {
+        "path": "runtimes/cache/s27-s28-20260923/checkpoints",
+        "exists": false,
+        "error": "ItemNotFoundException"
+      },
+      {
+        "path": "app/resources/checkpoints",
+        "exists": true,
+        "entries": ".gitkeep"
+      }
+    ],
+    "compatible_s24_checkpoint_available": false,
+    "evaluation_executed": false
+  },
+  "S35": {
+    "approved_fixture_directory_exists": false,
+    "live_catalog_validation_status": "degraded",
+    "reports_all_distinct": false,
+    "unique_report_count": 2,
+    "approved_fixture_directory": "assets/QA/full-e2e-20260821-101310/inputs/images",
+    "status": "FAIL / degraded",
+    "completed_cases": 3,
+    "replacement_fixtures_used": false
+  },
+  "S37": {
+    "process_HF_TOKEN_nonempty": false,
+    "live_catalog_status": "not_installed",
+    "installation_state": "not_installed",
+    "access_policy": "gated",
+    "model_ref": "huggingface:google/medgemma-1.5-4b-it",
+    "stored_credential_store_probed": false,
+    "status": "BLOCKED",
+    "settings_env_HF_TOKEN_nonempty": false,
+    "installation_or_generation_attempted": false
+  },
+  "CXRMate_Multi": {
+    "integrity_status": "verified",
+    "installation_state": "active",
+    "validation_receipt_status": "passed",
+    "active_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "live_catalog_status": "ready",
+    "validation_status": "pending"
+  }
+}

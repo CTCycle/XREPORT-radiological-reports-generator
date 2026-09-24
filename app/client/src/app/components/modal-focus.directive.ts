@@ -15,7 +15,7 @@ export class ModalFocusDirective implements AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     const activeElement = document.activeElement;
     if (activeElement instanceof HTMLElement && activeElement !== document.body) this.previousFocus = activeElement;
-    this.trap = this.trapFactory.create(this.element.nativeElement, true);
+    this.trap = this.trapFactory.create(this.element.nativeElement);
     this.trap.focusInitialElementWhenReady();
   }
 

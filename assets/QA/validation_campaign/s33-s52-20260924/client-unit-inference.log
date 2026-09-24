@@ -1,0 +1,16 @@
+
+> xreport-client@3.1.0 test:unit
+> ng test --watch=false --include src/app/pages/job-cancellation.pages.spec.ts
+
+> Building...
+√ Building...
+Application bundle generation complete. [3.568 seconds] - 2026-09-24T22:00:40.725Z
+
+
+ RUN  v4.1.10 G:/Projects/Repositories/Active projects/XREPORT Radiological Reports/app/client
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  00:00:40
+   Duration  2.54s (transform 294ms, setup 355ms, import 507ms, tests 676ms, environment 815ms)
