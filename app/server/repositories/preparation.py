@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import case, delete, exists, func, select
@@ -18,9 +19,16 @@ from server.repositories.schemas import (
 )
 from server.repositories.schemas.normalization import normalize_key
 
+
+###############################################################################
+@dataclass(frozen=True)
+class DatasetDeletionResult:
+    deleted_count: int
+    dependent_dataset_names: tuple[str, ...] = ()
+
+
 ###############################################################################
 class PreparationRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: Database) -> None:
         self.database = database
@@ -124,16 +132,47 @@ class PreparationRepository:
         return metadata
 
     # -------------------------------------------------------------------------
-    def delete_dataset(self, dataset_name: str) -> int:
+    def delete_dataset(self, dataset_name: str) -> DatasetDeletionResult:
         session = self.database.session()
         try:
-            result = session.execute(
-                delete(Dataset).where(Dataset.name_key == normalize_key(dataset_name))
-            )
-            rowcount = int(getattr(result, "rowcount", 0) or 0)
-            if rowcount > 0:
-                session.commit()
-            return rowcount
+            with session.begin():
+                dataset = session.execute(
+                    select(Dataset)
+                    .where(Dataset.name_key == normalize_key(dataset_name))
+                    .with_for_update()
+                ).scalar_one_or_none()
+                if dataset is None:
+                    return DatasetDeletionResult(deleted_count=0)
+
+                dependent_names = tuple(
+                    session.execute(
+                        select(Dataset.name)
+                        .join(
+                            ProcessingRun,
+                            ProcessingRun.dataset_id == Dataset.dataset_id,
+                        )
+                        .where(
+                            ProcessingRun.source_dataset_id == dataset.dataset_id,
+                            ProcessingRun.dataset_id != dataset.dataset_id,
+                        )
+                        .distinct()
+                        .order_by(Dataset.name)
+                    )
+                    .scalars()
+                    .all()
+                )
+                if dependent_names:
+                    return DatasetDeletionResult(
+                        deleted_count=0,
+                        dependent_dataset_names=dependent_names,
+                    )
+
+                result = session.execute(
+                    delete(Dataset).where(Dataset.dataset_id == dataset.dataset_id)
+                )
+                return DatasetDeletionResult(
+                    deleted_count=int(getattr(result, "rowcount", 0) or 0)
+                )
         finally:
             session.close()
 
