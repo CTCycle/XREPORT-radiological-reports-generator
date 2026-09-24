@@ -1,0 +1,564 @@
+{
+  "acceptance_checks": {
+    "backend_recovered": true,
+    "file_inventory_unchanged": true,
+    "file_manifest_unchanged": true,
+    "integrity_remains_verified": true,
+    "pinned_revision_reused": true,
+    "ready_active_state_survived_restart": true,
+    "same_active_path_reused": true,
+    "second_real_inference_completed": true
+  },
+  "active_path": "models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "backend_health_after_restart": {
+    "application": "XREPORT Backend",
+    "runtime_mode": "sqlite",
+    "runtime_port": 5003,
+    "runtime_variant": null,
+    "status": "ok",
+    "version": "3.1.0"
+  },
+  "catalog_after_inference": {
+    "access_policy": "open",
+    "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+    "active_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "adapter": "cxrmate_multi",
+    "anatomy_coverage": "chest_xray",
+    "available_actions": [
+      "check_updates",
+      "reinstall",
+      "download_update",
+      "delete_local"
+    ],
+    "candidate_revision": null,
+    "capabilities": {
+      "clinical_context": false,
+      "findings": true,
+      "grounding": false,
+      "impression": true,
+      "multiple_current_views": true,
+      "prior_report": false
+    },
+    "category": "chest_xray_report_generation",
+    "cloud_assessment": null,
+    "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+    "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+    "display_name": "CXRMate Multi TF",
+    "download_size_bytes": 451000000,
+    "enabled": true,
+    "gated": false,
+    "hardware_demand": "low",
+    "input_semantics": "single_study",
+    "installation_state": "active",
+    "integrity_status": "verified",
+    "license": "Apache-2.0",
+    "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "local_size_bytes": 451000000,
+    "max_current_images": 16,
+    "model_loader": "auto_model",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "origin": "public",
+    "output_sections": [
+      "findings",
+      "impression"
+    ],
+    "parameter_label": "0.1B parameters",
+    "parameter_size": "0.1B",
+    "preferred_dtype": "float32",
+    "processor_files": [],
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_target_prefix": "processor",
+    "prompt_profile": "cxrmate-multi-findings-impression",
+    "provider": "huggingface",
+    "quantization": [
+      "none"
+    ],
+    "recommended": true,
+    "remote_code_approved": true,
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "preprocessor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "modelling_multi.py"
+    ],
+    "research_only": true,
+    "resource_policy": {
+      "max_snapshot_size_bytes": 2000000000,
+      "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+    },
+    "runtime_constraints": {
+      "max_transformers_exclusive": null,
+      "min_transformers": "4.57.0",
+      "required_modules": []
+    },
+    "status": "ready",
+    "status_message": null,
+    "supports_clinical_context": false,
+    "supports_prior_images": false,
+    "trust_remote_code": true,
+    "update_available": false,
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_receipt_message": null,
+    "validation_receipt_status": "passed",
+    "validation_status": "pending",
+    "weight_file_sets": [
+      [
+        "model.safetensors"
+      ]
+    ]
+  },
+  "catalog_before_inference": {
+    "access_policy": "open",
+    "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+    "active_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "adapter": "cxrmate_multi",
+    "anatomy_coverage": "chest_xray",
+    "available_actions": [
+      "check_updates",
+      "reinstall",
+      "download_update",
+      "delete_local"
+    ],
+    "candidate_revision": null,
+    "capabilities": {
+      "clinical_context": false,
+      "findings": true,
+      "grounding": false,
+      "impression": true,
+      "multiple_current_views": true,
+      "prior_report": false
+    },
+    "category": "chest_xray_report_generation",
+    "cloud_assessment": null,
+    "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+    "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+    "display_name": "CXRMate Multi TF",
+    "download_size_bytes": 451000000,
+    "enabled": true,
+    "gated": false,
+    "hardware_demand": "low",
+    "input_semantics": "single_study",
+    "installation_state": "active",
+    "integrity_status": "verified",
+    "license": "Apache-2.0",
+    "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "local_size_bytes": 451000000,
+    "max_current_images": 16,
+    "model_loader": "auto_model",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "origin": "public",
+    "output_sections": [
+      "findings",
+      "impression"
+    ],
+    "parameter_label": "0.1B parameters",
+    "parameter_size": "0.1B",
+    "preferred_dtype": "float32",
+    "processor_files": [],
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_target_prefix": "processor",
+    "prompt_profile": "cxrmate-multi-findings-impression",
+    "provider": "huggingface",
+    "quantization": [
+      "none"
+    ],
+    "recommended": true,
+    "remote_code_approved": true,
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "preprocessor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "modelling_multi.py"
+    ],
+    "research_only": true,
+    "resource_policy": {
+      "max_snapshot_size_bytes": 2000000000,
+      "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+    },
+    "runtime_constraints": {
+      "max_transformers_exclusive": null,
+      "min_transformers": "4.57.0",
+      "required_modules": []
+    },
+    "status": "ready",
+    "status_message": null,
+    "supports_clinical_context": false,
+    "supports_prior_images": false,
+    "trust_remote_code": true,
+    "update_available": false,
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_receipt_message": null,
+    "validation_receipt_status": "passed",
+    "validation_status": "pending",
+    "weight_file_sets": [
+      [
+        "model.safetensors"
+      ]
+    ]
+  },
+  "elapsed_seconds": 9.01,
+  "file_inventory_unchanged": true,
+  "file_manifest_after": {
+    "config.json": {
+      "sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+      "size": 78452
+    },
+    "generation_config.json": {
+      "sha256": "622401277a5856b1c873698cf77ab4aa9b803b8353af62356fd21af3f6a7bd81",
+      "size": 90
+    },
+    "model.safetensors": {
+      "sha256": "6640d7d1687ce14e46f620f37c7df0eaf57bc9534a8314950e41e5faf08eed3e",
+      "size": 449521072
+    },
+    "modelling_multi.py": {
+      "sha256": "528e8d471658802c0ba40fd37a8839cfcd29c342179adeb412f22e04bb7856ee",
+      "size": 17211
+    },
+    "preprocessor_config.json": {
+      "sha256": "94c4e3ccbde74bf3a73951d44dd03f6106c16e25f47806ab888b301b637464ca",
+      "size": 679
+    },
+    "special_tokens_map.json": {
+      "sha256": "a4574967068c533f5619217a06d3f6946ca173904515a7bcf393b633296d1033",
+      "size": 1088
+    },
+    "tokenizer.json": {
+      "sha256": "5e9c6bbfd562d8aaf2f03e6b9bf842d49d3aeacf925a674a0ef494adf1be338e",
+      "size": 1331932
+    },
+    "tokenizer_config.json": {
+      "sha256": "ead38c041b06672891e166f1cbeb01db6a9cadbdcc07525a6d3998267f763bb4",
+      "size": 2474
+    }
+  },
+  "file_manifest_before": {
+    "config.json": {
+      "sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+      "size": 78452
+    },
+    "generation_config.json": {
+      "sha256": "622401277a5856b1c873698cf77ab4aa9b803b8353af62356fd21af3f6a7bd81",
+      "size": 90
+    },
+    "model.safetensors": {
+      "sha256": "6640d7d1687ce14e46f620f37c7df0eaf57bc9534a8314950e41e5faf08eed3e",
+      "size": 449521072
+    },
+    "modelling_multi.py": {
+      "sha256": "528e8d471658802c0ba40fd37a8839cfcd29c342179adeb412f22e04bb7856ee",
+      "size": 17211
+    },
+    "preprocessor_config.json": {
+      "sha256": "94c4e3ccbde74bf3a73951d44dd03f6106c16e25f47806ab888b301b637464ca",
+      "size": 679
+    },
+    "special_tokens_map.json": {
+      "sha256": "a4574967068c533f5619217a06d3f6946ca173904515a7bcf393b633296d1033",
+      "size": 1088
+    },
+    "tokenizer.json": {
+      "sha256": "5e9c6bbfd562d8aaf2f03e6b9bf842d49d3aeacf925a674a0ef494adf1be338e",
+      "size": 1331932
+    },
+    "tokenizer_config.json": {
+      "sha256": "ead38c041b06672891e166f1cbeb01db6a9cadbdcc07525a6d3998267f763bb4",
+      "size": 2474
+    }
+  },
+  "final": {
+    "error": null,
+    "job_id": "5a902c14",
+    "job_type": "inference",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "count": 1,
+      "display_sections": {
+        "fixture-covid-chest-xray.jpg": {
+          "findings": "There are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.",
+          "impression": "Low lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+        }
+      },
+      "inference_metadata": [
+        {
+          "adapter": "cxrmate_multi",
+          "clinical_context": "",
+          "filename": "fixture-covid-chest-xray.jpg",
+          "generation_profile": "deterministic",
+          "input_scope": "study",
+          "model_loader": "auto_model",
+          "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+          "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "original_dimensions": {
+            "height": 768,
+            "width": 968
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-multi-findings-impression",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "lifecycle": {
+        "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "message": "Model loaded and report generated",
+        "phase": "completed",
+        "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+      },
+      "processed_images": 1,
+      "provenance": {
+        "adapter": "cxrmate_multi",
+        "clinical_context": "",
+        "generation_profile": "deterministic",
+        "input_images": [
+          {
+            "adapter": "cxrmate_multi",
+            "clinical_context": "",
+            "filename": "fixture-covid-chest-xray.jpg",
+            "generation_profile": "deterministic",
+            "input_scope": "study",
+            "model_loader": "auto_model",
+            "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+            "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+            "original_dimensions": {
+              "height": 768,
+              "width": 968
+            },
+            "processed_tensor_dimensions": [
+              1,
+              1,
+              3,
+              384,
+              384
+            ],
+            "processor_loader": "auto",
+            "prompt_profile": "cxrmate-multi-findings-impression",
+            "provider": "huggingface",
+            "research_only": true
+          }
+        ],
+        "installation": {
+          "cloud_assessment": null,
+          "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "state": "active"
+        },
+        "model_loader": "auto_model",
+        "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+        "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "processor_loader": "auto",
+        "processor_repository_id": null,
+        "processor_revision": null,
+        "prompt_profile": "cxrmate-multi-findings-impression",
+        "provider": "huggingface",
+        "report_scope": "study",
+        "research_only": true,
+        "runtime": {
+          "cuda_available": true,
+          "cuda_used": true,
+          "model_dtype": "torch.float32",
+          "requested_device": "auto",
+          "resolved_device": "cuda:0",
+          "resolved_devices": [
+            "cuda:0"
+          ]
+        },
+        "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+        "validation_status": "pending"
+      },
+      "report_filenames": [
+        "fixture-covid-chest-xray.jpg"
+      ],
+      "reports": {
+        "fixture-covid-chest-xray.jpg": "Findings:\nThere are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.\n\nImpression:\nLow lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+      },
+      "reports_ordered": [
+        "Findings:\nThere are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.\n\nImpression:\nLow lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+      ],
+      "total_images": 1
+    },
+    "status": "completed"
+  },
+  "job_id": "5a902c14",
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "observations": [
+    {
+      "_elapsed_seconds": 4.62,
+      "error": null,
+      "job_id": "5a902c14",
+      "job_type": "inference",
+      "poll_interval": 1.0,
+      "progress": 0.0,
+      "result": null,
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 6.98,
+      "error": null,
+      "job_id": "5a902c14",
+      "job_type": "inference",
+      "poll_interval": 1.0,
+      "progress": 86.0,
+      "result": {
+        "lifecycle": {
+          "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "message": "Loading the verified local model snapshot",
+          "phase": "loading",
+          "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 8.99,
+      "error": null,
+      "job_id": "5a902c14",
+      "job_type": "inference",
+      "poll_interval": 1.0,
+      "progress": 100.0,
+      "result": {
+        "count": 1,
+        "display_sections": {
+          "fixture-covid-chest-xray.jpg": {
+            "findings": "There are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.",
+            "impression": "Low lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+          }
+        },
+        "inference_metadata": [
+          {
+            "adapter": "cxrmate_multi",
+            "clinical_context": "",
+            "filename": "fixture-covid-chest-xray.jpg",
+            "generation_profile": "deterministic",
+            "input_scope": "study",
+            "model_loader": "auto_model",
+            "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+            "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+            "original_dimensions": {
+              "height": 768,
+              "width": 968
+            },
+            "processed_tensor_dimensions": [
+              1,
+              1,
+              3,
+              384,
+              384
+            ],
+            "processor_loader": "auto",
+            "prompt_profile": "cxrmate-multi-findings-impression",
+            "provider": "huggingface",
+            "research_only": true
+          }
+        ],
+        "lifecycle": {
+          "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "message": "Model loaded and report generated",
+          "phase": "completed",
+          "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+        },
+        "processed_images": 1,
+        "provenance": {
+          "adapter": "cxrmate_multi",
+          "clinical_context": "",
+          "generation_profile": "deterministic",
+          "input_images": [
+            {
+              "adapter": "cxrmate_multi",
+              "clinical_context": "",
+              "filename": "fixture-covid-chest-xray.jpg",
+              "generation_profile": "deterministic",
+              "input_scope": "study",
+              "model_loader": "auto_model",
+              "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+              "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+              "original_dimensions": {
+                "height": 768,
+                "width": 968
+              },
+              "processed_tensor_dimensions": [
+                1,
+                1,
+                3,
+                384,
+                384
+              ],
+              "processor_loader": "auto",
+              "prompt_profile": "cxrmate-multi-findings-impression",
+              "provider": "huggingface",
+              "research_only": true
+            }
+          ],
+          "installation": {
+            "cloud_assessment": null,
+            "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+            "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+            "state": "active"
+          },
+          "model_loader": "auto_model",
+          "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+          "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "processor_loader": "auto",
+          "processor_repository_id": null,
+          "processor_revision": null,
+          "prompt_profile": "cxrmate-multi-findings-impression",
+          "provider": "huggingface",
+          "report_scope": "study",
+          "research_only": true,
+          "runtime": {
+            "cuda_available": true,
+            "cuda_used": true,
+            "model_dtype": "torch.float32",
+            "requested_device": "auto",
+            "resolved_device": "cuda:0",
+            "resolved_devices": [
+              "cuda:0"
+            ]
+          },
+          "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+          "validation_status": "pending"
+        },
+        "report_filenames": [
+          "fixture-covid-chest-xray.jpg"
+        ],
+        "reports": {
+          "fixture-covid-chest-xray.jpg": "Findings:\nThere are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.\n\nImpression:\nLow lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+        },
+        "reports_ordered": [
+          "Findings:\nThere are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal.\n\nImpression:\nLow lung volumes. Perihilar and bibasilar opacities could be due to mild pulmonary edema, but atypical infection is not excluded."
+        ],
+        "total_images": 1
+      },
+      "status": "completed"
+    }
+  ],
+  "observed_at_utc": "2026-09-24T15:08:25.544570+00:00",
+  "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "start": {
+    "job_id": "5a902c14",
+    "job_type": "inference",
+    "message": "Inference job started for 1 images",
+    "poll_interval": 1.0,
+    "status": "running"
+  }
+}

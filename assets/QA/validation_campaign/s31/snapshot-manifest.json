@@ -1,0 +1,42 @@
+{
+  "repository_id": "aehrc/cxrmate-multi-tf",
+  "state": "staged",
+  "integrity": "verified",
+  "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "total_bytes": 450952998,
+  "file_count": 8,
+  "files": {
+    "config.json": {
+      "sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+      "size": 78452
+    },
+    "generation_config.json": {
+      "sha256": "622401277a5856b1c873698cf77ab4aa9b803b8353af62356fd21af3f6a7bd81",
+      "size": 90
+    },
+    "model.safetensors": {
+      "sha256": "6640d7d1687ce14e46f620f37c7df0eaf57bc9534a8314950e41e5faf08eed3e",
+      "size": 449521072
+    },
+    "modelling_multi.py": {
+      "sha256": "528e8d471658802c0ba40fd37a8839cfcd29c342179adeb412f22e04bb7856ee",
+      "size": 17211
+    },
+    "preprocessor_config.json": {
+      "sha256": "94c4e3ccbde74bf3a73951d44dd03f6106c16e25f47806ab888b301b637464ca",
+      "size": 679
+    },
+    "special_tokens_map.json": {
+      "sha256": "a4574967068c533f5619217a06d3f6946ca173904515a7bcf393b633296d1033",
+      "size": 1088
+    },
+    "tokenizer.json": {
+      "sha256": "5e9c6bbfd562d8aaf2f03e6b9bf842d49d3aeacf925a674a0ef494adf1be338e",
+      "size": 1331932
+    },
+    "tokenizer_config.json": {
+      "sha256": "ead38c041b06672891e166f1cbeb01db6a9cadbdcc07525a6d3998267f763bb4",
+      "size": 2474
+    }
+  }
+}

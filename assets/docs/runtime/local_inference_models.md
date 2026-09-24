@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-09-20
+Last updated: 2026-09-24
 
 ## Safety scope
 
@@ -126,11 +126,15 @@ replaces a working active revision.
 
 Delete local files is explicit and confirmation-gated. The runtime lock refuses
 deletion while inference is active, unloads an idle resident model, and removes
-only that public repository's active, candidate/staging, rollback, and metadata
-paths. Transient cache data lives below the canonical cache root and is not part
-of persistent model installation. The response reports bytes reclaimed. The JSON
-catalogue and all custom XREPORT checkpoints remain untouched, so the same
-public card returns to `not_downloaded` and can be downloaded again.
+that public repository's active, candidate/staging, rollback, and metadata paths.
+Deletion may also remove that revision's Transformers dynamic-module cache entry
+from the shared transient cache. This cache is outside persistent model
+installation; cache cleanup does not remove other model snapshots or custom
+XREPORT checkpoints. The response reports bytes reclaimed. The JSON catalogue
+and all custom checkpoints remain untouched, so the same public card returns to
+`not_downloaded` and can be downloaded again. S31 verified this lifecycle for
+the pinned CXRMate Multi revision, including reloading the untouched canonical
+snapshot after its transient module cache entry was removed.
 
 ## Gated MedGemma access
 

@@ -1,0 +1,354 @@
+{
+  "acceptance_checks": {
+    "canonical_model_store_untouched": true,
+    "custom_models_untouched": true,
+    "delete_job_completed": true,
+    "five_public_models_retained": true,
+    "isolated_snapshot_removed": true,
+    "public_catalogue_entry_retained": true,
+    "bytes_freed_positive": true,
+    "two_successful_history_records_persisted": true,
+    "transformer_revision_cache_removed": true
+  },
+  "canonical_installation_after": {
+    "active_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "exists": true,
+    "state": "active"
+  },
+  "catalog_after": {
+    "access_policy": "open",
+    "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+    "active_revision": null,
+    "adapter": "cxrmate_multi",
+    "anatomy_coverage": "chest_xray",
+    "available_actions": [
+      "download"
+    ],
+    "candidate_revision": null,
+    "capabilities": {
+      "clinical_context": false,
+      "findings": true,
+      "grounding": false,
+      "impression": true,
+      "multiple_current_views": true,
+      "prior_report": false
+    },
+    "category": "chest_xray_report_generation",
+    "cloud_assessment": null,
+    "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+    "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+    "display_name": "CXRMate Multi TF",
+    "download_size_bytes": 451000000,
+    "enabled": true,
+    "gated": false,
+    "hardware_demand": "low",
+    "input_semantics": "single_study",
+    "installation_state": "not_installed",
+    "integrity_status": "unknown",
+    "license": "Apache-2.0",
+    "local_path": null,
+    "local_size_bytes": 451000000,
+    "max_current_images": 16,
+    "model_loader": "auto_model",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "origin": "public",
+    "output_sections": [
+      "findings",
+      "impression"
+    ],
+    "parameter_label": "0.1B parameters",
+    "parameter_size": "0.1B",
+    "preferred_dtype": "float32",
+    "processor_files": [],
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_target_prefix": "processor",
+    "prompt_profile": "cxrmate-multi-findings-impression",
+    "provider": "huggingface",
+    "quantization": [
+      "none"
+    ],
+    "recommended": true,
+    "remote_code_approved": true,
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "preprocessor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "modelling_multi.py"
+    ],
+    "research_only": true,
+    "resource_policy": {
+      "max_snapshot_size_bytes": 2000000000,
+      "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+    },
+    "runtime_constraints": {
+      "max_transformers_exclusive": null,
+      "min_transformers": "4.57.0",
+      "required_modules": []
+    },
+    "status": "not_installed",
+    "status_message": "The model will be downloaded into the project-local resources directory on first Generate.",
+    "supports_clinical_context": false,
+    "supports_prior_images": false,
+    "trust_remote_code": true,
+    "update_available": false,
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_receipt_message": null,
+    "validation_receipt_status": "passed",
+    "validation_status": "pending",
+    "weight_file_sets": [
+      [
+        "model.safetensors"
+      ]
+    ]
+  },
+  "catalog_before": {
+    "access_policy": "open",
+    "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+    "active_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "adapter": "cxrmate_multi",
+    "anatomy_coverage": "chest_xray",
+    "available_actions": [
+      "check_updates",
+      "reinstall",
+      "download_update",
+      "delete_local"
+    ],
+    "candidate_revision": null,
+    "capabilities": {
+      "clinical_context": false,
+      "findings": true,
+      "grounding": false,
+      "impression": true,
+      "multiple_current_views": true,
+      "prior_report": false
+    },
+    "category": "chest_xray_report_generation",
+    "cloud_assessment": null,
+    "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+    "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+    "display_name": "CXRMate Multi TF",
+    "download_size_bytes": 451000000,
+    "enabled": true,
+    "gated": false,
+    "hardware_demand": "low",
+    "input_semantics": "single_study",
+    "installation_state": "active",
+    "integrity_status": "verified",
+    "license": "Apache-2.0",
+    "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "local_size_bytes": 451000000,
+    "max_current_images": 16,
+    "model_loader": "auto_model",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "origin": "public",
+    "output_sections": [
+      "findings",
+      "impression"
+    ],
+    "parameter_label": "0.1B parameters",
+    "parameter_size": "0.1B",
+    "preferred_dtype": "float32",
+    "processor_files": [],
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_target_prefix": "processor",
+    "prompt_profile": "cxrmate-multi-findings-impression",
+    "provider": "huggingface",
+    "quantization": [
+      "none"
+    ],
+    "recommended": true,
+    "remote_code_approved": true,
+    "required_files": [
+      "config.json",
+      "generation_config.json",
+      "preprocessor_config.json",
+      "special_tokens_map.json",
+      "tokenizer.json",
+      "tokenizer_config.json",
+      "modelling_multi.py"
+    ],
+    "research_only": true,
+    "resource_policy": {
+      "max_snapshot_size_bytes": 2000000000,
+      "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+    },
+    "runtime_constraints": {
+      "max_transformers_exclusive": null,
+      "min_transformers": "4.57.0",
+      "required_modules": []
+    },
+    "status": "ready",
+    "status_message": null,
+    "supports_clinical_context": false,
+    "supports_prior_images": false,
+    "trust_remote_code": true,
+    "update_available": false,
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_receipt_message": null,
+    "validation_receipt_status": "passed",
+    "validation_status": "pending",
+    "weight_file_sets": [
+      [
+        "model.safetensors"
+      ]
+    ]
+  },
+  "custom_model_count_after": 0,
+  "elapsed_seconds": 0.8,
+  "final": {
+    "error": null,
+    "job_id": "c85f06c5",
+    "job_type": "model_maintenance",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "bytes_freed": 452386829,
+      "deleted_paths": [
+        "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf",
+        "runtimes/cache/huggingface/modules/transformers_modules/_330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "runtimes/cache/s31-20260924/resources/models/huggingface/metadata/aehrc__cxrmate-multi-tf.json"
+      ],
+      "lifecycle": {
+        "action": "delete_local",
+        "bytes_freed": 452386829,
+        "deleted_paths": [
+          "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf",
+          "runtimes/cache/huggingface/modules/transformers_modules/_330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "runtimes/cache/s31-20260924/resources/models/huggingface/metadata/aehrc__cxrmate-multi-tf.json"
+        ],
+        "message": "Local model files deleted; the public catalogue entry remains available.",
+        "phase": "completed",
+        "repository_id": "aehrc/cxrmate-multi-tf",
+        "state": "not_installed"
+      },
+      "repository_id": "aehrc/cxrmate-multi-tf",
+      "state": "not_installed"
+    },
+    "status": "completed"
+  },
+  "history_after_delete": {
+    "items": [
+      {
+        "clinical_context": null,
+        "date": "2026-09-24 15:08:34",
+        "execution_time_seconds": 4.061447600019164,
+        "generation_profile": "deterministic",
+        "image_names": [
+          "fixture-covid-chest-xray.jpg"
+        ],
+        "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+        "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "provenance_available": true,
+        "provider": "huggingface",
+        "report_count": 1,
+        "reports": [
+          {
+            "edited": false,
+            "edited_at": null,
+            "image_index": 0,
+            "input_image_name": "fixture-covid-chest-xray.jpg",
+            "preview": "Findings: There are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal. Impression: Low lung v"
+          }
+        ],
+        "request_id": "acf62b8816dd",
+        "status": "succeeded"
+      },
+      {
+        "clinical_context": null,
+        "date": "2026-09-24 15:04:57",
+        "execution_time_seconds": 6.740820300008636,
+        "generation_profile": "deterministic",
+        "image_names": [
+          "fixture-covid-chest-xray.jpg"
+        ],
+        "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+        "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "provenance_available": true,
+        "provider": "huggingface",
+        "report_count": 1,
+        "reports": [
+          {
+            "edited": false,
+            "edited_at": null,
+            "image_index": 0,
+            "input_image_name": "fixture-covid-chest-xray.jpg",
+            "preview": "Findings: There are low lung volumes. Perihilar and bibasilar opacities are seen which could be due to mild pulmonary edema, but atypical infection is not excluded. No pleural effusion is seen. There is no pneumothorax. The cardiac silhouette is top-normal. Impression: Low lung v"
+          }
+        ],
+        "request_id": "ee6314e72e0d",
+        "status": "succeeded"
+      }
+    ],
+    "limit": 20,
+    "offset": 0,
+    "total": 2
+  },
+  "job_id": "c85f06c5",
+  "metadata_file_remains": false,
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "observations": [
+    {
+      "_elapsed_seconds": 0.27,
+      "error": null,
+      "job_id": "c85f06c5",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 0.0,
+      "result": null,
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 0.77,
+      "error": null,
+      "job_id": "c85f06c5",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 100.0,
+      "result": {
+        "bytes_freed": 452386829,
+        "deleted_paths": [
+          "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf",
+          "runtimes/cache/huggingface/modules/transformers_modules/_330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "runtimes/cache/s31-20260924/resources/models/huggingface/metadata/aehrc__cxrmate-multi-tf.json"
+        ],
+        "lifecycle": {
+          "action": "delete_local",
+          "bytes_freed": 452386829,
+          "deleted_paths": [
+            "runtimes/cache/s31-20260924/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf",
+            "runtimes/cache/huggingface/modules/transformers_modules/_330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+            "runtimes/cache/s31-20260924/resources/models/huggingface/metadata/aehrc__cxrmate-multi-tf.json"
+          ],
+          "message": "Local model files deleted; the public catalogue entry remains available.",
+          "phase": "completed",
+          "repository_id": "aehrc/cxrmate-multi-tf",
+          "state": "not_installed"
+        },
+        "repository_id": "aehrc/cxrmate-multi-tf",
+        "state": "not_installed"
+      },
+      "status": "completed"
+    }
+  ],
+  "observed_at_utc": "2026-09-24T17:09:26.638361+02:00",
+  "public_model_count_after": 5,
+  "remaining_model_files": [],
+  "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "start": {
+    "job_id": "c85f06c5",
+    "job_type": "model_maintenance",
+    "message": "Model delete_local started for huggingface:aehrc/cxrmate-multi-tf",
+    "poll_interval": 1.0,
+    "status": "running"
+  },
+  "all_acceptance_checks_passed": true
+}
