@@ -20,9 +20,12 @@ from server.domain.inference import (
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import JobStartResponse
+from server.common.constants import MAX_TOTAL_IMAGE_BYTES
+from server.services.errors import PayloadTooLargeError
 
 if TYPE_CHECKING:
     from server.services.inference import InferenceService
+
 
 ###############################################################################
 def parse_generation_request(
@@ -36,9 +39,9 @@ def parse_generation_request(
         clinical_context=clinical_context,
     )
 
+
 ###############################################################################
 class InferenceEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -116,17 +119,35 @@ class InferenceEndpoint:
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
+        total_bytes = 0
         for image in images:
             filename = (
                 (image.filename or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
             )
-            content = await image.read()
+            chunks: list[bytes] = []
+            image_bytes = 0
+            while True:
+                remaining_bytes = MAX_TOTAL_IMAGE_BYTES - total_bytes
+                chunk = await image.read(min(1024 * 1024, remaining_bytes + 1))
+                if not chunk:
+                    break
+                image_bytes += len(chunk)
+                total_bytes += len(chunk)
+                if total_bytes > MAX_TOTAL_IMAGE_BYTES:
+                    raise PayloadTooLargeError(
+                        detail=(
+                            "Total image payload exceeds "
+                            f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
+                        ),
+                    )
+                chunks.append(chunk)
+
             parsed_images.append(
                 InferenceImage(
                     filename=filename,
                     content_type=image.content_type or "",
-                    data=content,
-                    size_bytes=len(content),
+                    data=b"".join(chunks),
+                    size_bytes=image_bytes,
                 )
             )
         return self.service.generate_reports(
@@ -194,6 +215,7 @@ class InferenceEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:
