@@ -1,0 +1,32 @@
+{
+  "observed_at_utc": "2026-09-24T07:04:00.082Z",
+  "repository_revision": "a00897ff74887e39a4270b933f9f3bdde8cb9b64",
+  "s28_evaluation_executed": false,
+  "encoder": {
+    "model_id": "microsoft/beit-base-patch16-224",
+    "revision": "f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+    "isolated_snapshot_path": "runtimes/cache/s27-s28-20260923/models/XRAYEncoder",
+    "isolated_snapshot_exists": false,
+    "huggingface_cache_path": "runtimes/cache/huggingface/hub/models--microsoft--beit-base-patch16-224",
+    "huggingface_cache_snapshot_exists": false
+  },
+  "checkpoint": {
+    "prior_campaign_path": "runtimes/cache/s23-s26-resources/checkpoints",
+    "prior_campaign_path_exists": false,
+    "s28_isolated_path": "runtimes/cache/s27-s28-20260923/checkpoints",
+    "s28_isolated_path_exists": false,
+    "canonical_path": "app/resources/checkpoints",
+    "canonical_path_exists": true,
+    "canonical_path_entries": [
+      ".gitkeep"
+    ],
+    "compatible_s24_artifact_available": false
+  },
+  "hardware_snapshot": {
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "memory_total_mib": 6144,
+    "memory_used_mib": 4473
+  },
+  "status": "UNTESTED",
+  "reason": "No compatible S24 checkpoint artifact or exact pinned BEiT encoder snapshot is available in the checked local paths. Restore the encoder, recreate S24, then run checkpoint evaluation and retrieve its persisted report."
+}
