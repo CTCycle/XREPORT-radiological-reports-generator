@@ -1,17 +1,11 @@
 .training-container {
-    width: 100%;
-    padding: var(--space-8);
-    max-width: 1400px;
-    margin: 0 auto;
-    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
 }
 
 .header h1 {
-    font-size: 2rem;
-    font-weight: 600;
+    font-size: var(--text-page-title);
     color: var(--text-primary);
     margin: 0 0 0.5rem;
 }
@@ -31,13 +25,13 @@
     min-width: 0;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
+    border-radius: var(--radius-card);
     padding: 0;
     display: grid;
     grid-template-columns: minmax(0, 2.1fr) minmax(0, 0.9fr);
     gap: 0;
     position: relative;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-card);
     --panel-row-height: 48px;
     overflow: hidden;
 }
@@ -77,7 +71,7 @@
     align-items: flex-start;
     gap: 1rem;
     min-height: 32px;
-    padding-right: 80px;
+    padding-right: 128px;
 }
 
 .panel-collapse-toggle {
@@ -115,7 +109,7 @@
 
 .panel-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--text-section-title);
     color: var(--text-primary);
 }
 
@@ -129,23 +123,15 @@
     position: absolute;
     top: 0;
     right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
     margin-left: 0;
-    border: 1px solid var(--border-color);
-    background: var(--input-bg);
-    border-radius: 8px;
-    width: 32px;
-    height: 32px;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: all 0.2s ease;
-}
-
-.panel-refresh:hover {
-    border-color: var(--accent-color);
-    color: var(--accent-color);
-    background: var(--accent-subtle);
+    width: auto;
+    height: var(--control-height-md);
+    min-height: var(--control-height-md);
+    font-size: var(--text-xs);
 }
 
 .panel-list {
@@ -362,84 +348,6 @@
 
 .panel-card-action-btn-center {
     justify-content: center;
-}
-
-.btn {
-    padding: 0.55rem 1rem;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: none;
-    font-size: 0.85rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    justify-content: center;
-}
-
-.btn-primary {
-    background: var(--accent-fill);
-    color: var(--on-accent);
-    box-shadow: var(--shadow-sm);
-}
-
-.btn-primary:hover {
-    background: var(--accent-fill);
-}
-
-.btn-secondary {
-    background: var(--surface-elevated);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-}
-
-.btn-secondary:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--input-border);
-}
-
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0;
-}
-
-.form-label {
-    color: var(--text-secondary);
-    font-size: var(--text-xs);
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.form-input,
-.form-select {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.4rem 0.5rem;
-    color: var(--text-primary);
-    font-size: 0.82rem;
-    transition: border-color 0.2s;
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-.form-input:focus,
-.form-select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    background: var(--surface-elevated);
 }
 
 .form-checkbox {
@@ -668,27 +576,6 @@ input[type="checkbox"] {
     margin-bottom: 0;
     gap: 0.15rem;
     /* Reduced gap between title and input */
-}
-
-.training-wizard-modal .form-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: 600;
-}
-
-.training-wizard-modal .form-input,
-.training-wizard-modal .form-select {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
-    height: auto;
-}
-
-.training-wizard-modal .form-input:focus {
-    border-color: var(--accent-color);
-    box-shadow: var(--focus-ring);
 }
 
 /* Checkbox specific alignment */

@@ -1,9 +1,12 @@
 # UI Components And Patterns
 
-Last updated: 2026-09-22
+Last updated: 2026-09-25
 
 ## Reusable Patterns
 
+- All seven routed screens render inside `MainLayout` and use `.page-container` for the shared 1400px page cap and responsive gutter. Page styles should define internal grids, not route-specific content origins.
+- `MainLayout` keeps the 208px desktop navigation and a stable routed-content scroll area. Keep shell dimensions independent of the active route.
+- `.btn`, `.primary-button`, `.secondary-button`, `.danger-button`, `.form-input`, and `.form-select` are global shared patterns; extend them with layout-specific classes instead of restating their base dimensions and colors.
 - Buttons, cards, forms, modal shells, dashboards, and navigation all follow tokenized spacing, color, radius, and shadow rules.
 - Use `--focus-ring` for visible keyboard focus feedback.
 - Disabled controls must communicate both visually and behaviorally.
@@ -31,7 +34,6 @@ shell-level lifecycle component, not a feature-page loading state.
 ### Navigation
 
 - `app-nav-button`
-- `sidebar-link`
 - active route styling
 
 ### Forms
@@ -78,8 +80,8 @@ shell-level lifecycle component, not a feature-page loading state.
 
 ## Layout Composition
 
-- `MainLayout` provides top branding, primary navigation, and routed content.
-- Route pages own functional modules while reusing shared components for consistency.
+- `MainLayout` owns product branding, left-side primary navigation, the routed-content scroll area, and shared help/theme controls.
+- Route pages own functional modules inside the shared page container while reusing global controls and shared components for consistency.
 
 `ReportDraftEditorComponent` is shared by the live inference draft and
 persisted report detail page. It renders the model-declared output sections,

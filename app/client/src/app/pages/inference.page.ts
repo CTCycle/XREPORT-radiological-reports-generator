@@ -28,7 +28,7 @@ import { ReportDraftEditorComponent } from '../components/report-draft-editor.co
   imports: [CommonModule, FormsModule, NgIcon, FeatureTipComponent, HelpPopoverComponent, ReportDraftEditorComponent],
   providers: [provideIcons({ lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle, lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2, lucideX })],
   template: `
-    <main class="inference-workspace">
+    <main class="inference-workspace page-container">
       <header class="workspace-heading"><div class="workspace-title"><h1>Turn a radiograph into a draft report</h1><p>Select a local model, provide the study, then review the generated text before it leaves the workspace.</p></div><div class="research-warning" role="alert"><ng-icon name="lucideAlertTriangle" aria-hidden="true"/><div><strong>Research use only</strong><span>Models and generated drafts are not clinically approved. Qualified review and independent verification are required.</span></div></div></header>
       <app-feature-tip guidanceId="inference-first-use" [version]="1" title="A quick way to get started" message="Choose a model, add a study image, then review the editable draft. The walkthrough is optional." [showAction]="true" actionLabel="Show me" (action)="startInferenceTour()" />
       <section class="workflow-stack" aria-label="Inference workflow">

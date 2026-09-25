@@ -1,8 +1,4 @@
 .report-detail-page {
-    box-sizing: border-box;
-    width: min(100%, 1180px);
-    margin: 0 auto;
-    padding: clamp(var(--space-5), 4vw, var(--space-8));
     color: var(--text-primary);
 }
 
@@ -16,11 +12,9 @@
 }
 
 .back-link:focus-visible,
-.primary-button:focus-visible,
-.secondary-button:focus-visible,
-.danger-button:focus-visible,
 summary:focus-visible {
-    outline: var(--focus-ring);
+    outline: none;
+    box-shadow: var(--focus-ring);
     outline-offset: 2px;
 }
 
@@ -45,8 +39,8 @@ summary:focus-visible {
     max-width: 70ch;
     margin: 0;
     overflow-wrap: anywhere;
-    font-size: clamp(1.7rem, 3vw, 2.35rem);
-    line-height: 1.1;
+    font-size: var(--text-page-title);
+    line-height: 1.2;
 }
 
 .detail-header p:last-child {
@@ -93,7 +87,7 @@ summary:focus-visible {
     min-width: 0;
     padding: var(--space-3);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: var(--bg-secondary);
 }
 
@@ -113,7 +107,7 @@ summary:focus-visible {
     gap: var(--space-2);
     padding: var(--space-4);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
     background: var(--bg-secondary);
     color: var(--text-secondary);
 }
@@ -142,7 +136,7 @@ summary:focus-visible {
     min-width: 0;
     padding: var(--space-4);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     background: var(--bg-secondary);
     box-shadow: var(--shadow-sm);
 }
@@ -157,7 +151,7 @@ summary:focus-visible {
 .detail-report-header h2 {
     margin: 4px 0 0;
     overflow-wrap: anywhere;
-    font-size: 1rem;
+    font-size: var(--text-card-title);
 }
 
 .detail-report-index {
@@ -226,45 +220,6 @@ summary:focus-visible {
     margin-top: var(--space-3);
 }
 
-.primary-button,
-.secondary-button,
-.danger-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--control-height-md);
-    padding: 0 var(--space-3);
-    border-radius: var(--radius-sm);
-    font-size: var(--text-sm);
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.primary-button {
-    border: 1px solid var(--accent-fill);
-    background: var(--accent-fill);
-    color: var(--on-accent);
-}
-
-.secondary-button {
-    border: 1px solid var(--border-color);
-    background: var(--surface-elevated);
-    color: var(--text-primary);
-}
-
-.danger-button {
-    border: 1px solid color-mix(in srgb, var(--error-color) 45%, var(--border-color));
-    background: transparent;
-    color: var(--error-color);
-}
-
-.primary-button:disabled,
-.danger-button:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-}
-
 @media (max-width: 780px) {
     .detail-metadata {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -272,10 +227,6 @@ summary:focus-visible {
 }
 
 @media (max-width: 560px) {
-    .report-detail-page {
-        padding: var(--space-4) var(--space-3) var(--space-6);
-    }
-
     .detail-header,
     .detail-actions {
         align-items: stretch;

@@ -15,9 +15,8 @@ import type {
   selector: 'app-reports-page',
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <main class="reports-page" aria-labelledby="reports-title">
+    <main class="reports-page page-container" aria-labelledby="reports-title">
       <header class="reports-header">
-        <p class="reports-eyebrow">Durable inference history</p>
         <h1 id="reports-title">Reports</h1>
         <p>Review generated report sessions saved by XREPORT. Source radiographs are not retained here.</p>
       </header>
