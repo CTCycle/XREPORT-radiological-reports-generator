@@ -136,13 +136,13 @@
 }
 
 .app-nav-button-primary {
-    color: var(--accent-color-strong);
-    background: var(--accent-subtle);
+    color: var(--text-secondary);
+    background: transparent;
 }
 
 .app-nav-button-primary:hover {
-    color: var(--accent-color-strong);
-    background: var(--accent-strong-soft);
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 .app-nav-button-primary.active {
@@ -176,6 +176,7 @@
     min-height: 0;
     min-width: 0;
     overflow: auto;
+    scrollbar-gutter: stable;
     background-color: var(--bg-primary);
     color: var(--text-primary);
 }
@@ -183,8 +184,9 @@
 @media (max-width: 720px) {
     .main-layout {
         flex-direction: column;
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .main-layout-chrome {
@@ -237,8 +239,11 @@
     }
 
     .main-layout-content {
+        flex: 1 1 0%;
         width: 100%;
-        height: auto;
-        overflow: visible;
+        height: 0;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-gutter: stable;
     }
 }

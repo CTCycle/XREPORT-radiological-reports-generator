@@ -20,11 +20,9 @@ type SettingsTab = 'general' | 'data' | 'advanced';
   selector: 'app-settings-page',
   imports: [CommonModule, FormsModule],
   template: `
-    <main class="settings-page" aria-labelledby="settings-title">
+    <main class="settings-page page-container" aria-labelledby="settings-title">
       <header class="settings-header">
-        <p class="settings-eyebrow">Application preferences</p>
         <h1 id="settings-title">Settings</h1>
-        <p>Application behavior settings for this XREPORT installation.</p>
       </header>
 
       @if (loading()) {

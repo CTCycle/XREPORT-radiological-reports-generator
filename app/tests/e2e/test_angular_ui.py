@@ -30,7 +30,7 @@ def test_reports_route_renders_history_or_explicit_empty_state(
 
     assert response is not None and response.ok
     expect(page.get_by_role("heading", name="Reports")).to_be_visible()
-    expect(page.get_by_role("link", name="Inference")).to_be_visible()
+    expect(page.get_by_role("link", name="Inference", exact=True)).to_be_visible()
     expect(page.locator(".report-card, .reports-empty").first).to_be_visible()
     assert page.locator(".report-card, .reports-empty").count() > 0
     overflow = page.evaluate(
@@ -45,6 +45,7 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     base_url: str,
     seeded_history: str,
 ) -> None:
+    qa_dir = _e2e_screenshot_dir("")
     response = page.goto(f"{base_url}/reports")
 
     assert response is not None and response.ok
@@ -63,6 +64,34 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     page.reload()
     expect(page.get_by_role("textbox", name="Findings").first).to_have_value(
         "Clear lungs after review."
+    )
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    detail_metrics = page.evaluate(
+        """
+        () => {
+          const content = document.querySelector('.main-layout-content');
+          return {
+            viewportWidth: window.innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            contentClientHeight: content?.clientHeight ?? 0,
+            contentScrollHeight: content?.scrollHeight ?? 0,
+            contentOverflowY: content ? getComputedStyle(content).overflowY : '',
+          };
+        }
+        """,
+    )
+    page.screenshot(
+        path=str(qa_dir / "route-report-detail-mobile.png"),
+        full_page=False,
+    )
+    assert detail_metrics["documentWidth"] <= detail_metrics["viewportWidth"]
+    assert detail_metrics["contentScrollHeight"] > detail_metrics["contentClientHeight"]
+    assert detail_metrics["contentOverflowY"] in {"auto", "scroll"}
+    page.mouse.move(385, 500)
+    page.mouse.wheel(0, 700)
+    page.wait_for_function(
+        "() => document.querySelector('.main-layout-content').scrollTop > 0"
     )
 
     page.once("dialog", lambda dialog: dialog.accept())
@@ -432,6 +461,59 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     page.screenshot(path=str(qa_dir / "xreport-settings-narrow-light.png"), full_page=False)
     page.get_by_role("button", name="Use Dark theme").click()
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    response = page.goto(f"{base_url}/inference")
+    assert response is not None and response.ok
+    expect(
+        page.get_by_role("heading", name="Turn a radiograph into a draft report")
+    ).to_be_visible()
+    page.screenshot(
+        path=str(qa_dir / "xreport-inference-mobile-dark.png"),
+        full_page=False,
+    )
+    mobile_metrics = page.evaluate(
+        """
+        () => {
+          const content = document.querySelector('.main-layout-content');
+          const chrome = document.querySelector('.main-layout-chrome');
+          return {
+            viewportWidth: window.innerWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            contentClientHeight: content?.clientHeight ?? 0,
+            contentScrollHeight: content?.scrollHeight ?? 0,
+            contentOverflowY: content ? getComputedStyle(content).overflowY : '',
+            chromeWidth: chrome?.getBoundingClientRect().width ?? 0,
+            chromeTop: chrome?.getBoundingClientRect().top ?? -1,
+          };
+        }
+        """,
+    )
+    assert mobile_metrics["viewportWidth"] == 390
+    assert mobile_metrics["documentWidth"] <= mobile_metrics["viewportWidth"]
+    assert mobile_metrics["contentScrollHeight"] > mobile_metrics["contentClientHeight"]
+    assert mobile_metrics["contentOverflowY"] in {"auto", "scroll"}
+    assert mobile_metrics["chromeWidth"] == mobile_metrics["viewportWidth"]
+    page.mouse.move(385, 500)
+    page.mouse.wheel(0, 700)
+    page.wait_for_function(
+        "() => document.querySelector('.main-layout-content').scrollTop > 0"
+    )
+    post_scroll_shell = page.evaluate(
+        """
+        () => {
+          const chrome = document.querySelector('.main-layout-chrome');
+          return {
+            scrollTop: document.querySelector('.main-layout-content').scrollTop,
+            chromeWidth: chrome.getBoundingClientRect().width,
+            chromeTop: chrome.getBoundingClientRect().top,
+          };
+        }
+        """,
+    )
+    assert post_scroll_shell["scrollTop"] > 0
+    assert post_scroll_shell["chromeWidth"] == mobile_metrics["chromeWidth"]
+    assert post_scroll_shell["chromeTop"] == mobile_metrics["chromeTop"]
 
     assert not console_errors, console_errors
     assert not request_failures, request_failures
