@@ -1,0 +1,95 @@
+{
+  "fixtures": [
+    {
+      "file": "qa_pa.png",
+      "exists": true,
+      "expected_sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8",
+      "actual_sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8",
+      "matches": true
+    },
+    {
+      "file": "qa_lateral.png",
+      "exists": true,
+      "expected_sha256": "8897f8d5349f3367ecf1292c639cc27da502e619c762da5cfb13bcc9091f879a",
+      "actual_sha256": "8897f8d5349f3367ecf1292c639cc27da502e619c762da5cfb13bcc9091f879a",
+      "matches": true
+    },
+    {
+      "file": "qa_normal.png",
+      "exists": true,
+      "expected_sha256": "a0c3c331aa2c5d94a3a7cc7765f11356262a4c4700fae3e361025deb7a26b6f6",
+      "actual_sha256": "a0c3c331aa2c5d94a3a7cc7765f11356262a4c4700fae3e361025deb7a26b6f6",
+      "matches": true
+    }
+  ],
+  "fixture_hashes_match": true,
+  "model_repository": "aehrc/cxrmate-ed",
+  "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+  "model_integrity_metadata": "verified",
+  "model_files_verified": 19,
+  "model_file_mismatches": [
+    {
+      "file": "configuration_cxrmate_ed.py",
+      "expected_sha256": "8c75d16e33a49d07d406c17949c929af2535947cc5c11df098248d93b0a032f7",
+      "actual_sha256": "8beeaa47262599fc3ae3d6b6b2bd6f73bc2a4e37be8ec7c69821f156bf65d642",
+      "size_bytes": 1960,
+      "matches": false
+    },
+    {
+      "file": "create_section_files.py",
+      "expected_sha256": "c5daf8bed5c89e2040c712e9599435e89f2721b449e7d61da0266e2d065a556f",
+      "actual_sha256": "e63e829a12993d474b41757b35a6a0becbafa912b3e687b6669ad58c3556503f",
+      "size_bytes": 6206,
+      "matches": false
+    },
+    {
+      "file": "dataset.py",
+      "expected_sha256": "50a3b4545bb98443d3d72c5049e82ac7272fa92765937dca7c1fd12d5da5752d",
+      "actual_sha256": "f1bd0bd367ae1c82272365806049a6c6a524f0789542ce6acf4b3606219d5630",
+      "size_bytes": 1518,
+      "matches": false
+    },
+    {
+      "file": "modelling_cxrmate_ed.py",
+      "expected_sha256": "6cddf09e6cdcb367e43986b7dde7336c3284a71716437972adaf1d1293414f41",
+      "actual_sha256": "e36201f468d1bc0bde4db0431b4cc68d616f554b6a1f6a584e671946121a62ee",
+      "size_bytes": 66358,
+      "matches": false
+    },
+    {
+      "file": "prepare_dataset.py",
+      "expected_sha256": "2f1b4507a842e62a94d98649336c3f1f4ed88e62b0d3880e1dca58772e549105",
+      "actual_sha256": "cefb7deff8d329ded4f221857b6174bf92a521fd98d39022ca54adb7ba103aa7",
+      "size_bytes": 21873,
+      "matches": false
+    },
+    {
+      "file": "processor/configuration_uniformer.py",
+      "expected_sha256": "e44e3306aacd419531ea070dfe798367cc285dd16b7bebf9eba372ad530d0da8",
+      "actual_sha256": "688a6039c5b1d26912fa12333a059b42b5b11994c4fe88bfbe38dd7605ef2a20",
+      "size_bytes": 1691,
+      "matches": false
+    },
+    {
+      "file": "processor/modelling_uniformer.py",
+      "expected_sha256": "7e90a9b3ccced881677a2a61a362d59e63dcb42a461d228bdb5b2606876af2c0",
+      "actual_sha256": "ff074bca2d89f2dc0721d55ef9203b136a070a133d96733e693b61cea8c5f673",
+      "size_bytes": 20018,
+      "matches": false
+    },
+    {
+      "file": "section_parser.py",
+      "expected_sha256": "b807cfa5e23f7ab0f4ceb65373763dff7cf71eeabc545c1df96a9c8f8607af7f",
+      "actual_sha256": "0662963aaf93a7b79d10587c94353eaa837eb473743336fd2437bb2c54e6f6b9",
+      "size_bytes": 11313,
+      "matches": false
+    },
+    {
+      "file": "utils.py",
+      "expected_sha256": "4d70e1225d3aa7f678eefcaeb83c223e93862bd886e1e83296deb4995d474144",
+      "actual_sha256": "53baeab8d787da6bc427b27015943b611e84947e25681bf2cb3f0edf241cb664",
+      "size_bytes": 1061,
+      "matches": false
+    }
+  ]
+}

@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class JobState:
@@ -51,6 +52,7 @@ class JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class JobExecutionError(RuntimeError):
     """Typed failure payload supplied by a feature-specific job runner."""
@@ -71,11 +73,16 @@ class JobExecutionError(RuntimeError):
 
 
 ###############################################################################
+class JobAlreadyRunningError(RuntimeError):
+    """Raised when an exclusive job type already has an active job."""
+
+
+###############################################################################
 FailureMapper = Callable[[Exception], JobExecutionError]
+
 
 ###############################################################################
 class JobManager:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.jobs: dict[str, JobState] = {}
@@ -91,6 +98,7 @@ class JobManager:
         kwargs: dict[str, Any] | None = None,
         failure_mapper: FailureMapper | None = None,
         poll_interval: float = 1.0,
+        require_idle: bool = False,
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
         state = JobState(
@@ -105,9 +113,6 @@ class JobManager:
         if self._runner_accepts_job_id(runner):
             runner_kwargs["job_id"] = job_id
 
-        with self.lock:
-            self.jobs[job_id] = state
-
         thread = threading.Thread(
             target=self._run_job,
             args=(job_id, runner, args, runner_kwargs, failure_mapper),
@@ -115,10 +120,15 @@ class JobManager:
         )
 
         with self.lock:
+            if require_idle and any(
+                active.job_type == job_type and active.status in ("pending", "running")
+                for active in self.jobs.values()
+            ):
+                raise JobAlreadyRunningError(f"A {job_type} job is already in progress")
             self.threads[job_id] = thread
-
-        state.update(status="running")
-        thread.start()
+            self.jobs[job_id] = state
+            state.update(status="running")
+            thread.start()
 
         logger.info("Started job %s (type=%s)", job_id, job_type)
         return job_id
@@ -290,6 +300,7 @@ class JobManager:
             if param.kind == param.VAR_KEYWORD:
                 return True
         return "job_id" in signature.parameters
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
