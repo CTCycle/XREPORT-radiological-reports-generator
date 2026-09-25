@@ -1,0 +1,54 @@
+﻿{
+    "source":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\start_on_windows.ps1",
+    "fixture_root":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture",
+    "cache":  {
+                  "cleared":  true,
+                  "observed_target":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture\\cache-case\\runtime-cache",
+                  "preserved_gitkeep":  true,
+                  "legacy_roots_touched":  false,
+                  "remaining_after_first_run":  [
+                                                    ".gitkeep",
+                                                    "pip",
+                                                    "pip/.gitkeep"
+                                                ],
+                  "target_count":  1,
+                  "idempotent_no_op":  true
+              },
+    "cache_multi_target":  {
+                               "cleared":  true,
+                               "remaining_runtime_cache":  [
+                                                               ".gitkeep"
+                                                           ],
+                               "idempotent_no_op":  true,
+                               "repeat_targets":  [
+                                                      "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture\\cache-multi\\runtime-cache"
+                                                  ],
+                               "legacy_roots_removed":  true,
+                               "target_count":  3,
+                               "observed_targets":  [
+                                                        "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture\\cache-multi\\runtime-cache",
+                                                        "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture\\cache-multi\\legacy-old-a",
+                                                        "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s43-launcher-maintenance-20260925-71XF13\\harness-fixture\\cache-multi\\legacy-old-b"
+                                                    ]
+                           },
+    "desktop_release":  {
+                            "preserved_sibling":  true,
+                            "idempotent_no_op":  true,
+                            "removed_all_fixture_targets":  true,
+                            "removed_generated_config":  true
+                        },
+    "kill_processes":  {
+                           "synthetic_tree":  [
+                                                  2000000000,
+                                                  2000000001
+                                              ],
+                           "no_op_made_no_kill_request":  true,
+                           "port_termination_intercepted":  true,
+                           "intercepted_kill":  "/PID 2000000000 /T /F",
+                           "selected_only_repo_backend":  [
+                                                              2000000000
+                                                          ]
+                       },
+    "timestamp_utc":  "2026-09-25T11:44:20.4284092Z",
+    "fixture_removed":  true
+}

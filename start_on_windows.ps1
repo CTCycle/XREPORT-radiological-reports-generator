@@ -2487,9 +2487,11 @@ function Clear-ApplicationCache {
         $RuntimeCacheDir
     )
     $legacyCaches = @(Get-LegacyCacheDirectories)
-    $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName })) |
-        ForEach-Object { [IO.Path]::GetFullPath($_) } |
-        Select-Object -Unique
+    $allTargets = @(
+        $targets + @($legacyCaches | ForEach-Object { $_.FullName }) |
+            ForEach-Object { [IO.Path]::GetFullPath($_) } |
+            Select-Object -Unique
+    )
     $results = [Collections.Generic.List[object]]::new()
     $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "0 of $($allTargets.Count) paths"
     try {

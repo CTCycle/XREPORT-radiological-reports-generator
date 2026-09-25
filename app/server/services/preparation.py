@@ -33,7 +33,11 @@ from server.domain.training import (
 from server.domain.jobs import JobStartResponse
 from server.common.constants import VALID_IMAGE_EXTENSIONS
 from server.common.utils.logger import logger
-from server.services.jobs import JobManager, get_job_manager
+from server.services.jobs import (
+    JobAlreadyRunningError,
+    JobManager,
+    get_job_manager,
+)
 from server.configurations.startup import get_server_settings
 from server.services.upload import UploadState, get_upload_state
 from server.services.dataset_processing import DatasetProcessingService
@@ -516,14 +520,20 @@ class PreparationService:
             )
 
         # Start background job
-        job_id = self.job_manager.start_job(
-            job_type=self.JOB_TYPE,
-            runner=self.processing_service.run,
-            poll_interval=settings.jobs.polling_interval,
-            kwargs={
-                "configuration": configuration,
-            },
-        )
+        try:
+            job_id = self.job_manager.start_job(
+                job_type=self.JOB_TYPE,
+                runner=self.processing_service.run,
+                poll_interval=settings.jobs.polling_interval,
+                kwargs={
+                    "configuration": configuration,
+                },
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(
+                detail="Dataset processing is already in progress"
+            ) from exc
 
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:

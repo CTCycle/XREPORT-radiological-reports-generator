@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-25",
+  "route": "http://127.0.0.1:8003/inference",
+  "method": "Chrome rendered application model catalogue; models were selected for inspection only",
+  "catalogue": {
+    "model_count": 6,
+    "public_model_count": 5,
+    "custom_checkpoint_count": 1
+  },
+  "models": [
+    {
+      "name": "CheXOne",
+      "revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "status": "not installed",
+      "hardware_demand": "high",
+      "declared_sections": ["Findings"],
+      "license": "CC-BY-NC-4.0",
+      "installation_or_generation_attempted": false
+    },
+    {
+      "name": "CXRMate-2",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "status": "not installed",
+      "hardware_demand": "very high",
+      "declared_sections": ["Findings", "Impression"],
+      "license": "Apache-2.0",
+      "installation_or_generation_attempted": false
+    },
+    {
+      "name": "MedGemma 1.5 4B",
+      "revision": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
+      "status": "not installed; gated access required",
+      "hardware_demand": "high",
+      "access_terms": "Health AI Developer Foundations terms",
+      "access_page_visible": true,
+      "installation_or_generation_attempted": false
+    }
+  ],
+  "limits": [
+    "No model files were downloaded and no licence or gated-access terms were accepted.",
+    "Resource use and multi-case quality for CheXOne and CXRMate-2 remain untested."
+  ]
+}

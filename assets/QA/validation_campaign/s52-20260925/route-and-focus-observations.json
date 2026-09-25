@@ -1,0 +1,47 @@
+{
+  "captured_at": "2026-09-25",
+  "browser": "Chrome; Codex browser control",
+  "direct_routes": [
+    {
+      "result": "Loaded directly; source dataset s27_technical_fixture and 8-row UI record rendered.",
+      "route": "/dataset"
+    },
+    {
+      "result": "Loaded directly; processed dataset, checkpoint, training dashboard, and evaluation entry rendered.",
+      "route": "/training"
+    },
+    {
+      "result": "Loaded directly; persisted custom-model inference history and detail rendered.",
+      "route": "/reports"
+    },
+    {
+      "result": "Loaded directly; General, Data access, and Advanced categories rendered.",
+      "route": "/settings"
+    }
+  ],
+  "settings_checks": [
+    {
+      "observed": "Default random seed 42; clean Save changes disabled.",
+      "category": "General"
+    },
+    {
+      "observed": "Local filesystem access enabled; no setting changed.",
+      "category": "Data access"
+    },
+    {
+      "observed": "Job poll interval 1 second; inference timeout 600 seconds; no setting changed.",
+      "category": "Advanced"
+    }
+  ],
+  "modal": {
+    "route": "/training",
+    "wrapped_to_first_control": true,
+    "focus_returned_to_trigger": true,
+    "name": "Tips & Tricks",
+    "tab_cycle_controls": 15,
+    "escape_closed": true
+  },
+  "viewport_matrix": "Not expanded during this run; retain the measured four-viewport evidence from 2026-09-24.",
+  "reduced_motion": "Not emulated; browser capability does not expose prefers-reduced-motion control.",
+  "unresolved": "Broader route/modal matrix beyond the exercised Training help panel, remaining breakpoints and reduced-motion runtime behavior."
+}

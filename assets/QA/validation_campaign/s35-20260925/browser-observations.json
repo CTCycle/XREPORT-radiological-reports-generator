@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-25",
+  "route": "http://127.0.0.1:8003/inference",
+  "method": "Chrome rendered application UI through the standard local inference route",
+  "observations": [
+    {
+      "stage": "before_canary",
+      "action": "selected CXRMate-ED and used the visible Download model workflow",
+      "result": "The pinned model completed installation in the isolated validation resource root; the UI exposed it as ready for Generate validation."
+    },
+    {
+      "stage": "after_canary",
+      "action": "reloaded the inference route and selected CXRMate-ED",
+      "result": {
+        "catalogue_count": 6,
+        "public_models": 5,
+        "custom_checkpoints": 1,
+        "status": "ready",
+        "installation": "active · verified",
+        "validation_policy": "degraded",
+        "revision": "68251c7605067ddbea330413aade032713fd2192",
+        "generate_enabled": false
+      }
+    }
+  ],
+  "receipt": "../../inference_validation_runs/cxrmate-ed-sensitivity-20260925T124718Z.json"
+}
