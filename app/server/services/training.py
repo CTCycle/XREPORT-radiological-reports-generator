@@ -27,7 +27,12 @@ from server.common.utils.logger import logger
 from server.common.utils.security import (
     validate_checkpoint_name,
 )
-from server.services.jobs import JobExecutionError, JobManager, get_job_manager
+from server.services.jobs import (
+    JobAlreadyRunningError,
+    JobExecutionError,
+    JobManager,
+    get_job_manager,
+)
 from server.repositories.serialization.dataset import DatasetRepository
 from server.repositories.checkpoints import (
     CheckpointReferencedError,
@@ -39,6 +44,7 @@ from server.configurations.startup import get_server_settings
 if TYPE_CHECKING:
     from server.services.training_worker import ProcessWorker
 
+
 ###############################################################################
 class TrainingRuntime:
     """Owns only the internal worker handle for the active training job."""
@@ -47,10 +53,12 @@ class TrainingRuntime:
     def __init__(self) -> None:
         self.worker: ProcessWorker | None = None
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_training_runtime() -> TrainingRuntime:
     return TrainingRuntime()
+
 
 ###############################################################################
 def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
@@ -100,6 +108,7 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
             },
         )
 
+
 ###############################################################################
 def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
     while True:
@@ -107,6 +116,7 @@ def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
         if message is None:
             return
         handle_training_progress(job_id, message)
+
 
 ###############################################################################
 def request_worker_stop_if_needed(
@@ -124,6 +134,7 @@ def request_worker_stop_if_needed(
         worker.stop()
 
     return stop_requested_at
+
 
 ###############################################################################
 def enforce_worker_stop_timeout(
@@ -146,6 +157,7 @@ def enforce_worker_stop_timeout(
     )
     worker.terminate()
     return True
+
 
 ###############################################################################
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
@@ -173,6 +185,7 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
 
     return {}
 
+
 ###############################################################################
 def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     checkpoint_path = result.get("checkpoint_path")
@@ -181,6 +194,7 @@ def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     path = Path(checkpoint_path)
     CheckpointRepository().register_completed_checkpoint(path.name, path)
     return result
+
 
 ###############################################################################
 def monitor_training_process(
@@ -214,6 +228,7 @@ def monitor_training_process(
 
     return read_worker_result(job_id=job_id, worker=worker)
 
+
 ###############################################################################
 def run_training_job(
     configuration: dict[str, Any],
@@ -246,6 +261,7 @@ def run_training_job(
             worker.join(timeout=5)
         worker.cleanup()
         training_runtime.worker = None
+
 
 ###############################################################################
 def run_resume_training_job(
@@ -285,6 +301,7 @@ def run_resume_training_job(
             worker.join(timeout=5)
         worker.cleanup()
         training_runtime.worker = None
+
 
 ###############################################################################
 class TrainingService:
@@ -506,14 +523,18 @@ class TrainingService:
             )
 
         # Start background job
-        job_id = self.job_manager.start_job(
-            job_type="training",
-            runner=run_training_job,
-            poll_interval=poll_interval,
-            kwargs={
-                "configuration": configuration,
-            },
-        )
+        try:
+            job_id = self.job_manager.start_job(
+                job_type="training",
+                runner=run_training_job,
+                poll_interval=poll_interval,
+                kwargs={
+                    "configuration": configuration,
+                },
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(detail="Training is already in progress") from exc
 
         self.initialize_job_result(
             job_id=job_id,
@@ -584,16 +605,20 @@ class TrainingService:
         poll_interval = get_server_settings().jobs.polling_interval
 
         # Start background job
-        job_id = self.job_manager.start_job(
-            job_type="training",
-            runner=run_resume_training_job,
-            poll_interval=poll_interval,
-            kwargs={
-                "checkpoint": checkpoint,
-                "additional_epochs": request.additional_epochs,
-                "poll_interval": poll_interval,
-            },
-        )
+        try:
+            job_id = self.job_manager.start_job(
+                job_type="training",
+                runner=run_resume_training_job,
+                poll_interval=poll_interval,
+                kwargs={
+                    "checkpoint": checkpoint,
+                    "additional_epochs": request.additional_epochs,
+                    "poll_interval": poll_interval,
+                },
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(detail="Training is already in progress") from exc
 
         self.initialize_job_result(
             job_id=job_id,
@@ -607,6 +632,7 @@ class TrainingService:
             initialization_error="Failed to initialize training resume job",
             poll_interval=poll_interval,
         )
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
