@@ -1,22 +1,35 @@
 .dataset-container {
-    width: 100%;
-    padding: var(--space-8);
-    max-width: 1400px;
-    margin: 0 auto;
-    box-sizing: border-box;
+    min-width: 0;
+}
+
+.dataset-container > .header {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+}
+
+.dataset-container > .header h1 {
+    margin: 0;
+    font-size: var(--text-page-title);
+}
+
+.dataset-container > .header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
 }
 
 .section {
     min-width: 0;
     background: var(--bg-secondary);
-    border-radius: 12px;
+    border-radius: var(--radius-card);
     padding: 1.25rem;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-card);
     border: 1px solid var(--border-color);
 }
 
 .section-title {
-    font-size: 1rem;
+    font-size: var(--text-section-title);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 1rem;
@@ -146,6 +159,10 @@
     min-height: calc(6 * var(--dataset-row-height));
     min-width: 0;
     overflow-y: auto;
+}
+
+.dataset-table-body.is-empty {
+    justify-content: center;
 }
 
 .dataset-table-header {
@@ -602,53 +619,11 @@
 }
 
 /* Disabled button state */
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
 /* Form Styles */
 .config-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0;
-}
-
-.form-label {
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.form-input,
-.form-select {
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.35rem 0.5rem;
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    transition: border-color 0.2s;
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-}
-
-.form-input:focus,
-.form-select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    background: var(--surface-elevated);
 }
 
 /* Checkbox Styles */
@@ -724,36 +699,6 @@ input[type="checkbox"] {
 }
 
 /* Actions Bar */
-.btn {
-    padding: var(--space-2) var(--space-4);
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-    font-size: var(--text-sm);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.btn-secondary {
-    background: var(--surface-elevated);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-}
-
-.btn-secondary:hover {
-    background: var(--hover-bg);
-    color: var(--text-primary);
-    border-color: var(--input-border);
-}
-
-.btn-sm {
-    padding: calc(var(--space-1) + 0.1rem) var(--space-3);
-    font-size: var(--text-xs);
-}
-
 /* Span helpers for grid */
 .span-4 {
     grid-column: 1 / -1;
@@ -761,7 +706,7 @@ input[type="checkbox"] {
 
 /* Dataset Validation Page */
 .validation-back-button {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-1);
     border: none;
     background: none;
     padding: 0;
@@ -831,6 +776,11 @@ input[type="checkbox"] {
     align-items: center;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
+}
+
+.dataset-table-empty span {
+    grid-column: 1 / -1;
+    text-align: center;
 }
 
 .modal-header h2 {
@@ -968,7 +918,6 @@ input[type="checkbox"] {
     }
 
     .dataset-container {
-        padding: var(--space-4);
         overflow-x: hidden;
     }
 
@@ -1013,8 +962,8 @@ input[type="checkbox"] {
         gap: var(--space-3);
     }
 
-    .header h1 {
-        font-size: clamp(1.8rem, 9vw, 2.4rem);
+    .dataset-container > .header h1 {
+        font-size: var(--text-page-title);
         overflow-wrap: anywhere;
     }
 

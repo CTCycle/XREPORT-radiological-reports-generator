@@ -19,7 +19,7 @@ type DraftMap = Record<number, DraftSections>;
   selector: 'app-report-detail-page',
   imports: [CommonModule, RouterLink, ReportDraftEditorComponent],
   template: `
-    <main class="report-detail-page" aria-labelledby="report-detail-title">
+    <main class="report-detail-page page-container" aria-labelledby="report-detail-title">
       <a class="back-link" routerLink="/reports">← Back to Reports</a>
 
       @if (loading()) {
