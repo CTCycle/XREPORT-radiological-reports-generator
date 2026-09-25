@@ -1,7 +1,4 @@
 .inference-workspace {
-    width: min(100%, 1240px);
-    margin: 0 auto;
-    padding: clamp(var(--space-4), 2.5vw, var(--space-8));
     display: grid;
     gap: var(--space-4);
     color: var(--text-primary);
@@ -25,9 +22,9 @@
 .workspace-title h1 {
     max-width: none;
     margin: 0;
-    font-size: clamp(1.8rem, 3.2vw, 2.65rem);
-    line-height: 1.08;
-    letter-spacing: -0.025em;
+    font-size: var(--text-page-title);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
 }
 
 .workspace-title p {
@@ -89,7 +86,7 @@
     min-width: 0;
     padding: var(--space-5);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-card);
     background: var(--bg-secondary);
     box-shadow: var(--shadow-sm);
 }
@@ -110,7 +107,7 @@
 
 .step-title h2 {
     margin: 0;
-    font-size: 1.08rem;
+    font-size: var(--text-section-title);
     line-height: 1.25;
 }
 
@@ -793,18 +790,13 @@
     font-size: var(--text-xs);
 }
 
-.secondary-button,
 .text-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: var(--control-height-md);
     padding: 0 var(--space-3);
-    border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    background: var(--bg-secondary);
-    color: var(--text-primary);
     cursor: pointer;
     white-space: nowrap;
 }
@@ -938,23 +930,8 @@
 }
 
 .generate-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
     width: 100%;
-    min-height: 44px;
     margin-top: auto;
-    border: 0;
-    border-radius: var(--radius-md);
-    background: var(--accent-color);
-    color: var(--on-accent);
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.generate-button:hover {
-    background: var(--accent-color-strong);
 }
 
 .cancel-button {
@@ -1094,10 +1071,6 @@ textarea:disabled {
 }
 
 @media (max-width: 640px) {
-    .inference-workspace {
-        padding: var(--space-3);
-    }
-
     .step-header,
     .report-header-actions {
         align-items: stretch;
