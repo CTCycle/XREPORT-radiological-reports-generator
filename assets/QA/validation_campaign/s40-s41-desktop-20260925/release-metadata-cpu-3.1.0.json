@@ -1,0 +1,17 @@
+{
+  "format": 2,
+  "application": "XREPORT",
+  "version": "3.1.0",
+  "variant": "cpu",
+  "architecture": "windows-x64",
+  "source_commit": "0ce69d7206051900025bb0fdc42ce2ced544c2ec",
+  "dirty_tree": false,
+  "created_utc": "2026-09-25T15:20:14Z",
+  "payload_sha256": "567d1cb9d635d2eac4ceb54da67d5eac504cb719cd28249718ffe3407a417128",
+  "webview2": "embedBootstrapper",
+  "artifacts": [
+    "XREPORT-v3.1.0-windows-x64-cpu-portable.exe",
+    "XREPORT-v3.1.0-windows-x64-cpu.msi"
+  ],
+  "checksums": "XREPORT-v3.1.0-windows-x64-cpu.sha256"
+}

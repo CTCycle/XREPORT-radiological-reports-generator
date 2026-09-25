@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "application": "XREPORT",
+  "version": "3.1.0",
+  "variant": "cpu",
+  "source_commit": "0ce69d7206051900025bb0fdc42ce2ced544c2ec",
+  "portable": "XREPORT-v3.1.0-windows-x64-cpu-portable.exe",
+  "started": true,
+  "ready_contract": true,
+  "health": true,
+  "frontend": true,
+  "closed": true,
+  "backend_process_removed": true,
+  "listener_removed": true,
+  "contracts_removed": true,
+  "phase_timings_ms": {
+    "process_started": 112,
+    "session_written": 26564,
+    "backend_ready_contract": 26617,
+    "frontend_bootstrap": 26752,
+    "backend_health": 27019,
+    "frontend_index": 27026,
+    "process_closed": 27730
+  },
+  "shell_log": "smoke-cpu-3.1.0-shell.log",
+  "data_root_preserved": false,
+  "verified_utc": "2026-09-25T15:25:43.1341725Z"
+}

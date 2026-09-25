@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "application": "XREPORT",
+  "source_commit": "0ce69d7206051900025bb0fdc42ce2ced544c2ec",
+  "version": "3.1.0",
+  "variant": "cpu",
+  "launch_mode": "portable_executable",
+  "native_window_title": "XREPORT — Radiological Reports (CPU)",
+  "isolated_localappdata": "temporary\\xreport-s40-native-20260925\\localappdata",
+  "runtime_extracted": true,
+  "environment_file_created": true,
+  "database_created": true,
+  "session_contract_observed": true,
+  "ready_contract_observed": true,
+  "session_contract_removed_on_close": true,
+  "ready_contract_removed_on_close": true,
+  "backend_process_removed": true,
+  "listener_removed": true,
+  "native_webview_route_interaction": "UNTESTED",
+  "limitation": "The native Tauri window was not exposed by the available Computer Use adapter; the browser fallback could not supply the private desktop token header."
+}
