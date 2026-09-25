@@ -1,0 +1,96 @@
+{
+  "application": "XREPORT",
+  "architecture": "windows-x64",
+  "backend_executable": "backend/XREPORT-backend.exe",
+  "created_utc": "2026-09-25T15:20:14Z",
+  "dirty_tree": false,
+  "file_count": 6764,
+  "format": 2,
+  "largest_entries": [
+    {
+      "bytes": 264942080,
+      "path": "backend/_internal/torch/lib/torch_cpu.dll"
+    },
+    {
+      "bytes": 264942080,
+      "path": "backend/_internal/torch_cpu.dll"
+    },
+    {
+      "bytes": 84375960,
+      "path": "backend/XREPORT-backend.exe"
+    },
+    {
+      "bytes": 74819072,
+      "path": "backend/_internal/cv2/cv2.pyd"
+    },
+    {
+      "bytes": 28578304,
+      "path": "backend/_internal/cv2/opencv_videoio_ffmpeg4130_64.dll"
+    },
+    {
+      "bytes": 21992448,
+      "path": "backend/_internal/pyarrow/arrow.dll"
+    },
+    {
+      "bytes": 20403712,
+      "path": "backend/_internal/numpy.libs/libscipy_openblas64_-9e3e5a4229c1ca39f10dc82bba9e2b2b.dll"
+    },
+    {
+      "bytes": 19266048,
+      "path": "backend/_internal/av.libs/avcodec-62-984de33114b7fa384296817dec999c9d.dll"
+    },
+    {
+      "bytes": 18800128,
+      "path": "backend/_internal/torch/lib/torch_python.dll"
+    },
+    {
+      "bytes": 18800128,
+      "path": "backend/_internal/torch_python.dll"
+    },
+    {
+      "bytes": 14660096,
+      "path": "backend/_internal/pyarrow/arrow_flight.dll"
+    },
+    {
+      "bytes": 12746240,
+      "path": "backend/_internal/av.libs/libx265-efe48a158520a59ef99c0a0b3eb835ae.dll"
+    },
+    {
+      "bytes": 9441280,
+      "path": "backend/_internal/pyarrow/arrow_compute.dll"
+    },
+    {
+      "bytes": 7832064,
+      "path": "backend/_internal/PIL/_avif.cp314-win_amd64.pyd"
+    },
+    {
+      "bytes": 7673344,
+      "path": "backend/_internal/av.libs/libSvtAv1Enc-c4dd99c98ddcdb013e820dbd68a30e26.dll"
+    },
+    {
+      "bytes": 7395328,
+      "path": "backend/_internal/tokenizers/tokenizers.pyd"
+    },
+    {
+      "bytes": 6896640,
+      "path": "backend/_internal/pyarrow/parquet.dll"
+    },
+    {
+      "bytes": 6785760,
+      "path": "backend/_internal/python314.dll"
+    },
+    {
+      "bytes": 6242552,
+      "path": "backend/_internal/libcrypto-3.dll"
+    },
+    {
+      "bytes": 5890560,
+      "path": "backend/_internal/av.libs/avfilter-11-aef80fc767dc77e0319469b5bdcdf998.dll"
+    }
+  ],
+  "payload_bytes": 1145429733,
+  "payload_sha256": "567d1cb9d635d2eac4ceb54da67d5eac504cb719cd28249718ffe3407a417128",
+  "source_commit": "0ce69d7206051900025bb0fdc42ce2ced544c2ec",
+  "variant": "cpu",
+  "version": "3.1.0"
+}

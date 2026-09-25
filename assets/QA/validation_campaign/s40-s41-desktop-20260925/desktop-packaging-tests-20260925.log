@@ -1,0 +1,5 @@
+Command: app/server/.venv/Scripts/python.exe -m pytest app/tests/unit/test_desktop_packaging.py -q --basetemp runtimes/cache/pytest-tmp/s40-s41-desktop-final -o cache_dir=runtimes/cache/pytest/s40-s41-desktop-final
+Git source commit: 0ce69d7206051900025bb0fdc42ce2ced544c2ec
+Result:
+......                                                                   [100%]
+6 passed in 0.55s
