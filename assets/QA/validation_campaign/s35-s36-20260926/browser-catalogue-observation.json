@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-09-26T11:50:11+02:00",
+  "url": "http://127.0.0.1:8003/inference",
+  "method": "Codex in-app Browser accessibility tree and semantic DOM observation after backend restart",
+  "models": [
+    {
+      "display_name": "CXRMate-ED",
+      "revision": "68251c7605067ddbea330413aade032713fd2192",
+      "status": "ready",
+      "installation": "active · verified",
+      "validation_status": "degraded",
+      "validation_evidence": "passed",
+      "declared_output_sections": ["Findings", "Impression"],
+      "research_only": true
+    },
+    {
+      "display_name": "CheXOne",
+      "revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "status": "ready",
+      "installation": "active · verified",
+      "validation_status": "passed",
+      "validation_evidence": "passed",
+      "declared_output_sections": ["Findings"],
+      "research_only": true
+    },
+    {
+      "display_name": "CXRMate-2",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "status": "ready",
+      "installation": "active · verified",
+      "validation_status": "passed",
+      "validation_evidence": "passed",
+      "declared_output_sections": ["Findings", "Impression"],
+      "research_only": true
+    }
+  ],
+  "visible_research_notice": "Models and generated drafts are not clinically approved. Qualified review and independent verification are required."
+}

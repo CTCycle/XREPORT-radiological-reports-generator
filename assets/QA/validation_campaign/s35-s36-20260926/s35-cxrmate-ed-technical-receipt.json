@@ -1,0 +1,797 @@
+{
+  "adapter": "cxrmate_ed",
+  "api_result": {
+    "count": 3,
+    "display_sections": {
+      "qa_lateral.png": {
+        "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+        "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+      },
+      "qa_normal.png": {
+        "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+        "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+      },
+      "qa_pa.png": {
+        "findings": "clearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.",
+        "impression": "Low lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable."
+      }
+    },
+    "inference_metadata": [
+      {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "cough",
+        "filename": "qa_pa.png",
+        "generation_profile": "detailed",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "original_dimensions": {
+          "height": 499,
+          "width": 604
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          384,
+          384
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "research_only": true
+      },
+      {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "dyspnea",
+        "filename": "qa_lateral.png",
+        "generation_profile": "concise",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "original_dimensions": {
+          "height": 499,
+          "width": 419
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          384,
+          384
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "research_only": true
+      },
+      {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "screening",
+        "filename": "qa_normal.png",
+        "generation_profile": "deterministic",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "original_dimensions": {
+          "height": 492,
+          "width": 568
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          384,
+          384
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "research_only": true
+      }
+    ],
+    "report_filenames": [
+      "qa_pa.png",
+      "qa_lateral.png",
+      "qa_normal.png"
+    ],
+    "reports": {
+      "qa_lateral.png": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+      "qa_normal.png": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+      "qa_pa.png": "Findings:\nclearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.\n\nImpression:\nLow lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable."
+    },
+    "reports_ordered": [
+      "Findings:\nclearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.\n\nImpression:\nLow lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable.",
+      "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+      "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation."
+    ]
+  },
+  "captured_at": "2026-09-26T09:05:28.758808+00:00",
+  "case_count": 3,
+  "cases": [
+    {
+      "case_id": "qa-pa",
+      "clinical_context": "cough",
+      "display_sections": {
+        "findings": "clearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.",
+        "impression": "Low lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable."
+      },
+      "filename": "qa_pa.png",
+      "generation_profile": "detailed",
+      "generation_seconds": 1.859175799996592,
+      "input_metadata": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "cough",
+          "filename": "qa_pa.png",
+          "generation_profile": "detailed",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 499,
+            "width": 604
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "peak_cuda_memory_bytes": 821823488,
+      "provenance": {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "cough",
+        "generation_profile": "detailed",
+        "input_images": [
+          {
+            "adapter": "cxrmate_ed",
+            "clinical_context": "cough",
+            "filename": "qa_pa.png",
+            "generation_profile": "detailed",
+            "input_scope": "study",
+            "model_loader": "causal_lm",
+            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+            "original_dimensions": {
+              "height": 499,
+              "width": 604
+            },
+            "processed_tensor_dimensions": [
+              1,
+              1,
+              3,
+              384,
+              384
+            ],
+            "processor_loader": "auto",
+            "prompt_profile": "cxrmate-ed-context",
+            "provider": "huggingface",
+            "research_only": true
+          }
+        ],
+        "installation": {
+          "cloud_assessment": null,
+          "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+          "revision": "68251c7605067ddbea330413aade032713fd2192",
+          "state": "active"
+        },
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "processor_loader": "auto",
+        "processor_repository_id": "aehrc/uniformer_base_tl_384",
+        "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "quality_warnings": [
+          "sensitivity_canary_failed"
+        ],
+        "report_scope": "study",
+        "research_only": true,
+        "runtime": {
+          "cuda_available": true,
+          "cuda_used": true,
+          "model_dtype": "torch.float32",
+          "requested_device": "auto",
+          "resolved_device": "cuda:0",
+          "resolved_devices": [
+            "cuda:0"
+          ]
+        },
+        "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+        "validation_status": "degraded"
+      },
+      "report": "Findings:\nclearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.\n\nImpression:\nLow lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable.",
+      "sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8",
+      "total_seconds": 8.813984100008383
+    },
+    {
+      "case_id": "qa-lateral",
+      "clinical_context": "dyspnea",
+      "display_sections": {
+        "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+        "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+      },
+      "filename": "qa_lateral.png",
+      "generation_profile": "concise",
+      "generation_seconds": 0.7913486000034027,
+      "input_metadata": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "dyspnea",
+          "filename": "qa_lateral.png",
+          "generation_profile": "concise",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 499,
+            "width": 419
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "peak_cuda_memory_bytes": 830605312,
+      "provenance": {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "dyspnea",
+        "generation_profile": "concise",
+        "input_images": [
+          {
+            "adapter": "cxrmate_ed",
+            "clinical_context": "dyspnea",
+            "filename": "qa_lateral.png",
+            "generation_profile": "concise",
+            "input_scope": "study",
+            "model_loader": "causal_lm",
+            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+            "original_dimensions": {
+              "height": 499,
+              "width": 419
+            },
+            "processed_tensor_dimensions": [
+              1,
+              1,
+              3,
+              384,
+              384
+            ],
+            "processor_loader": "auto",
+            "prompt_profile": "cxrmate-ed-context",
+            "provider": "huggingface",
+            "research_only": true
+          }
+        ],
+        "installation": {
+          "cloud_assessment": null,
+          "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+          "revision": "68251c7605067ddbea330413aade032713fd2192",
+          "state": "active"
+        },
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "processor_loader": "auto",
+        "processor_repository_id": "aehrc/uniformer_base_tl_384",
+        "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "quality_warnings": [
+          "sensitivity_canary_failed"
+        ],
+        "report_scope": "study",
+        "research_only": true,
+        "runtime": {
+          "cuda_available": true,
+          "cuda_used": true,
+          "model_dtype": "torch.float32",
+          "requested_device": "auto",
+          "resolved_device": "cuda:0",
+          "resolved_devices": [
+            "cuda:0"
+          ]
+        },
+        "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+        "validation_status": "degraded"
+      },
+      "report": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+      "sha256": "8897f8d5349f3367ecf1292c639cc27da502e619c762da5cfb13bcc9091f879a",
+      "total_seconds": 1.468234499974642
+    },
+    {
+      "case_id": "qa-normal",
+      "clinical_context": "screening",
+      "display_sections": {
+        "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+        "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+      },
+      "filename": "qa_normal.png",
+      "generation_profile": "deterministic",
+      "generation_seconds": 0.8346086000092328,
+      "input_metadata": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "screening",
+          "filename": "qa_normal.png",
+          "generation_profile": "deterministic",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 492,
+            "width": 568
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "peak_cuda_memory_bytes": 830605312,
+      "provenance": {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "screening",
+        "generation_profile": "deterministic",
+        "input_images": [
+          {
+            "adapter": "cxrmate_ed",
+            "clinical_context": "screening",
+            "filename": "qa_normal.png",
+            "generation_profile": "deterministic",
+            "input_scope": "study",
+            "model_loader": "causal_lm",
+            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+            "original_dimensions": {
+              "height": 492,
+              "width": 568
+            },
+            "processed_tensor_dimensions": [
+              1,
+              1,
+              3,
+              384,
+              384
+            ],
+            "processor_loader": "auto",
+            "prompt_profile": "cxrmate-ed-context",
+            "provider": "huggingface",
+            "research_only": true
+          }
+        ],
+        "installation": {
+          "cloud_assessment": null,
+          "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+          "revision": "68251c7605067ddbea330413aade032713fd2192",
+          "state": "active"
+        },
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "processor_loader": "auto",
+        "processor_repository_id": "aehrc/uniformer_base_tl_384",
+        "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "quality_warnings": [
+          "sensitivity_canary_failed"
+        ],
+        "report_scope": "study",
+        "research_only": true,
+        "runtime": {
+          "cuda_available": true,
+          "cuda_used": true,
+          "model_dtype": "torch.float32",
+          "requested_device": "auto",
+          "resolved_device": "cuda:0",
+          "resolved_devices": [
+            "cuda:0"
+          ]
+        },
+        "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+        "validation_status": "degraded"
+      },
+      "report": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+      "sha256": "a0c3c331aa2c5d94a3a7cc7765f11356262a4c4700fae3e361025deb7a26b6f6",
+      "total_seconds": 1.516081799985841
+    }
+  ],
+  "catalog_validation_status": "degraded",
+  "checks": {
+    "completed_cases": 3,
+    "errors": [],
+    "expected_cases": 3,
+    "input_contract_ok": true,
+    "output_contract_ok": true,
+    "reload_reuse_ok": true,
+    "reload_reuse_requested": false,
+    "reports_all_distinct": false,
+    "technical_passed": false,
+    "unique_report_count": 2
+  },
+  "contract_hash": "d7e426e7df0ee447fe84f0dfcd57cab4e16c9b5e4d72cdef94142784ad0584fe",
+  "display_sections": {
+    "qa_lateral.png": {
+      "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+      "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+    },
+    "qa_normal.png": {
+      "findings": "clearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.",
+      "impression": "Low lung volumes. Bilateral pleural thickening. No consolidation."
+    },
+    "qa_pa.png": {
+      "findings": "clearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.",
+      "impression": "Low lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable."
+    }
+  },
+  "fixture_deidentification": "Public research fixtures; no direct identifiers; local validation only.",
+  "fixture_provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; local approved PNG fixtures 000001-1.png, 000001-2.png, 000001-3.png; https://github.com/ieee8023/covid-chestxray-dataset",
+  "fixtures": [
+    {
+      "de_identification": "Public research fixtures; no direct identifiers; local validation only.",
+      "filename": "qa_pa.png",
+      "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; local approved PNG fixtures 000001-1.png, 000001-2.png, 000001-3.png; https://github.com/ieee8023/covid-chestxray-dataset",
+      "sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8"
+    },
+    {
+      "de_identification": "Public research fixtures; no direct identifiers; local validation only.",
+      "filename": "qa_lateral.png",
+      "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; local approved PNG fixtures 000001-1.png, 000001-2.png, 000001-3.png; https://github.com/ieee8023/covid-chestxray-dataset",
+      "sha256": "8897f8d5349f3367ecf1292c639cc27da502e619c762da5cfb13bcc9091f879a"
+    },
+    {
+      "de_identification": "Public research fixtures; no direct identifiers; local validation only.",
+      "filename": "qa_normal.png",
+      "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; local approved PNG fixtures 000001-1.png, 000001-2.png, 000001-3.png; https://github.com/ieee8023/covid-chestxray-dataset",
+      "sha256": "a0c3c331aa2c5d94a3a7cc7765f11356262a4c4700fae3e361025deb7a26b6f6"
+    }
+  ],
+  "image_count": 3,
+  "manifest_promoted": false,
+  "model": "aehrc/cxrmate-ed",
+  "model_ref": "huggingface:aehrc/cxrmate-ed",
+  "output_sections": {
+    "qa_lateral.png": [
+      "findings",
+      "impression"
+    ],
+    "qa_normal.png": [
+      "findings",
+      "impression"
+    ],
+    "qa_pa.png": [
+      "findings",
+      "impression"
+    ]
+  },
+  "provenance": {
+    "adapter": "cxrmate_ed",
+    "clinical_context": "cough",
+    "generation_profile": "detailed",
+    "input_images": [
+      {
+        "adapter": "cxrmate_ed",
+        "clinical_context": "cough",
+        "filename": "qa_pa.png",
+        "generation_profile": "detailed",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-ed",
+        "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+        "original_dimensions": {
+          "height": 499,
+          "width": 604
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          384,
+          384
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate-ed-context",
+        "provider": "huggingface",
+        "research_only": true
+      }
+    ],
+    "installation": {
+      "cloud_assessment": null,
+      "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+      "revision": "68251c7605067ddbea330413aade032713fd2192",
+      "state": "active"
+    },
+    "model_loader": "causal_lm",
+    "model_ref": "huggingface:aehrc/cxrmate-ed",
+    "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+    "processor_loader": "auto",
+    "processor_repository_id": "aehrc/uniformer_base_tl_384",
+    "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+    "prompt_profile": "cxrmate-ed-context",
+    "provider": "huggingface",
+    "quality_warnings": [
+      "sensitivity_canary_failed"
+    ],
+    "report_scope": "study",
+    "research_only": true,
+    "runtime": {
+      "cuda_available": true,
+      "cuda_used": true,
+      "model_dtype": "torch.float32",
+      "requested_device": "auto",
+      "resolved_device": "cuda:0",
+      "resolved_devices": [
+        "cuda:0"
+      ]
+    },
+    "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+    "validation_status": "degraded"
+  },
+  "provenance_by_case": {
+    "qa-lateral": {
+      "adapter": "cxrmate_ed",
+      "clinical_context": "dyspnea",
+      "generation_profile": "concise",
+      "input_images": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "dyspnea",
+          "filename": "qa_lateral.png",
+          "generation_profile": "concise",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 499,
+            "width": 419
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "installation": {
+        "cloud_assessment": null,
+        "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+        "revision": "68251c7605067ddbea330413aade032713fd2192",
+        "state": "active"
+      },
+      "model_loader": "causal_lm",
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+      "processor_loader": "auto",
+      "processor_repository_id": "aehrc/uniformer_base_tl_384",
+      "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+      "prompt_profile": "cxrmate-ed-context",
+      "provider": "huggingface",
+      "quality_warnings": [
+        "sensitivity_canary_failed"
+      ],
+      "report_scope": "study",
+      "research_only": true,
+      "runtime": {
+        "cuda_available": true,
+        "cuda_used": true,
+        "model_dtype": "torch.float32",
+        "requested_device": "auto",
+        "resolved_device": "cuda:0",
+        "resolved_devices": [
+          "cuda:0"
+        ]
+      },
+      "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+      "validation_status": "degraded"
+    },
+    "qa-normal": {
+      "adapter": "cxrmate_ed",
+      "clinical_context": "screening",
+      "generation_profile": "deterministic",
+      "input_images": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "screening",
+          "filename": "qa_normal.png",
+          "generation_profile": "deterministic",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 492,
+            "width": 568
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "installation": {
+        "cloud_assessment": null,
+        "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+        "revision": "68251c7605067ddbea330413aade032713fd2192",
+        "state": "active"
+      },
+      "model_loader": "causal_lm",
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+      "processor_loader": "auto",
+      "processor_repository_id": "aehrc/uniformer_base_tl_384",
+      "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+      "prompt_profile": "cxrmate-ed-context",
+      "provider": "huggingface",
+      "quality_warnings": [
+        "sensitivity_canary_failed"
+      ],
+      "report_scope": "study",
+      "research_only": true,
+      "runtime": {
+        "cuda_available": true,
+        "cuda_used": true,
+        "model_dtype": "torch.float32",
+        "requested_device": "auto",
+        "resolved_device": "cuda:0",
+        "resolved_devices": [
+          "cuda:0"
+        ]
+      },
+      "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+      "validation_status": "degraded"
+    },
+    "qa-pa": {
+      "adapter": "cxrmate_ed",
+      "clinical_context": "cough",
+      "generation_profile": "detailed",
+      "input_images": [
+        {
+          "adapter": "cxrmate_ed",
+          "clinical_context": "cough",
+          "filename": "qa_pa.png",
+          "generation_profile": "detailed",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-ed",
+          "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+          "original_dimensions": {
+            "height": 499,
+            "width": 604
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            384,
+            384
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate-ed-context",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "installation": {
+        "cloud_assessment": null,
+        "local_path": "runtimes/validation-s35-s36-20260926/resources/models/huggingface/installed/aehrc__cxrmate-ed/68251c7605067ddbea330413aade032713fd2192",
+        "revision": "68251c7605067ddbea330413aade032713fd2192",
+        "state": "active"
+      },
+      "model_loader": "causal_lm",
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+      "processor_loader": "auto",
+      "processor_repository_id": "aehrc/uniformer_base_tl_384",
+      "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+      "prompt_profile": "cxrmate-ed-context",
+      "provider": "huggingface",
+      "quality_warnings": [
+        "sensitivity_canary_failed"
+      ],
+      "report_scope": "study",
+      "research_only": true,
+      "runtime": {
+        "cuda_available": true,
+        "cuda_used": true,
+        "model_dtype": "torch.float32",
+        "requested_device": "auto",
+        "resolved_device": "cuda:0",
+        "resolved_devices": [
+          "cuda:0"
+        ]
+      },
+      "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+      "validation_status": "degraded"
+    }
+  },
+  "quality_review": {
+    "scope": "manual conservative case-responsiveness review",
+    "status": "pending"
+  },
+  "real_inference": true,
+  "repeat_case": null,
+  "reports": {
+    "qa_lateral.png": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+    "qa_normal.png": "Findings:\nclearly marked. moderate upper lobe pulmonary including upper lobe. The heart upper lobe prior heterogeneous aortic engorged. There is no upper lobe. There is right lower lobe atelectasis. Small pleural effusion is seen at the left lung. No lower lobe. There is pulmonary vascular congestion.\n\nImpression:\nLow lung volumes. Bilateral pleural thickening. No consolidation.",
+    "qa_pa.png": "Findings:\nclearly marked with moderate upper volume in the left lung. There is perihilar fullness. The heart contours are stable. There is no pulmonary interstitial pulmonary. No focal prior. There is no right pleural effusion. No pneumothorax is seen.\n\nImpression:\nLow lung volumes. The heart size is top normal. The cardiac silhouette is mildly enlarged. The mediastinal and hilar contours are stable."
+  },
+  "resource": {
+    "generation_seconds": [
+      1.859175799996592,
+      0.7913486000034027,
+      0.8346086000092328
+    ],
+    "model_load_count": 3,
+    "model_load_seconds": [
+      6.236432199948467,
+      6.199989002197981e-06,
+      5.099980626255274e-06
+    ],
+    "peak_cuda_memory_by_case": {
+      "qa-lateral": 830605312,
+      "qa-normal": 830605312,
+      "qa-pa": 821823488
+    },
+    "peak_cuda_memory_bytes": 830605312,
+    "runtime": {
+      "cuda_available": true,
+      "cuda_used": true,
+      "model_dtype": "torch.float32",
+      "requested_device": "auto",
+      "resolved_device": "cuda:0",
+      "resolved_devices": [
+        "cuda:0"
+      ]
+    }
+  },
+  "revision": "68251c7605067ddbea330413aade032713fd2192",
+  "status": "failed",
+  "validation_cache_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\validation-s35-s36-20260926\\cache\\huggingface\\modules",
+  "weights_downloaded": false
+}

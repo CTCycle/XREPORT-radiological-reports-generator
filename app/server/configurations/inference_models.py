@@ -215,8 +215,8 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
         ],
         "trust_remote_code": False,
         "remote_code_approved": False,
-        "validation_status": "pending",
-        "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+        "validation_status": "passed",
+        "validation_message": "Pinned three-case technical and conservative output-contract review passed for research-only drafts; no clinical accuracy claim.",
         "resource_policy": {
             "max_snapshot_size_bytes": 12000000000,
             "reason": "The two sharded safetensors files and processor assets are retained; duplicate formats are not downloaded."
@@ -295,8 +295,8 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
         ],
         "trust_remote_code": True,
         "remote_code_approved": True,
-        "validation_status": "pending",
-        "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+        "validation_status": "passed",
+        "validation_message": "Pinned three-case technical and conservative output-contract review passed for research-only drafts; no clinical accuracy claim.",
         "resource_policy": {
             "max_snapshot_size_bytes": 18000000000,
             "reason": "The complete pinned sharded safetensors snapshot is required for the published processor and section decoder."

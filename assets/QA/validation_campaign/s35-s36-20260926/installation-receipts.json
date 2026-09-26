@@ -1,0 +1,27 @@
+{
+  "campaign_date": "2026-09-26",
+  "isolated_resource_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\validation-s35-s36-20260926\\resources",
+  "isolated_cache_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\validation-s35-s36-20260926\\cache",
+  "models": [
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "revision": "68251c7605067ddbea330413aade032713fd2192",
+      "maintenance_job_id": "59118181",
+      "verification": "Maintenance completed with candidate_revision equal to the requested revision and phase=verified; S35 authoritative receipt then loaded the exact snapshot from the isolated root."
+    },
+    {
+      "model_ref": "huggingface:StanfordAIMI/CheXOne",
+      "revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "maintenance_job_id": null,
+      "verification": "The exact revision was installed in the isolated root and exercised by the authoritative three-case receipt; the provider is non-remote-code and did not require a dynamic-module cache override."
+    },
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "maintenance_job_id": "ad315d39",
+      "verification": "Maintenance completed with candidate_revision equal to the requested revision and phase=verified; S36B authoritative receipt then loaded the exact snapshot from the isolated root."
+    }
+  ],
+  "medgemma_access_attempted": false,
+  "canonical_model_resources_modified": false
+}

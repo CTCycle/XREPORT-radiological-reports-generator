@@ -1,0 +1,59 @@
+{
+  "campaign_date": "2026-09-26",
+  "application_revision": "1ed1696a99fc6420e7ccabdcb87571fa68e787c6",
+  "manifest": "case-manifest.json",
+  "isolated_resource_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\validation-s35-s36-20260926\\resources",
+  "isolated_cache_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\validation-s35-s36-20260926\\cache",
+  "disposable_runtime_cleaned_up": true,
+  "cleanup_completed_at": "2026-09-26T11:57:05+02:00",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "vram_mib": 6144,
+    "driver": "610.88",
+    "device": "cuda:0"
+  },
+  "fixture_provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; local approved PNG fixtures 000001-1.png, 000001-2.png, 000001-3.png; https://github.com/ieee8023/covid-chestxray-dataset",
+  "fixture_deidentification": "Public research fixtures; no direct identifiers; local validation only.",
+  "execution_order": ["S35", "S36A", "S36B"],
+  "models": [
+    {
+      "gate": "S35",
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "revision": "68251c7605067ddbea330413aade032713fd2192",
+      "receipt": "s35-cxrmate-ed-technical-receipt.json",
+      "status": "failed",
+      "unique_report_count": 2,
+      "peak_cuda_memory_bytes": 830605312,
+      "model_load_count": 3,
+      "resolved_device": "cuda:0",
+      "dtype": "torch.float32",
+      "declared_output_sections": ["findings", "impression"]
+    },
+    {
+      "gate": "S36A",
+      "model_ref": "huggingface:StanfordAIMI/CheXOne",
+      "revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "receipt": "s36a-chexone-aggregate-technical-receipt.json",
+      "status": "passed",
+      "unique_report_count": 3,
+      "peak_cuda_memory_bytes": 4687148544,
+      "model_load_count": 4,
+      "resolved_device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "declared_output_sections": ["findings"]
+    },
+    {
+      "gate": "S36B",
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "receipt": "s36b-cxrmate2-aggregate-technical-receipt.json",
+      "status": "passed",
+      "unique_report_count": 3,
+      "peak_cuda_memory_bytes": 5260947968,
+      "model_load_count": 4,
+      "resolved_device": "cuda:0",
+      "dtype": "torch.bfloat16",
+      "declared_output_sections": ["findings", "impression"]
+    }
+  ]
+}
