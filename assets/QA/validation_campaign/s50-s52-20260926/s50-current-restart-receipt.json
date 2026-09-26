@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "date": "2026-09-26",
+  "source_commit": "69737f8f0acec5d225f884cea70e7bb26b2d8664",
+  "branch": "develop",
+  "requested_cache_root": "runtimes/cache/validation-s50-s53-20260926/resources",
+  "requested_cache_root_result": "blocked_before_evidence",
+  "requested_cache_root_error": "Access denied by existing protected cache ACL",
+  "fallback_resources_root": "runtimes/validation-s50-s53-20260926/resources",
+  "launcher_action": "Launch",
+  "first_launch": {
+    "frontend_reachable": true,
+    "automatic_browser_open": "denied by host",
+    "backend_health": {
+      "status": "ok",
+      "runtime_mode": "sqlite",
+      "runtime_port": 5003
+    },
+    "settings_patch": {
+      "global": {
+        "seed": 20260926
+      }
+    },
+    "settings_readback_before_restart": {
+      "global": {
+        "seed": 20260926
+      }
+    },
+    "stopped_listener_pids": [
+      24564,
+      12740
+    ]
+  },
+  "restart": {
+    "frontend_reachable": true,
+    "backend_health": {
+      "status": "ok",
+      "runtime_mode": "sqlite",
+      "runtime_port": 5003
+    },
+    "settings_readback_after_restart": {
+      "global": {
+        "seed": 20260926
+      }
+    },
+    "rendered_settings_route_seed": 20260926,
+    "sqlite_integrity": "ok",
+    "database_sha256_after_shutdown": "0BEB190F883B349D741EE727208BB957182836D3386DFF0C4D3689D9A0C874C3",
+    "stopped_listener_pids": [
+      4016,
+      39188
+    ],
+    "remaining_listeners_after_cleanup": [],
+    "fallback_root_removed": true
+  },
+  "scope": "Current full source application restart and settings persistence in a disposable SQLite root; no canonical resources were modified."
+}
