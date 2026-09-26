@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "id": "qa-pa",
+      "image": "../../inference_validation_runs/qa_pa.png",
+      "sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8",
+      "clinical_context": "cough",
+      "profile": "detailed"
+    },
+    {
+      "id": "qa-lateral",
+      "image": "../../inference_validation_runs/qa_lateral.png",
+      "sha256": "8897f8d5349f3367ecf1292c639cc27da502e619c762da5cfb13bcc9091f879a",
+      "clinical_context": "dyspnea",
+      "profile": "concise"
+    },
+    {
+      "id": "qa-normal",
+      "image": "../../inference_validation_runs/qa_normal.png",
+      "sha256": "a0c3c331aa2c5d94a3a7cc7765f11356262a4c4700fae3e361025deb7a26b6f6",
+      "clinical_context": "screening",
+      "profile": "deterministic"
+    }
+  ]
+}
