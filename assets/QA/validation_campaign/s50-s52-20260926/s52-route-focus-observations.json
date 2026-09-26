@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "date": "2026-09-26",
+  "source_commit": "69737f8f0acec5d225f884cea70e7bb26b2d8664",
+  "browser": "Codex In-app Browser",
+  "viewport_observed": "1280x720",
+  "routes": [
+    {
+      "route": "/dataset",
+      "visible_heading": "Processing Configuration",
+      "unexpected_error_text": false
+    },
+    {
+      "route": "/training",
+      "visible_heading": "XREPORT Transformer",
+      "unexpected_error_text": false
+    },
+    {
+      "route": "/reports",
+      "visible_heading": "Reports",
+      "empty_state": "No saved reports yet",
+      "unexpected_error_text": false
+    },
+    {
+      "route": "/settings",
+      "visible_heading": "Settings",
+      "visible_control": "Default random seed = 20260926 after restart",
+      "unexpected_error_text": false
+    },
+    {
+      "route": "/inference",
+      "visible_heading": "Turn a radiograph into a draft report",
+      "catalogue": "5 models, 5 public, 0 custom",
+      "unexpected_error_text": false
+    }
+  ],
+  "tips_tricks_focus_cycle": [
+    "Refresh workflow status",
+    "Step 1: Upload and load source data",
+    "Open Dataset",
+    "Step 2: Process the uploaded source",
+    "Step 3: Use the processed training dataset",
+    "Step 4: Start a new training run",
+    "Step 5: Resume from an existing checkpoint",
+    "Walk me through it",
+    "Open Inference",
+    "Open Dataset",
+    "Open Training",
+    "Open Dataset",
+    "Show walkthrough",
+    "Close Tips and Tricks",
+    "Close Tips and Tricks",
+    "Refresh workflow status"
+  ],
+  "escape_result": "Overlay closed; focus returned to Help and tips.",
+  "visual_observation": "Training surface and centered Tips & Tricks overlay were visually inspected in the in-app browser. The overlay had a readable scroll region, backdrop, close controls, and no clipping at the observed viewport.",
+  "client_unit_result": {
+    "test_files": 13,
+    "tests": 43,
+    "result": "passed"
+  },
+  "limitations": [
+    "The in-app browser adapter displayed screenshots for inspection but did not expose a standalone local screenshot artifact.",
+    "A broader viewport and route/modal matrix was not run.",
+    "Runtime prefers-reduced-motion emulation was not performed."
+  ]
+}

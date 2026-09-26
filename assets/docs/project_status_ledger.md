@@ -224,6 +224,8 @@ form of evidence exists for the stated scope.
 - The earlier red runs remain in the historical ledger; the current CI result
   supersedes their S00 status.
 
+- The 2026-09-26 current-revision S50–S52 recheck leaves the existing resilience and accessibility statuses intentionally PARTIAL. S50 proved a full source-app stop/relaunch with database-backed setting persistence and rendered post-restart readback; S51 revalidated the atomic training-start guard with 25 focused tests; and S52 re-rendered the primary routes and measured the Tips & Tricks focus cycle in the in-app browser, with 43 client unit tests passing. The dedicated receipt records the protected runtimes/cache ACL boundary and the writable fallback used for evidence. Corrupt-state recovery, other job-type contention, broader viewport/modal coverage, and reduced-motion runtime behavior remain open. See the [S50–S52 summary](../QA/validation_campaign/s50-s52-20260926/summary.md) and its linked receipts.
+
 ## Current Component Ledger
 
 ### Runtime, configuration, and platform
