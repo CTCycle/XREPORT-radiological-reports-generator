@@ -1,0 +1,108 @@
+{
+  "date": "2026-09-28",
+  "repository": "XREPORT Radiological Reports",
+  "branch": "develop",
+  "initial_revision": "1bb1800",
+  "validation_revision": "39e57bb879f25ebada9baea86c8cbd14dc2ccb8d",
+  "initial_dirty_state": {
+    "application_source": "clean",
+    "new_validation_test": "uncommitted during first exploratory run",
+    "canonical_resources_modified": false,
+    "protected_cache_paths_modified": false
+  },
+  "resource_root": {
+    "path": "runtimes/validation-s50-s52-20260928",
+    "disposable": true,
+    "removed_after_validation": true
+  },
+  "s50": {
+    "status": "PASS",
+    "scope": "current source launcher with isolated SQLite and rendered browser recovery",
+    "health_before_restart": 200,
+    "seed": 20260928,
+    "request_id": "s50_validation_20260928",
+    "report_image": "s50-synthetic.png",
+    "report_model_ref": "synthetic:s50",
+    "report_revision": "s50-revision",
+    "health_after_restart": 200,
+    "integrity_after_restart": "ok",
+    "schema_corruption": {
+      "operation": "ALTER TABLE datasets ADD COLUMN s50_unexpected TEXT",
+      "integrity_after_injection": "ok",
+      "backend_health": "connection refused",
+      "backend_startup": "failed closed",
+      "unexpected_column_remained": true,
+      "corrupted_sha256": "41007a103182f01378ea4ae69e24a1467e45e71e4ac71da99ad1c4bf315a09b8",
+      "corrupted_bytes": 159744,
+      "backup_sha256": "0c98d823e065f1f7ee0f1a2fad182ca8025e8126ad368837d38202b647032a60",
+      "backup_bytes": 159744,
+      "silent_recreation": false,
+      "rendered_state": "XREPORT could not reach the local backend service with Retry connection",
+      "retry_observation": "Retry returned to Preparing XREPORT while backend remained unavailable"
+    },
+    "restored": {
+      "current_sha256_equals_backup": true,
+      "unexpected_column_present": false,
+      "integrity": "ok",
+      "health": 200,
+      "seed": 20260928,
+      "request_id": "s50_validation_20260928",
+      "rendered_settings": true,
+      "rendered_report": true
+    },
+    "process_cleanup": {
+      "kill_processes": "passed after each live cycle",
+      "listening_ports_after_final_stop": []
+    }
+  },
+  "s52": {
+    "status": "PARTIAL",
+    "test": "test_s52_responsive_route_modal_and_reduced_motion_matrix",
+    "test_result": "1 passed",
+    "committed_regression_result": "3 passed, 12 deselected",
+    "routes": ["/inference", "/reports", "/dataset", "/training", "/settings"],
+    "viewports": ["320x640", "390x844", "640x800", "1024x720", "1440x900"],
+    "matrix_cases": 25,
+    "screenshots": {
+      "matrix_pattern": "s52-<route>-<width>x<height>.png",
+      "s50": ["s50-corrupt-unavailable.png", "s50-restored-settings.png", "s50-restored-reports.png"],
+      "startup_regression": ["xreport-startup-gate.png", "xreport-startup-ready.png", "startup-slow.png", "startup-unavailable.png", "startup-feature-error-after-ready.png"]
+    },
+    "overflow": "all document widths <= viewport widths",
+    "scrolling": "content scroll containers exercised where content exceeded the viewport",
+    "modal_bounds": "passed at all five viewport widths",
+    "focus_containment": "passed for Tips & Tricks and guided tour",
+    "escape_restoration": "passed for Tips & Tricks trigger",
+    "reduced_motion": {
+      "media_query": true,
+      "guided_tour_scroll_behavior": "auto",
+      "relevant_animation_suppressed": true,
+      "relevant_transition_suppressed": true
+    },
+    "browser_errors": {
+      "console": [],
+      "page": [],
+      "request_failures": []
+    },
+    "spoken_screen_reader_observation": false
+  },
+  "adjacent_regressions": {
+    "backend_database_startup_model": "22 passed",
+    "client_unit": "13 files, 43 tests passed",
+    "production_build": "verbose rerun passed; launcher rebuilt successfully after manifest refresh",
+    "cache_limitation": "protected historical runtimes/cache paths remained untouched; writable disposable pytest paths used"
+  },
+  "remaining_gates": {
+    "S40": "PARTIAL",
+    "S42": "PARTIAL",
+    "S43": "PARTIAL",
+    "S51": "PARTIAL",
+    "S53": "PARTIAL",
+    "S35": "FAIL / degraded",
+    "S37": "BLOCKED",
+    "ISSUE-001": "OPEN",
+    "ISSUE-002": "BLOCKED",
+    "ISSUE-006": "OPEN",
+    "ISSUE-004": "OPEN infrastructure ACL boundary"
+  }
+}

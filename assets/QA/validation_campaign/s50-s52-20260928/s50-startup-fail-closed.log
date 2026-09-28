@@ -1,0 +1,13 @@
+XREPORT sanitized S50 fail-closed startup evidence — 2026-09-28
+
+Database migration check: current=e91a4f6c2d73, head=e91a4f6c2d73
+Database is at the Alembic head but differs from the current ORM schema:
+('remove_column', None, 'datasets', Column('s50_unexpected', TEXT(), table=<datasets>))
+Database startup migration failed.
+
+Observed boundary:
+- backend health connection was refused after startup validation failed;
+- the frontend remained served and displayed the unavailable/retry state;
+- the database file retained the injected column and its corrupted hash;
+- the preserved backup remained hash-distinct;
+- no credentials, tokens, or report body text appear in this excerpt.
