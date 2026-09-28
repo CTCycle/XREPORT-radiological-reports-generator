@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-09-22
+Last updated: 2026-09-28
 
 XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
@@ -75,8 +75,8 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 │  └─ docs/
 ├─ settings/
 │  └─ .env.example
+├─ resources/
 └─ app/
-   ├─ resources/
    ├─ scripts/
    │  └─ initialize_database.py
    ├─ server/
