@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-09-22
+Last updated: 2026-09-28
 
 ## Database Backend Selection
 
@@ -16,7 +16,7 @@ The sources of truth are deliberately separated:
 
 From `settings/.env`:
 
-- `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `app/resources`; relative values are resolved from the repository root.
+- `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `resources`; relative values are resolved from the repository root.
 - `EMBEDDED_DATABASE=true`: SQLite using `<resource root>/database.db`.
 - `EMBEDDED_DATABASE=false`: PostgreSQL using the configured engine, host, port, database name, user, password, and SSL settings.
 

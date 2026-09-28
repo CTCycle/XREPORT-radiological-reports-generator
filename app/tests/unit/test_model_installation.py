@@ -96,7 +96,7 @@ def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
 @pytest.fixture
 def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     root = tmp_path / "portable"
-    resources = root / "app" / "resources"
+    resources = root / "resources"
     monkeypatch.setattr(installation_module, "ROOT_DIR", root)
     monkeypatch.setattr(
         installation_module,
