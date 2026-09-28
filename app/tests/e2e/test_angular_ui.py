@@ -520,6 +520,200 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
 
 
 ###############################################################################
+def test_s52_responsive_route_modal_and_reduced_motion_matrix(
+    page: Page,
+    base_url: str,
+) -> None:
+    """Exercise routed surfaces, modal contracts, and reduced-motion behavior."""
+    qa_dir = _e2e_screenshot_dir("")
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+    request_failures: list[str] = []
+    page.on(
+        "console",
+        lambda message: console_errors.append(message.text)
+        if message.type == "error"
+        else None,
+    )
+    page.on("pageerror", lambda error: page_errors.append(str(error)))
+    page.on(
+        "requestfailed",
+        lambda request: request_failures.append(
+            f"{request.method} {request.url}: {request.failure}"
+        ),
+    )
+    page.emulate_media(reduced_motion="reduce")
+
+    viewports = [
+        (320, 640),
+        (390, 844),
+        (640, 800),
+        (1024, 720),
+        (1440, 900),
+    ]
+    routes = [
+        ("inference", "/inference", "Turn a radiograph into a draft report"),
+        ("reports", "/reports", "Reports"),
+        ("dataset", "/dataset", "Available Datasets"),
+        ("training", "/training", "Training Dashboard"),
+        ("settings", "/settings", "Settings"),
+    ]
+
+    for width, height in viewports:
+        page.set_viewport_size({"width": width, "height": height})
+        for route_name, route, heading in routes:
+            response = page.goto(f"{base_url}{route}")
+            assert response is not None and response.ok, route
+            if route_name == "dataset":
+                expect(page.get_by_text(heading, exact=True)).to_be_visible()
+            else:
+                expect(page.get_by_role("heading", name=heading)).to_be_visible()
+            expect(page.locator(".main-layout-content")).to_be_visible()
+
+            metrics = page.evaluate(
+                """() => {
+                  const content = document.querySelector('.main-layout-content');
+                  const style = content ? getComputedStyle(content) : null;
+                  const documentWidth = document.documentElement.scrollWidth;
+                  const viewportWidth = window.innerWidth;
+                  if (content) {
+                    const maxScroll = Math.max(0, content.scrollHeight - content.clientHeight);
+                    content.scrollTop = Math.min(maxScroll, 180);
+                  }
+                  return {
+                    documentWidth,
+                    viewportWidth,
+                    contentClientHeight: content?.clientHeight ?? 0,
+                    contentScrollHeight: content?.scrollHeight ?? 0,
+                    contentScrollTop: content?.scrollTop ?? 0,
+                    contentOverflowY: style?.overflowY ?? '',
+                  };
+                }""",
+            )
+            assert metrics["documentWidth"] <= metrics["viewportWidth"]
+            assert metrics["contentOverflowY"] in {"auto", "scroll"}, (
+                f"missing scroll container for {route_name}@{width}x{height}: {metrics}"
+            )
+            if metrics["contentScrollHeight"] > metrics["contentClientHeight"]:
+                assert metrics["contentScrollTop"] > 0
+
+            page.screenshot(
+                path=str(qa_dir / f"s52-{route_name}-{width}x{height}.png"),
+                full_page=False,
+            )
+
+        page.goto(f"{base_url}/inference")
+        page.evaluate(
+            """() => {
+              window.__xreportScrollCalls = [];
+              const recordScroll = (owner, key, name) => {
+                const original = owner[key];
+                if (typeof original !== 'function') return;
+                owner[key] = function(...args) {
+                  const options = args[0];
+                  window.__xreportScrollCalls.push({
+                    name,
+                    behavior: options && typeof options === 'object' ? options.behavior ?? null : null,
+                  });
+                  return original.apply(this, args);
+                };
+              };
+              recordScroll(Element.prototype, 'scrollIntoView', 'scrollIntoView');
+              recordScroll(Element.prototype, 'scrollBy', 'scrollBy');
+            }""",
+        )
+        help_button = page.get_by_role("button", name="Help and tips")
+        expect(help_button).to_be_visible()
+        help_button.click()
+        tips_dialog = page.locator(".guidance-modal")
+        expect(tips_dialog).to_be_visible()
+        tips_box = tips_dialog.bounding_box()
+        assert tips_box is not None
+        assert tips_box["x"] >= 0
+        assert tips_box["y"] >= 0
+        assert tips_box["x"] + tips_box["width"] <= width
+        assert tips_box["y"] + tips_box["height"] <= height
+
+        for _ in range(10):
+            assert page.evaluate(
+                """() => document.querySelector('.guidance-modal')?.contains(document.activeElement) ?? false"""
+            )
+            page.keyboard.press("Tab")
+        assert page.evaluate(
+            """() => document.querySelector('.guidance-modal')?.contains(document.activeElement) ?? false"""
+        )
+        page.keyboard.press("Escape")
+        expect(tips_dialog).to_have_count(0)
+        expect(help_button).to_be_focused()
+
+        help_button.click()
+        expect(tips_dialog).to_be_visible()
+        page.get_by_role("button", name="Show walkthrough").click()
+        tour_dialog = page.locator(".guided-tour-dialog")
+        expect(tour_dialog).to_be_visible()
+        tour_box = tour_dialog.bounding_box()
+        assert tour_box is not None
+        assert tour_box["x"] >= 0
+        assert tour_box["y"] >= 0
+        assert tour_box["x"] + tour_box["width"] <= width
+        assert tour_box["y"] + tour_box["height"] <= height
+
+        for _ in range(10):
+            assert page.evaluate(
+                """() => document.querySelector('.guided-tour-dialog')?.contains(document.activeElement) ?? false"""
+            )
+            page.keyboard.press("Tab")
+        assert page.evaluate(
+            """() => document.querySelector('.guided-tour-dialog')?.contains(document.activeElement) ?? false"""
+        )
+
+        page.get_by_role("button", name="Next").click()
+        page.get_by_role("button", name="Next").click()
+        page.get_by_role("button", name="Next").click()
+        page.wait_for_timeout(180)
+        scroll_calls = page.evaluate("() => window.__xreportScrollCalls")
+        assert scroll_calls
+        assert all(
+            call["behavior"] in {None, "auto"}
+            for call in scroll_calls
+        ), scroll_calls
+
+        reduced_motion = page.evaluate(
+            """() => {
+              const dot = document.createElement('span');
+              dot.className = 'guidance-journey-status-dot is-loading';
+              const chevron = document.createElement('span');
+              chevron.className = 'guidance-journey-chevron';
+              document.body.append(dot, chevron);
+              const dotStyle = getComputedStyle(dot);
+              const chevronStyle = getComputedStyle(chevron);
+              const result = {
+                matches: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+                animationName: dotStyle.animationName,
+                animationDurationSeconds: parseFloat(dotStyle.animationDuration) * (dotStyle.animationDuration.endsWith('ms') ? 0.001 : 1),
+                transitionProperty: chevronStyle.transitionProperty,
+                transitionDurationSeconds: parseFloat(chevronStyle.transitionDuration) * (chevronStyle.transitionDuration.endsWith('ms') ? 0.001 : 1),
+              };
+              dot.remove();
+              chevron.remove();
+              return result;
+            }""",
+        )
+        assert reduced_motion["matches"] is True
+        assert reduced_motion["animationName"] in {"none", ""}
+        assert reduced_motion["animationDurationSeconds"] <= 0.001
+        assert reduced_motion["transitionProperty"] in {"none", "all"}
+        assert reduced_motion["transitionDurationSeconds"] <= 0.001
+
+        page.keyboard.press("Escape")
+        expect(tour_dialog).to_have_count(0)
+
+    assert not console_errors, console_errors
+    assert not page_errors, page_errors
+    assert not request_failures, request_failures
+
+
+###############################################################################
 def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     errors = {"console": [], "page": [], "requests": []}
     page.on(
