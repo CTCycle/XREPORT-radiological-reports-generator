@@ -1,0 +1,136 @@
+{
+  "captured_at_utc": "2026-09-28T10:04:49Z",
+  "repository_head": "99dfa44bc1560d1fb8e3e468e68ddf6e25ba1a7b",
+  "branch": "develop",
+  "initial_working_tree": "clean",
+  "host": {
+    "os": "Windows 11 x64",
+    "computer": "Acer Nitro AN517-41",
+    "ram_bytes": 33667739648,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "gpu_driver": "610.88",
+    "gpu_memory_mib": 6144
+  },
+  "source_launcher_recheck": {
+    "resource_root": "runtimes/cache/current-resource-launch/resources",
+    "resource_root_disposable": true,
+    "process_override_applied": true,
+    "build_status": "current",
+    "backend_health_status": 200,
+    "frontend_status": 200,
+    "frontend_proxy_health_status": 200,
+    "resource_entries_created": [
+      "checkpoints",
+      "logs",
+      "models",
+      "templates",
+      "database.db"
+    ],
+    "cleanup": {
+      "official_action": "KillProcesses",
+      "configured_listeners_after_cleanup": []
+    }
+  },
+  "workload_runtime": {
+    "resource_root": "runtimes/cache/release-validation-20260925/resources",
+    "resource_root_disposable": true,
+    "source_launcher_health_status": 200,
+    "source_launcher_frontend_status": 200,
+    "fixture": "eight-row S27 synthetic technical fixture",
+    "processed_dataset": "s28_release_20260925",
+    "checkpoint": "XREPORT_20260925T141533",
+    "model_encoder": "microsoft/beit-base-patch16-224@f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+    "model_weights_sha256": "873a67558f17cdd9d9018eaf308288f6dc72d030af20391df9ccbb7e10be89cc"
+  },
+  "jobs": [
+    {
+      "name": "validation",
+      "job_id": "ddc138ed",
+      "status": "completed",
+      "started_utc": "2026-09-28T10:03:00.4155465Z",
+      "terminal_utc": "2026-09-28T10:03:02.2655354Z",
+      "wall_seconds": 1.85,
+      "result": {
+        "dataset_name": "s27_technical_fixture",
+        "sample_size": 1.0,
+        "metrics": [
+          "text_statistics",
+          "image_statistics",
+          "pixels_distribution"
+        ],
+        "row_count": 8,
+        "text_total_words": 104,
+        "text_unique_words": 20,
+        "image_dimensions": "64x64"
+      }
+    },
+    {
+      "name": "checkpoint_evaluation",
+      "job_id": "53dcf143",
+      "status": "completed",
+      "started_utc": "2026-09-28T10:03:00.7035383Z",
+      "terminal_utc": "2026-09-28T10:03:18.7330174Z",
+      "wall_seconds": 18.029,
+      "result": {
+        "checkpoint": "XREPORT_20260925T141533",
+        "loss": 2.0254554748535156,
+        "accuracy": 0.8571428656578064
+      }
+    },
+    {
+      "name": "training",
+      "job_id": "4e21d6fe",
+      "status": "completed",
+      "started_utc": "2026-09-28T10:03:00.7093740Z",
+      "terminal_utc": "2026-09-28T10:03:28.7804266Z",
+      "wall_seconds": 28.071,
+      "result": {
+        "dataset_name": "s28_release_20260925",
+        "epochs": 1,
+        "train_samples": 6,
+        "validation_samples": 2,
+        "elapsed_seconds_reported": 4,
+        "checkpoint": "s51_current_20260928"
+      }
+    }
+  ],
+  "contention": {
+    "evaluation_training_submit_delta_seconds": 0.006,
+    "evaluation_and_training_overlap_seconds": 18.024,
+    "first_observed_statuses": "validation=running, checkpoint_evaluation=running, training=running",
+    "max_gpu_memory_mib": 3906,
+    "max_gpu_utilization_percent": 100,
+    "max_xreport_python_working_set_bytes": 4685119488,
+    "sampling_observations": 41,
+    "measurement_note": "GPU memory/utilization and the aggregate working set include concurrent XREPORT workers; they are technical high-water observations, not per-job attribution or a benchmark."
+  },
+  "dataset_processing": {
+    "job_id": "06e31a85",
+    "status": "completed",
+    "started_utc": "2026-09-28T10:04:48.6857076Z",
+    "terminal_utc": "2026-09-28T10:04:49.7709394Z",
+    "wall_seconds": 1.085,
+    "dataset_name": "s27_technical_fixture",
+    "temporary_processed_name": "s53_current_20260928",
+    "total_samples": 8,
+    "train_samples": 6,
+    "validation_samples": 2,
+    "vocabulary_size": 30522,
+    "cleanup": "temporary processed dataset deleted"
+  },
+  "post_run_checks": {
+    "running_jobs": [],
+    "generated_checkpoint_cleanup": "s51_current_20260928 deleted",
+    "original_checkpoint_remaining": true,
+    "validation_report_persisted": true,
+    "checkpoint_evaluation_report_persisted": true,
+    "validation_artifacts_map": {},
+    "configured_listeners_after_cleanup": []
+  },
+  "limitations": [
+    "All workload data is the existing eight-row synthetic technical fixture; no representative-data, clinical-quality, scale, or release-performance claim is made.",
+    "The disposable release-validation database retains the newly persisted validation/evaluation report rows for receipt readback; canonical user resources were not used or modified.",
+    "S51 remains partial because UI close/reopen and broader real heavy-worker/no-stuck matrices were not exercised.",
+    "S53 remains partial because this is one small source-run sample with no CPU-versus-CUDA comparison, no packaged timing comparison, and no no-GPU fallback measurement."
+  ]
+}
