@@ -20,9 +20,9 @@ $sessionFile = Join-Path $dataPath 'state\desktop-session.json'
 $readyFile = Join-Path $dataPath 'state\desktop-ready.json'
 $metadataDestination = Join-Path $dataPath 'models\huggingface\metadata\aehrc__cxrmate-multi-tf.json'
 $modelDestination = Join-Path $dataPath "models\huggingface\installed\aehrc__cxrmate-multi-tf\$revision"
-$receiptPath = Join-Path $PSScriptRoot 'packaged-cuda-inference-receipt.json'
-$stdoutPath = Join-Path $PSScriptRoot 'packaged-cuda-stdout.log'
-$stderrPath = Join-Path $PSScriptRoot 'packaged-cuda-stderr.log'
+$receiptPath = Join-Path $PSScriptRoot 'packaged-cuda-inference-receipt-20260928.json'
+$stdoutPath = Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260928-stdout.log'
+$stderrPath = Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260928-stderr.log'
 $process = $null
 $client = $null
 $fileStream = $null
@@ -246,7 +246,14 @@ finally {
     $receipt.cleanup.data_root_removed = -not (Test-Path -LiteralPath $dataRoot)
     $receipt.closed_utc = [DateTime]::UtcNow.ToString('o')
     New-Item -ItemType Directory -Path (Split-Path -Parent $receiptPath) -Force | Out-Null
-    $receipt | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $receiptPath -Encoding utf8
+    $receiptJson = $receipt | ConvertTo-Json -Depth 20
+    Write-Output $receiptJson
+    try {
+        Set-Content -LiteralPath $receiptPath -Value $receiptJson -Encoding utf8
+    }
+    catch {
+        Write-Warning "Could not persist packaged CUDA receipt to ${receiptPath}: $($_.Exception.Message)"
+    }
 }
 
 Write-Host "Packaged CUDA inference validation passed: $receiptPath"
