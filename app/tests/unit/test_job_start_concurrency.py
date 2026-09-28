@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event, Lock
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 import server.services.training as training_module
+import server.services.validation_runs as validation_module
+from server.domain.training import ProcessDatasetRequest
+from server.domain.validation import CheckpointEvaluationRequest, ValidationRequest
 from server.domain.jobs import JobStartResponse
 from server.domain.training import StartTrainingRequest
+from server.services.dataset_processing import DatasetProcessingService
 from server.services.errors import ConflictError
 from server.services.jobs import JobManager
+from server.services.preparation import PreparationService
 from server.services.training import TrainingRuntime, TrainingService
+from server.services.upload import UploadState
+from server.services.validation_runs import ValidationService
 
 
 def test_concurrent_training_starts_are_atomically_rejected(
@@ -130,3 +139,159 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert not manager.threads[job_id].is_alive()
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running("training")
+
+
+@pytest.mark.parametrize(
+    ("feature", "job_type", "expected_detail"),
+    [
+        (
+            "dataset_processing",
+            "dataset_processing",
+            "Dataset processing is already in progress",
+        ),
+        (
+            "validation",
+            "validation",
+            "Validation is already in progress",
+        ),
+        (
+            "checkpoint_evaluation",
+            "checkpoint_evaluation",
+            "Checkpoint evaluation is already in progress",
+        ),
+    ],
+)
+def test_concurrent_feature_job_starts_are_atomically_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    feature: str,
+    job_type: str,
+    expected_detail: str,
+) -> None:
+    """Every major exclusive feature path must use the atomic job guard."""
+
+    manager = JobManager()
+    settings = SimpleNamespace(
+        global_settings=SimpleNamespace(seed=42),
+        jobs=SimpleNamespace(polling_interval=0.25),
+        features=SimpleNamespace(allow_local_filesystem_access=True),
+    )
+    runner_started = Event()
+    release_runner = Event()
+
+    def blocking_runner(*_args: object, **_kwargs: object) -> dict[str, str]:
+        runner_started.set()
+        assert release_runner.wait(timeout=5)
+        return {"state": "released"}
+
+    if feature == "dataset_processing":
+
+        class DatasetRepositoryStub:
+            def load_source_dataset(self, **_kwargs: object) -> pd.DataFrame:
+                return pd.DataFrame([{"path": "fixture.png"}])
+
+        processing_service = DatasetProcessingService(
+            repository=DatasetRepositoryStub(),
+            job_manager=manager,
+        )
+        monkeypatch.setattr(processing_service, "run", blocking_runner)
+        service = PreparationService(
+            repository=object(),  # type: ignore[arg-type]
+            dataset_repository=DatasetRepositoryStub(),
+            processing_service=processing_service,
+            job_manager=manager,
+            upload_state=UploadState(),
+            server_settings=settings,  # type: ignore[arg-type]
+        )
+        request = ProcessDatasetRequest(
+            dataset_name="concurrency-fixture",
+            sample_size=1.0,
+            validation_size=0.2,
+            tokenizer="fixture-tokenizer",
+            max_report_size=50,
+        )
+
+        def start_feature() -> JobStartResponse:
+            return service.process_dataset(request)
+
+    elif feature == "validation":
+        monkeypatch.setattr(validation_module, "run_validation_job", blocking_runner)
+        service = ValidationService(manager, settings)  # type: ignore[arg-type]
+        request = ValidationRequest(
+            dataset_name="concurrency-fixture",
+            metrics=["text_statistics"],
+            sample_size=1.0,
+        )
+
+        def start_feature() -> JobStartResponse:
+            return asyncio.run(service.run_validation(request))
+
+    else:
+
+        class CheckpointRepositoryStub:
+            def get_checkpoint(self, _name: str) -> SimpleNamespace:
+                return SimpleNamespace(artifact_complete=True)
+
+        monkeypatch.setattr(
+            validation_module,
+            "run_checkpoint_evaluation_job",
+            blocking_runner,
+        )
+        service = ValidationService(
+            manager,
+            settings,  # type: ignore[arg-type]
+            checkpoint_repository=CheckpointRepositoryStub(),  # type: ignore[arg-type]
+        )
+        request = CheckpointEvaluationRequest(
+            checkpoint="concurrency-checkpoint",
+            metrics=["evaluation_report"],
+            num_samples=1,
+        )
+
+        def start_feature() -> JobStartResponse:
+            return asyncio.run(service.evaluate_checkpoint(request))
+
+    preflight_barrier = Barrier(2)
+    check_lock = Lock()
+    synchronized_checks = 0
+    real_is_job_running = manager.is_job_running
+
+    def synchronize_preflight(job_type_filter: str | None = None) -> bool:
+        nonlocal synchronized_checks
+        result = real_is_job_running(job_type_filter)
+        with check_lock:
+            synchronized_checks += 1
+            wait_for_peer = synchronized_checks <= 2
+        if wait_for_peer:
+            preflight_barrier.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr(manager, "is_job_running", synchronize_preflight)
+    job_id: str | None = None
+    try:
+        def invoke_start() -> JobStartResponse | ConflictError:
+            try:
+                return start_feature()
+            except ConflictError as exc:
+                return exc
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            outcomes = [
+                future.result(timeout=5)
+                for future in [executor.submit(invoke_start) for _ in range(2)]
+            ]
+
+        accepted = [item for item in outcomes if isinstance(item, JobStartResponse)]
+        rejected = [item for item in outcomes if isinstance(item, ConflictError)]
+        assert len(accepted) == 1
+        assert len(rejected) == 1
+        assert rejected[0].detail == expected_detail
+        job_id = accepted[0].job_id
+        assert runner_started.wait(timeout=5)
+    finally:
+        release_runner.set()
+
+    assert job_id is not None
+    manager.threads[job_id].join(timeout=5)
+    assert not manager.threads[job_id].is_alive()
+    assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
+    assert not manager.is_job_running(job_type)
