@@ -1149,7 +1149,8 @@ function Get-XReportApplicationProcessIds {
         $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|\buvicorn\b)')
         $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
         $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
-        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop')
+        $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
+        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop') -or $isPortableRelease
 
         if ($isBackend -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication) {
             [int]$process.ProcessId
