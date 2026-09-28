@@ -295,3 +295,70 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     assert not manager.threads[job_id].is_alive()
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running(job_type)
+
+
+@pytest.mark.parametrize(
+    ("first_job_type", "second_job_type"),
+    [
+        ("training", "dataset_processing"),
+        ("training", "validation"),
+        ("training", "checkpoint_evaluation"),
+        ("dataset_processing", "validation"),
+        ("dataset_processing", "checkpoint_evaluation"),
+        ("validation", "checkpoint_evaluation"),
+    ],
+)
+def test_distinct_exclusive_job_types_overlap_and_complete(
+    first_job_type: str,
+    second_job_type: str,
+) -> None:
+    """Distinct job types may overlap without leaving a stuck job behind."""
+
+    manager = JobManager()
+    release = Event()
+    started = {first_job_type: Event(), second_job_type: Event()}
+    active_types: set[str] = set()
+    active_lock = Lock()
+    overlap_observed = Event()
+
+    def make_runner(job_type: str):
+        def blocking_runner(*_args: object, **_kwargs: object) -> dict[str, str]:
+            with active_lock:
+                active_types.add(job_type)
+                if len(active_types) >= 2:
+                    overlap_observed.set()
+            started[job_type].set()
+            release.wait(timeout=5)
+            with active_lock:
+                active_types.discard(job_type)
+            return {"state": "released", "job_type": job_type}
+
+        return blocking_runner
+
+    first_job_id = manager.start_job(
+        job_type=first_job_type,
+        runner=make_runner(first_job_type),
+        require_idle=True,
+    )
+    assert started[first_job_type].wait(timeout=5)
+
+    second_job_id = manager.start_job(
+        job_type=second_job_type,
+        runner=make_runner(second_job_type),
+        require_idle=True,
+    )
+    try:
+        assert started[second_job_type].wait(timeout=5)
+        assert overlap_observed.wait(timeout=5)
+        assert manager.is_job_running(first_job_type)
+        assert manager.is_job_running(second_job_type)
+    finally:
+        release.set()
+
+    for job_id in (first_job_id, second_job_id):
+        manager.threads[job_id].join(timeout=5)
+        assert not manager.threads[job_id].is_alive()
+        assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
+
+    assert not manager.is_job_running(first_job_type)
+    assert not manager.is_job_running(second_job_type)
