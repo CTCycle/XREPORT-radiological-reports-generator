@@ -1,0 +1,23 @@
+{
+  "recorded_at_utc": "2026-09-28T14:45:07.340902+00:00",
+  "root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\source-data",
+  "database": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\source-data\\database.db",
+  "backup": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\database-pre-drift.sqlite",
+  "checkpoint": [
+    0,
+    0,
+    0
+  ],
+  "seed": 20260928,
+  "integrity": "ok",
+  "dataset_columns": [
+    "dataset_id",
+    "name",
+    "name_key",
+    "created_at"
+  ],
+  "database_bytes": 159744,
+  "backup_bytes": 159744,
+  "database_sha256": "43363b4b0ae2060626ebd11733557168b1fc4756c990c46a939ec8e4e1c548d3",
+  "backup_sha256": "bdef21158fa4f533e47ef9532e57f48787210884a6442491adc2505e544a9e8a"
+}
