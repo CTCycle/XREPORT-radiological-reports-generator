@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-22
+Last updated: 2026-09-28
 
 ## Primary Commands
 
@@ -137,7 +137,7 @@ requires one linear head and never performs downgrades automatically.
 
 ## Data And Output Locations
 
-- runtime data root: `app/resources` by default; override with `XREPORT_RESOURCES_DIR`
+- runtime data root: `resources` by default; override with `XREPORT_RESOURCES_DIR`
 - SQLite database file: `<resource root>/database.db`
 - checkpoints: `<resource root>/checkpoints`
 - persistent model installations and lifecycle metadata: `<resource root>/models`
