@@ -67,7 +67,7 @@ def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> 
     return SimpleNamespace(
         name=name,
         name_key=name.casefold(),
-        path=Path("resources/models/checkpoints") / name,
+        path=Path("data/models/checkpoints") / name,
         artifact_complete=complete,
     )
 
@@ -127,7 +127,7 @@ def test_catalog_exposes_chexone_findings_only_contract() -> None:
 def test_catalog_marks_verified_active_installation_ready() -> None:
     active_path = (
         ROOT_DIR
-        / "resources"
+        / "data"
         / "models"
         / "huggingface"
         / "installed"
@@ -152,4 +152,4 @@ def test_catalog_marks_verified_active_installation_ready() -> None:
     assert model.status == "ready"
     assert model.installation_state == "active"
     assert model.integrity_status == "verified"
-    assert model.local_path == "resources/models/huggingface/installed/active"
+    assert model.local_path == "data/models/huggingface/installed/active"

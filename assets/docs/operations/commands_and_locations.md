@@ -137,7 +137,7 @@ requires one linear head and never performs downgrades automatically.
 
 ## Data And Output Locations
 
-- runtime data root: `resources` by default; override with `XREPORT_RESOURCES_DIR`
+- runtime data root: `data` by default; override with `XREPORT_RESOURCES_DIR`
 - SQLite database file: `<resource root>/database.db`
 - checkpoints: `<resource root>/checkpoints`
 - persistent model installations and lifecycle metadata: `<resource root>/models`

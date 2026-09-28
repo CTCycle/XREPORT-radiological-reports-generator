@@ -75,7 +75,7 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 │  └─ docs/
 ├─ settings/
 │  └─ .env.example
-├─ resources/
+├─ data/
 └─ app/
    ├─ scripts/
    │  └─ initialize_database.py

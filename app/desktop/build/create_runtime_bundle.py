@@ -56,7 +56,7 @@ def iter_files(root: Path) -> list[tuple[Path, str]]:
         if (
             ":" in normalized
             or any(part.lower() in FORBIDDEN_PARTS for part in parts)
-            or lowered.startswith(("models/", "checkpoints/", "logs/", "resources/"))
+            or lowered.startswith(("models/", "checkpoints/", "logs/", "data/"))
             or lowered in FORBIDDEN_NAMES
             or Path(lowered).name in FORBIDDEN_NAMES
             or Path(lowered).suffix in FORBIDDEN_SUFFIXES

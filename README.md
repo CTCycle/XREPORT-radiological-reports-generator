@@ -412,7 +412,7 @@ the supported local inference workflow.
 ## 10. Local data and further documentation
 
 In the source-based web workflow, application data is kept in the project's
-local resource area by default. Packaged Windows builds keep mutable data in
+local data directory by default. Packaged Windows builds keep mutable data in
 the Windows user profile rather than beside the installed program. This data
 includes the local database, logs, checkpoints, downloaded models, tokenizers,
 and report templates.

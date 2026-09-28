@@ -96,30 +96,31 @@ def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
 @pytest.fixture
 def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     root = tmp_path / "portable"
-    resources = root / "resources"
+    data_root = root / "data"
     monkeypatch.setattr(installation_module, "ROOT_DIR", root)
+    monkeypatch.setattr(installation_module, "DATA_ROOT", data_root)
     monkeypatch.setattr(
         installation_module,
         "HF_STAGING_DIR",
-        resources / "models" / "huggingface" / "staging",
+        data_root / "models" / "huggingface" / "staging",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_INSTALLED_DIR",
-        resources / "models" / "huggingface" / "installed",
+        data_root / "models" / "huggingface" / "installed",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_ROLLBACK_DIR",
-        resources / "models" / "huggingface" / "rollback",
+        data_root / "models" / "huggingface" / "rollback",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_METADATA_DIR",
-        resources / "models" / "huggingface" / "metadata",
+        data_root / "models" / "huggingface" / "metadata",
     )
     for path in (
-        resources,
+        data_root,
         installation_module.HF_STAGING_DIR,
         installation_module.HF_INSTALLED_DIR,
         installation_module.HF_ROLLBACK_DIR,
