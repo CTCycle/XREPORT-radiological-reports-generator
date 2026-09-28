@@ -61,7 +61,7 @@ logs are all below the data root.
 - `DATABASE_INSERT_BATCH_SIZE`
 - `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)
 - `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
-  `resources`)
+  `data`)
 
 `DATABASE_URL` is intentionally unsupported. External database mode requires
 the decomposed `DATABASE_ENGINE`, `DATABASE_HOST`, `DATABASE_PORT`,

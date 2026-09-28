@@ -169,7 +169,7 @@ class InferenceModelCatalog:
                     status_message = (
                         entry.validation_message
                         if entry.gated
-                        else "The model will be downloaded into the project-local resources directory on first Generate."
+                        else "The model will be downloaded into the project-local data directory on first Generate."
                     )
             except (KeyError, TypeError, ValueError, RuntimeError) as exc:
                 status = "incompatible"

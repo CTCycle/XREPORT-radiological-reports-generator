@@ -1,13 +1,13 @@
 # Project-specific generated/runtime artifacts
-resources/models/**
-resources/checkpoints/**
-resources/database/**
-resources/logs/**
+data/models/**
+data/checkpoints/**
+data/database/**
+data/logs/**
 app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
-resources/tokenizers/**
+data/tokenizers/**
 app/client/*.local
 runtimes/**
 runtimes/cache/
