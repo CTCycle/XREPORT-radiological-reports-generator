@@ -2077,10 +2077,10 @@ function Get-ConfiguredResourceRoot {
     } elseif ($settings.ContainsKey('XREPORT_RESOURCES_DIR')) {
         [string]$settings['XREPORT_RESOURCES_DIR']
     } else {
-        'app/resources'
+        'resources'
     }
     if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
-        $configuredRoot = 'app/resources'
+        $configuredRoot = 'resources'
     }
     $expandedRoot = [Environment]::ExpandEnvironmentVariables($configuredRoot.Trim())
     if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
@@ -2361,7 +2361,7 @@ function Get-LegacyCacheDirectories {
         (Join-Path $ClientDir 'coverage')
     )
     $resourceRoots = @(
-        (Join-Path $RepoRoot 'app\resources'),
+        (Join-Path $RepoRoot 'resources'),
         (Get-ConfiguredResourceRoot)
     ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
     foreach ($resourceRoot in $resourceRoots) {
@@ -2447,7 +2447,7 @@ function Get-LegacyCacheDirectories {
                     }
                 }
                 if ($isSkippedSubtree -or $childName -in $excludedNames -or
-                    $childPath.StartsWith((Join-Path $RepoRoot 'app\resources') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                    $childPath.StartsWith((Join-Path $RepoRoot 'resources') + '\', [StringComparison]::OrdinalIgnoreCase)) {
                     continue
                 }
                 $isPytestCache = $childName -match '^pytest[-_](cache|tmp|integration|e2e|release|full|runtime|settings)'

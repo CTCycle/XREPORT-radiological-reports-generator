@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-09-24
+Last updated: 2026-09-28
 
 ## Safety scope
 
@@ -81,10 +81,10 @@ does not promote this model while the manifest remains degraded.
 ## Project-local lifecycle
 
 The backend owns this structure under the configured resource root (default
-`app/resources`; override with `XREPORT_RESOURCES_DIR`):
+`resources`; override with `XREPORT_RESOURCES_DIR`):
 
 ```text
-app/resources/
+resources/
 ├── checkpoints/                         # custom XREPORT training outputs
 ├── models/huggingface/
 │   ├── installed/<model>/<revision>/    # active verified snapshot
