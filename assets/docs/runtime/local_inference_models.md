@@ -81,10 +81,10 @@ does not promote this model while the manifest remains degraded.
 ## Project-local lifecycle
 
 The backend owns this structure under the configured resource root (default
-`resources`; override with `XREPORT_RESOURCES_DIR`):
+`data`; override with `XREPORT_RESOURCES_DIR`):
 
 ```text
-resources/
+data/
 ├── checkpoints/                         # custom XREPORT training outputs
 ├── models/huggingface/
 │   ├── installed/<model>/<revision>/    # active verified snapshot

@@ -219,7 +219,7 @@ fn safe_member(name: &str) -> Result<PathBuf, String> {
         || lower.starts_with("models/")
         || lower.starts_with("checkpoints/")
         || lower.starts_with("logs/")
-        || lower.starts_with("resources/")
+        || lower.starts_with("data/")
         || lower
             .split('/')
             .any(|part| matches!(part, ".git" | "tests" | "test" | "cache" | "caches"))

@@ -78,7 +78,7 @@ class RuntimeLayout:
             resources_root = Path(
                 configured_resources.strip()
                 if configured_resources and configured_resources.strip()
-                else source_root / "resources"
+                else source_root / "data"
             ).expanduser()
             if not resources_root.is_absolute():
                 resources_root = source_root / resources_root

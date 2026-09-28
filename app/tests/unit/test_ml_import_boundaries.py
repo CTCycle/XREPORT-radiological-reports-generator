@@ -17,7 +17,7 @@ def test_concurrent_service_initialization_keeps_ml_imports_lazy(
     environment["MPLBACKEND"] = "Agg"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["EMBEDDED_DATABASE"] = "true"
-    environment["XREPORT_RESOURCES_DIR"] = str(tmp_path / "resources")
+    environment["XREPORT_RESOURCES_DIR"] = str(tmp_path / "data")
     environment.pop("DATABASE_URL", None)
     environment.pop("XREPORT_DESKTOP", None)
     code = """
