@@ -1,0 +1,56 @@
+XREPORT S50/S52 validation log — 2026-09-28
+Validation source/test revision: 39e57bb879f25ebada9baea86c8cbd14dc2ccb8d
+Initial checkout: develop at 1bb1800, clean and aligned with origin/develop.
+
+[S50 launcher]
+start_on_windows.ps1 -Action Launch with XREPORT_RESOURCES_DIR=runtimes/validation-s50-s52-20260928
+  initial launch: frontend reachable; /api/health HTTP 200
+  persisted setting: global.seed=20260928
+  persisted report: s50_validation_20260928 / s50-synthetic.png / synthetic:s50 / s50-revision
+start_on_windows.ps1 -Action KillProcesses
+  full source process tree stopped; no LISTENING 5003/8003
+  WAL checkpoint: (0, 0, 0); PRAGMA integrity_check=ok
+  backup SHA-256: 0c98d823e065f1f7ee0f1a2fad182ca8025e8126ad368837d38202b647032a60
+relaunch
+  /api/health HTTP 200; setting/report API readback passed
+  Codex in-app browser Settings and Reports rendered the same values
+stop; inject ALTER TABLE datasets ADD COLUMN s50_unexpected TEXT
+  integrity_check=ok; corrupted SHA-256: 41007a103182f01378ea4ae69e24a1467e45e71e4ac71da99ad1c4bf315a09b8
+  corrupted size: 159744 bytes; backup remained 159744 bytes and hash-distinct
+relaunch with drift
+  backend /api/health: connection refused; backend exited before binding
+  frontend: unavailable startup state rendered with Retry connection
+  Retry connection: state returned to Preparing XREPORT while backend stayed down
+  database hash/schema remained unchanged; no silent database recreation
+stop; restore backup; relaunch
+  restored SHA-256 matched backup; unexpected column absent; integrity_check=ok
+  /api/health HTTP 200; setting/report API and rendered readback passed
+final KillProcesses: no LISTENING 5003/8003; disposable root removed
+
+[S52 browser matrix]
+test_s52_responsive_route_modal_and_reduced_motion_matrix: 1 passed
+Routes: /inference, /reports, /dataset, /training, /settings
+Viewports: 320x640, 390x844, 640x800, 1024x720, 1440x900
+Cases: 25 route/viewport combinations
+Assertions: route content, no horizontal overflow, usable content scroll, modal bounds,
+focus containment, Escape restoration, reduced-motion media/CSS/scroll behavior,
+console errors, page errors, and failed requests
+Screenshots: 25 matrix PNGs plus S50 and startup-regression PNG receipts
+Committed startup + S52 checks: 3 passed, 12 deselected in 26.33s
+
+[Regression]
+Focused database/startup/model tests: 22 passed in 2.52s
+Full client unit suite: 13 files, 43 tests passed
+Production client build: verbose rerun passed; official launcher rebuilt after
+detecting a missing build manifest and then launched successfully.
+
+[Sanitized backend fail-closed excerpt]
+Database migration check: current=e91a4f6c2d73, head=e91a4f6c2d73
+Database is at the Alembic head but differs from the current ORM schema:
+('remove_column', None, 'datasets', Column('s50_unexpected', TEXT(), table=<datasets>))
+Database startup migration failed; no backend listener was bound.
+
+[Limitations]
+Protected historical cache paths produced existing access warnings and were left
+untouched. S50 covers current source SQLite schema drift only. S52 has no
+Narrator/Speech Recap observation, so spoken accessibility remains partial.
