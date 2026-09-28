@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import os
 import shutil
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -238,3 +239,155 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
                 _set_filesystem_access(api_context, original_access)
             finally:
                 shutil.rmtree(fixture_root, ignore_errors=True)
+
+
+def test_s23_source_delete_requires_processed_dataset_cleanup(
+    api_context: APIRequestContext,
+    base_url: str,
+    page: Page,
+    tmp_path: Path,
+) -> None:
+    settings = api_context.get("/api/settings")
+    assert settings.ok
+    original_access = settings.json()["values"]["features"][
+        "allow_local_filesystem_access"
+    ]
+
+    repo_root = Path(__file__).resolve().parents[3]
+    fixture_root = tmp_path / "s23-delete-browser-fixture"
+    image_folder = fixture_root / "images"
+    shutil.copytree(
+        repo_root
+        / "assets"
+        / "QA"
+        / "validation_campaign"
+        / "s27"
+        / "fixtures"
+        / "images",
+        image_folder,
+    )
+    dataset_name = f"s23-delete-{uuid4().hex}"
+    csv_path = fixture_root / f"{dataset_name}.csv"
+    shutil.copyfile(
+        repo_root
+        / "assets"
+        / "QA"
+        / "validation_campaign"
+        / "s27"
+        / "fixtures"
+        / "s27_technical_fixture.csv",
+        csv_path,
+    )
+    processed_name = f"{dataset_name}-processed"
+    evidence_dir = Path(
+        os.environ.get("S23_S26_EVIDENCE_DIR", str(tmp_path / "s23-evidence"))
+    ).resolve()
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    imported = False
+    processed = False
+
+    try:
+        _set_filesystem_access(api_context, True)
+        with csv_path.open("rb") as dataset_file:
+            uploaded = api_context.post(
+                "/api/upload/dataset",
+                multipart={
+                    "file": {
+                        "name": csv_path.name,
+                        "mimeType": "text/csv",
+                        "buffer": dataset_file.read(),
+                    }
+                },
+            )
+        assert uploaded.ok, uploaded.text()
+        loaded = api_context.post(
+            "/api/preparation/dataset/load",
+            data={
+                "upload_id": uploaded.json()["upload_id"],
+                "image_folder_path": str(image_folder),
+                "sample_size": 1.0,
+                "confirm_unmatched": False,
+            },
+        )
+        assert loaded.ok, loaded.text()
+        assert loaded.json()["success"]
+        assert loaded.json()["matched_records"] == 8
+        imported = True
+
+        started = api_context.post(
+            "/api/preparation/dataset/process",
+            data={
+                "dataset_name": dataset_name,
+                "custom_name": processed_name,
+                "sample_size": 1.0,
+                "validation_size": 0.25,
+                "tokenizer": "distilbert-base-uncased",
+                "max_report_size": 200,
+            },
+        )
+        assert started.status == 202, started.text()
+        job_id = started.json()["job_id"]
+        deadline = time.monotonic() + 180
+        status = None
+        while time.monotonic() < deadline:
+            polled = api_context.get(f"/api/jobs/{job_id}")
+            assert polled.ok, polled.text()
+            status = polled.json()
+            if status["status"] in {"completed", "failed", "cancelled"}:
+                break
+            time.sleep(1)
+        assert status is not None and status["status"] == "completed", status
+        processed = True
+
+        page.set_viewport_size({"width": 1440, "height": 1000})
+        page.goto(f"{base_url.rstrip('/')}/dataset")
+        source_row = page.locator(".dataset-table-row").filter(has_text=dataset_name)
+        expect(source_row).to_be_visible()
+        page.once("dialog", lambda dialog: dialog.accept())
+        source_row.get_by_role("button", name="Delete dataset").click()
+        expect(
+            page.get_by_text("Cannot delete source dataset", exact=False)
+        ).to_be_visible()
+        page.screenshot(
+            path=str(evidence_dir / "s23-source-delete-blocked.png"),
+            full_page=True,
+        )
+        assert any(
+            row["name"] == dataset_name
+            for row in api_context.get("/api/preparation/dataset/names").json()[
+                "datasets"
+            ]
+        )
+
+        page.goto(f"{base_url.rstrip('/')}/training")
+        expect(
+            page.get_by_role("heading", name="XREPORT Transformer")
+        ).to_be_visible(timeout=15_000)
+        processed_row = page.locator(".panel-row").filter(has_text=processed_name)
+        expect(processed_row).to_be_visible(timeout=15_000)
+        page.once("dialog", lambda dialog: dialog.accept())
+        processed_row.get_by_role("button", name="Delete dataset").click()
+        expect(processed_row).to_have_count(0)
+        processed = False
+
+        page.goto(f"{base_url.rstrip('/')}/dataset")
+        source_row = page.locator(".dataset-table-row").filter(has_text=dataset_name)
+        expect(source_row).to_be_visible()
+        page.once("dialog", lambda dialog: dialog.accept())
+        source_row.get_by_role("button", name="Delete dataset").click()
+        expect(source_row).to_have_count(0)
+        page.screenshot(
+            path=str(evidence_dir / "s23-source-delete-after-processed.png"),
+            full_page=True,
+        )
+
+        names = api_context.get("/api/preparation/dataset/names")
+        assert names.ok
+        assert all(row["name"] != dataset_name for row in names.json()["datasets"])
+    finally:
+        if processed:
+            api_context.delete(f"/api/preparation/dataset/{processed_name}")
+        if imported:
+            api_context.delete(f"/api/preparation/dataset/{dataset_name}")
+        _set_filesystem_access(api_context, original_access)
+        shutil.rmtree(fixture_root, ignore_errors=True)
