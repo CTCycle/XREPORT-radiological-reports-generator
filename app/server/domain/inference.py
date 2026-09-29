@@ -110,7 +110,6 @@ class InferenceManifestEntry(BaseModel):
         "medgemma",
         "chexone",
         "cxrmate_multi",
-        "cxrmate_ed",
         "cxrmate2",
     ]
     prompt_profile: str

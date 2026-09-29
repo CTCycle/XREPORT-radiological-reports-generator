@@ -21,7 +21,7 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
     custom_models = [
         model for model in catalog["models"] if model["origin"] == "custom"
     ]
-    assert len(public_models) == 5
+    assert public_models
     assert all(model["provider"] == "huggingface" for model in public_models)
     assert all(model["model_ref"].startswith("huggingface:") for model in public_models)
     assert all(model["status"] for model in public_models)
@@ -34,7 +34,6 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
     assert all(model["model_ref"].startswith("xreport:") for model in custom_models)
     expected_revisions = {
         "huggingface:aehrc/cxrmate-multi-tf": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
-        "huggingface:aehrc/cxrmate-ed": "68251c7605067ddbea330413aade032713fd2192",
         "huggingface:StanfordAIMI/CheXOne": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
         "huggingface:aehrc/cxrmate-2": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
         "huggingface:google/medgemma-1.5-4b-it": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
@@ -42,13 +41,9 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
     assert {
         model["model_ref"]: model["model_revision"] for model in public_models
     } == expected_revisions
-    cxrmate_ed = next(
-        model
-        for model in public_models
-        if model["model_ref"] == "huggingface:aehrc/cxrmate-ed"
-    )
-    assert cxrmate_ed["validation_status"] == "degraded"
-    assert "sensitivity canary failed" in cxrmate_ed["validation_message"].lower()
+    assert "huggingface:aehrc/cxrmate-ed" not in {
+        model["model_ref"] for model in public_models
+    }
     medgemma = next(
         model
         for model in public_models
@@ -68,6 +63,21 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
 
     assert response.status == 404
     assert "catalog" in response.json()["detail"]
+
+    retired = api_context.post(
+        "/api/inference/generate",
+        multipart={
+            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "generation_profile": "deterministic",
+            "clinical_context": "",
+            "images": _image_upload(),
+        },
+    )
+    assert retired.status == 404
+    assert retired.json() == {
+        "detail": "Model is not in the local inference catalog: "
+        "huggingface:aehrc/cxrmate-ed"
+    }
 
 
 ###############################################################################
@@ -145,9 +155,9 @@ def test_inference_generate_enforces_model_context_profile_and_image_limits(
     invalid_type = api_context.post(
         "/api/inference/generate",
         multipart={
-            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "model_ref": cxrmate_multi["model_ref"],
             "generation_profile": "concise",
-            "clinical_context": "Cough",
+            "clinical_context": "",
             "images": _image_upload("scan.gif", "image/gif", b"GIF89a"),
         },
     )
@@ -157,9 +167,9 @@ def test_inference_generate_enforces_model_context_profile_and_image_limits(
     empty_image = api_context.post(
         "/api/inference/generate",
         multipart={
-            "model_ref": "huggingface:aehrc/cxrmate-ed",
+            "model_ref": cxrmate_multi["model_ref"],
             "generation_profile": "detailed",
-            "clinical_context": "Dyspnea",
+            "clinical_context": "",
             "images": _image_upload(data=b""),
         },
     )
@@ -209,7 +219,7 @@ def test_inference_generate_rejects_image_payload_over_total_limit(
         response = client.post(
             "/api/inference/generate",
             data={
-                "model_ref": "huggingface:aehrc/cxrmate-ed",
+                "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
                 "generation_profile": "deterministic",
                 "clinical_context": "",
             },

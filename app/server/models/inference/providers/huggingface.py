@@ -823,7 +823,7 @@ class HuggingFaceProvider:
         if validation_message:
             provenance["validation_message"] = validation_message
         if validation_status == "degraded":
-            provenance["quality_warnings"] = ["sensitivity_canary_failed"]
+            provenance["quality_warnings"] = ["model_validation_failed"]
         return provenance
 
     # -------------------------------------------------------------------------

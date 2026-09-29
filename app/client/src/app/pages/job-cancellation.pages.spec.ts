@@ -31,7 +31,7 @@ function hiddenGuidance() {
   };
 }
 
-function inferenceModel(modelRef: string, status: string): ModelAvailability {
+function inferenceModel(modelRef: string, status: string, validationStatus: ModelAvailability['validation_status'] = 'pending'): ModelAvailability {
   return {
     model_ref: modelRef,
     provider: 'huggingface',
@@ -40,7 +40,7 @@ function inferenceModel(modelRef: string, status: string): ModelAvailability {
     description: 'Test model',
     status,
     enabled: true,
-    validation_status: 'pending',
+    validation_status: validationStatus,
     validation_receipt_status: 'missing',
     category: 'radiology',
     recommended: false,
@@ -167,6 +167,24 @@ describe('cooperative page cancellation', () => {
 });
 
 describe('inference model readiness refresh', () => {
+  it('does not offer generation for a degraded public model', async () => {
+    const modelRef = 'huggingface:future/degraded-model';
+    await TestBed.configureTestingModule({
+      imports: [InferencePage],
+      providers: [
+        { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [inferenceModel(modelRef, 'ready', 'degraded')] }) } },
+        { provide: JobsApiService, useValue: { get: vi.fn() } },
+        { provide: GuidanceService, useValue: hiddenGuidance() },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(InferencePage);
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.canGenerate()).toBe(false);
+    expect(fixture.componentInstance.modelNotice()).toContain('failed qualification');
+  });
+
   it('refreshes the selected model after generation reaches a terminal state', async () => {
     const modelRef = 'huggingface:aehrc/cxrmate-multi-tf';
     const getModels = vi.fn()
