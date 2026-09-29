@@ -59,6 +59,15 @@ function inferenceModel(modelRef: string, status: string, validationStatus: Mode
   } as unknown as ModelAvailability;
 }
 
+function customInferenceModel(modelRef: string): ModelAvailability {
+  return {
+    ...inferenceModel(modelRef, 'ready', 'passed'),
+    display_name: modelRef,
+    origin: 'custom',
+    validation_receipt_status: 'passed',
+  } as ModelAvailability;
+}
+
 describe('cooperative page cancellation', () => {
   it('keeps inference active until polling observes the terminal state', async () => {
     const cancel = vi.fn(() => apiResult({ job_id: 'generation-1', success: true, message: 'Cancellation requested' }));
@@ -167,6 +176,29 @@ describe('cooperative page cancellation', () => {
 });
 
 describe('inference model readiness refresh', () => {
+  it('keeps a large model catalogue in a bounded scroll region', async () => {
+    const models = Array.from({ length: 40 }, (_, index) => customInferenceModel(`xreport:checkpoint-${index + 1}`));
+    await TestBed.configureTestingModule({
+      imports: [InferencePage],
+      providers: [
+        { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models }) } },
+        { provide: JobsApiService, useValue: { get: vi.fn() } },
+        { provide: GuidanceService, useValue: hiddenGuidance() },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(InferencePage);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const scrollRegion = fixture.nativeElement.querySelector('[aria-label="Scrollable model catalogue"]') as HTMLElement | null;
+    expect(scrollRegion).not.toBeNull();
+    expect(scrollRegion?.classList.contains('model-groups')).toBe(true);
+    expect(scrollRegion?.getAttribute('tabindex')).toBe('0');
+    expect(fixture.nativeElement.querySelectorAll('.model-card')).toHaveLength(40);
+    expect(fixture.nativeElement.textContent).toContain('40 models');
+  });
+
   it('does not offer generation for a degraded public model', async () => {
     const modelRef = 'huggingface:future/degraded-model';
     await TestBed.configureTestingModule({
