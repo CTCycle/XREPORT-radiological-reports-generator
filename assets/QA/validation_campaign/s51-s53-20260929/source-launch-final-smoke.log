@@ -1,0 +1,25 @@
+[STEP] Starting action Launch
+[OK] Launch ports 5003 and 8003 are available.
+[INFO] Launch timing phase=port_preflight elapsed_ms=1330
+[OK] Backend environment is ready; skipped backend dependency installation.
+[INFO] Launch timing phase=dependency_readiness elapsed_ms=2997
+[INFO] Frontend build status: ManifestMissing
+[INFO] Launch timing phase=build_freshness_check elapsed_ms=610
+[INFO] Frontend production bundle requires work: ManifestMissing
+[STEP] Building frontend
+[STEP] Running G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\nodejs\npm.cmd run build
+[OK] Completed G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\nodejs\npm.cmd run build
+[OK] Frontend build state refreshed: .xreport-build-state.json
+[INFO] Launch timing phase=stale_rebuild elapsed_ms=23206
+[STEP] Starting backend
+[INFO] Launch timing phase=backend_process_start elapsed_ms=97
+[STEP] Starting built frontend server while the backend initializes
+[INFO] Launch timing phase=frontend_server_start elapsed_ms=44
+[STEP] Waiting for frontend at http://127.0.0.1:8003
+True
+[INFO] Launch timing phase=ui_reachable elapsed_ms=693
+[WARN] Automatic browser launch failed. Open the interface manually at http://127.0.0.1:8003. Impossibile eseguire il comando a causa dell'errore seguente: Accesso negato.
+[OK] XREPORT interface started. Backend initialization is continuing in the application.
+Backend: http://127.0.0.1:5003/api/health (initializing; launcher PID 13412)
+Frontend: http://127.0.0.1:8003 (PID 3688)
+[OK] action Launch completed
