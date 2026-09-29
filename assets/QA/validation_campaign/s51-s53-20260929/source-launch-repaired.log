@@ -1,0 +1,20 @@
+[STEP] Starting action Launch
+[OK] Launch ports 5003 and 8003 are available.
+[INFO] Launch timing phase=port_preflight elapsed_ms=1657
+[OK] Backend environment is ready; skipped backend dependency installation.
+[INFO] Launch timing phase=dependency_readiness elapsed_ms=1208
+[INFO] Frontend build status: Current
+[INFO] Launch timing phase=build_freshness_check elapsed_ms=385
+[OK] Frontend production bundle is current; skipped Angular build.
+[INFO] Launch timing phase=stale_rebuild elapsed_ms=14
+[STEP] Starting backend
+[INFO] Launch timing phase=backend_process_start elapsed_ms=90
+[STEP] Starting built frontend server while the backend initializes
+[INFO] Launch timing phase=frontend_server_start elapsed_ms=17
+[STEP] Waiting for frontend at http://127.0.0.1:8003
+True
+[INFO] Launch timing phase=ui_reachable elapsed_ms=634
+[OK] XREPORT interface started. Backend initialization is continuing in the application.
+Backend: http://127.0.0.1:5003/api/health (initializing; launcher PID 38444)
+Frontend: http://127.0.0.1:8003 (PID 20340)
+[OK] action Launch completed
