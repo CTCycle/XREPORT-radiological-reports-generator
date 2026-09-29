@@ -19,16 +19,15 @@ from server.repositories.schemas import (
 )
 from server.repositories.schemas.normalization import normalize_key
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class DatasetDeletionResult:
     deleted_count: int
     dependent_dataset_names: tuple[str, ...] = ()
 
-
 ###############################################################################
 class PreparationRepository:
+
     # -------------------------------------------------------------------------
     def __init__(self, database: Database) -> None:
         self.database = database

@@ -314,16 +314,22 @@ def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
         sqlalchemy.UniqueConstraint("name_key", name="uq_sample_name_key"),
     )
 
+    ###############################################################################
     class ReflectedSchema:
+
+        # -------------------------------------------------------------------------
         def get_pk_constraint(self, _table_name: str) -> dict[str, list[str]]:
             return {"constrained_columns": ["sample_id"]}
 
+        # -------------------------------------------------------------------------
         def get_unique_constraints(self, _table_name: str) -> list[dict[str, object]]:
             return [{"name": "uq_sample_name_key", "column_names": ["name_key"]}]
 
+        # -------------------------------------------------------------------------
         def get_foreign_keys(self, _table_name: str) -> list[dict[str, object]]:
             return []
 
+        # -------------------------------------------------------------------------
         def get_indexes(self, _table_name: str) -> list[dict[str, object]]:
             return [
                 {
@@ -334,6 +340,7 @@ def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
                 }
             ]
 
+        # -------------------------------------------------------------------------
         def get_check_constraints(self, _table_name: str) -> list[dict[str, object]]:
             return []
 

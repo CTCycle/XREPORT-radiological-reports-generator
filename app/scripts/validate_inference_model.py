@@ -51,6 +51,7 @@ RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ValidationCase:
     """One independent image-to-report validation case."""
@@ -180,6 +181,7 @@ def _expected_hashes(value: str | list[str], image_count: int) -> list[str]:
     return hashes
 
 
+###############################################################################
 def _configure_validation_cache() -> Path | None:
     """Redirect Transformers' dynamic-module cache for isolated validation runs."""
     configured_root = os.environ.get("XREPORT_VALIDATION_CACHE_ROOT", "").strip()
@@ -199,6 +201,7 @@ def _configure_validation_cache() -> Path | None:
     return modules_cache
 
 
+###############################################################################
 def load_case_manifest(path: Path) -> list[ValidationCase]:
     """Load and validate independent-case definitions from a JSON file."""
     manifest_path = path.resolve()
@@ -547,6 +550,7 @@ def validate_cached_model(
     return {**payload, "receipt": str(receipt.relative_to(ROOT_DIR))}
 
 
+###############################################################################
 def validate_cached_cases(
     *,
     model_ref: str,
@@ -633,10 +637,12 @@ def validate_cached_cases(
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
 
+    ###############################################################################
     class RecordingRepository:
         saved_reports: list[dict[str, str]] = []
         generation_config: dict[str, object] = {}
 
+        # -------------------------------------------------------------------------
         def save_generated_reports(
             self, reports: list[dict[str, str]], **kwargs: object
         ) -> None:

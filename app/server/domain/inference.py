@@ -301,6 +301,7 @@ InferenceHistoryStatus = Literal[
 InferenceHistorySort = Literal["newest", "oldest"]
 
 
+###############################################################################
 class InferenceHistoryReportSummary(BaseModel):
     image_index: int = Field(ge=0)
     input_image_name: str
@@ -309,6 +310,7 @@ class InferenceHistoryReportSummary(BaseModel):
     edited_at: str | None = None
 
 
+###############################################################################
 class InferenceHistoryReport(BaseModel):
     image_index: int = Field(ge=0)
     input_image_name: str
@@ -320,6 +322,7 @@ class InferenceHistoryReport(BaseModel):
     sections: dict[str, str] = Field(default_factory=dict)
 
 
+###############################################################################
 class InferenceHistorySummary(BaseModel):
     request_id: str
     provider: str
@@ -336,6 +339,7 @@ class InferenceHistorySummary(BaseModel):
     provenance_available: bool = False
 
 
+###############################################################################
 class InferenceHistoryResponse(BaseModel):
     items: list[InferenceHistorySummary]
     total: int = Field(ge=0)
@@ -343,6 +347,7 @@ class InferenceHistoryResponse(BaseModel):
     offset: int = Field(ge=0)
 
 
+###############################################################################
 class InferenceHistoryDetail(BaseModel):
     request_id: str
     provider: str
@@ -358,15 +363,18 @@ class InferenceHistoryDetail(BaseModel):
     output_sections: list[str]
 
 
+###############################################################################
 class InferenceHistoryReportUpdate(BaseModel):
     image_index: int = Field(ge=0)
     edited_report: str = Field(max_length=1_000_000)
 
 
+###############################################################################
 class InferenceHistoryUpdateRequest(BaseModel):
     reports: list[InferenceHistoryReportUpdate] = Field(min_length=1)
 
 
+###############################################################################
 class InferenceHistoryDeleteResponse(BaseModel):
     success: bool
     message: str

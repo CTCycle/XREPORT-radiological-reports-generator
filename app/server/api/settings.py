@@ -12,7 +12,6 @@ from server.domain.settings import (
 if TYPE_CHECKING:
     from server.services.settings import SettingsService
 
-
 ###############################################################################
 class SettingsEndpoint:
 
@@ -71,7 +70,6 @@ class SettingsEndpoint:
             response_model=ApplicationSettingsResponse,
             status_code=status.HTTP_200_OK,
         )
-
 
 ###############################################################################
 def get_router() -> APIRouter:

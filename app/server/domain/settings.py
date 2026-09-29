@@ -2,31 +2,25 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 ###############################################################################
 class _StrictSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-
 
 ###############################################################################
 class RuntimeGlobalSettings(_StrictSettingsModel):
     seed: int
 
-
 ###############################################################################
 class RuntimeFeatureSettings(_StrictSettingsModel):
     allow_local_filesystem_access: bool
-
 
 ###############################################################################
 class RuntimeJobSettings(_StrictSettingsModel):
     polling_interval: float
 
-
 ###############################################################################
 class RuntimeInferenceSettings(_StrictSettingsModel):
     model_timeout: int
-
 
 ###############################################################################
 class RuntimeApplicationSettings(_StrictSettingsModel):
@@ -41,12 +35,10 @@ class RuntimeApplicationSettings(_StrictSettingsModel):
         populate_by_name=False,
     )
 
-
 ###############################################################################
 class ApplicationSettingsResponse(_StrictSettingsModel):
     values: RuntimeApplicationSettings
     defaults: RuntimeApplicationSettings
-
 
 ###############################################################################
 class _PatchModel(_StrictSettingsModel):
@@ -61,16 +53,13 @@ class _PatchModel(_StrictSettingsModel):
             raise ValueError("at least one setting must be provided")
         return self
 
-
 ###############################################################################
 class GlobalSettingsPatch(_PatchModel):
     seed: int | None = Field(default=None, ge=0, le=4_294_967_295)
 
-
 ###############################################################################
 class FeatureSettingsPatch(_PatchModel):
     allow_local_filesystem_access: bool | None = None
-
 
 ###############################################################################
 class JobSettingsPatch(_PatchModel):
@@ -81,11 +70,9 @@ class JobSettingsPatch(_PatchModel):
         allow_inf_nan=False,
     )
 
-
 ###############################################################################
 class InferenceSettingsPatch(_PatchModel):
     model_timeout: int | None = Field(default=None, ge=1)
-
 
 ###############################################################################
 class ApplicationSettingsPatch(_StrictSettingsModel):
