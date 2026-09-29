@@ -45,6 +45,11 @@ if TYPE_CHECKING:
     from server.services.training_worker import ProcessWorker
 
 ###############################################################################
+WORKER_EXIT_FAILURE_CODE = "training_worker_exited"
+WORKER_FAILURE_PHASE = "worker_process"
+WORKER_DIAGNOSTICS_KEY = "worker_diagnostics"
+
+
 class TrainingRuntime:
     """Owns only the internal worker handle for the active training job."""
 
@@ -64,7 +69,17 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
 
     manager = get_job_manager()
     message_type = message.get("type")
-    if message_type == "training_update":
+    if message_type == "training_worker_lifecycle":
+        log_method = logger.error if message.get("status") == "failed" else logger.info
+        log_method(
+            "Training worker lifecycle: job_id=%s phase=%s status=%s pid=%s diagnostic=%s",
+            job_id,
+            message.get("phase"),
+            message.get("status"),
+            message.get("pid"),
+            message.get("diagnostic"),
+        )
+    elif message_type == "training_update":
         manager.update_progress(job_id, float(message.get("progress_percent", 0)))
         manager.update_result(
             job_id,
@@ -153,13 +168,86 @@ def enforce_worker_stop_timeout(
     return True
 
 ###############################################################################
+def record_worker_diagnostics(
+    job_id: str,
+    diagnostics: object,
+) -> None:
+    if not isinstance(diagnostics, dict):
+        return
+    public_diagnostics = {
+        key: diagnostics[key]
+        for key in ("status", "phase", "pid", "exitcode", "reported", "exception_type")
+        if key in diagnostics
+    }
+    get_job_manager().update_result(
+        job_id,
+        {WORKER_DIAGNOSTICS_KEY: public_diagnostics},
+    )
+
+
+def build_worker_exit_diagnostics(
+    worker: ProcessWorker,
+    exitcode: int,
+) -> dict[str, Any]:
+    return {
+        "status": "exited",
+        "phase": getattr(worker, "lifecycle_phase", None) or "worker_process",
+        "pid": getattr(worker, "pid", None),
+        "exitcode": exitcode,
+        "reported": False,
+    }
+
+
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
+    manager = get_job_manager()
     result_payload = worker.read_result()
+    stop_requested = manager.should_stop(job_id)
+    exitcode = worker.exitcode
+
+    if result_payload is not None:
+        diagnostics = result_payload.get(WORKER_DIAGNOSTICS_KEY)
+        if isinstance(diagnostics, dict) and "phase" not in diagnostics:
+            diagnostics = {
+                **diagnostics,
+                "phase": getattr(worker, "lifecycle_phase", None)
+                or WORKER_FAILURE_PHASE,
+            }
+        if isinstance(diagnostics, dict) and exitcode not in (0, None):
+            diagnostics = {
+                **diagnostics,
+                "exitcode": exitcode,
+            }
+        if isinstance(diagnostics, dict):
+            logger.error(
+                "Training worker diagnostics for job %s: phase=%s pid=%s "
+                "exception_type=%s message=%s traceback=%s",
+                job_id,
+                diagnostics.get("phase"),
+                diagnostics.get("pid"),
+                diagnostics.get("exception_type"),
+                diagnostics.get("message"),
+                diagnostics.get("traceback"),
+            )
+        record_worker_diagnostics(
+            job_id,
+            diagnostics,
+        )
+
+    if (
+        exitcode not in (0, None)
+        and not stop_requested
+        and not (result_payload and result_payload.get("error"))
+    ):
+        diagnostics = build_worker_exit_diagnostics(worker, exitcode)
+        record_worker_diagnostics(job_id, diagnostics)
+        raise JobExecutionError(
+            f"Training process exited with code {exitcode}",
+            code=WORKER_EXIT_FAILURE_CODE,
+            phase=WORKER_FAILURE_PHASE,
+            recoverable=True,
+        )
+
     if result_payload is None:
-        if worker.exitcode not in (0, None) and not get_job_manager().should_stop(
-            job_id
-        ):
-            raise RuntimeError(f"Training process exited with code {worker.exitcode}")
         return {}
 
     if "error" in result_payload and result_payload["error"]:
@@ -171,7 +259,7 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
                 phase=str(failure.get("phase", "execution")),
                 recoverable=bool(failure.get("recoverable", True)),
             )
-        raise RuntimeError(str(result_payload["error"]))
+        raise JobExecutionError(str(result_payload["error"]))
 
     if "result" in result_payload:
         return result_payload["result"] or {}

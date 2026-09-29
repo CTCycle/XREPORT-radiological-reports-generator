@@ -90,6 +90,23 @@ describe('SettingsPage', () => {
     expect(element.querySelector('#inference-timeout')).not.toBeNull();
   });
 
+  it('moves focus across categories with the tablist arrow keys', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    const generalTab = element.querySelector('#settings-tab-general') as HTMLButtonElement;
+    const dataTab = element.querySelector('#settings-tab-data') as HTMLButtonElement;
+
+    generalTab.focus();
+    page.onTabKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }), 'general');
+
+    expect(document.activeElement).toBe(dataTab);
+    expect(page.activeTab()).toBe('general');
+  });
+
   it('delegates reset and replaces the local baseline with the server response', async () => {
     const resetResponse = settingsResponse();
     resetResponse.values.global.seed = 99;

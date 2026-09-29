@@ -563,6 +563,7 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
             else:
                 expect(page.get_by_role("heading", name=heading)).to_be_visible()
             expect(page.locator(".main-layout-content")).to_be_visible()
+            _assert_s52_semantic_route_metadata(page, route_name)
 
             metrics = page.evaluate(
                 """() => {
@@ -705,6 +706,196 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     assert not console_errors, console_errors
     assert not page_errors, page_errors
     assert not request_failures, request_failures
+
+###############################################################################
+def test_s52_semantic_metadata_and_keyboard_only_smoke(
+    page: Page,
+    base_url: str,
+) -> None:
+    """Check representative semantic contracts and keyboard-only interactions."""
+    page.set_viewport_size({"width": 1024, "height": 720})
+    response = page.goto(f"{base_url}/inference")
+
+    assert response is not None and response.ok
+    expect(page.get_by_role("heading", name="Turn a radiograph into a draft report")).to_be_visible()
+    _assert_s52_semantic_route_metadata(page, "inference")
+
+    help_button = page.get_by_role("button", name="Help and tips")
+    _focus_s52_with_tab(page, help_button)
+    page.keyboard.press("Enter")
+
+    tips_dialog = page.get_by_role("dialog", name="Tips & Tricks")
+    expect(tips_dialog).to_be_visible()
+    expect(help_button).to_have_attribute("aria-expanded", "true")
+    _assert_s52_dialog_semantics(page, tips_dialog, require_description=False)
+    assert page.evaluate(
+        "() => document.querySelector('.guidance-modal')?.contains(document.activeElement) ?? false"
+    )
+
+    walkthrough_button = page.get_by_role("button", name="Show walkthrough")
+    _focus_s52_with_tab(page, walkthrough_button)
+    page.keyboard.press("Enter")
+
+    tour_dialog = page.locator(".guided-tour-dialog")
+    expect(tour_dialog).to_be_visible()
+    _assert_s52_dialog_semantics(page, tour_dialog, require_description=True)
+    first_step = tour_dialog.get_by_role("heading").inner_text()
+    next_button = page.get_by_role("button", name="Next")
+    _focus_s52_with_tab(page, next_button)
+    page.keyboard.press("Enter")
+    expect(tour_dialog.get_by_role("heading")).not_to_have_text(first_step)
+    page.keyboard.press("Escape")
+    expect(tour_dialog).to_have_count(0)
+    expect(help_button).to_be_focused()
+
+    settings_link = page.get_by_role("link", name="Settings", exact=True)
+    _focus_s52_with_tab(page, settings_link)
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(f"{base_url}/settings")
+    _assert_s52_semantic_route_metadata(page, "settings")
+
+    general_tab = page.get_by_role("tab", name="General")
+    data_tab = page.get_by_role("tab", name="Data access")
+    _focus_s52_with_tab(page, general_tab)
+    page.keyboard.press("ArrowRight")
+    expect(data_tab).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(data_tab).to_have_attribute("aria-selected", "true")
+    data_panel = page.get_by_role("tabpanel")
+    data_tab_id = data_tab.get_attribute("id")
+    assert data_tab_id
+    expect(data_panel).to_have_attribute("aria-labelledby", data_tab_id)
+    expect(data_panel.get_by_role("heading", name="Data access")).to_be_visible()
+
+    response = page.goto(f"{base_url}/training")
+    assert response is not None and response.ok
+    expect(page.get_by_role("heading", name="XREPORT Transformer")).to_be_visible()
+    _assert_s52_semantic_route_metadata(page, "training")
+
+    collapse_button = page.locator("button.panel-collapse-toggle").first
+    _focus_s52_with_tab(page, collapse_button)
+    expect(collapse_button).to_have_attribute("aria-expanded", "true")
+    page.keyboard.press("Space")
+    expect(collapse_button).to_have_attribute("aria-expanded", "false")
+    page.keyboard.press("Enter")
+    expect(collapse_button).to_have_attribute("aria-expanded", "true")
+
+###############################################################################
+def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
+    navigation = page.get_by_role("navigation", name="Primary navigation")
+    expect(navigation).to_have_count(1)
+    expect(page.get_by_role("main")).to_have_count(1)
+    assert page.locator("main").evaluate("element => element.tagName") == "MAIN"
+
+    for label in ("Inference", "Reports", "Dataset", "Training", "Settings"):
+        expect(navigation.get_by_role("link", name=label, exact=True)).to_be_visible()
+
+    broken_references = page.evaluate(
+        """
+        () => [...document.querySelectorAll('[aria-labelledby], [aria-describedby]')]
+          .flatMap((element) => ['aria-labelledby', 'aria-describedby'].flatMap((attribute) =>
+            (element.getAttribute(attribute) ?? '')
+              .split(/\\s+/)
+              .filter(Boolean)
+              .filter((id) => !document.getElementById(id))
+              .map((id) => `${element.tagName.toLowerCase()}[${attribute}=${id}]`)
+          ))
+        """,
+    )
+    assert not broken_references, f"broken ARIA references on {route_name}: {broken_references}"
+
+    unnamed_controls = page.evaluate(
+        """
+        () => [...document.querySelectorAll('a, button')]
+          .filter((element) => {
+            const text = (element.textContent ?? '').replace(/\\s+/g, ' ').trim();
+            return !text && !element.getAttribute('aria-label') && !element.getAttribute('aria-labelledby');
+          })
+          .map((element) => element.outerHTML.slice(0, 180))
+        """,
+    )
+    assert not unnamed_controls, f"unnamed links or buttons on {route_name}: {unnamed_controls}"
+
+    if route_name == "inference":
+        expect(page.locator('section[aria-label="Inference workflow"]')).to_have_count(1)
+        expect(page.locator('aside[aria-label="Model catalog"]')).to_have_count(1)
+        model_region = page.get_by_role("region", name="Scrollable model catalogue")
+        expect(model_region).to_have_attribute("tabindex", "0")
+        expect(page.get_by_role("textbox", name="Filter models")).to_be_visible()
+    elif route_name == "reports":
+        expect(page.locator('main[aria-labelledby="reports-title"]')).to_have_count(1)
+        expect(page.get_by_role("region", name="Report history filters")).to_have_count(1)
+        expect(page.get_by_role("textbox", name="Model reference")).to_be_visible()
+        expect(page.get_by_role("combobox", name="Status")).to_be_visible()
+        expect(page.get_by_role("combobox", name="Sort")).to_be_visible()
+    elif route_name == "dataset":
+        expect(page.get_by_role("button", name="Load Dataset")).to_be_visible()
+        expect(page.get_by_role("button", name="Upload Data File")).to_be_visible()
+        rows = page.locator('.dataset-table-row[role="button"]')
+        for index in range(rows.count()):
+            row = rows.nth(index)
+            expect(row).to_have_attribute("tabindex", "0")
+            expect(row).to_have_attribute("aria-pressed", re.compile(r"^(true|false)$"))
+    elif route_name == "training":
+        toggles = page.locator("main button.panel-collapse-toggle")
+        expect(toggles).to_have_count(2)
+        expect(page.get_by_role("button", name=re.compile(r"Collapse new training session|Expand new training session"))).to_be_visible()
+        for index in range(toggles.count()):
+            toggle = toggles.nth(index)
+            expect(toggle).to_have_attribute("aria-expanded", re.compile(r"^(true|false)$"))
+            assert toggle.get_attribute("aria-label")
+    elif route_name == "settings":
+        tabs = page.get_by_role("tab")
+        expect(tabs).to_have_count(3)
+        tab_metadata = page.evaluate(
+            """
+            () => [...document.querySelectorAll('[role="tab"]')].map((tab) => ({
+              id: tab.id,
+              selected: tab.getAttribute('aria-selected'),
+              controls: tab.getAttribute('aria-controls'),
+              tabindex: tab.getAttribute('tabindex'),
+            }))
+            """,
+        )
+        assert all(
+            item["selected"] in {"true", "false"}
+            and item["tabindex"] in {"0", "-1"}
+            and item["controls"]
+            for item in tab_metadata
+        ), tab_metadata
+        active_tab = next(
+            item for item in tab_metadata if item["selected"] == "true"
+        )
+        assert page.locator(f'#{active_tab["controls"]}').count() == 1
+        panel = page.get_by_role("tabpanel")
+        expect(panel).to_have_count(1)
+        labelled_by = panel.get_attribute("aria-labelledby")
+        assert labelled_by and page.locator(f'#{labelled_by}').count() == 1
+        expect(page.get_by_role("spinbutton", name=re.compile("random seed|polling interval|inference timeout", re.I)).first).to_be_visible()
+    else:
+        raise AssertionError(f"Unexpected S52 route: {route_name}")
+
+###############################################################################
+def _assert_s52_dialog_semantics(page: Page, dialog, *, require_description: bool) -> None:
+    expect(dialog).to_have_attribute("role", "dialog")
+    expect(dialog).to_have_attribute("aria-modal", "true")
+    labelled_by = dialog.get_attribute("aria-labelledby")
+    assert labelled_by
+    assert page.evaluate("id => Boolean(document.getElementById(id))", labelled_by)
+    described_by = dialog.get_attribute("aria-describedby")
+    if require_description:
+        assert described_by
+        assert page.evaluate("id => Boolean(document.getElementById(id))", described_by)
+    elif described_by:
+        assert page.evaluate("id => Boolean(document.getElementById(id))", described_by)
+
+###############################################################################
+def _focus_s52_with_tab(page: Page, target, max_tabs: int = 64) -> None:
+    for _ in range(max_tabs):
+        if target.evaluate("element => element === document.activeElement"):
+            return
+        page.keyboard.press("Tab")
+    raise AssertionError(f"Keyboard Tab navigation did not reach {target}")
 
 ###############################################################################
 def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
