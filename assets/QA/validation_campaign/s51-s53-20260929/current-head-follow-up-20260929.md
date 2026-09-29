@@ -21,6 +21,7 @@ The runtime receipt was captured before the catalogue edit; the browser/build ch
 - Client focused model-page suite: 9 passed.
 - Full client unit suite: 13 files, 45 tests passed.
 - Client lint passed. Production build passed on the verbose rerun and produced app/client/dist/client-angular.
+- Hosted CI run 36586991512 for commit 064278f8355a0a0423b9a5ba9184d7 passed its Backend And Client Validation job, including backend/client tests, Ruff, Pyright, PostgreSQL persistence, API E2E, build, built-server tests, and lint.
 
 ## Remaining limitations
 
