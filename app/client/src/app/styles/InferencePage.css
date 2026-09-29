@@ -194,6 +194,8 @@
     flex-direction: column;
     gap: var(--space-3);
     container: model-catalog / inline-size;
+    height: clamp(320px, 58vh, 560px);
+    box-sizing: border-box;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
@@ -220,7 +222,7 @@
 
 .model-groups {
     display: grid;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     grid-template-rows: repeat(2, minmax(min-content, 1fr));
     align-content: stretch;
     gap: var(--space-4);
