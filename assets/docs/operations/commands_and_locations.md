@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 ## Primary Commands
 
@@ -55,12 +55,12 @@ timestamped backend logs beside it. Readiness/session files in
 
 - `app/tests/run_tests.bat`
 - `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp runtimes/cache/pytest-tmp/manual -o "cache_dir=runtimes/cache/pytest"`
-- `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_cxrmate_ed_sensitivity.py" --fixture-provenance "<approved source>" --fixture-deidentification "<approved de-identification statement>"`
+- `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_inference_model.py" --help`
 
-The CXRMate-ED canary is cache-only and writes its real-inference evidence to
-`assets/QA/inference_validation_runs/`. A failed canary is an expected,
-explicit degraded result for research access; it must not be treated as a
-passing validation receipt.
+The former CXRMate-ED sensitivity wrapper has been retired with the model. The
+generic validator is for active catalogue entries only; a model that fails
+qualification is removed from the selectable catalogue rather than retained
+as degraded research access.
 
 ### Tier 0 validation
 

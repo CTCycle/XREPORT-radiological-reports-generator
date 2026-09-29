@@ -98,11 +98,14 @@ export class InferencePage implements AfterViewInit {
   readonly currentImageUrl = computed(() => this.currentUrl());
   readonly maxImages = computed(() => this.selectedModel()?.max_current_images ?? 1);
   readonly outputSections = computed(() => this.selectedModel()?.output_sections ?? []);
-  readonly canGenerate = computed(() => { const status = this.selectedModel()?.status; return Boolean(status && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(status)); });
+  readonly canGenerate = computed(() => { const model = this.selectedModel(); const status = model?.status; return Boolean(status && !(model?.origin === 'public' && model.validation_status === 'degraded') && ['ready', 'not_installed', 'unvalidated', 'runtime_unavailable'].includes(status)); });
   readonly modelNotice = computed(() => {
     const model = this.selectedModel();
     if (!model || this.modelNoticeDismissedFor() === model.model_ref) return null;
     const notices: string[] = [];
+    if (model.origin === 'public' && model.validation_status === 'degraded') {
+      notices.push('This model failed qualification and cannot generate drafts.');
+    }
     if (model.access_policy === 'gated' || model.gated) {
       notices.push('Access is required before this model can be downloaded.');
     } else if (model.installation_state === 'not_installed' || model.status === 'not_installed' || model.status_message?.toLowerCase().includes('download')) {
