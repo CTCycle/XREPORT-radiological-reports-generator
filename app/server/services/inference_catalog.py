@@ -25,7 +25,6 @@ from server.services.model_installation import ModelInstallationManager
 from server.repositories.checkpoints import CheckpointRepository
 
 
-CXRMATE_ED_PROFILE_CONTRACT_VERSION = 1
 VALIDATION_RECEIPTS_DIR = (
     DATA_ROOT / "validation_receipts"
     if PACKAGED_MODE
@@ -59,11 +58,10 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "weight_file_sets": entry.weight_file_sets,
         "trust_remote_code": entry.trust_remote_code,
         "remote_code_approved": entry.remote_code_approved,
-        "generation_profile_contract_version": (
-            CXRMATE_ED_PROFILE_CONTRACT_VERSION
-            if entry.adapter == "cxrmate_ed"
-            else None
-        ),
+        # Retain the neutral field so receipts for the unaffected public
+        # models keep their established contract hashes after CXRMate-ED's
+        # retirement.
+        "generation_profile_contract_version": None,
     }
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode(
         "utf-8"

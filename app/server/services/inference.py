@@ -756,6 +756,16 @@ class InferenceService:
             raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
+        if (
+            selected_model.origin == "public"
+            and selected_model.validation_status == "degraded"
+        ):
+            raise ConflictError(
+                detail=(
+                    "Model failed qualification and cannot be used for inference: "
+                    f"{model_ref}"
+                ),
+            )
         if selected_model.status not in {
             "ready",
             "not_installed",

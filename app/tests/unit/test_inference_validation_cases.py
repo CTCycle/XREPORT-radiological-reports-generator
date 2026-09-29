@@ -80,19 +80,14 @@ def test_validation_cache_override_isolated_from_canonical_modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
-    from server.models.inference.providers import adapters as adapters_module
     from server.models.inference.providers import huggingface as huggingface_module
 
     original_values = {
         "transformers": transformers_hub.HF_MODULES_CACHE,
-        "adapters": adapters_module.HF_MODULES_CACHE,
         "huggingface": huggingface_module.HF_MODULES_CACHE,
     }
     monkeypatch.setattr(
         transformers_hub, "HF_MODULES_CACHE", original_values["transformers"]
-    )
-    monkeypatch.setattr(
-        adapters_module, "HF_MODULES_CACHE", original_values["adapters"]
     )
     monkeypatch.setattr(
         huggingface_module, "HF_MODULES_CACHE", original_values["huggingface"]

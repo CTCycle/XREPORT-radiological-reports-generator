@@ -84,99 +84,6 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
         }
     }),
     _entry({
-        "model_ref": "huggingface:aehrc/cxrmate-ed",
-        "repository_id": "aehrc/cxrmate-ed",
-        "provider": "huggingface",
-        "enabled": True,
-        "display_name": "CXRMate-ED",
-        "description": "Compact chest-X-ray reporter that can use the supplied clinical indication or history.",
-        "category": "chest_xray_report_generation",
-        "recommended": False,
-        "research_only": True,
-        "gated": False,
-        "access_policy": "open",
-        "access_url": "https://huggingface.co/aehrc/cxrmate-ed",
-        "anatomy_coverage": "chest_xray",
-        "coverage_note": "Specialized for chest radiographs; optional context is mapped to the model's indication/history input.",
-        "hardware_demand": "low",
-        "parameter_label": "0.2B parameters",
-        "license": "Apache-2.0",
-        "parameter_size": "0.2B",
-        "download_size_bytes": 793000000,
-        "local_size_bytes": 793000000,
-        "revision": "68251c7605067ddbea330413aade032713fd2192",
-        "model_loader": "causal_lm",
-        "processor_loader": "auto",
-        "adapter": "cxrmate_ed",
-        "prompt_profile": "cxrmate-ed-context",
-        "output_sections": [
-            "findings",
-            "impression"
-        ],
-        "input_semantics": "single_study",
-        "max_current_images": 16,
-        "supports_clinical_context": True,
-        "supports_prior_images": False,
-        "preferred_dtype": "float32",
-        "quantization": [
-            "none"
-        ],
-        "trust_remote_code": True,
-        "remote_code_approved": True,
-        "validation_status": "degraded",
-        "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
-        "resource_policy": {
-            "max_snapshot_size_bytes": 2000000000,
-            "reason": "The model's custom inference module imports its pinned local support modules and lookup tables."
-        },
-        "runtime_constraints": {
-            "min_transformers": "4.57.0",
-            "required_modules": [
-                "datasets",
-                "duckdb",
-                "timm"
-            ]
-        },
-        "required_files": [
-            "config.json",
-            "generation_config.json",
-            "special_tokens_map.json",
-            "tokenizer.json",
-            "tokenizer_config.json",
-            "tables.json",
-            "lookup_tables.json",
-            "token_type_ids.json",
-            "configuration_cxrmate_ed.py",
-            "modelling_cxrmate_ed.py",
-            "dataset.py",
-            "prepare_dataset.py",
-            "utils.py",
-            "section_parser.py",
-            "create_section_files.py"
-        ],
-        "processor_repository_id": "aehrc/uniformer_base_tl_384",
-        "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
-        "processor_files": [
-            "config.json",
-            "configuration_uniformer.py",
-            "modelling_uniformer.py"
-        ],
-        "processor_target_prefix": "processor",
-        "weight_file_sets": [
-            [
-                "model.safetensors"
-            ]
-        ],
-        "capabilities": {
-            "clinical_context": True,
-            "prior_report": False,
-            "multiple_current_views": True,
-            "findings": True,
-            "impression": True,
-            "grounding": False
-        }
-    }),
-    _entry({
         "model_ref": "huggingface:StanfordAIMI/CheXOne",
         "repository_id": "StanfordAIMI/CheXOne",
         "provider": "huggingface",
@@ -417,9 +324,9 @@ EMBEDDED_INFERENCE_MODELS: tuple[InferenceManifestEntry, ...] = (
 )
 
 
-if len(EMBEDDED_INFERENCE_MODELS) != 5:
-    raise RuntimeError("The embedded inference catalogue must contain five models")
-if len({entry.model_ref for entry in EMBEDDED_INFERENCE_MODELS}) != 5:
+if len({entry.model_ref for entry in EMBEDDED_INFERENCE_MODELS}) != len(
+    EMBEDDED_INFERENCE_MODELS
+):
     raise RuntimeError("The embedded inference catalogue contains duplicate refs")
 
 
