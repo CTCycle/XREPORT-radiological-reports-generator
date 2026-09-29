@@ -1,0 +1,115 @@
+{
+  "output": "assets\\QA\\validation_campaign\\s51-s53-20260929\\runtime-contention-receipt.json",
+  "batches": 7,
+  "cleanup": {
+    "checkpoints": [
+      {
+        "name": "s51_r1_cuda",
+        "response": {
+          "status": 404,
+          "body": {
+            "detail": "Checkpoint is not registered: s51_r1_cuda"
+          }
+        }
+      },
+      {
+        "name": "s51_r2_cuda",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted checkpoint s51_r2_cuda"
+          }
+        }
+      },
+      {
+        "name": "s51_r3_cuda",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted checkpoint s51_r3_cuda"
+          }
+        }
+      },
+      {
+        "name": "s51_pair_training_cuda",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted checkpoint s51_pair_training_cuda"
+          }
+        }
+      },
+      {
+        "name": "s53_cuda_baseline",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted checkpoint s53_cuda_baseline"
+          }
+        }
+      },
+      {
+        "name": "s53_cpu_baseline",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted checkpoint s53_cpu_baseline"
+          }
+        }
+      }
+    ],
+    "processed_datasets": [
+      {
+        "name": "s51_pair_eval_processed",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted dataset s51_pair_eval_processed"
+          }
+        }
+      },
+      {
+        "name": "s51_pair_training_processed",
+        "response": {
+          "status": 200,
+          "body": {
+            "success": true,
+            "message": "Deleted dataset s51_pair_training_processed"
+          }
+        }
+      }
+    ],
+    "running_jobs": {
+      "jobs": []
+    },
+    "checkpoints_after": {
+      "checkpoints": [
+        {
+          "name": "XREPORT_20260925T141533",
+          "epochs": 1,
+          "loss": 6.648263454437256,
+          "val_loss": 2.0254554748535156,
+          "artifact_status": "ready",
+          "message": null
+        }
+      ]
+    },
+    "processed_datasets_after": {
+      "datasets": [
+        {
+          "name": "s28_release_20260925",
+          "folder_path": "processed",
+          "row_count": 8,
+          "has_validation_report": false
+        }
+      ],
+      "count": 1
+    }
+  }
+}

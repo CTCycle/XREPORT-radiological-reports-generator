@@ -1,0 +1,35 @@
+{
+  "source_revision_under_test": "2992f3d83b044ea439af0af0c758f54fcdd308b7",
+  "receipt": "runtime-contention-receipt-repeat.json",
+  "checkpoint_deletions": [
+    "s51_r1_cuda",
+    "s51_r2_cuda",
+    "s51_r3_cuda",
+    "s51_pair_training_cuda",
+    "s53_cuda_baseline",
+    "s53_cpu_baseline"
+  ],
+  "processed_dataset_deletions": [
+    "s51_pair_eval_processed",
+    "s51_pair_training_processed"
+  ],
+  "all_deletions_returned_http_200": true,
+  "remaining_checkpoint": "XREPORT_20260925T141533",
+  "remaining_processed_dataset": "s28_release_20260925",
+  "post_matrix_running_jobs": [],
+  "final_health_status": "ok",
+  "official_launcher_smoke": {
+    "backend_health_status": 200,
+    "frontend_proxy_health_status": 200,
+    "frontend_root_status": 200,
+    "log": "source-launch-final-smoke.log"
+  },
+  "official_killprocesses": {
+    "exit_code": 1,
+    "log": "kill-final.log",
+    "limitation": "The helper returned Access denied while inspecting Windows processes."
+  },
+  "stopped_exact_remaining_launcher_pids": [3688, 13412],
+  "verified_listeners_after_cleanup": [],
+  "final_service_cleanup": "PASS_WITH_HELPER_ACCESS_DENIED_LIMITATION"
+}

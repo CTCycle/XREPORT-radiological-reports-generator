@@ -1,0 +1,12 @@
+[STEP] Starting action KillProcesses
+[INFO] Stopping 5 XREPORT process(es).
+[INFO] Stopping node.exe (PID 15640)
+[INFO] Stopping powershell.exe (PID 19172)
+[INFO] Stopping python.exe (PID 24832)
+[FATAL] action KillProcesses failed: ERRORE: il processo con PID 24832 (processo figlio di PID 19172) non è
+taskkill.exe : ERRORE: il processo con PID 24832 (processo figlio di PID 19172) non è
+In G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\start_on_windows.ps1:1227 car:17
++         $null = & taskkill.exe /PID $rootProcessId /T /F 2>$null
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERRORE: il proc...ID 19172) non è:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
