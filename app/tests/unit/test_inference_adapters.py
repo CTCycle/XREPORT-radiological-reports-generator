@@ -30,7 +30,6 @@ def _study_images() -> list[StudyImage]:
         ),
     ]
 
-
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_length", "num_beams"),
@@ -98,7 +97,6 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
         "impression": "impression",
     }
 
-
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_length", "num_beams"),
@@ -164,7 +162,6 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         "impression": "impression",
     }
 
-
 ###############################################################################
 def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
 
@@ -191,7 +188,6 @@ def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
     prepared = model.prepare_inputs_for_generation(torch.ones((1, 1), dtype=torch.long))
 
     assert prepared["time_deltas"].dtype is torch.bfloat16
-
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -293,7 +289,6 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
     assert result.display_sections == {
         "findings": "No focal airspace opacity. No pleural effusion or pneumothorax."
     }
-
 
 ###############################################################################
 @pytest.mark.parametrize(

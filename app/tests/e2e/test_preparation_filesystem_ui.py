@@ -13,6 +13,7 @@ _ONE_PIXEL_PNG = (
 )
 
 
+###############################################################################
 def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
     response = api_context.patch(
         "/api/settings",
@@ -21,6 +22,7 @@ def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> Non
     assert response.ok, f"Could not set filesystem access: {response.status}"
 
 
+###############################################################################
 def test_s15_dataset_folder_access_and_recovery(
     api_context: APIRequestContext,
     base_url: str,

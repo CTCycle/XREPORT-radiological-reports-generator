@@ -28,7 +28,6 @@ _DEFAULTS: dict[str, object] = {
 }
 _ROOT_KEYS = {"global", "features", "jobs", "inference"}
 
-
 ###############################################################################
 def _legacy_configuration_path() -> Path:
     if os.getenv("XREPORT_DESKTOP", "").strip().lower() in {
@@ -43,13 +42,11 @@ def _legacy_configuration_path() -> Path:
     repository_root = Path(__file__).resolve().parents[4]
     return repository_root / "settings" / "configurations.json"
 
-
 ###############################################################################
 def _required_mapping(value: object, name: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise RuntimeError(f"Legacy application configuration section {name!r} is invalid")
     return value
-
 
 ###############################################################################
 def _required_int(value: object, name: str) -> int:
@@ -57,13 +54,11 @@ def _required_int(value: object, name: str) -> int:
         raise RuntimeError(f"Legacy application configuration value {name!r} is invalid")
     return value
 
-
 ###############################################################################
 def _required_bool(value: object, name: str) -> bool:
     if type(value) is not bool:
         raise RuntimeError(f"Legacy application configuration value {name!r} is invalid")
     return value
-
 
 ###############################################################################
 def _legacy_payload(path: Path) -> dict[str, dict[str, object]] | None:
@@ -105,7 +100,6 @@ def _legacy_payload(path: Path) -> dict[str, dict[str, object]] | None:
         "jobs": job_values,
         "inference": inference_values,
     }
-
 
 ###############################################################################
 def _legacy_values(path: Path) -> dict[str, object]:
@@ -151,7 +145,6 @@ def _legacy_values(path: Path) -> dict[str, object]:
         "inference_device": device,
         "inference_model_timeout": timeout,
     }
-
 
 ###############################################################################
 def upgrade() -> None:
@@ -205,7 +198,6 @@ def upgrade() -> None:
         ),
         [{"settings_id": 1, **values, "updated_at": datetime.now(timezone.utc)}],
     )
-
 
 ###############################################################################
 def downgrade() -> None:
