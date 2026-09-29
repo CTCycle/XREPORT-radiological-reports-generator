@@ -9,6 +9,7 @@ import queue
 import signal
 import subprocess
 import time
+import traceback
 
 from server.common.utils.logger import logger
 from server.repositories.serialization.dataset import (
@@ -21,6 +22,21 @@ if TYPE_CHECKING:
     import pandas as pd
 
 ###############################################################################
+WORKER_LIFECYCLE_MESSAGE_TYPE = "training_worker_lifecycle"
+WORKER_DIAGNOSTICS_KEY = "worker_diagnostics"
+MAX_WORKER_TRACEBACK_LENGTH = 12000
+
+
+def _worker_exception_message(exc: BaseException) -> str:
+    message = str(exc).strip()
+    return message or type(exc).__name__
+
+
+def _worker_exception_traceback(exc: BaseException) -> str:
+    trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return trace[:MAX_WORKER_TRACEBACK_LENGTH]
+
+
 class ProcessLike(Protocol):
 
     # -------------------------------------------------------------------------
@@ -81,10 +97,76 @@ class WorkerChannels:
         self.progress_queue = progress_queue
         self.result_queue = result_queue
         self.stop_event = stop_event
+        self.failure_reported = False
 
     # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
         return bool(self.stop_event.is_set())
+
+    # -------------------------------------------------------------------------
+    def report_lifecycle(
+        self,
+        phase: str,
+        *,
+        status: str = "started",
+        **details: Any,
+    ) -> None:
+        message = {
+            "type": WORKER_LIFECYCLE_MESSAGE_TYPE,
+            "status": status,
+            "phase": phase,
+            "pid": os.getpid(),
+            **details,
+        }
+        try:
+            self.progress_queue.put(message, block=False)
+        except queue.Full:
+            return
+        except (EOFError, OSError):
+            return
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Failed to report training worker lifecycle: %s", exc)
+
+    # -------------------------------------------------------------------------
+    def report_failure(
+        self,
+        exc: BaseException,
+        failure: dict[str, Any] | None = None,
+    ) -> None:
+        self.failure_reported = True
+        diagnostic = {
+            "status": "failed",
+            "phase": "target_failed",
+            "pid": os.getpid(),
+            "exception_type": type(exc).__name__,
+            "message": _worker_exception_message(exc),
+            "traceback": _worker_exception_traceback(exc),
+            "reported": True,
+        }
+        self.report_lifecycle(
+            "target_failed",
+            status="failed",
+            diagnostic=diagnostic,
+        )
+        payload: dict[str, Any] = {
+            "error": diagnostic["message"],
+            WORKER_DIAGNOSTICS_KEY: diagnostic,
+        }
+        if failure is not None:
+            payload["failure"] = failure
+        try:
+            self.result_queue.put(payload)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to report training worker failure")
+            raise
+
+    # -------------------------------------------------------------------------
+    def report_result(self, payload: dict[str, Any]) -> None:
+        try:
+            self.result_queue.put(payload)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to report training worker result")
+            raise
 
 ###############################################################################
 class ProcessWorker:
@@ -100,6 +182,8 @@ class ProcessWorker:
         self.result_queue = self.ctx.Queue(maxsize=result_queue_size)
         self.stop_event = self.ctx.Event()
         self.process: ProcessLike | None = None
+        self.lifecycle_events: list[dict[str, Any]] = []
+        self.lifecycle_phase: str | None = None
 
     # -------------------------------------------------------------------------
     def start(
@@ -158,8 +242,18 @@ class ProcessWorker:
         except (EOFError, OSError):
             return None
         if isinstance(message, dict):
+            self._record_lifecycle(message)
             return message
         return None
+
+    # -------------------------------------------------------------------------
+    def _record_lifecycle(self, message: dict[str, Any]) -> None:
+        if message.get("type") != WORKER_LIFECYCLE_MESSAGE_TYPE:
+            return
+        self.lifecycle_events.append(dict(message))
+        phase = message.get("phase") or message.get("status")
+        if isinstance(phase, str):
+            self.lifecycle_phase = phase
 
     # -------------------------------------------------------------------------
     def drain_progress(self) -> None:
@@ -226,15 +320,39 @@ class ProcessWorker:
             return None
         return self.process.exitcode
 
+    # -------------------------------------------------------------------------
+    @property
+    def pid(self) -> int | None:
+        if self.process is None:
+            return None
+        return self.process.pid
+
 ###############################################################################
 def process_target(
     target: Callable[..., None],
     kwargs: dict[str, Any],
     worker: WorkerChannels,
 ) -> None:
-    if os.name != "nt":
-        os.setsid()
-    target(worker=worker, **kwargs)
+    try:
+        if os.name != "nt":
+            os.setsid()
+        worker.report_lifecycle("child_started", target=getattr(target, "__name__", "target"))
+        worker.report_lifecycle(
+            "target_started",
+            target=getattr(target, "__name__", "target"),
+        )
+        target(worker=worker, **kwargs)
+    except BaseException as exc:
+        if not worker.failure_reported:
+            worker.report_failure(exc)
+        raise
+    else:
+        if worker.failure_reported:
+            return
+        worker.report_lifecycle(
+            "worker_cancelled" if worker.is_interrupted() else "worker_completed",
+            status="cancelled" if worker.is_interrupted() else "completed",
+        )
 
 ###############################################################################
 def prepare_training_data(
@@ -306,7 +424,6 @@ def run_training_process(
     from server.repositories.serialization.model import ModelSerializer
 
     progress_queue = worker.progress_queue
-    result_queue = worker.result_queue
     stop_event = worker.stop_event
     try:
         train_data, validation_data, metadata = prepare_training_data(configuration)
@@ -318,7 +435,7 @@ def run_training_process(
             )
 
         if stop_event.is_set():
-            result_queue.put({"result": {}})
+            worker.report_result({"result": {}})
             return
 
         logger.info("Setting device for training operations")
@@ -342,7 +459,7 @@ def run_training_process(
         model = build_xreport_model(metadata, configuration)
 
         if stop_event.is_set():
-            result_queue.put({"result": {}})
+            worker.report_result({"result": {}})
             return
 
         trainer = ModelTrainer(configuration)
@@ -368,7 +485,7 @@ def run_training_process(
             checkpoint_path, history, configuration, metadata
         )
 
-        result_queue.put(
+        worker.report_result(
             {
                 "result": {
                     "epochs": history.get("epochs", 0),
@@ -381,20 +498,18 @@ def run_training_process(
             }
         )
     except WorkerInterrupted:
-        result_queue.put({"result": {}})
+        worker.report_result({"result": {}})
     except DatasetIntegrityError as exc:
-        result_queue.put(
-            {
-                "error": str(exc),
-                "failure": {
-                    "code": "dataset_integrity_failed",
-                    "phase": "input_validation",
-                    "recoverable": True,
-                },
-            }
+        worker.report_failure(
+            exc,
+            failure={
+                "code": "dataset_integrity_failed",
+                "phase": "input_validation",
+                "recoverable": True,
+            },
         )
     except Exception as exc:  # noqa: BLE001
-        result_queue.put({"error": str(exc)})
+        worker.report_failure(exc)
 
 ###############################################################################
 def run_resume_training_process(
@@ -410,7 +525,6 @@ def run_resume_training_process(
     from server.repositories.serialization.model import ModelSerializer
 
     progress_queue = worker.progress_queue
-    result_queue = worker.result_queue
     stop_event = worker.stop_event
     try:
         modser = ModelSerializer()
@@ -438,7 +552,7 @@ def run_resume_training_process(
             )
 
         if stop_event.is_set():
-            result_queue.put({"result": {}})
+            worker.report_result({"result": {}})
             return
 
         logger.info("Setting device for training operations")
@@ -479,7 +593,7 @@ def run_resume_training_process(
             checkpoint_path, history, train_config, model_metadata
         )
 
-        result_queue.put(
+        worker.report_result(
             {
                 "result": {
                     "epochs": history.get("epochs", 0),
@@ -492,17 +606,15 @@ def run_resume_training_process(
             }
         )
     except WorkerInterrupted:
-        result_queue.put({"result": {}})
+        worker.report_result({"result": {}})
     except DatasetIntegrityError as exc:
-        result_queue.put(
-            {
-                "error": str(exc),
-                "failure": {
-                    "code": "dataset_integrity_failed",
-                    "phase": "input_validation",
-                    "recoverable": True,
-                },
-            }
+        worker.report_failure(
+            exc,
+            failure={
+                "code": "dataset_integrity_failed",
+                "phase": "input_validation",
+                "recoverable": True,
+            },
         )
     except Exception as exc:  # noqa: BLE001
-        result_queue.put({"error": str(exc)})
+        worker.report_failure(exc)

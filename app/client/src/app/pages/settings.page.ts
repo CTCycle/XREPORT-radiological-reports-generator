@@ -40,7 +40,7 @@ type SettingsTab = 'general' | 'data' | 'advanced';
               <button type="button" class="settings-tab" [class.active]="activeTab() === tab.id" role="tab"
                 [id]="'settings-tab-' + tab.id" [attr.aria-selected]="activeTab() === tab.id"
                 [attr.aria-controls]="'settings-panel-' + tab.id" [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
-                (click)="selectTab(tab.id)">{{ tab.label }}</button>
+                (click)="selectTab(tab.id)" (keydown)="onTabKeydown($event, tab.id)">{{ tab.label }}</button>
             }
           </nav>
 
@@ -187,6 +187,27 @@ export class SettingsPage {
 
   selectTab(tab: SettingsTab): void {
     this.activeTab.set(tab);
+  }
+
+  onTabKeydown(event: KeyboardEvent, tab: SettingsTab): void {
+    const currentIndex = this.tabs.findIndex((candidate) => candidate.id === tab);
+    if (currentIndex < 0) return;
+
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % this.tabs.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + this.tabs.length) % this.tabs.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = this.tabs.length - 1;
+    }
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextTab = this.tabs[nextIndex];
+    document.getElementById(`settings-tab-${nextTab.id}`)?.focus();
   }
 
   async load(): Promise<void> {
