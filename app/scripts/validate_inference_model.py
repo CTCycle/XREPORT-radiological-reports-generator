@@ -193,10 +193,8 @@ def _configure_validation_cache() -> Path | None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
 
     transformers_hub.HF_MODULES_CACHE = str(modules_cache)
-    from server.models.inference.providers import adapters as adapters_module
     from server.models.inference.providers import huggingface as huggingface_module
 
-    adapters_module.HF_MODULES_CACHE = str(modules_cache)
     huggingface_module.HF_MODULES_CACHE = str(modules_cache)
     return modules_cache
 
