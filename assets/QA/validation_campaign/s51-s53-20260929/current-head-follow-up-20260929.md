@@ -11,7 +11,7 @@ The runtime receipt was captured before the catalogue edit; the browser/build ch
 - S51 remains `PARTIAL`, strengthened by a fresh current-head receipt. Seven batches completed all 15 submitted jobs: three validation/checkpoint-evaluation/CUDA-training triples, processing plus evaluation, processing plus training, and matched CPU/CUDA one-epoch baselines. Every terminal job status was completed, every post-batch and final running-job check was empty, and cleanup preserved only the retained baseline checkpoint and processed dataset.
 - S53 remains `PARTIAL`. The current-head samples reached 5,090/6,144 MiB GPU memory, 100% utilization, and 4,414,771,200 bytes of XREPORT-Python working-set memory. These are synthetic technical measurements, not representative, clinical, packaged, or no-GPU performance evidence.
 - The earlier cold-start training exit (fadbc216, exit code 1, no child traceback) did not recur in this current-head run. No production fix or PASS claim is made because the failure remains unexplained and non-reproducible.
-- The adjacent UI slice is complete: Model catalogue now has a bounded panel and an internally scrollable, keyboard-focusable region. A 40-checkpoint client regression and rebuilt-browser evidence cover the large-catalogue requirement. S52 remains PARTIAL only for the separately missing spoken Narrator/Speech Recap observation.
+- The adjacent UI slice is complete: Model catalogue now has a bounded panel and an internally scrollable, keyboard-focusable region. A 40-checkpoint client regression and rebuilt-browser evidence cover the large-catalogue requirement. S52 is PASS for the covered rendered/responsive workflow; the separately missing spoken Narrator/Speech Recap observation is a non-gating accessibility follow-up.
 
 ## Evidence
 
@@ -25,4 +25,4 @@ The runtime receipt was captured before the catalogue edit; the browser/build ch
 
 ## Remaining limitations
 
-Representative or clinical data, larger-scale stress, packaged/native WebView interaction, no-GPU fallback/performance, spoken accessibility output, gated MedGemma access (ISSUE-002), canonical CXRMate Multi resource repair (ISSUE-006), and protected historical cache ownership (ISSUE-004) remain outside this follow-up. The disposable runtime and task-created records were cleaned; the retained baseline records are intentional fixtures.
+Representative or clinical data, larger-scale stress, packaged/native WebView interaction, no-GPU fallback/performance, gated MedGemma access (ISSUE-002), canonical CXRMate Multi resource repair (ISSUE-006), and protected historical cache ownership (ISSUE-004) remain outside this follow-up. Spoken accessibility output remains a separate non-gating follow-up. The disposable runtime and task-created records were cleaned; the retained baseline records are intentional fixtures.
