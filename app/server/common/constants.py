@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 import tomllib
 
-
 ###############################################################################
 def _application_version() -> str:
     """Read the canonical source version or the packaged shell contract."""

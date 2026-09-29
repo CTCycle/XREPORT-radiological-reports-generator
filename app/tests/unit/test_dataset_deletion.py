@@ -31,6 +31,7 @@ from server.services.preparation import PreparationService
 from server.services.upload import UploadState
 
 
+###############################################################################
 @pytest.fixture
 def database() -> Iterator[Database]:
     engine = create_engine(
@@ -53,6 +54,7 @@ def database() -> Iterator[Database]:
     engine.dispose()
 
 
+###############################################################################
 def _preparation_service(database: Database) -> PreparationService:
     return PreparationService(
         repository=PreparationRepository(database),
@@ -69,6 +71,7 @@ def _preparation_service(database: Database) -> PreparationService:
     )
 
 
+###############################################################################
 def test_source_dataset_delete_preserves_processed_samples_until_they_are_deleted(
     database: Database,
 ) -> None:

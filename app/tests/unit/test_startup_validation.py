@@ -31,6 +31,7 @@ def _database_settings() -> DatabaseSettings:
     )
 
 
+###############################################################################
 def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
         database=database,
@@ -43,7 +44,6 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
             model_timeout=60,
         ),
     )
-
 
 ###############################################################################
 def test_startup_validations_prepares_database_and_composes_settings_once(
@@ -73,6 +73,7 @@ def test_startup_validations_prepares_database_and_composes_settings_once(
     assert composed == [True]
 
 
+###############################################################################
 def test_app_lifespan_uses_returned_settings_for_state_and_health(monkeypatch) -> None:
     database = _database_settings()
     settings = _server_settings(database)

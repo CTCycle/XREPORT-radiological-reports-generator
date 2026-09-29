@@ -30,7 +30,6 @@ def _copy_archive_with_member(
             target.writestr(info, source.read(info))
         target.writestr(member_name, payload)
 
-
 ###############################################################################
 def _build_runtime_bundle(
     tmp_path: Path,
@@ -76,7 +75,6 @@ def _build_runtime_bundle(
         check=True,
     )
     return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
-
 
 ###############################################################################
 def _assert_log_staging_is_rejected(

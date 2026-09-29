@@ -13,6 +13,7 @@ _ONE_PIXEL_PNG = (
 )
 
 
+###############################################################################
 def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
     response = api_context.patch(
         "/api/settings",
@@ -25,6 +26,7 @@ def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> Non
     )
 
 
+###############################################################################
 def test_s15_filesystem_browse_validation_and_feature_gate(
     api_context: APIRequestContext,
     tmp_path: Path,

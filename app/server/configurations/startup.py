@@ -10,7 +10,6 @@ from .settings import (
     database_settings_from_environment,
 )
 
-
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database_settings() -> DatabaseSettings:
@@ -18,7 +17,6 @@ def get_database_settings() -> DatabaseSettings:
 
     load_environment()
     return database_settings_from_environment()
-
 
 ###############################################################################
 def get_server_settings() -> ServerSettings:
@@ -28,7 +26,6 @@ def get_server_settings() -> ServerSettings:
 
     values = ApplicationSettingsRepository().get_settings()
     return application_settings_to_server_settings(values, get_database_settings())
-
 
 ###############################################################################
 def reload_settings_for_tests() -> ServerSettings:

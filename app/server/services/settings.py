@@ -16,7 +16,6 @@ from server.domain.settings import (
 from server.repositories.application_settings import ApplicationSettingsRepository
 from server.services.errors import InternalServiceError
 
-
 ###############################################################################
 class SettingsService:
     """Public projection and persistence boundary for application settings."""
@@ -110,7 +109,6 @@ class SettingsService:
                 ),
             }
         )
-
 
 ###############################################################################
 @lru_cache(maxsize=1)

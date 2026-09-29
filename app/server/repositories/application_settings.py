@@ -21,7 +21,6 @@ _PUBLIC_COLUMNS = frozenset(
     }
 )
 
-
 ###############################################################################
 class ApplicationSettingsRepository:
     """Database authority for the singleton application-settings row."""

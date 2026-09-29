@@ -11,6 +11,7 @@ from server.services.upload import (
 )
 
 
+###############################################################################
 def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     state = UploadState()
     service = UploadService(state)
@@ -31,6 +32,7 @@ def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> 
     assert response.upload_id
 
 
+###############################################################################
 def test_upload_rejects_payload_over_limit_before_parsing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -51,6 +53,7 @@ def test_upload_rejects_payload_over_limit_before_parsing(
     assert parser_called is False
 
 
+###############################################################################
 def test_upload_ids_keep_parsed_contents_independent() -> None:
     state = UploadState()
     service = UploadService(state)

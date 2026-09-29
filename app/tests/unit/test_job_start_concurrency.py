@@ -23,6 +23,7 @@ from server.services.upload import UploadState
 from server.services.validation_runs import ValidationService
 
 
+###############################################################################
 def test_concurrent_training_starts_are_atomically_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -33,7 +34,10 @@ def test_concurrent_training_starts_are_atomically_rejected(
         checkpoint_repository=object(),  # type: ignore[arg-type]
     )
 
+    ###############################################################################
     class DatasetRepositoryStub:
+
+        # -------------------------------------------------------------------------
         def load_training_data(
             self,
             *,
@@ -141,6 +145,7 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert not manager.is_job_running("training")
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("feature", "job_type", "expected_detail"),
     [
@@ -185,7 +190,10 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
 
     if feature == "dataset_processing":
 
+        ###############################################################################
         class DatasetRepositoryStub:
+
+            # -------------------------------------------------------------------------
             def load_source_dataset(self, **_kwargs: object) -> pd.DataFrame:
                 return pd.DataFrame([{"path": "fixture.png"}])
 
@@ -227,7 +235,10 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
 
     else:
 
+        ###############################################################################
         class CheckpointRepositoryStub:
+
+            # -------------------------------------------------------------------------
             def get_checkpoint(self, _name: str) -> SimpleNamespace:
                 return SimpleNamespace(artifact_complete=True)
 
@@ -297,6 +308,7 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     assert not manager.is_job_running(job_type)
 
 
+###############################################################################
 @pytest.mark.parametrize(
     ("first_job_type", "second_job_type"),
     [

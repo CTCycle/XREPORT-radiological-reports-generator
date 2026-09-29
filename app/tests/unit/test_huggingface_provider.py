@@ -445,7 +445,6 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
     assert timeout_reads == 1
     assert deadlines == [105.0]
 
-
 ###############################################################################
 def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
     monkeypatch,
@@ -510,7 +509,6 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
         "cuda_used": False,
     }
 
-
 ###############################################################################
 def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider(_settings())._device_map() == "cpu"
@@ -535,7 +533,6 @@ def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     )
     assert HuggingFaceProvider._dtype("auto") is torch.float16
 
-
 ###############################################################################
 def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.float16)
@@ -552,7 +549,6 @@ def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     assert moved["pixel_values"].dtype is torch.float16
     assert moved["pixel_values"].device == torch.device("cpu")
 
-
 ###############################################################################
 def test_move_inputs_casts_nested_generation_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.bfloat16)
@@ -566,7 +562,6 @@ def test_move_inputs_casts_nested_generation_inputs() -> None:
     assert moved["time_deltas"][0].dtype is torch.bfloat16
     assert moved["time_deltas"][0].device == torch.device("cpu")
     assert moved["input_ids"][0].dtype is torch.long
-
 
 ###############################################################################
 def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
@@ -598,7 +593,6 @@ def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
     assert runtime["cuda_available"] is True
     assert runtime["cuda_used"] is True
 
-
 ###############################################################################
 def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch) -> None:
     calls: list[tuple[object, ...]] = []
@@ -621,7 +615,6 @@ def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch)
     assert calls[0][1]["dtype"] is torch.long
     assert calls[1][1]["dtype"] is torch.float16
     assert calls[0][1]["device"] == torch.device("cuda:0")
-
 
 ###############################################################################
 def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:

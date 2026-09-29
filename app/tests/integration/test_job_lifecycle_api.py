@@ -25,13 +25,11 @@ def job_api() -> Iterator[tuple[TestClient, JobManager]]:
     with TestClient(application) as client:
         yield client, manager
 
-
 ###############################################################################
 def _join_job(manager: JobManager, job_id: str) -> None:
     thread = manager.threads[job_id]
     thread.join(timeout=5.0)
     assert not thread.is_alive(), f"job {job_id} did not finish within five seconds"
-
 
 ###############################################################################
 def test_job_api_lists_filters_and_polls_to_completion(
@@ -108,7 +106,6 @@ def test_job_api_lists_filters_and_polls_to_completion(
         "message": "Job cannot be cancelled",
     }
 
-
 ###############################################################################
 def test_job_api_returns_not_found_for_unknown_job(
     job_api: tuple[TestClient, JobManager],
@@ -122,7 +119,6 @@ def test_job_api_returns_not_found_for_unknown_job(
     cancel_response = client.delete("/api/jobs/missing-job")
     assert cancel_response.status_code == 404
     assert cancel_response.json() == {"detail": "Job not found: missing-job"}
-
 
 ###############################################################################
 def test_job_api_cancellation_stays_active_until_runner_exits(
@@ -164,7 +160,6 @@ def test_job_api_cancellation_stays_active_until_runner_exits(
     cancelled = client.get(f"/api/jobs/{job_id}")
     assert cancelled.status_code == 200
     assert cancelled.json()["status"] == "cancelled"
-
 
 ###############################################################################
 def test_job_api_preserves_typed_recoverable_failure_timeline(

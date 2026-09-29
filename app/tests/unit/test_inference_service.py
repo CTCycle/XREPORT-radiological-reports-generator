@@ -18,6 +18,7 @@ from server.services.jobs import JobManager
 from server.services.model_installation import ModelInstallationManager
 
 
+###############################################################################
 def test_generation_rejects_degraded_public_models_before_starting_a_job() -> None:
     model_ref = "huggingface:future/degraded-model"
     model = SimpleNamespace(
@@ -54,6 +55,7 @@ def test_generation_rejects_degraded_public_models_before_starting_a_job() -> No
     job_manager.start_job.assert_not_called()
 
 
+###############################################################################
 def test_inference_api_returns_conflict_for_a_degraded_public_model() -> None:
     model_ref = "huggingface:future/degraded-model"
     model = SimpleNamespace(
