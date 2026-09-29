@@ -14,6 +14,7 @@ import pytest
 validation = importlib.import_module("scripts.validate_inference_model")
 
 
+###############################################################################
 def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     image_path = tmp_path / "case.png"
     image_path.write_bytes(b"image-bytes")
@@ -37,6 +38,7 @@ def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     return manifest_path, image_path
 
 
+###############################################################################
 def test_load_case_manifest_resolves_relative_images_and_profiles(
     tmp_path: Path,
 ) -> None:
@@ -51,6 +53,7 @@ def test_load_case_manifest_resolves_relative_images_and_profiles(
     assert cases[0].clinical_context == "cough"
 
 
+###############################################################################
 def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
     manifest_path, image_path = _write_case_manifest(tmp_path)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -61,6 +64,7 @@ def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
         validation.load_case_manifest(manifest_path)
 
 
+###############################################################################
 def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
     image_path = tmp_path / "case.png"
     image_path.write_bytes(b"actual")
@@ -75,6 +79,7 @@ def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
         )
 
 
+###############################################################################
 def test_validation_cache_override_isolated_from_canonical_modules(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -101,6 +106,7 @@ def test_validation_cache_override_isolated_from_canonical_modules(
     assert Path(validation.os.environ["HF_MODULES_CACHE"]) == configured
 
 
+###############################################################################
 def test_validate_cached_cases_runs_each_case_independently(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -141,14 +147,19 @@ def test_validate_cached_cases_runs_each_case_independently(
     )
     requests: list[str] = []
 
+    ###############################################################################
     class FakeProvider:
+
+        # -------------------------------------------------------------------------
         def __init__(self, _settings: object) -> None:
             self._load = lambda _manifest: (object(), object(), object())
             self._generate_study = lambda **_kwargs: None
 
+        # -------------------------------------------------------------------------
         def unload(self) -> None:
             return None
 
+        # -------------------------------------------------------------------------
         @staticmethod
         def _runtime_metadata(_model: object) -> dict[str, object]:
             return {"cuda_used": False, "cuda_available": False}
@@ -234,6 +245,7 @@ def test_validate_cached_cases_runs_each_case_independently(
     assert receipt["checks"]["technical_passed"] is True
 
 
+###############################################################################
 def test_legacy_validation_path_remains_available(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

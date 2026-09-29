@@ -20,7 +20,6 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page.get_by_role("link", name="Dataset")).to_be_visible()
     expect(page.get_by_role("link", name="Training")).to_be_visible()
 
-
 ###############################################################################
 def test_reports_route_renders_history_or_explicit_empty_state(
     page: Page,
@@ -37,7 +36,6 @@ def test_reports_route_renders_history_or_explicit_empty_state(
         "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
     assert overflow
-
 
 ###############################################################################
 def test_reports_detail_edit_reload_and_confirmed_delete(
@@ -98,7 +96,6 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     page.get_by_role("button", name="Delete session").click()
     expect(page).to_have_url(f"{base_url}/reports")
     expect(page.locator(f'a.report-card[href="/reports/{seeded_history}"]')).to_have_count(0)
-
 
 ###############################################################################
 def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
@@ -198,7 +195,6 @@ def test_startup_gate_holds_inference_until_backend_health(
     page.screenshot(path=str(qa_dir / "xreport-startup-ready.png"), full_page=False)
     page.unroute("**/api/health", respond_to_health)
 
-
 ###############################################################################
 def test_startup_timing_retry_and_post_ready_feature_error(
     page: Page,
@@ -270,7 +266,6 @@ def test_startup_timing_retry_and_post_ready_feature_error(
     page.screenshot(
         path=str(qa_dir / "startup-feature-error-after-ready.png"), full_page=False
     )
-
 
 ###############################################################################
 def test_chexone_details_render_findings_only_catalog_contract(
@@ -518,7 +513,6 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     assert not console_errors, console_errors
     assert not request_failures, request_failures
 
-
 ###############################################################################
 def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     page: Page,
@@ -712,7 +706,6 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     assert not page_errors, page_errors
     assert not request_failures, request_failures
 
-
 ###############################################################################
 def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     errors = {"console": [], "page": [], "requests": []}
@@ -732,6 +725,7 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     return errors
 
 
+###############################################################################
 def _e2e_screenshot_dir(default_relative: str) -> Path:
     configured = os.environ.get("XREPORT_E2E_SCREENSHOT_DIR", "").strip()
     qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "assets" / "QA" / default_relative
@@ -739,6 +733,7 @@ def _e2e_screenshot_dir(default_relative: str) -> Path:
     return qa_dir
 
 
+###############################################################################
 def _s10_qa_dir() -> Path:
     configured = os.environ.get("XREPORT_S10_SCREENSHOT_DIR", "").strip()
     if configured:
@@ -748,6 +743,7 @@ def _s10_qa_dir() -> Path:
     return _e2e_screenshot_dir("validation_campaign/s10")
 
 
+###############################################################################
 def _expect_s10_active_navigation(page: Page, label: str) -> None:
     active_links = page.locator(
         'nav[aria-label="Primary navigation"] a.app-nav-button.active'
@@ -756,6 +752,7 @@ def _expect_s10_active_navigation(page: Page, label: str) -> None:
     expect(active_links).to_have_attribute("aria-label", label)
 
 
+###############################################################################
 def _expect_s10_route_surface(page: Page, path: str) -> None:
     if path == "/inference":
         expect(
@@ -775,7 +772,6 @@ def _expect_s10_route_surface(page: Page, path: str) -> None:
         expect(page.get_by_role("heading", name="Settings")).to_be_visible()
     else:
         raise AssertionError(f"Unexpected S10 route: {path}")
-
 
 ###############################################################################
 def test_s10_direct_routes_refresh_navigation_and_clean_browser(
@@ -866,7 +862,6 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
     assert not errors["page"], errors["page"]
     assert not errors["requests"], errors["requests"]
 
-
 ###############################################################################
 def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     page: Page,
@@ -934,7 +929,6 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     assert not errors["console"], errors["console"]
     assert not errors["page"], errors["page"]
     assert not errors["requests"], errors["requests"]
-
 
 ###############################################################################
 def test_s10_guidance_version_dismiss_skip_completion_and_manual_replay(

@@ -105,6 +105,7 @@ class InferenceRepository(RepositorySupport):
     def _effective_report(report: InferenceReport) -> str:
         return report.edited_report if report.edited_report is not None else report.generated_report
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _report_sections(
         cls, run: InferenceRun, report: InferenceReport
@@ -134,6 +135,7 @@ class InferenceRepository(RepositorySupport):
             if isinstance(value, str)
         }
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _report_summary(cls, run: InferenceRun, report: InferenceReport) -> dict[str, Any]:
         effective = cls._effective_report(report)
@@ -146,6 +148,7 @@ class InferenceRepository(RepositorySupport):
             "edited_at": cls._format_datetime(report.edited_at),
         }
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _report_detail(cls, run: InferenceRun, report: InferenceReport) -> dict[str, Any]:
         return {
@@ -159,6 +162,7 @@ class InferenceRepository(RepositorySupport):
             "sections": cls._report_sections(run, report),
         }
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _run_metadata(cls, run: InferenceRun) -> dict[str, Any]:
         return {
@@ -173,6 +177,7 @@ class InferenceRepository(RepositorySupport):
             "date": cls._format_datetime(run.executed_at),
         }
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _summary_payload(cls, run: InferenceRun) -> dict[str, Any]:
         reports = sorted(run.reports, key=lambda report: report.image_index)
@@ -190,6 +195,7 @@ class InferenceRepository(RepositorySupport):
         )
         return payload
 
+    # -------------------------------------------------------------------------
     @classmethod
     def _detail_payload(cls, run: InferenceRun) -> dict[str, Any]:
         reports = sorted(run.reports, key=lambda report: report.image_index)

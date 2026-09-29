@@ -378,7 +378,6 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
         "offset": 0,
     }
 
-
 ###############################################################################
 def test_inference_history_crud_preserves_original_text_and_isolated_deletion() -> None:
     _, database = _serializer()
