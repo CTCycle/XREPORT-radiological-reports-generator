@@ -1,5 +1,7 @@
 # Native WebView and release workflow follow-up — 2026-09-30
 
+Last updated: 2026-09-30
+
 ## Scope
 
 This follow-up exercised the CPU Tauri development shell from the official
@@ -34,6 +36,24 @@ stopped by exact PID and ports 5003/8003 were verified clear.
 The dedicated slow-start/readiness scenario was not run because it requires
 attaching while a deliberately delayed backend is still showing the native
 startup screen. S40 therefore remains `PARTIAL`.
+
+## S40 status reconciliation
+
+The native interaction slice is `PASS` for all nine exercised scenarios. The
+aggregate S40 matrix is `9 PASS`, `0 FAIL`, and `1 UNTESTED`: S40-06 delayed
+readiness is the only untested criterion. The raw receipt's
+`slow_readiness.status=UNRUN` is a driver/setup result; it is normalized to
+`UNTESTED` for the campaign ledger because the driver did not create the
+delayed-backend precondition. It is not evidence of a native interaction
+failure.
+
+S40-06 is **not independently release-blocking** under the current release
+policy. It is required to upgrade the aggregate S40 gate from `PARTIAL` to
+complete. The separate release decision remains `NOT APPROVED` because final
+CPU/CUDA package interaction, genuine no-GPU fallback, the full Windows runner,
+and the approved exact-SHA/hash manifest remain open. See the [S40
+reconciliation](s40-reconciliation-20260930.md) for the criterion-level matrix
+and product/tooling boundary.
 
 ## Implementation changes
 
