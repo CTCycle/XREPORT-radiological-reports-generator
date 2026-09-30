@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideActivity, lucideBarChart2, lucideChevronDown, lucideChevronUp, lucideInfo, lucideLoaderCircle, lucidePlay, lucideRefreshCw, lucideRotateCcw, lucideTrash2, lucideX } from '@ng-icons/lucide';
-import { asRecord, readNumber, readNumberArray, readStringArray } from '../common/parsers';
+import { asRecord, readNumber, readNumberArray, readString, readStringArray } from '../common/parsers';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { TrainingApiService } from '../services/training-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
@@ -116,7 +116,7 @@ export class TrainingPage {
   async resumeTraining() { const checkpoint = this.selectedCheckpointInfo(); if (!checkpoint) return; if (this.resumeForm.invalid) { this.resumeForm.markAllAsTouched(); this.trainingError.set('Additional epochs must be at least 1.'); return; } this.isLoading.set(true); const started = await this.api.resume(checkpoint.name, this.resumeForm.getRawValue().additionalEpochs); if (!started.result) { this.isLoading.set(false); this.trainingError.set(started.error ?? 'Resume training failed'); return; } this.resumeWizardOpen.set(false); this.isLoading.set(false); this.pollTraining(started.result.job_id, started.result.poll_interval); }
   private pollTraining(jobId: string, pollInterval: number) {
     this.activeJobId = jobId;
-    this.appState.updateDashboard({ isTraining: true, currentEpoch: 0, progressPercent: 0, chartData: [], availableMetrics: [], epochBoundaries: [], logEntries: [`Training job started (${jobId}).`] });
+    this.appState.updateDashboard({ isTraining: true, currentEpoch: 0, progressPercent: 0, workerPhase: 'starting', workerPhaseStatus: 'pending', workerPhaseElapsedSeconds: 0, workerElapsedSeconds: 0, chartData: [], availableMetrics: [], epochBoundaries: [], logEntries: [`Training job started (${jobId}).`] });
     this.polling.poll((id) => this.jobsApi.get(id), jobId, pollInterval).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
       const result = asRecord(status.result);
       if (result) {
@@ -130,7 +130,11 @@ export class TrainingPage {
           accuracy: readNumber(result['accuracy']) ?? current.accuracy,
           valAccuracy: readNumber(result['val_accuracy']) ?? current.valAccuracy,
           progressPercent: readNumber(result['progress_percent']) ?? status.progress ?? current.progressPercent,
-          elapsedSeconds: readNumber(result['elapsed_seconds']) ?? current.elapsedSeconds,
+          elapsedSeconds: readNumber(result['elapsed_seconds']) ?? readNumber(result['worker_elapsed_seconds']) ?? current.elapsedSeconds,
+          workerPhase: readString(result['worker_phase']) ?? current.workerPhase,
+          workerPhaseStatus: readString(result['worker_phase_status']) ?? current.workerPhaseStatus,
+          workerPhaseElapsedSeconds: readNumber(result['worker_phase_elapsed_seconds']) ?? current.workerPhaseElapsedSeconds,
+          workerElapsedSeconds: readNumber(result['worker_elapsed_seconds']) ?? current.workerElapsedSeconds,
         };
         const chartData = this.parseChartData(result['chart_data']);
         const availableMetrics = readStringArray(result['available_metrics']);

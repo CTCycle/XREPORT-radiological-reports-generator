@@ -86,6 +86,18 @@ interface ChartGroup {
         </div>
       </section>
 
+      <section class="training-phase" aria-live="polite" aria-label="Worker status">
+        <div class="training-phase-label">Current phase</div>
+        <div class="training-phase-value">{{ phaseLabel }}</div>
+        @if (dashboardState.workerPhaseElapsedSeconds !== undefined) {
+          <div class="training-phase-time">{{ formatTime(dashboardState.workerPhaseElapsedSeconds) }} in phase</div>
+        }
+      </section>
+
+      @if (error) {
+        <div class="training-error" role="alert">{{ error }}</div>
+      }
+
       <div class="training-charts-container">
         @if (chartGroups.length) {
           @for (chart of chartGroups; track chart.title) {
@@ -157,6 +169,41 @@ export class TrainingDashboardComponent {
     if (this.statusKind === 'error') return 'Failed';
     if (this.statusKind === 'complete') return 'Complete';
     return 'Idle';
+  }
+
+  get phaseLabel(): string {
+    const phase = this.dashboardState.workerPhase;
+    if (!phase || phase === 'idle') return 'Waiting to start';
+    const labels: Record<string, string> = {
+      starting: 'Preparing worker',
+      child_started: 'Starting worker process',
+      target_started: 'Initializing worker',
+      dataset_loading_started: 'Preparing dataset',
+      dataset_loaded: 'Dataset loaded',
+      image_path_validation_completed: 'Validating image paths',
+      device_initialization_started: 'Initializing device',
+      device_initialization_completed: 'Device ready',
+      checkpoint_initialization_started: 'Preparing checkpoint',
+      checkpoint_initialized: 'Checkpoint ready',
+      dataloader_construction_started: 'Building data loaders',
+      dataloader_construction_completed: 'Data loaders ready',
+      model_loading_started: 'Loading model',
+      model_loading_completed: 'Model loaded',
+      model_compilation_completed: 'Model compiled',
+      training_initialization_completed: 'Initializing training',
+      fit_requested: 'Entering training',
+      fit_entered: 'Training started',
+      first_batch_entered: 'Training batch 1',
+      first_batch_completed: 'First batch completed',
+      epoch_completed: 'Epoch completed',
+      training_fit_completed: 'Training complete',
+      checkpoint_saving_started: 'Saving checkpoint',
+      checkpoint_saving_completed: 'Checkpoint saved',
+      worker_completed: 'Worker complete',
+      worker_cancelled: 'Worker cancelled',
+      result_reported: 'Finalizing result',
+    };
+    return labels[phase] ?? phase.replaceAll('_', ' ');
   }
 
   get clampedProgress(): number {
