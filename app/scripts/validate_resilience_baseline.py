@@ -44,9 +44,11 @@ DEFAULT_FIXTURE_ROOT = (
     / "fixtures"
 )
 
-SCHEMA_VERSION = "s51-s53-resilience-baseline-v1"
+SCHEMA_VERSION = "s51-s53-resilience-baseline-v2"
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 VALID_GROUPS = frozenset({"ALL", "S51", "S53"})
+EXECUTION_LANES = frozenset({"cuda", "cpu", "unavailable-gpu"})
+START_MODES = frozenset({"clean", "warm"})
 GPU_QUERY = (
     "nvidia-smi",
     "--query-gpu=index,name,memory.total,memory.used,utilization.gpu",
@@ -67,7 +69,11 @@ MEASUREMENT_FIELDS = (
     "xreport_python_working_set_bytes",
     "xreport_python_processes",
     "device_log_matches",
+    "worker_pid",
+    "worker_pids",
     "worker_phase_transitions",
+    "worker_cleanup",
+    "resource_attribution",
     "first_progress_latency_seconds",
     "first_batch_latency_seconds",
     "last_worker_phase",
@@ -88,6 +94,26 @@ def normalize_group(value: str) -> str:
         choices = ", ".join(sorted(VALID_GROUPS))
         raise ValueError(f"Unknown group {value!r}; expected one of: {choices}")
     return group
+
+
+def normalize_execution_lane(value: str) -> str:
+    """Normalize the device lane used by the generated workload matrix."""
+
+    lane = value.strip().lower()
+    if lane not in EXECUTION_LANES:
+        choices = ", ".join(sorted(EXECUTION_LANES))
+        raise ValueError(f"Unknown execution lane {value!r}; expected one of: {choices}")
+    return lane
+
+
+def normalize_start_mode(value: str) -> str:
+    """Normalize the externally controlled launcher lifecycle declaration."""
+
+    mode = value.strip().lower()
+    if mode not in START_MODES:
+        choices = ", ".join(sorted(START_MODES))
+        raise ValueError(f"Unknown start mode {value!r}; expected one of: {choices}")
+    return mode
 
 
 def _sha256(path: Path) -> str:
@@ -171,6 +197,7 @@ class OperationSpec:
     payload: dict[str, Any]
     job_type: str
     expected_statuses: tuple[int, ...] = (202,)
+    expected_terminal_statuses: tuple[str, ...] = ("completed",)
     creates: tuple[ResourceRef, ...] = ()
     multipart: tuple[MultipartPart, ...] = ()
 
@@ -182,6 +209,7 @@ class OperationSpec:
             "payload": self.payload,
             "job_type": self.job_type,
             "expected_statuses": list(self.expected_statuses),
+            "expected_terminal_statuses": list(self.expected_terminal_statuses),
             "creates": [resource.to_dict() for resource in self.creates],
             "multipart": [part.to_dict() for part in self.multipart],
         }
@@ -202,6 +230,7 @@ class ScenarioDefinition:
     sample_interval_seconds: float = 1.0
     cancel_after_seconds: float | None = None
     tags: tuple[str, ...] = ()
+    execution_lane: str = "cuda"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -216,6 +245,7 @@ class ScenarioDefinition:
                 "sample_interval_seconds": self.sample_interval_seconds,
                 "requested_device": self.requested_device,
                 "cancel_after_seconds": self.cancel_after_seconds,
+                "execution_lane": self.execution_lane,
             },
             "tags": list(self.tags),
             "measurements": list(MEASUREMENT_FIELDS),
@@ -328,6 +358,7 @@ def _operation(
     job_type: str,
     *,
     expected_statuses: tuple[int, ...] = (202,),
+    expected_terminal_statuses: tuple[str, ...] = ("completed",),
     creates: Iterable[ResourceRef] = (),
     multipart: Iterable[MultipartPart] = (),
 ) -> OperationSpec:
@@ -338,9 +369,30 @@ def _operation(
         payload=payload,
         job_type=job_type,
         expected_statuses=expected_statuses,
+        expected_terminal_statuses=expected_terminal_statuses,
         creates=tuple(creates),
         multipart=tuple(multipart),
     )
+
+
+def _lane_uses_gpu(execution_lane: str) -> bool:
+    """Return the request value for a GPU-backed training operation.
+
+    The unavailable-GPU lane deliberately keeps GPU requested.  The backend
+    must then prove its documented CPU fallback instead of the harness
+    silently converting the request to a CPU run.
+    """
+
+    return normalize_execution_lane(execution_lane) in {"cuda", "unavailable-gpu"}
+
+
+def _lane_device_label(execution_lane: str) -> str:
+    lane = normalize_execution_lane(execution_lane)
+    return {
+        "cuda": "cuda",
+        "cpu": "cpu",
+        "unavailable-gpu": "cpu-fallback",
+    }[lane]
 
 
 def build_scenarios(
@@ -349,11 +401,15 @@ def build_scenarios(
     *,
     poll_interval_seconds: float = 1.0,
     sample_interval_seconds: float = 1.0,
+    execution_lane: str = "cuda",
 ) -> tuple[ScenarioDefinition, ...]:
     """Build the stable S51/S53 matrix in historical execution order."""
 
     selected_group = normalize_group(group)
     selected_fixture = fixture or FixtureDefinition()
+    selected_lane = normalize_execution_lane(execution_lane)
+    use_gpu = _lane_uses_gpu(selected_lane)
+    device_label = _lane_device_label(selected_lane)
     scenarios: list[ScenarioDefinition] = []
 
     if selected_group in {"ALL", "S51"}:
@@ -387,14 +443,15 @@ def build_scenarios(
                             "POST",
                             "/api/training/start",
                             training_payload(
-                                selected_fixture, checkpoint_name, use_gpu=True
+                                selected_fixture, checkpoint_name, use_gpu=use_gpu
                             ),
                             "training",
                             creates=(ResourceRef("checkpoint", checkpoint_name),),
                         ),
                     ),
                     timeout_seconds=360,
-                    requested_device="cuda",
+                    requested_device=device_label,
+                    execution_lane=selected_lane,
                     tags=("contention", "triple", "synthetic"),
                 )
             )
@@ -424,6 +481,7 @@ def build_scenarios(
                 ),
                 timeout_seconds=360,
                 requested_device="mixed",
+                execution_lane=selected_lane,
                 tags=("contention", "pair", "synthetic"),
             )
         )
@@ -449,14 +507,15 @@ def build_scenarios(
                         "POST",
                         "/api/training/start",
                         training_payload(
-                            selected_fixture, training_checkpoint, use_gpu=True
+                            selected_fixture, training_checkpoint, use_gpu=use_gpu
                         ),
                         "training",
                         creates=(ResourceRef("checkpoint", training_checkpoint),),
                     ),
                 ),
                 timeout_seconds=600,
-                requested_device="cuda",
+                requested_device=device_label,
+                execution_lane=selected_lane,
                 tags=("contention", "pair", "synthetic"),
             )
         )
@@ -498,7 +557,7 @@ def build_scenarios(
                         "POST",
                         "/api/training/start",
                         training_payload(
-                            selected_fixture, mixed_checkpoint, use_gpu=True
+                            selected_fixture, mixed_checkpoint, use_gpu=use_gpu
                         ),
                         "training",
                         creates=(ResourceRef("checkpoint", mixed_checkpoint),),
@@ -506,6 +565,7 @@ def build_scenarios(
                 ),
                 timeout_seconds=600,
                 requested_device="mixed",
+                execution_lane=selected_lane,
                 tags=("contention", "four-way", "inference", "synthetic"),
             )
         )
@@ -535,13 +595,14 @@ def build_scenarios(
                 ),
                 timeout_seconds=360,
                 requested_device="cpu",
+                execution_lane=selected_lane,
                 tags=("contention", "same-type", "race", "synthetic"),
             )
         )
 
         cancelled_checkpoint = "s51_cancelled_training"
         cancelled_payload = training_payload(
-            selected_fixture, cancelled_checkpoint, use_gpu=True
+            selected_fixture, cancelled_checkpoint, use_gpu=use_gpu
         )
         cancelled_payload["epochs"] = 3
         scenarios.append(
@@ -557,10 +618,12 @@ def build_scenarios(
                         cancelled_payload,
                         "training",
                         creates=(ResourceRef("checkpoint", cancelled_checkpoint),),
+                        expected_terminal_statuses=("cancelled",),
                     ),
                 ),
                 timeout_seconds=360,
-                requested_device="cuda",
+                requested_device=device_label,
+                execution_lane=selected_lane,
                 concurrent=False,
                 cancel_after_seconds=1.0,
                 tags=("cancellation", "isolation", "synthetic"),
@@ -568,10 +631,13 @@ def build_scenarios(
         )
 
     if selected_group in {"ALL", "S53"}:
-        for label, use_gpu, device in (
-            ("cuda", True, "cuda"),
-            ("cpu", False, "cpu"),
-        ):
+        if selected_lane == "cuda":
+            training_lanes = (("cuda", True, "cuda"), ("cpu", False, "cpu"))
+        elif selected_lane == "cpu":
+            training_lanes = (("cpu", False, "cpu"),)
+        else:
+            training_lanes = (("fallback", True, "cpu-fallback"),)
+        for label, lane_use_gpu, device in training_lanes:
             for repeat in range(1, 4):
                 checkpoint_name = f"s53_{label}_baseline_{repeat}"
                 scenarios.append(
@@ -588,7 +654,9 @@ def build_scenarios(
                                 "POST",
                                 "/api/training/start",
                                 training_payload(
-                                    selected_fixture, checkpoint_name, use_gpu=use_gpu
+                                    selected_fixture,
+                                    checkpoint_name,
+                                    use_gpu=lane_use_gpu,
                                 ),
                                 "training",
                                 creates=(ResourceRef("checkpoint", checkpoint_name),),
@@ -597,20 +665,23 @@ def build_scenarios(
                         timeout_seconds=600,
                         requested_device=device,
                         concurrent=False,
+                        execution_lane=selected_lane,
                         tags=("baseline", "matched", "repeat", device, "synthetic"),
                     )
                 )
 
         long_checkpoint = "s53_cuda_long_training"
         long_payload = training_payload(
-            selected_fixture, long_checkpoint, use_gpu=True
+            selected_fixture, long_checkpoint, use_gpu=use_gpu
         )
         long_payload["epochs"] = 3
         scenarios.append(
             ScenarioDefinition(
                 scenario_id="s53_cuda_long_training",
                 group="S53",
-                description="Three-epoch CUDA training stability observation.",
+                description=(
+                    f"Three-epoch {device_label.upper()} training stability observation."
+                ),
                 operations=(
                     _operation(
                         "training",
@@ -622,7 +693,8 @@ def build_scenarios(
                     ),
                 ),
                 timeout_seconds=1200,
-                requested_device="cuda",
+                requested_device=device_label,
+                execution_lane=selected_lane,
                 concurrent=False,
                 tags=("long-operation", "training", "cuda", "synthetic"),
             )
@@ -646,6 +718,7 @@ def build_scenarios(
                     ),
                     timeout_seconds=600,
                     requested_device="mixed",
+                    execution_lane=selected_lane,
                     concurrent=False,
                     tags=("baseline", "inference", "repeat", "synthetic"),
                 )
@@ -671,20 +744,37 @@ def build_plan(
     sample_interval_seconds: float = 1.0,
     request_timeout_seconds: float = 30.0,
     cold_start_count: int = 10,
+    execution_lane: str = "cuda",
+    start_mode: str = "clean",
 ) -> dict[str, Any]:
     """Return the serializable plan and receipt-field contract."""
 
     selected_group = normalize_group(group)
     selected_fixture = fixture or FixtureDefinition()
+    selected_lane = normalize_execution_lane(execution_lane)
+    selected_start_mode = normalize_start_mode(start_mode)
     scenarios = build_scenarios(
         selected_group,
         selected_fixture,
         poll_interval_seconds=poll_interval_seconds,
         sample_interval_seconds=sample_interval_seconds,
+        execution_lane=selected_lane,
     )
     return {
         "schema_version": SCHEMA_VERSION,
         "selected_group": selected_group,
+        "execution": {
+            "lane": selected_lane,
+            "start_mode": selected_start_mode,
+            "lane_contract": {
+                "cuda": "GPU requested and CUDA provenance must be observed.",
+                "cpu": "CPU requested with no GPU dependency.",
+                "unavailable-gpu": (
+                    "GPU requested while CUDA is unavailable; backend CPU fallback "
+                    "and false CUDA provenance must be observed."
+                ),
+            }[selected_lane],
+        },
         "fixture": selected_fixture.to_dict(),
         "scenarios": [scenario.to_dict() for scenario in scenarios],
         "polling": {
@@ -707,6 +797,7 @@ def build_plan(
                 "system_memory_available_bytes",
                 "xreport_python_working_set_bytes",
                 "xreport_python_processes",
+            "xreport_python_process_details",
                 "device_log_matches",
             ],
         },
@@ -728,6 +819,7 @@ def build_plan(
             "repository",
             "host",
             "base_url",
+            "execution",
             "resource_root",
             "selected_group",
             "fixture",
@@ -743,7 +835,8 @@ def build_plan(
         ],
         "limitations": [
             "Technical synthetic observations only; no clinical or release claim.",
-            "This harness does not establish representative scale, packaged/native WebView behavior, or no-GPU performance.",
+            "The unavailable-GPU lane requires the backend to run with CUDA unavailable; setting a client-side environment variable does not prove that condition.",
+            "This harness does not establish packaged/native WebView behavior or representative clinical scale.",
             "Cold-start probes import the backend app in fresh processes; they do not replace packaged launcher or native WebView startup validation.",
             "The harness records observations and execution errors but does not assign S51/S53 campaign status.",
         ],
@@ -931,6 +1024,7 @@ class ResourceSampler:
             "system_memory_available_bytes": None,
             "xreport_python_working_set_bytes": None,
             "xreport_python_processes": 0,
+            "xreport_python_process_details": [],
             "device_log_matches": [],
         }
         self._sample_gpu(sample)
@@ -993,6 +1087,7 @@ class ResourceSampler:
         repository_text = str(self.repository_root).casefold()
         working_set = 0
         process_count = 0
+        process_details: list[dict[str, Any]] = []
         for process in psutil.process_iter(["name", "cwd", "cmdline", "memory_info"]):
             try:
                 info = process.info
@@ -1007,10 +1102,19 @@ class ResourceSampler:
                 if memory_info is not None:
                     working_set += int(memory_info.rss)
                     process_count += 1
+                    process_details.append(
+                        {
+                            "pid": process.pid,
+                            "name": info.get("name"),
+                            "rss_bytes": int(memory_info.rss),
+                            "cpu_percent": process.cpu_percent(interval=None),
+                        }
+                    )
             except (psutil.Error, OSError, TypeError, ValueError):
                 continue
         sample["xreport_python_working_set_bytes"] = working_set
         sample["xreport_python_processes"] = process_count
+        sample["xreport_python_process_details"] = process_details
 
     def _sample_device_logs(self, sample: dict[str, Any]) -> None:
         log_dir = self.resource_root / "logs"
@@ -1067,6 +1171,27 @@ class ResourceMonitor:
     def _run(self) -> None:
         while not self._stop.wait(self.interval_seconds):
             self.samples.append(self.sampler.sample())
+
+
+def _worker_pid_from_status(status: Any) -> int | None:
+    """Extract a worker PID from either the job result or diagnostics fields."""
+
+    if not isinstance(status, dict):
+        return None
+    candidates: list[Any] = [status.get("worker_pid")]
+    result = status.get("result")
+    if isinstance(result, dict):
+        candidates.append(result.get("worker_pid"))
+        diagnostics = result.get("worker_diagnostics")
+        if isinstance(diagnostics, dict):
+            candidates.append(diagnostics.get("pid"))
+    diagnostics = status.get("worker_diagnostics")
+    if isinstance(diagnostics, dict):
+        candidates.append(diagnostics.get("pid"))
+    for candidate in candidates:
+        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
+            return candidate
+    return None
 
 
 class JobPoller:
@@ -1135,15 +1260,36 @@ class JobPoller:
                             time.monotonic() - started_monotonic, 3
                         ),
                         "response": response,
+                        "worker_pid": _worker_pid_from_status(status),
                     }
                 )
                 job["last_status"] = status
-                if isinstance(status, dict) and status.get("status") in TERMINAL_STATUSES:
+                status_name = status.get("status") if isinstance(status, dict) else None
+                worker_pid = _worker_pid_from_status(status)
+                if worker_pid is not None:
+                    job["worker_pid"] = worker_pid
+                    worker_pids = job.setdefault("worker_pids", [])
+                    if worker_pid not in worker_pids:
+                        worker_pids.append(worker_pid)
+                if status_name in TERMINAL_STATUSES:
                     job["terminal"] = True
+                    job["terminal_status"] = status_name
                     job["terminal_at_utc"] = captured_at
                     job["job_wall_time_seconds"] = round(
                         time.monotonic() - started_monotonic, 3
                     )
+                    expected = set(job.get("expected_terminal_statuses", ("completed",)))
+                    if status_name not in expected:
+                        errors.append(
+                            {
+                                "job_id": job_id,
+                                "phase": "terminal_status",
+                                "error": (
+                                    f"Expected terminal status {sorted(expected)}, "
+                                    f"observed {status_name}."
+                                ),
+                            }
+                        )
 
             if all_terminal:
                 break
@@ -1298,6 +1444,11 @@ def _record_training_observations(job: dict[str, Any]) -> None:
     first_progress_latency: float | None = None
     first_batch_latency: float | None = None
     last_phase: str | None = None
+    worker_pids: list[int] = [
+        pid
+        for pid in job.get("worker_pids", [])
+        if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
+    ]
     for poll in job.get("polls", []):
         if not isinstance(poll, dict):
             continue
@@ -1305,6 +1456,9 @@ def _record_training_observations(job: dict[str, Any]) -> None:
         body = response.get("body") if isinstance(response, dict) else None
         if not isinstance(body, dict):
             continue
+        worker_pid = _worker_pid_from_status(body)
+        if worker_pid is not None and worker_pid not in worker_pids:
+            worker_pids.append(worker_pid)
         result = body.get("result")
         if not isinstance(result, dict):
             continue
@@ -1339,6 +1493,150 @@ def _record_training_observations(job: dict[str, Any]) -> None:
     job["first_progress_latency_seconds"] = first_progress_latency
     job["first_batch_latency_seconds"] = first_batch_latency
     job["last_worker_phase"] = last_phase
+    job["worker_pids"] = sorted(worker_pids)
+    if worker_pids and not isinstance(job.get("worker_pid"), int):
+        job["worker_pid"] = worker_pids[-1]
+
+
+def _record_worker_cleanup(job: dict[str, Any]) -> None:
+    """Record whether observed worker processes remain after terminal status."""
+
+    pids = job.get("worker_pids", [])
+    if not isinstance(pids, list) or not pids:
+        job["worker_cleanup"] = {"status": "no_pid_observed", "processes": []}
+        return
+    try:
+        import psutil
+    except ImportError:
+        job["worker_cleanup"] = {
+            "status": "unmeasurable",
+            "reason": "psutil_unavailable",
+            "processes": [],
+        }
+        return
+
+    processes: list[dict[str, Any]] = []
+    for pid in pids:
+        if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+            continue
+        try:
+            process = psutil.Process(pid)
+            processes.append({"pid": pid, "alive": process.is_running()})
+        except psutil.NoSuchProcess:
+            processes.append({"pid": pid, "alive": False})
+        except (psutil.AccessDenied, psutil.Error) as exc:
+            processes.append({"pid": pid, "alive": None, "error": type(exc).__name__})
+    alive = [item for item in processes if item.get("alive") is True]
+    job["worker_cleanup"] = {
+        "status": "orphaned" if alive else "clean",
+        "processes": processes,
+    }
+
+
+def _attribute_job_resources(
+    job: dict[str, Any], samples: list[dict[str, Any]]
+) -> None:
+    """Attach host samples belonging to a job's observed worker PID(s)."""
+
+    pids = set(job.get("worker_pids", []))
+    attributed: list[dict[str, Any]] = []
+    for sample in samples:
+        details = sample.get("xreport_python_process_details", [])
+        if not isinstance(details, list):
+            continue
+        matches = [
+            detail
+            for detail in details
+            if isinstance(detail, dict) and detail.get("pid") in pids
+        ]
+        if matches:
+            attributed.append(
+                {
+                    "captured_at_utc": sample.get("captured_at_utc"),
+                    "processes": matches,
+                    "gpus": sample.get("gpus", []),
+                }
+            )
+    max_rss = max(
+        (
+            int(process.get("rss_bytes", 0))
+            for sample in attributed
+            for process in sample["processes"]
+            if isinstance(process.get("rss_bytes"), int)
+        ),
+        default=None,
+    )
+    max_cpu = max(
+        (
+            float(process.get("cpu_percent"))
+            for sample in attributed
+            for process in sample["processes"]
+            if isinstance(process.get("cpu_percent"), (int, float))
+        ),
+        default=None,
+    )
+    job["resource_attribution"] = {
+        "worker_pids": sorted(pids),
+        "sample_count": len(attributed),
+        "max_worker_rss_bytes": max_rss,
+        "max_worker_cpu_percent": max_cpu,
+        "samples": attributed,
+        "gpu_attribution": "host-level samples; per-job GPU attribution unavailable",
+    }
+
+
+def _running_job_entries(response: Any) -> list[dict[str, Any]]:
+    """Return normalized running-job entries from the inventory response."""
+
+    body = response.get("body") if isinstance(response, dict) else response
+    jobs = body.get("jobs", []) if isinstance(body, dict) else []
+    if not isinstance(jobs, list):
+        return []
+    return [job for job in jobs if isinstance(job, dict)]
+
+
+def _job_id_from_entry(entry: dict[str, Any]) -> str | None:
+    for key in ("job_id", "id"):
+        value = entry.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _assert_device_lane_observed(
+    batch: dict[str, Any], scenario: ScenarioDefinition
+) -> None:
+    """Require truthful device-log evidence for scenarios that start training."""
+
+    if not any(operation.job_type == "training" for operation in scenario.operations):
+        return
+    matches = [
+        line
+        for sample in batch.get("system_samples", [])
+        for line in sample.get("device_log_matches", [])
+        if isinstance(line, str)
+    ]
+    lane = normalize_execution_lane(scenario.execution_lane)
+    if lane == "cuda":
+        observed = any("GPU (cuda:" in line for line in matches)
+        expected = "a GPU (cuda:N) activation log"
+    elif lane == "cpu":
+        observed = any("CPU is set as the active device" in line for line in matches)
+        expected = "a CPU activation log"
+    else:
+        observed = (
+            any("No GPU found" in line for line in matches)
+            and any("CPU is set as the active device" in line for line in matches)
+        )
+        expected = "both the no-GPU fallback and CPU activation logs"
+    if not observed:
+        batch["errors"].append(
+            {
+                "phase": "device_provenance",
+                "error": f"Expected {expected} for execution lane {lane}.",
+                "observed_device_log_matches": matches[-12:],
+            }
+        )
 
 
 def run_scenario(
@@ -1464,6 +1762,11 @@ def run_scenario(
                 "job_type": submission["job_type"],
                 "job_id": job_id,
                 "submitted_at_utc": submission["submitted_at_utc"],
+                "expected_terminal_statuses": list(
+                    operation.expected_terminal_statuses
+                    if operation is not None
+                    else ("completed",)
+                ),
                 "poll_interval_seconds": body.get("poll_interval", scenario.poll_interval_seconds),
                 "polls": [],
                 "terminal": False,
@@ -1483,17 +1786,79 @@ def run_scenario(
         monitor.stop()
 
     batch["system_samples"] = monitor.samples
+    _assert_device_lane_observed(batch, scenario)
     for job in batch["jobs"].values():
         _record_training_observations(job)
+        _record_worker_cleanup(job)
+        _attribute_job_resources(job, batch["system_samples"])
+        if job.get("worker_cleanup", {}).get("status") == "orphaned":
+            batch["errors"].append(
+                {
+                    "job_id": job.get("job_id"),
+                    "phase": "worker_cleanup",
+                    "error": "A worker process remained alive after terminal status.",
+                }
+            )
         checkpoint_name = _training_checkpoint_from_job(job)
         if checkpoint_name is not None:
             tracker.register_checkpoint_path(checkpoint_name)
     try:
         batch["running_jobs_after"] = api.running_jobs()
+        batch["nonterminal_jobs_after"] = _running_job_entries(batch["running_jobs_after"])
+        if batch["nonterminal_jobs_after"]:
+            batch["errors"].append(
+                {
+                    "phase": "post_scenario_inventory",
+                    "error": "Nonterminal jobs remained after scenario completion.",
+                    "jobs": batch["nonterminal_jobs_after"],
+                }
+            )
+            cancellations: list[dict[str, Any]] = []
+            for entry in batch["nonterminal_jobs_after"]:
+                job_id = _job_id_from_entry(entry)
+                if job_id is None:
+                    cancellations.append(
+                        {"entry": entry, "error": "Running job has no identifiable job_id."}
+                    )
+                    continue
+                try:
+                    cancellations.append(
+                        {"job_id": job_id, "response": api.cancel_job(job_id)}
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    cancellations.append({"job_id": job_id, "error": str(exc)})
+            batch["stranded_job_cancellations"] = cancellations
+            for _ in range(20):
+                time.sleep(0.25)
+                batch["running_jobs_after_cleanup"] = api.running_jobs()
+                if not _running_job_entries(batch["running_jobs_after_cleanup"]):
+                    break
+            if _running_job_entries(batch.get("running_jobs_after_cleanup")):
+                batch["errors"].append(
+                    {
+                        "phase": "post_scenario_cleanup",
+                        "error": "Stranded jobs remained after bounded cancellation cleanup.",
+                        "jobs": _running_job_entries(batch["running_jobs_after_cleanup"]),
+                    }
+                )
     except Exception as exc:  # noqa: BLE001
         batch["errors"].append(
             {"phase": "post_scenario_inventory", "error": str(exc)}
         )
+    batch["reconciliation"] = {
+        "terminal_jobs": [
+            {
+                "job_id": job.get("job_id"),
+                "status": job.get("terminal_status"),
+                "expected_statuses": job.get("expected_terminal_statuses", []),
+                "worker_pids": job.get("worker_pids", []),
+                "worker_cleanup": job.get("worker_cleanup"),
+            }
+            for job in batch["jobs"].values()
+        ],
+        "nonterminal_jobs_after": batch.get("nonterminal_jobs_after", []),
+        "created_resources": tracker.to_dict(),
+    }
     batch["finished_at_utc"] = utc_now()
     batch["wall_time_seconds"] = round(time.monotonic() - started_monotonic, 3)
     batch["execution_state"] = (
@@ -1760,6 +2125,23 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--plan-only", action="store_true")
     parser.add_argument("--fixture-root", type=Path, default=DEFAULT_FIXTURE_ROOT)
     parser.add_argument("--fixture-scale", type=int, default=1)
+    parser.add_argument("--dataset-name", default="s27_technical_fixture")
+    parser.add_argument("--processed-dataset", default="s28_release_20260925")
+    parser.add_argument("--checkpoint", default="XREPORT_20260925T141533")
+    parser.add_argument(
+        "--execution-lane",
+        type=normalize_execution_lane,
+        choices=sorted(EXECUTION_LANES),
+        default="cuda",
+        help="Device contract: cuda, cpu, or unavailable-gpu fallback.",
+    )
+    parser.add_argument(
+        "--start-mode",
+        type=normalize_start_mode,
+        choices=sorted(START_MODES),
+        default="clean",
+        help="Declare whether the backend was started clean or already warm.",
+    )
     parser.add_argument(
         "--generate-scaled-fixture",
         action="store_true",
@@ -1797,7 +2179,13 @@ def main() -> int:
         raise SystemExit("--request-timeout must be positive")
     if args.cold_start_count < 0:
         raise SystemExit("--cold-start-count must be non-negative")
-    fixture = FixtureDefinition(root=args.fixture_root, scale=args.fixture_scale)
+    fixture = FixtureDefinition(
+        dataset=args.dataset_name,
+        processed_dataset=args.processed_dataset,
+        checkpoint=args.checkpoint,
+        root=args.fixture_root,
+        scale=args.fixture_scale,
+    )
     plan = build_plan(
         args.group,
         fixture,
@@ -1805,6 +2193,8 @@ def main() -> int:
         sample_interval_seconds=args.sample_interval,
         request_timeout_seconds=args.request_timeout,
         cold_start_count=args.cold_start_count,
+        execution_lane=args.execution_lane,
+        start_mode=args.start_mode,
     )
 
     if args.plan_only:
@@ -1819,6 +2209,7 @@ def main() -> int:
         fixture,
         poll_interval_seconds=args.poll_interval,
         sample_interval_seconds=args.sample_interval,
+        execution_lane=args.execution_lane,
     )
     client = ApiClient(args.base_url, timeout_seconds=args.request_timeout)
     api = ApiOperations(client)
@@ -1828,6 +2219,7 @@ def main() -> int:
         "repository": _repository_metadata(),
         "host": _host_metadata(),
         "base_url": args.base_url,
+        "execution": plan["execution"],
         "resource_root": str(args.resource_root.resolve()),
         "selected_group": args.group,
         "fixture": fixture.to_dict(),

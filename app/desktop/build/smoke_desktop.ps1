@@ -5,7 +5,9 @@ param(
     [Parameter(Mandatory = $true)][string]$Version,
     [string]$ReleaseRoot,
     [string]$DataRoot,
-    [switch]$KeepDataRoot
+    [switch]$KeepDataRoot,
+    [switch]$NativeAcceptance,
+    [string]$NativeOutput
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +53,7 @@ $result = [ordered]@{
     backend_process_removed = $false
     listener_removed = $false
     contracts_removed = $false
+    native_acceptance = $null
     phase_timings_ms = $phaseTimings
     shell_log = $null
     data_root_preserved = $false
@@ -105,6 +108,24 @@ try {
     if ($frontendResponse.StatusCode -lt 200 -or $frontendResponse.StatusCode -ge 300 -or $frontendResponse.Content -notmatch '<app-root') { throw 'Packaged Angular index was not served by the backend.' }
     $result.frontend = $true
     Mark-Phase 'frontend_index'
+    if ($NativeAcceptance) {
+        $nativeScript = Join-Path $PSScriptRoot 'validate_native_webview.ps1'
+        if (-not (Test-Path -LiteralPath $nativeScript -PathType Leaf)) {
+            throw "Native WebView validation script is missing: $nativeScript"
+        }
+        if ([string]::IsNullOrWhiteSpace($NativeOutput)) {
+            $NativeOutput = Join-Path $repoRoot "assets\QA\desktop\native-$Variant-$Version.json"
+        } else {
+            $NativeOutput = [IO.Path]::GetFullPath($NativeOutput)
+        }
+        $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+        & $pwsh -NoProfile -File $nativeScript -Output $NativeOutput
+        if ($LASTEXITCODE -ne 0) {
+            throw "Native WebView validation failed with exit code $LASTEXITCODE."
+        }
+        $result.native_acceptance = Get-Content -LiteralPath $NativeOutput -Raw | ConvertFrom-Json
+        Mark-Phase 'native_webview'
+    }
     $result.started = $true
 }
 finally {
@@ -152,8 +173,9 @@ finally {
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
 }
 
+$nativePassed = -not $NativeAcceptance -or ($null -ne $result.native_acceptance -and $result.native_acceptance.passed)
 if (-not $result.started -or -not $result.ready_contract -or -not $result.health -or -not $result.frontend -or -not $result.closed -or
-    -not $result.backend_process_removed -or -not $result.listener_removed -or -not $result.contracts_removed) {
+    -not $result.backend_process_removed -or -not $result.listener_removed -or -not $result.contracts_removed -or -not $nativePassed) {
     throw "Desktop smoke test failed: $($result | ConvertTo-Json -Compress)"
 }
 Write-Host "Desktop smoke test passed: $Variant $Version"
