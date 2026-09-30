@@ -145,6 +145,26 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert not manager.is_job_running("training")
 
 
+def test_initial_result_is_visible_before_runner_starts() -> None:
+    manager = JobManager()
+    observed: dict[str, object] = {}
+
+    def runner(job_id: str) -> dict[str, str]:
+        status = manager.get_job_status(job_id)
+        assert status is not None
+        observed.update(status["result"] or {})
+        return {"state": "completed"}
+
+    job_id = manager.start_job(
+        job_type="training",
+        runner=runner,
+        initial_result={"worker_phase": "starting", "progress_percent": 0},
+    )
+    manager.threads[job_id].join(timeout=2)
+
+    assert observed == {"worker_phase": "starting", "progress_percent": 0}
+
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("feature", "job_type", "expected_detail"),

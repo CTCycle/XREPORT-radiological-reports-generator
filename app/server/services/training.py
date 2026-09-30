@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
+import os
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from server.services.errors import (
     BadRequestError,
@@ -46,8 +49,30 @@ if TYPE_CHECKING:
 
 ###############################################################################
 WORKER_EXIT_FAILURE_CODE = "training_worker_exited"
+WORKER_MISSING_RESULT_CODE = "training_worker_missing_result"
+WORKER_STALL_FAILURE_CODE = "training_worker_stalled"
 WORKER_FAILURE_PHASE = "worker_process"
 WORKER_DIAGNOSTICS_KEY = "worker_diagnostics"
+DEFAULT_WORKER_STARTUP_TIMEOUT_SECONDS = 60.0
+DEFAULT_WORKER_PHASE_TIMEOUT_SECONDS = 300.0
+DEFAULT_WORKER_FIRST_BATCH_TIMEOUT_SECONDS = 480.0
+
+
+def _configured_watchdog_timeout(name: str, default: float) -> float:
+    """Read an optional local watchdog override without changing persisted settings."""
+
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        value = float(raw_value)
+    except ValueError:
+        logger.warning("Ignoring invalid %s=%r", name, raw_value)
+        return default
+    if value <= 0:
+        logger.warning("Ignoring non-positive %s=%r", name, raw_value)
+        return default
+    return value
 
 
 class TrainingRuntime:
@@ -56,6 +81,80 @@ class TrainingRuntime:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.worker: ProcessWorker | None = None
+
+
+@dataclass
+class _TrainingWatchdogState:
+    started_at: float
+    first_lifecycle_at: float | None = None
+    phase: str | None = None
+    phase_started_at: float | None = None
+    first_batch_completed: bool = False
+    last_progress: float = 0.0
+    last_meaningful_progress_at: float | None = None
+
+    def observe(self, message: dict[str, Any], now: float) -> None:
+        message_type = message.get("type")
+        if message_type == "training_worker_lifecycle":
+            phase = message.get("phase")
+            if not isinstance(phase, str) or not phase:
+                return
+            if self.first_lifecycle_at is None:
+                self.first_lifecycle_at = now
+                self.phase = phase
+                self.phase_started_at = now
+                self.last_meaningful_progress_at = now
+            elif phase != self.phase:
+                self.phase = phase
+                self.phase_started_at = now
+                self.last_meaningful_progress_at = now
+
+            if phase in {"first_batch_completed", "batch_completed"}:
+                self.first_batch_completed = True
+                self.last_meaningful_progress_at = now
+            return
+
+        if message_type != "training_update":
+            return
+
+        progress = message.get("progress_percent")
+        if not isinstance(progress, (int, float)):
+            return
+        numeric_progress = float(progress)
+        if numeric_progress > self.last_progress:
+            self.last_progress = numeric_progress
+            self.last_meaningful_progress_at = now
+            if numeric_progress > 0:
+                self.first_batch_completed = True
+
+    def stall_reason(
+        self,
+        now: float,
+        *,
+        startup_timeout_seconds: float,
+        phase_timeout_seconds: float,
+        first_batch_timeout_seconds: float,
+    ) -> str | None:
+        if self.first_lifecycle_at is None:
+            if now - self.started_at >= startup_timeout_seconds:
+                return "worker_startup_timeout"
+            return None
+
+        phase_started_at = self.phase_started_at or self.started_at
+        phase_elapsed = now - phase_started_at
+        if not self.first_batch_completed and self.phase in {
+            "fit_entered",
+            "first_batch_entered",
+            "training_started",
+        }:
+            if phase_elapsed >= first_batch_timeout_seconds:
+                return "first_batch_timeout"
+            return None
+
+        progress_reference = self.last_meaningful_progress_at or phase_started_at
+        if now - progress_reference >= phase_timeout_seconds:
+            return "worker_phase_timeout"
+        return None
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -79,6 +178,19 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
             message.get("pid"),
             message.get("diagnostic"),
         )
+        lifecycle_result: dict[str, Any] = {
+            "worker_phase": str(message.get("phase") or WORKER_FAILURE_PHASE),
+            "worker_phase_status": str(message.get("status") or "started"),
+            "worker_phase_elapsed_seconds": message.get(
+                "phase_elapsed_seconds", 0.0
+            ),
+            "worker_elapsed_seconds": message.get("elapsed_seconds", 0.0),
+            "worker_pid": message.get("pid"),
+        }
+        manager.update_result(job_id, lifecycle_result)
+        diagnostic = message.get("diagnostic")
+        if isinstance(diagnostic, dict):
+            record_worker_diagnostics(job_id, diagnostic)
     elif message_type == "training_update":
         manager.update_progress(job_id, float(message.get("progress_percent", 0)))
         manager.update_result(
@@ -121,12 +233,14 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
         )
 
 ###############################################################################
-def drain_worker_progress(job_id: str, worker: ProcessWorker) -> None:
+def drain_worker_progress(job_id: str, worker: ProcessWorker) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = []
     while True:
         message = worker.poll(timeout=0.0)
         if message is None:
-            return
+            return messages
         handle_training_progress(job_id, message)
+        messages.append(message)
 
 ###############################################################################
 def request_worker_stop_if_needed(
@@ -176,7 +290,17 @@ def record_worker_diagnostics(
         return
     public_diagnostics = {
         key: diagnostics[key]
-        for key in ("status", "phase", "pid", "exitcode", "reported", "exception_type")
+        for key in (
+            "status",
+            "phase",
+            "pid",
+            "exitcode",
+            "reported",
+            "exception_type",
+            "reason",
+            "phase_elapsed_seconds",
+            "elapsed_seconds",
+        )
         if key in diagnostics
     }
     get_job_manager().update_result(
@@ -198,59 +322,93 @@ def build_worker_exit_diagnostics(
     }
 
 
+def _read_worker_result_payload(worker: ProcessWorker) -> dict[str, Any] | None:
+    return worker.read_result(timeout=0.5)
+
+
+def _record_reported_worker_diagnostics(
+    job_id: str,
+    worker: ProcessWorker,
+    result_payload: dict[str, Any] | None,
+) -> None:
+    if result_payload is None:
+        return
+    diagnostics = result_payload.get(WORKER_DIAGNOSTICS_KEY)
+    if isinstance(diagnostics, dict) and "phase" not in diagnostics:
+        diagnostics = {
+            **diagnostics,
+            "phase": getattr(worker, "lifecycle_phase", None)
+            or WORKER_FAILURE_PHASE,
+        }
+    exitcode = worker.exitcode
+    if isinstance(diagnostics, dict) and exitcode not in (0, None):
+        diagnostics = {**diagnostics, "exitcode": exitcode}
+    if isinstance(diagnostics, dict):
+        logger.error(
+            "Training worker diagnostics for job %s: phase=%s pid=%s "
+            "exception_type=%s message=%s traceback=%s",
+            job_id,
+            diagnostics.get("phase"),
+            diagnostics.get("pid"),
+            diagnostics.get("exception_type"),
+            diagnostics.get("message"),
+            diagnostics.get("traceback"),
+        )
+    record_worker_diagnostics(job_id, diagnostics)
+
+
+def _raise_missing_worker_result(
+    job_id: str,
+    worker: ProcessWorker,
+    *,
+    reported: bool,
+    detail: str,
+) -> NoReturn:
+    diagnostics = {
+        "status": "missing_result",
+        "phase": getattr(worker, "lifecycle_phase", None) or WORKER_FAILURE_PHASE,
+        "pid": getattr(worker, "pid", None),
+        "exitcode": worker.exitcode,
+        "reported": reported,
+    }
+    record_worker_diagnostics(job_id, diagnostics)
+    raise JobExecutionError(
+        detail,
+        code=WORKER_MISSING_RESULT_CODE,
+        phase=str(diagnostics["phase"]),
+        recoverable=True,
+    )
+
+
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
     manager = get_job_manager()
-    result_payload = worker.read_result()
+    result_payload = _read_worker_result_payload(worker)
     stop_requested = manager.should_stop(job_id)
     exitcode = worker.exitcode
+    _record_reported_worker_diagnostics(job_id, worker, result_payload)
 
-    if result_payload is not None:
-        diagnostics = result_payload.get(WORKER_DIAGNOSTICS_KEY)
-        if isinstance(diagnostics, dict) and "phase" not in diagnostics:
-            diagnostics = {
-                **diagnostics,
-                "phase": getattr(worker, "lifecycle_phase", None)
-                or WORKER_FAILURE_PHASE,
-            }
-        if isinstance(diagnostics, dict) and exitcode not in (0, None):
-            diagnostics = {
-                **diagnostics,
-                "exitcode": exitcode,
-            }
-        if isinstance(diagnostics, dict):
-            logger.error(
-                "Training worker diagnostics for job %s: phase=%s pid=%s "
-                "exception_type=%s message=%s traceback=%s",
-                job_id,
-                diagnostics.get("phase"),
-                diagnostics.get("pid"),
-                diagnostics.get("exception_type"),
-                diagnostics.get("message"),
-                diagnostics.get("traceback"),
+    if exitcode not in (0, None) and not stop_requested:
+        if not (result_payload and result_payload.get("error")):
+            diagnostics = build_worker_exit_diagnostics(worker, exitcode)
+            record_worker_diagnostics(job_id, diagnostics)
+            raise JobExecutionError(
+                f"Training process exited with code {exitcode}",
+                code=WORKER_EXIT_FAILURE_CODE,
+                phase=WORKER_FAILURE_PHASE,
+                recoverable=True,
             )
-        record_worker_diagnostics(
-            job_id,
-            diagnostics,
-        )
-
-    if (
-        exitcode not in (0, None)
-        and not stop_requested
-        and not (result_payload and result_payload.get("error"))
-    ):
-        diagnostics = build_worker_exit_diagnostics(worker, exitcode)
-        record_worker_diagnostics(job_id, diagnostics)
-        raise JobExecutionError(
-            f"Training process exited with code {exitcode}",
-            code=WORKER_EXIT_FAILURE_CODE,
-            phase=WORKER_FAILURE_PHASE,
-            recoverable=True,
-        )
 
     if result_payload is None:
-        return {}
+        if stop_requested:
+            return {}
+        _raise_missing_worker_result(
+            job_id,
+            worker,
+            reported=False,
+            detail="Training worker exited without a result payload",
+        )
 
-    if "error" in result_payload and result_payload["error"]:
+    if result_payload.get("error"):
         failure = result_payload.get("failure")
         if isinstance(failure, dict):
             raise JobExecutionError(
@@ -261,10 +419,21 @@ def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
             )
         raise JobExecutionError(str(result_payload["error"]))
 
-    if "result" in result_payload:
-        return result_payload["result"] or {}
-
-    return {}
+    result = result_payload.get("result")
+    if isinstance(result, dict) and result:
+        return result
+    if stop_requested:
+        return {}
+    _raise_missing_worker_result(
+        job_id,
+        worker,
+        reported=True,
+        detail=(
+            "Training worker returned an empty result payload"
+            if "result" in result_payload
+            else "Training worker returned no success or failure payload"
+        ),
+    )
 
 ###############################################################################
 def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
@@ -275,13 +444,99 @@ def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     CheckpointRepository().register_completed_checkpoint(path.name, path)
     return result
 
+
+def _training_stall_diagnostics(
+    worker: ProcessWorker,
+    watchdog: _TrainingWatchdogState,
+    reason: str,
+    now: float,
+) -> dict[str, Any]:
+    phase = watchdog.phase or getattr(worker, "lifecycle_phase", None)
+    phase = phase or WORKER_FAILURE_PHASE
+    phase_started_at = watchdog.phase_started_at or watchdog.started_at
+    return {
+        "status": "stalled",
+        "phase": phase,
+        "pid": getattr(worker, "pid", None),
+        "exitcode": getattr(worker, "exitcode", None),
+        "reported": False,
+        "reason": reason,
+        "phase_elapsed_seconds": round(max(0.0, now - phase_started_at), 3),
+        "elapsed_seconds": round(max(0.0, now - watchdog.started_at), 3),
+    }
+
+
+def _record_training_stall(
+    job_id: str,
+    worker: ProcessWorker,
+    watchdog: _TrainingWatchdogState,
+    reason: str,
+    now: float,
+) -> dict[str, Any]:
+    diagnostics = _training_stall_diagnostics(worker, watchdog, reason, now)
+    record_worker_diagnostics(job_id, diagnostics)
+    get_job_manager().update_result(
+        job_id,
+        {
+            "worker_phase": diagnostics["phase"],
+            "worker_phase_status": "stalled",
+            "worker_phase_elapsed_seconds": diagnostics["phase_elapsed_seconds"],
+            "worker_elapsed_seconds": diagnostics["elapsed_seconds"],
+        },
+    )
+    logger.warning(
+        "Training worker stalled: job_id=%s phase=%s reason=%s phase_elapsed=%.3fs",
+        job_id,
+        diagnostics["phase"],
+        reason,
+        diagnostics["phase_elapsed_seconds"],
+    )
+    return diagnostics
+
+
 ###############################################################################
-def monitor_training_process(
+def monitor_training_process(  # noqa: C901 - watchdog and cancellation states are intentionally explicit
     job_id: str,
     worker: ProcessWorker,
     stop_timeout_seconds: float,
+    *,
+    startup_timeout_seconds: float | None = None,
+    phase_timeout_seconds: float | None = None,
+    first_batch_timeout_seconds: float | None = None,
+    clock: Callable[[], float] | None = None,
 ) -> dict[str, Any]:
+    clock_fn = clock or time.monotonic
+    started_at = getattr(worker, "started_at", None)
+    if not isinstance(started_at, (int, float)):
+        started_at = clock_fn()
+    watchdog = _TrainingWatchdogState(started_at=float(started_at))
+    startup_timeout = (
+        startup_timeout_seconds
+        if startup_timeout_seconds is not None
+        else _configured_watchdog_timeout(
+            "XREPORT_TRAINING_STARTUP_TIMEOUT_SECONDS",
+            DEFAULT_WORKER_STARTUP_TIMEOUT_SECONDS,
+        )
+    )
+    phase_timeout = (
+        phase_timeout_seconds
+        if phase_timeout_seconds is not None
+        else _configured_watchdog_timeout(
+            "XREPORT_TRAINING_PHASE_TIMEOUT_SECONDS",
+            DEFAULT_WORKER_PHASE_TIMEOUT_SECONDS,
+        )
+    )
+    first_batch_timeout = (
+        first_batch_timeout_seconds
+        if first_batch_timeout_seconds is not None
+        else _configured_watchdog_timeout(
+            "XREPORT_TRAINING_FIRST_BATCH_TIMEOUT_SECONDS",
+            DEFAULT_WORKER_FIRST_BATCH_TIMEOUT_SECONDS,
+        )
+    )
     stop_requested_at: float | None = None
+    stall_reason: str | None = None
+    stall_diagnostics: dict[str, Any] | None = None
 
     while worker.is_alive():
         stop_requested_at = request_worker_stop_if_needed(
@@ -297,13 +552,49 @@ def monitor_training_process(
         ):
             break
 
+        now = clock_fn()
+        if stall_reason is None and not get_job_manager().should_stop(job_id):
+            stall_reason = watchdog.stall_reason(
+                now,
+                startup_timeout_seconds=startup_timeout,
+                phase_timeout_seconds=phase_timeout,
+                first_batch_timeout_seconds=first_batch_timeout,
+            )
+            if stall_reason is not None:
+                stall_diagnostics = _record_training_stall(
+                    job_id,
+                    worker,
+                    watchdog,
+                    stall_reason,
+                    now,
+                )
+                worker.stop()
+                stop_requested_at = now
+
+        if stall_reason is not None:
+            if now - (stop_requested_at or now) >= stop_timeout_seconds:
+                worker.terminate()
+                break
+            continue
+
         message = worker.poll(timeout=0.25)
         if message is not None:
             handle_training_progress(job_id, message)
-            drain_worker_progress(job_id, worker)
+            watchdog.observe(message, clock_fn())
+            for queued_message in drain_worker_progress(job_id, worker):
+                watchdog.observe(queued_message, clock_fn())
 
     worker.join(timeout=5)
     drain_worker_progress(job_id, worker)
+
+    if stall_reason is not None:
+        phase = (stall_diagnostics or {}).get("phase", WORKER_FAILURE_PHASE)
+        raise JobExecutionError(
+            f"Training worker stalled during phase {phase}",
+            code=WORKER_STALL_FAILURE_CODE,
+            phase=str(phase),
+            recoverable=True,
+        )
 
     return read_worker_result(job_id=job_id, worker=worker)
 
@@ -325,6 +616,7 @@ def run_training_job(
         worker.start(
             target=run_training_process,
             kwargs={"configuration": configuration},
+            job_id=job_id,
         )
 
         result = monitor_training_process(
@@ -364,6 +656,7 @@ def run_resume_training_job(
                 "additional_epochs": additional_epochs,
                 "poll_interval": poll_interval,
             },
+            job_id=job_id,
         )
 
         result = monitor_training_process(
@@ -410,20 +703,38 @@ class TrainingService:
     ) -> None:
         self.job_manager.update_result(
             job_id,
-            {
-                "current_epoch": current_epoch,
-                "total_epochs": total_epochs,
-                "loss": 0.0,
-                "val_loss": 0.0,
-                "accuracy": 0.0,
-                "val_accuracy": 0.0,
-                "progress_percent": 0,
-                "elapsed_seconds": 0,
-                "chart_data": [],
-                "epoch_boundaries": [],
-                "available_metrics": [],
-            },
+            self.build_initial_job_result(
+                total_epochs=total_epochs,
+                current_epoch=current_epoch,
+            ),
         )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def build_initial_job_result(
+        total_epochs: int,
+        current_epoch: int = 0,
+    ) -> dict[str, Any]:
+        """Build the result snapshot before a worker thread can publish updates."""
+
+        return {
+            "current_epoch": current_epoch,
+            "total_epochs": total_epochs,
+            "loss": 0.0,
+            "val_loss": 0.0,
+            "accuracy": 0.0,
+            "val_accuracy": 0.0,
+            "progress_percent": 0,
+            "elapsed_seconds": 0,
+            "worker_phase": "starting",
+            "worker_phase_status": "pending",
+            "worker_phase_elapsed_seconds": 0.0,
+            "worker_elapsed_seconds": 0.0,
+            "worker_pid": None,
+            "chart_data": [],
+            "epoch_boundaries": [],
+            "available_metrics": [],
+        }
 
     # -------------------------------------------------------------------------
     def build_job_start_response(
@@ -604,6 +915,9 @@ class TrainingService:
                 job_type="training",
                 runner=run_training_job,
                 poll_interval=poll_interval,
+                initial_result=self.build_initial_job_result(
+                    total_epochs=configuration.get("epochs", 10),
+                ),
                 kwargs={
                     "configuration": configuration,
                 },
@@ -611,11 +925,6 @@ class TrainingService:
             )
         except JobAlreadyRunningError as exc:
             raise ConflictError(detail="Training is already in progress") from exc
-
-        self.initialize_job_result(
-            job_id=job_id,
-            total_epochs=configuration.get("epochs", 10),
-        )
 
         return self.build_job_start_response(
             job_id=job_id,
@@ -686,6 +995,10 @@ class TrainingService:
                 job_type="training",
                 runner=run_resume_training_job,
                 poll_interval=poll_interval,
+                initial_result=self.build_initial_job_result(
+                    total_epochs=from_epoch + request.additional_epochs,
+                    current_epoch=from_epoch,
+                ),
                 kwargs={
                     "checkpoint": checkpoint,
                     "additional_epochs": request.additional_epochs,
@@ -695,12 +1008,6 @@ class TrainingService:
             )
         except JobAlreadyRunningError as exc:
             raise ConflictError(detail="Training is already in progress") from exc
-
-        self.initialize_job_result(
-            job_id=job_id,
-            total_epochs=from_epoch + request.additional_epochs,
-            current_epoch=from_epoch,
-        )
 
         return self.build_job_start_response(
             job_id=job_id,

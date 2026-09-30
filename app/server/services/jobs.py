@@ -96,6 +96,7 @@ class JobManager:
         failure_mapper: FailureMapper | None = None,
         poll_interval: float = 1.0,
         require_idle: bool = False,
+        initial_result: dict[str, Any] | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
         state = JobState(
@@ -103,6 +104,7 @@ class JobManager:
             job_type=job_type,
             status="pending",
             poll_interval=float(poll_interval),
+            result=dict(initial_result) if initial_result is not None else None,
         )
         runner_kwargs = kwargs.copy() if kwargs else {}
 

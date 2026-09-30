@@ -67,6 +67,10 @@ MEASUREMENT_FIELDS = (
     "xreport_python_working_set_bytes",
     "xreport_python_processes",
     "device_log_matches",
+    "worker_phase_transitions",
+    "first_progress_latency_seconds",
+    "first_batch_latency_seconds",
+    "last_worker_phase",
 )
 
 
@@ -1287,6 +1291,56 @@ def _training_checkpoint_from_job(job: dict[str, Any]) -> str | None:
     return Path(checkpoint_path).name
 
 
+def _record_training_observations(job: dict[str, Any]) -> None:
+    """Summarize phase and first-progress evidence from the poll transcript."""
+
+    transitions: list[dict[str, Any]] = []
+    first_progress_latency: float | None = None
+    first_batch_latency: float | None = None
+    last_phase: str | None = None
+    for poll in job.get("polls", []):
+        if not isinstance(poll, dict):
+            continue
+        response = poll.get("response")
+        body = response.get("body") if isinstance(response, dict) else None
+        if not isinstance(body, dict):
+            continue
+        result = body.get("result")
+        if not isinstance(result, dict):
+            continue
+        phase = result.get("worker_phase")
+        if isinstance(phase, str) and phase and phase != last_phase:
+            transitions.append(
+                {
+                    "captured_at_utc": poll.get("captured_at_utc"),
+                    "elapsed_seconds": poll.get("elapsed_seconds"),
+                    "phase": phase,
+                    "status": result.get("worker_phase_status"),
+                    "phase_elapsed_seconds": result.get(
+                        "worker_phase_elapsed_seconds"
+                    ),
+                }
+            )
+            last_phase = phase
+        progress = result.get("progress_percent", body.get("progress", 0))
+        if (
+            first_progress_latency is None
+            and isinstance(progress, (int, float))
+            and progress > 0
+        ):
+            first_progress_latency = poll.get("elapsed_seconds")
+        if (
+            first_batch_latency is None
+            and phase in {"first_batch_completed", "batch_completed"}
+        ):
+            first_batch_latency = poll.get("elapsed_seconds")
+
+    job["worker_phase_transitions"] = transitions
+    job["first_progress_latency_seconds"] = first_progress_latency
+    job["first_batch_latency_seconds"] = first_batch_latency
+    job["last_worker_phase"] = last_phase
+
+
 def run_scenario(
     api: ApiOperations,
     scenario: ScenarioDefinition,
@@ -1430,6 +1484,7 @@ def run_scenario(
 
     batch["system_samples"] = monitor.samples
     for job in batch["jobs"].values():
+        _record_training_observations(job)
         checkpoint_name = _training_checkpoint_from_job(job)
         if checkpoint_name is not None:
             tracker.register_checkpoint_path(checkpoint_name)

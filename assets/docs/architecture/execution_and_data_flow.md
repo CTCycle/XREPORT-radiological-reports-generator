@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-09-19
+Last updated: 2026-09-30
 
 ## Layer Responsibilities
 
@@ -83,6 +83,40 @@ Framework-dependent modules are imported only inside the execution paths that ne
 ## Generic Job Runtime
 
 `app/server/services/jobs.py` owns mutable `JobState` and lifecycle transitions. The domain package exposes only the serializable job response contract. A job failure can carry a message, code, phase, and recoverability flag through `JobExecutionError`; the generic manager never interprets inference-specific exception classes. Feature services can provide a failure mapper, and unmapped failures use the generic `job_failed` / `execution` fallback. `GET /api/jobs` is the only job read surface, and `DELETE /api/jobs/{job_id}` is the only cancellation surface.
+
+## Training Worker Lifecycle And Containment
+
+Training starts with an initial result snapshot installed atomically by
+`JobManager` before its background thread is started. The snapshot contains
+zero numeric progress plus a separate `worker_phase` state, so a slow worker
+cannot overwrite an early lifecycle event with a stale initialization result.
+
+`TrainingService` owns a spawned `ProcessWorker` and monitors two channels:
+
+- lifecycle and numeric progress messages are critical, job-correlated, and
+  carry the worker PID plus monotonic elapsed/phase timing;
+- optional plot messages use a bounded channel and may be coalesced under
+  pressure without draining lifecycle or numeric progress messages.
+
+The worker reports dataset loading and image-path validation, device and
+data-loader initialization, model loading/compilation, fit entry, first-batch
+entry/completion, epoch completion, checkpoint saving, result reporting, and
+worker exit. The generic job response exposes the latest phase and bounded
+diagnostic fields; detailed tracebacks remain in server logs.
+
+The monitor uses monotonic deadlines for process startup, phase inactivity,
+first-batch execution, and user cancellation. Defaults are 60 seconds for
+startup, 300 seconds for a stagnant phase, and 480 seconds for the first-batch
+boundary. Local validation can calibrate these with
+`XREPORT_TRAINING_STARTUP_TIMEOUT_SECONDS`,
+`XREPORT_TRAINING_PHASE_TIMEOUT_SECONDS`, and
+`XREPORT_TRAINING_FIRST_BATCH_TIMEOUT_SECONDS`; these are not persisted
+settings. A confirmed stall requests graceful interruption, applies a bounded
+termination grace period, terminates only the owned worker tree, closes IPC
+resources, and raises recoverable `training_worker_stalled`. User cancellation
+continues to resolve as `cancelled`. A zero-exit worker without a non-empty
+success result is classified as `training_worker_missing_result` rather than
+successful completion.
 
 All long-running endpoints follow the same external contract:
 
