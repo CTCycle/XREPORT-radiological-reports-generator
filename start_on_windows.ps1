@@ -1423,7 +1423,8 @@ function Assert-DesktopSourceState {
 function Get-DesktopConfigPath {
     param(
         [Parameter(Mandatory = $true)][string]$Variant,
-        [string]$ReleaseVersion = $Version
+        [string]$ReleaseVersion = $Version,
+        [switch]$Development
     )
     $sourceName = if ($Variant -eq 'cpu') { 'tauri.cpu.conf.json' } else { 'tauri.cuda.conf.json' }
     $sourcePath = Join-Path $DesktopTauriDir $sourceName
@@ -1439,6 +1440,9 @@ function Get-DesktopConfigPath {
         $config.app.security | Add-Member -MemberType NoteProperty -Name capabilities -Value @($capability)
     }
     $config.version = $ReleaseVersion
+    if ($Development -and $config.bundle.PSObject.Properties.Name -contains 'resources') {
+        $config.bundle.PSObject.Properties.Remove('resources')
+    }
     if ($OfflineWebView2) {
         $config.bundle.windows.webviewInstallMode = [pscustomobject]@{ type = 'offlineInstaller' }
     }
@@ -1992,7 +1996,7 @@ function Invoke-LaunchDesktopDev {
     try {
         Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
         $env:XREPORT_DESKTOP_DEV = '1'
-        $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version
+        $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version -Development
         Write-Step 'Launching the debug Tauri shell; backend and frontend consoles remain visible.'
         Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', $devConfigPath) -WorkingDirectory $DesktopDir
     }

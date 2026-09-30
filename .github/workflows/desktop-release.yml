@@ -83,6 +83,8 @@ jobs:
     needs: package
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment:
+      name: release-approval
     permissions:
       contents: write
     env:
@@ -99,6 +101,12 @@ jobs:
           fi
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+
+      - name: Check out exact source for release approval
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
 
       - name: Download verified package outputs
         uses: actions/download-artifact@v4
@@ -136,6 +144,16 @@ jobs:
             echo 'Release asset directory contains an unexpected subdirectory.' >&2
             exit 1
           fi
+
+      - name: Verify approved final validation manifest
+        shell: bash
+        run: |
+          python app/desktop/build/verify_release_validation_manifest.py \
+            --manifest assets/QA/validation_campaign/release-validation/approved-release-manifest.json \
+            --release-root release-assets \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --source-commit "$GITHUB_SHA" \
+            --version "$RELEASE_VERSION"
 
       - name: Publish GitHub Release
         env:

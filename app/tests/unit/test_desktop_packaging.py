@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import struct
@@ -13,6 +14,11 @@ from server.common.desktop_security import token_matches
 from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "desktop" / "build"))
+from verify_release_validation_manifest import (  # noqa: E402
+    ManifestError,
+    expected_artifacts,
+    verify_manifest,
+)
 from verify_runtime_bundle import verify_archive, verify_portable  # noqa: E402
 
 ###############################################################################
@@ -307,6 +313,16 @@ def test_packaged_desktop_processes_are_windowless() -> None:
     assert 'windows_subsystem = "windows"' in shell
 
 ###############################################################################
+def test_development_shell_does_not_require_release_runtime_archive() -> None:
+    launcher = (Path(__file__).parents[3] / "start_on_windows.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "[switch]$Development" in launcher
+    assert "Properties.Remove('resources')" in launcher
+    assert "-ReleaseVersion $Version -Development" in launcher
+
+###############################################################################
 def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     client_root = Path(__file__).parents[2] / "client"
     index = (client_root / "src" / "index.html").read_text(encoding="utf-8")
@@ -318,3 +334,58 @@ def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     assert "startup.css" in index
     assert "desktop-startup" in shell
     assert startup_css.is_file()
+
+###############################################################################
+def test_approved_release_manifest_binds_sha_and_source_commit(tmp_path: Path) -> None:
+    version = "3.1.0"
+    source_commit = "a" * 40
+    release_root = tmp_path / "release"
+    release_root.mkdir()
+    artifact_hashes: dict[str, str] = {}
+    for name in expected_artifacts(version):
+        payload = f"{name}\n".encode("utf-8")
+        artifact = release_root / name
+        artifact.write_bytes(payload)
+        artifact_hashes[name] = hashlib.sha256(payload).hexdigest()
+
+    validation_record = tmp_path / "validation.md"
+    validation_record.write_text("approved technical record\n", encoding="utf-8")
+    manifest_path = tmp_path / "approved-release-manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "xreport-release-validation-v1",
+                "status": "approved",
+                "version": version,
+                "source_commit": source_commit,
+                "approval": {
+                    "decision": "approved",
+                    "approved_by": "release-owner",
+                    "approved_at_utc": "2026-09-30T12:00:00Z",
+                },
+                "validation_record": validation_record.name,
+                "artifacts": artifact_hashes,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    receipt = verify_manifest(
+        manifest_path,
+        release_root,
+        source_commit=source_commit,
+        version=version,
+        repository_root=tmp_path,
+    )
+    assert receipt["status"] == "approved"
+    assert len(receipt["artifacts"]) == 8
+
+    (release_root / expected_artifacts(version)[0]).write_bytes(b"tampered\n")
+    with pytest.raises(ManifestError, match="SHA-256 mismatch"):
+        verify_manifest(
+            manifest_path,
+            release_root,
+            source_commit=source_commit,
+            version=version,
+            repository_root=tmp_path,
+        )
