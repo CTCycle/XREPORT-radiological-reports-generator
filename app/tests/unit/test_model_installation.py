@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from server.common import path as path_module
+from server.common.runtime_layout import RuntimeLayout
 from server.services import model_installation as installation_module
 from server.services.model_installation import (
     InstallationError,
@@ -97,6 +99,19 @@ def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
 def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     root = tmp_path / "portable"
     data_root = root / "data"
+    monkeypatch.setattr(
+        path_module,
+        "RUNTIME_LAYOUT",
+        RuntimeLayout(
+            mode="packaged",
+            runtime_root=root,
+            data_root=data_root,
+            resources_root=data_root,
+            client_dist_dir=root / "app" / "client",
+            release_version="3.1.0",
+            variant="cpu",
+        ),
+    )
     monkeypatch.setattr(installation_module, "ROOT_DIR", root)
     monkeypatch.setattr(installation_module, "DATA_ROOT", data_root)
     monkeypatch.setattr(

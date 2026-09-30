@@ -323,6 +323,7 @@ def _operation(
     payload: dict[str, Any],
     job_type: str,
     *,
+    expected_statuses: tuple[int, ...] = (202,),
     creates: Iterable[ResourceRef] = (),
     multipart: Iterable[MultipartPart] = (),
 ) -> OperationSpec:
@@ -332,6 +333,7 @@ def _operation(
         path=path,
         payload=payload,
         job_type=job_type,
+        expected_statuses=expected_statuses,
         creates=tuple(creates),
         multipart=tuple(multipart),
     )
@@ -516,6 +518,7 @@ def build_scenarios(
                         "/api/validation/run",
                         validation_payload(selected_fixture),
                         "validation",
+                        expected_statuses=(202, 409),
                     ),
                     _operation(
                         "validation_b",
@@ -523,6 +526,7 @@ def build_scenarios(
                         "/api/validation/run",
                         validation_payload(selected_fixture),
                         "validation",
+                        expected_statuses=(202, 409),
                     ),
                 ),
                 timeout_seconds=360,
@@ -1352,8 +1356,44 @@ def run_scenario(
             submissions = [submit(operation) for operation in scenario.operations]
         batch["submissions"] = submissions
 
+        if scenario.scenario_id == "s51_same_type_validation_race":
+            statuses = sorted(
+                submission["response"]["status"]
+                for submission in submissions
+                if isinstance(submission.get("response"), dict)
+                and isinstance(submission["response"].get("status"), int)
+            )
+            if statuses != [202, 409]:
+                batch["errors"].append(
+                    {
+                        "phase": "submission",
+                        "error": (
+                            "Same-type validation race must produce exactly one "
+                            f"202 and one 409; observed statuses: {statuses}"
+                        ),
+                    }
+                )
+
         for submission in submissions:
             response = submission.get("response")
+            operation = next(
+                (
+                    candidate
+                    for candidate in scenario.operations
+                    if candidate.operation_id == submission.get("operation_id")
+                ),
+                None,
+            )
+            response_status = (
+                response.get("status") if isinstance(response, dict) else None
+            )
+            if (
+                operation is not None
+                and isinstance(response_status, int)
+                and response_status in operation.expected_statuses
+                and response_status != 202
+            ):
+                continue
             body = response.get("body") if isinstance(response, dict) else None
             job_id = body.get("job_id") if isinstance(body, dict) else None
             if not isinstance(job_id, str) or not job_id:
