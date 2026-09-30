@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-09-24
+Last updated: 2026-09-30
 
 ## Prepare A Dataset
 
@@ -32,12 +32,19 @@ Expected result:
 1. Open the Training page.
 2. Choose dataset, checkpoint, and training parameter options.
 3. Start training.
-4. Monitor live progress and metrics.
+4. Monitor the independent worker phase and numeric progress. Before the first
+   batch, the phase identifies preparation such as dataset, device, loader, or
+   model initialization and shows elapsed time in the current phase.
 5. Stop or resume when needed.
 
 Expected result:
 
 - checkpoints are produced and listed for later inference and validation
+- a worker that exits without a success payload or stops advancing beyond its
+  calibrated watchdog deadline becomes a typed recoverable failure; it does
+  not remain indefinitely in `running`
+- user-initiated Stop Training remains `CANCELLED`, including cancellation
+  during worker initialization or before the first batch
 
 ## Generate Reports
 

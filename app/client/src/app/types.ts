@@ -97,6 +97,10 @@ export interface TrainingDashboardState {
     valAccuracy: number;
     progressPercent: number;
     elapsedSeconds: number;
+    workerPhase?: string;
+    workerPhaseStatus?: string;
+    workerPhaseElapsedSeconds?: number;
+    workerElapsedSeconds?: number;
     chartData: ChartDataPoint[];
     availableMetrics: string[];
     epochBoundaries: number[];
