@@ -336,6 +336,39 @@ def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     assert startup_css.is_file()
 
 ###############################################################################
+def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
+    repository_root = Path(__file__).parents[3]
+    workflow = (repository_root / ".github" / "workflows" / "desktop-release.yml").read_text(
+        encoding="utf-8"
+    )
+    native_driver = (
+        repository_root / "app" / "desktop" / "build" / "validate_native_webview.ps1"
+    ).read_text(encoding="utf-8")
+    native_smoke = (
+        repository_root / "app" / "desktop" / "build" / "smoke_desktop.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "package_run_id:" in workflow
+    assert "source_commit:" in workflow
+    assert "Download retained package outputs for approval phase" in workflow
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.package_run_id != ''" in workflow
+    assert '--source-commit "$SOURCE_COMMIT"' in workflow
+    assert "--target \"$SOURCE_COMMIT\"" in workflow
+    assert "$NativeScenario -join ','" in native_smoke
+    assert "::FocusedElement" in native_driver
+    for scenario in (
+        "History",
+        "Keyboard",
+        "Modal",
+        "SlowReadiness",
+        "BackendStop",
+        "BackendRetry",
+        "SecondInstance",
+        "Cleanup",
+    ):
+        assert scenario in native_driver
+
+###############################################################################
 def test_approved_release_manifest_binds_sha_and_source_commit(tmp_path: Path) -> None:
     version = "3.1.0"
     source_commit = "a" * 40

@@ -7,7 +7,11 @@ param(
     [string]$DataRoot,
     [switch]$KeepDataRoot,
     [switch]$NativeAcceptance,
-    [string]$NativeOutput
+    [string]$NativeOutput,
+    [ValidateSet('All', 'Routes', 'History', 'Keyboard', 'Modal', 'SlowReadiness', 'BackendStop', 'BackendRetry', 'SecondInstance', 'Cleanup')]
+    [string[]]$NativeScenario = @('Routes'),
+    [switch]$NativeCloseAtEnd,
+    [switch]$NativeRequirePortCleanup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -119,7 +123,10 @@ try {
             $NativeOutput = [IO.Path]::GetFullPath($NativeOutput)
         }
         $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
-        & $pwsh -NoProfile -File $nativeScript -Output $NativeOutput
+        $nativeArguments = @('-NoProfile', '-File', $nativeScript, '-Output', $NativeOutput, '-Scenario', ($NativeScenario -join ','))
+        if ($NativeCloseAtEnd) { $nativeArguments += '-CloseAtEnd' }
+        if ($NativeRequirePortCleanup) { $nativeArguments += '-RequirePortCleanup' }
+        & $pwsh @nativeArguments
         if ($LASTEXITCODE -ne 0) {
             throw "Native WebView validation failed with exit code $LASTEXITCODE."
         }

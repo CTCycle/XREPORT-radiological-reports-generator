@@ -1,0 +1,237 @@
+{
+  "format": 2,
+  "observed_utc": "2026-09-30T14:58:14.3072374Z",
+  "process_id": 35980,
+  "window_title": "XREPORT — Radiological Reports (CPU)",
+  "native_window_handle": 330808,
+  "requested_scenarios": [
+    "routes",
+    "history",
+    "keyboard",
+    "modal",
+    "backend_stop",
+    "backend_retry",
+    "second_instance",
+    "cleanup"
+  ],
+  "screenshots": [
+    "startup.png",
+    "inference.png",
+    "dataset.png",
+    "training.png",
+    "reports.png",
+    "settings.png",
+    "help.png",
+    "inference.png",
+    "dataset.png",
+    "inference.png",
+    "inference.png",
+    "settings.png"
+  ],
+  "routes": [
+    {
+      "route": "Inference",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "inference.png",
+      "error": null
+    },
+    {
+      "route": "Dataset",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "dataset.png",
+      "error": null
+    },
+    {
+      "route": "Training",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "training.png",
+      "error": null
+    },
+    {
+      "route": "Reports",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "reports.png",
+      "error": null
+    },
+    {
+      "route": "Settings",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "settings.png",
+      "error": null
+    },
+    {
+      "route": "Help",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "mouse_click",
+      "heading_found": false,
+      "screenshot": "help.png",
+      "error": null
+    },
+    {
+      "route": "Inference",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "inference.png",
+      "error": null
+    },
+    {
+      "route": "Dataset",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "dataset.png",
+      "error": null
+    },
+    {
+      "route": "Inference",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "inference.png",
+      "error": null
+    },
+    {
+      "route": "Inference",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "inference.png",
+      "error": null
+    },
+    {
+      "route": "Settings",
+      "found": true,
+      "invoked": true,
+      "invoke_method": "invoke_pattern",
+      "heading_found": true,
+      "screenshot": "settings.png",
+      "error": null
+    }
+  ],
+  "scenarios": {
+    "startup": {
+      "id": "startup",
+      "status": "PASS",
+      "ready_route": "Inference"
+    },
+    "routes": {
+      "id": "routes",
+      "status": "PASS",
+      "route_count": 6
+    },
+    "history": {
+      "id": "history",
+      "status": "PASS",
+      "forward": true,
+      "back": true,
+      "refresh": true
+    },
+    "keyboard": {
+      "id": "keyboard",
+      "status": "PASS",
+      "navigation_focus_count": 5,
+      "focused_names": [
+        "Reports",
+        "Dataset",
+        "Training",
+        "Help and tips",
+        "Settings",
+        "Use Light theme",
+        "Use Dark theme",
+        "Use System theme",
+        "About model cards",
+        "Filter models",
+        "Scrollable model catalogue",
+        "RUNTIME UNAVAILABLE Recommended CXRMate Multi TF 0.1B parameters chest xray Selected",
+        "RUNTIME UNAVAILABLE CheXOne 4B parameters chest xray",
+        "RUNTIME UNAVAILABLE CXRMate-2 3B parameters chest xray",
+        "NOT INSTALLED MedGemma 1.5 4B 4B parameters broader medical imaging",
+        "RUNTIME UNAVAILABLE e2e_delete_c380cadfedf54dfcaf7f5afb3ca5d441 Artifact missing · 16 images Raw report",
+        "RUNTIME UNAVAILABLE e2e_delete_7a14b0204adc4e23ad98ef0c1d85a7b5 Artifact missing · 16 images Raw report",
+        "RUNTIME UNAVAILABLE e2e_delete_48fd6222bfa74e4c9e4282fe4135444a Artifact missing · 16 images Raw report"
+      ]
+    },
+    "modal": {
+      "id": "modal",
+      "status": "PASS",
+      "focus_restored": true,
+      "focused_names": [
+        "Refresh workflow status",
+        "1 STEP 1 OF 5 Upload and load source data Next recommended",
+        "Open Dataset",
+        "2 STEP 2 OF 5 Process the uploaded source After the previous step",
+        "3 STEP 3 OF 5 Use the processed training dataset After the previous step",
+        "STEP 4 OF 5 Start a new training run Completed",
+        "5 STEP 5 OF 5 Resume from an existing checkpoint Available now",
+        "Walk me through it",
+        "Open Inference",
+        "Open Training"
+      ]
+    },
+    "slow_readiness": {
+      "id": "slow_readiness",
+      "status": "UNRUN"
+    },
+    "backend_stop": {
+      "id": "backend_stop",
+      "status": "PASS",
+      "error_state_visible": true,
+      "backend_process_id": 5596
+    },
+    "backend_retry": {
+      "id": "backend_retry",
+      "status": "PASS",
+      "health": true,
+      "settings_ready": true,
+      "backend_port": 5003
+    },
+    "second_instance": {
+      "id": "second_instance",
+      "status": "PASS",
+      "error": null
+    },
+    "cleanup": {
+      "id": "cleanup",
+      "status": "PASS",
+      "remaining_listener_ports": [
+        5003
+      ],
+      "native_process_exited": true,
+      "port_cleanup_required": false
+    }
+  },
+  "accessible_names": [],
+  "passed": true,
+  "required_scenarios": [
+    "startup",
+    "routes",
+    "history",
+    "keyboard",
+    "modal",
+    "backend_stop",
+    "backend_retry",
+    "second_instance",
+    "cleanup"
+  ]
+}

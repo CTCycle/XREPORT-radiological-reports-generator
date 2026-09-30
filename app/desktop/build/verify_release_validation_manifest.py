@@ -104,7 +104,7 @@ def verify_manifest(
     if _require_string(manifest, "status").lower() != "approved":
         raise ManifestError("Manifest status must be 'approved'.")
     if _require_string(manifest, "source_commit") != source_commit:
-        raise ManifestError("Manifest source_commit does not match the workflow SHA.")
+        raise ManifestError("Manifest source_commit does not match the immutable package source commit.")
     if _require_string(manifest, "version") != version:
         raise ManifestError("Manifest version does not match the release version.")
     approval = _validate_approval(manifest)
