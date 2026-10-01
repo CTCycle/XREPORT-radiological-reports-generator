@@ -1,10 +1,18 @@
 # Clean-SHA release rebinding — 2026-10-01
 
-Status: `PARTIAL` for current release rebinding. The CPU artifact pair was
-constructed and verified from the clean source revision; the retained clean
-CUDA report is historical and the current CUDA diagnostic output is
-dirty-tree-bound. Release approval remains `PARTIAL` for current CUDA
-artifacts, no-GPU, hosted-CI, and approval-manifest boundaries.
+Status: `SUPERSEDED` historical attempt record. The failed intermediate
+rebinding described below was followed by a successful official CPU/CUDA
+rebuild and verifier run from source commit
+`301a5a510e494c501d6c25eb22d5baea824e936a`, with `dirty_tree=false` for both
+variants. Release approval remains `PARTIAL` only for the genuine no-GPU,
+hosted-CI, S51, and approval-manifest boundaries described in the current
+[release-validation record](summary-20260930.md).
+
+The superseding clean release pair records runtime payload hashes
+`03da18158b95d0e8e7a400f76b4a151f189bce3fd29a2eb69fa8d7fb012631d4` (CPU)
+and `d69ee87c7f627c277e68e21fcdb49340cb702ac8e2aff402e776a8445ac02f3f`
+(CUDA). Both official artifact verifiers passed; the current release-folder
+portable/MSI pairs, checksum files, and build metadata are present.
 
 The earlier clean-source report is retained as build-history context: it
 reported CPU and CUDA v3.1.0 metadata with `dirty_tree=false`, payload hashes
@@ -14,7 +22,7 @@ and successful artifact verification. The current `release/` folder retains
 the CPU pair only; the historical CUDA files are not available for an
 independent current rebind.
 
-The current committed implementation revision is
+The failed attempt described here used implementation revision
 `af666df53b3424c08a279bc9d0b79b81078815bd`. The official CPU artifact verifier
 ran against the current CPU portable/MSI pair and reached its final QA-report
 write after the artifact, runtime, checksum, portable, and MSI checks. The
@@ -58,11 +66,10 @@ remained `dirty_tree=true` with the hash above and was not promoted to
 diagnostic MSI contains `runtime.zip`; this confirms packaging composition only,
 not clean provenance or release approval.
 
-The current CPU build remains bound to
-`af666df53b3424c08a279bc9d0b79b81078815bd` with `dirty_tree=false`; its
-portable/MSI pair and verifier are current. The retained historical CUDA
-metadata and verifier receipt refer to outputs no longer present in
-`release/`, so they do not close current CUDA release binding.
+At the time of this failed attempt, the CPU build remained bound to
+`af666df53b3424c08a279bc9d0b79b81078815bd` with `dirty_tree=false`; the
+successful clean pair described at the top supersedes that state and closes
+current CPU/CUDA artifact binding.
 
 The official frontend rebuild passed during each retry and the generated
 `app/desktop/src-tauri/ui` staging tree remains present. The quote-safe probe
