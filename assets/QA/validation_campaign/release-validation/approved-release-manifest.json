@@ -1,0 +1,22 @@
+{
+    "schema_version": "xreport-release-validation-v1",
+    "status": "pending",
+    "source_commit": "301a5a510e494c501d6c25eb22d5baea824e936a",
+    "version": "3.1.0",
+    "validation_record": "assets/QA/validation_campaign/s40-s42-s51-release-20260930/summary-20260930.md",
+    "approval": {
+        "decision": "pending",
+        "approved_by": "",
+        "approved_at_utc": ""
+    },
+    "artifacts": {
+        "XREPORT-v3.1.0-windows-x64-cpu-portable.exe": "b15aae37c6efec59d442e54acdd0fbb6480a038036cae6e9d0dce1a6dc8eb1c5",
+        "XREPORT-v3.1.0-windows-x64-cpu.msi": "a856b320af8e6c02eef323de57fad3ec944a9f41391266c40d53d9b4e50ef2eb",
+        "XREPORT-v3.1.0-windows-x64-cpu.sha256": "b49a0de6ed6890310c802a0475bdb144529a01d073e631bde6713412e7f28574",
+        "XREPORT-v3.1.0-windows-x64-cpu-build.json": "15a3d2e9477e9eccd4f4c58240ee8f2f036221b9851f71720f537b4192b36da2",
+        "XREPORT-v3.1.0-windows-x64-cuda-portable.exe": "c4c6ca6ce7868cb89f0761957e821ee6c97295021be7aea116a08eb1da5c3fe7",
+        "XREPORT-v3.1.0-windows-x64-cuda.msi": "3cb3aa58c7fa22b29d71b24f45c76aa7533dc6f3e8ee4708cfe6d5991aa4242c",
+        "XREPORT-v3.1.0-windows-x64-cuda.sha256": "1c450f305c852dfdf61b3dbafc94e063d170913330778e9e252a6eb4fba3d2d9",
+        "XREPORT-v3.1.0-windows-x64-cuda-build.json": "d382afc1e6b72b0ccb641f0cb82a87c63721b36ac31dfdefaa80ef769e0bc707"
+    }
+}

@@ -1,0 +1,114 @@
+{
+  "source_deletion_ui_observation": "After clicking Delete dataset for the disposable source, the browser page returned to its empty state: Please upload at least one dataset.",
+  "after_source_delete": {
+    "source_names": {
+      "datasets": [],
+      "count": 0
+    },
+    "processed_names": {
+      "datasets": [
+        {
+          "name": "s23-s26-processed",
+          "folder_path": "processed",
+          "row_count": 0,
+          "has_validation_report": false
+        }
+      ],
+      "count": 1
+    },
+    "processed_metadata": {
+      "dataset_name": "s23-s26-processed",
+      "metadata": {
+        "source_dataset": null,
+        "hashcode": "b49c75e454d3b13c38191e67763daeedeaa7a7311a3268c855288c76e3d222b0",
+        "date": "2026-09-23 17:13:15",
+        "seed": 42,
+        "sample_size": 1.0,
+        "validation_size": 0.25,
+        "split_seed": 42,
+        "vocabulary_size": 30522,
+        "max_report_size": 200,
+        "tokenizer": "distilbert-base-uncased"
+      }
+    },
+    "database": {
+      "counts": {
+        "datasets": 1,
+        "dataset_records": 0,
+        "dataset_versions": 0,
+        "processing_runs": 1,
+        "training_samples": 0,
+        "checkpoints": 0,
+        "checkpoint_evaluations": 0
+      },
+      "datasets": [
+        {
+          "dataset_id": 2,
+          "name": "s23-s26-processed"
+        }
+      ],
+      "processing_runs": [
+        {
+          "processing_run_id": 1,
+          "dataset_id": 2,
+          "source_dataset_id": null,
+          "config_hash": "b49c75e454d3b13c38191e67763daeedeaa7a7311a3268c855288c76e3d222b0",
+          "executed_at": "2026-09-23 17:13:15.701543",
+          "seed": 42,
+          "sample_size": 1.0,
+          "validation_size": 0.25,
+          "split_seed": 42,
+          "vocabulary_size": 30522,
+          "max_report_size": 200,
+          "tokenizer": "distilbert-base-uncased"
+        }
+      ],
+      "orphans": {
+        "records_without_dataset": 0,
+        "runs_without_processed_dataset": 0,
+        "samples_without_run": 0,
+        "samples_without_record": 0,
+        "foreign_key_check": []
+      },
+      "integrity_check": "ok"
+    }
+  },
+  "processed_deletion": {
+    "response_status": 200,
+    "response": {
+      "success": true,
+      "message": "Deleted dataset s23-s26-processed"
+    },
+    "source_names_after": {
+      "datasets": [],
+      "count": 0
+    },
+    "processed_names_after": {
+      "datasets": [],
+      "count": 0
+    },
+    "metadata_status_after": 404,
+    "database": {
+      "counts": {
+        "datasets": 0,
+        "dataset_records": 0,
+        "dataset_versions": 0,
+        "processing_runs": 0,
+        "training_samples": 0,
+        "checkpoints": 0,
+        "checkpoint_evaluations": 0
+      },
+      "datasets": [],
+      "processing_runs": [],
+      "orphans": {
+        "records_without_dataset": 0,
+        "runs_without_processed_dataset": 0,
+        "samples_without_run": 0,
+        "samples_without_record": 0,
+        "foreign_key_check": []
+      },
+      "integrity_check": "ok"
+    }
+  },
+  "limitation": "Source deletion nulls ProcessingRun.source_dataset_id and preserves the processed Dataset and ProcessingRun rows, but cascades source DatasetRecord rows and therefore all eight TrainingSample rows. The processed dataset remains listed with row_count=0 and is not trainable; this is recorded as S23 PARTIAL pending a data-model change."
+}

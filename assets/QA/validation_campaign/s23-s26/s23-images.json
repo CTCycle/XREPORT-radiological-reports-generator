@@ -1,0 +1,139 @@
+{
+  "dataset": "s23-s26",
+  "images": [
+    {
+      "index": 1,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 1,
+        "image_name": "image-01.jpg",
+        "caption": "Synthetic report row 1",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-01.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 2,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 2,
+        "image_name": "image-02.jpg",
+        "caption": "Synthetic report row 2",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-02.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 3,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 3,
+        "image_name": "image-03.jpg",
+        "caption": "Synthetic report row 3",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-03.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 4,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 4,
+        "image_name": "image-04.jpg",
+        "caption": "Synthetic report row 4",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-04.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 5,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 5,
+        "image_name": "image-05.jpg",
+        "caption": "Synthetic report row 5",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-05.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 6,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 6,
+        "image_name": "image-06.jpg",
+        "caption": "Synthetic report row 6",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-06.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 7,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 7,
+        "image_name": "image-07.jpg",
+        "caption": "Synthetic report row 7",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-07.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    },
+    {
+      "index": 8,
+      "metadata_status": 200,
+      "metadata": {
+        "dataset_name": "s23-s26",
+        "index": 8,
+        "image_name": "image-08.jpg",
+        "caption": "Synthetic report row 8",
+        "valid_path": true,
+        "path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images\\Image-08.PNG"
+      },
+      "content_status": 200,
+      "content_type": "image/png",
+      "content_bytes": 69,
+      "content_sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892"
+    }
+  ],
+  "zero_index": {
+    "status": 400,
+    "body": {
+      "detail": "Image index must be >= 1"
+    }
+  }
+}

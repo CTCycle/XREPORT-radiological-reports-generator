@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
-from pathlib import Path
 import re
 from collections.abc import Mapping
 from typing import Any, Callable, cast
 
 from qwen_vl_utils import process_vision_info
-from safetensors.torch import load_file
 import torch
 from PIL import Image
 from torchvision import transforms
-from torchvision.transforms.functional import pil_to_tensor
 from transformers import (
     AutoFeatureExtractor,
     AutoModel,
@@ -21,10 +17,7 @@ from transformers import (
     AutoProcessor,
     AutoTokenizer,
 )
-from transformers.dynamic_module_utils import get_class_from_dynamic_module
-from transformers.utils.hub import HF_MODULES_CACHE
 
-from server.common.path import is_within_allowed_roots
 from server.domain.inference import GenerationProfile, InferenceImage
 
 ###############################################################################
@@ -65,7 +58,7 @@ class _LegacyDecoderPrepareInputs:
         if past_key_values is not None and kwargs.get("cache_position") is None:
             try:
                 cached_length = int(past_key_values.get_seq_length())
-            except AttributeError, TypeError, ValueError:
+            except (AttributeError, TypeError, ValueError):
                 cached_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
             kwargs["cache_position"] = torch.tensor(
                 [cached_length],
@@ -77,78 +70,19 @@ class _LegacyDecoderPrepareInputs:
         )
 
 ###############################################################################
-class _LegacyCacheView:
-    """Shape-only legacy view used by the archived CXRMate-ED decoder."""
+class _CXRMate2PrepareInputs:
+    """Cast generated CXRMate-2 auxiliary tensors to the resident model dtype."""
 
     # -------------------------------------------------------------------------
-    def __init__(
-        self, past_key_values: Any, input_ids: Any, inferred_length: int
-    ) -> None:
-        self.past_key_values = past_key_values
-        self.input_ids = input_ids
-        self.inferred_length = inferred_length
-
-    # -------------------------------------------------------------------------
-    def __len__(self) -> int:
-        return len(self.past_key_values)
-
-    # -------------------------------------------------------------------------
-    def __getitem__(self, index: int) -> Any:
-        value = self.past_key_values[index]
-        if index == 0 and isinstance(value, (tuple, list)) and value:
-            fake = torch.empty(
-                1,
-                1,
-                self.inferred_length,
-                1,
-                device=getattr(self.input_ids, "device", None),
-            )
-            return (fake, *value[1:])
-        return value
-
-    # -------------------------------------------------------------------------
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.past_key_values, name)
-
-###############################################################################
-class _CXRMateEDPrepareInputs:
-    """Callable compatibility wrapper for CXRMate-ED's archived cache API."""
-
-    # -------------------------------------------------------------------------
-    def __init__(self, original: Callable[..., Any]) -> None:
+    def __init__(self, original: Callable[..., Any], move_inputs: MoveInputs, model: Any) -> None:
         self.original = original
+        self.move_inputs = move_inputs
+        self.model = model
         self.__wrapped__ = original
 
     # -------------------------------------------------------------------------
-    def __call__(
-        self,
-        input_ids: Any,
-        *args: Any,
-        past_key_values: Any = None,
-        **kwargs: Any,
-    ) -> Any:
-        if past_key_values is None:
-            return self.original(
-                input_ids, *args, past_key_values=past_key_values, **kwargs
-            )
-        try:
-            first_layer = past_key_values[0]
-            first_key = (
-                first_layer[0] if isinstance(first_layer, (tuple, list)) else None
-            )
-        except IndexError, KeyError, TypeError:
-            first_key = None
-        if first_key is not None:
-            return self.original(
-                input_ids, *args, past_key_values=past_key_values, **kwargs
-            )
-
-        inferred_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
-        legacy_cache = _LegacyCacheView(past_key_values, input_ids, inferred_length)
-        result = self.original(input_ids, *args, past_key_values=legacy_cache, **kwargs)
-        if isinstance(result, dict):
-            result["past_key_values"] = past_key_values
-        return result
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.move_inputs(self.original(*args, **kwargs), self.model)
 
 ###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
@@ -173,23 +107,17 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     decoder._xreport_cache_compat = True
 
 ###############################################################################
-def _ensure_cxrmate_ed_cache_compatibility(model: Any) -> None:  # noqa: C901
-    """Keep the published CXRMate-ED decoder compatible with DynamicCache.
-
-    The published remote code expects a legacy tuple whose first layer contains
-    a key tensor. Transformers 4.57 can hand it a cache whose first layer is
-    ``(None, None)`` while still carrying the usable cache object. We provide
-    the decoder with a shape-only view for its prefix-length calculation and
-    put the original cache back into the returned model inputs.
-    """
-    if getattr(model, "_xreport_ed_cache_compat", False):
+def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> None:
+    """Keep remote CXRMate-2 generation-time float tensors aligned with the model."""
+    if getattr(model, "_xreport_cxrmate2_dtype_compat", False):
         return
     original = getattr(model, "prepare_inputs_for_generation", None)
     if not callable(original):
         return
-
-    model.prepare_inputs_for_generation = _CXRMateEDPrepareInputs(original)
-    model._xreport_ed_cache_compat = True
+    model.prepare_inputs_for_generation = _CXRMate2PrepareInputs(
+        original, move_inputs, model
+    )
+    model._xreport_cxrmate2_dtype_compat = True
 
 ###############################################################################
 class StandardImageTextAdapter:
@@ -450,8 +378,9 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
         stopping_criteria = kwargs["stopping_criteria"]
         output_sections: list[str] = kwargs["output_sections"]
         prompt = (
-            "Write a radiology report for the supplied chest radiograph study. "
-            "Return only the final Findings and Impression sections; do not include reasoning traces. "
+            "Write only the Findings section for the supplied chest radiograph study. "
+            "Return the final findings text only; do not add a separate Impression section "
+            "or reasoning trace. "
             f"{self.prompt(profile, clinical_context)}"
         )
         messages = [
@@ -502,6 +431,23 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
     """Published CXRMate multi-view encoder-decoder preprocessing contract."""
 
     supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_length": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_length": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_length": 256,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
 
     # -------------------------------------------------------------------------
     def load_processor(
@@ -541,7 +487,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         stopping_criteria: StoppingCriteriaValue,
         output_sections: list[str],
     ) -> StudyGeneration:
-        del profile, clinical_context, stopping_criteria
+        del clinical_context, output_sections
         image_processor = processor["image_processor"]
         tokenizer = processor["tokenizer"]
         shortest_edge = int(image_processor.size["shortest_edge"])
@@ -561,6 +507,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         batch = torch.stack(tensors, dim=0).unsqueeze(0)
         moved = move_inputs({"pixel_values": batch}, model)
         _ensure_legacy_decoder_cache_compatibility(model)
+        generation_kwargs = self.generation_profiles[profile]
         output = model.generate(
             pixel_values=moved["pixel_values"],
             special_token_ids=[tokenizer.sep_token_id],
@@ -569,8 +516,8 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             pad_token_id=tokenizer.pad_token_id,
             return_dict_in_generate=True,
             use_cache=True,
-            max_length=256,
-            num_beams=4,
+            **generation_kwargs,
+            stopping_criteria=stopping_criteria,
         )
         findings, impression = model.split_and_decode_sections(
             output.sequences,
@@ -602,8 +549,8 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         }
 
 ###############################################################################
-class CXRMateEDAdapter(StandardImageTextAdapter):
-    """Published CXRMate-ED image-only/context-aware study preprocessing."""
+class CXRMate2Adapter(StandardImageTextAdapter):
+    """Published CXRMate-2 processor and findings/impression decoder."""
 
     supports_study = True
     generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
@@ -618,97 +565,13 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
             "do_sample": False,
         },
         "detailed": {
-            "max_length": 384,
+            "max_length": 256,
             "num_beams": 4,
             "do_sample": False,
         },
     }
 
     # -------------------------------------------------------------------------
-    def load_model(
-        self,
-        snapshot_path: str,
-        *,
-        model_loader: str,
-        load_options: dict[str, Any],
-    ) -> Any:
-        del model_loader
-        # CXRMate-ED predates the current Llava base-model prefix convention and
-        # references a second custom repository for its UniFormer image encoder.
-        # Build both custom configs from the verified snapshot, then load the
-        # published ``language_model.*`` state dict directly. Calling the
-        # generic AutoModel loader here would prepend ``model.`` and silently
-        # leave the language model randomly initialized on current Transformers.
-        snapshot = Path(snapshot_path).resolve()
-        processor_snapshot = snapshot / "processor"
-        if not (processor_snapshot / "configuration_uniformer.py").is_file():
-            raise RuntimeError(
-                "CXRMate-ED verified UniFormer processor code is missing"
-            )
-        cache_dir = Path(HF_MODULES_CACHE).resolve()
-        if not is_within_allowed_roots(cache_dir):
-            raise RuntimeError(
-                "CXRMate-ED remote-code cache is outside application storage"
-            )
-        dynamic_options = {
-            "cache_dir": str(cache_dir),
-            "local_files_only": True,
-        }
-        config_class = get_class_from_dynamic_module(
-            "configuration_cxrmate_ed.CXRMateEDConfig",
-            str(snapshot),
-            **dynamic_options,
-        )
-        uniformer_config_class = get_class_from_dynamic_module(
-            "configuration_uniformer.UniFormerWithProjectionHeadConfig",
-            str(processor_snapshot),
-            **dynamic_options,
-        )
-        model_class = get_class_from_dynamic_module(
-            "modelling_cxrmate_ed.CXRMateEDModel",
-            str(snapshot),
-            **dynamic_options,
-        )
-        raw_config = json.loads((snapshot / "config.json").read_text(encoding="utf-8"))
-        vision_values = dict(raw_config.get("vision_config") or {})
-        vision_values["_name_or_path"] = str(processor_snapshot)
-        vision_values["auto_map"] = {
-            "AutoConfig": "configuration_uniformer.UniFormerWithProjectionHeadConfig",
-            "AutoModel": "modelling_uniformer.UniFormerModel",
-        }
-        vision_config = uniformer_config_class(**vision_values)
-        raw_config["vision_config"] = vision_config
-        config = config_class.from_dict(raw_config)
-        model = model_class(config)
-        weights = load_file(str(snapshot / "model.safetensors"), device="cpu")
-        missing, unexpected = model.load_state_dict(weights, strict=False)
-        if missing or unexpected:
-            missing_preview = ", ".join(str(key) for key in missing[:4])
-            unexpected_preview = ", ".join(str(key) for key in unexpected[:4])
-            raise RuntimeError(
-                "CXRMate-ED checkpoint keys do not match its model architecture "
-                f"(missing: {missing_preview or 'none'}; "
-                f"unexpected: {unexpected_preview or 'none'})."
-            )
-        dtype = load_options.get("torch_dtype")
-        if isinstance(dtype, torch.dtype) and dtype != torch.float32:
-            model.to(dtype=dtype)
-        device_map = load_options.get("device_map")
-        if device_map == "cuda" or (device_map == "auto" and torch.cuda.is_available()):
-            model.to("cuda")
-        return model
-
-    # -------------------------------------------------------------------------
-    def load_processor(
-        self,
-        snapshot_path: str,
-        *,
-        processor_loader: str,
-        load_options: dict[str, Any],
-    ) -> Any:
-        return AutoTokenizer.from_pretrained(snapshot_path, **load_options)
-
-    # -------------------------------------------------------------------------
     def generate_study(
         self,
         *,
@@ -721,104 +584,19 @@ class CXRMateEDAdapter(StandardImageTextAdapter):
         stopping_criteria: StoppingCriteriaValue,
         output_sections: list[str],
     ) -> StudyGeneration:
-        image_tensors: list[torch.Tensor] = []
-        for item in images:
-            transformed = model.test_transforms(pil_to_tensor(item.image))
-            image_tensors.append(cast(torch.Tensor, torch.as_tensor(transformed)))
-        batch = torch.stack(image_tensors, dim=0).unsqueeze(0)
-        batch = move_inputs({"images": batch}, model)["images"]
-        context = clinical_context.strip() or None
-        inputs_embeds, attention_mask, token_type_ids, position_ids, bos_token_ids = (
-            model.prepare_inputs(
-                tokenizer=processor,
-                images=batch,
-                image_time_deltas=[[model.zero_time_delta_value] * len(images)],
-                study_id=[0],
-                indication=[[context]],
-                history=[[None]],
-            )
-        )
-        moved = move_inputs(
-            {
-                "inputs_embeds": inputs_embeds,
-                "attention_mask": attention_mask,
-                "token_type_ids": token_type_ids,
-                "position_ids": position_ids,
-                "bos_token_ids": bos_token_ids,
-            },
-            model,
-        )
-        _ensure_cxrmate_ed_cache_compatibility(model)
-        generation_kwargs = self.generation_profiles[profile]
-        output = model.generate(
-            input_ids=moved["bos_token_ids"],
-            decoder_inputs_embeds=moved["inputs_embeds"],
-            decoder_token_type_ids=moved["token_type_ids"],
-            prompt_attention_mask=moved["attention_mask"],
-            prompt_position_ids=moved["position_ids"],
-            special_token_ids=[processor.sep_token_id],
-            **generation_kwargs,
-            return_dict_in_generate=True,
-            stopping_criteria=stopping_criteria,
-        )["sequences"]
-        findings, impression = model.split_and_decode_sections(
-            output,
-            [processor.sep_token_id, processor.eos_token_id],
-            processor,
-        )
-        report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
-        return StudyGeneration(
-            report=report,
-            display_sections={
-                "findings": findings[0].strip(),
-                "impression": impression[0].strip(),
-            },
-            metadata=[self._metadata(item, batch) for item in images],
-        )
-
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _metadata(item: StudyImage, tensor: torch.Tensor) -> dict[str, Any]:
-        return {
-            "filename": item.stored.filename,
-            "original_dimensions": {
-                "width": item.original_dimensions[0],
-                "height": item.original_dimensions[1],
-            },
-            "processed_tensor_dimensions": [int(value) for value in tensor.shape],
-            "processor_loader": "auto_tokenizer",
-            "input_scope": "study",
-        }
-
-###############################################################################
-class CXRMate2Adapter(StandardImageTextAdapter):
-    """Published CXRMate-2 processor and findings/impression decoder."""
-
-    supports_study = True
-
-    # -------------------------------------------------------------------------
-    def generate_study(
-        self,
-        *,
-        model: Any,
-        processor: Any,
-        images: list[StudyImage],
-        profile: GenerationProfile,
-        clinical_context: str,
-        move_inputs: MoveInputs,
-        stopping_criteria: StoppingCriteriaValue,
-        output_sections: list[str],
-    ) -> StudyGeneration:
-        del profile
+        del output_sections
         processed = processor(
-            images=[item.image for item in images],
+            # CXRMate-2's published processor treats each outer entry as one
+            # study and each inner entry as a current/prior view.
+            images=[[item.image for item in images]],
             indication=clinical_context.strip() or None,
         )
         processed = move_inputs(processed, model)
+        _ensure_cxrmate2_generation_dtype(model, move_inputs)
+        generation_kwargs = self.generation_profiles[profile]
         generated_ids = model.generate(
             **processed,
-            max_length=256,
-            num_beams=4,
+            **generation_kwargs,
             stopping_criteria=stopping_criteria,
         )
         findings, impression = processor.split_and_decode_sections(generated_ids)
@@ -866,6 +644,5 @@ ADAPTERS: dict[str, type[StandardImageTextAdapter]] = {
     "medgemma": MedGemmaAdapter,
     "chexone": CheXOneAdapter,
     "cxrmate_multi": CXRMateMultiAdapter,
-    "cxrmate_ed": CXRMateEDAdapter,
     "cxrmate2": CXRMate2Adapter,
 }

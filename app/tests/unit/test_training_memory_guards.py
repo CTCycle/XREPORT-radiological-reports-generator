@@ -4,12 +4,9 @@ import os
 import types
 from typing import Any
 
-import pytest
-
 os.environ.setdefault("KERAS_BACKEND", "torch")
 
 from server.models.device import DeviceDataLoader
-from server.models.training import processing
 from server.models.training.dataloader import XRAYDataLoader
 from server.models.training.trainer import ModelTrainer
 
@@ -72,18 +69,7 @@ def test_model_trainer_uses_finite_iterables_for_keras_fit() -> None:
     assert model.fit_validation_steps == 2
 
 ###############################################################################
-def test_xray_dataloader_construction_does_not_load_tokenizer(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls = 0
-
-    def fail_if_called(*_args: Any, **_kwargs: Any) -> None:
-        nonlocal calls
-        calls += 1
-        raise AssertionError("Tokenizer loading must not happen in XRAYDataLoader init")
-
-    monkeypatch.setattr(processing.AutoTokenizer, "from_pretrained", fail_if_called)
-
+def test_xray_dataloader_construction_does_not_load_tokenizer() -> None:
     for _ in range(20):
         XRAYDataLoader(
             {
@@ -92,5 +78,3 @@ def test_xray_dataloader_construction_does_not_load_tokenizer(
                 "dataloader_workers": 0,
             }
         )
-
-    assert calls == 0

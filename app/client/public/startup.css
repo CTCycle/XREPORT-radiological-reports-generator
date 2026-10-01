@@ -1,0 +1,142 @@
+.startup-screen {
+  --startup-accent: var(--accent-color, #4f86ea);
+  --startup-accent-strong: var(--accent-color-strong, #2f6de0);
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 18% 18%, var(--accent-soft, rgba(79, 134, 234, 0.1)), transparent 38%),
+    linear-gradient(145deg, var(--bg-gradient-start, #edf2f8), var(--bg-primary, #e9eef6));
+  color: var(--text-primary, #20324a);
+}
+
+.startup-screen[hidden] {
+  display: none;
+}
+
+.startup-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(560px, 100%);
+  margin: auto;
+  padding: clamp(2rem, 6vw, 4.5rem) clamp(1.25rem, 5vw, 3rem);
+  text-align: center;
+}
+
+.startup-brand {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.startup-logo {
+  width: clamp(64px, 8vw, 80px);
+  height: clamp(64px, 8vw, 80px);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md, 0 10px 24px rgba(28, 48, 72, 0.1));
+}
+
+.startup-kicker {
+  margin: 0;
+  color: var(--text-primary, #20324a);
+  font-size: clamp(1.5rem, 3.1vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.startup-status-line {
+  min-height: 1.5em;
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  color: var(--text-secondary, #5f728c);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.startup-progress {
+  width: min(420px, 100%);
+  height: 8px;
+  margin-top: 0.9rem;
+  border-radius: 999px;
+  background: var(--neutral-soft, rgba(100, 116, 139, 0.14));
+  overflow: hidden;
+}
+
+.startup-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--startup-accent), var(--startup-accent-strong));
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The static desktop shell renders before Angular boots and has no live
+   value, so its fill uses a gentle indeterminate sweep instead. */
+#desktop-startup .startup-progress-fill {
+  width: 42%;
+  animation: startup-progress-indeterminate 2.6s ease-in-out infinite;
+}
+
+.startup-retry {
+  min-height: var(--control-height-md, 36px);
+  margin-top: 2rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--accent-color-strong, #2f6de0);
+  border-radius: var(--radius-md, 8px);
+  background: var(--accent-color-strong, #2f6de0);
+  color: var(--on-accent, #fff);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.startup-retry:hover {
+  background: var(--link-hover, #1d4ed8);
+}
+
+.startup-retry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(79, 134, 234, 0.22));
+}
+
+.startup-unavailable .startup-status-line {
+  color: var(--error-color, #b91c1c);
+}
+
+.startup-ready {
+  pointer-events: none;
+  animation: startup-fade-out 320ms ease forwards;
+}
+
+@keyframes startup-progress-indeterminate {
+  0% { width: 14%; }
+  55% { width: 74%; }
+  100% { width: 74%; }
+}
+
+@keyframes startup-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (max-width: 420px) {
+  .startup-shell {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-progress-fill {
+    transition: none;
+  }
+
+  #desktop-startup .startup-progress-fill {
+    width: 45%;
+    animation: none;
+  }
+
+  .startup-ready {
+    animation-duration: 160ms;
+  }
+}

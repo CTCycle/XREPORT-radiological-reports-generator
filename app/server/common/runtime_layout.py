@@ -48,11 +48,6 @@ class RuntimeLayout:
 
     # -------------------------------------------------------------------------
     @property
-    def configuration_template(self) -> Path:
-        return self.runtime_root / "settings" / "configurations.json"
-
-    # -------------------------------------------------------------------------
-    @property
     def environment_file(self) -> Path:
         return (
             self.data_root / ".env"
@@ -62,17 +57,10 @@ class RuntimeLayout:
 
     # -------------------------------------------------------------------------
     @property
-    def configuration_file(self) -> Path:
-        return (
-            self.data_root / "settings" / "configurations.json"
-            if self.packaged
-            else self.runtime_root / "settings" / "configurations.json"
-        )
-
-    # -------------------------------------------------------------------------
-    @property
-    def mutable_settings_dir(self) -> Path:
-        return self.data_root / "settings"
+    def cache_root(self) -> Path:
+        """Return the writable disposable-cache root for this runtime mode."""
+        owner_root = self.data_root if self.packaged else self.runtime_root
+        return owner_root / "runtimes" / "cache"
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -90,7 +78,7 @@ class RuntimeLayout:
             resources_root = Path(
                 configured_resources.strip()
                 if configured_resources and configured_resources.strip()
-                else source_root / "app" / "resources"
+                else source_root / "data"
             ).expanduser()
             if not resources_root.is_absolute():
                 resources_root = source_root / resources_root
@@ -204,14 +192,9 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
     if not layout.packaged:
         return
     layout.data_root.mkdir(parents=True, exist_ok=True)
-    layout.mutable_settings_dir.mkdir(parents=True, exist_ok=True)
     _atomic_copy_if_missing(
         layout.settings_template,
         layout.data_root / ".env",
-    )
-    _atomic_copy_if_missing(
-        layout.configuration_template,
-        layout.mutable_settings_dir / "configurations.json",
     )
     for name in (
         "logs",
@@ -222,6 +205,30 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
         "validation_receipts",
     ):
         (layout.data_root / name).mkdir(parents=True, exist_ok=True)
+    layout.cache_root.mkdir(parents=True, exist_ok=True)
+
+###############################################################################
+def remove_legacy_configuration_file(layout: RuntimeLayout) -> None:
+    """Delete a packaged legacy settings copy after its database import succeeds."""
+    if not layout.packaged:
+        return
+    legacy_file = layout.data_root / "settings" / ("configurations" + ".json")
+    if legacy_file.exists():
+        try:
+            legacy_file.unlink()
+        except OSError as exc:
+            raise RuntimeError(
+                "Database migration completed, but the legacy configuration file "
+                f"could not be removed: {legacy_file}"
+            ) from exc
+    legacy_dir = legacy_file.parent
+    try:
+        legacy_dir.rmdir()
+    except OSError:
+        # The directory may contain an operator-created backup or may already
+        # have been removed.  The file itself is the authoritative deletion
+        # gate; leave unrelated files untouched.
+        pass
 
 ###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:

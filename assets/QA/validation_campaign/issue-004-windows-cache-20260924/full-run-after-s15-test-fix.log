@@ -1,0 +1,253 @@
+
+============================================================
+ Standard Test Runner
+============================================================
+[INFO] Project root: G:\Projects\Repositories\Active projects\XREPORT Radiological Reports
+[INFO] Backend URL : http://127.0.0.1:5003
+[INFO] Frontend URL: http://127.0.0.1:8003
+
+[INFO] Starting backend server...
+[INFO] Starting frontend preview server...
+[INFO] Waiting for live services...
+[STEP] Running Python tests...
+============================= test session starts =============================
+platform win32 -- Python 3.14.7, pytest-9.0.3, pluggy-1.6.0 -- G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\server\.venv\Scripts\python.exe
+cachedir: G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\pytest
+rootdir: G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\server
+configfile: pyproject.toml
+plugins: anyio-4.13.0, base-url-2.1.0, playwright-0.7.2
+collecting ... collected 194 items
+
+app\server\e2e\test_angular_ui.py::test_inference_route_renders_catalog_and_navigation[chromium] PASSED [  0%]
+app\server\e2e\test_angular_ui.py::test_reports_route_renders_history_or_explicit_empty_state[chromium] PASSED [  1%]
+app\server\e2e\test_angular_ui.py::test_reports_detail_edit_reload_and_confirmed_delete[chromium] PASSED [  1%]
+app\server\e2e\test_angular_ui.py::test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll[chromium] PASSED [  2%]
+app\server\e2e\test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health[chromium] PASSED [  2%]
+app\server\e2e\test_angular_ui.py::test_startup_timing_retry_and_post_ready_feature_error[chromium] PASSED [  3%]
+app\server\e2e\test_angular_ui.py::test_chexone_details_render_findings_only_catalog_contract[chromium] PASSED [  3%]
+app\server\e2e\test_angular_ui.py::test_settings_route_persists_and_resets_runtime_values[chromium] PASSED [  4%]
+app\server\e2e\test_angular_ui.py::test_dataset_and_training_routes_render_workflow_surfaces[chromium] PASSED [  4%]
+app\server\e2e\test_angular_ui.py::test_validation_route_reports_missing_dataset_as_user_error[chromium] PASSED [  5%]
+app\server\e2e\test_angular_ui.py::test_affected_pages_render_responsive_layouts_and_capture_qa_evidence[chromium] PASSED [  5%]
+app\server\e2e\test_angular_ui.py::test_s10_direct_routes_refresh_navigation_and_clean_browser[chromium] PASSED [  6%]
+app\server\e2e\test_angular_ui.py::test_s10_theme_preferences_follow_system_and_persist_across_routes[chromium] PASSED [  6%]
+app\server\e2e\test_angular_ui.py::test_s10_guidance_version_dismiss_skip_completion_and_manual_replay[chromium] PASSED [  7%]
+app\server\e2e\test_dataset_workflow_ui.py::test_s21_dataset_page_shows_and_confirms_partial_import[chromium] PASSED [  7%]
+app\server\e2e\test_dataset_workflow_ui.py::test_s23_viewer_navigation_and_long_source_path_row_containment[chromium] PASSED [  8%]
+app\server\e2e\test_preparation_filesystem_ui.py::test_s15_dataset_folder_access_and_recovery[chromium] PASSED [  8%]
+app\server\e2e\test_dataset_workflow_api.py::test_s21_partial_import_requires_confirmation_and_persists_matched_row PASSED [  9%]
+app\server\e2e\test_dataset_workflow_api.py::test_s21_no_matching_rows_fail_without_persisting_source PASSED [  9%]
+app\server\e2e\test_inference_api.py::test_inference_catalog_is_reachable_and_unknown_models_are_rejected PASSED [ 10%]
+app\server\e2e\test_inference_api.py::test_inference_generate_enforces_model_context_profile_and_image_limits PASSED [ 10%]
+app\server\e2e\test_inference_api.py::test_inference_generate_rejects_image_payload_over_total_limit PASSED [ 11%]
+app\server\e2e\test_inference_api.py::test_inference_catalog_exposes_chexone_findings_only_contract PASSED [ 11%]
+app\server\e2e\test_inference_api.py::test_inference_history_contract_filters_and_missing_entries PASSED [ 12%]
+app\server\e2e\test_inference_api.py::test_inference_history_crud_preserves_original_output PASSED [ 12%]
+app\server\e2e\test_preparation_filesystem_api.py::test_s15_filesystem_browse_validation_and_feature_gate PASSED [ 13%]
+app\server\e2e\test_settings_api.py::test_settings_api_allowlist_patch_and_reset PASSED [ 13%]
+app\server\e2e\test_training_api.py::test_delete_checkpoint_removes_the_entire_checkpoint_directory PASSED [ 14%]
+app\server\e2e\test_training_api.py::test_delete_checkpoint_rejects_path_traversal PASSED [ 14%]
+app\server\e2e\test_training_api.py::test_delete_checkpoint_rejects_referenced_checkpoint PASSED [ 15%]
+app\server\e2e\test_training_api.py::test_resume_rejects_unknown_checkpoint PASSED [ 15%]
+app\server\e2e\test_upload_api.py::test_upload_parses_semicolon_csv_and_preserves_utf8_text PASSED [ 16%]
+app\server\e2e\test_upload_api.py::test_upload_parses_comma_csv PASSED   [ 17%]
+app\server\e2e\test_upload_api.py::test_upload_parses_xlsx_workbook PASSED [ 17%]
+app\server\e2e\test_upload_api.py::test_upload_rejects_empty_or_corrupt_workbooks[empty.csv-] PASSED [ 18%]
+app\server\e2e\test_upload_api.py::test_upload_rejects_empty_or_corrupt_workbooks[corrupt.xlsx-not an XLSX workbook] PASSED [ 18%]
+app\server\e2e\test_upload_api.py::test_upload_rejects_unsupported_file_types PASSED [ 19%]
+app\server\e2e\test_upload_api.py::test_upload_rejects_payload_over_16_mib PASSED [ 19%]
+app\server\e2e\test_upload_api.py::test_upload_assigns_independent_ids PASSED [ 20%]
+app\server\integration\test_job_lifecycle_api.py::test_job_api_lists_filters_and_polls_to_completion PASSED [ 20%]
+app\server\integration\test_job_lifecycle_api.py::test_job_api_returns_not_found_for_unknown_job PASSED [ 21%]
+app\server\integration\test_job_lifecycle_api.py::test_job_api_cancellation_stays_active_until_runner_exits PASSED [ 21%]
+app\server\integration\test_job_lifecycle_api.py::test_job_api_preserves_typed_recoverable_failure_timeline PASSED [ 22%]
+app\server\integration\test_persistence_contract.py::test_postgresql_migrations_and_restart_persistence SKIPPED [ 22%]
+app\server\integration\test_persistence_contract.py::test_postgresql_concurrent_initializers_use_advisory_locks SKIPPED [ 23%]
+app\server\integration\test_persistence_contract.py::test_postgresql_connection_failure_does_not_leak_credentials SKIPPED [ 23%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[BadRequestError-400] PASSED [ 24%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[ForbiddenError-403] PASSED [ 24%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[NotFoundError-404] PASSED [ 25%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[ConflictError-409] PASSED [ 25%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[PayloadTooLargeError-413] PASSED [ 26%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[InternalServiceError-500] PASSED [ 26%]
+app\server\unit\test_api_errors.py::test_service_error_handler_preserves_http_contract[UnsupportedOperationError-501] PASSED [ 27%]
+app\server\unit\test_application_settings.py::test_legacy_json_is_imported_once_during_alembic_upgrade PASSED [ 27%]
+app\server\unit\test_application_settings.py::test_legacy_json_with_non_singleton_model_limit_rolls_back PASSED [ 28%]
+app\server\unit\test_application_settings.py::test_fresh_upgrade_without_legacy_json_uses_typed_defaults PASSED [ 28%]
+app\server\unit\test_application_settings.py::test_public_projection_excludes_private_inference_policy PASSED [ 29%]
+app\server\unit\test_application_settings.py::test_update_and_reset_preserve_private_inference_policy PASSED [ 29%]
+app\server\unit\test_application_settings.py::test_patch_rejects_empty_unknown_and_null_values PASSED [ 30%]
+app\server\unit\test_application_settings.py::test_repository_rejects_private_columns PASSED [ 30%]
+app\server\unit\test_application_settings.py::test_repository_validates_candidate_before_persisting PASSED [ 31%]
+app\server\unit\test_application_settings.py::test_persistence_failure_is_translated_to_safe_service_error PASSED [ 31%]
+app\server\unit\test_database_initialization.py::test_sqlite_startup_migrates_to_head_and_is_repeatable PASSED [ 32%]
+app\server\unit\test_database_initialization.py::test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption PASSED [ 32%]
+app\server\unit\test_database_initialization.py::test_unknown_partial_schema_is_rejected_without_stamping PASSED [ 33%]
+app\server\unit\test_database_initialization.py::test_failed_migration_rolls_back_database_changes PASSED [ 34%]
+app\server\unit\test_database_initialization.py::test_head_schema_drift_blocks_startup PASSED [ 34%]
+app\server\unit\test_database_initialization.py::test_sqlite_enforces_foreign_keys_and_cascades_report_deletion PASSED [ 35%]
+app\server\unit\test_database_initialization.py::test_concurrent_sqlite_initialization_is_safe PASSED [ 35%]
+app\server\unit\test_database_initialization.py::test_postgres_startup_failure_does_not_leak_credentials PASSED [ 36%]
+app\server\unit\test_database_initialization.py::test_postgres_check_constraint_normalization_matches_orm[job_polling_interval >= 0.25 AND job_polling_interval <= 60-job_polling_interval >= 0.25::double precision AND job_polling_interval <= 60::double precision] PASSED [ 36%]
+app\server\unit\test_database_initialization.py::test_postgres_check_constraint_normalization_matches_orm[inference_device IN ('auto', 'cpu', 'cuda')-inference_device = ANY (ARRAY['auto'::character varying, 'cpu'::character varying, 'cuda'::character varying]::character varying[])] PASSED [ 37%]
+app\server\unit\test_database_initialization.py::test_postgres_check_constraint_normalization_matches_orm[global_seed >= 0 AND global_seed <= 4294967295-global_seed >= 0 AND global_seed <= '4294967295'::numeric] PASSED [ 37%]
+app\server\unit\test_database_initialization.py::test_postgres_schema_drift_ignores_unique_constraint_backing_indexes PASSED [ 38%]
+app\server\unit\test_dataset_deletion.py::test_source_dataset_delete_preserves_processed_samples_until_they_are_deleted PASSED [ 38%]
+app\server\unit\test_desktop_packaging.py::test_packaged_layout_seeds_data_without_overwriting_user_edits PASSED [ 39%]
+app\server\unit\test_desktop_packaging.py::test_desktop_token_rejects_missing_or_wrong_values PASSED [ 39%]
+app\server\unit\test_desktop_packaging.py::test_runtime_bundle_rejects_mutable_or_log_artifacts PASSED [ 40%]
+app\server\unit\test_desktop_packaging.py::test_desktop_build_inputs_are_locked_and_placeholder_free PASSED [ 40%]
+app\server\unit\test_desktop_packaging.py::test_packaged_desktop_processes_are_windowless PASSED [ 41%]
+app\server\unit\test_desktop_packaging.py::test_packaged_client_keeps_the_startup_shell_assets PASSED [ 41%]
+app\server\unit\test_environment_initialization.py::test_missing_env_is_seeded_from_template_and_loaded PASSED [ 42%]
+app\server\unit\test_environment_initialization.py::test_existing_env_is_never_overwritten_by_template PASSED [ 42%]
+app\server\unit\test_environment_initialization.py::test_explicit_resource_root_override_survives_environment_loading PASSED [ 43%]
+app\server\unit\test_evaluation.py::test_preflight_rejects_checkpoint_sequence_length_mismatch PASSED [ 43%]
+app\server\unit\test_evaluation.py::test_checkpoint_validation_uses_its_associated_dataset PASSED [ 44%]
+app\server\unit\test_evaluation.py::test_checkpoint_validation_fails_without_associated_dataset PASSED [ 44%]
+app\server\unit\test_huggingface_provider.py::test_validate_display_sections_accepts_non_empty_findings_only_contract PASSED [ 45%]
+app\server\unit\test_huggingface_provider.py::test_validate_display_sections_rejects_empty_findings_only_contract PASSED [ 45%]
+app\server\unit\test_huggingface_provider.py::test_validate_display_sections_keeps_two_section_contract_strict PASSED [ 46%]
+app\server\unit\test_huggingface_provider.py::test_generate_uses_manifest_loaders_revision_and_records_dimensions PASSED [ 46%]
+app\server\unit\test_huggingface_provider.py::test_provider_rejects_unpinned_revision PASSED [ 47%]
+app\server\unit\test_huggingface_provider.py::test_provider_rejects_multiple_images PASSED [ 47%]
+app\server\unit\test_huggingface_provider.py::test_cancellation_after_generation_discards_partial_output PASSED [ 48%]
+app\server\unit\test_huggingface_provider.py::test_exif_transpose_rgb_conversion_and_processed_dimensions PASSED [ 48%]
+app\server\unit\test_huggingface_provider.py::test_switching_models_and_unload_clear_resident_provider_state PASSED [ 49%]
+app\server\unit\test_huggingface_provider.py::test_generation_reads_timeout_provider_once_for_start_deadline PASSED [ 50%]
+app\server\unit\test_huggingface_provider.py::test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria PASSED [ 50%]
+app\server\unit\test_huggingface_provider.py::test_device_policy_and_dtype_selection PASSED [ 51%]
+app\server\unit\test_huggingface_provider.py::test_move_inputs_preserves_integer_ids_and_casts_floating_inputs PASSED [ 51%]
+app\server\unit\test_huggingface_provider.py::test_move_inputs_casts_nested_generation_inputs PASSED [ 52%]
+app\server\unit\test_huggingface_provider.py::test_move_inputs_uses_accelerate_input_device_map PASSED [ 52%]
+app\server\unit\test_huggingface_provider.py::test_move_inputs_supports_mocked_cuda_without_casting_token_ids PASSED [ 53%]
+app\server\unit\test_huggingface_provider.py::test_provider_reuses_same_resident_model PASSED [ 53%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_ed_passes_clinical_context_and_all_study_images[deterministic-256-1] PASSED [ 54%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_ed_passes_clinical_context_and_all_study_images[concise-160-1] PASSED [ 54%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_ed_passes_clinical_context_and_all_study_images[detailed-384-4] PASSED [ 55%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria[deterministic-256-1] PASSED [ 55%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria[concise-160-1] PASSED [ 56%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria[detailed-256-4] PASSED [ 56%]
+app\server\unit\test_inference_adapters.py::test_cxrmate2_forwards_study_and_profile_to_published_processor[deterministic-256-1] PASSED [ 57%]
+app\server\unit\test_inference_adapters.py::test_cxrmate2_forwards_study_and_profile_to_published_processor[concise-160-1] PASSED [ 57%]
+app\server\unit\test_inference_adapters.py::test_cxrmate2_forwards_study_and_profile_to_published_processor[detailed-256-4] PASSED [ 58%]
+app\server\unit\test_inference_adapters.py::test_cxrmate2_casts_generation_time_deltas_to_model_dtype PASSED [ 58%]
+app\server\unit\test_inference_adapters.py::test_cxrmate_ed_generation_profiles_are_model_specific PASSED [ 59%]
+app\server\unit\test_inference_adapters.py::test_chexone_uses_published_multi_image_vision_path_and_strips_prompt[deterministic-768] PASSED [ 59%]
+app\server\unit\test_inference_adapters.py::test_chexone_uses_published_multi_image_vision_path_and_strips_prompt[concise-384] PASSED [ 60%]
+app\server\unit\test_inference_adapters.py::test_chexone_uses_published_multi_image_vision_path_and_strips_prompt[detailed-1024] PASSED [ 60%]
+app\server\unit\test_inference_adapters.py::test_medgemma_uses_multi_image_context_raw_report_contract_and_profile[deterministic-768] PASSED [ 61%]
+app\server\unit\test_inference_adapters.py::test_medgemma_uses_multi_image_context_raw_report_contract_and_profile[concise-384] PASSED [ 61%]
+app\server\unit\test_inference_adapters.py::test_medgemma_uses_multi_image_context_raw_report_contract_and_profile[detailed-1536] PASSED [ 62%]
+app\server\unit\test_inference_manifest.py::test_embedded_catalog_contains_exactly_five_unique_sha_pinned_public_models PASSED [ 62%]
+app\server\unit\test_inference_manifest.py::test_embedded_chexone_manifest_declares_findings_only PASSED [ 63%]
+app\server\unit\test_inference_manifest.py::test_runtime_rejects_incomplete_model_manifest PASSED [ 63%]
+app\server\unit\test_inference_model_catalog.py::test_catalog_exposes_available_public_and_custom_model_sources PASSED [ 64%]
+app\server\unit\test_inference_model_catalog.py::test_catalog_disables_public_models_when_huggingface_runtime_is_disabled PASSED [ 64%]
+app\server\unit\test_inference_model_catalog.py::test_catalog_hides_xreport_provider_without_registered_checkpoints PASSED [ 65%]
+app\server\unit\test_inference_model_catalog.py::test_catalog_exposes_chexone_findings_only_contract PASSED [ 65%]
+app\server\unit\test_inference_model_catalog.py::test_catalog_marks_verified_active_installation_ready PASSED [ 66%]
+app\server\unit\test_inference_persistence_guards.py::test_cancelled_after_generation_does_not_persist_partial_reports PASSED [ 67%]
+app\server\unit\test_inference_persistence_guards.py::test_timeout_does_not_persist_reports PASSED [ 67%]
+app\server\unit\test_inference_persistence_guards.py::test_persistence_failure_fails_inference_job PASSED [ 68%]
+app\server\unit\test_job_cancellation_semantics.py::test_cancel_running_job_marks_stop_requested_only PASSED [ 68%]
+app\server\unit\test_job_cancellation_semantics.py::test_cancel_pending_job_transitions_to_cancelled PASSED [ 69%]
+app\server\unit\test_job_failure_semantics.py::test_generic_job_failure_uses_generic_execution_taxonomy PASSED [ 69%]
+app\server\unit\test_job_failure_semantics.py::test_inference_failure_taxonomy_is_injected_by_feature PASSED [ 70%]
+app\server\unit\test_job_failure_semantics.py::test_typed_job_failure_is_used_without_a_mapper PASSED [ 70%]
+app\server\unit\test_ml_import_boundaries.py::test_concurrent_service_initialization_keeps_ml_imports_lazy PASSED [ 71%]
+app\server\unit\test_model_cache.py::test_model_cache_bootstrap_overwrites_hostile_global_cache_values PASSED [ 71%]
+app\server\unit\test_model_installation.py::test_stage_downloads_only_approved_files_and_records_verified_candidate PASSED [ 72%]
+app\server\unit\test_model_installation.py::test_stage_reuses_interrupted_staging_directory PASSED [ 72%]
+app\server\unit\test_model_installation.py::test_http_downloader_resumes_partial_weight_file PASSED [ 73%]
+app\server\unit\test_model_installation.py::test_activation_preserves_previous_revision_for_rollback PASSED [ 73%]
+app\server\unit\test_model_installation.py::test_corrupt_active_snapshot_is_marked_and_rejected PASSED [ 74%]
+app\server\unit\test_model_installation.py::test_cancelled_maintenance_preserves_working_active_revision PASSED [ 74%]
+app\server\unit\test_model_installation.py::test_failed_first_install_keeps_resumable_staging PASSED [ 75%]
+app\server\unit\test_model_installation.py::test_delete_local_removes_only_repository_owned_storage_and_reports_bytes PASSED [ 75%]
+app\server\unit\test_openapi_schema.py::test_shared_openapi_schema_matches_runtime PASSED [ 76%]
+app\server\unit\test_openapi_schema.py::test_inference_generate_contract_has_only_current_request_fields PASSED [ 76%]
+app\server\unit\test_openapi_schema.py::test_workflow_contracts_require_client_selected_parameters PASSED [ 77%]
+app\server\unit\test_path_security_and_uploads.py::test_checkpoint_names_reject_path_separators_cross_platform PASSED [ 77%]
+app\server\unit\test_path_security_and_uploads.py::test_upload_sanitizes_windows_style_filename PASSED [ 78%]
+app\server\unit\test_preparation_image_scanning.py::test_image_scanning_counts_recursively_and_filters_required_stems PASSED [ 78%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_reports_unmatched_rows_before_persisting PASSED [ 79%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_confirmation_persists_explicit_partial_import PASSED [ 79%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_matches_image_stems_case_insensitively PASSED [ 80%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_rejects_no_matching_rows_without_persisting PASSED [ 80%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_rejects_missing_image_column_without_clearing_upload PASSED [ 81%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_rejects_missing_text_column_without_clearing_upload PASSED [ 81%]
+app\server\unit\test_preparation_image_scanning.py::test_load_dataset_requires_the_explicit_upload_id PASSED [ 82%]
+app\server\unit\test_preparation_image_scanning.py::test_validate_img_paths_fails_closed_for_deleted_images PASSED [ 82%]
+app\server\unit\test_preparation_image_scanning.py::test_preparation_reads_filesystem_permission_from_current_settings PASSED [ 83%]
+app\server\unit\test_repository_persistence.py::test_dataset_import_replaces_stale_rows_and_updates_reports PASSED [ 84%]
+app\server\unit\test_repository_persistence.py::test_fractional_sampling_retains_one_row_for_small_nonempty_dataset PASSED [ 84%]
+app\server\unit\test_repository_persistence.py::test_dataset_import_rolls_back_when_a_record_is_invalid PASSED [ 85%]
+app\server\unit\test_repository_persistence.py::test_identical_dataset_content_reuses_the_existing_version PASSED [ 85%]
+app\server\unit\test_repository_persistence.py::test_processing_run_and_samples_roll_back_together PASSED [ 86%]
+app\server\unit\test_repository_persistence.py::test_validation_report_children_commit_atomically PASSED [ 86%]
+app\server\unit\test_repository_persistence.py::test_validation_aggregates_are_stored_on_the_run PASSED [ 87%]
+app\server\unit\test_repository_persistence.py::test_checkpoint_evaluation_is_owned_by_validation_repository PASSED [ 87%]
+app\server\unit\test_repository_persistence.py::test_inference_reports_preserve_input_order_and_are_idempotent PASSED [ 88%]
+app\server\unit\test_repository_persistence.py::test_inference_history_crud_preserves_original_text_and_isolated_deletion PASSED [ 88%]
+app\server\unit\test_startup_laziness.py::test_server_app_import_does_not_load_heavy_runtime_modules PASSED [ 89%]
+app\server\unit\test_startup_validation.py::test_startup_validations_prepares_database_and_composes_settings_once PASSED [ 89%]
+app\server\unit\test_startup_validation.py::test_app_lifespan_uses_returned_settings_for_state_and_health PASSED [ 90%]
+app\server\unit\test_training_memory_guards.py::test_model_trainer_uses_finite_iterables_for_keras_fit PASSED [ 90%]
+app\server\unit\test_training_memory_guards.py::test_xray_dataloader_construction_does_not_load_tokenizer PASSED [ 91%]
+app\server\unit\test_training_stop_mechanism.py::test_training_cancel_requests_graceful_stop_before_forced_termination PASSED [ 91%]
+app\server\unit\test_training_stop_mechanism.py::test_training_cancel_forces_termination_after_timeout PASSED [ 92%]
+app\server\unit\test_upload_service.py::test_upload_accepts_exact_payload_limit PASSED [ 92%]
+app\server\unit\test_upload_service.py::test_upload_rejects_payload_over_limit_before_parsing PASSED [ 93%]
+app\server\unit\test_upload_service.py::test_upload_ids_keep_parsed_contents_independent PASSED [ 93%]
+app\server\unit\test_validation_contract_metrics.py::test_dataset_validation_rejects_unknown_metric PASSED [ 94%]
+app\server\unit\test_validation_contract_metrics.py::test_checkpoint_evaluation_rejects_unknown_metric PASSED [ 94%]
+app\server\unit\test_validation_job_semantics.py::test_validation_job_fails_when_dataset_is_unavailable PASSED [ 95%]
+app\server\unit\test_validation_job_semantics.py::test_validation_job_fails_when_no_image_paths_remain PASSED [ 95%]
+app\server\unit\test_validation_job_semantics.py::test_checkpoint_evaluation_persistence_failure_is_terminal PASSED [ 96%]
+app\server\unit\test_validation_job_semantics.py::test_validation_service_preserves_explicit_zero_seed PASSED [ 96%]
+app\server\unit\test_validation_job_semantics.py::test_validation_service_uses_global_seed_when_omitted PASSED [ 97%]
+app\server\unit\test_validation_job_semantics.py::test_checkpoint_evaluation_uses_global_seed_when_omitted PASSED [ 97%]
+app\server\unit\test_validation_job_semantics.py::test_validation_service_reads_seed_and_poll_interval_for_each_new_run PASSED [ 98%]
+app\server\unit\test_version_authority.py::test_release_version_has_one_canonical_source PASSED [ 98%]
+app\server\unit\test_xreport_inference_provider.py::test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrupt PASSED [ 99%]
+app\server\unit\test_xreport_inference_provider.py::test_generate_rejects_empty_checkpoint_report PASSED [100%]
+
+================= 191 passed, 3 skipped in 111.83s (0:01:51) ==================
+[STEP] Running frontend unit tests...
+
+> xreport-client@3.1.0 test:unit
+> ng test --watch=false
+
+> Building...
+√ Building...
+Application bundle generation complete. [9.012 seconds] - 2026-09-24T14:28:13.339Z
+
+
+ RUN  v4.1.10 G:/Projects/Repositories/Active projects/XREPORT Radiological Reports/app/client
+
+
+ Test Files  12 passed (12)
+      Tests  40 passed (40)
+   Start at  16:28:14
+   Duration  9.98s (transform 6.00s, setup 21.53s, import 9.19s, tests 5.94s, environment 48.82s)
+
+[STEP] Running frontend E2E tests...
+
+> xreport-client@3.1.0 test:e2e
+> powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_angular_e2e.ps1
+
+[START] XREPORT Angular E2E tests
+..............                                                           [100%]
+14 passed in 34.39s
+[DONE] XREPORT Angular E2E tests passed.
+
+============================================================
+ Test Summary
+============================================================
+ Live server phase   : PASS
+ Python tests        : PASS
+ Frontend bootstrap  : PASS
+ Frontend unit tests : PASS
+ Frontend E2E tests  : PASS
+============================================================

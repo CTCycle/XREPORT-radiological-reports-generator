@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from types import SimpleNamespace
-
-import pytest
+from typing import Any
 
 from server.common.path import ROOT_DIR
 from server.configurations import InferenceSettings
@@ -15,39 +15,57 @@ def _settings(*, hf_local_only: bool = True) -> InferenceSettings:
     return InferenceSettings(
         hf_local_only=hf_local_only,
         device="auto",
-        max_loaded_models=1,
         model_timeout=600,
     )
 
 ###############################################################################
-@pytest.fixture(autouse=True)
-def isolate_project_installations(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        ModelInstallationManager,
-        "inspect",
-        lambda _self, _manifest: {
-            "metadata": {},
-            "state": "not_installed",
-            "integrity": "unknown",
-            "active_revision": None,
-            "active_path": None,
-            "candidate": None,
-            "candidate_path": None,
-            "candidate_revision": None,
-        },
-    )
+class _InstallationManager(ModelInstallationManager):
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        inspector: Callable[[Mapping[str, Any]], dict[str, Any]],
+    ) -> None:
+        self.inspector = inspector
+
+    # -------------------------------------------------------------------------
+    def inspect(self, manifest: Mapping[str, Any]) -> dict[str, Any]:
+        return self.inspector(manifest)
 
 ###############################################################################
-def _catalog(checkpoints: list[object]) -> InferenceModelCatalog:
+def _not_installed() -> dict[str, Any]:
+    return {
+        "metadata": {},
+        "state": "not_installed",
+        "integrity": "unknown",
+        "active_revision": None,
+        "active_path": None,
+        "candidate": None,
+        "candidate_path": None,
+        "candidate_revision": None,
+    }
+
+###############################################################################
+def _catalog(
+    checkpoints: list[object],
+    inspect_installation: Callable[[Mapping[str, Any]], dict[str, Any]] = (
+        lambda _manifest: _not_installed()
+    ),
+) -> InferenceModelCatalog:
     repository = SimpleNamespace(list_checkpoints=lambda: checkpoints)
-    return InferenceModelCatalog(_settings(), checkpoint_repository=repository)
+    installation_manager = _InstallationManager(inspect_installation)
+    return InferenceModelCatalog(
+        _settings(),
+        installation_manager=installation_manager,
+        checkpoint_repository=repository,
+    )
 
 ###############################################################################
 def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> object:
     return SimpleNamespace(
         name=name,
         name_key=name.casefold(),
-        path=Path("app/resources/models/checkpoints") / name,
+        path=Path("data/models/checkpoints") / name,
         artifact_complete=complete,
     )
 
@@ -84,19 +102,33 @@ def test_catalog_hides_xreport_provider_without_registered_checkpoints() -> None
     assert response.providers["xreport"].status == "not_installed"
 
 ###############################################################################
-def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
+def test_catalog_exposes_chexone_findings_only_contract() -> None:
+    chexone = next(
+        model
+        for model in _catalog([]).list_models().models
+        if model.model_ref == "huggingface:StanfordAIMI/CheXOne"
+    )
+
+    assert chexone.output_sections == ["findings"]
+    assert chexone.capabilities.findings is True
+    assert chexone.capabilities.impression is False
+    assert chexone.provider == "huggingface"
+    assert chexone.origin == "public"
+    assert chexone.adapter == "chexone"
+
+###############################################################################
+def test_catalog_marks_verified_active_installation_ready() -> None:
     active_path = (
         ROOT_DIR
-        / "app"
-        / "resources"
+        / "data"
         / "models"
         / "huggingface"
         / "installed"
         / "active"
     )
-    monkeypatch.setattr(
-        "server.services.inference_catalog.ModelInstallationManager.inspect",
-        lambda self, manifest: {
+    response = _catalog(
+        [],
+        inspect_installation=lambda manifest: {
             "metadata": {},
             "state": "active",
             "integrity": "verified",
@@ -108,9 +140,9 @@ def test_catalog_marks_verified_active_installation_ready(monkeypatch) -> None:
         },
     )
 
-    model = _catalog([]).list_models().models[0]
+    model = response.list_models().models[0]
 
     assert model.status == "ready"
     assert model.installation_state == "active"
     assert model.integrity_status == "verified"
-    assert model.local_path == "app/resources/models/huggingface/installed/active"
+    assert model.local_path == "data/models/huggingface/installed/active"

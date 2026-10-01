@@ -1,0 +1,44 @@
+{
+  "observed_on": "2026-09-24",
+  "route": "http://127.0.0.1:8003/inference",
+  "visual_review": "The rendered model catalogue and detail panel were reviewed in the Codex browser.",
+  "catalogue": {
+    "model_count": 5,
+    "public_count": 5,
+    "custom_count": 0,
+    "selected_model": "huggingface:aehrc/cxrmate-multi-tf",
+    "model_status": "not_installed",
+    "clinical_context": "disabled because the selected model does not support it",
+    "generation_profiles": [
+      "Deterministic",
+      "Concise",
+      "Detailed"
+    ],
+    "profile_changes_observed": [
+      "Concise",
+      "Detailed",
+      "Deterministic"
+    ],
+    "generate_button": "disabled because no image was selected and the model is not installed",
+    "draft": "none"
+  },
+  "cxrmate_ed_selection": {
+    "model_status": "not_installed",
+    "validation_status": "degraded",
+    "clinical_context": "enabled"
+  },
+  "side_effects": {
+    "image_uploaded": false,
+    "generation_started": false
+  },
+  "screenshots": [
+    {
+      "file": "inference-catalogue-20260924.jpg",
+      "state": "Five public models, zero custom checkpoints, CXRMate Multi selected, no draft or selected image."
+    },
+    {
+      "file": "cxrmate-ed-status-20260924.jpg",
+      "state": "CXRMate-ED selected with validation policy degraded and clinical context enabled."
+    }
+  ]
+}

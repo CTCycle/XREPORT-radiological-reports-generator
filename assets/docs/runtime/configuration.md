@@ -1,17 +1,26 @@
 # Runtime Configuration
 
-Last updated: 2026-08-30
+Last updated: 2026-09-28
 
 ## Shared Configuration Sources
 
 - Deployment and infrastructure configuration: `settings/.env`
-- Application behavior configuration: `settings/configurations.json`
+- Runtime application settings: the singleton `application_settings` database
+  row, managed through the Settings API
+- Static inference catalogue: typed definitions in
+  `app/server/configurations/inference_models.py`
 - Tracked first-run environment template: `settings/.env.example`
 
-The environment file is not a second application-settings store. Inference
-policy, job polling, feature flags, and the global seed are read from
-`settings/configurations.json`; deployment values and database connection
-values are read from `settings/.env`.
+The environment file is not a second application-settings store. Deployment,
+database connection, and secret values continue to come from `settings/.env`.
+The four user-editable application values and the two hidden runtime policy
+values are read from the database. The reviewed model catalogue is immutable
+typed application code; it is not loaded from a runtime file.
+
+The Alembic upgrade that introduced `application_settings` is the only legacy
+reader for the former JSON application configuration. It imports the existing
+values once, then the obsolete file is removed. Normal startup, the Settings
+API, desktop packaging, and runtime services do not read or recreate it.
 
 ## Packaged desktop configuration
 
@@ -21,11 +30,12 @@ Packaged mode receives an internal runtime contract from Rust:
 `XREPORT_DESKTOP_TOKEN`. These values are absent from `.env.example` and are
 not emitted into logs. `XREPORT_RESOURCES_DIR` is ignored in packaged mode.
 
-Mutable settings are `%LOCALAPPDATA%\XREPORT\data\.env` and
-`%LOCALAPPDATA%\XREPORT\data\settings\configurations.json`; the immutable
-catalogue remains in the extracted runtime. Database, checkpoints, model
-downloads, tokenizers, templates, caches, and logs are all below the data root.
-- Static configuration: `settings/configurations.json`
+Mutable deployment configuration is `%LOCALAPPDATA%\XREPORT\data\.env` and
+mutable application settings are stored in the database at
+`%LOCALAPPDATA%\XREPORT\data\database.db` when SQLite is selected. The
+immutable catalogue remains in the extracted runtime as typed Python code.
+Database, checkpoints, model downloads, tokenizers, templates, caches, and
+logs are all below the data root.
 
 ## Key Environment Variables
 
@@ -35,9 +45,6 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `UI_PORT`
 - `UI_API_BASE_URL`
 - `RELOAD`
-- `BACKEND_VISIBLE`
-- `ALWAYS_REBUILD` (set to `true` to rebuild the frontend whenever the Windows
-  launcher starts the application; defaults to `false`)
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `EMBEDDED_DATABASE` (`true` for SQLite or `false` for PostgreSQL)
@@ -54,21 +61,52 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `DATABASE_INSERT_BATCH_SIZE`
 - `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)
 - `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
-  `app/resources`)
+  `data`)
 
 `DATABASE_URL` is intentionally unsupported. External database mode requires
 the decomposed `DATABASE_ENGINE`, `DATABASE_HOST`, `DATABASE_PORT`,
 `DATABASE_NAME`, and `DATABASE_USERNAME` values.
 
-The application behavior file contains the following owned sections:
+The application-settings record contains the following owned values:
 
 - `global.seed`
 - `features.allow_local_filesystem_access`
 - `jobs.polling_interval`
-- `inference.hf_local_only`, `inference.device`,
-  `inference.max_loaded_models`, and `inference.model_timeout`
+- `inference.model_timeout`
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. Set `BACKEND_VISIBLE=true` to open backend logs in a dedicated terminal; the default keeps the backend window hidden. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
+The same database row also stores the hidden process policy values
+`inference.hf_local_only` and `inference.device`. They are loaded at startup,
+are not returned by the public Settings API, and are not user-editable.
+`inference.max_loaded_models` was unused and is no longer part of the runtime
+settings model.
+
+Completed local Hugging Face inference records the requested device policy and
+the effective runtime topology and dtype in provenance. For `auto`, the
+Transformers/Accelerate placement is observed after loading; an available CUDA
+device is not treated as used unless the loaded model is actually placed on a
+CUDA device. This metadata is diagnostic evidence and does not imply clinical
+quality validation.
+
+The supported runtime editing workflow is the Settings page in the Angular
+application. It uses `GET /api/settings`, partial `PATCH /api/settings`, and
+`POST /api/settings/reset`. The backend validates the complete typed settings
+model and commits successful updates transactionally. There is no manual JSON
+editing or JSON fallback path.
+
+Only these values are user-editable through Settings:
+
+- `global.seed` (`0` through `4,294,967,295`)
+- `features.allow_local_filesystem_access`
+- `jobs.polling_interval` (`0.25` through `60` seconds)
+- `inference.model_timeout` (at least `1` second)
+
+Changing a seed, polling interval, or inference timeout applies to newly started
+work. Running jobs and generations keep the value captured at their start.
+`inference.device`, `inference.hf_local_only`, and
+the static model catalogue remain runtime policy and are not exposed by the
+Settings API. Theme selection remains a frontend-local preference.
+
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Environment initialization preserves an explicit process-level value over a value in `settings/.env`, so spawned job workers inherit the same resource root resolved by the parent. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
 ## Database Mode Switch
 
@@ -86,15 +124,21 @@ in `start_on_windows.ps1` for explicit database and schema initialization.
 ## Interoperability
 
 - Frontend calls backend routes through `/api`.
-- Angular dev and preview proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
-- The Windows launcher starts the backend, waits for `/api/health`, then starts the frontend preview and opens the configured UI URL.
+- Angular `start` and `dev` proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
+- The `preview` script serves `dist/client-angular/browser` with a built-in Node
+  static server, Angular SPA fallback, and the same `/api` reverse proxy.
+- The Windows launcher starts FastAPI plus that built-bundle server, waits for
+  the UI port, and opens the configured UI URL. It rebuilds only when the
+  deterministic frontend build-state manifest is missing or stale.
 - Source mode derives the runtime root from the repository layout and uses the
   explicit `XREPORT_RESOURCES_DIR` override when provided. Packaged mode uses
   the runtime/data roots supplied by the Tauri shell; it does not infer them
   from the current working directory or executable location.
-- The application owns all model caches under `<resource root>/models`.
-  `HF_HOME`, `HF_HUB_CACHE`, `TORCH_HOME`, and `KERAS_HOME` are set by the
-  backend at startup; hostile or stale user-level cache variables, including
-  deprecated `TRANSFORMERS_CACHE`, are cleared.
-- The external catalogue contains exactly five SHA-pinned public report-generation models (four chest-X-ray specialists and the broader gated MedGemma option). Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
+- The application owns all transient model/tool caches under the canonical
+  `<runtime root>/runtimes/cache` path in source mode or
+  `<data root>/runtimes/cache` in packaged mode. `HF_HOME`, `HF_HUB_CACHE`,
+  `HF_MODULES_CACHE`, `HF_DATASETS_CACHE`, `TORCH_HOME`, `KERAS_HOME`, and
+  `MPLCONFIGDIR` are set to subdirectories below that root at startup; hostile
+  global cache values, including deprecated `TRANSFORMERS_CACHE`, are cleared.
+- The external catalogue contains the reviewed SHA-pinned public report-generation models currently declared by application policy (three chest-X-ray specialists and the broader gated MedGemma option at this revision). Catalogue cardinality is not a product invariant. Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
 - Installed metadata is stored in `<resource root>/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.

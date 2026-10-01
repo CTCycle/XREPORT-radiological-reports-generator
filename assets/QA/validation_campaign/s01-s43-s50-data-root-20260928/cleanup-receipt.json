@@ -1,0 +1,20 @@
+{
+  "recorded_at_utc": "2026-09-28T14:55:45.6394810Z",
+  "removed": [
+    {
+      "relative": "runtimes/cache/s01-s43-s50-data-root-20260928",
+      "full": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928"
+    },
+    {
+      "relative": "app/server/runtimes/cache/s01-s43-s50-data-root-20260928",
+      "full": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\app\\server\\runtimes\\cache\\s01-s43-s50-data-root-20260928"
+    },
+    {
+      "relative": "app/tests/__pycache__",
+      "full": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\app\\tests\\__pycache__"
+    }
+  ],
+  "remaining": [],
+  "canonical_data_database_sha256": "c6990d3cdac94a1e3009cb767849aeb517f05f6c61061e715f4d5be0ff35b369",
+  "canonical_data_sha256_unchanged": true
+}

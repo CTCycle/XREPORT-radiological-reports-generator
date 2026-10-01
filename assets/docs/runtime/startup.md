@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-09-07
+Last updated: 2026-09-24
 
 ## Windows Local Launcher
 
@@ -16,6 +16,16 @@ For direct, non-interactive launch use:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
 
+To force-stop XREPORT source services, desktop development shells, and
+packaged XREPORT processes, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action KillProcesses
+```
+
+This action also clears the configured backend and frontend listeners. It
+does not close the browser window.
+
 The menu can:
 
 - prepare portable Python, uv, and Node.js in `runtimes/`
@@ -27,7 +37,46 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 - update source from `origin/main` with the clean-`main` guard
 
-The launch option starts the backend, waits for `/api/health`, starts the frontend preview, waits for the UI port to respond, opens the browser, and then exits the menu.
+The launch option starts FastAPI and a lightweight Node server for the existing
+production Angular bundle, waits only for the UI port to respond, attempts to
+open the browser, and then exits the menu. If Windows denies the automatic
+browser launch, both services remain running and the launcher prints the UI URL
+for manual opening. The Node server serves the bundle, applies
+Angular SPA fallback, and proxies `/api` to FastAPI. The Angular shell displays
+the XREPORT startup surface while it polls `/api/health`; routed pages are not
+created until the backend reports `status: "ok"`.
+
+Before dependency preparation or service startup, Launch checks both configured
+ports. If listeners are found, the launcher lists each unique PID, process
+metadata when available, and every configured port it owns. Interactive Launch
+asks once before terminating the listed process trees. A declined prompt
+cancels without starting services; non-interactive Launch fails closed without
+terminating anything. A launcher or ancestor process owning a configured port,
+failed termination, or a newly appearing owner aborts the launch.
+
+For isolated startup validation, a process-level `XREPORT_RESOURCES_DIR`
+override takes precedence over the same key in `settings/.env`. This lets a
+disposable database be selected without editing the developer's environment
+file or application resources.
+
+## Foundational Startup Validation
+
+Startup validation is the Tier 0 foundation of the campaign in
+[`validation_campaign_ledger.md`](../validation_campaign_ledger.md):
+
+- S01 uses a disposable `XREPORT_RESOURCES_DIR` to prove fresh SQLite startup,
+  Alembic head readiness, required resource creation, restart reuse, and
+  fail-closed rejection of a non-empty database without `alembic_version`.
+- S02 opens the frontend before backend readiness and verifies that routed
+  feature surfaces and model-catalogue requests remain suppressed until
+  `/api/health` succeeds. The shell must represent ready, slow, unavailable,
+  retry/recovery, and post-ready feature-error states without returning to the
+  startup gate for an ordinary API error.
+
+The acceptance boundary is rendered behavior plus backend evidence, not merely
+an HTTP 200 from the preview server. Keep the slice summary and screenshots in
+the tracked campaign evidence directory when the result is intended to be
+reused by another checkout.
 
 Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
 frontend dependencies as needed, rebuild the Angular client, and leave backend
@@ -43,13 +92,24 @@ installation profile:
 - `Development` includes Ruff, Pyright, and pytest.
 - `Standard` installs runtime dependencies only.
 
+If the project virtual environment was created by an older pinned Python
+patch release, the launcher recreates that disposable environment before
+synchronizing the locked dependencies.
+
 At backend startup, a missing `settings/.env` is created from
 `settings/.env.example`. Existing environment files are preserved and ignored
 by Git.
 
-Set `ALWAYS_REBUILD=true` in `settings/.env` to rebuild the frontend during
-application launch. The default `ALWAYS_REBUILD=false` skips that startup
-build; the install/update option continues to build the frontend.
+Normal Launch reuses a valid `app/client/dist/client-angular` bundle. After a
+successful production build, the launcher writes the ignored
+`.xreport-build-state.json` manifest beside that bundle. Its SHA-256 inputs are
+the production Angular source, public assets, build configuration, dependency
+manifests, and the expected Node toolchain version; test files, the dev proxy
+configuration, backend files, documentation, and port-only environment edits
+do not invalidate it. A missing or stale bundle rebuilds, and a dependency
+manifest change runs `npm ci` before rebuilding. A current bundle never invokes
+the Angular CLI during normal Launch. The explicit **Rebuild frontend** and
+install/update actions always refresh the production bundle and state manifest.
 
 ### Source updates
 
@@ -62,8 +122,9 @@ frontend rebuild actions.
 ## Tauri desktop development
 
 `LaunchDesktopDev` builds Angular once, starts the source FastAPI backend on
-the configured 5003 port, starts the preview on 8003, leaves both consoles
-visible, and opens the debug Tauri shell:
+the configured 5003 port, starts the built-bundle server on 8003, waits only
+for the frontend, leaves both consoles visible, and opens the debug Tauri shell. The
+same Angular startup gate remains visible until backend readiness:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
@@ -117,6 +178,13 @@ CPU/CUDA configurations, and generated OpenAPI version against that value.
 
 ## Manual Backend And Frontend
 
+Source-mode manual commands use the repository's canonical disposable-cache
+root. From the repository root, set `XREPORT_CACHE_ROOT="$PWD/runtimes/cache"`
+and the related `XDG_CACHE_HOME`, `UV_CACHE_DIR`, `PIP_CACHE_DIR`,
+`NPM_CONFIG_CACHE`, `PLAYWRIGHT_BROWSERS_PATH`, `PYTHONPYCACHEPREFIX`, and
+`MPLCONFIGDIR` variables below that root before running these commands. The
+Windows launcher exports the same locations automatically.
+
 PowerShell:
 
 ```powershell
@@ -125,7 +193,11 @@ Set-Location app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ```
 
-Use host and port values from `settings/.env`. `UI_API_BASE_URL` should remain `/api` for the proxied local flow.
+Use host and port values from `settings/.env`. Run `npm run build` before the
+first manual preview start. The `preview` script serves the built bundle and
+proxies `UI_API_BASE_URL` (normally `/api`) to the FastAPI host and port from
+the environment. Use `npm start` or `npm run dev` when an Angular development
+server is required.
 
 ## Test Runtime
 
@@ -142,18 +214,27 @@ PostgreSQL database when necessary and upgrades to the checked-in head before
 the readiness callback runs. An existing database with application tables but
 without migration state is rejected; startup never infers or stamps an
 unversioned schema. The launcher’s explicit database option uses the same
-coordinator. Startup also verifies the tracked configuration file and creates
-required resource directories for logs, models, tokenizers, checkpoints, and
-templates. The current head removes obsolete report-job state and registers
-complete checkpoint artifacts in the canonical database registry.
+coordinator. The `application_settings` singleton is created or migrated from
+the one-time legacy import before readiness; after that, settings are read only
+from the database. Startup creates required resource directories for logs,
+models, tokenizers, checkpoints, and templates. The migration stream removes
+obsolete report-job state and registers complete checkpoint artifacts in the
+canonical database registry.
 
 ## Development Cache Locations
 
-Disposable runtime caches are kept under `runtimes/cache`, with separate
-subdirectories for uv, npm, pip, and Playwright browser downloads. Pytest,
-Ruff, Python bytecode, coverage, and other development-tool caches are kept
-under `app/tests/cache`. The test runner uses
-`app/tests/cache/pytest-tmp` for pytest's temporary test directory.
+All disposable application, ML, frontend, runtime, and test caches are kept
+under the single canonical `runtimes/cache` root. Its subdirectories include
+`pytest`, `pytest-tmp`, `ruff`, `python`, `coverage`, `angular`, `uv`, `pip`,
+`npm`, `playwright-browsers`, `huggingface`, `torch`, `keras`, and
+`matplotlib`. Packaged launches use the same hierarchy below the writable
+`<data-root>/runtimes/cache` path; persistent models and application data stay
+outside it.
+
+The cleanup action also performs a narrowly scoped, cleanup-only sweep for
+legacy root pytest/Ruff/uv directories, the former `app/tests/cache` trees,
+client-local cache directories, and old transient model-cache paths. Those
+legacy paths are never active configuration and are not recreated.
 
 Select **Clear cache** in the maintenance menu, or run:
 
