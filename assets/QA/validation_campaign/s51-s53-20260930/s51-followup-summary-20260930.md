@@ -9,7 +9,7 @@ reproducible in three independent official-launcher source-runtime runs. Each
 run completed the maintained eight-scenario S51 matrix, produced real CUDA
 training progress and checkpoint artifacts, classified the cancellation case
 as `CANCELLED`, left no running jobs, and retained SQLite integrity `ok`.
-The current dirty working tree also completed the CPU source lane at both
+The current validation follow-up also completed the CPU source lane at both
 eight-row and scale-8/64-row fixture sizes, an explicitly emulated
 unavailable-GPU fallback lane, and a packaged CPU active-training
 close/reopen check. These additions close the runnable source
@@ -35,9 +35,11 @@ desktop, or release-readiness evidence.
 ## Revision and environment
 
 - Branch: `develop`.
-- Base HEAD: `e344e40cd129672fbd73a0faba6f568dd83a92f8`.
-- The 2026-10-01 receipts record a dirty working tree because the implementation
-  and test edits were intentionally kept in the working tree for review.
+- Package source commit: `af666df53b3424c08a279bc9d0b79b81078815bd`.
+- The source-lane receipts retain their recorded working-tree provenance. The
+  current clean packaged CPU artifact metadata is bound to the package source
+  commit with `dirty_tree=false`; the retained CUDA clean-package metadata is
+  historical, while the current CUDA diagnostic runtime is dirty-tree-bound.
 - Official Windows launcher with an isolated SQLite/resource root and
   `HF_HUB_OFFLINE=1`.
 - Windows 11 build `26200`, Python `3.14.7`, 12 logical CPUs, RTX 3060 with
@@ -151,17 +153,18 @@ data, or a genuine GPU-less package.
   `Current phase`/`Waiting to start` region and accessible worker-status
   semantics while idle.
 
-The standard `app/tests/run_tests.bat` runner and genuine no-GPU lane were not
-rerun in this follow-up; the prior runner evidence remains historical and is
-not promoted to evidence for these uncommitted changes. The packaged CPU
-active-training close/reopen check is recorded separately above.
+The full live-service Python suite was rerun with task-owned basetemp/cache and
+QA screenshot roots: `235 passed, 3 skipped, 0 failed, 0 errors` across 238
+tests. The packaged CPU active-training close/reopen check is recorded
+separately above. The genuine no-GPU lane was not rerun on hardware without a
+GPU, and hosted CI for the release revision remains open.
 
 ## Remaining limits and status
 
 The following remain outside this follow-up: genuine GPU-less hardware and
 packaged/no-GPU training comparison, native Training-form submission and
-graceful user cancellation semantics, hosted CI for the working-tree
-revision, representative data, and attribution of the original slow
+graceful user cancellation semantics, hosted CI for the release revision,
+representative data, and attribution of the original slow
 initialization cause. The source-runtime CUDA/CPU/fallback/scale contention
 slice and bounded packaged close/reopen slice are now evidenced, but S51 is
 kept `PARTIAL` until the remaining broader boundaries receive their own
