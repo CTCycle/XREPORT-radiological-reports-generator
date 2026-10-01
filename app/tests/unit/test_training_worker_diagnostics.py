@@ -20,20 +20,24 @@ from server.services.training_worker import (
 )
 
 
+###############################################################################
 def _child_reports_success(*, worker: WorkerChannels) -> None:
     worker.report_lifecycle("test_phase")
     worker.report_result({"result": {"completed": True}})
 
 
+###############################################################################
 def _raise_from_child(*, worker: WorkerChannels) -> None:
     del worker
     raise ValueError("child exploded")
 
 
+###############################################################################
 def _set_stop_event(*, worker: WorkerChannels) -> None:
     worker.stop_event.set()
 
 
+###############################################################################
 def test_child_failure_reports_lifecycle_and_traceback() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue()
     result_queue: queue.Queue[dict[str, object]] = queue.Queue()
@@ -67,6 +71,7 @@ def test_child_failure_reports_lifecycle_and_traceback() -> None:
     assert "ValueError: child exploded" in diagnostic["traceback"]  # type: ignore[index]
 
 
+###############################################################################
 def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue()
     result_queue: queue.Queue[dict[str, object]] = queue.Queue()
@@ -92,6 +97,7 @@ def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     assert result_queue.empty()
 
 
+###############################################################################
 def test_plot_pressure_does_not_discard_critical_progress() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue(maxsize=2)
     progress_queue.put({"type": "training_plot", "chart_point": {"batch": 1}})
@@ -107,6 +113,7 @@ def test_plot_pressure_does_not_discard_critical_progress() -> None:
     }
 
 
+###############################################################################
 def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue()
     result_queue: queue.Queue[dict[str, object]] = queue.Queue()
@@ -127,6 +134,7 @@ def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
     assert message["phase_elapsed_seconds"] == 0.0
 
 
+###############################################################################
 def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
     messages: list[dict[str, object]] = []
     callback = TrainingProgressCallback(
@@ -155,6 +163,7 @@ def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
     assert any(message.get("type") == "training_update" for message in messages)
 
 
+###############################################################################
 def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> None:
     worker = ProcessWorker(progress_queue_size=1)
     messages: list[dict[str, object]] = []
@@ -192,15 +201,18 @@ def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> No
         worker.cleanup()
 
 
+###############################################################################
 class ExitedWorker:
     exitcode = 7
     pid = 1234
 
+    # -------------------------------------------------------------------------
     def read_result(self, timeout: float = 0.5) -> None:
         del timeout
         return None
 
 
+###############################################################################
 def test_non_zero_worker_exit_is_typed_and_recorded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -233,6 +245,7 @@ def test_non_zero_worker_exit_is_typed_and_recorded(
     )
 
 
+###############################################################################
 def test_reported_child_failure_keeps_diagnostics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -244,10 +257,12 @@ def test_reported_child_failure_keeps_diagnostics(
         Mock(return_value=manager),
     )
 
+    ###############################################################################
     class FailedWorker:
         exitcode = 1
         pid = 5678
 
+        # -------------------------------------------------------------------------
         def read_result(self, timeout: float = 0.5) -> dict[str, object]:
             del timeout
             return {
@@ -281,6 +296,7 @@ def test_reported_child_failure_keeps_diagnostics(
     )
 
 
+###############################################################################
 def test_normal_worker_result_is_returned_unchanged(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -292,10 +308,12 @@ def test_normal_worker_result_is_returned_unchanged(
         Mock(return_value=manager),
     )
 
+    ###############################################################################
     class CompletedWorker:
         exitcode = 0
         pid = 4321
 
+        # -------------------------------------------------------------------------
         def read_result(self, timeout: float = 0.5) -> dict[str, object]:
             del timeout
             return {"result": {"checkpoint_path": "checkpoint-a"}}
@@ -306,6 +324,7 @@ def test_normal_worker_result_is_returned_unchanged(
     manager.update_result.assert_not_called()
 
 
+###############################################################################
 def test_missing_result_payload_is_a_typed_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -317,10 +336,12 @@ def test_missing_result_payload_is_a_typed_failure(
         Mock(return_value=manager),
     )
 
+    ###############################################################################
     class MissingResultWorker:
         exitcode = 0
         pid = 1234
 
+        # -------------------------------------------------------------------------
         def read_result(self, timeout: float = 0.5) -> None:
             del timeout
             return None
@@ -331,6 +352,7 @@ def test_missing_result_payload_is_a_typed_failure(
     assert raised.value.code == "training_worker_missing_result"
 
 
+###############################################################################
 def test_zero_exit_empty_result_is_not_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -342,10 +364,12 @@ def test_zero_exit_empty_result_is_not_success(
         Mock(return_value=manager),
     )
 
+    ###############################################################################
     class EmptyResultWorker:
         exitcode = 0
         pid = 777
 
+        # -------------------------------------------------------------------------
         def read_result(self, timeout: float = 0.5) -> dict[str, object]:
             del timeout
             return {"result": {}}

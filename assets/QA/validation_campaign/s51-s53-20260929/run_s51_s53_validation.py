@@ -21,11 +21,15 @@ PROCESSED_DATASET = "s28_release_20260925"
 CHECKPOINT = "XREPORT_20260925T141533"
 
 
+###############################################################################
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+###############################################################################
 class ApiFailure(RuntimeError):
+
+    # -------------------------------------------------------------------------
     def __init__(self, method: str, path: str, status: int, body: Any) -> None:
         super().__init__(f"{method} {path} returned HTTP {status}: {body}")
         self.method = method
@@ -34,10 +38,14 @@ class ApiFailure(RuntimeError):
         self.body = body
 
 
+###############################################################################
 class ApiClient:
+
+    # -------------------------------------------------------------------------
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url.rstrip("/")
 
+    # -------------------------------------------------------------------------
     def request(
         self,
         method: str,
@@ -78,6 +86,7 @@ class ApiClient:
         return {"status": status, "body": body}
 
 
+###############################################################################
 def training_payload(checkpoint_id: str, use_gpu: bool) -> dict[str, Any]:
     return {
         "dataset_name": PROCESSED_DATASET,
@@ -110,6 +119,7 @@ def training_payload(checkpoint_id: str, use_gpu: bool) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def validation_payload() -> dict[str, Any]:
     return {
         "dataset_name": DATASET,
@@ -119,6 +129,7 @@ def validation_payload() -> dict[str, Any]:
     }
 
 
+###############################################################################
 def evaluation_payload() -> dict[str, Any]:
     return {
         "checkpoint": CHECKPOINT,
@@ -128,6 +139,7 @@ def evaluation_payload() -> dict[str, Any]:
     }
 
 
+###############################################################################
 def processing_payload(custom_name: str) -> dict[str, Any]:
     return {
         "dataset_name": DATASET,
@@ -139,6 +151,7 @@ def processing_payload(custom_name: str) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def sample_system(resource_root: Path) -> dict[str, Any]:
     sample: dict[str, Any] = {"captured_at_utc": utc_now()}
     try:
@@ -203,6 +216,7 @@ def sample_system(resource_root: Path) -> dict[str, Any]:
     return sample
 
 
+###############################################################################
 def start_and_poll(
     client: ApiClient,
     name: str,
@@ -308,6 +322,7 @@ def start_and_poll(
     return batch
 
 
+###############################################################################
 def extract_training_checkpoint(batch: dict[str, Any]) -> str | None:
     for job in batch.get("jobs", {}).values():
         if job.get("name") != "training":
@@ -322,6 +337,7 @@ def extract_training_checkpoint(batch: dict[str, Any]) -> str | None:
     return None
 
 
+###############################################################################
 def cleanup(
     client: ApiClient,
     checkpoint_names: list[str],
@@ -348,6 +364,7 @@ def cleanup(
     return result
 
 
+###############################################################################
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default=os.environ.get("XREPORT_BASE_URL", "http://127.0.0.1:8003"))

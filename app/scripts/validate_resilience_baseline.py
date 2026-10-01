@@ -80,12 +80,14 @@ MEASUREMENT_FIELDS = (
 )
 
 
+###############################################################################
 def utc_now() -> str:
     """Return a stable ISO-8601 representation for receipt timestamps."""
 
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+###############################################################################
 def normalize_group(value: str) -> str:
     """Normalize and validate the public S51/S53 group selector."""
 
@@ -96,6 +98,7 @@ def normalize_group(value: str) -> str:
     return group
 
 
+###############################################################################
 def normalize_execution_lane(value: str) -> str:
     """Normalize the device lane used by the generated workload matrix."""
 
@@ -106,6 +109,7 @@ def normalize_execution_lane(value: str) -> str:
     return lane
 
 
+###############################################################################
 def normalize_start_mode(value: str) -> str:
     """Normalize the externally controlled launcher lifecycle declaration."""
 
@@ -116,6 +120,7 @@ def normalize_start_mode(value: str) -> str:
     return mode
 
 
+###############################################################################
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -124,6 +129,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+###############################################################################
 @dataclass(frozen=True)
 class FixtureDefinition:
     """Names and provenance for the pinned synthetic technical fixture."""
@@ -138,10 +144,12 @@ class FixtureDefinition:
     provenance: str = "assets/QA/validation_campaign/s27/fixtures"
     de_identification: str = "non-clinical generated synthetic fixture"
 
+    # -------------------------------------------------------------------------
     def __post_init__(self) -> None:
         if self.scale < 1:
             raise ValueError("Fixture scale must be at least 1")
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {
             "dataset": self.dataset,
@@ -157,6 +165,7 @@ class FixtureDefinition:
         }
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ResourceRef:
     """A task-created resource that may be cleaned after a run."""
@@ -164,10 +173,12 @@ class ResourceRef:
     kind: str
     name: str
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, str]:
         return {"kind": self.kind, "name": self.name}
 
 
+###############################################################################
 @dataclass(frozen=True)
 class MultipartPart:
     """A deterministic multipart field or file sent by an API operation."""
@@ -177,6 +188,7 @@ class MultipartPart:
     filename: str | None = None
     content_type: str | None = None
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {
             "field_name": self.field_name,
@@ -187,6 +199,7 @@ class MultipartPart:
         }
 
 
+###############################################################################
 @dataclass(frozen=True)
 class OperationSpec:
     """One API operation in a deterministic scenario definition."""
@@ -201,6 +214,7 @@ class OperationSpec:
     creates: tuple[ResourceRef, ...] = ()
     multipart: tuple[MultipartPart, ...] = ()
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {
             "operation_id": self.operation_id,
@@ -215,6 +229,7 @@ class OperationSpec:
         }
 
 
+###############################################################################
 @dataclass(frozen=True)
 class ScenarioDefinition:
     """One independently receipted concurrent workload batch."""
@@ -232,6 +247,7 @@ class ScenarioDefinition:
     tags: tuple[str, ...] = ()
     execution_lane: str = "cuda"
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {
             "scenario_id": self.scenario_id,
@@ -253,6 +269,7 @@ class ScenarioDefinition:
         }
 
 
+###############################################################################
 def training_payload(
     fixture: FixtureDefinition,
     checkpoint_id: str,
@@ -292,6 +309,7 @@ def training_payload(
     }
 
 
+###############################################################################
 def validation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     return {
         "dataset_name": fixture.dataset,
@@ -301,6 +319,7 @@ def validation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def evaluation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     return {
         "checkpoint": fixture.checkpoint,
@@ -310,6 +329,7 @@ def evaluation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def inference_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     return {
         "model_ref": f"xreport:{fixture.checkpoint}",
@@ -318,6 +338,7 @@ def inference_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     }
 
 
+###############################################################################
 def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]:
     image_paths = sorted(
         path
@@ -337,6 +358,7 @@ def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]
     )
 
 
+###############################################################################
 def processing_payload(
     fixture: FixtureDefinition, custom_name: str
 ) -> dict[str, Any]:
@@ -350,6 +372,7 @@ def processing_payload(
     }
 
 
+###############################################################################
 def _operation(
     operation_id: str,
     method: str,
@@ -375,6 +398,7 @@ def _operation(
     )
 
 
+###############################################################################
 def _lane_uses_gpu(execution_lane: str) -> bool:
     """Return the request value for a GPU-backed training operation.
 
@@ -386,6 +410,7 @@ def _lane_uses_gpu(execution_lane: str) -> bool:
     return normalize_execution_lane(execution_lane) in {"cuda", "unavailable-gpu"}
 
 
+###############################################################################
 def _lane_device_label(execution_lane: str) -> str:
     lane = normalize_execution_lane(execution_lane)
     return {
@@ -395,6 +420,7 @@ def _lane_device_label(execution_lane: str) -> str:
     }[lane]
 
 
+###############################################################################
 def build_scenarios(
     group: str = "ALL",
     fixture: FixtureDefinition | None = None,
@@ -736,6 +762,7 @@ def build_scenarios(
     )
 
 
+###############################################################################
 def build_plan(
     group: str = "ALL",
     fixture: FixtureDefinition | None = None,
@@ -843,9 +870,11 @@ def build_plan(
     }
 
 
+###############################################################################
 class ApiFailure(RuntimeError):
     """Raised when an API response is outside an operation's contract."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, method: str, path: str, status: int, body: Any) -> None:
         super().__init__(f"{method} {path} returned HTTP {status}: {body}")
         self.method = method
@@ -854,13 +883,16 @@ class ApiFailure(RuntimeError):
         self.body = body
 
 
+###############################################################################
 class ApiClient:
     """Small standard-library JSON transport used by the live harness."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, base_url: str, *, timeout_seconds: float = 30.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
 
+    # -------------------------------------------------------------------------
     def request(
         self,
         method: str,
@@ -929,12 +961,15 @@ class ApiClient:
         return {"status": status, "body": body}
 
 
+###############################################################################
 class ApiOperations:
     """Named application operations kept separate from transport mechanics."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, client: ApiClient) -> None:
         self.client = client
 
+    # -------------------------------------------------------------------------
     def submit(self, operation: OperationSpec) -> dict[str, Any]:
         return self.client.request(
             operation.method,
@@ -944,26 +979,33 @@ class ApiOperations:
             multipart=operation.multipart,
         )
 
+    # -------------------------------------------------------------------------
     def job_status(self, job_id: str) -> dict[str, Any]:
         return self.client.request("GET", f"/api/jobs/{job_id}")
 
+    # -------------------------------------------------------------------------
     def running_jobs(self) -> dict[str, Any]:
         return self.client.request("GET", "/api/jobs?status=running")
 
+    # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> dict[str, Any]:
         return self.client.request("DELETE", f"/api/jobs/{urllib.parse.quote(job_id, safe='')}")
 
+    # -------------------------------------------------------------------------
     def health(self) -> dict[str, Any]:
         return self.client.request("GET", "/api/health")
 
+    # -------------------------------------------------------------------------
     def checkpoints(self) -> dict[str, Any]:
         return self.client.request("GET", "/api/training/checkpoints")
 
+    # -------------------------------------------------------------------------
     def processed_datasets(self) -> dict[str, Any]:
         return self.client.request(
             "GET", "/api/preparation/dataset/processed/names"
         )
 
+    # -------------------------------------------------------------------------
     def delete_checkpoint(self, name: str) -> dict[str, Any]:
         return self.client.request(
             "DELETE",
@@ -971,6 +1013,7 @@ class ApiOperations:
             expected_statuses={200, 404},
         )
 
+    # -------------------------------------------------------------------------
     def delete_processed_dataset(self, name: str) -> dict[str, Any]:
         return self.client.request(
             "DELETE",
@@ -978,6 +1021,7 @@ class ApiOperations:
             expected_statuses={200, 404},
         )
 
+    # -------------------------------------------------------------------------
     def capture_state(
         self,
         fixture: FixtureDefinition,
@@ -1006,13 +1050,16 @@ class ApiOperations:
         return state
 
 
+###############################################################################
 class ResourceSampler:
     """Best-effort host/GPU sampler with no application-side instrumentation."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, repository_root: Path, resource_root: Path) -> None:
         self.repository_root = repository_root.resolve()
         self.resource_root = resource_root.resolve()
 
+    # -------------------------------------------------------------------------
     def sample(self) -> dict[str, Any]:
         sample: dict[str, Any] = {
             "captured_at_utc": utc_now(),
@@ -1032,6 +1079,7 @@ class ResourceSampler:
         self._sample_device_logs(sample)
         return sample
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _sample_gpu(sample: dict[str, Any]) -> None:
         try:
@@ -1072,6 +1120,7 @@ class ResourceSampler:
         else:
             sample["gpu_query_error"] = "unparseable_output"
 
+    # -------------------------------------------------------------------------
     def _sample_processes(self, sample: dict[str, Any]) -> None:
         try:
             import psutil
@@ -1116,6 +1165,7 @@ class ResourceSampler:
         sample["xreport_python_processes"] = process_count
         sample["xreport_python_process_details"] = process_details
 
+    # -------------------------------------------------------------------------
     def _sample_device_logs(self, sample: dict[str, Any]) -> None:
         log_dir = self.resource_root / "logs"
         if not log_dir.is_dir():
@@ -1142,9 +1192,11 @@ class ResourceSampler:
         sample["device_log_matches"] = matches[-12:]
 
 
+###############################################################################
 class ResourceMonitor:
     """Capture resource samples until a scenario's jobs reach terminal state."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, sampler: ResourceSampler, interval_seconds: float) -> None:
         if interval_seconds <= 0:
             raise ValueError("Resource sample interval must be positive")
@@ -1154,6 +1206,7 @@ class ResourceMonitor:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
+    # -------------------------------------------------------------------------
     def start(self) -> None:
         self.samples.append(self.sampler.sample())
         self._thread = threading.Thread(
@@ -1163,16 +1216,19 @@ class ResourceMonitor:
         )
         self._thread.start()
 
+    # -------------------------------------------------------------------------
     def stop(self) -> None:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=max(5.0, self.interval_seconds + 1.0))
 
+    # -------------------------------------------------------------------------
     def _run(self) -> None:
         while not self._stop.wait(self.interval_seconds):
             self.samples.append(self.sampler.sample())
 
 
+###############################################################################
 def _worker_pid_from_status(status: Any) -> int | None:
     """Extract a worker PID from either the job result or diagnostics fields."""
 
@@ -1194,15 +1250,18 @@ def _worker_pid_from_status(status: Any) -> int | None:
     return None
 
 
+###############################################################################
 class JobPoller:
     """Poll submitted jobs with bounded, receipt-visible terminal handling."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, api: ApiOperations, default_interval_seconds: float) -> None:
         if default_interval_seconds <= 0:
             raise ValueError("Poll interval must be positive")
         self.api = api
         self.default_interval_seconds = default_interval_seconds
 
+    # -------------------------------------------------------------------------
     def poll(
         self,
         jobs: dict[str, dict[str, Any]],
@@ -1308,6 +1367,7 @@ class JobPoller:
                 )
 
 
+###############################################################################
 def _body(state: dict[str, Any], key: str) -> Any:
     response = state.get(key, {})
     if isinstance(response, dict) and "body" in response:
@@ -1315,6 +1375,7 @@ def _body(state: dict[str, Any], key: str) -> Any:
     return response
 
 
+###############################################################################
 def _names(body: Any, key: str) -> set[str]:
     if not isinstance(body, dict):
         return set()
@@ -1330,6 +1391,7 @@ def _names(body: Any, key: str) -> set[str]:
     return result
 
 
+###############################################################################
 @dataclass
 class ResourceTracker:
     """Track only resources absent from the pre-run inventory."""
@@ -1340,6 +1402,7 @@ class ResourceTracker:
     created_processed_datasets: list[str] = field(default_factory=list)
     preexisting: list[ResourceRef] = field(default_factory=list)
 
+    # -------------------------------------------------------------------------
     @classmethod
     def from_state(cls, state: dict[str, Any]) -> ResourceTracker:
         return cls(
@@ -1349,6 +1412,7 @@ class ResourceTracker:
             ),
         )
 
+    # -------------------------------------------------------------------------
     def register(self, resource: ResourceRef) -> None:
         if resource.kind == "checkpoint":
             existing = self.initial_checkpoints
@@ -1366,10 +1430,12 @@ class ResourceTracker:
         if resource.name not in target:
             target.append(resource.name)
 
+    # -------------------------------------------------------------------------
     def register_checkpoint_path(self, checkpoint_path: Any) -> None:
         if isinstance(checkpoint_path, str) and checkpoint_path.strip():
             self.register(ResourceRef("checkpoint", Path(checkpoint_path).name))
 
+    # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         return {
             "initial_checkpoints": sorted(self.initial_checkpoints),
@@ -1380,12 +1446,15 @@ class ResourceTracker:
         }
 
 
+###############################################################################
 class CleanupManager:
     """Remove task-created records and verify the post-run inventory."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, api: ApiOperations) -> None:
         self.api = api
 
+    # -------------------------------------------------------------------------
     def cleanup(self, tracker: ResourceTracker) -> dict[str, Any]:
         result: dict[str, Any] = {
             "tracker": tracker.to_dict(),
@@ -1424,6 +1493,7 @@ class CleanupManager:
         return result
 
 
+###############################################################################
 def _training_checkpoint_from_job(job: dict[str, Any]) -> str | None:
     status = job.get("last_status")
     if not isinstance(status, dict):
@@ -1437,6 +1507,7 @@ def _training_checkpoint_from_job(job: dict[str, Any]) -> str | None:
     return Path(checkpoint_path).name
 
 
+###############################################################################
 def _record_training_observations(job: dict[str, Any]) -> None:
     """Summarize phase and first-progress evidence from the poll transcript."""
 
@@ -1498,6 +1569,7 @@ def _record_training_observations(job: dict[str, Any]) -> None:
         job["worker_pid"] = worker_pids[-1]
 
 
+###############################################################################
 def _record_worker_cleanup(job: dict[str, Any]) -> None:
     """Record whether observed worker processes remain after terminal status."""
 
@@ -1533,6 +1605,7 @@ def _record_worker_cleanup(job: dict[str, Any]) -> None:
     }
 
 
+###############################################################################
 def _attribute_job_resources(
     job: dict[str, Any], samples: list[dict[str, Any]]
 ) -> None:
@@ -1585,6 +1658,7 @@ def _attribute_job_resources(
     }
 
 
+###############################################################################
 def _running_job_entries(response: Any) -> list[dict[str, Any]]:
     """Return normalized running-job entries from the inventory response."""
 
@@ -1595,6 +1669,7 @@ def _running_job_entries(response: Any) -> list[dict[str, Any]]:
     return [job for job in jobs if isinstance(job, dict)]
 
 
+###############################################################################
 def _job_id_from_entry(entry: dict[str, Any]) -> str | None:
     for key in ("job_id", "id"):
         value = entry.get(key)
@@ -1603,6 +1678,7 @@ def _job_id_from_entry(entry: dict[str, Any]) -> str | None:
     return None
 
 
+###############################################################################
 def _assert_device_lane_observed(
     batch: dict[str, Any], scenario: ScenarioDefinition
 ) -> None:
@@ -1639,6 +1715,7 @@ def _assert_device_lane_observed(
         )
 
 
+###############################################################################
 def run_scenario(
     api: ApiOperations,
     scenario: ScenarioDefinition,
@@ -1867,9 +1944,11 @@ def run_scenario(
     return batch
 
 
+###############################################################################
 class ReceiptSerializer:
     """Write stable, human-readable JSON receipts without status inference."""
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def write(path: Path, receipt: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1879,6 +1958,7 @@ class ReceiptSerializer:
         )
 
 
+###############################################################################
 def _repository_metadata() -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "head": os.environ.get("XREPORT_VALIDATION_HEAD"),
@@ -1910,6 +1990,7 @@ def _repository_metadata() -> dict[str, Any]:
     return metadata
 
 
+###############################################################################
 def _host_metadata() -> dict[str, Any]:
     return {
         "os": platform.platform(),
@@ -1920,6 +2001,7 @@ def _host_metadata() -> dict[str, Any]:
     }
 
 
+###############################################################################
 def database_integrity(resource_root: Path) -> dict[str, Any]:
     """Read SQLite integrity and table metadata without mutating the database."""
 
@@ -1958,6 +2040,7 @@ def database_integrity(resource_root: Path) -> dict[str, Any]:
     return result
 
 
+###############################################################################
 def run_cold_start_probes(
     resource_root: Path,
     count: int,
@@ -2016,6 +2099,7 @@ def run_cold_start_probes(
     return probes
 
 
+###############################################################################
 def generate_scaled_fixture(
     source_root: Path,
     output_root: Path,
@@ -2107,6 +2191,7 @@ def generate_scaled_fixture(
     }
 
 
+###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -2160,6 +2245,7 @@ def _arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+###############################################################################
 def main() -> int:
     args = _arguments()
     if args.generate_scaled_fixture:

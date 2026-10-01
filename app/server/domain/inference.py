@@ -300,7 +300,6 @@ InferenceHistoryStatus = Literal[
 ]
 InferenceHistorySort = Literal["newest", "oldest"]
 
-
 ###############################################################################
 class InferenceHistoryReportSummary(BaseModel):
     image_index: int = Field(ge=0)
@@ -308,7 +307,6 @@ class InferenceHistoryReportSummary(BaseModel):
     preview: str
     edited: bool = False
     edited_at: str | None = None
-
 
 ###############################################################################
 class InferenceHistoryReport(BaseModel):
@@ -320,7 +318,6 @@ class InferenceHistoryReport(BaseModel):
     edited: bool = False
     edited_at: str | None = None
     sections: dict[str, str] = Field(default_factory=dict)
-
 
 ###############################################################################
 class InferenceHistorySummary(BaseModel):
@@ -338,14 +335,12 @@ class InferenceHistorySummary(BaseModel):
     report_count: int = Field(ge=0)
     provenance_available: bool = False
 
-
 ###############################################################################
 class InferenceHistoryResponse(BaseModel):
     items: list[InferenceHistorySummary]
     total: int = Field(ge=0)
     limit: int = Field(ge=1, le=500)
     offset: int = Field(ge=0)
-
 
 ###############################################################################
 class InferenceHistoryDetail(BaseModel):
@@ -362,17 +357,14 @@ class InferenceHistoryDetail(BaseModel):
     reports: list[InferenceHistoryReport]
     output_sections: list[str]
 
-
 ###############################################################################
 class InferenceHistoryReportUpdate(BaseModel):
     image_index: int = Field(ge=0)
     edited_report: str = Field(max_length=1_000_000)
 
-
 ###############################################################################
 class InferenceHistoryUpdateRequest(BaseModel):
     reports: list[InferenceHistoryReportUpdate] = Field(min_length=1)
-
 
 ###############################################################################
 class InferenceHistoryDeleteResponse(BaseModel):

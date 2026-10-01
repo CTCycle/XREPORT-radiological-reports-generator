@@ -915,14 +915,12 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     )
     return errors
 
-
 ###############################################################################
 def _e2e_screenshot_dir(default_relative: str) -> Path:
     configured = os.environ.get("XREPORT_E2E_SCREENSHOT_DIR", "").strip()
     qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "assets" / "QA" / default_relative
     qa_dir.mkdir(parents=True, exist_ok=True)
     return qa_dir
-
 
 ###############################################################################
 def _s10_qa_dir() -> Path:
@@ -933,7 +931,6 @@ def _s10_qa_dir() -> Path:
         return qa_dir
     return _e2e_screenshot_dir("validation_campaign/s10")
 
-
 ###############################################################################
 def _expect_s10_active_navigation(page: Page, label: str) -> None:
     active_links = page.locator(
@@ -941,7 +938,6 @@ def _expect_s10_active_navigation(page: Page, label: str) -> None:
     )
     expect(active_links).to_have_count(1)
     expect(active_links).to_have_attribute("aria-label", label)
-
 
 ###############################################################################
 def _expect_s10_route_surface(page: Page, path: str) -> None:

@@ -14,6 +14,7 @@ sys.modules[_SPEC.name] = resilience
 _SPEC.loader.exec_module(resilience)
 
 
+###############################################################################
 def test_execution_lane_and_scale_are_visible_in_the_scenario_contract() -> None:
     fixture = resilience.FixtureDefinition(scale=8)
     fallback = resilience.build_scenarios(
@@ -48,6 +49,7 @@ def test_execution_lane_and_scale_are_visible_in_the_scenario_contract() -> None
     assert cancellation.expected_terminal_statuses == ("cancelled",)
 
 
+###############################################################################
 def test_training_observation_records_pid_phase_latency_and_cleanup() -> None:
     job = {
         "worker_pids": [],
@@ -80,6 +82,7 @@ def test_training_observation_records_pid_phase_latency_and_cleanup() -> None:
     assert job["worker_cleanup"]["status"] in {"clean", "orphaned", "unmeasurable"}
 
 
+###############################################################################
 def test_device_lane_assertion_fails_when_provenance_is_missing() -> None:
     scenario = resilience.build_scenarios(
         "S51",
@@ -94,8 +97,13 @@ def test_device_lane_assertion_fails_when_provenance_is_missing() -> None:
     assert batch["errors"][0]["phase"] == "device_provenance"
 
 
+###############################################################################
 def test_job_poller_rejects_an_unexpected_terminal_status() -> None:
+
+    ###############################################################################
     class FakeApi:
+
+        # -------------------------------------------------------------------------
         def job_status(self, job_id: str) -> dict[str, object]:
             assert job_id == "job-1"
             return {
