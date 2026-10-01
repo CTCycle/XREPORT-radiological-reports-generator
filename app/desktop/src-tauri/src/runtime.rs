@@ -11,6 +11,11 @@ use zip::ZipArchive;
 const OVERLAY_MAGIC: &[u8; 8] = b"XRPZIP01";
 const OVERLAY_FOOTER_LEN: u64 = 8 + 8 + 8;
 const RUNTIME_MANIFEST_FORMAT: u8 = 2;
+// Keep the extracted runtime cache key short enough for Windows' native
+// loader. The complete payload digest remains in runtime-manifest.json and is
+// checked before a cache hit is accepted, so this is only a path-length-safe
+// directory key rather than an integrity check.
+const RUNTIME_CACHE_KEY_LENGTH: usize = 16;
 const DESKTOP_ARCHITECTURE: &str = "windows-x64";
 const REQUIRED_RUNTIME_MEMBERS: [&str; 4] = [
     "backend/XREPORT-backend.exe",
@@ -364,6 +369,10 @@ fn existing_runtime(
     }
 }
 
+fn runtime_cache_key(payload_sha256: &str) -> &str {
+    &payload_sha256[..RUNTIME_CACHE_KEY_LENGTH]
+}
+
 pub fn extract_runtime(
     data_root: &Path,
     expected_version: &str,
@@ -380,7 +389,7 @@ pub fn extract_runtime(
         .join(expected_version);
     fs::create_dir_all(&runtime_parent)
         .map_err(|error| format!("create runtime directory: {error}"))?;
-    let target = runtime_parent.join(&archive_manifest.payload_sha256);
+    let target = runtime_parent.join(runtime_cache_key(&archive_manifest.payload_sha256));
     if let Some(existing) = existing_runtime(
         &target,
         expected_version,
@@ -454,7 +463,7 @@ pub fn extract_runtime(
         if !info.payload_sha256.eq_ignore_ascii_case(&payload_hash) {
             return Err("embedded runtime payload hash does not match its manifest".to_string());
         }
-        let target = runtime_parent.join(&payload_hash);
+        let target = runtime_parent.join(runtime_cache_key(&payload_hash));
         if let Some(existing) =
             existing_runtime(&target, expected_version, expected_variant, &payload_hash)?
         {
@@ -477,6 +486,7 @@ pub fn extract_runtime(
 
 #[cfg(test)]
 mod tests {
+    use super::runtime_cache_key;
     use super::safe_member;
 
     #[test]
@@ -489,5 +499,12 @@ mod tests {
         assert!(safe_member("backend/cache.pyc").is_err());
         assert!(safe_member("backend/file.exe:stream").is_err());
         assert!(safe_member("backend\\child.exe").is_err());
+    }
+
+    #[test]
+    fn runtime_cache_key_is_short_but_derived_from_the_full_digest() {
+        let digest = "65ce0a0f175053d7f5a18a9df3537d29dcf4fbb8ab844a2004c003759abda539";
+        assert_eq!(runtime_cache_key(digest), "65ce0a0f175053d7");
+        assert_ne!(runtime_cache_key(digest), digest);
     }
 }
