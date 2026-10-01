@@ -127,11 +127,11 @@ function Close-PackagedProcess {
     param([Parameter(Mandatory = $true)][System.Diagnostics.Process]$Target)
     if ($Target.HasExited) { return $true }
     try { $Target.CloseMainWindow() | Out-Null } catch { }
-    try { $Target.WaitForExit(30000) } catch { }
+    try { [void]$Target.WaitForExit(30000) } catch { }
     $Target.Refresh()
     if (-not $Target.HasExited) {
         Stop-Process -Id $Target.Id -Force -ErrorAction SilentlyContinue
-        try { $Target.WaitForExit(10000) } catch { }
+        try { [void]$Target.WaitForExit(10000) } catch { }
     }
     return $Target.HasExited
 }

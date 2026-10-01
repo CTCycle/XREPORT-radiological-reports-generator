@@ -557,33 +557,29 @@ function Install-BackendDependencies {
         if (-not (Test-Path -LiteralPath $VenvPython)) {
             throw 'The desktop Python environment was not created by dependency synchronization.'
         }
-        Write-Info 'Re-synchronizing and refreshing the locked desktop extra in the project environment'
-        Invoke-Checked -FilePath $UvExe -ArgumentList @(
-            'sync', '--frozen', '--python', $VenvPython, '--extra', 'desktop',
-            '--reinstall-package', 'pyinstaller',
-            '--reinstall-package', 'pyinstaller-hooks-contrib'
-        ) -WorkingDirectory $ServerDir
+        # Probe the locked toolchain before reinstalling it. Replacing a healthy
+        # PyInstaller installation immediately before import can expose a
+        # transient partially-installed state on Windows.
         $pyInstallerProbeScript = @'
-import importlib.util
-import sys
-import traceback
-
-print(f"python={sys.executable}")
-print(f"sys.path={sys.path}")
-for module_name in ("PyInstaller", "win32ctypes", "win32ctypes.pywin32"):
-    try:
-        print(f"{module_name}={importlib.util.find_spec(module_name)}")
-    except BaseException as exception:
-        print(f"{module_name}_spec_error={exception!r}")
-try:
-    import PyInstaller
-except BaseException:
-    traceback.print_exc()
-    raise
-print(f"PyInstaller={PyInstaller.__version__}")
+import PyInstaller
+import win32ctypes
+import win32ctypes.pywin32
+print(PyInstaller.__version__)
 '@
-        $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
-        $pyInstallerReady = $LASTEXITCODE -eq 0
+        $pyInstallerProbe = $null
+        $pyInstallerReady = $false
+        $probeErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            for ($probeAttempt = 1; $probeAttempt -le 5 -and -not $pyInstallerReady; $probeAttempt++) {
+                $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
+                $pyInstallerReady = $LASTEXITCODE -eq 0
+                if (-not $pyInstallerReady -and $probeAttempt -lt 5) { Start-Sleep -Seconds 5 }
+            }
+        }
+        finally {
+            $ErrorActionPreference = $probeErrorActionPreference
+        }
         if (-not $pyInstallerReady) {
             Write-Info 'Reconciling the pinned PyInstaller toolchain directly in the project environment'
             Invoke-Checked -FilePath $UvExe -ArgumentList @(
@@ -596,8 +592,20 @@ print(f"PyInstaller={PyInstaller.__version__}")
                 'pywin32-ctypes==0.2.3',
                 'setuptools==82.0.1'
             ) -WorkingDirectory $ServerDir
-            $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
-            $pyInstallerReady = $LASTEXITCODE -eq 0
+            $pyInstallerProbe = $null
+            $pyInstallerReady = $false
+            $probeErrorActionPreference = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'Continue'
+                for ($probeAttempt = 1; $probeAttempt -le 5 -and -not $pyInstallerReady; $probeAttempt++) {
+                    $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
+                    $pyInstallerReady = $LASTEXITCODE -eq 0
+                    if (-not $pyInstallerReady -and $probeAttempt -lt 5) { Start-Sleep -Seconds 5 }
+                }
+            }
+            finally {
+                $ErrorActionPreference = $probeErrorActionPreference
+            }
         }
         if (-not $pyInstallerReady) {
             throw "The locked desktop Python environment is missing an importable PyInstaller after dependency synchronization: $pyInstallerProbe"
