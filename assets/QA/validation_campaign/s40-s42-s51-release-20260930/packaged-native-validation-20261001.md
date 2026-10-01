@@ -19,7 +19,10 @@ The current CPU and CUDA package pairs are bound to commit
 Both variants passed the official artifact verifier, including runtime-resource
 binding, checksum, portable, and MSI checks. The current release executables
 also passed the packaged [CPU/CUDA smoke](current-release-smoke-20261001.md)
-for startup, readiness, health, frontend serving, and cleanup. The retained CUDA native receipt
+for startup, readiness, health, frontend serving, and cleanup. The current
+packaged CUDA inference and persisted-history receipt is documented in
+[current packaged CUDA inference](packaged-cuda-inference-current-20261001.md).
+The retained CUDA native receipt
 and inference note remain historical interaction/inference evidence; they are
 not relabeled as runs from the current artifact directory.
 
@@ -56,7 +59,8 @@ targeted baseline was also green).
 
 ## Remaining release boundaries
 
-- S42 still needs a genuine GPU-less Windows package lane. The supported repair workflow now resolves
+- S42 still needs a genuine GPU-less Windows package lane. The current CUDA
+  package now has a clean packaged inference/provenance receipt; the supported repair workflow now resolves
   `ISSUE-006` for the current local canonical resource; see the [canonical
   repair note](canonical-model-repair-20261001.md). The CUDA proof is RTX 3060
   technical evidence; the current dirty diagnostic MSI is not promoted to the
