@@ -13,7 +13,6 @@ import pytest
 
 validation = importlib.import_module("scripts.validate_inference_model")
 
-
 ###############################################################################
 def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     image_path = tmp_path / "case.png"
@@ -37,7 +36,6 @@ def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     )
     return manifest_path, image_path
 
-
 ###############################################################################
 def test_load_case_manifest_resolves_relative_images_and_profiles(
     tmp_path: Path,
@@ -52,7 +50,6 @@ def test_load_case_manifest_resolves_relative_images_and_profiles(
     assert cases[0].profile == "detailed"
     assert cases[0].clinical_context == "cough"
 
-
 ###############################################################################
 def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
     manifest_path, image_path = _write_case_manifest(tmp_path)
@@ -62,7 +59,6 @@ def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Duplicate case id"):
         validation.load_case_manifest(manifest_path)
-
 
 ###############################################################################
 def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
@@ -77,7 +73,6 @@ def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
             deidentification="no identifiers",
             expected_sha256=hashlib.sha256(b"expected").hexdigest(),
         )
-
 
 ###############################################################################
 def test_validation_cache_override_isolated_from_canonical_modules(
@@ -104,7 +99,6 @@ def test_validation_cache_override_isolated_from_canonical_modules(
 
     assert configured == modules_cache / "huggingface" / "modules"
     assert Path(validation.os.environ["HF_MODULES_CACHE"]) == configured
-
 
 ###############################################################################
 def test_validate_cached_cases_runs_each_case_independently(
@@ -243,7 +237,6 @@ def test_validate_cached_cases_runs_each_case_independently(
     )
     assert receipt["case_count"] == 2
     assert receipt["checks"]["technical_passed"] is True
-
 
 ###############################################################################
 def test_legacy_validation_path_remains_available(

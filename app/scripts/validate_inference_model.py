@@ -50,7 +50,6 @@ from server.repositories.serialization.inference import (  # noqa: E402
 RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
-
 ###############################################################################
 @dataclass(frozen=True)
 class ValidationCase:
@@ -180,7 +179,6 @@ def _expected_hashes(value: str | list[str], image_count: int) -> list[str]:
         raise ValueError("Provide exactly one --fixture-sha256 value per --image")
     return hashes
 
-
 ###############################################################################
 def _configure_validation_cache() -> Path | None:
     """Redirect Transformers' dynamic-module cache for isolated validation runs."""
@@ -199,7 +197,6 @@ def _configure_validation_cache() -> Path | None:
 
     huggingface_module.HF_MODULES_CACHE = str(modules_cache)
     return modules_cache
-
 
 ###############################################################################
 def load_case_manifest(path: Path) -> list[ValidationCase]:
@@ -548,7 +545,6 @@ def validate_cached_model(
     receipt = RECEIPT_DIR / f"{_slug(model_ref)}-{selected.model_revision}.json"
     receipt.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return {**payload, "receipt": str(receipt.relative_to(ROOT_DIR))}
-
 
 ###############################################################################
 def validate_cached_cases(

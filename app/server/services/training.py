@@ -58,6 +58,7 @@ DEFAULT_WORKER_PHASE_TIMEOUT_SECONDS = 300.0
 DEFAULT_WORKER_FIRST_BATCH_TIMEOUT_SECONDS = 480.0
 
 
+###############################################################################
 def _configured_watchdog_timeout(name: str, default: float) -> float:
     """Read an optional local watchdog override without changing persisted settings."""
 
@@ -75,6 +76,7 @@ def _configured_watchdog_timeout(name: str, default: float) -> float:
     return value
 
 
+###############################################################################
 class TrainingRuntime:
     """Owns only the internal worker handle for the active training job."""
 
@@ -83,6 +85,7 @@ class TrainingRuntime:
         self.worker: ProcessWorker | None = None
 
 
+###############################################################################
 @dataclass
 class _TrainingWatchdogState:
     started_at: float
@@ -93,6 +96,7 @@ class _TrainingWatchdogState:
     last_progress: float = 0.0
     last_meaningful_progress_at: float | None = None
 
+    # -------------------------------------------------------------------------
     def observe(self, message: dict[str, Any], now: float) -> None:
         message_type = message.get("type")
         if message_type == "training_worker_lifecycle":
@@ -127,6 +131,7 @@ class _TrainingWatchdogState:
             if numeric_progress > 0:
                 self.first_batch_completed = True
 
+    # -------------------------------------------------------------------------
     def stall_reason(
         self,
         now: float,
@@ -309,6 +314,7 @@ def record_worker_diagnostics(
     )
 
 
+###############################################################################
 def build_worker_exit_diagnostics(
     worker: ProcessWorker,
     exitcode: int,
@@ -322,10 +328,12 @@ def build_worker_exit_diagnostics(
     }
 
 
+###############################################################################
 def _read_worker_result_payload(worker: ProcessWorker) -> dict[str, Any] | None:
     return worker.read_result(timeout=0.5)
 
 
+###############################################################################
 def _record_reported_worker_diagnostics(
     job_id: str,
     worker: ProcessWorker,
@@ -357,6 +365,7 @@ def _record_reported_worker_diagnostics(
     record_worker_diagnostics(job_id, diagnostics)
 
 
+###############################################################################
 def _raise_missing_worker_result(
     job_id: str,
     worker: ProcessWorker,
@@ -380,6 +389,7 @@ def _raise_missing_worker_result(
     )
 
 
+###############################################################################
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
     manager = get_job_manager()
     result_payload = _read_worker_result_payload(worker)
@@ -445,6 +455,7 @@ def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+###############################################################################
 def _training_stall_diagnostics(
     worker: ProcessWorker,
     watchdog: _TrainingWatchdogState,
@@ -466,6 +477,7 @@ def _training_stall_diagnostics(
     }
 
 
+###############################################################################
 def _record_training_stall(
     job_id: str,
     worker: ProcessWorker,
@@ -492,7 +504,6 @@ def _record_training_stall(
         diagnostics["phase_elapsed_seconds"],
     )
     return diagnostics
-
 
 ###############################################################################
 def monitor_training_process(  # noqa: C901 - watchdog and cancellation states are intentionally explicit
