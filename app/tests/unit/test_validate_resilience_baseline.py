@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
 from pathlib import Path
 import sys
@@ -15,8 +16,26 @@ _SPEC.loader.exec_module(resilience)
 
 
 ###############################################################################
-def test_execution_lane_and_scale_are_visible_in_the_scenario_contract() -> None:
-    fixture = resilience.FixtureDefinition(scale=8)
+_MINIMAL_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+###############################################################################
+def _synthetic_fixture_root(tmp_path: Path) -> Path:
+    images = tmp_path / "images"
+    images.mkdir()
+    (images / "sample.png").write_bytes(_MINIMAL_PNG)
+    return tmp_path
+
+
+###############################################################################
+def test_execution_lane_and_scale_are_visible_in_the_scenario_contract(
+    tmp_path: Path,
+) -> None:
+    fixture = resilience.FixtureDefinition(
+        scale=8, root=_synthetic_fixture_root(tmp_path)
+    )
     fallback = resilience.build_scenarios(
         "S51",
         fixture,
@@ -83,10 +102,10 @@ def test_training_observation_records_pid_phase_latency_and_cleanup() -> None:
 
 
 ###############################################################################
-def test_device_lane_assertion_fails_when_provenance_is_missing() -> None:
+def test_device_lane_assertion_fails_when_provenance_is_missing(tmp_path: Path) -> None:
     scenario = resilience.build_scenarios(
         "S51",
-        resilience.FixtureDefinition(),
+        resilience.FixtureDefinition(root=_synthetic_fixture_root(tmp_path)),
         execution_lane="unavailable-gpu",
     )[0]
     batch = {"system_samples": [], "errors": []}
