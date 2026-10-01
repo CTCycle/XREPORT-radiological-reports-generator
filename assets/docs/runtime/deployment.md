@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-09-21
+Last updated: 2026-10-02
 
 ## Deployment Scope
 
@@ -63,10 +63,10 @@ metadata, portable payload, and MSI payload, then launch the actual portable
 executables through the packaged startup smoke test:
 
 ```powershell
-.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cpu -Version 3.1.0 -SourceCommit (git rev-parse HEAD)
-.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cuda -Version 3.1.0 -SourceCommit (git rev-parse HEAD)
-.\app\desktop\build\smoke_desktop.ps1 -Variant cpu -Version 3.1.0
-.\app\desktop\build\smoke_desktop.ps1 -Variant cuda -Version 3.1.0
+.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cpu -Version 3.2.0 -SourceCommit (git rev-parse HEAD)
+.\app\desktop\build\verify_desktop_artifacts.ps1 -Variant cuda -Version 3.2.0 -SourceCommit (git rev-parse HEAD)
+.\app\desktop\build\smoke_desktop.ps1 -Variant cpu -Version 3.2.0
+.\app\desktop\build\smoke_desktop.ps1 -Variant cuda -Version 3.2.0
 ```
 
 The smoke command uses a short temporary profile by default and writes its
