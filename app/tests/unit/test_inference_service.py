@@ -100,3 +100,89 @@ def test_inference_api_returns_conflict_for_a_degraded_public_model() -> None:
         f"{model_ref}"
     }
     job_manager.start_job.assert_not_called()
+
+
+###############################################################################
+def test_generation_rejects_gated_public_models_before_starting_a_job() -> None:
+    model_ref = "huggingface:google/medgemma-1.5-4b-it"
+    model = SimpleNamespace(
+        model_ref=model_ref,
+        origin="public",
+        validation_status="pending",
+        gated=True,
+        access_policy="gated",
+        status="not_installed",
+    )
+    catalog = cast(
+        InferenceModelCatalog,
+        SimpleNamespace(list_models=lambda: SimpleNamespace(models=[model])),
+    )
+    job_manager = MagicMock(spec=JobManager)
+    service = InferenceService(
+        job_manager=job_manager,
+        inference_image_store=InferenceImageStore(),
+        server_settings=cast(ServerSettings, SimpleNamespace()),
+        model_catalog=catalog,
+        installation_manager=cast(ModelInstallationManager, MagicMock()),
+        repository=MagicMock(),
+    )
+
+    with pytest.raises(
+        ConflictError,
+        match="Gated model requires authorized access and a local installation",
+    ):
+        service.generate_reports(
+            model_ref=model_ref,
+            generation_profile="deterministic",
+            clinical_context="",
+            images=[],
+        )
+
+    job_manager.start_job.assert_not_called()
+
+
+###############################################################################
+def test_generation_allows_a_ready_gated_public_model() -> None:
+    model_ref = "huggingface:google/medgemma-1.5-4b-it"
+    model = SimpleNamespace(
+        model_ref=model_ref,
+        origin="public",
+        validation_status="pending",
+        gated=True,
+        access_policy="gated",
+        provider="huggingface",
+        status="ready",
+        capabilities=SimpleNamespace(clinical_context=False),
+        max_current_images=1,
+        model_revision="91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
+        model_dump=lambda *args, **kwargs: {"model_ref": model_ref},
+    )
+    catalog = cast(
+        InferenceModelCatalog,
+        SimpleNamespace(list_models=lambda: SimpleNamespace(models=[model])),
+    )
+    job_manager = MagicMock(spec=JobManager)
+    job_manager.start_job.return_value = "job-1"
+    job_manager.get_job_status.return_value = {
+        "job_type": "inference",
+        "status": "pending",
+    }
+    service = InferenceService(
+        job_manager=job_manager,
+        inference_image_store=InferenceImageStore(),
+        server_settings=cast(
+            ServerSettings, SimpleNamespace(jobs=SimpleNamespace(polling_interval=1.0))
+        ),
+        model_catalog=catalog,
+        installation_manager=cast(ModelInstallationManager, MagicMock()),
+        repository=MagicMock(),
+    )
+
+    service.generate_reports(
+        model_ref=model_ref,
+        generation_profile="deterministic",
+        clinical_context="",
+        images=[],
+    )
+
+    job_manager.start_job.assert_called_once()

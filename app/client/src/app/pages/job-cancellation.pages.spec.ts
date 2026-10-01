@@ -217,6 +217,27 @@ describe('inference model readiness refresh', () => {
     expect(fixture.componentInstance.modelNotice()).toContain('failed qualification');
   });
 
+  it('does not offer generation for a gated public model that is not ready', async () => {
+    const modelRef = 'huggingface:google/medgemma-1.5-4b-it';
+    const model = inferenceModel(modelRef, 'not_installed');
+    model.gated = true;
+    model.access_policy = 'gated';
+    await TestBed.configureTestingModule({
+      imports: [InferencePage],
+      providers: [
+        { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [model] }) } },
+        { provide: JobsApiService, useValue: { get: vi.fn() } },
+        { provide: GuidanceService, useValue: hiddenGuidance() },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(InferencePage);
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.canGenerate()).toBe(false);
+    expect(fixture.componentInstance.modelNotice()).toContain('Access is required');
+  });
+
   it('refreshes the selected model after generation reaches a terminal state', async () => {
     const modelRef = 'huggingface:aehrc/cxrmate-multi-tf';
     const getModels = vi.fn()
