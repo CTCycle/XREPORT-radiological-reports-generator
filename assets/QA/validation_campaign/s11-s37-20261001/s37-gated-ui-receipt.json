@@ -1,0 +1,10 @@
+{
+  "access_page_link_present": true,
+  "console_errors": [],
+  "generate_button_disabled": true,
+  "generate_button_text": "Access required",
+  "model_selected": true,
+  "notice_text": "Access is required before this model can be downloaded. Local files are checked before readiness is promoted by real image-to-report validation.",
+  "observed_at_utc": "2026-10-01T12:23:01.079091+00:00",
+  "status_label": "NOT INSTALLED"
+}
