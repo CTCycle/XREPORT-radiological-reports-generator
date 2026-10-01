@@ -28,6 +28,7 @@ from server.domain.inference import (
     InferenceHistoryStatus,
     InferenceHistoryUpdateRequest,
     InferenceModelsResponse,
+    ModelAvailability,
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import (
@@ -740,6 +741,34 @@ class InferenceService:
         )
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _raise_if_public_model_unavailable(
+        selected_model: ModelAvailability,
+        model_ref: str,
+    ) -> None:
+        if (
+            selected_model.origin == "public"
+            and selected_model.validation_status == "degraded"
+        ):
+            raise ConflictError(
+                detail=(
+                    "Model failed qualification and cannot be used for inference: "
+                    f"{model_ref}"
+                ),
+            )
+        if (
+            selected_model.origin == "public"
+            and selected_model.gated
+            and selected_model.status != "ready"
+        ):
+            raise ConflictError(
+                detail=(
+                    "Gated model requires authorized access and a local "
+                    f"installation before inference: {model_ref}"
+                ),
+            )
+
+    # -------------------------------------------------------------------------
     def generate_reports(
         self,
         model_ref: str,
@@ -756,16 +785,7 @@ class InferenceService:
             raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
-        if (
-            selected_model.origin == "public"
-            and selected_model.validation_status == "degraded"
-        ):
-            raise ConflictError(
-                detail=(
-                    "Model failed qualification and cannot be used for inference: "
-                    f"{model_ref}"
-                ),
-            )
+        self._raise_if_public_model_unavailable(selected_model, model_ref)
         if selected_model.status not in {
             "ready",
             "not_installed",
