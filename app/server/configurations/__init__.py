@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from .environment import load_environment
-from .management import ConfigurationManager
 from .startup import (
-    get_configuration_manager,
+    get_database_settings,
     get_server_settings,
     reload_settings_for_tests,
 )
 from .settings import (
+    ApplicationSettingsValues,
+    DEFAULT_APPLICATION_SETTINGS,
     DatabaseSettings,
     FeatureSettings,
     GlobalSettings,
@@ -18,8 +19,9 @@ from .settings import (
 
 __all__ = [
     "load_environment",
-    "ConfigurationManager",
-    "get_configuration_manager",
+    "get_database_settings",
+    "ApplicationSettingsValues",
+    "DEFAULT_APPLICATION_SETTINGS",
     "GlobalSettings",
     "DatabaseSettings",
     "FeatureSettings",

@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-08-31
+Last updated: 2026-10-01
 
 ## 1. What XREPORT is
 
@@ -27,11 +27,11 @@ draft before it is used for any research or clinical decision.
   dataset
 - train or resume a local model while monitoring progress and metrics
 - evaluate datasets and saved model checkpoints
-- choose from five curated public report-generation models or use a locally
+- choose from four curated public report-generation models or use a locally
   trained Custom XReport model
 - generate an editable draft from a de-identified X-ray study
-- review and edit the generated Findings and Impression, inspect the model
-  information returned with the draft, and copy or export the text for
+- review and edit the generated model-declared report sections, inspect the
+  model information returned with the draft, and copy or export the text for
   qualified review
 - keep model readiness, validation state, provenance, and research-use
   warnings visible throughout the workflow
@@ -49,10 +49,10 @@ XREPORT follows a simple path from source data to a reviewable draft:
 3. **Generate a draft.** A selected model examines one or more study images and
    produces report text. The selected model determines its supported anatomy,
    image limit, optional clinical context, and resource requirements.
-4. **Review the result.** The draft remains editable. Findings describe the
-   observations in the images, while Impression provides a shorter summary of
-   the main conclusion. Both sections must be checked against the source
-   images by a qualified reviewer.
+4. **Review the result.** The draft remains editable and uses the output
+   sections declared by the selected model. Review Findings, Impression, both,
+   or raw report text as applicable against the source images by a qualified
+   reviewer.
 
 ### The underlying principle
 
@@ -72,7 +72,7 @@ that, the verified local copy can be reused without downloading it again.
 
 ### Public models
 
-The application presents five curated public model choices. Each model card
+The application presents four curated public model choices. Each model card
 shows the information needed to make an informed choice, including:
 
 - the anatomy and type of studies the model is intended for
@@ -81,10 +81,10 @@ shows the information needed to make an informed choice, including:
 - licence and access requirements
 - the report sections and input options it supports
 
-The first four public choices are specialized for chest X-rays. The fifth is a
-broader medical-imaging option and should not be treated as universally
-validated for every anatomy. Some models are gated by their provider and may
-require accepting terms before they can be downloaded.
+The first three public choices are specialized for chest X-rays. The fourth is
+a broader medical-imaging option and should not be treated as universally
+validated for every anatomy. It is gated by its provider and requires accepting
+terms before it can be downloaded.
 
 Public models are downloaded only when needed, verified locally, and reused on
 later launches. Keep an internet connection available for first use and make
@@ -116,14 +116,20 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
 ~~~
 
 Choose **Launch application**. The launcher prepares the local runtimes and
-dependencies as needed, initializes the application data store, starts the
-services, checks that they are ready, and opens the application in your
-browser.
+dependencies as needed, initializes the application data store, starts FastAPI
+and a lightweight server for the existing production Angular bundle, and opens
+the browser as soon as the frontend is reachable.
+XREPORT then shows its initialization surface while the local FastAPI service
+finishes preparing the database and runtime resources. The normal workspace is
+revealed only after `/api/health` reports that the backend is ready.
 
 The first launch may take several minutes while dependencies and the frontend
-are prepared. Allow the process to finish and keep an internet connection
-available. Later launches are normally faster because the prepared resources
-are reused.
+bundle are prepared. Allow the process to finish and keep an internet
+connection available. Later launches reuse the deterministic build-state
+manifest and skip Angular compilation while the frontend inputs remain current.
+If either configured port is occupied, Launch shows the owning processes before
+asking once for permission to terminate them; a decline or non-interactive
+launch leaves those processes untouched.
 
 For a direct launch without the menu, use:
 
@@ -163,6 +169,14 @@ and uv.
 Install the project dependencies once from the repository root:
 
 ~~~bash
+export XREPORT_CACHE_ROOT="$PWD/runtimes/cache"
+export XDG_CACHE_HOME="$XREPORT_CACHE_ROOT"
+export UV_CACHE_DIR="$XREPORT_CACHE_ROOT/uv"
+export PIP_CACHE_DIR="$XREPORT_CACHE_ROOT/pip"
+export NPM_CONFIG_CACHE="$XREPORT_CACHE_ROOT/npm"
+export PLAYWRIGHT_BROWSERS_PATH="$XREPORT_CACHE_ROOT/playwright-browsers"
+export PYTHONPYCACHEPREFIX="$XREPORT_CACHE_ROOT/python"
+export MPLCONFIGDIR="$XREPORT_CACHE_ROOT/matplotlib"
 cd app/server
 uv sync --frozen
 cd ../client
@@ -185,8 +199,12 @@ cd app/client
 npm run preview -- --host 127.0.0.1 --port 8003
 ~~~
 
-Open the local address shown by the frontend preview, normally
+Open the local address shown by the built-bundle frontend server, normally
 http://127.0.0.1:8003.
+
+All disposable source-mode application, ML, frontend, and test caches resolve
+under `runtimes/cache`. Persistent models, checkpoints, databases, logs, and
+tokenizers remain under the configured application data root.
 
 ## 5. Using the application
 
@@ -279,7 +297,7 @@ input state visible while a draft is being produced.
 
 ![Inference image workflow](assets/figures/readme-inference-workflow.png)
 
-The review panel presents editable Findings and Impression text together with
+The review panel presents editable model-declared report sections together with
 the information needed to identify how the draft was produced.
 
 ![Inference draft review](assets/figures/readme-inference-report.png)
@@ -309,7 +327,7 @@ steps, and guidance for resuming from an existing checkpoint.
   progress in the application and may be cancelled. Do not close the
   application while an operation is still writing important results unless you
   are willing to repeat it.
-- The current release is v3.1.0 and is intended for stable local
+- The current release is v3.2.0 and is intended for stable local
   evaluation and testing while the project continues to evolve.
 
 ## 8. Troubleshooting
@@ -318,8 +336,9 @@ steps, and guidance for resuming from an existing checkpoint.
 
 - On Windows, run the launcher again and choose **Launch application**. Give
   the first launch time to prepare dependencies and start the local services.
-- If another XREPORT window is already open, close it before starting a second
-  one.
+- If another process owns a configured port, read the launcher diagnostics and
+  approve termination only when the listed process is safe to stop. A `No`
+  response or non-interactive launch cancels/fails without killing it.
 - On macOS or Linux, confirm that both the service terminal and the frontend
   preview terminal are still running.
 - If the problem continues, restart the computer and try the launcher once
@@ -365,7 +384,7 @@ installation may require administrator approval.
 
 Treat the output as an unverified draft. Check the selected model's anatomy and
 input limit, confirm that the images are clear and belong to one study, and
-review the Findings and Impression against the images. Do not try to correct a
+review the declared report sections against the images. Do not try to correct a
 clinical problem by relying on the generated text alone.
 
 ### Previous datasets or models are missing
@@ -393,7 +412,7 @@ the supported local inference workflow.
 ## 10. Local data and further documentation
 
 In the source-based web workflow, application data is kept in the project's
-local resource area by default. Packaged Windows builds keep mutable data in
+local data directory by default. Packaged Windows builds keep mutable data in
 the Windows user profile rather than beside the installed program. This data
 includes the local database, logs, checkpoints, downloaded models, tokenizers,
 and report templates.

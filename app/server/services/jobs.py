@@ -20,6 +20,7 @@ class JobState:
     job_id: str
     job_type: str
     status: str
+    poll_interval: float = 1.0
     progress: float = 0.0
     result: dict[str, Any] | None = None
     error: str | None = None
@@ -42,6 +43,7 @@ class JobState:
                 "job_id": self.job_id,
                 "job_type": self.job_type,
                 "status": self.status,
+                "poll_interval": self.poll_interval,
                 "progress": self.progress,
                 "result": self.result,
                 "error": self.error,
@@ -67,6 +69,10 @@ class JobExecutionError(RuntimeError):
         self.phase = phase
         self.recoverable = recoverable
 
+###############################################################################
+class JobAlreadyRunningError(RuntimeError):
+    """Raised when an exclusive job type already has an active job."""
+
 
 ###############################################################################
 FailureMapper = Callable[[Exception], JobExecutionError]
@@ -88,17 +94,23 @@ class JobManager:
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         failure_mapper: FailureMapper | None = None,
+        poll_interval: float = 1.0,
+        require_idle: bool = False,
+        initial_result: dict[str, Any] | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())[:8]
-        state = JobState(job_id=job_id, job_type=job_type, status="pending")
+        state = JobState(
+            job_id=job_id,
+            job_type=job_type,
+            status="pending",
+            poll_interval=float(poll_interval),
+            result=dict(initial_result) if initial_result is not None else None,
+        )
         runner_kwargs = kwargs.copy() if kwargs else {}
 
         # Inject job_id if the runner accepts it
         if self._runner_accepts_job_id(runner):
             runner_kwargs["job_id"] = job_id
-
-        with self.lock:
-            self.jobs[job_id] = state
 
         thread = threading.Thread(
             target=self._run_job,
@@ -107,10 +119,15 @@ class JobManager:
         )
 
         with self.lock:
+            if require_idle and any(
+                active.job_type == job_type and active.status in ("pending", "running")
+                for active in self.jobs.values()
+            ):
+                raise JobAlreadyRunningError(f"A {job_type} job is already in progress")
             self.threads[job_id] = thread
-
-        state.update(status="running")
-        thread.start()
+            self.jobs[job_id] = state
+            state.update(status="running")
+            thread.start()
 
         logger.info("Started job %s (type=%s)", job_id, job_type)
         return job_id
@@ -276,7 +293,7 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:

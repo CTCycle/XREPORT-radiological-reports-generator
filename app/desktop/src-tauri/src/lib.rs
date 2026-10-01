@@ -105,14 +105,18 @@ fn navigate_to_backend(window: &WebviewWindow, handle: &BackendHandle) -> Result
     if !navigation::is_allowed_navigation(&url, Some(handle.port)) {
         return Err("refusing to navigate to an untrusted backend URL".to_string());
     }
-    window.navigate(url).map_err(|error| error.to_string())
+    let script = format!(
+        "window.location.replace({});",
+        serde_json::to_string(url.as_str()).map_err(|error| error.to_string())?
+    );
+    window.eval(script).map_err(|error| error.to_string())
 }
 
 fn start_packaged_backend(window: WebviewWindow, state: DesktopState) {
     let backend_store = state.backend.clone();
     let data_root = state.data_root.clone();
     thread::spawn(move || {
-        let _ = window.eval("document.getElementById('status').textContent = 'Extracting the verified local runtime…';");
+        let _ = window.eval("document.getElementById('status').textContent = 'Preparing the verified local runtime...';");
         match backend::start_backend(&data_root, RELEASE_VERSION, RUNTIME_VARIANT) {
             Ok(handle) => {
                 let handle = Arc::new(handle);

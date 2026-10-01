@@ -1,0 +1,22 @@
+{
+  "fixture": "S27 generated non-clinical synthetic dataset",
+  "rows": 8,
+  "image_dimensions": [
+    64,
+    64
+  ],
+  "table": {
+    "name": "s27_technical_fixture.csv",
+    "sha256": "51c2e7a24c83282a166e80e298376e51c001e5c8077baf750d7cf088002ef946"
+  },
+  "images": {
+    "image_01.png": "46c33d3921306e68b9c6a38a3db8772ae753dab104f7b557bc86d537837fffe8",
+    "image_02.png": "b3326304b049481ee9e75652016b2f6152a6c77b0b25e518bf1efce59caaa114",
+    "image_03.png": "683e7f9bd2903a8a42e4e6c439867e0497aeceee3e65263819937acd1f60ac19",
+    "image_04.png": "3faaa52ac0a0d82da98303fb5f748c1512c50ec59fc5620edde01f838fbcd331",
+    "image_05.png": "ae997e36dfaf42d89e4430096fa6cb185be816d59ee4f83806ccd424a08abccd",
+    "image_06.png": "2bfe3e3ae108502093d8e3617d171ea08fee9b538fdba02a62707e78da50b494",
+    "image_07.png": "7bbdac61af40722b718b7fcc8acc2c7eccc3e882106b02c5ee6b74fae4961a8c",
+    "image_08.png": "6db4048e67f5a15ce04ec80a96d621afeaa07106de750610bd992c11e6da9833"
+  }
+}

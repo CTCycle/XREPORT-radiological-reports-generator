@@ -9,6 +9,14 @@ on:
         description: Release version (for example 3.1.0)
         required: true
         type: string
+      source_commit:
+        description: Immutable source commit used by the retained package run
+        required: false
+        type: string
+      package_run_id:
+        description: Earlier workflow run ID whose verified package artifacts should be approved and published
+        required: false
+        type: string
 
 jobs:
   package:
@@ -24,24 +32,53 @@ jobs:
             artifact: cuda
     env:
       RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+      SOURCE_COMMIT: ${{ inputs.source_commit || github.sha }}
+    permissions:
+      actions: read
+      contents: read
 
     steps:
-      - name: Checkout tagged source
+      - name: Checkout immutable build source
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ inputs.source_commit || github.sha }}
+          fetch-depth: 1
+
+      - name: Validate workflow phase inputs
+        shell: pwsh
+        run: |
+          if ($env:SOURCE_COMMIT -notmatch '^[0-9a-f]{40}$') { throw "source_commit must be a 40-character commit SHA: $env:SOURCE_COMMIT" }
+          if ($env:RELEASE_VERSION -notmatch '^v?\d+\.\d+\.\d+$') { throw "Invalid release version: $env:RELEASE_VERSION" }
+          $hasPackageRun = -not [string]::IsNullOrWhiteSpace('${{ inputs.package_run_id }}')
+          $hasSourceCommit = -not [string]::IsNullOrWhiteSpace('${{ inputs.source_commit }}')
+          if ($hasPackageRun -and -not $hasSourceCommit) {
+            throw 'source_commit is required when package_run_id reuses a completed package run.'
+          }
+          if (-not $hasPackageRun -and $hasSourceCommit) {
+            throw 'source_commit may only be supplied when package_run_id reuses a completed package run.'
+          }
+
+      - name: Download retained package outputs for approval phase
+        if: ${{ inputs.package_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.package_run_id }}
+          github-token: ${{ github.token }}
+          name: XREPORT-${{ matrix.artifact }}-windows-x64
+          path: release
 
       - name: Assert generated desktop inputs are absent
+        if: ${{ inputs.package_run_id == '' }}
         shell: pwsh
         run: |
           if (Test-Path -LiteralPath 'app/desktop/src-tauri/ui') { throw 'Generated desktop UI exists in the clean checkout.' }
           if (Test-Path -LiteralPath 'app/desktop/src-tauri/generated/runtime.zip') { throw 'Generated runtime archive exists in the clean checkout.' }
 
-      - name: Resolve and validate version
+      - name: Build desktop package for preparation phase
+        if: ${{ inputs.package_run_id == '' }}
         shell: pwsh
         run: |
           $version = "$env:RELEASE_VERSION" -replace '^v', ''
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid release version: $version" }
           $metadata = & .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime ${{ matrix.variant }} -DesktopTarget All -Version $version -Force 2>&1
           if ($LASTEXITCODE -ne 0) { throw "Desktop packaging failed: $LASTEXITCODE`n$($metadata -join "`n")" }
 
@@ -56,6 +93,10 @@ jobs:
           $hashLines = Get-Content -LiteralPath "$prefix.sha256"
           $invalid = @($hashLines | Where-Object { $_ -notmatch '^[0-9a-f]{64}  XREPORT-' })
           if ($hashLines.Count -ne 2 -or $invalid.Count -gt 0) { throw 'Checksum manifest is not standard sha256sum format.' }
+          $metadata = Get-Content -LiteralPath "$prefix-build.json" -Raw | ConvertFrom-Json
+          if ([string]$metadata.source_commit -ne $env:SOURCE_COMMIT) { throw "Package source commit mismatch: $($metadata.source_commit) != $env:SOURCE_COMMIT" }
+          if ([string]$metadata.version -ne $version) { throw "Package version mismatch: $($metadata.version) != $version" }
+          if ([string]$metadata.variant -ne '${{ matrix.artifact }}') { throw "Package variant mismatch: $($metadata.variant)" }
           Get-ChildItem release | Select-Object Name,Length | Format-Table
 
       - name: Verify packaged runtime and MSI resource
@@ -78,15 +119,24 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Publish preparation handoff
+        if: ${{ inputs.package_run_id == '' }}
+        shell: pwsh
+        run: |
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "Preparation complete for source commit ``$env:SOURCE_COMMIT``. Retain this workflow run ID and use it as ``package_run_id`` in the approval phase after committing the approved manifest."
+
   publish:
     name: Publish GitHub Release
     needs: package
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.package_run_id != ''
     runs-on: ubuntu-latest
+    environment:
+      name: release-approval
     permissions:
       contents: write
     env:
       RELEASE_VERSION_INPUT: ${{ inputs.version || github.ref_name }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
 
     steps:
       - name: Resolve release version
@@ -99,6 +149,16 @@ jobs:
           fi
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=v$version" >> "$GITHUB_ENV"
+          if [[ ! "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The approval phase requires source_commit to identify the immutable package build." >&2
+            exit 1
+          fi
+
+      - name: Check out exact source for release approval
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
 
       - name: Download verified package outputs
         uses: actions/download-artifact@v4
@@ -137,6 +197,16 @@ jobs:
             exit 1
           fi
 
+      - name: Verify approved final validation manifest
+        shell: bash
+        run: |
+          python app/desktop/build/verify_release_validation_manifest.py \
+            --manifest assets/QA/validation_campaign/release-validation/approved-release-manifest.json \
+            --release-root release-assets \
+            --repository-root "$GITHUB_WORKSPACE" \
+            --source-commit "$SOURCE_COMMIT" \
+            --version "$RELEASE_VERSION"
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -153,5 +223,5 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "XREPORT $RELEASE_TAG" \
               --generate-notes \
-              --target "$GITHUB_SHA"
+              --target "$SOURCE_COMMIT"
           fi

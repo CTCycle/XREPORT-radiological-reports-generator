@@ -55,7 +55,8 @@ class FakeProcessWorker:
         self.join_called = True
 
     # -------------------------------------------------------------------------
-    def read_result(self):
+    def read_result(self, timeout: float = 0.5):
+        del timeout
         return None
 
 ###############################################################################

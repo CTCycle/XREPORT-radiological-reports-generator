@@ -7,7 +7,7 @@ from typing import Any
 
 REVISION_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SUPPORTED_ADAPTERS = frozenset(
-    {"medgemma", "chexone", "cxrmate_multi", "cxrmate_ed", "cxrmate2"}
+    {"medgemma", "chexone", "cxrmate_multi", "cxrmate2"}
 )
 SUPPORTED_MODEL_LOADERS = frozenset({"auto_model", "image_text_to_text", "causal_lm"})
 SUPPORTED_DTYPES = frozenset({"auto", "float32", "float16", "bfloat16"})

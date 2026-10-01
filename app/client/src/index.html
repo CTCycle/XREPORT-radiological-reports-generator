@@ -7,11 +7,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta id="theme-color-meta" name="theme-color" content="#e9eef6">
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="startup.css">
   <script src="theme-bootstrap.js"></script>
 </head>
 <body>
-  <section id="desktop-startup" hidden aria-live="polite">
-    <p id="status">Starting XREPORT…</p>
+  <section id="desktop-startup" class="startup-screen" hidden aria-live="polite" aria-labelledby="desktop-startup-title">
+    <div class="startup-shell">
+      <header class="startup-brand">
+        <img class="startup-logo" src="favicon.png" alt="" aria-hidden="true" />
+        <p class="startup-kicker" id="desktop-startup-title">XREPORT</p>
+      </header>
+      <p id="status" class="startup-status-line" role="status" aria-live="polite">Preparing local services</p>
+      <div class="startup-progress" role="progressbar" aria-label="Initializing XREPORT" aria-valuemin="0" aria-valuemax="100">
+        <div class="startup-progress-fill"></div>
+      </div>
+    </div>
   </section>
   <app-root></app-root>
   <script src="desktop-shell.js"></script>

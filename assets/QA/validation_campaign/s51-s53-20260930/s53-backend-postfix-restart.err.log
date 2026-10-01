@@ -1,0 +1,183 @@
+INFO:     Started server process [10252]
+INFO:     Waiting for application startup.
+INFO - Context impl SQLiteImpl.
+INFO - Will assume non-transactional DDL.
+INFO - Database migration check (backend=sqlite, database=C:\Users\Thomas V\AppData\Local\Temp\xreport-s53-scale8-resources-20260930\database.db, current=e91a4f6c2d73, head=e91a4f6c2d73)
+INFO - Context impl SQLiteImpl.
+INFO - Will assume non-transactional DDL.
+INFO - Database is already at Alembic head e91a4f6c2d73
+INFO - SQLite database is synchronized at C:\Users\Thomas V\AppData\Local\Temp\xreport-s53-scale8-resources-20260930\database.db
+INFO - Startup phase=database_validated elapsed_ms=108
+INFO - Startup phase=resources_validated elapsed_ms=112 database_backend=sqlite
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:5003 (Press CTRL+C to quit)
+INFO - Started job 77c53bb8 (type=training)
+INFO - Training worker lifecycle: job_id=77c53bb8 phase=child_started status=started pid=24408 diagnostic=None
+INFO - Training worker lifecycle: job_id=77c53bb8 phase=target_started status=started pid=24408 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Training session is over. Model s53_cuda_baseline_1 has been saved
+INFO - Training worker lifecycle: job_id=77c53bb8 phase=worker_completed status=completed pid=24408 diagnostic=None
+INFO - Job 77c53bb8 completed successfully
+INFO - Started job 60ed55f7 (type=training)
+INFO - Training worker lifecycle: job_id=60ed55f7 phase=child_started status=started pid=18644 diagnostic=None
+INFO - Training worker lifecycle: job_id=60ed55f7 phase=target_started status=started pid=18644 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Training session is over. Model s53_cuda_baseline_2 has been saved
+INFO - Training worker lifecycle: job_id=60ed55f7 phase=worker_completed status=completed pid=18644 diagnostic=None
+INFO - Job 60ed55f7 completed successfully
+INFO - Started job 97a84b76 (type=training)
+INFO - Training worker lifecycle: job_id=97a84b76 phase=child_started status=started pid=16072 diagnostic=None
+INFO - Training worker lifecycle: job_id=97a84b76 phase=target_started status=started pid=16072 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Training session is over. Model s53_cuda_baseline_3 has been saved
+INFO - Training worker lifecycle: job_id=97a84b76 phase=worker_completed status=completed pid=16072 diagnostic=None
+INFO - Job 97a84b76 completed successfully
+INFO - Started job c85702cc (type=training)
+INFO - Training worker lifecycle: job_id=c85702cc phase=child_started status=started pid=24680 diagnostic=None
+INFO - Training worker lifecycle: job_id=c85702cc phase=target_started status=started pid=24680 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - CPU is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - CPU is set as the active device.
+INFO - Training session is over. Model s53_cpu_baseline_1 has been saved
+INFO - Training worker lifecycle: job_id=c85702cc phase=worker_completed status=completed pid=24680 diagnostic=None
+INFO - Job c85702cc completed successfully
+INFO - Started job 07e02e4e (type=training)
+INFO - Training worker lifecycle: job_id=07e02e4e phase=child_started status=started pid=26860 diagnostic=None
+INFO - Training worker lifecycle: job_id=07e02e4e phase=target_started status=started pid=26860 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - CPU is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - CPU is set as the active device.
+INFO - Training session is over. Model s53_cpu_baseline_2 has been saved
+INFO - Training worker lifecycle: job_id=07e02e4e phase=worker_completed status=completed pid=26860 diagnostic=None
+INFO - Job 07e02e4e completed successfully
+INFO - Started job d7dc4f80 (type=training)
+INFO - Training worker lifecycle: job_id=d7dc4f80 phase=child_started status=started pid=24584 diagnostic=None
+INFO - Training worker lifecycle: job_id=d7dc4f80 phase=target_started status=started pid=24584 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - CPU is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 1 epochs
+INFO - CPU is set as the active device.
+INFO - Training session is over. Model s53_cpu_baseline_3 has been saved
+INFO - Training worker lifecycle: job_id=d7dc4f80 phase=worker_completed status=completed pid=24584 diagnostic=None
+INFO - Job d7dc4f80 completed successfully
+INFO - Started job 84129839 (type=training)
+INFO - Training worker lifecycle: job_id=84129839 phase=child_started status=started pid=21372 diagnostic=None
+INFO - Training worker lifecycle: job_id=84129839 phase=target_started status=started pid=21372 diagnostic=None
+INFO - Validated image paths: 48 valid records
+INFO - Validated image paths: 16 valid records
+INFO - Setting device for training operations
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Building model data loaders
+INFO - Building XREPORT Transformer model
+INFO - Building XREPORT Transformer model
+INFO -   Vocabulary size: 30522
+INFO -   Sequence length: 200
+INFO -   Embedding dims: 64
+INFO -   Attention heads: 1
+INFO -   Encoders: 1
+INFO -   Decoders: 1
+INFO - Model built successfully
+INFO - Starting XREPORT Transformer model training
+INFO - Starting training for 3 epochs
+INFO - GPU (cuda:0) is set as the active device.
+INFO - Training session is over. Model s53_cuda_long_training has been saved
+INFO - Training worker lifecycle: job_id=84129839 phase=worker_completed status=completed pid=21372 diagnostic=None
+INFO - Job 84129839 completed successfully
+INFO - Started job 7f8d6953 (type=inference)
+INFO - Generated report: synthetic technical fixture report 4 describes an artificial image pattern for validation statistics...
+INFO - Job 7f8d6953 completed successfully
+INFO - Started job db7be5bf (type=inference)
+INFO - Generated report: synthetic technical fixture report 4 describes an artificial image pattern for validation statistics...
+INFO - Job db7be5bf completed successfully
+INFO - Started job 9fced67c (type=inference)
+INFO - Generated report: synthetic technical fixture report 4 describes an artificial image pattern for validation statistics...
+INFO - Job 9fced67c completed successfully

@@ -1,0 +1,281 @@
+{
+  "action": "download",
+  "elapsed_seconds": 60.36,
+  "final": {
+    "_elapsed_seconds": 60.4,
+    "error": null,
+    "job_id": "21947e60",
+    "job_type": "model_maintenance",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "candidate_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "candidate_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "lifecycle": {
+        "action": "download",
+        "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "message": "Candidate model is verified and ready for validation through Generate",
+        "phase": "verified",
+        "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+      }
+    },
+    "status": "completed"
+  },
+  "job_id": "21947e60",
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "observations": [
+    {
+      "_elapsed_seconds": 9.2,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 0.0,
+      "result": {
+        "lifecycle": {
+          "message": "Preparing aehrc/cxrmate-multi-tf revision 330721b9aa5b",
+          "phase": "checking",
+          "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 14.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 8.185279788294034,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 22098638,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 19.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 15.288901882408595,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 71381710,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 24.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 22.09024218528424,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 118567630,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 29.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 29.042723383779343,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 166802126,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 34.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 35.84406368665499,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 213988046,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 39.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 43.40110846762793,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 266416846,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 44.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 50.958153248600865,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 318845646,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 49.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 57.608352655857054,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 364982990,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 54.3,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 64.86311564559108,
+      "result": {
+        "lifecycle": {
+          "current_file": "model.safetensors",
+          "downloaded_bytes": 415314638,
+          "file_index": 3,
+          "files_completed": 2,
+          "message": "Downloading model.safetensors",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 59.4,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 69.99964339964318,
+      "result": {
+        "lifecycle": {
+          "current_file": "tokenizer_config.json",
+          "downloaded_bytes": 450950524,
+          "files_completed": 7,
+          "message": "Downloading tokenizer_config.json",
+          "phase": "downloading",
+          "total_bytes": 450952998,
+          "total_files": 8
+        }
+      },
+      "status": "running"
+    },
+    {
+      "_elapsed_seconds": 60.4,
+      "error": null,
+      "job_id": "21947e60",
+      "job_type": "model_maintenance",
+      "poll_interval": 1.0,
+      "progress": 100.0,
+      "result": {
+        "candidate_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "candidate_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+        "lifecycle": {
+          "action": "download",
+          "local_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+          "message": "Candidate model is verified and ready for validation through Generate",
+          "phase": "verified",
+          "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+        }
+      },
+      "status": "completed"
+    }
+  ],
+  "observed_at_utc": "2026-09-24T15:01:06.020054+00:00",
+  "start": {
+    "job_id": "21947e60",
+    "job_type": "model_maintenance",
+    "message": "Model download started for huggingface:aehrc/cxrmate-multi-tf",
+    "poll_interval": 1.0,
+    "status": "running"
+  }
+}

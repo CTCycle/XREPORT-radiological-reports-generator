@@ -24,7 +24,6 @@ _CHECKPOINT_FILES = (
     "configuration/session_history.json",
 )
 
-
 ###############################################################################
 def _complete_checkpoint_paths() -> list[Path]:
     if not CHECKPOINTS_DIR.is_dir():
@@ -40,11 +39,9 @@ def _complete_checkpoint_paths() -> list[Path]:
         )
     ]
 
-
 ###############################################################################
 def _normalized_path(path: str | Path) -> str:
     return str(Path(path).expanduser().resolve()).casefold()
-
 
 ###############################################################################
 def _register_complete_checkpoints() -> None:
@@ -119,7 +116,6 @@ def _register_complete_checkpoints() -> None:
         )
         op.bulk_insert(checkpoints, rows)
 
-
 ###############################################################################
 def _drop_request_id_constraint(table_name: str) -> None:
     connection = op.get_bind()
@@ -129,7 +125,6 @@ def _drop_request_id_constraint(table_name: str) -> None:
             table_name,
             type_="unique",
         )
-
 
 ###############################################################################
 def upgrade() -> None:
@@ -145,7 +140,6 @@ def upgrade() -> None:
         batch_op.drop_constraint("ck_checkpoint_evaluations_status", type_="check")
         batch_op.drop_column("request_id")
         batch_op.drop_column("status")
-
 
 ###############################################################################
 def downgrade() -> None:

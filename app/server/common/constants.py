@@ -66,6 +66,7 @@ INFERENCE_IMAGE_CONTENT_TYPES = {
     "image/webp",
     "image/tiff",
 }
+MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
 
 # [DATABASE TABLES]

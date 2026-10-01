@@ -1,3 +1,4 @@
-from server.models.inference.generator import TextGenerator
+"""Inference model modules.
 
-__all__ = ["TextGenerator"]
+Inference runtimes are loaded by the execution path that needs them.
+"""

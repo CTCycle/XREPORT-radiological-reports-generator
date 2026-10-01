@@ -1,0 +1,137 @@
+{
+  "fixture": {
+    "s23-s26.csv": {
+      "sha256": "1667d0f07be8865b4d3527f04a04fef3d7ccba44ce8c198d0e7314c3c7275649",
+      "bytes": 308
+    },
+    "Image-01.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-02.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-03.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-04.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-05.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-06.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-07.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    },
+    "Image-08.PNG": {
+      "sha256": "d3c936ebdd73f46e6422d5946044c99d524554082272019ab738800318b04892",
+      "bytes": 69
+    }
+  },
+  "requests": {
+    "/api/preparation/dataset/names": {
+      "status": 200,
+      "body": {
+        "datasets": [
+          {
+            "name": "s23-s26",
+            "folder_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s23-s26-resources\\synthetic-fixtures\\s23-s26\\images",
+            "row_count": 8,
+            "has_validation_report": false
+          }
+        ],
+        "count": 1
+      }
+    },
+    "/api/preparation/dataset/processed/names": {
+      "status": 200,
+      "body": {
+        "datasets": [
+          {
+            "name": "s23-s26-processed",
+            "folder_path": "processed",
+            "row_count": 8,
+            "has_validation_report": false
+          }
+        ],
+        "count": 1
+      }
+    },
+    "/api/preparation/dataset/metadata/s23-s26-processed": {
+      "status": 200,
+      "body": {
+        "dataset_name": "s23-s26-processed",
+        "metadata": {
+          "source_dataset": "s23-s26",
+          "hashcode": "b49c75e454d3b13c38191e67763daeedeaa7a7311a3268c855288c76e3d222b0",
+          "date": "2026-09-23 17:13:15",
+          "seed": 42,
+          "sample_size": 1.0,
+          "validation_size": 0.25,
+          "split_seed": 42,
+          "vocabulary_size": 30522,
+          "max_report_size": 200,
+          "tokenizer": "distilbert-base-uncased"
+        }
+      }
+    },
+    "/api/training/checkpoints": {
+      "status": 200,
+      "body": {
+        "checkpoints": []
+      }
+    },
+    "/api/jobs": {
+      "status": 200,
+      "body": {
+        "jobs": [
+          {
+            "job_id": "b881875b",
+            "job_type": "dataset_processing",
+            "status": "completed",
+            "poll_interval": 1.0,
+            "progress": 100.0,
+            "result": {
+              "total_samples": 8,
+              "train_samples": 6,
+              "validation_samples": 2,
+              "vocabulary_size": 30522
+            },
+            "error": null
+          }
+        ]
+      }
+    },
+    "processed_image_count": {
+      "status": 200,
+      "body": {
+        "dataset_name": "s23-s26-processed",
+        "count": 0
+      }
+    }
+  },
+  "processing_job": {
+    "job_id": "b881875b",
+    "job_type": "dataset_processing",
+    "status": "completed",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "total_samples": 8,
+      "train_samples": 6,
+      "validation_samples": 2,
+      "vocabulary_size": 30522
+    },
+    "error": null
+  },
+  "images": []
+}

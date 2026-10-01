@@ -1,0 +1,124 @@
+import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
+import { SettingsApiService } from '../services/settings-api.service';
+import { SettingsPage } from './settings.page';
+
+const settingsResponse = () => ({
+  values: {
+    global: { seed: 42 },
+    features: { allow_local_filesystem_access: true },
+    jobs: { polling_interval: 1 },
+    inference: { model_timeout: 600 },
+  },
+  defaults: {
+    global: { seed: 42 },
+    features: { allow_local_filesystem_access: true },
+    jobs: { polling_interval: 1 },
+    inference: { model_timeout: 600 },
+  },
+});
+
+describe('SettingsPage', () => {
+  const api = {
+    getSettings: vi.fn(),
+    updateSettings: vi.fn(),
+    resetSettings: vi.fn(),
+  };
+
+  beforeEach(() => {
+    api.getSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
+    api.updateSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
+    api.resetSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
+    TestBed.configureTestingModule({ imports: [SettingsPage], providers: [{ provide: SettingsApiService, useValue: api }] });
+  });
+
+  it('loads the server baseline and sends only changed fields', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+
+    expect(page.draft()?.global.seed).toBe(42);
+    expect(page.dirty()).toBe(false);
+    page.updateSeed(123);
+    page.updatePollingInterval(2.5);
+    expect(page.dirty()).toBe(true);
+
+    await page.save();
+
+    expect(api.updateSettings).toHaveBeenCalledWith({ global: { seed: 123 }, jobs: { polling_interval: 2.5 } });
+    expect(page.dirty()).toBe(false);
+    expect(page.statusMessage()).toBe('Settings saved.');
+  });
+
+  it('blocks invalid values before making a save request', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.updatePollingInterval(0);
+
+    await page.save();
+
+    expect(page.validationErrors().polling_interval).toBeTruthy();
+    expect(api.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('switches logical categories while keeping the shared settings form', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+
+    expect(page.activeTab()).toBe('general');
+    expect(element.querySelector('#default-seed')).not.toBeNull();
+    expect(element.querySelector('#local-filesystem-access')).toBeNull();
+
+    (element.querySelector('#settings-tab-data') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(page.activeTab()).toBe('data');
+    expect(element.querySelector('#default-seed')).toBeNull();
+    expect(element.querySelector('#local-filesystem-access')).not.toBeNull();
+
+    (element.querySelector('#settings-tab-advanced') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(page.activeTab()).toBe('advanced');
+    expect(element.querySelector('#polling-interval')).not.toBeNull();
+    expect(element.querySelector('#inference-timeout')).not.toBeNull();
+  });
+
+  it('moves focus across categories with the tablist arrow keys', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+    const generalTab = element.querySelector('#settings-tab-general') as HTMLButtonElement;
+    const dataTab = element.querySelector('#settings-tab-data') as HTMLButtonElement;
+
+    generalTab.focus();
+    page.onTabKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }), 'general');
+
+    expect(document.activeElement).toBe(dataTab);
+    expect(page.activeTab()).toBe('general');
+  });
+
+  it('delegates reset and replaces the local baseline with the server response', async () => {
+    const resetResponse = settingsResponse();
+    resetResponse.values.global.seed = 99;
+    api.resetSettings.mockResolvedValue({ result: resetResponse, error: null });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    await fixture.componentInstance.reset();
+
+    expect(api.resetSettings).toHaveBeenCalledOnce();
+    expect(fixture.componentInstance.draft()?.global.seed).toBe(99);
+    expect(fixture.componentInstance.dirty()).toBe(false);
+  });
+});

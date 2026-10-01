@@ -1,0 +1,29 @@
+{
+  "observed_on": "2026-09-24",
+  "S35": {
+    "status": "FAIL / degraded",
+    "live_catalog_validation_status": "degraded",
+    "historical_canary": "assets/QA/inference_validation_runs/cxrmate-ed-sensitivity-20260919T154916Z.json",
+    "completed_cases": 3,
+    "unique_report_count": 2,
+    "reports_all_distinct": false,
+    "approved_fixture_directory": "assets/QA/full-e2e-20260821-101310/inputs/images",
+    "approved_fixture_directory_exists": false,
+    "limitation": "The original canary cannot be repeated with its exact approved fixtures; no replacement images were substituted."
+  },
+  "S37": {
+    "status": "BLOCKED",
+    "live_catalog_access_policy": "gated",
+    "isolated_installation_state": "not_installed",
+    "hf_token_present_in_validation_process": false,
+    "limitation": "No usable gated-model credential was present in the validation process, so installation and generation were not attempted.",
+    "hf_token_configured_in_settings_env": false
+  },
+  "S28": {
+    "status": "UNTESTED",
+    "prerequisite_probe": "s28/prerequisite-check-20260924.json",
+    "compatible_checkpoint_available": false,
+    "pinned_beit_snapshot_available": false,
+    "limitation": "The successful checkpoint-evaluation workflow remains blocked on restoring the exact encoder and recreating a compatible S24 checkpoint."
+  }
+}

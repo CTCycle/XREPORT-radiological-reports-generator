@@ -10,12 +10,11 @@ from server.common.path import (
     DATA_ROOT,
     PACKAGED_MODE,
     ROOT_DIR,
-    SETTINGS_DIR,
 )
 from server.common.inference_manifest import validate_manifest
 from server.configurations import InferenceSettings
+from server.configurations.inference_models import embedded_inference_models
 from server.domain.inference import (
-    InferenceManifest,
     InferenceManifestEntry,
     InferenceModelsResponse,
     ModelAvailability,
@@ -26,8 +25,6 @@ from server.services.model_installation import ModelInstallationManager
 from server.repositories.checkpoints import CheckpointRepository
 
 
-CATALOG_PATH = SETTINGS_DIR / "inference_models.json"
-CXRMATE_ED_PROFILE_CONTRACT_VERSION = 1
 VALIDATION_RECEIPTS_DIR = (
     DATA_ROOT / "validation_receipts"
     if PACKAGED_MODE
@@ -61,11 +58,10 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "weight_file_sets": entry.weight_file_sets,
         "trust_remote_code": entry.trust_remote_code,
         "remote_code_approved": entry.remote_code_approved,
-        "generation_profile_contract_version": (
-            CXRMATE_ED_PROFILE_CONTRACT_VERSION
-            if entry.adapter == "cxrmate_ed"
-            else None
-        ),
+        # Retain the neutral field so receipts for the unaffected public
+        # models keep their established contract hashes after CXRMate-ED's
+        # retirement.
+        "generation_profile_contract_version": None,
     }
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode(
         "utf-8"
@@ -106,9 +102,10 @@ class InferenceModelCatalog:
 
     # -------------------------------------------------------------------------
     def _configured_models(self) -> list[ModelAvailability]:
-        payload = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        manifest = InferenceManifest.model_validate(payload)
-        return [self._configured_model(entry) for entry in manifest.models]
+        return [
+            self._configured_model(entry)
+            for entry in embedded_inference_models()
+        ]
 
     # -------------------------------------------------------------------------
     def _configured_model(
@@ -170,7 +167,7 @@ class InferenceModelCatalog:
                     status_message = (
                         entry.validation_message
                         if entry.gated
-                        else "The model will be downloaded into the project-local resources directory on first Generate."
+                        else "The model will be downloaded into the project-local data directory on first Generate."
                     )
             except (KeyError, TypeError, ValueError, RuntimeError) as exc:
                 status = "incompatible"
@@ -340,7 +337,7 @@ class InferenceModelCatalog:
         receipt_path = cls._validation_receipt_path(entry)
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except OSError, ValueError:
+        except (OSError, ValueError):
             return False
         return (
             isinstance(receipt, dict)

@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-09-07
+Last updated: 2026-09-21
 
 ## Deployment Scope
 
@@ -17,7 +17,7 @@ Last updated: 2026-09-07
 ## Runtime Prerequisites
 
 - Windows prerequisites are downloaded into `runtimes/` by the launcher.
-- Manual environments require Python 3.14.2, uv 0.11.9, Node.js 22.22.3/npm
+- Manual environments require Python 3.14.7, uv 0.11.9, Node.js 22.22.3/npm
   10.9.8, rustup with Rust 1.95.0, and the Windows MSVC Build Tools/SDK for
   desktop packaging.
 
@@ -79,10 +79,11 @@ though the same artifact starts correctly under a normal user profile.
 The shell extracts atomically to
 `%LOCALAPPDATA%\XREPORT\runtime\<variant>\<version>\<payload-sha256>`. The
 backend executable and client are immutable there. First launch atomically
-seeds `%LOCALAPPDATA%\XREPORT\data\.env` and
-`%LOCALAPPDATA%\XREPORT\data\settings\configurations.json` only when absent;
-later edits are preserved. Logs are bounded and readiness/session files are
-removed at shutdown.
+seeds `%LOCALAPPDATA%\XREPORT\data\.env` only when absent, then creates or
+upgrades `%LOCALAPPDATA%\XREPORT\data\database.db` and its
+`application_settings` row. Settings changes are persisted transactionally in
+that database; no JSON settings file is staged or recreated. Logs are bounded
+and readiness/session files are removed at shutdown.
 
 CPU uses an isolated target overlay for the official `torch==2.10.0+cpu` and
 `torchvision==0.25.0+cpu` wheels. CUDA uses the existing locked cu130 stack;

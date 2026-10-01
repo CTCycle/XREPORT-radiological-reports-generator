@@ -1,0 +1,12 @@
+{
+  "repository": "microsoft/beit-base-patch16-224",
+  "revision": "f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+  "snapshot": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\release-validation-20260925\\resources\\models\\XRAYEncoder\\models--microsoft--beit-base-patch16-224\\snapshots\\f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+  "files": {
+    "config.json": 69889,
+    "model.safetensors": 349877750
+  },
+  "weights_sha256": "873a67558f17cdd9d9018eaf308288f6dc72d030af20391df9ccbb7e10be89cc",
+  "weights_bytes": 349877750,
+  "matches_expected": true
+}

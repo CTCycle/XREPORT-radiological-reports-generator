@@ -1,0 +1,36 @@
+INFO:     Started server process [8164]
+INFO:     Waiting for application startup.
+INFO - Context impl SQLiteImpl.
+INFO - Will assume non-transactional DDL.
+INFO - Database migration check (backend=sqlite, database=G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\resources\database.db, current=f48a7c2e91b6, head=f48a7c2e91b6)
+INFO - Context impl SQLiteImpl.
+INFO - Will assume non-transactional DDL.
+INFO - Database is already at Alembic head f48a7c2e91b6
+INFO - SQLite database is synchronized at G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\app\resources\database.db
+INFO - Startup phase=database_validated elapsed_ms=69
+INFO - Startup phase=resources_validated elapsed_ms=70 database_backend=sqlite
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:5003 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59029 - "GET /api/validation/reports/xreport-import-boundary-missing HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59030 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59031 - "GET /api/inference/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59033 - "GET /api/preparation/dataset/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59034 - "GET /api/preparation/dataset/names HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62849 - "GET /api/preparation/dataset/processed/names HTTP/1.1" 200 OK
+WARNING - Failed to load checkpoint config e2e_delete_313fb57936b54781be98cc92ea23832e: registered artifact is missing or incomplete
+WARNING - Failed to load checkpoint config e2e_delete_48fd6222bfa74e4c9e4282fe4135444a: registered artifact is missing or incomplete
+WARNING - Failed to load checkpoint config e2e_delete_7a14b0204adc4e23ad98ef0c1d85a7b5: registered artifact is missing or incomplete
+WARNING - Failed to load checkpoint config e2e_delete_c380cadfedf54dfcaf7f5afb3ca5d441: registered artifact is missing or incomplete
+INFO:     127.0.0.1:62850 - "GET /api/training/checkpoints HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62851 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62852 - "GET /api/preparation/dataset/processed/names HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62853 - "GET /api/preparation/dataset/status HTTP/1.1" 200 OK
+WARNING - Failed to load checkpoint config e2e_delete_313fb57936b54781be98cc92ea23832e: registered artifact is missing or incomplete
+WARNING - Failed to load checkpoint config e2e_delete_48fd6222bfa74e4c9e4282fe4135444a: registered artifact is missing or incomplete
+WARNING - Failed to load checkpoint config e2e_delete_7a14b0204adc4e23ad98ef0c1d85a7b5: registered artifact is missing or incomplete
+INFO:     127.0.0.1:62854 - "GET /api/settings HTTP/1.1" 200 OK
+WARNING - Failed to load checkpoint config e2e_delete_c380cadfedf54dfcaf7f5afb3ca5d441: registered artifact is missing or incomplete
+INFO:     127.0.0.1:62856 - "GET /api/preparation/dataset/names HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62855 - "GET /api/training/checkpoints HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62857 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62858 - "GET /api/inference/models HTTP/1.1" 200 OK

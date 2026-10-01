@@ -223,6 +223,47 @@
     transition: width 0.3s ease;
 }
 
+.training-phase {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-elevated);
+}
+
+.training-phase-label,
+.training-phase-time {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.training-phase-label {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.training-phase-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.training-phase-time {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.training-error {
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--error-color);
+    border-radius: 8px;
+    color: var(--error-color);
+    background: var(--error-soft);
+}
+
 .btn-stop {
     display: inline-flex;
     align-items: center;
@@ -406,4 +447,5 @@
     .dashboard-status { align-self: flex-start; }
     .dashboard-metrics-grid { grid-template-columns: 1fr; }
     .progress-header { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+    .training-phase { grid-template-columns: 1fr; gap: 0.25rem; }
 }

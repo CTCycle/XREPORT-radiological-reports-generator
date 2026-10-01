@@ -1,0 +1,155 @@
+{
+  "schema": "xreport.validation.s43.packaged-maintenance.v1",
+  "gate": "S43",
+  "status": "PASS",
+  "validated_at": "2026-09-28",
+  "scope": "launcher-maintenance",
+  "base_revision": "92f7e992d1540380d4a8704c368d8c9c00839a5a",
+  "package_source_revision": "c7edcff7f663a7611928cbf909c8633e28daa878",
+  "artifact_source_check": {
+    "source_commit_matches_package_metadata": true,
+    "application_launcher_desktop_source_drift_before_fix": false,
+    "rebuild_required_before_cleanup": false,
+    "approved_cleanup_removed_release_outputs": true
+  },
+  "launcher_change": {
+    "path": "start_on_windows.ps1",
+    "defect": "Portable Tauri roots were not classified as packaged application processes by KillProcesses.",
+    "fix": "Recognize XREPORT-v<major>.<minor>.<patch>-windows-x64-(cpu|cuda)-portable process names as packaged roots.",
+    "scope": "packaged process selection only"
+  },
+  "selector_regression": {
+    "script": "process-selector-harness.ps1",
+    "status": "PASS",
+    "selected_process_ids": [
+      2000000010,
+      2000000011,
+      2000000012,
+      2000000013,
+      2000000014
+    ],
+    "excluded_unrelated_process_ids": [2000000015],
+    "assertions": {
+      "portable_cpu_selected": true,
+      "portable_cuda_selected": true,
+      "packaged_backend_children_selected": true,
+      "msi_style_desktop_selected": true,
+      "unrelated_helper_excluded": true
+    }
+  },
+  "packaged_process_probes": {
+    "cpu": {
+      "portable_process": {
+        "pid": 34096,
+        "parent_pid": 33084,
+        "name": "XREPORT-v3.1.0-windows-x64-cpu-portable.exe"
+      },
+      "backend_process": {
+        "pid": 8136,
+        "parent_pid": 34096,
+        "name": "XREPORT-backend.exe"
+      },
+      "dynamic_listener_port": 53376,
+      "readiness_observed": true,
+      "kill_processes_exit_code": 0,
+      "launcher_reported_selected_process_count": 9,
+      "after_processes": [],
+      "after_listeners": [],
+      "portable_gone": true,
+      "backend_gone": true,
+      "listener_gone": true,
+      "disposable_data_root_removed": true
+    },
+    "cuda": {
+      "portable_process": {
+        "pid": 38524,
+        "parent_pid": 11484,
+        "name": "XREPORT-v3.1.0-windows-x64-cuda-portable.exe"
+      },
+      "backend_process": {
+        "pid": 24884,
+        "parent_pid": 38524,
+        "name": "XREPORT-backend.exe"
+      },
+      "dynamic_listener_port": 49992,
+      "readiness_observed": true,
+      "kill_processes_exit_code": 0,
+      "launcher_reported_selected_process_count": 9,
+      "after_processes": [],
+      "after_listeners": [],
+      "portable_gone": true,
+      "backend_gone": true,
+      "listener_gone": true,
+      "disposable_data_root_removed": true
+    }
+  },
+  "canonical_cleanup": {
+    "action": "RemoveDesktopRelease",
+    "confirmation": "confirmed",
+    "first_pass": "PASS",
+    "idempotent_repeat": "PASS",
+    "targets": [
+      "release",
+      "app/desktop/build/runtime-staging",
+      "app/desktop/build/pyinstaller",
+      "app/desktop/build/cpu-overlay",
+      "app/desktop/build/cargo-target",
+      "app/desktop/src-tauri/target",
+      "app/desktop/src-tauri/generated/runtime.zip",
+      "app/desktop/src-tauri/ui"
+    ],
+    "pre_cleanup_inventory": {
+      "release": {"exists": true, "item_count": 8},
+      "app/desktop/build/runtime-staging": {"exists": true, "item_count": 15631},
+      "app/desktop/build/pyinstaller": {"exists": true, "item_count": 15767},
+      "app/desktop/build/cpu-overlay": {"exists": true, "item_count": 12564},
+      "app/desktop/build/cargo-target": {"exists": true, "item_count": 8390},
+      "app/desktop/src-tauri/target": {"exists": true, "item_count": 6754},
+      "app/desktop/src-tauri/generated/runtime.zip": {"exists": true, "item_count": 1},
+      "app/desktop/src-tauri/ui": {"exists": true, "item_count": 37}
+    },
+    "post_cleanup_inventory": {
+      "release": {"exists": false},
+      "app/desktop/build/runtime-staging": {"exists": false},
+      "app/desktop/build/pyinstaller": {"exists": false},
+      "app/desktop/build/cpu-overlay": {"exists": false},
+      "app/desktop/build/cargo-target": {"exists": false},
+      "app/desktop/src-tauri/target": {"exists": false},
+      "app/desktop/src-tauri/generated/runtime.zip": {"exists": false},
+      "app/desktop/src-tauri/ui": {"exists": false},
+      "generated_configs": []
+    },
+    "data_fingerprints": {
+      "before": {
+        "data/database.db": {"length": 159744, "sha256": "C6990D3CDAC94A1E3009CB767849AEB517F05F6C61061E715F4D5BE0FF35B369"},
+        "data/database.db-wal": {"length": 0, "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"},
+        "data/database.db-shm": {"length": 32768, "sha256": "FD4C9FDA9CD3F9AE7C962B0DDF37232294D55580E1AA165AA06129B8549389EB"}
+      },
+      "after": {
+        "data/database.db": {"length": 159744, "sha256": "C6990D3CDAC94A1E3009CB767849AEB517F05F6C61061E715F4D5BE0FF35B369"},
+        "data/database.db-wal": {"length": 0, "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"},
+        "data/database.db-shm": {"length": 32768, "sha256": "FD4C9FDA9CD3F9AE7C962B0DDF37232294D55580E1AA165AA06129B8549389EB"}
+      },
+      "canonical_database_unchanged": true
+    },
+    "post_cleanup_processes": [],
+    "post_cleanup_configured_listeners": [],
+    "post_cleanup_s43_temp_roots": [],
+    "user_data_preserved": true
+  },
+  "focused_validation": {
+    "pytest": {
+      "command": "uv run --project app/server --extra test --frozen python -m pytest -c app/server/pyproject.toml app/tests/unit/test_desktop_packaging.py app/tests/unit/test_runtime_layout.py app/tests/unit/test_startup_validation.py -q",
+      "result": "10 passed in 2.15s",
+      "status": "PASS"
+    },
+    "selector_harness": "PASS",
+    "git_diff_check": "PASS",
+    "final_process_and_port_check": "PASS"
+  },
+  "preserved_boundaries": [
+    "runtime.desktop.packaged remains PARTIAL for native WebView, no-GPU fallback, and performance gaps.",
+    "Unrelated source-startup validation limitations remain unchanged.",
+    "No canonical model resources or user data were modified."
+  ]
+}

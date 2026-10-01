@@ -1,0 +1,72 @@
+{
+  "source_revision_under_test": "2992f3d83b044ea439af0af0c758f54fcdd308b7",
+  "primary_receipt": "runtime-contention-receipt-repeat.json",
+  "repeat_matrix": [
+    {
+      "scenario": "triple_cuda_1",
+      "jobs": [
+        {"type": "validation", "job_id": "4ef3a1a9", "status": "completed", "result_identity": "s27_technical_fixture"},
+        {"type": "checkpoint_evaluation", "job_id": "672c5f86", "status": "completed", "result_identity": "XREPORT_20260925T141533"},
+        {"type": "training", "job_id": "b79d4d7f", "status": "completed", "result_identity": "s51_r1_cuda", "checkpoint_path": "resources/checkpoints/s51_r1_cuda"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "triple_cuda_2",
+      "jobs": [
+        {"type": "validation", "job_id": "defe6cd8", "status": "completed", "result_identity": "s27_technical_fixture"},
+        {"type": "checkpoint_evaluation", "job_id": "b25d393c", "status": "completed", "result_identity": "XREPORT_20260925T141533"},
+        {"type": "training", "job_id": "879de439", "status": "completed", "result_identity": "s51_r2_cuda", "checkpoint_path": "resources/checkpoints/s51_r2_cuda"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "triple_cuda_3",
+      "jobs": [
+        {"type": "validation", "job_id": "0efaf91a", "status": "completed", "result_identity": "s27_technical_fixture"},
+        {"type": "checkpoint_evaluation", "job_id": "83b562bd", "status": "completed", "result_identity": "XREPORT_20260925T141533"},
+        {"type": "training", "job_id": "23464b1e", "status": "completed", "result_identity": "s51_r3_cuda", "checkpoint_path": "resources/checkpoints/s51_r3_cuda"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "processing_and_evaluation",
+      "jobs": [
+        {"type": "dataset_processing", "job_id": "ad517eec", "status": "completed", "result_identity": "s51_pair_eval_processed"},
+        {"type": "checkpoint_evaluation", "job_id": "dae6907e", "status": "completed", "result_identity": "XREPORT_20260925T141533"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "processing_and_training",
+      "jobs": [
+        {"type": "dataset_processing", "job_id": "7569b125", "status": "completed", "result_identity": "s51_pair_training_processed"},
+        {"type": "training", "job_id": "f895a4f4", "status": "completed", "result_identity": "s51_pair_training_cuda", "checkpoint_path": "resources/checkpoints/s51_pair_training_cuda"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "cuda_baseline",
+      "jobs": [
+        {"type": "training", "job_id": "e97a9103", "status": "completed", "result_identity": "s53_cuda_baseline", "checkpoint_path": "resources/checkpoints/s53_cuda_baseline"}
+      ],
+      "running_jobs_after": []
+    },
+    {
+      "scenario": "cpu_baseline",
+      "jobs": [
+        {"type": "training", "job_id": "d8cd16a3", "status": "completed", "result_identity": "s53_cpu_baseline", "checkpoint_path": "resources/checkpoints/s53_cpu_baseline"}
+      ],
+      "running_jobs_after": []
+    }
+  ],
+  "initial_matrix_failure": {
+    "receipt": "runtime-contention-receipt-initial-failure.json",
+    "scenario": "triple_cuda_1",
+    "job_id": "fadbc216",
+    "type": "training",
+    "status": "failed",
+    "error": "Training process exited with code 1",
+    "follow_up": "The identical full matrix repeated after model/cache warm-up; all seven scenarios completed successfully. No source fix was justified by the non-reproducible child exit."
+  }
+}

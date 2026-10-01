@@ -1,0 +1,96 @@
+{
+  "application": "XREPORT",
+  "architecture": "windows-x64",
+  "backend_executable": "backend/XREPORT-backend.exe",
+  "created_utc": "2026-10-01T11:19:23Z",
+  "dirty_tree": false,
+  "file_count": 6789,
+  "format": 2,
+  "largest_entries": [
+    {
+      "bytes": 477896816,
+      "path": "backend/_internal/torch/lib/cublasLt64_13.dll"
+    },
+    {
+      "bytes": 408951296,
+      "path": "backend/_internal/torch/lib/torch_cuda.dll"
+    },
+    {
+      "bytes": 284331040,
+      "path": "backend/_internal/torch/lib/cufft64_12.dll"
+    },
+    {
+      "bytes": 265100288,
+      "path": "backend/_internal/torch/lib/torch_cpu.dll"
+    },
+    {
+      "bytes": 188558368,
+      "path": "backend/_internal/torch/lib/cudnn_engines_precompiled64_9.dll"
+    },
+    {
+      "bytes": 150326304,
+      "path": "backend/_internal/torch/lib/cusparse64_12.dll"
+    },
+    {
+      "bytes": 126421024,
+      "path": "backend/_internal/torch/lib/cusolver64_12.dll"
+    },
+    {
+      "bytes": 95365152,
+      "path": "backend/_internal/torch/lib/cusolverMg64_12.dll"
+    },
+    {
+      "bytes": 91028512,
+      "path": "backend/_internal/torch/lib/nvrtc64_130_0.alt.dll"
+    },
+    {
+      "bytes": 90961440,
+      "path": "backend/_internal/torch/lib/nvrtc64_130_0.dll"
+    },
+    {
+      "bytes": 88218656,
+      "path": "backend/_internal/torch/lib/nvJitLink_130_0.dll"
+    },
+    {
+      "bytes": 88123936,
+      "path": "backend/_internal/torch/lib/cudnn_adv64_9.dll"
+    },
+    {
+      "bytes": 84384574,
+      "path": "backend/XREPORT-backend.exe"
+    },
+    {
+      "bytes": 74819072,
+      "path": "backend/_internal/cv2/cv2.pyd"
+    },
+    {
+      "bytes": 58863672,
+      "path": "backend/_internal/torch/lib/curand64_10.dll"
+    },
+    {
+      "bytes": 53315104,
+      "path": "backend/_internal/torch/lib/cudnn_heuristic64_9.dll"
+    },
+    {
+      "bytes": 50288240,
+      "path": "backend/_internal/torch/lib/cublas64_13.dll"
+    },
+    {
+      "bytes": 29970976,
+      "path": "backend/_internal/torch/lib/cudnn_ops64_9.dll"
+    },
+    {
+      "bytes": 28578304,
+      "path": "backend/_internal/cv2/opencv_videoio_ffmpeg4130_64.dll"
+    },
+    {
+      "bytes": 27764256,
+      "path": "backend/_internal/torch/lib/nvperf_host.dll"
+    }
+  ],
+  "payload_bytes": 3219261978,
+  "payload_sha256": "d69ee87c7f627c277e68e21fcdb49340cb702ac8e2aff402e776a8445ac02f3f",
+  "source_commit": "301a5a510e494c501d6c25eb22d5baea824e936a",
+  "variant": "cuda",
+  "version": "3.1.0"
+}

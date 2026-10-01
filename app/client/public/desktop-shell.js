@@ -6,8 +6,14 @@
     if (!isDesktopAssetOrigin()) return;
     const panel = document.getElementById('desktop-startup');
     const application = document.querySelector('app-root');
-    if (panel) panel.hidden = false;
-    if (application) application.hidden = true;
+    if (panel) {
+      panel.hidden = false;
+      panel.classList.add('startup-shell-visible');
+    }
+    if (application) {
+      application.hidden = true;
+      application.setAttribute('aria-hidden', 'true');
+    }
   };
 
   if (document.readyState === 'loading') {

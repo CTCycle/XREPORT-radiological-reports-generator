@@ -1,0 +1,509 @@
+{
+  "models": [
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+      "provider": "huggingface",
+      "origin": "public",
+      "display_name": "CXRMate Multi TF",
+      "description": "Lightweight multi-view chest-X-ray report generator for practical local inference.",
+      "status": "not_installed",
+      "status_message": "The model will be downloaded into the project-local resources directory on first Generate.",
+      "enabled": true,
+      "validation_status": "pending",
+      "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+      "validation_receipt_status": "passed",
+      "validation_receipt_message": null,
+      "category": "chest_xray_report_generation",
+      "recommended": true,
+      "research_only": true,
+      "gated": false,
+      "access_policy": "open",
+      "access_url": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+      "anatomy_coverage": "chest_xray",
+      "coverage_note": "Specialized for multi-view chest radiographs; not validated for other anatomy.",
+      "hardware_demand": "low",
+      "parameter_label": "0.1B parameters",
+      "parameter_size": "0.1B",
+      "download_size_bytes": 451000000,
+      "local_size_bytes": 451000000,
+      "input_semantics": "single_study",
+      "capabilities": {
+        "clinical_context": false,
+        "prior_report": false,
+        "multiple_current_views": true,
+        "findings": true,
+        "impression": true,
+        "grounding": false
+      },
+      "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+      "model_loader": "auto_model",
+      "processor_loader": "auto",
+      "adapter": "cxrmate_multi",
+      "trust_remote_code": true,
+      "remote_code_approved": true,
+      "output_sections": [
+        "findings",
+        "impression"
+      ],
+      "max_current_images": 16,
+      "supports_prior_images": false,
+      "supports_clinical_context": false,
+      "preferred_dtype": "float32",
+      "quantization": [
+        "none"
+      ],
+      "prompt_profile": "cxrmate-multi-findings-impression",
+      "license": "Apache-2.0",
+      "resource_policy": {
+        "max_snapshot_size_bytes": 2000000000,
+        "reason": "Download only the pinned processor, custom model code, configuration, tokenizer, and safetensors weights."
+      },
+      "runtime_constraints": {
+        "min_transformers": "4.57.0",
+        "max_transformers_exclusive": null,
+        "required_modules": []
+      },
+      "processor_repository_id": null,
+      "processor_revision": null,
+      "processor_files": [],
+      "processor_target_prefix": "processor",
+      "required_files": [
+        "config.json",
+        "generation_config.json",
+        "preprocessor_config.json",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "modelling_multi.py"
+      ],
+      "weight_file_sets": [
+        [
+          "model.safetensors"
+        ]
+      ],
+      "installation_state": "not_installed",
+      "local_path": null,
+      "active_revision": null,
+      "candidate_revision": null,
+      "integrity_status": "unknown",
+      "cloud_assessment": null,
+      "update_available": false,
+      "available_actions": [
+        "download"
+      ]
+    },
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "provider": "huggingface",
+      "origin": "public",
+      "display_name": "CXRMate-ED",
+      "description": "Compact chest-X-ray reporter that can use the supplied clinical indication or history.",
+      "status": "not_installed",
+      "status_message": "The model will be downloaded into the project-local resources directory on first Generate.",
+      "enabled": true,
+      "validation_status": "degraded",
+      "validation_message": "Research-only quality warning: the image/context/profile sensitivity canary failed. Treat every output as an unverified draft and require independent review.",
+      "validation_receipt_status": "passed",
+      "validation_receipt_message": null,
+      "category": "chest_xray_report_generation",
+      "recommended": false,
+      "research_only": true,
+      "gated": false,
+      "access_policy": "open",
+      "access_url": "https://huggingface.co/aehrc/cxrmate-ed",
+      "anatomy_coverage": "chest_xray",
+      "coverage_note": "Specialized for chest radiographs; optional context is mapped to the model's indication/history input.",
+      "hardware_demand": "low",
+      "parameter_label": "0.2B parameters",
+      "parameter_size": "0.2B",
+      "download_size_bytes": 793000000,
+      "local_size_bytes": 793000000,
+      "input_semantics": "single_study",
+      "capabilities": {
+        "clinical_context": true,
+        "prior_report": false,
+        "multiple_current_views": true,
+        "findings": true,
+        "impression": true,
+        "grounding": false
+      },
+      "model_revision": "68251c7605067ddbea330413aade032713fd2192",
+      "model_loader": "causal_lm",
+      "processor_loader": "auto",
+      "adapter": "cxrmate_ed",
+      "trust_remote_code": true,
+      "remote_code_approved": true,
+      "output_sections": [
+        "findings",
+        "impression"
+      ],
+      "max_current_images": 16,
+      "supports_prior_images": false,
+      "supports_clinical_context": true,
+      "preferred_dtype": "float32",
+      "quantization": [
+        "none"
+      ],
+      "prompt_profile": "cxrmate-ed-context",
+      "license": "Apache-2.0",
+      "resource_policy": {
+        "max_snapshot_size_bytes": 2000000000,
+        "reason": "The model's custom inference module imports its pinned local support modules and lookup tables."
+      },
+      "runtime_constraints": {
+        "min_transformers": "4.57.0",
+        "max_transformers_exclusive": null,
+        "required_modules": [
+          "datasets",
+          "duckdb",
+          "timm"
+        ]
+      },
+      "processor_repository_id": "aehrc/uniformer_base_tl_384",
+      "processor_revision": "aab2796a0e7014720d9484415739ad895dd1be89",
+      "processor_files": [
+        "config.json",
+        "configuration_uniformer.py",
+        "modelling_uniformer.py"
+      ],
+      "processor_target_prefix": "processor",
+      "required_files": [
+        "config.json",
+        "generation_config.json",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "tables.json",
+        "lookup_tables.json",
+        "token_type_ids.json",
+        "configuration_cxrmate_ed.py",
+        "modelling_cxrmate_ed.py",
+        "dataset.py",
+        "prepare_dataset.py",
+        "utils.py",
+        "section_parser.py",
+        "create_section_files.py"
+      ],
+      "weight_file_sets": [
+        [
+          "model.safetensors"
+        ]
+      ],
+      "installation_state": "not_installed",
+      "local_path": null,
+      "active_revision": null,
+      "candidate_revision": null,
+      "integrity_status": "unknown",
+      "cloud_assessment": null,
+      "update_available": false,
+      "available_actions": [
+        "download"
+      ]
+    },
+    {
+      "model_ref": "huggingface:StanfordAIMI/CheXOne",
+      "provider": "huggingface",
+      "origin": "public",
+      "display_name": "CheXOne",
+      "description": "Higher-capability chest-X-ray vision-language model for Findings drafting and grounding.",
+      "status": "not_installed",
+      "status_message": "The model will be downloaded into the project-local resources directory on first Generate.",
+      "enabled": true,
+      "validation_status": "pending",
+      "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+      "validation_receipt_status": "passed",
+      "validation_receipt_message": null,
+      "category": "chest_xray_report_generation",
+      "recommended": false,
+      "research_only": true,
+      "gated": false,
+      "access_policy": "open",
+      "access_url": "https://huggingface.co/StanfordAIMI/CheXOne",
+      "anatomy_coverage": "chest_xray",
+      "coverage_note": "Chest-X-ray specialist; the research licence and non-clinical status are shown before use.",
+      "hardware_demand": "high",
+      "parameter_label": "4B parameters",
+      "parameter_size": "4B",
+      "download_size_bytes": 8150000000,
+      "local_size_bytes": 8150000000,
+      "input_semantics": "single_study",
+      "capabilities": {
+        "clinical_context": true,
+        "prior_report": false,
+        "multiple_current_views": true,
+        "findings": true,
+        "impression": false,
+        "grounding": true
+      },
+      "model_revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "model_loader": "image_text_to_text",
+      "processor_loader": "auto",
+      "adapter": "chexone",
+      "trust_remote_code": false,
+      "remote_code_approved": false,
+      "output_sections": [
+        "findings"
+      ],
+      "max_current_images": 8,
+      "supports_prior_images": false,
+      "supports_clinical_context": true,
+      "preferred_dtype": "auto",
+      "quantization": [
+        "none"
+      ],
+      "prompt_profile": "chexone-instruct-report",
+      "license": "CC-BY-NC-4.0",
+      "resource_policy": {
+        "max_snapshot_size_bytes": 12000000000,
+        "reason": "The two sharded safetensors files and processor assets are retained; duplicate formats are not downloaded."
+      },
+      "runtime_constraints": {
+        "min_transformers": "4.57.0",
+        "max_transformers_exclusive": null,
+        "required_modules": [
+          "qwen_vl_utils"
+        ]
+      },
+      "processor_repository_id": null,
+      "processor_revision": null,
+      "processor_files": [],
+      "processor_target_prefix": "processor",
+      "required_files": [
+        "config.json",
+        "generation_config.json",
+        "preprocessor_config.json",
+        "chat_template.jinja",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "merges.txt",
+        "vocab.json",
+        "video_preprocessor_config.json",
+        "model.safetensors.index.json"
+      ],
+      "weight_file_sets": [
+        [
+          "model-00001-of-00002.safetensors",
+          "model-00002-of-00002.safetensors"
+        ]
+      ],
+      "installation_state": "not_installed",
+      "local_path": null,
+      "active_revision": null,
+      "candidate_revision": null,
+      "integrity_status": "unknown",
+      "cloud_assessment": null,
+      "update_available": false,
+      "available_actions": [
+        "download"
+      ]
+    },
+    {
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "provider": "huggingface",
+      "origin": "public",
+      "display_name": "CXRMate-2",
+      "description": "Demanding specialist chest-X-ray model with structured findings and impression output.",
+      "status": "not_installed",
+      "status_message": "The model will be downloaded into the project-local resources directory on first Generate.",
+      "enabled": true,
+      "validation_status": "pending",
+      "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+      "validation_receipt_status": "passed",
+      "validation_receipt_message": null,
+      "category": "chest_xray_report_generation",
+      "recommended": false,
+      "research_only": true,
+      "gated": false,
+      "access_policy": "open",
+      "access_url": "https://huggingface.co/aehrc/cxrmate-2",
+      "anatomy_coverage": "chest_xray",
+      "coverage_note": "Specialized for chest radiographs and multi-view studies; very high local storage and memory demand.",
+      "hardware_demand": "very_high",
+      "parameter_label": "3B parameters",
+      "parameter_size": "3B",
+      "download_size_bytes": 13311000000,
+      "local_size_bytes": 13311000000,
+      "input_semantics": "single_study",
+      "capabilities": {
+        "clinical_context": true,
+        "prior_report": false,
+        "multiple_current_views": true,
+        "findings": true,
+        "impression": true,
+        "grounding": false
+      },
+      "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "model_loader": "causal_lm",
+      "processor_loader": "auto",
+      "adapter": "cxrmate2",
+      "trust_remote_code": true,
+      "remote_code_approved": true,
+      "output_sections": [
+        "findings",
+        "impression"
+      ],
+      "max_current_images": 16,
+      "supports_prior_images": false,
+      "supports_clinical_context": true,
+      "preferred_dtype": "auto",
+      "quantization": [
+        "none"
+      ],
+      "prompt_profile": "cxrmate2-findings-impression",
+      "license": "Apache-2.0",
+      "resource_policy": {
+        "max_snapshot_size_bytes": 18000000000,
+        "reason": "The complete pinned sharded safetensors snapshot is required for the published processor and section decoder."
+      },
+      "runtime_constraints": {
+        "min_transformers": "4.57.0",
+        "max_transformers_exclusive": null,
+        "required_modules": [
+          "pydicom"
+        ]
+      },
+      "processor_repository_id": null,
+      "processor_revision": null,
+      "processor_files": [],
+      "processor_target_prefix": "processor",
+      "required_files": [
+        "config.json",
+        "generation_config.json",
+        "preprocessor_config.json",
+        "processor_config.json",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "model.safetensors.index.json",
+        "configuration_cxrmate2.py",
+        "modelling_cxrmate2.py",
+        "processing_cxrmate2.py",
+        "dataset.py"
+      ],
+      "weight_file_sets": [
+        [
+          "model-00001-of-00003.safetensors",
+          "model-00002-of-00003.safetensors",
+          "model-00003-of-00003.safetensors"
+        ]
+      ],
+      "installation_state": "not_installed",
+      "local_path": null,
+      "active_revision": null,
+      "candidate_revision": null,
+      "integrity_status": "unknown",
+      "cloud_assessment": null,
+      "update_available": false,
+      "available_actions": [
+        "download"
+      ]
+    },
+    {
+      "model_ref": "huggingface:google/medgemma-1.5-4b-it",
+      "provider": "huggingface",
+      "origin": "public",
+      "display_name": "MedGemma 1.5 4B",
+      "description": "Broader medical-imaging model with text generation; gated access and research validation are required.",
+      "status": "not_installed",
+      "status_message": "Accept Google's model terms and configure a local Hugging Face token before downloading. Outputs remain research-only drafts.",
+      "enabled": true,
+      "validation_status": "pending",
+      "validation_message": "Accept Google's model terms and configure a local Hugging Face token before downloading. Outputs remain research-only drafts.",
+      "validation_receipt_status": "missing",
+      "validation_receipt_message": "No valid real-inference validation receipt is recorded for this revision.",
+      "category": "medical_imaging_report_generation",
+      "recommended": false,
+      "research_only": true,
+      "gated": true,
+      "access_policy": "gated",
+      "access_url": "https://huggingface.co/google/medgemma-1.5-4b-it",
+      "anatomy_coverage": "broader_medical_imaging",
+      "coverage_note": "Broader medical-imaging baseline including radiology; quality is anatomy-dependent and not validated for every radiograph.",
+      "hardware_demand": "high",
+      "parameter_label": "4B parameters",
+      "parameter_size": "4B",
+      "download_size_bytes": 8640000000,
+      "local_size_bytes": 8640000000,
+      "input_semantics": "single_study",
+      "capabilities": {
+        "clinical_context": true,
+        "prior_report": true,
+        "multiple_current_views": true,
+        "findings": false,
+        "impression": false,
+        "grounding": false
+      },
+      "model_revision": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
+      "model_loader": "image_text_to_text",
+      "processor_loader": "auto",
+      "adapter": "medgemma",
+      "trust_remote_code": false,
+      "remote_code_approved": false,
+      "output_sections": [
+        "raw_report"
+      ],
+      "max_current_images": 8,
+      "supports_prior_images": true,
+      "supports_clinical_context": true,
+      "preferred_dtype": "auto",
+      "quantization": [
+        "none"
+      ],
+      "prompt_profile": "medgemma-radiology-report",
+      "license": "Health AI Developer Foundations terms",
+      "resource_policy": {
+        "max_snapshot_size_bytes": 12000000000,
+        "reason": "The gated sharded safetensors snapshot and Gemma processor/tokenizer assets are required for local generation."
+      },
+      "runtime_constraints": {
+        "min_transformers": "4.57.0",
+        "max_transformers_exclusive": null,
+        "required_modules": []
+      },
+      "processor_repository_id": null,
+      "processor_revision": null,
+      "processor_files": [],
+      "processor_target_prefix": "processor",
+      "required_files": [
+        "config.json",
+        "generation_config.json",
+        "preprocessor_config.json",
+        "processor_config.json",
+        "chat_template.jinja",
+        "added_tokens.json",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer.model",
+        "tokenizer_config.json",
+        "model.safetensors.index.json"
+      ],
+      "weight_file_sets": [
+        [
+          "model-00001-of-00002.safetensors",
+          "model-00002-of-00002.safetensors"
+        ]
+      ],
+      "installation_state": "not_installed",
+      "local_path": null,
+      "active_revision": null,
+      "candidate_revision": null,
+      "integrity_status": "unknown",
+      "cloud_assessment": null,
+      "update_available": false,
+      "available_actions": [
+        "download"
+      ]
+    }
+  ],
+  "providers": {
+    "huggingface": {
+      "status": "not_installed",
+      "message": "The model will be downloaded into the project-local resources directory on first Generate."
+    },
+    "xreport": {
+      "status": "not_installed",
+      "message": "No XREPORT checkpoints are registered."
+    }
+  }
+}

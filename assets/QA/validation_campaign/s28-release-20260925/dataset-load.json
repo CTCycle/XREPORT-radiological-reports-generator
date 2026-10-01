@@ -1,0 +1,17 @@
+{
+  "dataset_load": {
+    "success": true,
+    "total_images": 8,
+    "matched_records": 8,
+    "unmatched_records": 0,
+    "requires_confirmation": false,
+    "partial_import": false,
+    "message": "Successfully loaded dataset with 8 matched records from 8 images"
+  },
+  "image_validation": {
+    "valid": true,
+    "folder_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s27\\fixtures\\images",
+    "image_count": 8,
+    "message": "Found 8 valid images"
+  }
+}

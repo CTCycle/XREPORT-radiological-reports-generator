@@ -6,25 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from keras import Model
-from keras.models import load_model
-
 from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.logger import logger
-from server.models.training.encoder import BeitXRayImageEncoder
-from server.models.training.layers import (
-    AddNorm,
-    FeedForward,
-    PositionalEmbedding,
-    SoftMaxClassifier,
-    TransformerDecoder,
-    TransformerEncoder,
-)
-from server.models.training.metrics import (
-    MaskedAccuracy,
-    MaskedSparseCategoricalCrossentropy,
-)
-from server.models.training.scheduler import WarmUpLRScheduler
 
 ###############################################################################
 class ModelSerializer:
@@ -52,7 +35,7 @@ class ModelSerializer:
         return str(checkpoint_path)
 
     # -------------------------------------------------------------------------
-    def save_pretrained_model(self, model: Model, path: str | Path) -> None:
+    def save_pretrained_model(self, model: Any, path: str | Path) -> None:
         checkpoint_path = Path(path)
         model_files_path = checkpoint_path / "saved_model.keras"
         model.save(model_files_path)
@@ -108,8 +91,25 @@ class ModelSerializer:
     # -------------------------------------------------------------------------
     def load_checkpoint(
         self, checkpoint_path: str | Path, custom_objects: dict[str, Any] | None = None
-    ) -> tuple[Model | Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
+    ) -> tuple[Any, dict[str, Any], dict[str, Any], dict[str, Any], str]:
         """Load a registered checkpoint artifact from its resolved filesystem path."""
+        from keras.models import load_model
+
+        from server.models.training.encoder import BeitXRayImageEncoder
+        from server.models.training.layers import (
+            AddNorm,
+            FeedForward,
+            PositionalEmbedding,
+            SoftMaxClassifier,
+            TransformerDecoder,
+            TransformerEncoder,
+        )
+        from server.models.training.metrics import (
+            MaskedAccuracy,
+            MaskedSparseCategoricalCrossentropy,
+        )
+        from server.models.training.scheduler import WarmUpLRScheduler
+
         base_path = CHECKPOINTS_DIR.resolve()
         checkpoint_path = Path(checkpoint_path).expanduser().resolve()
         if base_path not in checkpoint_path.parents and checkpoint_path != base_path:

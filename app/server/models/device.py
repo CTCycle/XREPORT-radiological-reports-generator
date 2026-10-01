@@ -3,9 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-import torch
-from keras.mixed_precision import set_global_policy
-
 from server.common.utils.logger import logger
 
 ###############################################################################
@@ -16,7 +13,10 @@ class DeviceConfig:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def set_device(self) -> torch.device:
+    def set_device(self) -> Any:
+        import torch
+        from keras.mixed_precision import set_global_policy
+
         use_gpu = self.configuration.get("use_device_GPU", False)
         device_name = "cuda" if use_gpu else "cpu"
         mixed_precision = self.configuration.get("use_mixed_precision", False)
@@ -41,7 +41,7 @@ class DeviceConfig:
 class DeviceDataLoader:
 
     # -------------------------------------------------------------------------
-    def __init__(self, dataloader: Any, device: torch.device) -> None:
+    def __init__(self, dataloader: Any, device: Any) -> None:
         self.dataloader = dataloader
         self.device = device
 
@@ -60,6 +60,8 @@ class DeviceDataLoader:
 
     # -------------------------------------------------------------------------
     def to_device(self, data: Any) -> Any:
+        import torch
+
         if isinstance(data, torch.Tensor):
             return data.to(self.device, non_blocking=True)
         if isinstance(data, list):

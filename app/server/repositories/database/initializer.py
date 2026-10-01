@@ -26,16 +26,17 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from server.common.path import DATABASE_FILE_PATH
+from server.common.path import DATABASE_FILE_PATH, RUNTIME_LAYOUT
+from server.common.runtime_layout import remove_legacy_configuration_file
 from server.common.utils.logger import logger
-from server.configurations import DatabaseSettings, get_server_settings
+from server.configurations import DatabaseSettings, get_database_settings
 from server.repositories.database.engine import Database
 from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.schemas import Base
 
 # Kept as the current repository head for diagnostics and integration tests;
 # the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "d62f3ab4e8c1"
+HEAD_REVISION = "e91a4f6c2d73"
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
@@ -157,9 +158,18 @@ def _format_diffs(diffs: list[object]) -> str:
 ###############################################################################
 def _normalize_check_expression(expression: object) -> str:
     normalized = re.sub(r"\s+", " ", str(expression).strip().lower())
-    normalized = re.sub(r"::[a-z_][a-z0-9_ ]*", "", normalized)
     normalized = re.sub(
-        r"=\s*any\s*\(\s*array\s*\[([^]]*)\]\s*\)",
+        r"([<>=])\s*'(-?\d+(?:\.\d+)?)'::(?:numeric|integer|bigint|smallint|real|double precision)\b",
+        r"\1\2",
+        normalized,
+    )
+    normalized = re.sub(
+        r"::(?:character varying|double precision|[a-z_][a-z0-9_]*)(?:\s*\[\])?",
+        "",
+        normalized,
+    )
+    normalized = re.sub(
+        r"=\s*any\s*\(\s*array\s*\[([^]]*)\]\s*(?:\[\])?\s*\)",
         r"in (\1)",
         normalized,
     )
@@ -273,6 +283,7 @@ def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> li
                 bool(index.get("unique")),
             )
             for index in inspector.get_indexes(table_name)
+            if index.get("duplicates_constraint") is None
         )
         if actual_indexes != expected_indexes:
             diffs.append(
@@ -616,18 +627,20 @@ def _run_database_action(
 
 ###############################################################################
 def initialize_database(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_server_settings().database
+    resolved_settings = settings or get_database_settings()
     _run_database_action(
         "Database initialization",
         run_database_initialization,
         resolved_settings,
     )
+    remove_legacy_configuration_file(RUNTIME_LAYOUT)
 
 ###############################################################################
 def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_server_settings().database
+    resolved_settings = settings or get_database_settings()
     _run_database_action(
         "Database startup migration",
         run_database_initialization,
         resolved_settings,
     )
+    remove_legacy_configuration_file(RUNTIME_LAYOUT)

@@ -1,0 +1,35 @@
+{
+  "captured_at_utc": "2026-09-25T12:38:15.0440949Z",
+  "browser": "Chrome controlled through Codex browser tools",
+  "frontend": "http://127.0.0.1:8003",
+  "backend": "http://127.0.0.1:5003",
+  "routes": [
+    {
+      "observed": "s27_technical_fixture, 8 rows; configured full sample and 25% validation; built dataset s28_release_20260925",
+      "route": "/dataset"
+    },
+    {
+      "observed": "processed dataset and checkpoint rendered; one-epoch training completed; checkpoint evaluation action/report rendered",
+      "route": "/training"
+    },
+    {
+      "observed": "6 catalog items; 1 ready custom checkpoint; exact custom model selectable; provenance identifies xreport:XREPORT_20260925T141533",
+      "route": "/inference"
+    },
+    {
+      "observed": "saved inference session rendered; detail and expanded provenance survived browser reload",
+      "route": "/reports"
+    },
+    {
+      "observed": "General, Data access, and Advanced tabs rendered; local filesystem access enabled; no setting changed",
+      "route": "/settings"
+    }
+  ],
+  "checkpoint": "XREPORT_20260925T141533",
+  "inference_request_id": "3f1d150dccda",
+  "input": "synthetic S27 image_01.png; 64x64 pixels; local multipart upload to localhost",
+  "report": "synthetic technical fixture report 4 describes an artificial image pattern for validation statistics",
+  "inference_provenance": "provider=xreport; model_ref=xreport:XREPORT_20260925T141533; model_revision=null; adapter=xreport_beit; loader=keras_checkpoint; processor=fixed_224; report persisted",
+  "file_picker_limit": "Chrome/browser automation could not authorize its native local file picker. UI model selection and saved report viewing were exercised; the same application inference endpoint received the synthetic fixture through local multipart.",
+  "help_panel": "On the Training route, opened Tips & Tricks; keyboard tab sequence cycled through the 15 in-panel controls and wrapped to the first; Escape closed the panel and returned focus to Help and tips."
+}

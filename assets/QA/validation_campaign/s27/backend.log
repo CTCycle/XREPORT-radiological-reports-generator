@@ -1,0 +1,102 @@
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Context impl SQLiteImpl.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Will assume non-transactional DDL.
+23-09-2026 21:23:19 - XREPORT - INFO - Database migration check (backend=sqlite, database=G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\s27-s28-20260923\database.db, current=base, head=e91a4f6c2d73)
+23-09-2026 21:23:19 - XREPORT - INFO - Pending migration ad03b780d44b: create legacy v1 schema baseline
+23-09-2026 21:23:19 - XREPORT - INFO - Pending migration c1e4f1a7b2d9: remove the legacy application schema marker
+23-09-2026 21:23:19 - XREPORT - INFO - Pending migration d62f3ab4e8c1: remove persisted job state and register complete checkpoints
+23-09-2026 21:23:19 - XREPORT - INFO - Pending migration f48a7c2e91b6: persist application settings and retire the legacy JSON authority
+23-09-2026 21:23:19 - XREPORT - INFO - Pending migration e91a4f6c2d73: preserve original inference reports while allowing draft edits
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Context impl SQLiteImpl.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Will assume non-transactional DDL.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Running upgrade  -> ad03b780d44b, create legacy v1 schema baseline
+23-09-2026 21:23:19 - alembic.runtime.migration - DEBUG - new branch insert ad03b780d44b
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Running upgrade ad03b780d44b -> c1e4f1a7b2d9, remove the legacy application schema marker
+23-09-2026 21:23:19 - alembic.runtime.migration - DEBUG - update ad03b780d44b to c1e4f1a7b2d9
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Running upgrade c1e4f1a7b2d9 -> d62f3ab4e8c1, remove persisted job state and register complete checkpoints
+23-09-2026 21:23:19 - alembic.runtime.migration - DEBUG - update c1e4f1a7b2d9 to d62f3ab4e8c1
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Running upgrade d62f3ab4e8c1 -> f48a7c2e91b6, persist application settings and retire the legacy JSON authority
+23-09-2026 21:23:19 - alembic.runtime.migration - DEBUG - update d62f3ab4e8c1 to f48a7c2e91b6
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Running upgrade f48a7c2e91b6 -> e91a4f6c2d73, preserve original inference reports while allowing draft edits
+23-09-2026 21:23:19 - alembic.runtime.migration - DEBUG - update f48a7c2e91b6 to e91a4f6c2d73
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Context impl SQLiteImpl.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Will assume non-transactional DDL.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Context impl SQLiteImpl.
+23-09-2026 21:23:19 - alembic.runtime.migration - INFO - Will assume non-transactional DDL.
+23-09-2026 21:23:19 - XREPORT - INFO - Database migrations applied through Alembic head e91a4f6c2d73
+23-09-2026 21:23:19 - XREPORT - INFO - SQLite database is synchronized at G:\Projects\Repositories\Active projects\XREPORT Radiological Reports\runtimes\cache\s27-s28-20260923\database.db
+23-09-2026 21:23:19 - XREPORT - INFO - Startup phase=database_validated elapsed_ms=148
+23-09-2026 21:23:19 - XREPORT - INFO - Startup phase=resources_validated elapsed_ms=149 database_backend=sqlite
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[36:55]
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[57:117]
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_field with data[119:131]
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_value with data[133:141]
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_part_data with data[145:1090]
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+23-09-2026 21:24:44 - python_multipart.multipart - DEBUG - Calling on_end with no data
+23-09-2026 21:24:44 - XREPORT - INFO - Dataset uploaded: s27_technical_fixture.csv (name: s27_technical_fixture) with 8 rows, 2 columns
+23-09-2026 21:24:44 - XREPORT - INFO - Dataset loaded: 8 matched, 0 unmatched records
+23-09-2026 21:24:44 - XREPORT - INFO - Upserted 8 records to dataset_records table (dataset: s27_technical_fixture)
+23-09-2026 21:25:04 - XREPORT - INFO - Starting dataset validation with 100.0% sample size
+23-09-2026 21:25:04 - XREPORT - INFO - Started job 99b6fcd1 (type=validation)
+23-09-2026 21:25:04 - XREPORT - INFO - Loaded 8 records for validation
+23-09-2026 21:25:04 - XREPORT - INFO - Validated image paths: 8 valid records
+23-09-2026 21:25:04 - XREPORT - INFO - Starting analysis on 8 validated records
+23-09-2026 21:25:04 - XREPORT - INFO - Metrics to compute: pixels_distribution, text_statistics, image_statistics
+23-09-2026 21:25:04 - XREPORT - INFO - [1/3] Calculating text statistics for 8 reports...
+23-09-2026 21:25:04 - XREPORT - INFO - [1/3] Text statistics complete: 104 total words, 20 unique
+23-09-2026 21:25:04 - XREPORT - INFO - [2/3] Calculating image statistics for 8 images (this may take a while)...
+23-09-2026 21:25:04 - XREPORT - INFO -   Image statistics progress: 1/8 (12%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 2/8 (25%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 3/8 (38%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 4/8 (50%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 5/8 (62%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 6/8 (75%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 7/8 (88%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Image statistics progress: 8/8 (100%)
+23-09-2026 21:25:05 - XREPORT - INFO - [2/3] Image statistics complete: analyzed 8 images
+23-09-2026 21:25:05 - XREPORT - INFO - [3/3] Calculating pixel intensity distribution for 8 images...
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 1/8 (12%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 2/8 (25%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 3/8 (38%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 4/8 (50%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 5/8 (62%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 6/8 (75%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 7/8 (88%)
+23-09-2026 21:25:05 - XREPORT - INFO -   Pixel distribution progress: 8/8 (100%)
+23-09-2026 21:25:05 - XREPORT - INFO - [3/3] Pixel distribution complete
+23-09-2026 21:25:05 - XREPORT - INFO - Dataset validation completed successfully
+23-09-2026 21:25:05 - XREPORT - INFO - Job 99b6fcd1 completed successfully
+23-09-2026 21:38:24 - XREPORT - INFO - Starting dataset validation with 100.0% sample size
+23-09-2026 21:38:24 - XREPORT - INFO - Started job 7271dd73 (type=validation)
+23-09-2026 21:38:24 - XREPORT - INFO - Loaded 8 records for validation
+23-09-2026 21:38:24 - XREPORT - INFO - Validated image paths: 8 valid records
+23-09-2026 21:38:24 - XREPORT - INFO - Starting analysis on 8 validated records
+23-09-2026 21:38:24 - XREPORT - INFO - Metrics to compute: pixels_distribution, text_statistics, image_statistics
+23-09-2026 21:38:24 - XREPORT - INFO - [1/3] Calculating text statistics for 8 reports...
+23-09-2026 21:38:24 - XREPORT - INFO - [1/3] Text statistics complete: 104 total words, 20 unique
+23-09-2026 21:38:24 - XREPORT - INFO - [2/3] Calculating image statistics for 8 images (this may take a while)...
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 1/8 (12%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 2/8 (25%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 3/8 (38%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 4/8 (50%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 5/8 (62%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 6/8 (75%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 7/8 (88%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Image statistics progress: 8/8 (100%)
+23-09-2026 21:38:24 - XREPORT - INFO - [2/3] Image statistics complete: analyzed 8 images
+23-09-2026 21:38:24 - XREPORT - INFO - [3/3] Calculating pixel intensity distribution for 8 images...
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 1/8 (12%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 2/8 (25%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 3/8 (38%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 4/8 (50%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 5/8 (62%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 6/8 (75%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 7/8 (88%)
+23-09-2026 21:38:24 - XREPORT - INFO -   Pixel distribution progress: 8/8 (100%)
+23-09-2026 21:38:24 - XREPORT - INFO - [3/3] Pixel distribution complete
+23-09-2026 21:38:24 - XREPORT - INFO - Dataset validation completed successfully
+23-09-2026 21:38:24 - XREPORT - INFO - Job 7271dd73 completed successfully

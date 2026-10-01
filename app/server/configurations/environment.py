@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+import os
 from pathlib import Path
 from threading import Lock
 
@@ -53,7 +54,11 @@ def load_environment(*, force: bool = False) -> Path:
         if state.loaded and not force:
             return env_path
 
+        resource_root_override = os.getenv("XREPORT_RESOURCES_DIR")
         load_dotenv(dotenv_path=env_path, override=True)
+        if resource_root_override and resource_root_override.strip():
+            # Keep spawned workers aligned with the runtime layout resolved at import.
+            os.environ["XREPORT_RESOURCES_DIR"] = resource_root_override
 
         state.loaded = True
         return env_path

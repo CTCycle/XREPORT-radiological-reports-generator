@@ -1,0 +1,29 @@
+{
+  "acceptance_checks": {
+    "canonical_catalogue_ready": true,
+    "canonical_model_loaded": true,
+    "canonical_snapshot_under_app_resources": true,
+    "exact_revision": true,
+    "hub_offline_mode_enabled": true,
+    "revision_module_cache_recreated": true
+  },
+  "adapter_class": "CXRMateMultiAdapter",
+  "canonical_snapshot": "app/resources/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "hub_offline_mode": true,
+  "model_class": "MultiCXREncoderDecoderModel",
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "module_cache_relative_path": "runtimes/cache/huggingface/modules/transformers_modules/_330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "observed_at_utc": "2026-09-24T15:13:45.854642+00:00",
+  "provider_unloaded": true,
+  "revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "runtime": {
+    "cuda_available": true,
+    "cuda_used": true,
+    "model_dtype": "torch.float32",
+    "requested_device": "auto",
+    "resolved_device": "cuda:0",
+    "resolved_devices": [
+      "cuda:0"
+    ]
+  }
+}

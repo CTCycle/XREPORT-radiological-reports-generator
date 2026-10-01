@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -20,7 +21,14 @@ from server.services.errors import (
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
+    InferenceHistoryDetail,
+    InferenceHistoryDeleteResponse,
+    InferenceHistoryResponse,
+    InferenceHistorySort,
+    InferenceHistoryStatus,
+    InferenceHistoryUpdateRequest,
     InferenceModelsResponse,
+    ModelAvailability,
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import (
@@ -29,6 +37,7 @@ from server.domain.jobs import (
 from server.common.constants import (
     INFERENCE_IMAGE_CONTENT_TYPES,
     INFERENCE_IMAGE_EXTENSIONS,
+    MAX_TOTAL_IMAGE_BYTES,
 )
 from server.common.utils.logger import logger
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
@@ -49,7 +58,6 @@ if TYPE_CHECKING:
 
 
 MAX_INFERENCE_IMAGES = 16
-MAX_TOTAL_IMAGE_BYTES = 64 * 1024 * 1024
 
 ###############################################################################
 def map_inference_failure(exc: Exception) -> JobExecutionError:
@@ -137,7 +145,10 @@ def get_inference_image_store() -> InferenceImageStore:
 def get_huggingface_provider() -> HuggingFaceProvider:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
 
-    return HuggingFaceProvider(get_server_settings().inference)
+    return HuggingFaceProvider(
+        get_server_settings().inference,
+        timeout_provider=lambda: get_server_settings().inference.model_timeout,
+    )
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -432,10 +443,12 @@ class InferenceService:
         runtime: InferenceRuntimeCoordinator | None = None,
         repository: InferenceRepository | None = None,
         checkpoint_repository: CheckpointRepository | None = None,
+        settings_provider: Callable[[], ServerSettings] | None = None,
     ) -> None:
         self.job_manager = job_manager
         self.inference_image_store = inference_image_store
         self.server_settings = server_settings
+        self.settings_provider = settings_provider
         self.model_catalog = model_catalog
         self.installation_manager = installation_manager
         self._runtime = runtime
@@ -450,6 +463,13 @@ class InferenceService:
         if self._runtime is None:
             self._runtime = get_inference_runtime()
         return self._runtime
+
+    # -------------------------------------------------------------------------
+    def _current_settings(self) -> ServerSettings:
+        provider = getattr(self, "settings_provider", None)
+        if provider is not None:
+            return provider()
+        return self.server_settings
 
     # -------------------------------------------------------------------------
     def get_job_status_or_500(self, job_id: str, detail: str) -> dict[str, Any]:
@@ -612,10 +632,12 @@ class InferenceService:
             )
         if action == "delete_local":
             target_revision = configured_revision
+        settings = self._current_settings()
         job_id = self.job_manager.start_job(
             job_type="model_maintenance",
             runner=run_model_maintenance_job,
             failure_mapper=map_inference_failure,
+            poll_interval=settings.jobs.polling_interval,
             kwargs={
                 "job_manager": self.job_manager,
                 "installation_manager": self.installation_manager,
@@ -634,8 +656,117 @@ class InferenceService:
             job_type=status["job_type"],
             status=status["status"],
             message=f"Model {action} started for {model_ref}",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
+
+    # -------------------------------------------------------------------------
+    def list_history(
+        self,
+        *,
+        model_ref: str | None = None,
+        status: InferenceHistoryStatus | None = None,
+        sort: InferenceHistorySort = "newest",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> InferenceHistoryResponse:
+        allowed_statuses: set[str] = {
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+        }
+        if model_ref is not None and not model_ref.strip():
+            raise BadRequestError(detail="model_ref cannot be empty")
+        if status is not None and status not in allowed_statuses:
+            raise BadRequestError(detail=f"Unsupported history status: {status}")
+        if sort not in {"newest", "oldest"}:
+            raise BadRequestError(detail="sort must be newest or oldest")
+        try:
+            payload = self.repository.list_inference_history(
+                model_ref=model_ref.strip() if model_ref else None,
+                status=status,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to list inference history")
+            raise InternalServiceError(detail="Unable to load inference history") from exc
+        return InferenceHistoryResponse.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def get_history(self, request_id: str) -> InferenceHistoryDetail:
+        try:
+            payload = self.repository.get_inference_history(request_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to load inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to load inference history") from exc
+        if payload is None:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDetail.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def update_history(
+        self, request_id: str, request: InferenceHistoryUpdateRequest
+    ) -> InferenceHistoryDetail:
+        try:
+            payload = self.repository.update_inference_reports(
+                request_id,
+                [report.model_dump() for report in request.reports],
+            )
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to update inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to update inference history") from exc
+        if payload is None:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDetail.model_validate(payload)
+
+    # -------------------------------------------------------------------------
+    def delete_history(self, request_id: str) -> InferenceHistoryDeleteResponse:
+        try:
+            deleted = self.repository.delete_inference_history(request_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to delete inference history %s", request_id)
+            raise InternalServiceError(detail="Unable to delete inference history") from exc
+        if not deleted:
+            raise NotFoundError(detail=f"Inference history not found: {request_id}")
+        return InferenceHistoryDeleteResponse(
+            success=True,
+            message="Inference history deleted",
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _raise_if_public_model_unavailable(
+        selected_model: ModelAvailability,
+        model_ref: str,
+    ) -> None:
+        if (
+            selected_model.origin == "public"
+            and selected_model.validation_status == "degraded"
+        ):
+            raise ConflictError(
+                detail=(
+                    "Model failed qualification and cannot be used for inference: "
+                    f"{model_ref}"
+                ),
+            )
+        if (
+            selected_model.origin == "public"
+            and selected_model.gated
+            and selected_model.status != "ready"
+        ):
+            raise ConflictError(
+                detail=(
+                    "Gated model requires authorized access and a local "
+                    f"installation before inference: {model_ref}"
+                ),
+            )
 
     # -------------------------------------------------------------------------
     def generate_reports(
@@ -654,6 +785,7 @@ class InferenceService:
             raise NotFoundError(
                 detail=f"Model is not in the local inference catalog: {model_ref}",
             )
+        self._raise_if_public_model_unavailable(selected_model, model_ref)
         if selected_model.status not in {
             "ready",
             "not_installed",
@@ -695,6 +827,7 @@ class InferenceService:
             )
 
         request_id = uuid.uuid4().hex[:12]
+        settings = self._current_settings()
         try:
             self.inference_image_store.store(request_id, images)
 
@@ -703,6 +836,7 @@ class InferenceService:
                 job_type=self.JOB_TYPE,
                 runner=run_inference_job,
                 failure_mapper=map_inference_failure,
+                poll_interval=settings.jobs.polling_interval,
                 kwargs={
                     "job_manager": self.job_manager,
                     "inference_image_store": self.inference_image_store,
@@ -731,7 +865,7 @@ class InferenceService:
                 job_type=job_status["job_type"],
                 status=job_status["status"],
                 message=f"Inference job started for {len(images)} images",
-                poll_interval=self.server_settings.jobs.polling_interval,
+                poll_interval=settings.jobs.polling_interval,
             )
 
         except ServiceError:
@@ -760,4 +894,5 @@ def get_inference_service() -> InferenceService:
         installation_manager=installation_manager,
         repository=InferenceRepository(),
         checkpoint_repository=CheckpointRepository(),
+        settings_provider=get_server_settings,
     )

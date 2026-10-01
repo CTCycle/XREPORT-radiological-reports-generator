@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -110,7 +110,6 @@ class InferenceManifestEntry(BaseModel):
         "medgemma",
         "chexone",
         "cxrmate_multi",
-        "cxrmate_ed",
         "cxrmate2",
     ]
     prompt_profile: str
@@ -183,25 +182,6 @@ class InferenceManifestEntry(BaseModel):
             raise ValueError("remote_code_approved requires trust_remote_code")
         if self.validation_status == "passed" and not self.enabled:
             raise ValueError("A disabled manifest entry cannot be marked passed")
-
-###############################################################################
-class InferenceManifest(BaseModel):
-    schema_version: Literal[3]
-    models: list[InferenceManifestEntry] = Field(min_length=5, max_length=5)
-
-    model_config = {"extra": "forbid", "strict": True}
-
-    # -------------------------------------------------------------------------
-    def model_post_init(self, __context: object) -> None:
-        refs = [entry.model_ref for entry in self.models]
-        if len(set(refs)) != len(refs):
-            raise ValueError(
-                "The public inference catalogue cannot contain duplicate model refs"
-            )
-        if any(entry.provider != "huggingface" for entry in self.models):
-            raise ValueError(
-                "The public inference catalogue may contain only Hugging Face models"
-            )
 
 ###############################################################################
 class ModelAvailability(BaseModel):
@@ -313,6 +293,83 @@ class InferenceGenerateRequest(BaseModel):
     model_ref: str
     generation_profile: GenerationProfile
     clinical_context: str = ""
+
+###############################################################################
+InferenceHistoryStatus = Literal[
+    "queued", "running", "succeeded", "failed", "cancelled"
+]
+InferenceHistorySort = Literal["newest", "oldest"]
+
+###############################################################################
+class InferenceHistoryReportSummary(BaseModel):
+    image_index: int = Field(ge=0)
+    input_image_name: str
+    preview: str
+    edited: bool = False
+    edited_at: str | None = None
+
+###############################################################################
+class InferenceHistoryReport(BaseModel):
+    image_index: int = Field(ge=0)
+    input_image_name: str
+    generated_report: str
+    edited_report: str | None = None
+    effective_report: str
+    edited: bool = False
+    edited_at: str | None = None
+    sections: dict[str, str] = Field(default_factory=dict)
+
+###############################################################################
+class InferenceHistorySummary(BaseModel):
+    request_id: str
+    provider: str
+    model_ref: str
+    model_revision: str | None = None
+    generation_profile: str
+    clinical_context: str | None = None
+    status: InferenceHistoryStatus
+    execution_time_seconds: float | None = None
+    date: str | None = None
+    reports: list[InferenceHistoryReportSummary]
+    image_names: list[str]
+    report_count: int = Field(ge=0)
+    provenance_available: bool = False
+
+###############################################################################
+class InferenceHistoryResponse(BaseModel):
+    items: list[InferenceHistorySummary]
+    total: int = Field(ge=0)
+    limit: int = Field(ge=1, le=500)
+    offset: int = Field(ge=0)
+
+###############################################################################
+class InferenceHistoryDetail(BaseModel):
+    request_id: str
+    provider: str
+    model_ref: str
+    model_revision: str | None = None
+    generation_profile: str
+    generation_config: dict[str, Any]
+    clinical_context: str | None = None
+    status: InferenceHistoryStatus
+    execution_time_seconds: float | None = None
+    date: str | None = None
+    reports: list[InferenceHistoryReport]
+    output_sections: list[str]
+
+###############################################################################
+class InferenceHistoryReportUpdate(BaseModel):
+    image_index: int = Field(ge=0)
+    edited_report: str = Field(max_length=1_000_000)
+
+###############################################################################
+class InferenceHistoryUpdateRequest(BaseModel):
+    reports: list[InferenceHistoryReportUpdate] = Field(min_length=1)
+
+###############################################################################
+class InferenceHistoryDeleteResponse(BaseModel):
+    success: bool
+    message: str
 
 ###############################################################################
 class ModelMaintenanceRequest(BaseModel):

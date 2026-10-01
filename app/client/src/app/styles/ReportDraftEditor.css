@@ -1,0 +1,53 @@
+.draft-editor {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-3);
+}
+
+.declared-section {
+    display: grid;
+    grid-template-rows: auto minmax(220px, 1fr);
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.declared-section label {
+    font-weight: 700;
+}
+
+.declared-section textarea,
+.report-section-value {
+    width: 100%;
+    min-height: 220px;
+    box-sizing: border-box;
+    padding: var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.declared-section textarea {
+    resize: vertical;
+}
+
+.declared-section textarea:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.report-section-value {
+    white-space: pre-wrap;
+}
+
+.draft-editor.read-only .declared-section {
+    grid-template-rows: auto auto;
+}
+
+@media (max-width: 640px) {
+    .draft-editor {
+        grid-template-columns: 1fr;
+    }
+}

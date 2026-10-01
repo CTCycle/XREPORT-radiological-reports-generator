@@ -1,0 +1,8 @@
+{
+  "restore_status": "PASS",
+  "database": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\source-data\\database.db",
+  "backup": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\database-pre-drift.sqlite",
+  "backup_sha256": "bdef21158fa4f533e47ef9532e57f48787210884a6442491adc2505e544a9e8a",
+  "restored_sha256": "bdef21158fa4f533e47ef9532e57f48787210884a6442491adc2505e544a9e8a",
+  "listeners_before_restore": 0
+}

@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-08-30
+Last updated: 2026-09-28
 
 ## Database Backend Selection
 
@@ -8,12 +8,15 @@ The sources of truth are deliberately separated:
 
 - `settings/.env` owns deployment and infrastructure values such as the
   runtime host, ports, resource root, database mode, and database connection.
-- `settings/configurations.json` owns application behavior such as the global
-  seed, feature flags, job polling interval, and inference runtime policy.
+- The singleton `application_settings` database row owns mutable application
+  behavior such as the global seed, filesystem-access flag, job polling
+  interval, inference timeout, and hidden inference process policy.
+- `app/server/configurations/inference_models.py` owns the immutable, reviewed
+  inference catalogue and its safety/runtime contract.
 
 From `settings/.env`:
 
-- `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `app/resources`; relative values are resolved from the repository root.
+- `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `data`; relative values are resolved from the repository root.
 - `EMBEDDED_DATABASE=true`: SQLite using `<resource root>/database.db`.
 - `EMBEDDED_DATABASE=false`: PostgreSQL using the configured engine, host, port, database name, user, password, and SSL settings.
 
@@ -22,7 +25,19 @@ From `settings/.env`:
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
 Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`d62f3ab4e8c1`) and stores the applied revision in `alembic_version`.
+one head (`e91a4f6c2d73`) and stores the applied revision in `alembic_version`.
+The `f48a7c2e91b6` upgrade creates `application_settings` and, when upgrading
+an installation that still has the legacy JSON file, imports its validated
+values exactly once. The migration is the only compatibility reader; it does
+not import environment values. After the upgrade commits, startup removes the
+legacy file and never recreates or consults it.
+
+The `e91a4f6c2d73` upgrade adds nullable `edited_report` and `edited_at`
+columns to `inference_reports`. The generated `generated_report` column remains the
+immutable model output; an edited value is stored separately and the effective
+draft is resolved at read time. Saving text equal to the generated output
+clears the edit override, and deleting an inference run cascades to its report
+rows.
 
 ### SQLite
 
@@ -32,10 +47,11 @@ one head (`d62f3ab4e8c1`) and stores the applied revision in `alembic_version`.
   never silently stamped, rewritten, or inferred as a compatible legacy schema;
   use the explicit migration/initialization workflow after reviewing the
   database state.
-- Head migration `d62f3ab4e8c1` removes obsolete validation and checkpoint-
-  evaluation job-state columns, then registers each complete checkpoint
-  artifact found in the configured checkpoint directory exactly once. Name and
-  normalized path collisions fail the migration.
+- The migration stream creates the singleton application-settings row, removes
+  obsolete validation and checkpoint-evaluation job-state columns, then
+  registers each complete checkpoint artifact found in the configured
+  checkpoint directory exactly once. Name and normalized path collisions fail
+  the migration.
 - Partial, modified, or unexpected schemas fail without repair or stamping. Migration failures roll back the shared transaction.
 
 ### PostgreSQL
@@ -110,6 +126,18 @@ erDiagram
         int inference_run_id FK
         int record_id FK
         int image_index
+        string edited_report
+        datetime edited_at
+    }
+    APPLICATION_SETTINGS {
+        int settings_id PK
+        bigint global_seed
+        boolean allow_local_filesystem_access
+        float job_polling_interval
+        boolean inference_hf_local_only
+        string inference_device
+        bigint inference_model_timeout
+        datetime updated_at
     }
 
     DATASETS ||--o{ DATASET_VERSIONS : versions
@@ -145,11 +173,30 @@ Foreign-key behavior is explicit: dataset-owned records and processing data casc
   values. Job lifecycle state is owned by `JobManager`, not persisted as
   feature-specific report status columns.
 - Inference history enforces unique request IDs and unique report image names and indexes.
+- Inference report edits preserve the generated model output, store an
+  optional user draft and timestamp, and are updated atomically per inference
+  session.
 - Dataset, processing, validation, checkpoint-evaluation, and report lookups have focused indexes defined in the schema models.
 
 SQLite connections enable foreign-key enforcement, WAL journaling, normal synchronous mode, and a 30-second busy timeout. Dataframe persistence batches run inside one transaction and roll back together on failure.
 
 ## Non-Database Artifacts
+
+Application settings are persisted transactionally in the singleton
+`application_settings` row. `ApplicationSettingsRepository` validates the
+complete typed model while applying partial updates, locks the row for update
+on PostgreSQL, and commits only a valid result. Reads happen at operation
+boundaries so the database remains authoritative across processes; long-running
+jobs capture the relevant values at their start.
+
+The four public values are returned by `GET /api/settings` and can be changed
+with partial `PATCH /api/settings` or restored with
+`POST /api/settings/reset`. The hidden `inference.hf_local_only` and
+`inference.device` values remain in the row but are not exposed through those
+routes. `inference.max_loaded_models` was unused and is not persisted.
+
+The typed inference catalogue is immutable application code. It is not a
+database preference, a user-editable setting, or a bundled JSON file.
 
 - Checkpoint artifacts and model artifacts under `<resource root>/checkpoints`
   and `<resource root>/models`; checkpoint identity and history references stay

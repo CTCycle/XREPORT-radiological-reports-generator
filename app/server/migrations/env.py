@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import Connection, Engine
 
-from server.configurations import get_server_settings
+from server.configurations import get_database_settings
 from server.repositories.database.engine import Database
 from server.repositories.schemas import Base
 
@@ -32,7 +32,7 @@ def _database_engine() -> tuple[Engine, bool]:
             ),
             True,
         )
-    database = Database(get_server_settings().database)
+    database = Database(get_database_settings())
     return database.engine, True
 
 ###############################################################################
@@ -49,7 +49,7 @@ def _configure(connection: Connection) -> None:
 def run_migrations_offline() -> None:
     url = _configured_url()
     if not url:
-        database = Database(get_server_settings().database)
+        database = Database(get_database_settings())
         try:
             url = str(database.engine.url)
         finally:

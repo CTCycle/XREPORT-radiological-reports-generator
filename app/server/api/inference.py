@@ -1,19 +1,27 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from server.domain.inference import (
     GenerationProfile,
     InferenceImage,
     InferenceGenerateRequest,
+    InferenceHistoryDeleteResponse,
+    InferenceHistoryDetail,
+    InferenceHistoryResponse,
+    InferenceHistorySort,
+    InferenceHistoryStatus,
+    InferenceHistoryUpdateRequest,
     InferenceModelsResponse,
     ModelMaintenanceRequest,
     ModelUpdateCheckRequest,
     ModelUpdateCheckResponse,
 )
 from server.domain.jobs import JobStartResponse
+from server.common.constants import MAX_TOTAL_IMAGE_BYTES
+from server.services.errors import PayloadTooLargeError
 
 if TYPE_CHECKING:
     from server.services.inference import InferenceService
@@ -70,6 +78,37 @@ class InferenceEndpoint:
         )
 
     # -------------------------------------------------------------------------
+    def list_history(
+        self,
+        model_ref: str | None = Query(default=None),
+        status_filter: str | None = Query(default=None, alias="status"),
+        sort: str = Query(default="newest"),
+        limit: int = Query(default=50),
+        offset: int = Query(default=0),
+    ) -> InferenceHistoryResponse:
+        return self.service.list_history(
+            model_ref=model_ref,
+            status=cast(InferenceHistoryStatus | None, status_filter),
+            sort=cast(InferenceHistorySort, sort),
+            limit=limit,
+            offset=offset,
+        )
+
+    # -------------------------------------------------------------------------
+    def get_history(self, request_id: str) -> InferenceHistoryDetail:
+        return self.service.get_history(request_id)
+
+    # -------------------------------------------------------------------------
+    def update_history(
+        self, request_id: str, request: InferenceHistoryUpdateRequest
+    ) -> InferenceHistoryDetail:
+        return self.service.update_history(request_id, request)
+
+    # -------------------------------------------------------------------------
+    def delete_history(self, request_id: str) -> InferenceHistoryDeleteResponse:
+        return self.service.delete_history(request_id)
+
+    # -------------------------------------------------------------------------
     async def generate_reports(
         self,
         request: Annotated[
@@ -79,17 +118,35 @@ class InferenceEndpoint:
         images: list[UploadFile] = File(...),
     ) -> JobStartResponse:
         parsed_images: list[InferenceImage] = []
+        total_bytes = 0
         for image in images:
             filename = (
                 (image.filename or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
             )
-            content = await image.read()
+            chunks: list[bytes] = []
+            image_bytes = 0
+            while True:
+                remaining_bytes = MAX_TOTAL_IMAGE_BYTES - total_bytes
+                chunk = await image.read(min(1024 * 1024, remaining_bytes + 1))
+                if not chunk:
+                    break
+                image_bytes += len(chunk)
+                total_bytes += len(chunk)
+                if total_bytes > MAX_TOTAL_IMAGE_BYTES:
+                    raise PayloadTooLargeError(
+                        detail=(
+                            "Total image payload exceeds "
+                            f"{MAX_TOTAL_IMAGE_BYTES // (1024 * 1024)} MB limit"
+                        ),
+                    )
+                chunks.append(chunk)
+
             parsed_images.append(
                 InferenceImage(
                     filename=filename,
                     content_type=image.content_type or "",
-                    data=content,
-                    size_bytes=len(content),
+                    data=b"".join(chunks),
+                    size_bytes=image_bytes,
                 )
             )
         return self.service.generate_reports(
@@ -121,6 +178,34 @@ class InferenceEndpoint:
             methods=["POST"],
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
+        )
+        self.router.add_api_route(
+            "/history",
+            self.list_history,
+            methods=["GET"],
+            response_model=InferenceHistoryResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.get_history,
+            methods=["GET"],
+            response_model=InferenceHistoryDetail,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.update_history,
+            methods=["PATCH"],
+            response_model=InferenceHistoryDetail,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/history/{request_id}",
+            self.delete_history,
+            methods=["DELETE"],
+            response_model=InferenceHistoryDeleteResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/generate",

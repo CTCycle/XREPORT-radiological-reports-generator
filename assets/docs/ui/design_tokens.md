@@ -1,6 +1,6 @@
 # UI Design Tokens
 
-Last updated: 2026-08-20
+Last updated: 2026-09-25
 
 Use `app/client/src/styles.css` as the source of truth for UI tokens.
 
@@ -13,6 +13,9 @@ Use `app/client/src/styles.css` as the source of truth for UI tokens.
   - `--text-xs: 0.75rem`
   - `--text-sm: 0.875rem`
   - `--text-base: 1rem`
+  - `--text-card-title: 1rem`
+  - `--text-section-title: 1.125rem`
+  - `--text-page-title: clamp(1.625rem, 2.5vw, 2rem)`
 
 Readability rules:
 
@@ -24,12 +27,16 @@ Readability rules:
 ## Layout And Spacing
 
 - Use tokenized spacing from `--space-1` through `--space-8`.
-- Keep an 8px-aligned rhythm for margins, paddings, and grouped controls.
-- Route pages use bounded content containers with `max-width` patterns in page CSS.
+- Keep spacing on the 4px scale; use the larger values to separate groups and sections.
+- Routed screens use the shared `.page-container` wrapper, `--page-max-width: 1400px`, and `--page-gutter` from the global stylesheet. Route CSS may control its internal layout but should not redefine the page origin or gutters.
+- `MainLayout` owns a 208px desktop navigation rail and a stable routed-content scroll area. Route components must not recreate shell spacing or navigation.
 - Keep section and card compositions consistent through tokenized gaps and internal spacing.
+- Use `--radius-card` and `--shadow-card` for common page surfaces.
 - Interactive elements should align to established heights:
   - `--control-height-sm: 32px`
   - `--control-height-md: 36px`
+  - `.btn`, `.primary-button`, `.secondary-button`, and `.danger-button` share the global control dimensions and focus treatment. Use their variant classes for intent rather than local control rules.
+  - `.form-input` and `.form-select` share a 36px minimum height and common label rhythm.
 
 ## Breakpoints
 

@@ -1,0 +1,155 @@
+{
+  "observed_at_utc": "2026-10-01T12:19:41.435100+00:00",
+  "s11_baseline": {
+    "defaults": {
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "global": {
+        "seed": 42
+      },
+      "inference": {
+        "model_timeout": 600
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      }
+    },
+    "status_code": 200,
+    "values": {
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "global": {
+        "seed": 42
+      },
+      "inference": {
+        "model_timeout": 600
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      }
+    }
+  },
+  "s11_hidden_field_protection": {
+    "body": {
+      "detail": [
+        {
+          "input": "cuda",
+          "loc": [
+            "body",
+            "inference",
+            "device"
+          ],
+          "msg": "Extra inputs are not permitted",
+          "type": "extra_forbidden"
+        }
+      ]
+    },
+    "status_code": 422
+  },
+  "s11_limit_polling_high": {
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "le": 60.0
+          },
+          "input": 61.0,
+          "loc": [
+            "body",
+            "jobs",
+            "polling_interval"
+          ],
+          "msg": "Input should be less than or equal to 60",
+          "type": "less_than_equal"
+        }
+      ]
+    },
+    "status_code": 422
+  },
+  "s11_limit_polling_low": {
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "ge": 0.25
+          },
+          "input": 0.1,
+          "loc": [
+            "body",
+            "jobs",
+            "polling_interval"
+          ],
+          "msg": "Input should be greater than or equal to 0.25",
+          "type": "greater_than_equal"
+        }
+      ]
+    },
+    "status_code": 422
+  },
+  "s11_null_rejection": {
+    "body": {
+      "detail": [
+        {
+          "ctx": {
+            "error": {}
+          },
+          "input": {
+            "seed": null
+          },
+          "loc": [
+            "body",
+            "global"
+          ],
+          "msg": "Value error, seed cannot be null",
+          "type": "value_error"
+        }
+      ]
+    },
+    "status_code": 422
+  },
+  "s11_patch_seed": {
+    "seed_after": 43,
+    "seed_before": 42,
+    "status_code": 200
+  },
+  "s11_persistence_readback": {
+    "seed_applied": 20261001,
+    "seed_readback": 20261001
+  },
+  "s11_reset": {
+    "matches_defaults": true,
+    "status_code": 200,
+    "values_after_reset": {
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "global": {
+        "seed": 42
+      },
+      "inference": {
+        "model_timeout": 600
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      }
+    }
+  },
+  "s37_catalog": {
+    "access_policy": "gated",
+    "access_url": "https://huggingface.co/google/medgemma-1.5-4b-it",
+    "gated": true,
+    "installation_state": "not_installed",
+    "integrity_status": "unknown",
+    "status": "not_installed",
+    "status_message": "Accept Google's model terms and configure a local Hugging Face token before downloading. Outputs remain research-only drafts.",
+    "validation_status": "pending"
+  },
+  "s37_generation_rejection": {
+    "body": {
+      "detail": "Gated model requires authorized access and a local installation before inference: huggingface:google/medgemma-1.5-4b-it"
+    },
+    "status_code": 409
+  }
+}

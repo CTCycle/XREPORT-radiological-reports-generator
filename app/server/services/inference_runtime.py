@@ -108,6 +108,38 @@ class InferenceRuntimeCoordinator:
             self.lock.release()
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _xreport_runtime_metadata(
+        model: Any,
+        requested_device: str,
+    ) -> dict[str, Any]:
+        """Capture the device actually holding the loaded Keras/Torch weights."""
+        import torch
+
+        resolved_devices: list[str] = []
+        for variable in getattr(model, "variables", ()):
+            value = getattr(variable, "value", None)
+            device = getattr(value, "device", None)
+            if device is None:
+                device = getattr(variable, "device", None)
+            if device is None:
+                continue
+            label = str(device)
+            if label not in resolved_devices:
+                resolved_devices.append(label)
+
+        return {
+            "requested_device": requested_device,
+            "resolved_device": resolved_devices[0] if resolved_devices else None,
+            "resolved_devices": resolved_devices,
+            "cuda_available": bool(torch.cuda.is_available()),
+            "cuda_used": any(
+                device == "cuda" or device.startswith("cuda:")
+                for device in resolved_devices
+            ),
+        }
+
+    # -------------------------------------------------------------------------
     def _generate_xreport(
         self,
         *,
@@ -156,6 +188,10 @@ class InferenceRuntimeCoordinator:
                 )
             except Exception as exc:  # noqa: BLE001
                 raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
+            provenance["runtime"] = self._xreport_runtime_metadata(
+                model,
+                self.huggingface_provider.settings.device,
+            )
             generation_mode = {
                 "deterministic": "greedy_search",
                 "concise": "greedy_search",

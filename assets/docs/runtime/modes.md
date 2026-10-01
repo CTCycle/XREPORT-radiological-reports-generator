@@ -1,13 +1,14 @@
 # Runtime Modes
 
-Last updated: 2026-08-30
+Last updated: 2026-09-22
 
 ## Supported Modes
 
 ### Local Web Mode
 
 - Backend: FastAPI in `app/server/app.py`.
-- Frontend: Vite preview or dev server in `app/client`.
+- Frontend: Angular development server for `start`/`dev`, or the lightweight
+  built-bundle static/proxy server for `preview` and normal Windows Launch.
 - The Windows operator flow uses `start_on_windows.ps1`.
 - macOS and Linux use the documented manual backend and frontend commands.
 
@@ -40,5 +41,8 @@ Last updated: 2026-08-30
   exposed.
 - Local filesystem browsing is feature-gated by `features.allow_local_filesystem_access`.
 - External inference uses the embedded Hugging Face Transformers provider; no Ollama, llama.cpp, vLLM, or separate model server is required.
-- Each Hugging Face entry requires a previously cached snapshot and an exact commit in `settings/inference_models.json`; mutable refs and network resolution are rejected.
+- Each Hugging Face entry requires a previously cached snapshot and the exact
+  commit declared in the typed catalogue at
+  `app/server/configurations/inference_models.py`; mutable refs and network
+  resolution are rejected.
 - All inference models and generated drafts are for research use only and are not clinically approved.

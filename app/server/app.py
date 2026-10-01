@@ -13,6 +13,7 @@ from server.api.inference import router as inference_router
 from server.api.errors import register_service_error_handlers
 from server.api.jobs import router as jobs_router
 from server.api.preparation import router as preparation_router
+from server.api.settings import router as settings_router
 from server.api.training import router as training_router
 from server.api.upload import router as upload_router
 from server.api.validation import router as validation_router
@@ -32,7 +33,7 @@ from server.common.desktop_security import (
 )
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
 from server.common.path import RUNTIME_VARIANT
-from server.configurations import get_server_settings
+from server.configurations import get_database_settings
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
@@ -92,17 +93,16 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             "Packaged startup phase=lifespan_entered elapsed_ms=%.0f",
             (perf_counter() - startup_started) * 1000,
         )
-    settings = get_server_settings()
-    if startup_started is not None:
-        logger.info(
-            "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
-            (perf_counter() - startup_started) * 1000,
-        )
-
-    run_startup_validations(settings)
+    settings = run_startup_validations(get_database_settings())
     if startup_started is not None:
         logger.info(
             "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
+            (perf_counter() - startup_started) * 1000,
+        )
+
+    if startup_started is not None:
+        logger.info(
+            "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
             (perf_counter() - startup_started) * 1000,
         )
 
@@ -155,6 +155,7 @@ def create_app() -> FastAPI:
         validation_router,
         inference_router,
         jobs_router,
+        settings_router,
     ):
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
     application.add_api_route(

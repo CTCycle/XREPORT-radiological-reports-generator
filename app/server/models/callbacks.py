@@ -107,13 +107,40 @@ class TrainingProgressCallback(Callback):
         self.progress_callback = progress_callback
         self.total_epochs = total_epochs
         self.from_epoch = from_epoch
-        self.start_time = time.time()
+        self.start_time = time.monotonic()
         self.last_update_time = 0.0
         self.polling_interval = polling_interval
         self.current_epoch_index = 0
+        self.first_batch_entered = False
+        self.first_batch_completed = False
         # Store last known validation metrics (from previous epoch end)
         self.last_val_loss = 0.0
         self.last_val_accuracy = 0.0
+
+    # -------------------------------------------------------------------------
+    def _report_lifecycle(self, phase: str, **details: Any) -> None:
+        if self.progress_callback is None:
+            return
+        self.progress_callback(
+            {
+                "type": "training_worker_lifecycle",
+                "phase": phase,
+                "status": "started",
+                **details,
+            }
+        )
+
+    # -------------------------------------------------------------------------
+    def on_train_begin(self, logs: dict | None = None) -> None:
+        del logs
+        self._report_lifecycle("fit_entered")
+
+    # -------------------------------------------------------------------------
+    def on_train_batch_begin(self, batch: int, logs: dict | None = None) -> None:
+        del logs
+        if not self.first_batch_entered:
+            self.first_batch_entered = True
+            self._report_lifecycle("first_batch_entered", batch=batch)
 
     # -------------------------------------------------------------------------
     def on_epoch_begin(self, epoch: int, logs: dict | None = None) -> None:
@@ -121,7 +148,11 @@ class TrainingProgressCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_train_batch_end(self, batch: int, logs: dict | None = None) -> None:
-        current_time = time.time()
+        if not self.first_batch_completed:
+            self.first_batch_completed = True
+            self._report_lifecycle("first_batch_completed", batch=batch)
+
+        current_time = time.monotonic()
 
         # Throttle updates based on configured interval
         if current_time - self.last_update_time < self.polling_interval:
@@ -161,6 +192,7 @@ class TrainingProgressCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
+        self._report_lifecycle("epoch_completed", epoch=epoch + 1)
         logs = logs or {}
 
         # Store validation metrics for next epoch's batch updates
@@ -170,7 +202,7 @@ class TrainingProgressCallback(Callback):
         )
 
         # Always send update at epoch end
-        current_time = time.time()
+        current_time = time.monotonic()
         self.last_update_time = current_time
 
         processed_epochs = epoch - self.from_epoch + 1

@@ -1,0 +1,235 @@
+{
+  "adapter": "cxrmate2",
+  "api_result": {
+    "count": 1,
+    "display_sections": {
+      "fixture-covid-chest-xray.jpg": {
+        "findings": "There is focal airspace disease in the left mid lung and left lower lobe. The right lung is clear. The heart and mediastinal structures are unremarkable. The bony thorax is grossly intact.",
+        "impression": "Left lower lobe and left mid lung pneumonia."
+      }
+    },
+    "inference_metadata": [
+      {
+        "adapter": "cxrmate2",
+        "clinical_context": "",
+        "filename": "fixture-covid-chest-xray.jpg",
+        "generation_profile": "deterministic",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-2",
+        "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+        "original_dimensions": {
+          "height": 768,
+          "width": 968
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          518,
+          518
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate2-findings-impression",
+        "provider": "huggingface",
+        "research_only": true
+      }
+    ],
+    "lifecycle": {
+      "local_path": "app/resources/models/huggingface/installed/aehrc__cxrmate-2/aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "message": "Model loaded and report generated",
+      "phase": "completed",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5"
+    },
+    "processed_images": 1,
+    "provenance": {
+      "adapter": "cxrmate2",
+      "clinical_context": "",
+      "generation_profile": "deterministic",
+      "input_images": [
+        {
+          "adapter": "cxrmate2",
+          "clinical_context": "",
+          "filename": "fixture-covid-chest-xray.jpg",
+          "generation_profile": "deterministic",
+          "input_scope": "study",
+          "model_loader": "causal_lm",
+          "model_ref": "huggingface:aehrc/cxrmate-2",
+          "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+          "original_dimensions": {
+            "height": 768,
+            "width": 968
+          },
+          "processed_tensor_dimensions": [
+            1,
+            1,
+            3,
+            518,
+            518
+          ],
+          "processor_loader": "auto",
+          "prompt_profile": "cxrmate2-findings-impression",
+          "provider": "huggingface",
+          "research_only": true
+        }
+      ],
+      "installation": {
+        "cloud_assessment": null,
+        "local_path": "app/resources/models/huggingface/installed/aehrc__cxrmate-2/aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+        "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+        "state": "active"
+      },
+      "model_loader": "causal_lm",
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "processor_loader": "auto",
+      "processor_repository_id": null,
+      "processor_revision": null,
+      "prompt_profile": "cxrmate2-findings-impression",
+      "provider": "huggingface",
+      "report_scope": "study",
+      "research_only": true,
+      "runtime": {
+        "cuda_available": true,
+        "cuda_used": true,
+        "model_dtype": "torch.bfloat16",
+        "requested_device": "auto",
+        "resolved_device": "cuda:0",
+        "resolved_devices": [
+          "cuda:0",
+          "cpu"
+        ]
+      },
+      "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+      "validation_status": "pending"
+    },
+    "report_filenames": [
+      "fixture-covid-chest-xray.jpg"
+    ],
+    "reports": {
+      "fixture-covid-chest-xray.jpg": "Findings:\nThere is focal airspace disease in the left mid lung and left lower lobe. The right lung is clear. The heart and mediastinal structures are unremarkable. The bony thorax is grossly intact.\n\nImpression:\nLeft lower lobe and left mid lung pneumonia."
+    },
+    "reports_ordered": [
+      "Findings:\nThere is focal airspace disease in the left mid lung and left lower lobe. The right lung is clear. The heart and mediastinal structures are unremarkable. The bony thorax is grossly intact.\n\nImpression:\nLeft lower lobe and left mid lung pneumonia."
+    ],
+    "total_images": 1
+  },
+  "captured_at": "2026-09-19T16:57:46.211514+00:00",
+  "contract_hash": "ef9bf48a66e2e6a6df964da4fbcef1d9c3be0d783ee4a95376f900650e4c59ca",
+  "cuda_available": true,
+  "cuda_used": true,
+  "display_sections": {
+    "fixture-covid-chest-xray.jpg": {
+      "findings": "There is focal airspace disease in the left mid lung and left lower lobe. The right lung is clear. The heart and mediastinal structures are unremarkable. The bony thorax is grossly intact.",
+      "impression": "Left lower lobe and left mid lung pneumonia."
+    }
+  },
+  "dtype": "torch.bfloat16",
+  "fixture": {
+    "de_identification": "Public research fixture released by the dataset repository; no direct identifier is included in the downloaded image; local validation only.",
+    "filename": "fixture-covid-chest-xray.jpg",
+    "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; file 000001-1.jpg; https://github.com/ieee8023/covid-chestxray-dataset",
+    "sha256": "4570a9524d57cb2697ea577ac5d36553cf28e0d190d347edda1fe12f07d54751"
+  },
+  "fixtures": [
+    {
+      "de_identification": "Public research fixture released by the dataset repository; no direct identifier is included in the downloaded image; local validation only.",
+      "filename": "fixture-covid-chest-xray.jpg",
+      "provenance": "Public COVID-19 Image Data Collection; ieee8023/covid-chestxray-dataset; file 000001-1.jpg; https://github.com/ieee8023/covid-chestxray-dataset",
+      "sha256": "4570a9524d57cb2697ea577ac5d36553cf28e0d190d347edda1fe12f07d54751"
+    }
+  ],
+  "generation_profile": "deterministic",
+  "generation_seconds": 25.91609110002173,
+  "image_count": 1,
+  "input_tensor_dimensions": [],
+  "load_seconds": 70.73252870002761,
+  "manifest_promoted": false,
+  "model": "aehrc/cxrmate-2",
+  "model_ref": "huggingface:aehrc/cxrmate-2",
+  "output_sections": {
+    "fixture-covid-chest-xray.jpg": [
+      "findings",
+      "impression"
+    ]
+  },
+  "peak_cuda_memory_bytes": 4839321088,
+  "provenance": {
+    "adapter": "cxrmate2",
+    "clinical_context": "",
+    "generation_profile": "deterministic",
+    "input_images": [
+      {
+        "adapter": "cxrmate2",
+        "clinical_context": "",
+        "filename": "fixture-covid-chest-xray.jpg",
+        "generation_profile": "deterministic",
+        "input_scope": "study",
+        "model_loader": "causal_lm",
+        "model_ref": "huggingface:aehrc/cxrmate-2",
+        "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+        "original_dimensions": {
+          "height": 768,
+          "width": 968
+        },
+        "processed_tensor_dimensions": [
+          1,
+          1,
+          3,
+          518,
+          518
+        ],
+        "processor_loader": "auto",
+        "prompt_profile": "cxrmate2-findings-impression",
+        "provider": "huggingface",
+        "research_only": true
+      }
+    ],
+    "installation": {
+      "cloud_assessment": null,
+      "local_path": "app/resources/models/huggingface/installed/aehrc__cxrmate-2/aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "state": "active"
+    },
+    "model_loader": "causal_lm",
+    "model_ref": "huggingface:aehrc/cxrmate-2",
+    "model_revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+    "processor_loader": "auto",
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "prompt_profile": "cxrmate2-findings-impression",
+    "provider": "huggingface",
+    "report_scope": "study",
+    "research_only": true,
+    "runtime": {
+      "cuda_available": true,
+      "cuda_used": true,
+      "model_dtype": "torch.bfloat16",
+      "requested_device": "auto",
+      "resolved_device": "cuda:0",
+      "resolved_devices": [
+        "cuda:0",
+        "cpu"
+      ]
+    },
+    "validation_message": "Pinned model files are verified locally; readiness is promoted only after real image-to-report inference.",
+    "validation_status": "pending"
+  },
+  "real_inference": true,
+  "report_character_counts": {
+    "fixture-covid-chest-xray.jpg": 256
+  },
+  "reports": {
+    "fixture-covid-chest-xray.jpg": "Findings:\nThere is focal airspace disease in the left mid lung and left lower lobe. The right lung is clear. The heart and mediastinal structures are unremarkable. The bony thorax is grossly intact.\n\nImpression:\nLeft lower lobe and left mid lung pneumonia."
+  },
+  "requested_device": "auto",
+  "resolved_device": "cuda:0",
+  "resolved_runtime_devices": [
+    "cuda:0",
+    "cpu"
+  ],
+  "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+  "status": "passed",
+  "total_seconds": 167.8697841000394,
+  "weights_downloaded": false
+}

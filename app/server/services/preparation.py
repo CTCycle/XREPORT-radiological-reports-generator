@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
 import pandas as pd
@@ -33,7 +33,11 @@ from server.domain.training import (
 from server.domain.jobs import JobStartResponse
 from server.common.constants import VALID_IMAGE_EXTENSIONS
 from server.common.utils.logger import logger
-from server.services.jobs import JobManager, get_job_manager
+from server.services.jobs import (
+    JobAlreadyRunningError,
+    JobManager,
+    get_job_manager,
+)
 from server.configurations.startup import get_server_settings
 from server.services.upload import UploadState, get_upload_state
 from server.services.dataset_processing import DatasetProcessingService
@@ -115,6 +119,7 @@ class PreparationService:
         job_manager: JobManager,
         upload_state: UploadState,
         server_settings: ServerSettings,
+        settings_provider: Callable[[], ServerSettings] | None = None,
     ) -> None:
         self.repository = repository
         self.dataset_repository = dataset_repository
@@ -122,13 +127,29 @@ class PreparationService:
         self.job_manager = job_manager
         self.upload_state = upload_state
         self.server_settings = server_settings
+        self.settings_provider = settings_provider
         self.allow_local_filesystem_access = (
             self.server_settings.features.allow_local_filesystem_access
         )
 
     # -------------------------------------------------------------------------
+    def _current_settings(self) -> ServerSettings:
+        provider = getattr(self, "settings_provider", None)
+        if provider is not None:
+            return provider()
+        return self.server_settings
+
+    # -------------------------------------------------------------------------
+    def _local_filesystem_access_enabled(self) -> bool:
+        settings = self._current_settings()
+        features = getattr(settings, "features", None)
+        if features is None:
+            return getattr(self, "allow_local_filesystem_access", True)
+        return features.allow_local_filesystem_access
+
+    # -------------------------------------------------------------------------
     def ensure_local_filesystem_access(self) -> None:
-        if self.allow_local_filesystem_access:
+        if self._local_filesystem_access_enabled():
             return
         raise ForbiddenError(
             detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
@@ -147,7 +168,7 @@ class PreparationService:
         mapping: dict[str, str] = {}
         for path in image_paths:
             image_path = Path(path)
-            mapping[image_path.stem] = str(image_path)
+            mapping[image_path.stem.casefold()] = str(image_path)
         return mapping
 
     # -------------------------------------------------------------------------
@@ -186,7 +207,7 @@ class PreparationService:
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
-            allow_server_browse=self.allow_local_filesystem_access,
+            allow_server_browse=self._local_filesystem_access_enabled(),
             message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
             if row_count > 0
             else f"No data found in {DATASET_RECORDS_TABLE} table",
@@ -269,8 +290,17 @@ class PreparationService:
             raise BadRequestError(
                 detail=DATASET_NAME_EMPTY_ERROR,
             )
-        deleted_count = self.repository.delete_dataset(dataset_name)
-        if deleted_count <= 0:
+        deletion = self.repository.delete_dataset(dataset_name)
+        if deletion.dependent_dataset_names:
+            dependent_names = ", ".join(deletion.dependent_dataset_names)
+            raise ConflictError(
+                detail=(
+                    f"Cannot delete source dataset '{dataset_name}' while processed "
+                    f"datasets depend on it: {dependent_names}. Delete those "
+                    "processed datasets first."
+                ),
+            )
+        if deletion.deleted_count <= 0:
             raise NotFoundError(
                 detail=f"Dataset not found: {dataset_name}",
             )
@@ -334,7 +364,7 @@ class PreparationService:
         self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
-        seed = self.server_settings.global_settings.seed
+        seed = self._current_settings().global_settings.seed
 
         # Validate folder path
         directory_path = Path(folder_path)
@@ -385,7 +415,7 @@ class PreparationService:
 
         # Match records to image paths
         df["_path"] = df[image_column].map(
-            lambda value: images_mapping.get(Path(str(value)).stem)
+            lambda value: images_mapping.get(Path(str(value)).stem.casefold())
         )
         matched = df.dropna(subset=["_path"])
         unmatched = len(df) - len(matched)
@@ -463,8 +493,9 @@ class PreparationService:
                 detail="Dataset processing is already in progress",
             )
 
+        settings = self._current_settings()
         configuration = request.model_dump()
-        configuration["seed"] = self.server_settings.global_settings.seed
+        configuration["seed"] = settings.global_settings.seed
         dataset_name = configuration.get("dataset_name", "").strip()
         if not dataset_name:
             raise BadRequestError(
@@ -483,13 +514,20 @@ class PreparationService:
             )
 
         # Start background job
-        job_id = self.job_manager.start_job(
-            job_type=self.JOB_TYPE,
-            runner=self.processing_service.run,
-            kwargs={
-                "configuration": configuration,
-            },
-        )
+        try:
+            job_id = self.job_manager.start_job(
+                job_type=self.JOB_TYPE,
+                runner=self.processing_service.run,
+                poll_interval=settings.jobs.polling_interval,
+                kwargs={
+                    "configuration": configuration,
+                },
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(
+                detail="Dataset processing is already in progress"
+            ) from exc
 
         job_status = self.job_manager.get_job_status(job_id)
         if job_status is None:
@@ -502,7 +540,7 @@ class PreparationService:
             job_type=job_status["job_type"],
             status=job_status["status"],
             message=f"Dataset processing job started for {dataset_name} ({len(dataset)} samples)",
-            poll_interval=self.server_settings.jobs.polling_interval,
+            poll_interval=settings.jobs.polling_interval,
         )
 
     # -------------------------------------------------------------------------
@@ -674,4 +712,5 @@ def get_preparation_service() -> PreparationService:
         job_manager=job_manager,
         upload_state=get_upload_state(),
         server_settings=get_server_settings(),
+        settings_provider=get_server_settings,
     )

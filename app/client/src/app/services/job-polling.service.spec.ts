@@ -7,7 +7,7 @@ describe('JobPollingService', () => {
     let calls = 0;
     const statuses = await firstValueFrom(service.poll(async () => {
       calls += 1;
-      return { result: { job_id: 'job-1', job_type: 'test', status: 'completed' as const, progress: 100, result: { ok: true }, error: null }, error: null };
+      return { result: { job_id: 'job-1', job_type: 'test', status: 'completed' as const, poll_interval: 0.25, progress: 100, result: { ok: true }, error: null }, error: null };
     }, 'job-1', 0.25).pipe(take(1)));
     expect(statuses.status).toBe('completed');
     expect(calls).toBe(1);
@@ -19,11 +19,12 @@ describe('JobPollingService', () => {
     const statuses = await firstValueFrom(service.poll(async () => {
       calls += 1;
       if (calls === 1) return { result: null, error: 'offline' };
-      return { result: { job_id: 'job-2', job_type: 'test', status: 'completed' as const, progress: 100, result: { ok: true }, error: null }, error: null };
+      return { result: { job_id: 'job-2', job_type: 'test', status: 'completed' as const, poll_interval: 0.25, progress: 100, result: { ok: true }, error: null }, error: null };
     }, 'job-2', 0.25).pipe(toArray()));
 
     expect(statuses.map((status) => status.status)).toEqual(['pending', 'completed']);
     expect(statuses[0].error).toBe('offline');
+    expect(statuses[0].poll_interval).toBe(0.25);
     expect(calls).toBe(2);
   });
 
@@ -50,6 +51,7 @@ describe('JobPollingService', () => {
 
     expect(statuses).toHaveLength(1);
     expect(statuses[0]).toMatchObject({ job_id: 'job-4', status: 'failed', error: '404 Not Found: Job not found' });
+    expect(statuses[0].poll_interval).toBe(0.25);
     expect(calls).toBe(1);
   });
 });

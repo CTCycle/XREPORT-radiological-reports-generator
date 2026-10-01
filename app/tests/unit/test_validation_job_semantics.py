@@ -190,3 +190,39 @@ def test_checkpoint_evaluation_uses_global_seed_when_omitted() -> None:
 
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 654
+
+###############################################################################
+def test_validation_service_reads_seed_and_poll_interval_for_each_new_run() -> None:
+    manager = _job_manager("validation")
+    current = _settings(seed=111)
+    service = ValidationService(
+        manager,
+        current,
+        settings_provider=lambda: current,
+    )
+
+    first_response = run_async_in_thread(
+        service.run_validation(
+            ValidationRequest(
+                dataset_name="dataset-1",
+                metrics=["text_statistics"],
+                sample_size=1.0,
+            )
+        )
+    )
+    current.global_settings.seed = 222
+    current.jobs.polling_interval = 4.5
+    second_response = run_async_in_thread(
+        service.run_validation(
+            ValidationRequest(
+                dataset_name="dataset-2",
+                metrics=["text_statistics"],
+                sample_size=1.0,
+            )
+        )
+    )
+
+    requests = [call.kwargs["kwargs"]["request_data"] for call in manager.start_job.call_args_list]
+    assert [request["seed"] for request in requests] == [111, 222]
+    assert first_response.poll_interval == 2.0
+    assert second_response.poll_interval == 4.5

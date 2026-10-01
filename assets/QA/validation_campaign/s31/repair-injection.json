@@ -1,0 +1,10 @@
+{
+  "observed_at": "2026-09-24T15:03:15.8682585Z",
+  "target": "config.json",
+  "candidate_relative_path": "runtimes/cache/s31-20260924/resources/models/huggingface/staging/181c375e0d85472186f656b0456033b9/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "original_size": 78452,
+  "original_sha256": "9d5031ec8f1c17b1ebb809ccaaf52a45e62b1c7ecc3045c29940c554f2cb8025",
+  "altered_size": 78453,
+  "altered_sha256": "16bd5a16a149a281b036350d6ffdde01f286175c173b18fe9666a50f0beb3141",
+  "damage": "appended one byte to the disposable staged snapshot config to force a single-file repair"
+}

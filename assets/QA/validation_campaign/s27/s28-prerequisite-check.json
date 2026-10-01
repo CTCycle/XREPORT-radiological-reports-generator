@@ -1,0 +1,9 @@
+{
+  "observed_at_utc": "2026-09-23T19:39:03.596407+00:00",
+  "successful_s24_artifact_reuse_available": false,
+  "isolated_registered_checkpoints": [],
+  "pinned_beit_encoder_snapshot_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s27-s28-20260923\\models\\XRAYEncoder",
+  "pinned_beit_encoder_snapshot_exists": false,
+  "s28_evaluation_executed": false,
+  "reason": "The S24 checkpoint artifact from the prior S23-S26 campaign was deleted after registry validation, and the isolated runtime has no pinned BEiT encoder snapshot to recreate it offline."
+}

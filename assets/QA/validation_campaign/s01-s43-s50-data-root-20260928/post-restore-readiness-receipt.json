@@ -1,0 +1,50 @@
+{
+  "health": {
+    "status": "ok",
+    "application": "XREPORT Backend",
+    "version": "3.1.0",
+    "runtime_mode": "sqlite",
+    "runtime_variant": null,
+    "runtime_port": 5003
+  },
+  "frontendHealthProxy": {
+    "status": "ok",
+    "application": "XREPORT Backend",
+    "version": "3.1.0",
+    "runtime_mode": "sqlite",
+    "runtime_variant": null,
+    "runtime_port": 5003
+  },
+  "settings": {
+    "values": {
+      "global": {
+        "seed": 20260928
+      },
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      },
+      "inference": {
+        "model_timeout": 600
+      }
+    },
+    "defaults": {
+      "global": {
+        "seed": 42
+      },
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      },
+      "inference": {
+        "model_timeout": 600
+      }
+    }
+  },
+  "database": "{\"integrity\": \"ok\", \"alembic_head\": \"e91a4f6c2d73\", \"seed\": 20260928, \"datasets_columns\": [\"dataset_id\", \"name\", \"name_key\", \"created_at\"]}",
+  "ready": true
+}

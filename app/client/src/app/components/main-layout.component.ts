@@ -3,7 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings } from '@ng-icons/lucide';
+import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings } from '@ng-icons/lucide';
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
@@ -13,7 +13,7 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
 @Component({
   selector: 'app-main-layout',
   imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, ThemeSelectorComponent, TipsAndTricksComponent],
-  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideSettings })],
+  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings })],
   template: `
     <div class="main-layout">
       <div class="main-layout-chrome">
@@ -29,6 +29,9 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
             <a routerLink="/inference" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="app-nav-button app-nav-button-primary" title="Inference" aria-label="Inference">
               <ng-icon name="lucideFileSearch" size="16" /> <span>Inference</span>
             </a>
+            <a routerLink="/reports" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }" class="app-nav-button" title="Reports" aria-label="Reports">
+              <ng-icon name="lucideFileText" size="16" /> <span>Reports</span>
+            </a>
             <span class="app-nav-separator" aria-hidden="true"></span>
             <span class="app-nav-group-label">Model development</span>
             <a routerLink="/dataset" routerLinkActive="active" class="app-nav-button" title="Dataset" aria-label="Dataset">
@@ -42,9 +45,9 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
             <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
               <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
             </button>
-            <button type="button" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings" disabled>
+            <a routerLink="/settings" routerLinkActive="active" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings">
               <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>
-            </button>
+            </a>
             <app-theme-selector />
           </div>
         </nav>

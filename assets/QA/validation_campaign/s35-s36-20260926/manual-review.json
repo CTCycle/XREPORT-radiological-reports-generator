@@ -1,0 +1,64 @@
+{
+  "reviewed_at": "2026-09-26",
+  "scope": "Conservative technical/output review only; no labelled-reference diagnostic-accuracy claim and no release-readiness claim.",
+  "method": "Inspected every report and declared section in the authoritative aggregate receipts against the independent-case manifest.",
+  "criteria": [
+    "case responsiveness",
+    "declared section semantics",
+    "prompt/reasoning leakage",
+    "pathological repetition",
+    "unresolved output collapse"
+  ],
+  "models": [
+    {
+      "gate": "S35",
+      "model_ref": "huggingface:aehrc/cxrmate-ed",
+      "revision": "68251c7605067ddbea330413aade032713fd2192",
+      "technical_receipt": "s35-cxrmate-ed-technical-receipt.json",
+      "disposition": "FAIL / degraded",
+      "checks": {
+        "case_responsiveness": "pass for completion and non-empty output, but the quality gate remains failed",
+        "section_semantics": "pass: Findings and Impression labels are present",
+        "prompt_reasoning_leakage": "none observed",
+        "pathological_repetition": "no repeated template across all three cases; one unresolved pairwise collapse",
+        "output_collapse": "fail: qa-lateral and qa-normal have identical full reports despite differing input hashes, dimensions, contexts, and profiles"
+      },
+      "case_disposition": {
+        "qa-pa": "distinct full report",
+        "qa-lateral": "duplicate of qa-normal",
+        "qa-normal": "duplicate of qa-lateral"
+      },
+      "status_rule": "Keep validation_status=degraded and ISSUE-001 open; do not tune prompts or substitute the pinned revision."
+    },
+    {
+      "gate": "S36A",
+      "model_ref": "huggingface:StanfordAIMI/CheXOne",
+      "revision": "0c350e6852ea08f9d9baf3b7595c1a10d4849927",
+      "technical_receipt": "s36a-chexone-aggregate-technical-receipt.json",
+      "disposition": "PASS: technical and conservative review",
+      "checks": {
+        "case_responsiveness": "pass: three non-empty reports differ by case",
+        "section_semantics": "pass: Findings-only output matches the manifest",
+        "prompt_reasoning_leakage": "none observed",
+        "pathological_repetition": "none observed",
+        "output_collapse": "none observed"
+      },
+      "status_rule": "validation_status=passed for research-only drafts; no diagnostic-accuracy or release-readiness claim."
+    },
+    {
+      "gate": "S36B",
+      "model_ref": "huggingface:aehrc/cxrmate-2",
+      "revision": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
+      "technical_receipt": "s36b-cxrmate2-aggregate-technical-receipt.json",
+      "disposition": "PASS: technical and conservative review",
+      "checks": {
+        "case_responsiveness": "pass: three non-empty reports differ by case",
+        "section_semantics": "pass: Findings and Impression output matches the manifest",
+        "prompt_reasoning_leakage": "none observed",
+        "pathological_repetition": "none observed",
+        "output_collapse": "none observed"
+      },
+      "status_rule": "validation_status=passed for research-only drafts; no diagnostic-accuracy or release-readiness claim."
+    }
+  ]
+}
