@@ -1,9 +1,0 @@
-{
-  "recorded_at_utc": "2026-09-28T14:45:16.443059+00:00",
-  "database": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\s01-s43-s50-data-root-20260928\\source-data\\database.db",
-  "operation": "ALTER TABLE datasets ADD COLUMN s50_unexpected TEXT",
-  "integrity": "ok",
-  "unexpected_column_present": true,
-  "sha256": "6118285e43d560bfd4b8136459398a5fcc2e20915b5bc6f24da3511d6aa12c57",
-  "bytes": 159744
-}

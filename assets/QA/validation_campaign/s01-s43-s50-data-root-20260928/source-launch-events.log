@@ -1,9 +1,0 @@
-Source launcher events — 2026-09-28; validation revision 7bf8402f90bdbf2181f13190782b67ba51d445d9
-
-- Official `start_on_windows.ps1 -Action Launch` with XREPORT_RESOURCES_DIR set to the disposable source-data root: exit 0; backend health and frontend `/api/health` proxy returned HTTP 200; Codex in-app Browser rendered Inference readiness.
-- Official `start_on_windows.ps1 -Action KillProcesses`: stopped the source backend/frontend trees; no listeners remained on 5003 or 8003.
-- Drift cycle: official launch returned exit 0 and kept the frontend available; backend health refused connections. Backend log recorded current/head `e91a4f6c2d73` and rejected unexpected `datasets.s50_unexpected`; the database stayed integrity-readable, retained the injected schema and original hash, and was not recreated. Browser rendered the unavailable alert after the real threshold and Retry returned to Preparing.
-- Official stop after drift: frontend/backend processes owned by the launcher were stopped; configured listeners were absent.
-- Restore: byte-for-byte backup hash restored; official launch returned backend/proxy health 200, original schema and seed, and `PRAGMA integrity_check=ok`; browser rendered Settings with the saved seed.
-- Ordinary restart repeat: official stop/relaunch again returned health/proxy 200 and API seed 20260928; rendered Settings showed the same seed.
-- Final official stop: launcher reported all application processes/listeners stopped; independent check found no task-owned service PIDs and no listeners on 5003/8003.
