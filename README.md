@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-09-22
+Last updated: 2026-10-01
 
 ## 1. What XREPORT is
 
@@ -27,7 +27,7 @@ draft before it is used for any research or clinical decision.
   dataset
 - train or resume a local model while monitoring progress and metrics
 - evaluate datasets and saved model checkpoints
-- choose from five curated public report-generation models or use a locally
+- choose from four curated public report-generation models or use a locally
   trained Custom XReport model
 - generate an editable draft from a de-identified X-ray study
 - review and edit the generated model-declared report sections, inspect the
@@ -72,7 +72,7 @@ that, the verified local copy can be reused without downloading it again.
 
 ### Public models
 
-The application presents five curated public model choices. Each model card
+The application presents four curated public model choices. Each model card
 shows the information needed to make an informed choice, including:
 
 - the anatomy and type of studies the model is intended for
@@ -81,10 +81,10 @@ shows the information needed to make an informed choice, including:
 - licence and access requirements
 - the report sections and input options it supports
 
-The first four public choices are specialized for chest X-rays. The fifth is a
-broader medical-imaging option and should not be treated as universally
-validated for every anatomy. Some models are gated by their provider and may
-require accepting terms before they can be downloaded.
+The first three public choices are specialized for chest X-rays. The fourth is
+a broader medical-imaging option and should not be treated as universally
+validated for every anatomy. It is gated by its provider and requires accepting
+terms before it can be downloaded.
 
 Public models are downloaded only when needed, verified locally, and reused on
 later launches. Keep an internet connection available for first use and make

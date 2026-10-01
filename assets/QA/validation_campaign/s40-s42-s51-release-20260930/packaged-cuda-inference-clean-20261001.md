@@ -13,7 +13,7 @@ CUDA files are not present in the current `release/` folder, while the current
 runtime audit is dirty-tree-bound with a different payload hash. Rebind this
 receipt before using it for release approval.
 
-The existing [packaged inference harness](../../s42-cuda-20260927/run-packaged-cuda-inference.ps1)
+The existing [packaged inference harness](../s42-cuda-20260927/run-packaged-cuda-inference.ps1)
 staged the repaired canonical resource into an isolated data root and used
 `qa_pa.png` (`f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8`).
 The run recorded:
