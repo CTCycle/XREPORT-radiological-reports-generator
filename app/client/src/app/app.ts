@@ -13,6 +13,7 @@ import { markStartupPhase } from './services/startup-timing';
     } @else {
       <app-startup-screen
         [phase]="readiness.phase()"
+        [startedAt]="readiness.startedAt()"
         (retryRequested)="readiness.retry()"
         (transitionComplete)="onStartupTransitionComplete()"
       />

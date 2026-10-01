@@ -172,17 +172,12 @@ def test_startup_gate_holds_inference_until_backend_health(
     response = page.goto(f"{base_url}/")
 
     assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="Preparing XREPORT")).to_be_visible()
-    startup_images = page.locator(".startup-xray-image")
-    assert startup_images.count() > 0
-    page.wait_for_function(
-        "() => { const images = [...document.querySelectorAll('.startup-xray-image')]; "
-        "return images.length > 0 && images.every(image => image instanceof HTMLImageElement "
-        "&& image.getAttribute('src') === 'startup-radiograph.png' "
-        "&& image.getAttribute('alt') === '' && image.getAttribute('aria-hidden') === 'true' "
-        "&& image.complete && image.naturalWidth > 0); }",
-        timeout=5_000,
-    )
+    expect(page.get_by_text("XREPORT", exact=True)).to_be_visible()
+    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
+    expect(startup_progress).to_be_visible()
+    expect(startup_progress).to_have_attribute("aria-valuemin", "0")
+    expect(startup_progress).to_have_attribute("aria-valuemax", "100")
+    expect(page.locator(".startup-status-line")).to_be_visible()
     expect(page.locator("app-inference-page")).to_have_count(0)
     expect(page.get_by_text("Model catalogue", exact=True)).to_have_count(0)
     assert not any("/api/inference/models" in url for url in requested_urls)
@@ -234,14 +229,16 @@ def test_startup_timing_retry_and_post_ready_feature_error(
     response = page.goto(f"{base_url}/")
 
     assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="Preparing XREPORT")).to_be_visible()
+    expect(page.get_by_text("XREPORT", exact=True)).to_be_visible()
+    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
+    expect(startup_progress).to_be_visible()
     expect(
         page.get_by_role("heading", name="Turn a radiograph into a draft report")
     ).to_have_count(0)
 
     qa_dir = _e2e_screenshot_dir("validation_campaign/tier-0/s02-20260924")
     page.clock.run_for(15_000)
-    expect(page.get_by_text("XREPORT is still initializing")).to_be_visible(timeout=5_000)
+    assert int(startup_progress.get_attribute("aria-valuenow") or "0") > 0
     slow_health_calls = health_calls
     page.screenshot(path=str(qa_dir / "startup-slow.png"), full_page=False)
 

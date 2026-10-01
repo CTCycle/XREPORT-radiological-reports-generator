@@ -212,11 +212,6 @@ app-root {
   display: none;
 }
 
-#desktop-startup p {
-  margin: 0;
-  font-size: var(--text-base);
-}
-
 button,
 input,
 select,

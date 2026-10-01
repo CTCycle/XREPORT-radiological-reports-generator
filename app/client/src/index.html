@@ -14,25 +14,12 @@
   <section id="desktop-startup" class="startup-screen" hidden aria-live="polite" aria-labelledby="desktop-startup-title">
     <div class="startup-shell">
       <header class="startup-brand">
-        <p class="startup-kicker">XREPORT</p>
-        <h1 id="desktop-startup-title">Radiological Reports Generator</h1>
+        <img class="startup-logo" src="favicon.png" alt="" aria-hidden="true" />
+        <p class="startup-kicker" id="desktop-startup-title">XREPORT</p>
       </header>
-      <div class="startup-layout">
-        <div class="startup-visual" aria-hidden="true">
-          <div class="startup-xray-frame">
-            <img class="startup-xray-image" src="startup-radiograph.png" alt="" aria-hidden="true" />
-            <span class="startup-xray-scan" aria-hidden="true"></span>
-          </div>
-        </div>
-        <section class="startup-report" aria-label="Structured report preview">
-          <div class="startup-report-heading"><span>REPORT STRUCTURE</span><span class="startup-report-pulse">ANALYZING</span></div>
-          <div class="startup-report-section"><h2>FINDINGS</h2><span class="startup-placeholder startup-placeholder--wide"></span><span class="startup-placeholder startup-placeholder--medium"></span><span class="startup-placeholder startup-placeholder--short"></span></div>
-          <div class="startup-report-section"><h2>IMPRESSION</h2><span class="startup-placeholder startup-placeholder--wide"></span><span class="startup-placeholder startup-placeholder--medium"></span></div>
-        </section>
-      </div>
-      <div class="startup-status" role="status" aria-live="polite">
-        <h2 id="status" class="startup-status-title">Preparing XREPORT</h2>
-        <p class="startup-status-copy">Initializing radiology report generation</p>
+      <p id="status" class="startup-status-line" role="status" aria-live="polite">Preparing local services</p>
+      <div class="startup-progress" role="progressbar" aria-label="Initializing XREPORT" aria-valuemin="0" aria-valuemax="100">
+        <div class="startup-progress-fill"></div>
       </div>
     </div>
   </section>

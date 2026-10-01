@@ -1,26 +1,38 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, signal } from '@angular/core';
 import type { StartupPhase } from '../services/startup-readiness.service';
 
 const READY_TRANSITION_MS = 320;
 
-const PHASE_COPY: Record<StartupPhase, { title: string; message: string }> = {
-  starting: {
-    title: 'Preparing XREPORT',
-    message: 'Initializing radiology report generation',
-  },
-  slow: {
-    title: 'XREPORT is still initializing',
-    message: 'Local services and application data are still being prepared.',
-  },
-  unavailable: {
-    title: 'XREPORT could not reach the local backend service',
-    message: 'Initialization may still be in progress. XREPORT will keep checking automatically.',
-  },
-  ready: {
-    title: 'XREPORT is ready',
-    message: 'Opening your workspace',
-  },
-};
+// The backend does not expose per-step percentages; it only reports `ok`
+// once fully ready. The frontend drives the bar from the real elapsed
+// preparation time (the same window the readiness service uses for its
+// slow/unavailable thresholds), advancing monotonically and reaching 100%
+// only when the health poll actually succeeds.
+const PROGRESS_TICK_MS = 180;
+const PROGRESS_CAP = 90;
+const PROGRESS_TAU_MS = 22_000;
+
+// These mirror the actual startup pipeline logged by the backend:
+// database validated, runtime resources prepared, services started, health reachable.
+const STARTUP_STEPS = [
+  { label: 'Validating local data store', min: 0 },
+  { label: 'Preparing runtime resources', min: 25 },
+  { label: 'Starting local services', min: 50 },
+  { label: 'Connecting to XREPORT service', min: 80 },
+];
+
+function progressForElapsed(elapsedMs: number): number {
+  const progress = PROGRESS_CAP * (1 - Math.exp(-elapsedMs / PROGRESS_TAU_MS));
+  return Math.round(Math.max(0, Math.min(PROGRESS_CAP, progress)));
+}
+
+function stepForProgress(progress: number): string {
+  let label = STARTUP_STEPS[0].label;
+  for (const step of STARTUP_STEPS) {
+    if (progress >= step.min) label = step.label;
+  }
+  return label;
+}
 
 @Component({
   standalone: true,
@@ -34,66 +46,57 @@ const PHASE_COPY: Record<StartupPhase, { title: string; message: string }> = {
     >
       <div class="startup-shell">
         <header class="startup-brand">
-          <p class="startup-kicker">XREPORT</p>
-          <h1 id="startup-title">Radiological Reports Generator</h1>
+          <img class="startup-logo" src="favicon.png" alt="" aria-hidden="true" />
+          <p class="startup-kicker" id="startup-title">XREPORT</p>
         </header>
 
-        <div class="startup-layout">
-          <div class="startup-visual" aria-hidden="true">
-            <div class="startup-xray-frame">
-              <img class="startup-xray-image" src="startup-radiograph.png" alt="" aria-hidden="true" />
-              <span class="startup-xray-scan" aria-hidden="true"></span>
-            </div>
-          </div>
+        <p class="startup-status-line" role="status" aria-live="polite">{{ statusLine }}</p>
 
-          <section class="startup-report" aria-label="Structured report preview">
-            <div class="startup-report-heading"><span>REPORT STRUCTURE</span><span class="startup-report-pulse">ANALYZING</span></div>
-            <div class="startup-report-section">
-              <h2>FINDINGS</h2>
-              <span class="startup-placeholder startup-placeholder--wide"></span>
-              <span class="startup-placeholder startup-placeholder--medium"></span>
-              <span class="startup-placeholder startup-placeholder--short"></span>
-            </div>
-            <div class="startup-report-section">
-              <h2>IMPRESSION</h2>
-              <span class="startup-placeholder startup-placeholder--wide"></span>
-              <span class="startup-placeholder startup-placeholder--medium"></span>
-            </div>
-          </section>
+        <div
+          class="startup-progress"
+          role="progressbar"
+          aria-label="Initializing XREPORT"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          [attr.aria-valuenow]="progress()"
+        >
+          <div class="startup-progress-fill" [style.width.%]="progress()"></div>
         </div>
 
-        <section
-          class="startup-status"
-          [attr.role]="phase === 'unavailable' ? 'alert' : 'status'"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          <h2 class="startup-status-title">{{ copy.title }}</h2>
-          <p class="startup-status-copy">{{ copy.message }}</p>
-          @if (phase === 'unavailable') {
-            <button type="button" class="startup-retry" (click)="retryRequested.emit()">Retry connection</button>
-          }
-        </section>
+        @if (phase === 'unavailable') {
+          <button type="button" class="startup-retry" (click)="retryRequested.emit()">Retry connection</button>
+        }
       </div>
     </main>
   `,
 })
-export class StartupScreenComponent implements OnChanges, OnDestroy {
+export class StartupScreenComponent implements OnInit, OnChanges, OnDestroy {
   @Input() phase: StartupPhase = 'starting';
+  @Input() startedAt: number | null = null;
   @Output() readonly retryRequested = new EventEmitter<void>();
   @Output() readonly transitionComplete = new EventEmitter<void>();
 
+  readonly progress = signal(0);
   private readyTransitionScheduled = false;
   private readyTransitionTimer: ReturnType<typeof setTimeout> | null = null;
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
 
-  get copy(): { title: string; message: string } {
-    return PHASE_COPY[this.phase];
+  get statusLine(): string {
+    if (this.phase === 'unavailable') return 'Waiting for the local service';
+    if (this.phase === 'ready') return 'Opening your workspace';
+    return stepForProgress(this.progress());
+  }
+
+  ngOnInit(): void {
+    this.progressTimer = setInterval(() => this.tickProgress(), PROGRESS_TICK_MS);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['phase']?.currentValue !== 'ready' || this.readyTransitionScheduled) return;
 
     this.readyTransitionScheduled = true;
+    this.progress.set(100);
+    this.stopProgressTimer();
     this.readyTransitionTimer = setTimeout(() => {
       this.readyTransitionTimer = null;
       this.transitionComplete.emit();
@@ -102,5 +105,20 @@ export class StartupScreenComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.readyTransitionTimer !== null) clearTimeout(this.readyTransitionTimer);
+    this.stopProgressTimer();
+  }
+
+  private tickProgress(): void {
+    if (this.phase === 'ready' || this.phase === 'unavailable') return;
+    if (this.startedAt === null) return;
+
+    const elapsed = Math.max(0, Date.now() - this.startedAt);
+    this.progress.set(progressForElapsed(elapsed));
+  }
+
+  private stopProgressTimer(): void {
+    if (this.progressTimer === null) return;
+    clearInterval(this.progressTimer);
+    this.progressTimer = null;
   }
 }
