@@ -1,7 +1,0 @@
-Official source launcher transcript — 2026-09-28
-Validation revision: 7bf8402f90bdbf2181f13190782b67ba51d445d9
-Command: start_on_windows.ps1 -Action Launch
-Environment: XREPORT_RESOURCES_DIR points to the disposable runtimes/cache/s01-s43-s50-data-root-20260928/source-data root.
-Result: exit code 0; ports 5003/8003 were available; backend dependencies and current frontend build were reused; frontend became reachable at http://127.0.0.1:8003; backend health initialization continued in the application.
-
-Personal account, machine, and transcript host metadata from the original PowerShell transcript were omitted. Subsequent launch, recovery, and shutdown observations are in source-launch-events.log.
