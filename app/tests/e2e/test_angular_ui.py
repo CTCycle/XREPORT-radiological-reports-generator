@@ -172,12 +172,12 @@ def test_startup_gate_holds_inference_until_backend_health(
     response = page.goto(f"{base_url}/")
 
     assert response is not None and response.ok
-    expect(page.get_by_text("XREPORT", exact=True)).to_be_visible()
+    expect(page.locator("#startup-title")).to_be_visible()
     startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
     expect(startup_progress).to_be_visible()
     expect(startup_progress).to_have_attribute("aria-valuemin", "0")
     expect(startup_progress).to_have_attribute("aria-valuemax", "100")
-    expect(page.locator(".startup-status-line")).to_be_visible()
+    expect(page.locator("app-startup-screen .startup-status-line")).to_be_visible()
     expect(page.locator("app-inference-page")).to_have_count(0)
     expect(page.get_by_text("Model catalogue", exact=True)).to_have_count(0)
     assert not any("/api/inference/models" in url for url in requested_urls)
@@ -229,7 +229,7 @@ def test_startup_timing_retry_and_post_ready_feature_error(
     response = page.goto(f"{base_url}/")
 
     assert response is not None and response.ok
-    expect(page.get_by_text("XREPORT", exact=True)).to_be_visible()
+    expect(page.locator("#startup-title")).to_be_visible()
     startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
     expect(startup_progress).to_be_visible()
     expect(
