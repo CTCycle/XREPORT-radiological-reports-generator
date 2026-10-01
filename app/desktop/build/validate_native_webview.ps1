@@ -14,6 +14,10 @@ param(
     [string]$BackendRestartExecutable,
     [string[]]$BackendRestartArgumentList = @(),
     [string]$BackendRestartWorkingDirectory,
+    [int]$StartupBackendDelaySeconds = 0,
+    [string]$StartupBackendExecutable,
+    [string[]]$StartupBackendArgumentList = @(),
+    [string]$StartupBackendWorkingDirectory,
     [string]$SecondInstanceExecutable,
     [switch]$CloseAtEnd,
     [switch]$RequirePortCleanup
@@ -78,13 +82,24 @@ public static class XReportNativeKeyboard {
 }
 
 function Find-NativeWindow {
-    $windows = @(
-        Get-Process | Where-Object {
-            $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like $WindowTitlePattern
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $windows = @(
+            Get-Process | ForEach-Object {
+                $_.Refresh()
+                $_
+            } | Where-Object {
+                $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like $WindowTitlePattern
+            }
+        )
+        if ($windows.Count -gt 1) {
+            throw "Expected exactly one native XREPORT window matching '$WindowTitlePattern'; found $($windows.Count)."
         }
-    )
+        if ($windows.Count -eq 1) { break }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
     if ($windows.Count -ne 1) {
-        throw "Expected exactly one native XREPORT window matching '$WindowTitlePattern'; found $($windows.Count)."
+        throw "Expected exactly one native XREPORT window matching '$WindowTitlePattern'; found $($windows.Count) after waiting $TimeoutSeconds seconds."
     }
     $process = $windows[0]
     $element = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
@@ -467,6 +482,18 @@ $screenshotRoot = Join-Path (Split-Path -Parent $outputPath) 'native-screenshots
 New-Item -ItemType Directory -Path $screenshotRoot -Force | Out-Null
 $native = Find-NativeWindow
 $window = $native.Element
+$startupBackendProcess = $null
+if ($StartupBackendDelaySeconds -lt 0) {
+    throw 'StartupBackendDelaySeconds cannot be negative.'
+}
+if ($StartupBackendDelaySeconds -gt 0) {
+    if (-not (Test-ScenarioRequested -Name 'slow_readiness')) {
+        throw 'StartupBackendDelaySeconds requires the SlowReadiness scenario.'
+    }
+    if ([string]::IsNullOrWhiteSpace($StartupBackendExecutable)) {
+        throw 'StartupBackendExecutable is required when StartupBackendDelaySeconds is set.'
+    }
+}
 $result = [ordered]@{
     format = 2
     observed_utc = [DateTime]::UtcNow.ToString('o')
@@ -485,11 +512,19 @@ foreach ($scenarioName in $allScenarioNames) {
     $result.scenarios[$scenarioName] = [ordered]@{ id = $scenarioName; status = 'UNRUN' }
 }
 
+$initialNames = @(Get-AccessibleNames -Window $window)
+if ($StartupBackendDelaySeconds -gt 0) {
+    Start-Sleep -Seconds $StartupBackendDelaySeconds
+    $initialNames = @(Get-AccessibleNames -Window $window)
+}
 $startupScreenshot = Join-Path $screenshotRoot 'startup.png'
 Save-NativeScreenshot -Window $window -Path $startupScreenshot
 $result.screenshots += [IO.Path]::GetFileName($startupScreenshot)
-$initialNames = @(Get-AccessibleNames -Window $window)
 $result.accessible_names = $initialNames
+if ($StartupBackendDelaySeconds -gt 0) {
+    $workingDirectory = if ([string]::IsNullOrWhiteSpace($StartupBackendWorkingDirectory)) { (Get-Location).Path } else { $StartupBackendWorkingDirectory }
+    $startupBackendProcess = Start-Process -FilePath $StartupBackendExecutable -ArgumentList $StartupBackendArgumentList -WorkingDirectory $workingDirectory -PassThru
+}
 
 # Finding the ready navigation is also the startup assertion for every live
 # route run. The dedicated slow-readiness scenario must attach before it appears.
@@ -539,6 +574,11 @@ if (Test-ScenarioRequested -Name 'history') {
 if (Test-ScenarioRequested -Name 'keyboard') {
     try {
         Invoke-Route -Window $window -Route 'Inference' -ScreenshotRoot $screenshotRoot -Result $result | Out-Null
+        $inferenceControl = Find-RouteControl -Window $window -Route 'Inference'
+        if ($null -eq $inferenceControl) { throw 'Inference control was not available for keyboard validation.' }
+        [XReportNativeWindowCapture]::SetForegroundWindow($window.Current.NativeWindowHandle) | Out-Null
+        $inferenceControl.SetFocus()
+        Start-Sleep -Milliseconds 150
         $focusedNames = @()
         for ($index = 0; $index -lt 18; $index++) {
             Send-NativeKey -Window $window -VirtualKey 0x09
@@ -565,6 +605,9 @@ if (Test-ScenarioRequested -Name 'modal') {
         Invoke-Route -Window $window -Route 'Inference' -ScreenshotRoot $screenshotRoot -Result $result | Out-Null
         $help = Find-RouteControl -Window $window -Route 'Help'
         if ($null -eq $help) { throw 'Help control was not available for modal validation.' }
+        [XReportNativeWindowCapture]::SetForegroundWindow($window.Current.NativeWindowHandle) | Out-Null
+        $help.SetFocus()
+        Start-Sleep -Milliseconds 150
         Invoke-NativeControl -Control $help -Window $window | Out-Null
         if ($null -eq (Wait-ForNamedElement -Window $window -Names @('Tips & Tricks'))) { throw 'Tips & Tricks dialog did not open.' }
         $modalFocusNames = @()
@@ -595,7 +638,7 @@ if (Test-ScenarioRequested -Name 'slow_readiness') {
     $sawSlow = @($initialNames | Where-Object { $_ -match '(?i)still initializing' }).Count -gt 0
     $ready = $null -ne (Wait-ForNamedElement -Window $window -Names @('Inference'))
     if ($sawSlow -and $ready) {
-        Set-ScenarioResult -Name 'slow_readiness' -Status 'PASS' -Details @{ startup_states = $slowNames; ready = $true }
+        Set-ScenarioResult -Name 'slow_readiness' -Status 'PASS' -Details @{ startup_states = $slowNames; ready = $true; delayed_backend_seconds = $StartupBackendDelaySeconds; backend_process_id = if ($null -ne $startupBackendProcess) { [int]$startupBackendProcess.Id } else { $null } }
     }
     else {
         Set-ScenarioResult -Name 'slow_readiness' -Status 'UNRUN' -Details @{ startup_states = $slowNames; ready = $ready; error = 'Run this scenario while a controlled delayed backend is still showing the native startup screen.' }

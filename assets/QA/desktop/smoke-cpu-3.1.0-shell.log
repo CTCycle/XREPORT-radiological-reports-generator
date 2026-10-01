@@ -1,5 +1,5 @@
-startup phase=runtime_ready cache_hit=false phase_elapsed_ms=22126 total_elapsed_ms=22126
-startup phase=backend_launching variant=cpu version=3.1.0 total_elapsed_ms=22129
-startup phase=backend_spawned pid=8376 total_elapsed_ms=22310
-startup phase=backend_ready port=62883 total_elapsed_ms=25084
-backend stopped elapsed_ms=707
+startup phase=runtime_ready cache_hit=false phase_elapsed_ms=11042 total_elapsed_ms=11042
+startup phase=backend_launching variant=cpu version=3.1.0 total_elapsed_ms=11043
+startup phase=backend_spawned pid=13832 total_elapsed_ms=11246
+startup phase=backend_ready port=54060 total_elapsed_ms=13258
+backend stopped elapsed_ms=604
