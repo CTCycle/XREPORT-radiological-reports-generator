@@ -17,7 +17,9 @@ The current CPU and CUDA package pairs are bound to commit
 - CUDA artifact checksums: portable `c4c6ca6ce7868cb89f0761957e821ee6c97295021be7aea116a08eb1da5c3fe7`; MSI `3cb3aa58c7fa22b29d71b24f45c76aa7533dc6f3e8ee4708cfe6d5991aa4242c`.
 
 Both variants passed the official artifact verifier, including runtime-resource
-binding, checksum, portable, and MSI checks. The retained CUDA native receipt
+binding, checksum, portable, and MSI checks. The current release executables
+also passed the packaged [CPU/CUDA smoke](current-release-smoke-20261001.md)
+for startup, readiness, health, frontend serving, and cleanup. The retained CUDA native receipt
 and inference note remain historical interaction/inference evidence; they are
 not relabeled as runs from the current artifact directory.
 
