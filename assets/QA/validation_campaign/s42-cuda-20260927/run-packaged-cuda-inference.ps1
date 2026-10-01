@@ -1,8 +1,20 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$PortablePath,
+    [string]$ReceiptPathOverride,
+    [string]$DataRootOverride,
+    [string]$ArtifactSourceCommit
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')).Path
+function Resolve-OverridePath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if ([IO.Path]::IsPathRooted($Path)) {
+        return [IO.Path]::GetFullPath($Path)
+    }
+    return [IO.Path]::GetFullPath((Join-Path $repoRoot $Path))
+}
 $version = '3.1.0'
 $variant = 'cuda'
 $revision = '330721b9aa5bba201a3eb88eba4dd9a6607f3e7a'
@@ -12,15 +24,27 @@ $modelSource = Join-Path $repoRoot "data\models\huggingface\installed\aehrc__cxr
 $exactModuleSource = Join-Path $repoRoot "runtimes\cache\huggingface\modules\transformers_modules\_$revision\modelling_multi.py"
 $metadataSource = Join-Path $repoRoot 'data\models\huggingface\metadata\aehrc__cxrmate-multi-tf.json'
 $fixture = Join-Path $repoRoot 'assets\QA\inference_validation_runs\qa_pa.png'
-$portable = Join-Path $repoRoot "release\XREPORT-v$version-windows-x64-$variant-portable.exe"
-$dataRoot = Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260927'
+$portable = if ([string]::IsNullOrWhiteSpace($PortablePath)) {
+    Join-Path $repoRoot "release\XREPORT-v$version-windows-x64-$variant-portable.exe"
+} else {
+    Resolve-OverridePath $PortablePath
+}
+$dataRoot = if ([string]::IsNullOrWhiteSpace($DataRootOverride)) {
+    Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260927'
+} else {
+    Resolve-OverridePath $DataRootOverride
+}
 $localAppData = Join-Path $dataRoot 'localappdata'
 $dataPath = Join-Path $localAppData 'XREPORT\data'
 $sessionFile = Join-Path $dataPath 'state\desktop-session.json'
 $readyFile = Join-Path $dataPath 'state\desktop-ready.json'
 $metadataDestination = Join-Path $dataPath 'models\huggingface\metadata\aehrc__cxrmate-multi-tf.json'
 $modelDestination = Join-Path $dataPath "models\huggingface\installed\aehrc__cxrmate-multi-tf\$revision"
-$receiptPath = Join-Path $PSScriptRoot 'packaged-cuda-inference-receipt-20260928.json'
+$receiptPath = if ([string]::IsNullOrWhiteSpace($ReceiptPathOverride)) {
+    Join-Path $PSScriptRoot 'packaged-cuda-inference-receipt-20260928.json'
+} else {
+    Resolve-OverridePath $ReceiptPathOverride
+}
 $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260928-stdout.log'
 $stderrPath = Join-Path ([IO.Path]::GetTempPath()) 'xreport-s42-cuda-inference-20260928-stderr.log'
 $process = $null
@@ -37,7 +61,11 @@ $receipt = [ordered]@{
     application = 'XREPORT'
     version = $version
     variant = $variant
-    source_commit = ((git -C $repoRoot rev-parse HEAD).Trim())
+    source_commit = if ([string]::IsNullOrWhiteSpace($ArtifactSourceCommit)) {
+        ((git -C $repoRoot rev-parse HEAD).Trim())
+    } else {
+        $ArtifactSourceCommit.Trim()
+    }
     dirty_tree = $false
     model_ref = $modelRef
     model_revision = $revision
