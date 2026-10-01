@@ -35,11 +35,11 @@ desktop, or release-readiness evidence.
 ## Revision and environment
 
 - Branch: `develop`.
-- Package source commit: `af666df53b3424c08a279bc9d0b79b81078815bd`.
+- Package source commit for the current release pair: `301a5a510e494c501d6c25eb22d5baea824e936a`.
 - The source-lane receipts retain their recorded working-tree provenance. The
-  current clean packaged CPU artifact metadata is bound to the package source
-  commit with `dirty_tree=false`; the retained CUDA clean-package metadata is
-  historical, while the current CUDA diagnostic runtime is dirty-tree-bound.
+  current clean packaged CPU and CUDA artifact metadata are bound to the same
+  package source commit with `dirty_tree=false`; the retained CUDA native and
+  inference receipts remain historical interaction evidence.
 - Official Windows launcher with an isolated SQLite/resource root and
   `HF_HUB_OFFLINE=1`.
 - Windows 11 build `26200`, Python `3.14.7`, 12 logical CPUs, RTX 3060 with
