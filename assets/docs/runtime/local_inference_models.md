@@ -1,67 +1,111 @@
 # Local Inference Models
 
-Last updated: 2026-08-30
+Last updated: 2026-09-29
 
 ## Safety scope
 
 All catalogue models and generated reports are research-use drafts. They are not
 clinically approved and require qualified review and independent verification.
 
-## Public catalogue (schema 3)
+## Public catalogue (typed, immutable policy)
 
-`GET /api/inference/models` always exposes exactly five public entries. Each
-entry is pinned to the commit recorded in `settings/inference_models.json`; the
-catalogue is not changed when local files are removed.
+`GET /api/inference/models` exposes the public entries declared in the typed
+definitions at
+`app/server/configurations/inference_models.py`; the catalogue is not changed
+when local files are removed. The definitions are reviewed application policy,
+not user settings and not a runtime JSON file. Catalogue cardinality is not a
+product invariant: a public entry with `validation_status=degraded` is never
+eligible for generation.
 
 | Model | Positioning | Demand and storage | Anatomy / access |
 | --- | --- | --- | --- |
 | `aehrc/cxrmate-multi-tf` (`330721b9aa5bba201a3eb88eba4dd9a6607f3e7a`) | Lightweight multi-view chest reporter | Low; about 0.1B parameters and 451 MB selected weights | Chest radiographs; Apache-2.0; open |
-| `aehrc/cxrmate-ed` (`68251c7605067ddbea330413aade032713fd2192`) | Compact context-aware chest reporter | Low; about 0.2B parameters and 793 MB selected weights | Chest radiographs plus optional indication/history; Apache-2.0; open |
-| `StanfordAIMI/CheXOne` (`0c350e6852ea08f9d9baf3b7595c1a10d4849927`) | Higher-capability vision-language chest model | High; about 4B parameters and 8.15 GB selected weights | Chest radiographs; CC-BY-NC-4.0 research licence; open |
+| `StanfordAIMI/CheXOne` (`0c350e6852ea08f9d9baf3b7595c1a10d4849927`) | Higher-capability vision-language chest model for Findings drafting and grounding | High; about 4B parameters and 8.15 GB selected weights | Chest radiographs; CC-BY-NC-4.0 research licence; open |
 | `aehrc/cxrmate-2` (`aa8e2d16470e20671acf049687b4707c9bf2f2b5`) | Flagship specialist with structured findings/impression | Very high; about 3B parameters and 13.31 GB full-precision weights | Chest radiographs; Apache-2.0; open |
 | `google/medgemma-1.5-4b-it` (`91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b`) | Broader medical-imaging baseline | High; about 4B parameters and 8.64 GB selected weights | Broader medical imaging, not validated for every anatomy; Health AI Developer Foundations terms; gated |
 
-The first four entries are chest-X-ray specialists. MedGemma is intentionally
+The first three entries are chest-X-ray specialists. MedGemma is intentionally
 labelled as the broader option rather than as a universally validated
 radiography model. The UI shows demand, approximate size, licence, anatomy
 scope, and access policy before a model is selected.
 
 The public entries use focused adapters behind one study-level provider
 contract: load and validate the pinned snapshot, preprocess the complete study,
-generate, normalize findings/impression or raw-report output, and return the
-common `ProviderGenerationResult`. CXRMate adapters retain their published
-multi-view/section-decoding contracts; CheXOne and MedGemma use the shared
-chat-style vision-language path. Custom remote code is imported only from the
-integrity-verified local snapshot.
+generate, normalize the model-declared Findings, Impression, or raw-report
+output, and return the common `ProviderGenerationResult`. CXRMate adapters
+retain their published multi-view/section-decoding contracts. CheXOne uses the
+Qwen-style chat vision-language path, while MedGemma uses the shared chat-style
+path. XREPORT exposes CheXOne as a Findings-generating model; a separate
+Impression is not part of its current validated contract. Real local
+image-to-report inference remains
+required before validation evidence is marked passed. Custom remote code is
+imported only from the integrity-verified local snapshot.
 
-### CXRMate-ED validation status
+### Generation profiles and runtime evidence
 
-CXRMate-ED remains selectable and runnable for research use, but its catalog
-`validation_status` is currently `degraded`. The real three-case canary reaches
-the image tensor, clinical context, and selected generation settings, yet two
-of the three supplied fixtures still produce identical report text. The UI
-shows the warning before generation, and every generated provenance record
-contains `validation_status=degraded`, the warning text, and
-`quality_warnings=["sensitivity_canary_failed"]`. The latest canary record is
-stored under `assets/QA/inference_validation_runs/`; a stale passing receipt
-cannot promote this model while the manifest remains degraded.
+Every public adapter consumes the selected XREPORT generation profile. The
+deterministic profile uses greedy, non-sampling generation; concise lowers the
+decoder budget and avoids unnecessary beam search on the CXRMate Multi and
+CXRMate-2 adapters; detailed enables the model-specific larger
+budget and beam settings where the published decoder supports them. CheXOne
+and MedGemma use their chat-style token budgets while retaining non-sampling
+generation. The selected profile is recorded in provenance.
+
+The provider supplies every study adapter with the same cooperative
+`StoppingCriteriaList`. Cancellation requests and the configured deadline are
+checked during Transformers generation; a cancelled or timed-out result is not
+persisted as a completed report.
+
+Inference provenance also records the requested device policy (`auto`, `cpu`,
+or `cuda`), resolved device topology, effective model dtype, CUDA availability,
+and whether a model was actually placed on CUDA. Accelerate/device-map models
+may therefore report a topology such as `cuda:0` plus `cpu`; CUDA availability
+alone is never reported as CUDA execution.
+
+The catalogue currently has no mandatory FlashAttention or quantization path.
+Executable integration, automated contract coverage, and real image-to-report
+quality validation remain separate claims; a successful generation only proves
+that the local technical path executed.
+
+### Qualification enforcement
+
+A public model with `validation_status=degraded` is not generatable, even when
+its local snapshot reports `ready`. The backend rejects it before storing input
+images or starting a job, and the UI disables Generate while showing the
+qualification failure. A model that cannot pass the qualification gate is
+removed from the active catalogue rather than left in a permanent degraded
+state.
+
+Retiring a model from the catalogue does not delete existing report history or
+provenance. Downloaded snapshots and compatibility files are also preserved
+until an explicit cleanup action is requested.
 
 ## Project-local lifecycle
 
 The backend owns this structure under the configured resource root (default
-`app/resources`; override with `XREPORT_RESOURCES_DIR`):
+`data`; override with `XREPORT_RESOURCES_DIR`):
 
 ```text
-app/resources/
+data/
 ├── checkpoints/                         # custom XREPORT training outputs
 ├── models/huggingface/
 │   ├── installed/<model>/<revision>/    # active verified snapshot
 │   ├── staging/<operation>/<model>/<revision>/
 │   ├── rollback/<model>/<revision>/
-│   ├── metadata/<model>.json             # lifecycle and integrity metadata
-│   └── hub-cache/<model-cache>/           # model-specific Hub cache
+│   └── metadata/<model>.json             # lifecycle and integrity metadata
 ├── tokenizers/
 ├── XRAYEncoder/
+```
+
+Transient Hub, Torch, and Keras data is kept outside the persistent model tree
+under `runtimes/cache/huggingface`, `runtimes/cache/torch`, and
+`runtimes/cache/keras` (or the equivalent packaged data-root cache). The
+cleanup action may remove those caches without removing installed snapshots,
+metadata, checkpoints, or tokenizers.
+
+```text
+runtimes/cache/
+├── huggingface/{hub,modules,datasets}/
 ├── torch/
 └── keras/
 ```
@@ -84,10 +128,15 @@ replaces a working active revision.
 
 Delete local files is explicit and confirmation-gated. The runtime lock refuses
 deletion while inference is active, unloads an idle resident model, and removes
-only that public repository's active, candidate/staging, rollback, metadata, and
-model-specific Hub-cache paths. The response reports bytes reclaimed. The JSON
-catalogue and all custom XREPORT checkpoints remain untouched, so the same
-public card returns to `not_downloaded` and can be downloaded again.
+that public repository's active, candidate/staging, rollback, and metadata paths.
+Deletion may also remove that revision's Transformers dynamic-module cache entry
+from the shared transient cache. This cache is outside persistent model
+installation; cache cleanup does not remove other model snapshots or custom
+XREPORT checkpoints. The response reports bytes reclaimed. The JSON catalogue
+and all custom checkpoints remain untouched, so the same public card returns to
+`not_downloaded` and can be downloaded again. S31 verified this lifecycle for
+the pinned CXRMate Multi revision, including reloading the untouched canonical
+snapshot after its transient module cache entry was removed.
 
 ## Gated MedGemma access
 

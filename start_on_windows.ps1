@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'Update')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Cpu', 'Cuda', 'All')]
@@ -26,19 +26,47 @@ $UvCacheDir = Join-Path $RuntimeCacheDir 'uv'
 $NpmCacheDir = Join-Path $RuntimeCacheDir 'npm'
 $PipCacheDir = Join-Path $RuntimeCacheDir 'pip'
 $PlaywrightBrowsersCacheDir = Join-Path $RuntimeCacheDir 'playwright-browsers'
-$ToolCacheDir = Join-Path $RepoRoot 'app\tests\cache'
-$PytestCacheDir = Join-Path $ToolCacheDir 'pytest'
-$PytestTempDir = Join-Path $ToolCacheDir 'pytest-tmp'
-$RuffCacheDir = Join-Path $ToolCacheDir 'ruff'
-$MypyCacheDir = Join-Path $ToolCacheDir 'mypy'
-$PythonCacheDir = Join-Path $ToolCacheDir 'python'
-$CoverageCacheDir = Join-Path $ToolCacheDir 'coverage'
-$AngularCacheDir = Join-Path $ToolCacheDir 'angular'
+$HuggingFaceCacheDir = Join-Path $RuntimeCacheDir 'huggingface'
+$HuggingFaceHubCacheDir = Join-Path $HuggingFaceCacheDir 'hub'
+$HuggingFaceModulesCacheDir = Join-Path $HuggingFaceCacheDir 'modules'
+$HuggingFaceDatasetsCacheDir = Join-Path $HuggingFaceCacheDir 'datasets'
+$TorchCacheDir = Join-Path $RuntimeCacheDir 'torch'
+$KerasCacheDir = Join-Path $RuntimeCacheDir 'keras'
+$MatplotlibCacheDir = Join-Path $RuntimeCacheDir 'matplotlib'
+$PytestCacheDir = Join-Path $RuntimeCacheDir 'pytest'
+$PytestTempDir = Join-Path $RuntimeCacheDir 'pytest-tmp'
+$RuffCacheDir = Join-Path $RuntimeCacheDir 'ruff'
+$MypyCacheDir = Join-Path $RuntimeCacheDir 'mypy'
+$PythonCacheDir = Join-Path $RuntimeCacheDir 'python'
+$CoverageCacheDir = Join-Path $RuntimeCacheDir 'coverage'
+$AngularCacheDir = Join-Path $RuntimeCacheDir 'angular'
+$CanonicalCacheDirectories = @(
+    $RuntimeCacheDir,
+    $UvCacheDir,
+    $NpmCacheDir,
+    $PipCacheDir,
+    $PlaywrightBrowsersCacheDir,
+    $HuggingFaceCacheDir,
+    $HuggingFaceHubCacheDir,
+    $HuggingFaceModulesCacheDir,
+    $HuggingFaceDatasetsCacheDir,
+    $TorchCacheDir,
+    $KerasCacheDir,
+    $MatplotlibCacheDir,
+    $PytestCacheDir,
+    $PytestTempDir,
+    $RuffCacheDir,
+    $MypyCacheDir,
+    $PythonCacheDir,
+    $CoverageCacheDir,
+    $AngularCacheDir
+)
 $NodeDir = Join-Path $RuntimesDir 'nodejs'
 $NodeExe = Join-Path $NodeDir 'node.exe'
 $NpmCmd = Join-Path $NodeDir 'npm.cmd'
 $ServerDir = Join-Path $RepoRoot 'app\server'
 $ClientDir = Join-Path $RepoRoot 'app\client'
+$FrontendServerScript = Join-Path $ClientDir 'scripts\serve-built.cjs'
 $VenvDir = Join-Path $ServerDir '.venv'
 $VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
 $EnvFile = Join-Path $RepoRoot 'settings\.env'
@@ -62,10 +90,10 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     if ([string]::IsNullOrWhiteSpace($Version)) { throw 'Could not read the canonical version from app/server/pyproject.toml.' }
 }
 
-$PythonVersion = '3.14.2'
+$PythonVersion = '3.14.7'
 $PythonArchive = "python-$PythonVersion-embed-amd64.zip"
 $PythonUrl = "https://www.python.org/ftp/python/$PythonVersion/$PythonArchive"
-$PythonSha256 = 'f05e28d161c6b15af64a7cb7f08b4a22b3a6b03eee71baee24ea557b3bdd5798'
+$PythonSha256 = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
 $UvVersion = '0.11.9'
 $UvUrlAmd64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-x86_64-pc-windows-msvc.zip"
 $UvUrlArm64 = "https://github.com/astral-sh/uv/releases/download/$UvVersion/uv-aarch64-pc-windows-msvc.zip"
@@ -76,6 +104,7 @@ $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 $NodeSha256 = '6c8d54f635feff4df76c2ca80f45332eb2ff57d25226edce36592e51a177ee33'
 $NpmVersion = '10.9.8'
+$FrontendBuildStateSchemaVersion = 1
 $RustVersion = '1.95.0'
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
@@ -152,6 +181,8 @@ function Invoke-TrackedLauncherAction {
     try {
         & $Operation
         Write-Ok "$Name completed"
+    } catch [System.OperationCanceledException] {
+        Write-Info "$Name cancelled: $($_.Exception.Message)"
     } catch {
         Write-Fatal "$Name failed: $($_.Exception.Message)"
         throw
@@ -222,22 +253,30 @@ function Invoke-Checked {
 }
 
 function Initialize-Environment {
-    New-Item -ItemType Directory -Path @(
-        $RuntimeCacheDir, $UvCacheDir, $NpmCacheDir, $PipCacheDir,
-        $PlaywrightBrowsersCacheDir, $ToolCacheDir, $PytestCacheDir,
-        $PytestTempDir, $RuffCacheDir, $MypyCacheDir, $PythonCacheDir,
-        $CoverageCacheDir, $AngularCacheDir
-    ) -Force | Out-Null
+    New-Item -ItemType Directory -Path $CanonicalCacheDirectories -Force | Out-Null
+    $env:XREPORT_CACHE_ROOT = $RuntimeCacheDir
+    $env:XDG_CACHE_HOME = $RuntimeCacheDir
     $env:UV_CACHE_DIR = $UvCacheDir
     $env:PIP_CACHE_DIR = $PipCacheDir
     $env:NPM_CONFIG_CACHE = $NpmCacheDir
     $env:npm_config_cache = $NpmCacheDir
     $env:PLAYWRIGHT_BROWSERS_PATH = $PlaywrightBrowsersCacheDir
-    $env:XDG_CACHE_HOME = $ToolCacheDir
+    $env:PYTEST_CACHE_DIR = $PytestCacheDir
+    $env:PYTEST_BASETEMP = $PytestTempDir
     $env:RUFF_CACHE_DIR = $RuffCacheDir
     $env:MYPY_CACHE_DIR = $MypyCacheDir
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:COVERAGE_FILE = Join-Path $CoverageCacheDir '.coverage'
+    $env:HF_HOME = $HuggingFaceCacheDir
+    $env:HF_HUB_CACHE = $HuggingFaceHubCacheDir
+    $env:HF_MODULES_CACHE = $HuggingFaceModulesCacheDir
+    $env:HF_DATASETS_CACHE = $HuggingFaceDatasetsCacheDir
+    $env:TORCH_HOME = $TorchCacheDir
+    $env:KERAS_HOME = $KerasCacheDir
+    $env:MPLCONFIGDIR = $MatplotlibCacheDir
+    $env:HF_HUB_DISABLE_IMPLICIT_TOKEN = '1'
+    Remove-Item Env:HF_CACHE_DIR -ErrorAction SilentlyContinue
+    Remove-Item Env:TRANSFORMERS_CACHE -ErrorAction SilentlyContinue
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
     $env:UV_LINK_MODE = 'copy'
     Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
@@ -356,6 +395,14 @@ function Ensure-PortableRuntimes {
     }
     Write-Ok "Python ready: $foundVersion"
 
+    if (Test-Path -LiteralPath $VenvPython) {
+        $venvVersion = (& $VenvPython --version 2>&1 | Out-String).Trim()
+        if ($venvVersion -ne "Python $PythonVersion") {
+            Write-Info "Recreating project virtual environment for Python $PythonVersion"
+            [void](Remove-LauncherPath -Path $VenvDir -Activity 'XREPORT: replace project Python environment' -Strict)
+        }
+    }
+
     $uvArchitecture = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
     $uvExpectedVersion = "uv $UvVersion"
     $uvReady = $false
@@ -446,6 +493,7 @@ function Ensure-RustToolchain {
 }
 
 function Import-XReportEnvironment {
+    $processResourceOverride = [string]$env:XREPORT_RESOURCES_DIR
     $values = @{
         FASTAPI_HOST = '127.0.0.1'
         FASTAPI_PORT = '5003'
@@ -453,8 +501,6 @@ function Import-XReportEnvironment {
         UI_PORT = '8003'
         UI_API_BASE_URL = '/api'
         RELOAD = 'false'
-        BACKEND_VISIBLE = 'false'
-        ALWAYS_REBUILD = 'false'
     }
 
     $environmentSource = $EnvFile
@@ -473,6 +519,10 @@ function Import-XReportEnvironment {
         $parts = $trimmed.Split('=', 2)
         $key = $parts[0].Trim()
         $value = $parts[1].Trim().Trim('"').Trim("'")
+        # Keep disposable process-level resource roots ahead of project settings.
+        if ($key -eq 'XREPORT_RESOURCES_DIR' -and -not [string]::IsNullOrWhiteSpace($processResourceOverride)) {
+            $value = $processResourceOverride
+        }
         if ($key) {
             $values[$key] = $value
             [Environment]::SetEnvironmentVariable($key, $value, 'Process')
@@ -481,11 +531,8 @@ function Import-XReportEnvironment {
     return $values
 }
 
-function Install-Dependencies {
+function Install-BackendDependencies {
     param(
-        [hashtable]$Settings,
-        [switch]$BuildFrontend,
-        [switch]$Locked,
         [ValidateSet('Standard', 'Development', 'Desktop')]
         [string]$InstallationType = 'Standard'
     )
@@ -510,33 +557,29 @@ function Install-Dependencies {
         if (-not (Test-Path -LiteralPath $VenvPython)) {
             throw 'The desktop Python environment was not created by dependency synchronization.'
         }
-        Write-Info 'Re-synchronizing and refreshing the locked desktop extra in the project environment'
-        Invoke-Checked -FilePath $UvExe -ArgumentList @(
-            'sync', '--frozen', '--python', $VenvPython, '--extra', 'desktop',
-            '--reinstall-package', 'pyinstaller',
-            '--reinstall-package', 'pyinstaller-hooks-contrib'
-        ) -WorkingDirectory $ServerDir
+        # Probe the locked toolchain before reinstalling it. Replacing a healthy
+        # PyInstaller installation immediately before import can expose a
+        # transient partially-installed state on Windows.
         $pyInstallerProbeScript = @'
-import importlib.util
-import sys
-import traceback
-
-print(f"python={sys.executable}")
-print(f"sys.path={sys.path}")
-for module_name in ("PyInstaller", "win32ctypes", "win32ctypes.pywin32"):
-    try:
-        print(f"{module_name}={importlib.util.find_spec(module_name)}")
-    except BaseException as exception:
-        print(f"{module_name}_spec_error={exception!r}")
-try:
-    import PyInstaller
-except BaseException:
-    traceback.print_exc()
-    raise
-print(f"PyInstaller={PyInstaller.__version__}")
+import PyInstaller
+import win32ctypes
+import win32ctypes.pywin32
+print(PyInstaller.__version__)
 '@
-        $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
-        $pyInstallerReady = $LASTEXITCODE -eq 0
+        $pyInstallerProbe = $null
+        $pyInstallerReady = $false
+        $probeErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            for ($probeAttempt = 1; $probeAttempt -le 5 -and -not $pyInstallerReady; $probeAttempt++) {
+                $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
+                $pyInstallerReady = $LASTEXITCODE -eq 0
+                if (-not $pyInstallerReady -and $probeAttempt -lt 5) { Start-Sleep -Seconds 5 }
+            }
+        }
+        finally {
+            $ErrorActionPreference = $probeErrorActionPreference
+        }
         if (-not $pyInstallerReady) {
             Write-Info 'Reconciling the pinned PyInstaller toolchain directly in the project environment'
             Invoke-Checked -FilePath $UvExe -ArgumentList @(
@@ -549,16 +592,41 @@ print(f"PyInstaller={PyInstaller.__version__}")
                 'pywin32-ctypes==0.2.3',
                 'setuptools==82.0.1'
             ) -WorkingDirectory $ServerDir
-            $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
-            $pyInstallerReady = $LASTEXITCODE -eq 0
+            $pyInstallerProbe = $null
+            $pyInstallerReady = $false
+            $probeErrorActionPreference = $ErrorActionPreference
+            try {
+                $ErrorActionPreference = 'Continue'
+                for ($probeAttempt = 1; $probeAttempt -le 5 -and -not $pyInstallerReady; $probeAttempt++) {
+                    $pyInstallerProbe = (& $VenvPython -s -c $pyInstallerProbeScript 2>&1 | Out-String).Trim()
+                    $pyInstallerReady = $LASTEXITCODE -eq 0
+                    if (-not $pyInstallerReady -and $probeAttempt -lt 5) { Start-Sleep -Seconds 5 }
+                }
+            }
+            finally {
+                $ErrorActionPreference = $probeErrorActionPreference
+            }
         }
         if (-not $pyInstallerReady) {
             throw "The locked desktop Python environment is missing an importable PyInstaller after dependency synchronization: $pyInstallerProbe"
         }
     }
 
+}
+
+function Install-Dependencies {
+    param(
+        [switch]$BuildFrontend,
+        [switch]$Locked,
+        [ValidateSet('Standard', 'Development', 'Desktop')]
+        [string]$InstallationType = 'Standard'
+    )
+
+    Install-BackendDependencies -InstallationType $InstallationType
     Install-FrontendDependencies -Locked:$Locked
-    Install-DesktopDependencies -Locked:$Locked
+    if ($InstallationType -eq 'Desktop') {
+        Install-DesktopDependencies -Locked:$Locked
+    }
 
     if ($BuildFrontend) {
         Invoke-FrontendBuild
@@ -584,8 +652,211 @@ function Install-DesktopDependencies {
 }
 
 function Invoke-FrontendBuild {
+    $beforeFingerprint = Get-FrontendBuildFingerprint
+    $beforeDependencyFingerprint = Get-FrontendDependencyFingerprint
     Write-Step 'Building frontend'
     Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
+    $frontendOutput = Join-Path $ClientDir 'dist\client-angular\browser\index.html'
+    if (-not (Test-Path -LiteralPath $frontendOutput)) {
+        throw "Angular production output was not created: $frontendOutput"
+    }
+    $afterFingerprint = Get-FrontendBuildFingerprint
+    $afterDependencyFingerprint = Get-FrontendDependencyFingerprint
+    if ($beforeFingerprint -ne $afterFingerprint -or $beforeDependencyFingerprint -ne $afterDependencyFingerprint) {
+        throw 'Frontend inputs changed while the build was running. The build-state manifest was not written; rerun the frontend build.'
+    }
+    Write-FrontendBuildState -BuildFingerprint $afterFingerprint -DependencyFingerprint $afterDependencyFingerprint
+}
+
+function Get-FrontendProductionInputRelativePaths {
+    $relativePaths = @(
+        'angular.json',
+        'package.json',
+        'package-lock.json',
+        'tsconfig.json',
+        'tsconfig.app.json'
+    )
+    $clientRoot = [IO.Path]::GetFullPath($ClientDir)
+    $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $clientRootPrefix = $clientRoot.TrimEnd($separators) + [IO.Path]::DirectorySeparatorChar
+    foreach ($root in @('public', 'src')) {
+        $rootPath = Join-Path $ClientDir $root
+        if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
+        foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -Recurse -File)) {
+            $fullPath = [IO.Path]::GetFullPath($file.FullName)
+            if (-not $fullPath.StartsWith($clientRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Frontend production input escaped the client directory: $($file.FullName)"
+            }
+            $relative = $fullPath.Substring($clientRootPrefix.Length).Replace('\', '/')
+            if ($relative -match '(?i)^src/.+\.spec\.ts$' -or $relative -ieq 'src/proxy.conf.cjs') { continue }
+            $relativePaths += $relative
+        }
+    }
+    return @($relativePaths)
+}
+
+function Get-FrontendDependencyRelativePaths {
+    return @('package.json', 'package-lock.json')
+}
+
+function Get-FrontendFingerprint {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$RelativePaths,
+        [string[]]$Context = @()
+    )
+
+    $utf8 = [Text.UTF8Encoding]::new($false)
+    $stream = [IO.MemoryStream]::new()
+    $hash = [Security.Cryptography.SHA256]::Create()
+    try {
+        $sortedContext = [string[]]@($Context)
+        [Array]::Sort($sortedContext, [StringComparer]::Ordinal)
+        foreach ($value in $sortedContext) {
+            $contextBytes = $utf8.GetBytes("CONTEXT:$value`n")
+            $stream.Write($contextBytes, 0, $contextBytes.Length)
+        }
+        $normalizedPaths = [string[]]@(
+            $RelativePaths | ForEach-Object {
+                ([string]$_).Replace('\', '/').ToLowerInvariant()
+            }
+        )
+        [Array]::Sort($normalizedPaths, [StringComparer]::Ordinal)
+        $previousPath = $null
+        foreach ($normalized in $normalizedPaths) {
+            if ($null -ne $previousPath -and [StringComparer]::Ordinal.Equals($normalized, $previousPath)) {
+                continue
+            }
+            $previousPath = $normalized
+            $pathBytes = $utf8.GetBytes("PATH:$normalized`n")
+            $stream.Write($pathBytes, 0, $pathBytes.Length)
+            $absolute = Join-Path $ClientDir ($normalized.Replace('/', '\'))
+            if (Test-Path -LiteralPath $absolute -PathType Leaf) {
+                $contentBytes = [IO.File]::ReadAllBytes($absolute)
+                $stream.Write($contentBytes, 0, $contentBytes.Length)
+            }
+            else {
+                $missingBytes = $utf8.GetBytes("MISSING:$normalized`n")
+                $stream.Write($missingBytes, 0, $missingBytes.Length)
+            }
+            $endBytes = $utf8.GetBytes("END:$normalized`n")
+            $stream.Write($endBytes, 0, $endBytes.Length)
+        }
+        return ([BitConverter]::ToString($hash.ComputeHash($stream.ToArray())) -replace '-', '').ToLowerInvariant()
+    }
+    finally {
+        $hash.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Get-FrontendBuildFingerprint {
+    return Get-FrontendFingerprint -RelativePaths (Get-FrontendProductionInputRelativePaths) -Context @(
+        "schema=$FrontendBuildStateSchemaVersion",
+        "node=$NodeVersion"
+    )
+}
+
+function Get-FrontendDependencyFingerprint {
+    return Get-FrontendFingerprint -RelativePaths (Get-FrontendDependencyRelativePaths) -Context @(
+        "schema=$FrontendBuildStateSchemaVersion",
+        "node=$NodeVersion"
+    )
+}
+
+function Write-FrontendBuildState {
+    param(
+        [Parameter(Mandatory = $true)][string]$BuildFingerprint,
+        [Parameter(Mandatory = $true)][string]$DependencyFingerprint
+    )
+
+    $stateDirectory = Join-Path $ClientDir 'dist\client-angular'
+    $statePath = Join-Path $stateDirectory '.xreport-build-state.json'
+    New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
+    $temporaryPath = "$statePath.$PID.tmp"
+    $state = [ordered]@{
+        schema_version = $FrontendBuildStateSchemaVersion
+        production_input_fingerprint = $BuildFingerprint
+        dependency_manifest_fingerprint = $DependencyFingerprint
+        node_version = $NodeVersion
+        build_completed_utc = [DateTime]::UtcNow.ToString('o')
+    }
+    $encoding = [Text.UTF8Encoding]::new($false)
+    [IO.File]::WriteAllText($temporaryPath, ($state | ConvertTo-Json -Depth 4), $encoding)
+    Move-Item -LiteralPath $temporaryPath -Destination $statePath -Force
+    Write-Ok "Frontend build state refreshed: $([IO.Path]::GetFileName($statePath))"
+}
+
+function Get-FrontendBuildStatus {
+    $frontendOutput = Join-Path $ClientDir 'dist\client-angular\browser\index.html'
+    $statePath = Join-Path $ClientDir 'dist\client-angular\.xreport-build-state.json'
+    $buildFingerprint = $null
+    $dependencyFingerprint = $null
+    $state = $null
+    $isCurrent = $false
+    $reason = 'OutputMissing'
+
+    if (Test-Path -LiteralPath $frontendOutput -PathType Leaf) {
+        $buildFingerprint = Get-FrontendBuildFingerprint
+        $dependencyFingerprint = Get-FrontendDependencyFingerprint
+        if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
+            $reason = 'ManifestMissing'
+        }
+        else {
+            try {
+                $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+                if ([int]$state.schema_version -ne $FrontendBuildStateSchemaVersion) {
+                    $reason = 'SchemaChanged'
+                }
+                elseif ([string]$state.node_version -ne $NodeVersion) {
+                    $reason = 'NodeVersionChanged'
+                }
+                elseif ([string]$state.dependency_manifest_fingerprint -ne $dependencyFingerprint) {
+                    $reason = 'DependencyManifestChanged'
+                }
+                elseif ([string]$state.production_input_fingerprint -ne $buildFingerprint) {
+                    $reason = 'ProductionInputChanged'
+                }
+                else {
+                    $isCurrent = $true
+                    $reason = 'Current'
+                }
+            }
+            catch {
+                $reason = 'ManifestInvalid'
+            }
+        }
+    }
+
+    return [pscustomobject]@{
+        IsCurrent = $isCurrent
+        Reason = $reason
+        OutputPath = $frontendOutput
+        StatePath = $statePath
+        BuildFingerprint = $buildFingerprint
+        DependencyFingerprint = $dependencyFingerprint
+        State = $state
+    }
+}
+
+function Ensure-FrontendBuild {
+    param([psobject]$Status)
+
+    $status = if ($null -eq $Status) { Get-FrontendBuildStatus } else { $Status }
+    if ($status.IsCurrent) {
+        Write-Ok 'Frontend production bundle is current; skipped Angular build.'
+        return $status
+    }
+
+    Write-Info "Frontend production bundle requires work: $($status.Reason)"
+    if ($status.Reason -eq 'DependencyManifestChanged' -or -not (Test-FrontendDependenciesReady)) {
+        Install-FrontendDependencies -Locked
+    }
+    Invoke-FrontendBuild
+    $finalStatus = Get-FrontendBuildStatus
+    if (-not $finalStatus.IsCurrent) {
+        throw "Frontend build completed without a current build-state manifest: $($finalStatus.Reason)"
+    }
+    return $finalStatus
 }
 
 function Test-FrontendDependenciesReady {
@@ -603,6 +874,15 @@ function Test-FrontendDependenciesReady {
         (Test-Path -LiteralPath $frontendRunner)
 }
 
+function Test-PortableNodeRuntimeReady {
+    if (-not (Test-Path -LiteralPath $NodeExe) -or -not (Test-Path -LiteralPath $NpmCmd)) {
+        return $false
+    }
+    $nodeVersionOutput = (& $NodeExe --version 2>&1 | Out-String).Trim()
+    $npmVersionOutput = (& $NpmCmd --version 2>&1 | Out-String).Trim()
+    return $nodeVersionOutput.TrimStart('v').Trim() -eq $NodeVersion -and $npmVersionOutput -eq $NpmVersion
+}
+
 function Test-DesktopDependenciesReady {
     $desktopPackage = Join-Path $DesktopDir 'package.json'
     $desktopLock = Join-Path $DesktopDir 'package-lock.json'
@@ -616,34 +896,22 @@ function Test-DesktopDependenciesReady {
         (Test-Path -LiteralPath $desktopRunner)
 }
 
-function Test-DependenciesReady {
-    $frontendPackage = Join-Path $ClientDir 'package.json'
-    $frontendLock = Join-Path $ClientDir 'package-lock.json'
-    $frontendModules = Join-Path $ClientDir 'node_modules'
-    $frontendInstallState = Join-Path $frontendModules '.package-lock.json'
-    $frontendRunner = Join-Path $frontendModules '.bin\ng.cmd'
+function Test-BackendDependenciesReady {
     $backendEntrypoint = Join-Path $ServerDir 'app.py'
 
     if (-not (Test-Path -LiteralPath $PythonExe) -or
         -not (Test-Path -LiteralPath $UvExe) -or
-        -not (Test-Path -LiteralPath $NodeExe) -or
-        -not (Test-Path -LiteralPath $NpmCmd) -or
         -not (Test-Path -LiteralPath $VenvPython) -or
-        -not (Test-Path -LiteralPath $backendEntrypoint) -or
-        -not (Test-Path -LiteralPath $frontendPackage) -or
-        -not (Test-Path -LiteralPath $frontendLock) -or
-        -not (Test-Path -LiteralPath $frontendInstallState) -or
-        -not (Test-Path -LiteralPath $frontendRunner) -or
-        -not (Test-DesktopDependenciesReady)) {
+        -not (Test-Path -LiteralPath $backendEntrypoint)) {
         return $false
     }
 
-    & $PythonExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    $pythonVersionOutput = (& $PythonExe --version 2>&1 | Out-String).Trim()
+    if ($pythonVersionOutput -ne "Python $PythonVersion") { return $false }
     & $UvExe --version *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
-    & $NodeExe --version *> $null
-    if ($LASTEXITCODE -ne 0) { return $false }
+    $venvVersionOutput = (& $VenvPython --version 2>&1 | Out-String).Trim()
+    if ($venvVersionOutput -ne "Python $PythonVersion") { return $false }
     & $VenvPython -c 'import fastapi, uvicorn' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
@@ -651,9 +919,13 @@ function Test-DependenciesReady {
 }
 
 function Stop-PortListener {
-    param([Parameter(Mandatory = $true)][int]$Port)
+    param(
+        [Parameter(Mandatory = $true)][int]$Port,
+        [int[]]$ExcludeProcessIds = @()
+    )
 
     $listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Where-Object { $ExcludeProcessIds -notcontains [int]$_.OwningProcess } |
         Select-Object -ExpandProperty OwningProcess -Unique
     foreach ($processId in $listeners) {
         Write-Info "Releasing port $Port from PID $processId"
@@ -672,77 +944,411 @@ function Get-PortProcessId {
         Select-Object -First 1 -ExpandProperty OwningProcess
 }
 
+function Get-PortConflicts {
+    param(
+        [Parameter(Mandatory = $true)][int]$FastApiPort,
+        [Parameter(Mandatory = $true)][int]$UiPort,
+        [object[]]$ProcessTable = @()
+    )
+
+    $configuredPorts = @($FastApiPort, $UiPort) | Sort-Object -Unique
+    $connections = @()
+    $connectionLookupError = $null
+    try {
+        $connections = @(Get-NetTCPConnection -State Listen -ErrorAction Stop |
+            Where-Object { $configuredPorts -contains [int]$_.LocalPort -and [int]$_.OwningProcess -gt 0 })
+    }
+    catch {
+        $connectionLookupError = $_.Exception.Message
+    }
+
+    if ($connections.Count -eq 0) {
+        try {
+            $netstatOutput = @(& netstat.exe -ano -p tcp 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                throw "netstat.exe exited with code $LASTEXITCODE."
+            }
+            $connections = @(
+                foreach ($line in $netstatOutput) {
+                    if ([string]$line -match '^\s*TCP\s+\S+:(?<localPort>\d+)\s+\S+\s+LISTENING\s+(?<processId>\d+)\s*$') {
+                        $localPort = [int]$Matches.localPort
+                        $processId = [int]$Matches.processId
+                        if ($configuredPorts -contains $localPort -and $processId -gt 0) {
+                            [pscustomobject]@{ LocalPort = $localPort; OwningProcess = $processId }
+                        }
+                    }
+                }
+            )
+        }
+        catch {
+            $netstatError = $_.Exception.Message
+            throw "Unable to inspect configured TCP listeners. Get-NetTCPConnection: $connectionLookupError; netstat.exe: $netstatError"
+        }
+    }
+    if ($connections.Count -eq 0) { return @() }
+    if ($ProcessTable.Count -eq 0) {
+        try { $ProcessTable = @(Get-XReportProcessTable) } catch { $ProcessTable = @() }
+    }
+
+    $conflictsByPid = @{}
+    foreach ($connection in $connections) {
+        $processId = [int]$connection.OwningProcess
+        if (-not $conflictsByPid.ContainsKey($processId)) {
+            $conflictsByPid[$processId] = [ordered]@{ ProcessId = $processId; Ports = @() }
+        }
+        $ports = @(@($conflictsByPid[$processId].Ports) + @([int]$connection.LocalPort) | Sort-Object -Unique)
+        $conflictsByPid[$processId].Ports = $ports
+    }
+
+    $conflicts = foreach ($processId in @($conflictsByPid.Keys | Sort-Object)) {
+        $process = @($ProcessTable | Where-Object { [int]$_.ProcessId -eq $processId } | Select-Object -First 1)
+        [pscustomobject]@{
+            ProcessId = $processId
+            ProcessName = if ($process.Count -gt 0 -and $process[0].Name) { [string]$process[0].Name } else { '<unavailable>' }
+            ExecutablePath = if ($process.Count -gt 0) { [string]$process[0].ExecutablePath } else { '' }
+            CommandLine = if ($process.Count -gt 0) { [string]$process[0].CommandLine } else { '' }
+            Ports = @($conflictsByPid[$processId].Ports)
+        }
+    }
+    return @($conflicts)
+}
+
+function Get-ProtectedLauncherProcessIds {
+    param([Parameter(Mandatory = $true)][object[]]$ProcessTable)
+
+    $protectedProcessIds = @([int]$PID)
+    $currentProcessId = [int]$PID
+    while ($true) {
+        $currentProcess = @($ProcessTable | Where-Object { [int]$_.ProcessId -eq $currentProcessId } | Select-Object -First 1)
+        if ($currentProcess.Count -eq 0) { break }
+        $parentProcessId = [int]$currentProcess[0].ParentProcessId
+        if ($parentProcessId -le 0 -or $protectedProcessIds -contains $parentProcessId) { break }
+        $protectedProcessIds += $parentProcessId
+        $currentProcessId = $parentProcessId
+    }
+    return @($protectedProcessIds | Sort-Object -Unique)
+}
+
+function Format-PortConflict {
+    param([Parameter(Mandatory = $true)][psobject]$Conflict)
+
+    $ports = (@($Conflict.Ports | Sort-Object) -join ', ')
+    $description = "PID $($Conflict.ProcessId) ($($Conflict.ProcessName)) holds port(s) $ports"
+    if (-not [string]::IsNullOrWhiteSpace([string]$Conflict.ExecutablePath)) {
+        $description += "; executable $($Conflict.ExecutablePath)"
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Conflict.CommandLine)) {
+        $description += "; command $($Conflict.CommandLine)"
+    }
+    return $description
+}
+
+function Wait-ForConfiguredPortsAvailable {
+    param(
+        [Parameter(Mandatory = $true)][int]$FastApiPort,
+        [Parameter(Mandatory = $true)][int]$UiPort,
+        [int]$Attempts = 40
+    )
+
+    for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
+        $conflicts = @(Get-PortConflicts -FastApiPort $FastApiPort -UiPort $UiPort)
+        if ($conflicts.Count -eq 0) { return @() }
+        Start-Sleep -Milliseconds 250
+    }
+    return @(Get-PortConflicts -FastApiPort $FastApiPort -UiPort $UiPort)
+}
+
+function Resolve-LaunchPortConflicts {
+    param([Parameter(Mandatory = $true)][hashtable]$Settings)
+
+    $fastApiPort = 0
+    $uiPort = 0
+    if (-not [int]::TryParse([string]$Settings.FASTAPI_PORT, [ref]$fastApiPort) -or $fastApiPort -lt 1 -or $fastApiPort -gt 65535) {
+        throw "FASTAPI_PORT must be an integer between 1 and 65535; found '$($Settings.FASTAPI_PORT)'."
+    }
+    if (-not [int]::TryParse([string]$Settings.UI_PORT, [ref]$uiPort) -or $uiPort -lt 1 -or $uiPort -gt 65535) {
+        throw "UI_PORT must be an integer between 1 and 65535; found '$($Settings.UI_PORT)'."
+    }
+    if ($fastApiPort -eq $uiPort) {
+        throw "FASTAPI_PORT and UI_PORT must be different; both are configured as $fastApiPort."
+    }
+
+    $processTable = @()
+    $conflicts = @(Get-PortConflicts -FastApiPort $fastApiPort -UiPort $uiPort)
+    if ($conflicts.Count -eq 0) {
+        Write-Ok "Launch ports $fastApiPort and $uiPort are available."
+        return
+    }
+    try { $processTable = @(Get-XReportProcessTable) }
+    catch { Write-Warn "Process metadata is unavailable; conflicts will be displayed by PID and port only: $($_.Exception.Message)" }
+    if ($processTable.Count -gt 0) {
+        $conflicts = @(Get-PortConflicts -FastApiPort $fastApiPort -UiPort $uiPort -ProcessTable $processTable)
+    }
+
+    Write-Warn 'Configured launch ports are occupied:'
+    foreach ($conflict in $conflicts) { Write-Host "  $(Format-PortConflict -Conflict $conflict)" -ForegroundColor Yellow }
+
+    if (-not $script:LauncherInteractive) {
+        throw 'Launch ports are occupied and this invocation is non-interactive; no process was terminated. Free the listed ports or rerun interactively.'
+    }
+    if ($processTable.Count -eq 0) {
+        throw 'Process metadata is unavailable for the occupied launch ports; no process was terminated. Free the ports and rerun.'
+    }
+    $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
+    $protectedConflicts = @($conflicts | Where-Object { $protectedProcessIds -contains [int]$_.ProcessId })
+    if ($protectedConflicts.Count -gt 0) {
+        throw "A launcher or ancestor process owns a configured port. Stop it explicitly before launching: $(($protectedConflicts | ForEach-Object { "PID $($_.ProcessId)" }) -join ', ')."
+    }
+
+    Clear-LauncherProgress
+    $confirmation = ([string](Read-Host 'Terminate all listed processes once and continue? [y/N]')).Trim()
+    if ($confirmation -notmatch '^(?i:y|yes)$') {
+        throw [System.OperationCanceledException]::new('Launch cancelled by the user. No process was terminated and no services were started.')
+    }
+
+    $approvedProcessIds = @($conflicts | ForEach-Object { [int]$_.ProcessId } | Sort-Object -Unique)
+    foreach ($processId in $approvedProcessIds) {
+        $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        if ($null -eq $process) {
+            Write-Info "Approved PID $processId exited before termination; treating it as resolved."
+            continue
+        }
+        $taskkillOutput = @(& taskkill.exe /PID $processId /T /F 2>&1)
+        $taskkillExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+        if ($taskkillExitCode -ne 0) {
+            if ($null -eq (Get-Process -Id $processId -ErrorAction SilentlyContinue)) { continue }
+            $detail = (@($taskkillOutput | ForEach-Object { [string]$_ }) -join ' ').Trim()
+            $approvedConflict = @($conflicts | Where-Object { [int]$_.ProcessId -eq $processId } | Select-Object -First 1)
+            $approvedName = if ($approvedConflict.Count -gt 0) { [string]$approvedConflict[0].ProcessName } else { '<unavailable>' }
+            throw "Unable to terminate approved PID $processId ($approvedName); taskkill exit code $taskkillExitCode. $detail"
+        }
+    }
+
+    $remainingConflicts = @(Wait-ForConfiguredPortsAvailable -FastApiPort $fastApiPort -UiPort $uiPort)
+    if ($remainingConflicts.Count -gt 0) {
+        $unapproved = @($remainingConflicts | Where-Object { $approvedProcessIds -notcontains [int]$_.ProcessId })
+        if ($unapproved.Count -gt 0) {
+            throw "A new or unapproved process now owns a configured launch port; it was not terminated: $(($unapproved | ForEach-Object { Format-PortConflict -Conflict $_ }) -join ' | ')"
+        }
+        throw "Approved process(es) still occupy configured launch ports after termination: $(($remainingConflicts | ForEach-Object { Format-PortConflict -Conflict $_ }) -join ' | ')"
+    }
+    Write-Ok 'Configured launch ports are available after approved conflict resolution.'
+}
+
+function Get-XReportProcessTable {
+    try {
+        return @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine)
+    }
+    catch {
+        throw "Unable to inspect Windows processes for XREPORT cleanup: $($_.Exception.Message)"
+    }
+}
+
+function Get-XReportApplicationProcessIds {
+    param([Parameter(Mandatory = $true)][object[]]$ProcessTable)
+
+    $repoPattern = [regex]::Escape(([IO.Path]::GetFullPath($RepoRoot)).TrimEnd('\'))
+    $processIds = foreach ($process in $ProcessTable) {
+        $commandLine = [string]$process.CommandLine
+        $executablePath = [string]$process.ExecutablePath
+        $processName = [IO.Path]::GetFileNameWithoutExtension([string]$process.Name)
+        $repoScoped = ($commandLine -match $repoPattern) -or ($executablePath -match $repoPattern)
+        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|\buvicorn\b)')
+        $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
+        $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
+        $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
+        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop') -or $isPortableRelease
+
+        if ($isBackend -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication) {
+            [int]$process.ProcessId
+        }
+    }
+    return @($processIds | Sort-Object -Unique)
+}
+
+function Get-XReportProcessTreeIds {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$ProcessTable,
+        [Parameter(Mandatory = $true)][int[]]$RootProcessIds
+    )
+
+    $processIds = @($RootProcessIds | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+    do {
+        $childProcessIds = @(
+            foreach ($process in $ProcessTable) {
+                $processId = [int]$process.ProcessId
+                $parentProcessId = [int]$process.ParentProcessId
+                if ($processId -gt 0 -and $processIds -contains $parentProcessId -and $processIds -notcontains $processId) {
+                    $processId
+                }
+            }
+        )
+        $nextProcessIds = @($processIds + $childProcessIds | Sort-Object -Unique)
+        $changed = $nextProcessIds.Count -gt $processIds.Count
+        $processIds = $nextProcessIds
+    } while ($changed)
+
+    return $processIds
+}
+
+function Stop-XReportProcesses {
+    $settings = Import-XReportEnvironment
+    $processTable = Get-XReportProcessTable
+    $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
+
+    $configuredPorts = @($settings.FASTAPI_PORT, $settings.UI_PORT) |
+        ForEach-Object { [int]$_ } |
+        Sort-Object -Unique
+    $rootProcessIds = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    foreach ($port in $configuredPorts) {
+        $portProcessId = Get-PortProcessId -Port $port
+        if ($null -ne $portProcessId) { $rootProcessIds += [int]$portProcessId }
+    }
+    $rootProcessIds = @(
+        $rootProcessIds |
+            Where-Object { $protectedProcessIds -notcontains [int]$_ } |
+            ForEach-Object { [int]$_ } |
+            Sort-Object -Unique
+    )
+
+    if ($rootProcessIds.Count -eq 0) {
+        foreach ($port in $configuredPorts) {
+            Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
+        }
+        Write-Info 'No XREPORT application processes or configured listeners were found.'
+        return
+    }
+
+    $treeProcessIds = @(
+        Get-XReportProcessTreeIds -ProcessTable $processTable -RootProcessIds $rootProcessIds |
+            Where-Object { $protectedProcessIds -notcontains [int]$_ } |
+            ForEach-Object { [int]$_ } |
+            Sort-Object -Unique
+    )
+    Write-Info "Stopping $($treeProcessIds.Count) XREPORT process(es)."
+
+    foreach ($rootProcessId in $rootProcessIds) {
+        $processInfo = @($processTable | Where-Object { [int]$_.ProcessId -eq $rootProcessId } | Select-Object -First 1)
+        $processName = if ($processInfo.Count -gt 0) { [string]$processInfo[0].Name } else { 'process' }
+        Write-Info "Stopping $processName (PID $rootProcessId)"
+        $null = & taskkill.exe /PID $rootProcessId /T /F 2>$null
+    }
+
+    $remainingProcessIds = @(
+        $treeProcessIds | Where-Object {
+            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
+        }
+    )
+    foreach ($processId in ($remainingProcessIds | Sort-Object -Descending)) {
+        try { Stop-Process -Id ([int]$processId) -Force -ErrorAction Stop } catch { }
+    }
+
+    foreach ($port in $configuredPorts) {
+        Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
+    }
+
+    $remainingProcessIds = @(
+        $treeProcessIds | Where-Object {
+            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
+        }
+    )
+    if ($remainingProcessIds.Count -gt 0) {
+        throw "Unable to stop XREPORT process(es): $($remainingProcessIds -join ', ')."
+    }
+    Write-Ok 'All XREPORT application processes and configured listeners were stopped.'
+}
+
 function Invoke-Launch {
     $settings = Import-XReportEnvironment
+    $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $portPreflightStarted = $launchStopwatch.ElapsedMilliseconds
+    Resolve-LaunchPortConflicts -Settings $settings
+    Write-Info "Launch timing phase=port_preflight elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $portPreflightStarted)"
+
+    $dependencyStarted = $launchStopwatch.ElapsedMilliseconds
     Initialize-Environment
-    $frontendBuilt = $false
-    if (-not (Test-DependenciesReady)) {
-        Write-Step 'Required application environments are missing or unusable; installing dependencies.'
+    if (-not (Test-BackendDependenciesReady)) {
+        Write-Step 'Backend environment is missing or unusable; installing backend dependencies.'
         Ensure-PortableRuntimes
-        Install-Dependencies -Settings $settings -BuildFrontend:($settings.ALWAYS_REBUILD -eq 'true') -InstallationType 'Standard'
-        $frontendBuilt = $settings.ALWAYS_REBUILD -eq 'true'
+        Install-BackendDependencies -InstallationType 'Standard'
     }
     else {
-        Write-Ok 'Application environments are ready; skipped dependency installation.'
+        Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
     }
-
-    if (-not $frontendBuilt -and $settings.ALWAYS_REBUILD -eq 'true') {
-        Write-Step 'Rebuilding frontend.'
-        Invoke-FrontendBuild
+    if (-not (Test-PortableNodeRuntimeReady)) {
+        Ensure-PortableNodeRuntime
     }
+    Write-Info "Launch timing phase=dependency_readiness elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)"
 
-    Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
-    Stop-PortListener -Port ([int]$settings.UI_PORT)
+    $buildCheckStarted = $launchStopwatch.ElapsedMilliseconds
+    $buildStatus = Get-FrontendBuildStatus
+    Write-Info "Frontend build status: $($buildStatus.Reason)"
+    Write-Info "Launch timing phase=build_freshness_check elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)"
+    $rebuildStarted = $launchStopwatch.ElapsedMilliseconds
+    Ensure-FrontendBuild -Status $buildStatus | Out-Null
+    Write-Info "Launch timing phase=stale_rebuild elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)"
 
     if (-not (Test-Path -LiteralPath $VenvPython)) {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
     $backendAppPath = Join-Path $RepoRoot 'app'
-    $backendArgs = "-m uvicorn server.app:app --app-dir `"$backendAppPath`" --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-    if ($settings.RELOAD -eq 'true') { $backendArgs += ' --reload' }
-
     Write-Step 'Starting backend'
-    if ($settings.BACKEND_VISIBLE -eq 'true') {
-        $escapedPython = $VenvPython.Replace("'", "''")
-        $escapedApp = $backendAppPath.Replace("'", "''")
-        $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-        if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
-        $backendProcess = Start-Process -FilePath 'powershell.exe' `
-            -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
-            -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
-    }
-    else {
-        $backendProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList $backendArgs -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
-    }
+    $escapedPython = $VenvPython.Replace("'", "''")
+    $escapedApp = $backendAppPath.Replace("'", "''")
+    $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
+    if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
+    $backendStartStarted = $launchStopwatch.ElapsedMilliseconds
+    $backendProcess = Start-Process -FilePath 'powershell.exe' `
+        -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
+        -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
+    Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
 
     $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
-    Write-Step "Waiting for backend health at $healthUrl"
-    Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 60
-
-    Write-Step 'Starting frontend preview'
     $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
-    $frontendProcess = Start-Process -FilePath $NpmCmd -ArgumentList @(
-        'run', 'preview', '--', '--host', $settings.UI_HOST, '--port', $settings.UI_PORT
-    ) `
-        -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+    $frontendProcess = $null
     try {
+        if (-not (Test-Path -LiteralPath $FrontendServerScript)) {
+            throw "Built frontend server was not found: $FrontendServerScript"
+        }
+        Write-Step 'Starting built frontend server while the backend initializes'
+        $frontendStartStarted = $launchStopwatch.ElapsedMilliseconds
+        $quotedFrontendServerScript = '"' + $FrontendServerScript + '"'
+        $frontendProcess = Start-Process -FilePath $NodeExe -ArgumentList @(
+            $quotedFrontendServerScript,
+            '--host', $settings.UI_HOST,
+            '--port', $settings.UI_PORT,
+            '--api-base-url', $settings.UI_API_BASE_URL,
+            '--backend-host', $settings.FASTAPI_HOST,
+            '--backend-port', $settings.FASTAPI_PORT
+        ) `
+            -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
+        Write-Info "Launch timing phase=frontend_server_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $frontendStartStarted)"
         Write-Step "Waiting for frontend at $uiUrl"
+        $uiReachabilityStarted = $launchStopwatch.ElapsedMilliseconds
         Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60
+        Write-Info "Launch timing phase=ui_reachable elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $uiReachabilityStarted)"
+
+        try {
+            Start-Process -FilePath $uiUrl -ErrorAction Stop | Out-Null
+        }
+        catch {
+            Write-Warn "Automatic browser launch failed. Open the interface manually at $uiUrl. $($_.Exception.Message)"
+        }
+
+        Write-Ok 'XREPORT interface started. Backend initialization is continuing in the application.'
+        Write-Host "Backend: $healthUrl (initializing; launcher PID $($backendProcess.Id))"
+        Write-Host "Frontend: $uiUrl (PID $($frontendProcess.Id))"
     }
     catch {
         if ($frontendProcess -and -not $frontendProcess.HasExited) {
             & taskkill.exe /PID $frontendProcess.Id /T /F | Out-Null
         }
+        if ($backendProcess -and -not $backendProcess.HasExited) {
+            & taskkill.exe /PID $backendProcess.Id /T /F | Out-Null
+        }
         throw
     }
-
-    Start-Process $uiUrl
-
-    $backendPid = Get-PortProcessId -Port ([int]$settings.FASTAPI_PORT)
-    Write-Ok 'Application started successfully'
-    Write-Host "Backend: $healthUrl (PID $backendPid)"
-    Write-Host "Frontend: $uiUrl (PID $($frontendProcess.Id))"
 }
 
 function Invoke-InstallOrUpdate {
@@ -751,7 +1357,7 @@ function Invoke-InstallOrUpdate {
     $installationType = Read-InstallationType
     $settings = Import-XReportEnvironment
     Stop-PortListener -Port ([int]$settings.UI_PORT)
-    Install-Dependencies -Settings $settings -BuildFrontend -InstallationType $installationType
+    Install-Dependencies -BuildFrontend -InstallationType $installationType
     Write-Step 'Synchronizing database schema'
     Invoke-InitializeDatabase
     Write-Ok 'Dependencies installed and frontend built successfully'
@@ -825,7 +1431,8 @@ function Assert-DesktopSourceState {
 function Get-DesktopConfigPath {
     param(
         [Parameter(Mandatory = $true)][string]$Variant,
-        [string]$ReleaseVersion = $Version
+        [string]$ReleaseVersion = $Version,
+        [switch]$Development
     )
     $sourceName = if ($Variant -eq 'cpu') { 'tauri.cpu.conf.json' } else { 'tauri.cuda.conf.json' }
     $sourcePath = Join-Path $DesktopTauriDir $sourceName
@@ -841,6 +1448,9 @@ function Get-DesktopConfigPath {
         $config.app.security | Add-Member -MemberType NoteProperty -Name capabilities -Value @($capability)
     }
     $config.version = $ReleaseVersion
+    if ($Development -and $config.bundle.PSObject.Properties.Name -contains 'resources') {
+        $config.bundle.PSObject.Properties.Remove('resources')
+    }
     if ($OfflineWebView2) {
         $config.bundle.windows.webviewInstallMode = [pscustomobject]@{ type = 'offlineInstaller' }
     }
@@ -925,7 +1535,7 @@ function Invoke-DesktopBackendFreeze {
     # layout and its Python DLL dependency graph remain intact.
     Copy-Item -LiteralPath $frozenBackend -Destination (Join-Path $stagingRoot 'backend') -Recurse -Force
     $stagedBackend = Join-Path $stagingRoot 'backend'
-    $pruneDirectoryNames = @('__pycache__', '.pytest_cache', '.ruff_cache', 'tests', 'test')
+    $pruneDirectoryNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.cache', 'cache', 'caches', 'tests', 'test')
     $pruneDirectories = @(Get-ChildItem -LiteralPath $stagedBackend -Directory -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
         $_.Name -in $pruneDirectoryNames -or
         $_.Name -match '^(pytest|playwright|ruff|pyright|jupyter|notebook|pip|setuptools|uv)([-.].*)?\.dist-info$'
@@ -953,8 +1563,6 @@ function Invoke-DesktopBackendFreeze {
     Copy-Item -LiteralPath $FrontendDist -Destination (Join-Path $stagingRoot 'client') -Recurse -Force
     New-Item -ItemType Directory -Path (Join-Path $stagingRoot 'settings') -Force | Out-Null
     Copy-Item -LiteralPath $EnvExample -Destination (Join-Path $stagingRoot 'settings\.env.example') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\configurations.json') -Destination (Join-Path $stagingRoot 'settings\configurations.json') -Force
-    Copy-Item -LiteralPath (Join-Path $RepoRoot 'settings\inference_models.json') -Destination (Join-Path $stagingRoot 'settings\inference_models.json') -Force
     return $stagingRoot
 }
 
@@ -1140,7 +1748,7 @@ function Invoke-BuildDesktopRelease {
         }
         try {
             Ensure-PortableRuntimes -IncludeRust
-            Install-Dependencies -Settings (Import-XReportEnvironment) -Locked -InstallationType 'Desktop'
+            Install-Dependencies -Locked -InstallationType 'Desktop'
             $frontendDist = Invoke-DesktopFrontendBuild
             foreach ($variant in @($selectedVariants)) {
                 Invoke-DesktopVariantBuild -Variant $variant -SourceCommit $sourceState.Commit -DirtyTree $sourceState.Dirty -FrontendDist $frontendDist -Target $Target -ReleaseVersion $ReleaseVersion
@@ -1394,10 +2002,9 @@ function Invoke-LaunchDesktopDev {
     $frontendCommand = "& '$($NpmCmd.Replace("'", "''"))' run preview -- --host $($settings.UI_HOST) --port $($settings.UI_PORT)"
     $frontendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $frontendCommand) -WorkingDirectory $ClientDir -WindowStyle Normal -PassThru
     try {
-        Invoke-HealthCheck -Uri "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health" -TimeoutSeconds 60
         Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
         $env:XREPORT_DESKTOP_DEV = '1'
-        $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version
+        $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version -Development
         Write-Step 'Launching the debug Tauri shell; backend and frontend consoles remain visible.'
         Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', $devConfigPath) -WorkingDirectory $DesktopDir
     }
@@ -1483,10 +2090,10 @@ function Get-ConfiguredResourceRoot {
     } elseif ($settings.ContainsKey('XREPORT_RESOURCES_DIR')) {
         [string]$settings['XREPORT_RESOURCES_DIR']
     } else {
-        'app/resources'
+        'data'
     }
     if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
-        $configuredRoot = 'app/resources'
+        $configuredRoot = 'data'
     }
     $expandedRoot = [Environment]::ExpandEnvironmentVariables($configuredRoot.Trim())
     if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
@@ -1726,7 +2333,7 @@ function Remove-LauncherPath {
             }
             if ($WhatIf) { continue }
             try {
-                Remove-Item -LiteralPath $entry.FullName -Force -Confirm:$false -ErrorAction Stop
+                Remove-Item -LiteralPath $entry.FullName -Force -Recurse -Confirm:$false -ErrorAction Stop
                 [void]$removedPaths.Add($entry.FullName)
             }
             catch {
@@ -1751,12 +2358,86 @@ function Remove-LauncherPath {
 }
 
 function Get-LegacyCacheDirectories {
-    $legacyNames = @('__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.pyright')
+    $legacyPaths = @(
+        (Join-Path $RepoRoot 'app\tests\cache'),
+        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
+        (Join-Path $RepoRoot '.pytest_cache'),
+        (Join-Path $RepoRoot '.ruff_cache'),
+        (Join-Path $RepoRoot '.mypy_cache'),
+        (Join-Path $RepoRoot '.pyright'),
+        (Join-Path $RepoRoot '.uv-cache'),
+        (Join-Path $RepoRoot '.pytest-tmp'),
+        (Join-Path $RuntimesDir '.uv-cache'),
+        (Join-Path $ServerDir 'runtimes\cache'),
+        (Join-Path $ClientDir '.angular\cache'),
+        (Join-Path $ClientDir 'node_modules\.cache'),
+        (Join-Path $ClientDir 'coverage')
+    )
+    $resourceRoots = @(
+        (Join-Path $RepoRoot 'data'),
+        (Get-ConfiguredResourceRoot)
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
+    foreach ($resourceRoot in $resourceRoots) {
+        $legacyPaths += @(
+            (Join-Path $resourceRoot 'cache'),
+            (Join-Path $resourceRoot 'caches'),
+            (Join-Path $resourceRoot '.cache'),
+            (Join-Path $resourceRoot '__pycache__'),
+            (Join-Path $resourceRoot 'models\.cache'),
+            (Join-Path $resourceRoot 'models\huggingface\hub-cache'),
+            (Join-Path $resourceRoot 'models\huggingface\.cache'),
+            (Join-Path $resourceRoot 'models\huggingface\cache'),
+            (Join-Path $resourceRoot 'models\torch'),
+            (Join-Path $resourceRoot 'models\keras'),
+            (Join-Path $resourceRoot 'matplotlib')
+        )
+    }
+    $qaRoots = @(
+        (Join-Path $RepoRoot 'assets\QA'),
+        (Join-Path $RepoRoot 'app\server\assets\QA')
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
+    foreach ($qaRoot in $qaRoots) {
+        if (Test-Path -LiteralPath $qaRoot -PathType Container) {
+            $legacyPaths += @(
+                Get-ChildItem -LiteralPath $qaRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+                    Where-Object {
+                        $_.Name -in @('.pytest_cache', '.ruff_cache', '.mypy_cache') -or
+                        $_.Name -like 'pytest-cache*'
+                    }
+            )
+        }
+    }
+
+    $legacyNames = @(
+        '__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache',
+        '.pyright', '.cache', 'cache', 'caches'
+    )
     $excludedNames = @('.git', '.venv', 'node_modules', 'dist', 'build', 'release', 'target')
-    $resourcesRoot = Join-Path $RepoRoot 'app\resources'
+    $skipSubtrees = @(
+        $RuntimesDir,
+        $VenvDir,
+        (Join-Path $RepoRoot '.venv'),
+        (Join-Path $ClientDir 'node_modules'),
+        (Join-Path $DesktopDir 'node_modules'),
+        $DesktopTargetDir,
+        $qaRoots,
+        (Join-Path $ClientDir '.angular'),
+        (Join-Path $RepoRoot 'app\tests\cache'),
+        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
+        (Join-Path $ServerDir 'runtimes\cache')
+    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
     $pending = [Collections.Generic.Stack[string]]::new()
     $pending.Push($RepoRoot)
     $found = [Collections.Generic.List[object]]::new()
+    $foundPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($legacyPath in @($legacyPaths)) {
+        $candidatePath = if ($legacyPath -is [IO.FileSystemInfo]) { $legacyPath.FullName } else { [string]$legacyPath }
+        if (-not (Test-Path -LiteralPath $candidatePath)) { continue }
+        $legacyItem = Get-Item -LiteralPath $candidatePath -Force -ErrorAction SilentlyContinue
+        if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
+            [void]$found.Add($legacyItem)
+        }
+    }
     $progressId = Start-LauncherProgress -Activity 'XREPORT: find legacy caches' -Status 'Scanning repository directories'
     try {
         while ($pending.Count -gt 0) {
@@ -1770,14 +2451,22 @@ function Get-LegacyCacheDirectories {
             }
             foreach ($childPath in $childDirectories) {
                 $childName = Split-Path -Leaf $childPath
-                if ($childName -in $excludedNames -or
-                    $childPath.Equals($resourcesRoot, [StringComparison]::OrdinalIgnoreCase) -or
-                    $childPath.StartsWith("$resourcesRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                $isSkippedSubtree = $false
+                foreach ($skipRoot in $skipSubtrees) {
+                    if ($childPath.Equals($skipRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                        $childPath.StartsWith("$skipRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+                        $isSkippedSubtree = $true
+                        break
+                    }
+                }
+                if ($isSkippedSubtree -or $childName -in $excludedNames -or
+                    $childPath.StartsWith((Join-Path $RepoRoot 'data') + '\', [StringComparison]::OrdinalIgnoreCase)) {
                     continue
                 }
-                if ($childName -in $legacyNames) {
+                $isPytestCache = $childName -match '^pytest[-_](cache|tmp|integration|e2e|release|full|runtime|settings)'
+                if ($childName -in $legacyNames -or $isPytestCache) {
                     $legacyItem = Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
-                    if ($null -ne $legacyItem) {
+                    if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
                         [void]$found.Add($legacyItem)
                     }
                     continue
@@ -1808,25 +2497,22 @@ function Remove-PythonCaches {
 function Clear-ApplicationCache {
     if (-not (Confirm-DestructiveAction 'clear application caches')) { return }
     $targets = @(
-        $RuntimeCacheDir,
-        $ToolCacheDir,
-        (Join-Path $RuntimesDir '.uv-cache'),
-        (Join-Path $RepoRoot '.pytest-tmp'),
-        (Join-Path $ClientDir '.angular\cache'),
-        (Join-Path $ClientDir 'node_modules\.cache'),
-        (Join-Path $ClientDir 'coverage')
+        $RuntimeCacheDir
     )
     $legacyCaches = @(Get-LegacyCacheDirectories)
-    $allTargets = @($targets + @($legacyCaches | ForEach-Object { $_.FullName })) |
-        ForEach-Object { [IO.Path]::GetFullPath($_) } |
-        Select-Object -Unique
+    $allTargets = @(
+        $targets + @($legacyCaches | ForEach-Object { $_.FullName }) |
+            ForEach-Object { [IO.Path]::GetFullPath($_) } |
+            Select-Object -Unique
+    )
     $results = [Collections.Generic.List[object]]::new()
     $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "0 of $($allTargets.Count) paths"
     try {
         for ($index = 0; $index -lt $allTargets.Count; $index++) {
             $target = $allTargets[$index]
             Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
-            [void]$results.Add((Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target"))
+            $preserveNames = if ([IO.Path]::GetFullPath($target).TrimEnd('\').Equals([IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) { @('.gitkeep') } else { @() }
+            [void]$results.Add((Remove-LauncherPath -Path $target -PreserveNames $preserveNames -Activity "XREPORT: remove $target"))
         }
     }
     finally {
@@ -1840,14 +2526,13 @@ function Clear-ApplicationCache {
     } else {
         Write-Ok "Application caches cleared: removed $removed item(s)."
     }
-    New-Item -ItemType Directory -Path $RuntimeCacheDir, $ToolCacheDir -Force | Out-Null
+    Initialize-Environment
 }
 
 function Uninstall-Application {
     if (-not (Confirm-DestructiveAction 'remove application runtimes, dependencies, and build outputs')) { return }
     $targets = @(
         $RuntimesDir,
-        $ToolCacheDir,
         $VenvDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
@@ -1899,6 +2584,7 @@ function Wait-ForMenu {
 function Get-LauncherMenuEntries {
     @(
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch application'; Description = 'Start local services'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT services and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Database'; Label = 'Initialize database'; Description = 'Prepare local data store'; Destructive = $false }
@@ -1975,6 +2661,7 @@ if ($Action) {
             'RemoveCheckpoints' { Remove-Checkpoints }
             'RemoveAllData' { Remove-AllData }
             'Uninstall' { Uninstall-Application }
+            'KillProcesses' { Stop-XReportProcesses }
             'Update' { Invoke-Update }
         }
     }
@@ -2003,6 +2690,7 @@ while ($true) {
         Invoke-TrackedLauncherAction -Name "menu option $($entry.Number)" -Operation {
             switch ($entry.Key) {
                 'Launch' { Invoke-Launch; exit 0 }
+                'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
                 'Rebuild' { Invoke-RebuildFrontend }
                 'Database' { Invoke-InitializeDatabase }

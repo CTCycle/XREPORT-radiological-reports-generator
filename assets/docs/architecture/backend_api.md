@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-09-07
+Last updated: 2026-09-22
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -85,6 +85,10 @@ configured `global.seed` value.
 - `POST /api/inference/models/check-update`
 - `POST /api/inference/models/maintenance`
 - `POST /api/inference/generate`
+- `GET /api/inference/history`
+- `GET /api/inference/history/{request_id}`
+- `PATCH /api/inference/history/{request_id}`
+- `DELETE /api/inference/history/{request_id}`
 
 `POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
 
@@ -96,6 +100,14 @@ The inference service accepts at most 16 images and a 64 MiB total image payload
 
 Expected service-layer failures use typed errors and are translated centrally into the existing `{"detail": ...}` response envelope. Background job failures remain visible through the job status response, including persistence failures during inference history writes.
 
+Inference history is backed by the persisted `InferenceRun` and
+`InferenceReport` records. The list route supports `model_ref`, lifecycle
+`status`, `sort`, `limit`, and `offset` filters and returns report summaries;
+the detail route returns session metadata and each generated report. PATCH
+updates report drafts atomically by `image_index`, preserving the generated
+text alongside an optional edited value and timestamp. DELETE removes one
+session and its child reports through the existing inference-run cascade.
+
 Dataset-consuming jobs validate every stored image path before processing. A
 deleted or missing path fails closed with the `dataset_integrity_failed` job
 code. Checkpoint evaluation resolves validation data from the checkpoint's
@@ -105,6 +117,24 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 ## Health
 
 - `GET /api/health`
+
+## Runtime Settings
+
+- `GET /api/settings`
+- `PATCH /api/settings`
+- `POST /api/settings/reset`
+
+The Settings API exposes only the four runtime-managed application values:
+`global.seed`, `features.allow_local_filesystem_access`,
+`jobs.polling_interval`, and `inference.model_timeout`. PATCH requests are
+nested partial updates and are validated by the backend before the authoritative
+`application_settings` row is updated transactionally. Reset restores those
+four public values while preserving static inference policy, environment
+configuration, database settings, and the model catalogue.
+
+Database credentials, `.env` values, Hugging Face tokens, runtime paths,
+`inference.device`, `inference.hf_local_only`, and
+the obsolete `inference.max_loaded_models` key are never returned by this API.
 
 The health response reports backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
 

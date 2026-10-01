@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-08-20
+Last updated: 2026-09-22
 
 ## Core UX Journeys
 
@@ -10,13 +10,46 @@ Last updated: 2026-08-20
   - visible progress or loading
   - terminal success, error, or cancel feedback
 - Keep the inference research-use warning visible above the drafting workspace. Model status and capabilities must be clear before image upload or generation.
-- Generated report text remains an editable draft split into Findings and Impression; it is never presented as a clinically approved result.
+- Generated report text remains an editable draft using the output sections declared by the selected model. Models may expose Findings, Impression, both sections, or a raw report; it is never presented as a clinically approved result.
+- Keep completed inference sessions discoverable from Reports. The list exposes model, status, images, timing, and a short preview; the detail page exposes provenance and metadata while preserving generated output separately from user edits.
+
+## Application startup
+
+- The browser interface opens as soon as the frontend preview is reachable;
+  backend initialization continues behind the shell-level startup surface.
+- The startup surface uses four states: `starting`, `slow`, `unavailable`, and
+  `ready`. It does not claim that a backend has crashed when the browser can
+  only observe that readiness has not arrived.
+- `slow` appears after approximately 15 seconds. `unavailable` appears after
+  60 seconds, keeps automatic low-frequency polling active, and exposes
+  **Retry connection**. A later successful `/api/health` response recovers
+  without a browser refresh.
+- Only a health response with `status: "ok"` unlocks routing. The startup gate
+  is terminal for that application instance and never returns for ordinary
+  feature-level API errors after the workspace is visible.
+- The radiograph illustration and report bars are decorative. The live status
+  text is exposed through an accessible status region, and reduced-motion users
+  receive a static composition with only the short ready transition.
+- The startup illustration uses a restrained structural radiograph and one
+  scanning accent; decorative marker dots and enclosing card chrome are not
+  required for readiness communication.
 
 ## Interaction Consistency
 
 - Use consistent button labels and affordances for primary, cancel, and destructive actions.
 - Keep modal close behavior predictable.
 - Keep empty, loading, and error states explicit. Avoid silent failures.
+
+## Reports history
+
+- Reports is a durable review surface for persisted inference sessions; source
+  radiographs are not retained there.
+- List filters are explicit and reversible: model reference, lifecycle status,
+  sort order, and pagination.
+- A successful session can be edited by report image and declared output
+  section. Save is atomic, disabled until a draft changes, and never replaces
+  the generated model output. Deleting a session is explicit and returns the
+  user to the history list.
 
 ## Theme selection
 
@@ -25,6 +58,18 @@ Last updated: 2026-08-20
 - The selected preference is shown with a selected state and `aria-pressed`; the control remains keyboard accessible on desktop and mobile.
 - System follows the browser or operating-system `prefers-color-scheme` setting while selected. Manual preferences are not overridden by OS changes.
 - Theme changes apply immediately without a page refresh and remain functional when the backend is unavailable.
+
+## Runtime settings
+
+- Settings is available from the existing navigation footer gear and remains
+  keyboard accessible on desktop and mobile.
+- The page uses explicit loading, load-error, dirty, validation, saving,
+  resetting, success, and failure states.
+- Save is disabled until a valid change exists and sends only changed fields.
+- Reset asks the backend for authoritative defaults rather than calculating a
+  second frontend copy of them.
+- Help text explains that seed, polling interval, and inference timeout changes
+  apply to new work; active jobs and generations retain their starting values.
 
 ## Contextual Guidance
 

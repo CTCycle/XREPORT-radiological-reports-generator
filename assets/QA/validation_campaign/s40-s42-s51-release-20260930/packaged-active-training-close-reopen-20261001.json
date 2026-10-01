@@ -1,0 +1,119 @@
+{
+  "schema_version": "xreport-packaged-active-training-close-reopen-v1",
+  "observed_utc": "2026-10-01T09:41:13.3128856Z",
+  "repository_head": "af666df53b3424c08a279bc9d0b79b81078815bd",
+  "dirty_tree": true,
+  "variant": "cpu",
+  "version": "3.1.0",
+  "portable": "XREPORT-v3.1.0-windows-x64-cpu-portable.exe",
+  "fixture": {
+    "root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\s27\\fixtures",
+    "csv": "s27_technical_fixture.csv",
+    "dataset": "s27_technical_fixture",
+    "processed_dataset": "s51-packaged-31484-processed",
+    "checkpoint": "s51-packaged-31484-checkpoint",
+    "synthetic": true
+  },
+  "seed": {
+    "resource_root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\release-validation-20260925\\resources",
+    "encoder": "models/XRAYEncoder",
+    "tokenizer": "models/tokenizers"
+  },
+  "start": {
+    "pid": 34668,
+    "backend_pid": 32316,
+    "port": 63732,
+    "health": {
+      "status": "ok",
+      "application": "XREPORT Backend",
+      "version": "3.1.0",
+      "runtime_mode": "sqlite",
+      "runtime_variant": "cpu",
+      "runtime_port": 63732
+    },
+    "session": {
+      "bootstrap_url": "http://127.0.0.1:63732/__xreport/bootstrap?token=w5diDEMuQaeZOrI3jrc_sOWC7x_S6kZLsFhPfLiRQ2g",
+      "pid": 32316,
+      "variant": "cpu",
+      "version": "3.1.0"
+    }
+  },
+  "training": {
+    "job_id": "f70036fc",
+    "start": {
+      "job_id": "f70036fc",
+      "job_type": "training",
+      "status": "running",
+      "message": "Training job started",
+      "poll_interval": 1.0
+    },
+    "before_close": {
+      "job_id": "f70036fc",
+      "job_type": "training",
+      "status": "running",
+      "poll_interval": 1.0,
+      "progress": 0.0,
+      "result": {
+        "current_epoch": 0,
+        "total_epochs": 1,
+        "loss": 0.0,
+        "val_loss": 0.0,
+        "accuracy": 0.0,
+        "val_accuracy": 0.0,
+        "progress_percent": 0,
+        "elapsed_seconds": 0,
+        "worker_phase": "target_started",
+        "worker_phase_status": "started",
+        "worker_phase_elapsed_seconds": 0.0,
+        "worker_elapsed_seconds": 1.703,
+        "worker_pid": 21876,
+        "chart_data": [],
+        "epoch_boundaries": [],
+        "available_metrics": []
+      },
+      "error": null
+    },
+    "processing_job_id": "5e763fe2"
+  },
+  "close_during_training": {
+    "shell_exited": true,
+    "backend_and_listener_gone": true,
+    "backend_pid": 32316,
+    "port": 63732
+  },
+  "reopen": {
+    "pid": 2772,
+    "backend_pid": 22748,
+    "port": 51380,
+    "health": {
+      "status": "ok",
+      "application": "XREPORT Backend",
+      "version": "3.1.0",
+      "runtime_mode": "sqlite",
+      "runtime_variant": "cpu",
+      "runtime_port": 51380
+    },
+    "session": {
+      "bootstrap_url": "http://127.0.0.1:51380/__xreport/bootstrap?token=qcxpMzIBQdKEeOjLju4msvaUWfMeCUnmmbWVlKmwL2g",
+      "pid": 22748,
+      "variant": "cpu",
+      "version": "3.1.0"
+    },
+    "running_jobs": {
+      "jobs": []
+    },
+    "reopened_training_job_status": {
+      "status_code": 404,
+      "status": "not_found_after_reopen"
+    },
+    "no_running_jobs": true
+  },
+  "cleanup": {
+    "shell_exited": true,
+    "backend_and_listener_gone": true,
+    "backend_pid": 22748,
+    "port": 51380
+  },
+  "stage": "final_cleanup",
+  "passed": true
+}

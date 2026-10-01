@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-09-07
+Last updated: 2026-09-29
 
 ## Primary Commands
 
@@ -8,6 +8,7 @@ Last updated: 2026-09-07
 
 ```powershell
 .\start_on_windows.ps1 -Action LaunchDesktopDev
+.\start_on_windows.ps1 -Action KillProcesses
 .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.1.0
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 .\start_on_windows.ps1 -Action RemoveCheckpoints
@@ -48,23 +49,57 @@ timestamped backend logs beside it. Readiness/session files in
 ### Manual Backend And Frontend
 
 - `uv run --project app/server python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
-- `cd app/client && npm run preview -- --host <host> --port <port>`
+- `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (preview serves the existing production bundle)
 
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp app/tests/cache/pytest-tmp -o "cache_dir=app/tests/cache/pytest"`
-- `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_cxrmate_ed_sensitivity.py" --fixture-provenance "<approved source>" --fixture-deidentification "<approved de-identification statement>"`
+- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp runtimes/cache/pytest-tmp/manual -o "cache_dir=runtimes/cache/pytest"`
+- `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_inference_model.py" --help`
 
-The CXRMate-ED canary is cache-only and writes its real-inference evidence to
-`assets/QA/inference_validation_runs/`. A failed canary is an expected,
-explicit degraded result for research access; it must not be treated as a
-passing validation receipt.
+The former CXRMate-ED sensitivity wrapper has been retired with the model. The
+generic validator is for active catalogue entries only; a model that fails
+qualification is removed from the selectable catalogue rather than retained
+as degraded research access.
+
+### Tier 0 validation
+
+The hard-gated foundational campaign is documented in
+[`validation_campaign_ledger.md`](../validation_campaign_ledger.md). Run its
+current-head sequence in this order:
+
+```powershell
+uv sync --locked --extra test --python 3.14.7
+Set-Location app/server
+.\.venv\Scripts\ruff.exe check .
+.\.venv\Scripts\pyright.exe .
+Set-Location ../..
+app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp runtimes/cache/pytest-tmp/tier0-unit -o "cache_dir=runtimes/cache/pytest"
+Set-Location app/client
+npm ci --no-audit --no-fund
+npm run build
+npm run lint
+npm run test:unit
+```
+
+For the rendered startup gate, use the official launcher, then run the focused
+test against the live pair:
+
+```powershell
+Set-Location ../..
+.\start_on_windows.ps1 -Action Launch
+$env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
+$env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
+app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/e2e/test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health -q --basetemp runtimes/cache/pytest-tmp/tier0-s02 -o "cache_dir=runtimes/cache/pytest"
+```
+
+Durable campaign summaries belong under `assets/QA/validation_campaign/`;
+transient caches, server logs, and generated bundles remain under
+`runtimes/cache` unless a slice summary explicitly promotes them to evidence.
 
 ### Development cache locations
 
-- runtime caches: `runtimes/cache/{uv,npm,pip,playwright-browsers}`
-- test and development-tool caches: `app/tests/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular}`
+- all disposable caches: `runtimes/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular,uv,npm,pip,playwright-browsers,huggingface,torch,keras,matplotlib}`
 - best-effort cleanup: `.\start_on_windows.ps1 -Action ClearCache`
 
 Locked or administrator-protected cache files are reported and skipped during
@@ -102,10 +137,11 @@ requires one linear head and never performs downgrades automatically.
 
 ## Data And Output Locations
 
-- runtime data root: `app/resources` by default; override with `XREPORT_RESOURCES_DIR`
+- runtime data root: `data` by default; override with `XREPORT_RESOURCES_DIR`
 - SQLite database file: `<resource root>/database.db`
 - checkpoints: `<resource root>/checkpoints`
-- model cache/artifacts: `<resource root>/models`
+- persistent model installations and lifecycle metadata: `<resource root>/models`
+- transient model/tool caches: `<runtime root>/runtimes/cache` (or packaged `<data root>/runtimes/cache`)
 - tokenizer resources: `<resource root>/tokenizers`
 - report templates: `<resource root>/templates`
 - logs: `<resource root>/logs`

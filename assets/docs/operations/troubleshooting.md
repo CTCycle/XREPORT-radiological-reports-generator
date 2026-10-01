@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-08-21
+Last updated: 2026-09-22
 
 ## Troubleshooting Quick Guide
 
@@ -24,6 +24,14 @@ variant-specific immutable runtime archives.
 - UI not reachable:
   - check `UI_HOST` and `UI_PORT` in `settings/.env`
   - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
+- configured port already in use:
+  - interactive Launch lists the owning PIDs, ports, and available process metadata before asking once for termination
+  - answer `No` to cancel without stopping processes or starting services
+  - non-interactive Launch fails closed; free the ports or rerun interactively
+  - a failed termination, launcher/ancestor owner, or new owner appearing after approval aborts the launch without killing the new process
+- frontend bundle is stale or missing:
+  - run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`
+  - inspect the launcher timing and build-state reason; dependency manifest changes run `npm ci` before the rebuild
 - jobs stay running too long:
   - poll the status endpoint and inspect backend logs under `<resource root>/logs`
 - missing artifacts or checkpoints:
@@ -32,14 +40,31 @@ variant-specific immutable runtime archives.
   - expected when dependencies and runtimes are being initialized
 - model unavailable:
   - inspect `GET /api/inference/models` for provider and model status
-  - Hugging Face model snapshots must already be cached at the exact revision declared in `settings/inference_models.json`
+  - Hugging Face model snapshots must already be cached at the exact revision declared in the typed catalogue at `app/server/configurations/inference_models.py`
   - Hugging Face requires a cached snapshot and an exact configured commit
 - first Generate action is slow or reports an access error:
   - allow time for the selected public model to download, verify, and load
   - for gated models, accept the provider terms and configure `HF_TOKEN` or the standard local Hugging Face credential store
 - startup validation failure:
-  - verify `settings/configurations.json` exists
+  - inspect the database migration status and confirm the `application_settings`
+    singleton row exists and passes its constraints
   - check write permissions under the configured resource root
+
+### ML import deadlocks after startup
+
+Lightweight endpoints such as dataset names/status, checkpoint listing, settings,
+and the inference model catalogue must not initialize Keras, PyTorch, torchvision,
+Transformers, or a model provider. The model package initializers are intentionally
+empty, and service factories keep runtime imports inside tokenization, training,
+checkpoint loading, validation, and inference execution paths.
+
+If logs contain `_ModuleLock` deadlocks, `partially initialized module 'torch'`,
+`torch.utils`, or Keras/PyTorch circular-import errors, restart from a clean
+process and check that the request was not importing a concrete runtime module at
+factory time. Use the clean-subprocess regression test and call the lightweight
+endpoints before starting any ML job. A genuine runtime dependency failure should
+remain attached to its job result and should be fixed in the execution path rather
+than suppressed with retries or broad exception handling.
 
 ## Database Initialization
 

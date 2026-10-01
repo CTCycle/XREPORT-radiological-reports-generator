@@ -1,0 +1,111 @@
+{
+  "observed_at_utc": "2026-09-24T18:43:02.2168952Z",
+  "repository_baseline": "80e8d7aea3530c31d7557445685591533a27b3c5",
+  "S28": {
+    "status": "UNTESTED",
+    "evaluation_executed": false,
+    "encoder": {
+      "model_id": "microsoft/beit-base-patch16-224",
+      "revision": "f02e8f77db4703e3fbd3766e3375a4619c5a4863",
+      "expected_paths": [
+        "app/resources/XRAYEncoder",
+        "runtimes/cache/s27-s28-20260923/models/XRAYEncoder",
+        "runtimes/cache/huggingface/hub/models--microsoft--beit-base-patch16-224"
+      ],
+      "available": false
+    },
+    "checkpoint": {
+      "expected_paths": [
+        "runtimes/cache/s23-s26-resources/checkpoints",
+        "runtimes/cache/s27-s28-20260923/checkpoints",
+        "app/resources/checkpoints"
+      ],
+      "checks": [
+        {
+          "path": "runtimes/cache/s23-s26-resources/checkpoints",
+          "exists": false,
+          "entries": []
+        },
+        {
+          "path": "runtimes/cache/s27-s28-20260923/checkpoints",
+          "exists": false,
+          "entries": []
+        },
+        {
+          "path": "app/resources/checkpoints",
+          "exists": true,
+          "entries": [
+            ".gitkeep"
+          ]
+        }
+      ],
+      "compatible_s24_artifact_available": false
+    },
+    "limitation": "The exact pinned encoder and compatible S24 checkpoint are absent; successful evaluation remains untested."
+  },
+  "S35": {
+    "status": "FAIL / degraded",
+    "live_catalog_validation_status": "degraded",
+    "historical_canary": "assets/QA/inference_validation_runs/cxrmate-ed-sensitivity-20260919T154916Z.json",
+    "historical_completed_cases": 3,
+    "historical_unique_report_count": 2,
+    "approved_fixture_directory": "assets/QA/full-e2e-20260821-101310/inputs/images",
+    "approved_fixture_directory_exists": false,
+    "replacement_fixtures_used": false,
+    "limitation": "The approved exact fixture directory remains absent; the historical canary produced only two distinct reports across three cases."
+  },
+  "S37": {
+    "status": "BLOCKED",
+    "live_catalog_access_policy": "gated",
+    "isolated_installation_state": "not_installed",
+    "settings_env_hf_token_nonempty": false,
+    "process_hf_token_nonempty": false,
+    "token_values_recorded": false,
+    "installation_or_generation_attempted": false,
+    "limitation": "No authorized gated-model credential is configured in the process or settings/.env."
+  },
+  "checked_paths": [
+    {
+      "path": "app/resources/XRAYEncoder",
+      "exists": false,
+      "entries": []
+    },
+    {
+      "path": "runtimes/cache/s27-s28-20260923/models/XRAYEncoder",
+      "exists": false,
+      "entries": []
+    },
+    {
+      "path": "runtimes/cache/huggingface/hub/models--microsoft--beit-base-patch16-224",
+      "exists": false,
+      "entries": []
+    },
+    {
+      "path": "runtimes/cache/s23-s26-resources/checkpoints",
+      "exists": false,
+      "entries": []
+    },
+    {
+      "path": "runtimes/cache/s27-s28-20260923/checkpoints",
+      "exists": false,
+      "entries": []
+    },
+    {
+      "path": "app/resources/checkpoints",
+      "exists": true,
+      "entries": [
+        ".gitkeep"
+      ]
+    },
+    {
+      "path": "assets/QA/full-e2e-20260821-101310/inputs/images",
+      "exists": false,
+      "entries": []
+    }
+  ],
+  "source_evidence": [
+    "assets/QA/validation_campaign/s28/prerequisite-check-20260924.json",
+    "assets/QA/validation_campaign/s30-s32-20260924/gate-recheck.json",
+    "assets/QA/validation_campaign/s30-s32-20260924/catalog-api.json"
+  ]
+}

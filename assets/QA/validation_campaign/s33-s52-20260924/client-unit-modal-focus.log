@@ -1,0 +1,16 @@
+
+> xreport-client@3.1.0 test:unit
+> ng test --watch=false --include src/app/components/modal-focus.directive.spec.ts
+
+> Building...
+√ Building...
+Application bundle generation complete. [3.601 seconds] - 2026-09-24T22:00:34.137Z
+
+
+ RUN  v4.1.10 G:/Projects/Repositories/Active projects/XREPORT Radiological Reports/app/client
+
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  00:00:34
+   Duration  1.53s (transform 50ms, setup 370ms, import 76ms, tests 74ms, environment 805ms)
