@@ -13,7 +13,6 @@ _ONE_PIXEL_PNG = (
     b"\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
-
 ###############################################################################
 def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
     response = api_context.patch(
@@ -22,13 +21,11 @@ def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> Non
     )
     assert response.ok, f"Could not set filesystem access: {response.status}"
 
-
 ###############################################################################
 def _dataset_names(api_context: APIRequestContext) -> list[dict[str, object]]:
     response = api_context.get("/api/preparation/dataset/names")
     assert response.ok, response.text()
     return response.json()["datasets"]
-
 
 ###############################################################################
 def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
@@ -117,7 +114,6 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
         _set_filesystem_access(api_context, original_access)
-
 
 ###############################################################################
 def test_s21_no_matching_rows_fail_without_persisting_source(

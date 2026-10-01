@@ -4,7 +4,6 @@ from pathlib import Path
 
 from server.common.runtime_layout import RuntimeLayout
 
-
 ###############################################################################
 def test_source_layout_defaults_to_repository_data(monkeypatch) -> None:
     repository_root = Path(__file__).resolve().parents[3]
@@ -15,7 +14,6 @@ def test_source_layout_defaults_to_repository_data(monkeypatch) -> None:
 
     assert layout.mode == "source"
     assert layout.resources_root == repository_root / "data"
-
 
 ###############################################################################
 def test_source_layout_accepts_an_explicit_resource_root(monkeypatch, tmp_path) -> None:

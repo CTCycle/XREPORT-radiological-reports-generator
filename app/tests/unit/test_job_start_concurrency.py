@@ -22,7 +22,6 @@ from server.services.training import TrainingRuntime, TrainingService
 from server.services.upload import UploadState
 from server.services.validation_runs import ValidationService
 
-
 ###############################################################################
 def test_concurrent_training_starts_are_atomically_rejected(
     monkeypatch: pytest.MonkeyPatch,
@@ -145,6 +144,7 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert not manager.is_job_running("training")
 
 
+###############################################################################
 def test_initial_result_is_visible_before_runner_starts() -> None:
     manager = JobManager()
     observed: dict[str, object] = {}
@@ -163,7 +163,6 @@ def test_initial_result_is_visible_before_runner_starts() -> None:
     manager.threads[job_id].join(timeout=2)
 
     assert observed == {"worker_phase": "starting", "progress_percent": 0}
-
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -326,7 +325,6 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     assert not manager.threads[job_id].is_alive()
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running(job_type)
-
 
 ###############################################################################
 @pytest.mark.parametrize(

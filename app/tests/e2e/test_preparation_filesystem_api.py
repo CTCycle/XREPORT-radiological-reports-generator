@@ -12,7 +12,6 @@ _ONE_PIXEL_PNG = (
     b"\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
-
 ###############################################################################
 def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
     response = api_context.patch(
@@ -24,7 +23,6 @@ def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> Non
         response.json()["values"]["features"]["allow_local_filesystem_access"]
         is enabled
     )
-
 
 ###############################################################################
 def test_s15_filesystem_browse_validation_and_feature_gate(
