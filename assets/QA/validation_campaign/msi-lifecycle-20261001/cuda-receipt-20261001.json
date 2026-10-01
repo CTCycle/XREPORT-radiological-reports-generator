@@ -1,0 +1,90 @@
+﻿{
+    "schema_version":  "xreport-msi-lifecycle-v1",
+    "observed_utc":  "2026-10-01T18:44:43.5786643Z",
+    "variant":  "cuda",
+    "version":  "3.1.0",
+    "msi":  "XREPORT-v3.1.0-windows-x64-cuda.msi",
+    "product_code":  "{277D0DE9-DA73-405B-8E5F-31D10E2D76B9}",
+    "install_dir":  "C:\\Program Files\\XREPORT CUDA",
+    "portable":  "XREPORT-v3.1.0-windows-x64-cuda-portable.exe",
+    "stage":  "passed",
+    "preconditions":  {
+                          "product_registered_before":  false,
+                          "ports_clean":  true,
+                          "msi_exists":  true
+                      },
+    "install":  {
+                    "marker":  {
+                                   "action":  "install",
+                                   "variant":  "cuda",
+                                   "version":  "3.1.0",
+                                   "started_utc":  "2026-10-01T18:45:03.6089569Z",
+                                   "completed_utc":  "2026-10-01T18:45:29.0429725Z",
+                                   "exit_code":  0,
+                                   "exit_kind":  "success",
+                                   "log_bytes":  110790,
+                                   "elevated":  true,
+                                   "msiexec_pid":  7936,
+                                   "error":  null
+                               },
+                    "registered":  true,
+                    "install_dir_exists":  true,
+                    "installed_exe_exists":  true,
+                    "log_path":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\msi-lifecycle-20261001\\msi-cuda-2880\\cuda-install.log",
+                    "marker_path":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\msi-lifecycle-20261001\\msi-cuda-2880\\cuda-install-marker.json"
+                },
+    "installed":  {
+                      "registered":  true,
+                      "display_name":  "XREPORT CUDA",
+                      "display_version":  "3.1.0",
+                      "install_dir":  "C:\\Program Files\\XREPORT CUDA",
+                      "exe":  "C:\\Program Files\\XREPORT CUDA\\xreport-desktop.exe",
+                      "generated_runtime":  true
+                  },
+    "launch":  {
+                   "session_file":  true,
+                   "ready_file":  true,
+                   "bootstrap_ok":  true,
+                   "health_status":  "ok",
+                   "runtime_variant":  "cuda",
+                   "reported_version":  "3.1.0",
+                   "frontend_served":  true,
+                   "backend_pid":  21852,
+                   "port":  54935
+               },
+    "close_cleanup":  {
+                          "shutdown_endpoint_ok":  true,
+                          "graceful_exit":  true,
+                          "forced_kill":  false,
+                          "app_exited":  true,
+                          "backend_process_removed":  true,
+                          "listener_removed":  true,
+                          "contracts_removed":  true
+                      },
+    "uninstall":  {
+                      "marker":  {
+                                     "action":  "uninstall",
+                                     "variant":  "cuda",
+                                     "version":  "3.1.0",
+                                     "started_utc":  "2026-10-01T18:59:31.5156935Z",
+                                     "completed_utc":  "2026-10-01T18:59:32.9667509Z",
+                                     "exit_code":  0,
+                                     "exit_kind":  "success",
+                                     "log_bytes":  102740,
+                                     "elevated":  true,
+                                     "msiexec_pid":  3768,
+                                     "error":  null
+                                 },
+                      "registered_after":  false,
+                      "install_dir_gone":  true,
+                      "log_path":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\msi-lifecycle-20261001\\msi-cuda-2880\\cuda-uninstall.log",
+                      "marker_path":  "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\msi-lifecycle-20261001\\msi-cuda-2880\\cuda-uninstall-marker.json"
+                  },
+    "final":  {
+                  "ports_clean":  true,
+                  "xreport_processes":  [
+
+                                        ]
+              },
+    "passed":  true
+}
