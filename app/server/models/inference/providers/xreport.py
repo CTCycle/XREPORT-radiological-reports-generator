@@ -10,8 +10,11 @@ from typing import Any
 from PIL import Image, ImageOps
 
 from server.domain.inference import InferenceImage
-from server.models.inference import TextGenerator
-from server.models.training.dataloader import XRAYDataLoader
+
+# Test/runtime injection points stay empty until checkpoint generation is
+# requested, so importing the provider contract remains lightweight.
+TextGenerator: Any | None = None
+XRAYDataLoader: Any | None = None
 
 ###############################################################################
 class XReportCheckpointProvider:
@@ -59,8 +62,15 @@ class XReportCheckpointProvider:
             None,
         ],
     ) -> dict[str, str]:
+        text_generator_type = TextGenerator
+        dataloader_type = XRAYDataLoader
+        if text_generator_type is None:
+            from server.models.inference.generator import TextGenerator as text_generator_type
+        if dataloader_type is None:
+            from server.models.training.dataloader import XRAYDataLoader as dataloader_type
+
         model.summary(expand_nested=True)
-        generator = TextGenerator(
+        generator = text_generator_type(
             model, model_metadata, model_metadata.get("max_report_size", 200)
         )
         tokenizers_info = generator.load_tokenizer_and_configuration()
@@ -72,7 +82,7 @@ class XReportCheckpointProvider:
             raise RuntimeError(f"Unknown generation mode: {generation_mode}")
         reports: dict[str, str] = {}
         vocabulary = tokenizer.get_vocab()
-        dataloader = XRAYDataLoader(model_metadata, shuffle=False)
+        dataloader = dataloader_type(model_metadata, shuffle=False)
         inference_metadata: list[dict[str, Any]] = []
         for image_index, stored_image in enumerate(images, start=1):
             if should_stop():

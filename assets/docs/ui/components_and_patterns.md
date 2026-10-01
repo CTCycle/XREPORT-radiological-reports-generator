@@ -1,12 +1,25 @@
 # UI Components And Patterns
 
-Last updated: 2026-08-18
+Last updated: 2026-09-25
 
 ## Reusable Patterns
 
+- All seven routed screens render inside `MainLayout` and use `.page-container` for the shared 1400px page cap and responsive gutter. Page styles should define internal grids, not route-specific content origins.
+- `MainLayout` keeps the 208px desktop navigation and a stable routed-content scroll area. Keep shell dimensions independent of the active route.
+- `.btn`, `.primary-button`, `.secondary-button`, `.danger-button`, `.form-input`, and `.form-select` are global shared patterns; extend them with layout-specific classes instead of restating their base dimensions and colors.
 - Buttons, cards, forms, modal shells, dashboards, and navigation all follow tokenized spacing, color, radius, and shadow rules.
 - Use `--focus-ring` for visible keyboard focus feedback.
 - Disabled controls must communicate both visually and behaviorally.
+
+### Application startup gate
+
+The root shell owns a dedicated startup gate before it creates the
+`RouterOutlet`. `StartupReadinessService` polls `/api/health` serially and
+keeps route components, including the inference catalogue request, out of the
+DOM until the response contains `status: "ok"`. The `StartupScreenComponent`
+provides the shared XREPORT radiograph-to-report loading surface, phase copy,
+retry action, accessibility status, and ready exit transition. This is a
+shell-level lifecycle component, not a feature-page loading state.
 
 ## Required Interactive States
 
@@ -21,7 +34,6 @@ Last updated: 2026-08-18
 ### Navigation
 
 - `app-nav-button`
-- `sidebar-link`
 - active route styling
 
 ### Forms
@@ -51,16 +63,31 @@ Last updated: 2026-08-18
 - dashboard cards
 - chart sections
 - progress bars
+- report history cards and detail editors
 - report modals
 
 ## Route-Level Page Structure
 
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
 - Training page: training start or resume, checkpoint management, and metrics dashboards
-- Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable Findings/Impression drafting with copy, regenerate, and export actions
+- Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable model-declared report sections with copy, regenerate, and export actions
+- Reports page: filterable persisted inference sessions, explicit loading/empty/error states, paginated summaries, and links to detail views
+- Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review
+- Settings page: one-column runtime configuration form with General, Data
+  access, and Advanced sections; save sends only changed fields and reset is
+  delegated to the backend.
 
 ## Layout Composition
 
-- `MainLayout` provides top branding, primary navigation, and routed content.
-- Route pages own functional modules while reusing shared components for consistency.
+- `MainLayout` owns product branding, left-side primary navigation, the routed-content scroll area, and shared help/theme controls.
+- Route pages own functional modules inside the shared page container while reusing global controls and shared components for consistency.
+
+`ReportDraftEditorComponent` is shared by the live inference draft and
+persisted report detail page. It renders the model-declared output sections,
+keeps raw-report output intact, and supports read-only rendering when a
+session is not in a successful editable state.
+
+The Settings route reuses the existing footer gear navigation control and
+`app-nav-button` active styling. It does not duplicate the theme selector or
+expose deployment, database, secret, or static inference policy values.

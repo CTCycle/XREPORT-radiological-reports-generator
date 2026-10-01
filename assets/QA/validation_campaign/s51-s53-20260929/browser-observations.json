@@ -1,0 +1,38 @@
+{
+  "source_revision_under_test": "2992f3d83b044ea439af0af0c758f54fcdd308b7",
+  "browser": "Codex In-app Browser",
+  "base_url": "http://127.0.0.1:8003",
+  "active_run_scope": "Observed while the live receipt matrix was executing; API polling recorded training and overlap jobs in progress.",
+  "observations": [
+    {
+      "route": "/dataset",
+      "observed": ["primary navigation rendered", "s27_technical_fixture was visible with 8 rows", "processing controls and Build Dataset were visible"],
+      "capture": "Codex in-app Browser AX state and rendered screenshot observed during the active run"
+    },
+    {
+      "route": "/training",
+      "observed": ["primary navigation rendered", "Training Dashboard showed Training in progress", "checkpoint list and live training log rendered"],
+      "capture": "Codex in-app Browser AX state and rendered screenshot observed during the active run"
+    },
+    {
+      "route": "/reports",
+      "observed": ["primary navigation rendered", "Saved sessions rendered with Succeeded status and report identity", "route navigation completed while jobs were active"],
+      "capture": "Codex in-app Browser AX state and rendered screenshot observed during the active run"
+    },
+    {
+      "action": "reload",
+      "route": "/reports",
+      "observed": ["loading gate resolved", "Reports rendered again", "no job error or stuck overlay was shown"]
+    },
+    {
+      "action": "close_and_reopen_tab",
+      "route": "/training",
+      "observed": ["new tab loaded the Training route", "after reload the dashboard was Idle", "completed checkpoints and processed datasets were visible", "no stale active worker remained visible"]
+    }
+  ],
+  "durable_screenshots": [
+    "route-inference.png",
+    "route-report-detail.png"
+  ],
+  "screenshot_note": "The exposed in-app Browser capture API displayed the active-run screenshots inline but did not expose a filesystem save path; durable route screenshots were saved by the focused route-refresh E2E in this campaign directory."
+}

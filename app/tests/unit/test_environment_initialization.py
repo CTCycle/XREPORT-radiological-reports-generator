@@ -47,3 +47,20 @@ def test_existing_env_is_never_overwritten_by_template(tmp_path, monkeypatch) ->
 
     assert env_path.read_bytes() == b"XREPORT_TEST_ENV=existing\n"
     assert os.environ["XREPORT_TEST_ENV"] == "existing"
+
+###############################################################################
+def test_explicit_resource_root_override_survives_environment_loading(
+    tmp_path, monkeypatch
+) -> None:
+    env_path, _ = _configure_environment_paths(tmp_path, monkeypatch)
+    env_path.write_text(
+        "XREPORT_RESOURCES_DIR=from-file\nXREPORT_TEST_ENV=from-file\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("XREPORT_RESOURCES_DIR", "from-process")
+    monkeypatch.setenv("XREPORT_TEST_ENV", "from-process")
+
+    environment.load_environment(force=True)
+
+    assert os.environ["XREPORT_RESOURCES_DIR"] == "from-process"
+    assert os.environ["XREPORT_TEST_ENV"] == "from-file"

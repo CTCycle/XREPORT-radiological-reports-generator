@@ -1,0 +1,156 @@
+{
+  "captured_at_utc": "2026-09-25T12:32:01.2495232Z",
+  "repository_head": "7d8eb47165258bc0d994b3946d75a69940fbf816",
+  "working_tree_dirty": true,
+  "runtime": {
+    "status": "ok",
+    "application": "XREPORT Backend",
+    "version": "3.1.0",
+    "runtime_mode": "sqlite",
+    "runtime_variant": null,
+    "runtime_port": 5003
+  },
+  "training_job": {
+    "job_id": "2cdd52e4",
+    "job_type": "training",
+    "status": "completed",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "current_epoch": 1,
+      "total_epochs": 1,
+      "loss": 6.648263454437256,
+      "val_loss": 2.0254554748535156,
+      "accuracy": 0.3928571343421936,
+      "val_accuracy": 0.8571428656578064,
+      "progress_percent": 100,
+      "elapsed_seconds": 1,
+      "chart_data": [],
+      "epoch_boundaries": [],
+      "available_metrics": [],
+      "epochs": 1,
+      "final_loss": 6.648263454437256,
+      "final_val_loss": 2.0254554748535156,
+      "checkpoint_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\release-validation-20260925\\resources\\checkpoints\\XREPORT_20260925T141533"
+    },
+    "error": null
+  },
+  "checkpoint_evaluation_job": {
+    "job_id": "08c4fc8a",
+    "job_type": "checkpoint_evaluation",
+    "status": "completed",
+    "poll_interval": 1.0,
+    "progress": 100.0,
+    "result": {
+      "success": true,
+      "message": "Evaluation completed for XREPORT_20260925T141533",
+      "results": {
+        "loss": 2.0254554748535156,
+        "accuracy": 0.8571428656578064
+      }
+    },
+    "error": null
+  },
+  "custom_model": {
+    "model_ref": "xreport:XREPORT_20260925T141533",
+    "provider": "xreport",
+    "origin": "custom",
+    "display_name": "XREPORT_20260925T141533",
+    "description": "Local XREPORT checkpoint using the fixed BEiT 224x224x3 image encoder",
+    "status": "ready",
+    "status_message": null,
+    "enabled": true,
+    "validation_status": "passed",
+    "validation_message": null,
+    "validation_receipt_status": "passed",
+    "validation_receipt_message": null,
+    "category": "xreport_checkpoint",
+    "recommended": false,
+    "research_only": true,
+    "gated": false,
+    "access_policy": "open",
+    "access_url": null,
+    "anatomy_coverage": "custom_training_data",
+    "coverage_note": "Coverage depends on the data used by this XREPORT training run.",
+    "hardware_demand": "moderate",
+    "parameter_label": "Custom checkpoint",
+    "parameter_size": null,
+    "download_size_bytes": null,
+    "local_size_bytes": null,
+    "input_semantics": "independent_images",
+    "capabilities": {
+      "clinical_context": false,
+      "prior_report": false,
+      "multiple_current_views": true,
+      "findings": false,
+      "impression": false,
+      "grounding": false
+    },
+    "model_revision": null,
+    "model_loader": "keras_checkpoint",
+    "processor_loader": "fixed_224",
+    "adapter": "xreport_beit",
+    "trust_remote_code": false,
+    "remote_code_approved": false,
+    "output_sections": [
+      "raw_report"
+    ],
+    "max_current_images": 16,
+    "supports_prior_images": false,
+    "supports_clinical_context": false,
+    "preferred_dtype": "auto",
+    "quantization": [],
+    "prompt_profile": null,
+    "license": null,
+    "resource_policy": {
+      "max_snapshot_size_bytes": null,
+      "reason": null
+    },
+    "runtime_constraints": {
+      "min_transformers": null,
+      "max_transformers_exclusive": null,
+      "required_modules": []
+    },
+    "processor_repository_id": null,
+    "processor_revision": null,
+    "processor_files": [],
+    "processor_target_prefix": "processor",
+    "required_files": [],
+    "weight_file_sets": [],
+    "installation_state": "not_installed",
+    "local_path": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\runtimes\\cache\\release-validation-20260925\\resources\\checkpoints\\XREPORT_20260925T141533",
+    "active_revision": null,
+    "candidate_revision": null,
+    "integrity_status": "verified",
+    "cloud_assessment": null,
+    "update_available": false,
+    "available_actions": [
+      "delete_local"
+    ]
+  },
+  "inference_history": {
+    "request_id": "3f1d150dccda",
+    "provider": "xreport",
+    "model_ref": "xreport:XREPORT_20260925T141533",
+    "model_revision": null,
+    "generation_profile": "deterministic",
+    "clinical_context": null,
+    "status": "succeeded",
+    "execution_time_seconds": 4.387692399992375,
+    "date": "2026-09-25 12:19:50",
+    "reports": [
+      {
+        "image_index": 0,
+        "input_image_name": "image_01.png",
+        "preview": "synthetic technical fixture report 4 describes an artificial image pattern for validation statistics",
+        "edited": false,
+        "edited_at": null
+      }
+    ],
+    "image_names": [
+      "image_01.png"
+    ],
+    "report_count": 1,
+    "provenance_available": true
+  }
+}

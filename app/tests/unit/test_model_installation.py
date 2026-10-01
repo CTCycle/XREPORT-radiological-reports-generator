@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from server.common import path as path_module
+from server.common.runtime_layout import RuntimeLayout
 from server.services import model_installation as installation_module
 from server.services.model_installation import (
     InstallationError,
@@ -96,35 +98,49 @@ def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
 @pytest.fixture
 def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     root = tmp_path / "portable"
-    resources = root / "app" / "resources"
+    data_root = root / "data"
+    monkeypatch.setattr(
+        path_module,
+        "RUNTIME_LAYOUT",
+        RuntimeLayout(
+            mode="packaged",
+            runtime_root=root,
+            data_root=data_root,
+            resources_root=data_root,
+            client_dist_dir=root / "app" / "client",
+            release_version="3.1.0",
+            variant="cpu",
+        ),
+    )
     monkeypatch.setattr(installation_module, "ROOT_DIR", root)
+    monkeypatch.setattr(installation_module, "DATA_ROOT", data_root)
     monkeypatch.setattr(
         installation_module,
         "HF_STAGING_DIR",
-        resources / "models" / "huggingface" / "staging",
+        data_root / "models" / "huggingface" / "staging",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_INSTALLED_DIR",
-        resources / "models" / "huggingface" / "installed",
+        data_root / "models" / "huggingface" / "installed",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_ROLLBACK_DIR",
-        resources / "models" / "huggingface" / "rollback",
+        data_root / "models" / "huggingface" / "rollback",
     )
     monkeypatch.setattr(
         installation_module,
         "HF_METADATA_DIR",
-        resources / "models" / "huggingface" / "metadata",
+        data_root / "models" / "huggingface" / "metadata",
     )
     for path in (
-        resources,
+        data_root,
         installation_module.HF_STAGING_DIR,
         installation_module.HF_INSTALLED_DIR,
         installation_module.HF_ROLLBACK_DIR,
         installation_module.HF_METADATA_DIR,
-        resources / "models" / "huggingface" / "hub",
+        root / "runtimes" / "cache" / "huggingface" / "hub",
     ):
         path.mkdir(parents=True, exist_ok=True)
     return root
@@ -357,7 +373,7 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     installed = installation_module.HF_INSTALLED_DIR / slug / REVISION
     rollback = installation_module.HF_ROLLBACK_DIR / slug / NEXT_REVISION
     staged = installation_module.HF_STAGING_DIR / "operation" / slug / REVISION
-    hub_cache = manager_paths / "app" / "resources" / "models" / "huggingface" / "hub"
+    hub_cache = manager_paths / "runtimes" / "cache" / "huggingface" / "hub"
     cache = hub_cache / "models--example--report-model" / "snapshots" / REVISION
     unrelated = (
         installation_module.HF_STAGING_DIR / "operation" / "other__model" / REVISION

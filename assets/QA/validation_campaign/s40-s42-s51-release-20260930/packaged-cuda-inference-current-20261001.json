@@ -1,0 +1,117 @@
+{
+  "format": 1,
+  "slice": "S42",
+  "application": "XREPORT",
+  "version": "3.1.0",
+  "variant": "cuda",
+  "source_commit": "301a5a510e494c501d6c25eb22d5baea824e936a",
+  "dirty_tree": false,
+  "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+  "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+  "exact_module_sha256": "528e8d471658802c0ba40fd37a8839cfcd29c342179adeb412f22e04bb7856ee",
+  "fixture": "qa_pa.png",
+  "fixture_sha256": "f30ed78a4c18d162dde6e5305116daa1c8cf9cc653eb032495341ba40889c8e8",
+  "result": "PASS",
+  "error": null,
+  "gpu": [
+    "NVIDIA GeForce RTX 3060 Laptop GPU, 610.88, 6144 MiB, 5994 MiB, 8.6"
+  ],
+  "phase_timings_ms": {
+    "fixture_prepared": 2599,
+    "process_started": 2626,
+    "backend_healthy": 35391,
+    "model_ready": 35655,
+    "inference_started": 43574,
+    "inference_completed_and_persisted": 47655
+  },
+  "catalog": {
+    "status": "ready",
+    "installation_state": "active",
+    "integrity_status": "verified",
+    "model_revision": "330721b9aa5bba201a3eb88eba4dd9a6607f3e7a",
+    "local_path": "data/models/huggingface/installed/aehrc__cxrmate-multi-tf/330721b9aa5bba201a3eb88eba4dd9a6607f3e7a"
+  },
+  "settings": {
+    "values": {
+      "global": {
+        "seed": 42
+      },
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      },
+      "inference": {
+        "model_timeout": 600
+      }
+    },
+    "defaults": {
+      "global": {
+        "seed": 42
+      },
+      "features": {
+        "allow_local_filesystem_access": true
+      },
+      "jobs": {
+        "polling_interval": 1.0
+      },
+      "inference": {
+        "model_timeout": 600
+      }
+    }
+  },
+  "health": {
+    "status": "ok",
+    "application": "XREPORT Backend",
+    "version": "3.1.0",
+    "runtime_mode": "sqlite",
+    "runtime_variant": "cuda",
+    "runtime_port": 52606
+  },
+  "job": {
+    "job_id": "49744b79",
+    "status": "completed",
+    "progress": 100.0,
+    "error": null,
+    "runtime": {
+      "requested_device": "auto",
+      "resolved_device": "cuda:0",
+      "resolved_devices": [
+        "cuda:0"
+      ],
+      "model_dtype": "torch.float32",
+      "cuda_available": true,
+      "cuda_used": true
+    },
+    "report_count": 1
+  },
+  "persisted_history": {
+    "total": 1,
+    "request_id": "bf81581d5064",
+    "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+    "status": "succeeded",
+    "provenance_available": true,
+    "runtime": {
+      "requested_device": "auto",
+      "resolved_device": "cuda:0",
+      "resolved_devices": [
+        "cuda:0"
+      ],
+      "model_dtype": "torch.float32",
+      "cuda_available": true,
+      "cuda_used": true
+    }
+  },
+  "cleanup": {
+    "process_closed": true,
+    "backend_process_removed": true,
+    "listener_removed": true,
+    "contracts_removed": true,
+    "data_root_removed": true
+  },
+  "gpu_after": [
+    "NVIDIA GeForce RTX 3060 Laptop GPU, 610.88, 6144 MiB, 5218 MiB, 8.6"
+  ],
+  "closed_utc": "2026-10-01T11:58:57.8104545Z"
+}

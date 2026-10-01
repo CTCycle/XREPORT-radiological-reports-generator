@@ -1,32 +1,28 @@
 # Project-specific generated/runtime artifacts
-app/resources/models/**
-app/resources/checkpoints/**
-app/resources/database/**
-app/resources/logs/**
+data/models/**
+data/checkpoints/**
+data/database/**
+data/logs/**
 app/client/node_modules/
 app/client/dist/
 app/client/dist-ssr/
 app/client/logs/
-app/resources/tokenizers/**
+data/tokenizers/**
 app/client/*.local
 runtimes/**
 runtimes/cache/
 !runtimes/cache/
 !runtimes/cache/.gitkeep
-app/tests/cache/*
-!app/tests/cache/.gitkeep
+# Keep large/transient QA captures local by default. Durable validation campaign
+# summaries are explicitly retained so future checkouts can inspect prior gates.
 assets/QA/**
+!assets/QA/validation_campaign/
+!assets/QA/validation_campaign/**
 
 # Python
-__pycache__/
-*.py[cod]
 *.egg-info/
 .venv/
 venv/
-.pytest_cache/
-.pytest-tmp/
-.mypy_cache/
-.ruff_cache/
 dist/
 build/
 .coverage
@@ -79,6 +75,8 @@ app/desktop/build/*
 !app/desktop/build/verify_desktop_artifacts.ps1
 !app/desktop/build/smoke_desktop.ps1
 !app/desktop/build/tauri_build.ps1
+!app/desktop/build/verify_release_validation_manifest.py
+!app/desktop/build/validate_native_webview.ps1
 app/desktop/runtime-staging/
 app/desktop/generated/
 app/desktop/src-tauri/generated/

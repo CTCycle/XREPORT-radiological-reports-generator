@@ -1,0 +1,11 @@
+[STEP] Starting action KillProcesses
+[FATAL] action KillProcesses failed: Unable to inspect Windows processes for XREPORT cleanup: Accesso negato
+Unable to inspect Windows processes for XREPORT cleanup: Accesso negato
+In G:\Projects\Repositories\Active projects\XREPORT Radiological
+Reports\start_on_windows.ps1:1136 car:9
++         throw "Unable to inspect Windows processes for XREPORT cleanu ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Unable to inspe...Accesso neg
+   ato :String) [], RuntimeException
+    + FullyQualifiedErrorId : Unable to inspect Windows processes for XREPORT
+   cleanup: Accesso negato

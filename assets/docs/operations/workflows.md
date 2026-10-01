@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-09-07
+Last updated: 2026-09-30
 
 ## Prepare A Dataset
 
@@ -20,26 +20,36 @@ Expected result:
 
 - missing required columns produce a structured error without discarding the
   upload
+- image identifiers are matched by filename stem without regard to letter case
 - unmatched rows are never silently imported; confirmed partial imports are
   visibly labeled with their counts
 - the dataset is available in a prepared, usable state for downstream training or validation
+- deleting a source dataset with processed dependents returns a conflict that
+  names those dependents; delete the processed datasets first
 
 ## Train A Model
 
 1. Open the Training page.
 2. Choose dataset, checkpoint, and training parameter options.
 3. Start training.
-4. Monitor live progress and metrics.
+4. Monitor the independent worker phase and numeric progress. Before the first
+   batch, the phase identifies preparation such as dataset, device, loader, or
+   model initialization and shows elapsed time in the current phase.
 5. Stop or resume when needed.
 
 Expected result:
 
 - checkpoints are produced and listed for later inference and validation
+- a worker that exits without a success payload or stops advancing beyond its
+  calibrated watchdog deadline becomes a typed recoverable failure; it does
+  not remain indefinitely in `running`
+- user-initiated Stop Training remains `CANCELLED`, including cancellation
+  during worker initialization or before the first batch
 
 ## Generate Reports
 
 1. Open the Inference page and review the research-use warning.
-2. Select one of the five Public Models or a locally trained Custom XReport Model. Read the anatomy scope, demand, approximate size, licence/access badge, exact revision, adapter, loader, and declared output sections. A public model can be Downloaded explicitly or submitted while `not_downloaded`; Generate will prepare it in the background.
+2. Select one of the current Public Models or a locally trained Custom XReport Model. Read the anatomy scope, demand, approximate size, licence/access badge, exact revision, adapter, loader, and declared output sections. A public model can be Downloaded explicitly or submitted while `not_downloaded`; Generate will prepare it in the background.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
 4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop.
 5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
@@ -47,7 +57,7 @@ Expected result:
 Expected result:
 
 - research-use-only draft reports are generated for qualified review; models and outputs are not clinically approved
-- exactly five pinned public report-generating models are visible in their own section; complete custom XREPORT checkpoints are shown separately and are never public downloads
+- only currently declared pinned public report-generating models are visible in their own section; degraded public entries cannot generate, and catalogue cardinality is not a product invariant. Complete custom XREPORT checkpoints are shown separately and are never public downloads
 - first-use installation reports cloud assessment, download, verification, loading, generation, and activation without blocking the UI
 
 ## Validate a local model

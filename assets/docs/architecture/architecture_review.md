@@ -1,6 +1,6 @@
 # XREPORT Architecture Review
 
-Last updated: 2026-08-30
+Last updated: 2026-09-22
 
 This review records the implementation status of the architecture findings identified during the XREPORT review on the `develop` branch. It is a decision and remediation record, not a second source of endpoint or schema truth; the specialized architecture documents remain authoritative for current behavior.
 
@@ -51,12 +51,16 @@ The architecture keeps contracts stable while allowing service and provider impl
 
 ### Alembic migration history
 
-Alembic is now the schema authority. The current head revision
-`d62f3ab4e8c1` removes report-job state columns and constraints, then performs a
-single controlled bootstrap of complete checkpoint artifacts into the database
-registry. Startup and explicit initialization both upgrade to the single head,
-with transaction/lock protection for concurrent processes; an existing
-unversioned application schema is rejected rather than stamped implicitly.
+Alembic is now the schema authority. The checked-in migration stream currently
+ends at head `e91a4f6c2d73`; its parent `f48a7c2e91b6` adds durable report-edit
+fields while preserving generated inference output. Earlier migrations remove
+report-job state columns and constraints, then perform a single controlled
+bootstrap of complete checkpoint artifacts into the database registry. The
+migration chain persists application settings, performs the bounded one-time
+legacy JSON import, and preserves report edits separately from model output.
+Startup and explicit initialization both upgrade to the single head, with
+transaction/lock protection for concurrent processes; an existing unversioned
+application schema is rejected rather than stamped implicitly.
 
 ### Broader service cleanup
 

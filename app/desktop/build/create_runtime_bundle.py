@@ -23,6 +23,8 @@ FORBIDDEN_PARTS = {
     "tests",
     "test",
     "logs",
+    "cache",
+    ".cache",
     "caches",
 }
 FORBIDDEN_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".log", ".pyc", ".pyo"}
@@ -31,8 +33,6 @@ REQUIRED_MEMBERS = {
     "client/error.html",
     "backend/XREPORT-backend.exe",
     "settings/.env.example",
-    "settings/configurations.json",
-    "settings/inference_models.json",
 }
 COMMIT_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
@@ -56,7 +56,7 @@ def iter_files(root: Path) -> list[tuple[Path, str]]:
         if (
             ":" in normalized
             or any(part.lower() in FORBIDDEN_PARTS for part in parts)
-            or lowered.startswith(("models/", "checkpoints/", "logs/", "resources/"))
+            or lowered.startswith(("models/", "checkpoints/", "logs/", "data/"))
             or lowered in FORBIDDEN_NAMES
             or Path(lowered).name in FORBIDDEN_NAMES
             or Path(lowered).suffix in FORBIDDEN_SUFFIXES

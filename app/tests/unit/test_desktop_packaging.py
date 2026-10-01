@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import struct
@@ -13,67 +14,47 @@ from server.common.desktop_security import token_matches
 from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "desktop" / "build"))
+from verify_release_validation_manifest import (  # noqa: E402
+    ManifestError,
+    expected_artifacts,
+    verify_manifest,
+)
 from verify_runtime_bundle import verify_archive, verify_portable  # noqa: E402
 
 ###############################################################################
-def test_packaged_layout_seeds_data_without_overwriting_user_edits(
-    tmp_path: Path, monkeypatch
+def _copy_archive_with_member(
+    source_path: Path,
+    target_path: Path,
+    member_name: str,
+    payload: bytes,
 ) -> None:
-    runtime = tmp_path / "runtime"
-    data = tmp_path / "data"
-    (runtime / "settings").mkdir(parents=True)
-    (runtime / "client").mkdir()
-    (runtime / "settings" / ".env.example").write_text(
-        "EMBEDDED_DATABASE=true\n", encoding="utf-8"
-    )
-    (runtime / "settings" / "configurations.json").write_text(
-        '{"global": {"seed": 42}}', encoding="utf-8"
-    )
-    monkeypatch.setenv("XREPORT_DESKTOP", "true")
-    monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
-    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
-    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.1.0")
-    monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
-    monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
-
-    layout = RuntimeLayout.from_environment()
-    ensure_packaged_data(layout)
-    env_path = data / ".env"
-    config_path = data / "settings" / "configurations.json"
-    assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
-    assert config_path.is_file()
-
-    env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
-    ensure_packaged_data(layout)
-    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
+    with (
+        zipfile.ZipFile(source_path) as source,
+        zipfile.ZipFile(target_path, "w") as target,
+    ):
+        for info in source.infolist():
+            target.writestr(info, source.read(info))
+        target.writestr(member_name, payload)
 
 ###############################################################################
-def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
-    token = "a" * 64
-    monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
-
-    assert token_matches(token)
-    assert not token_matches("b" * 64)
-    assert not token_matches(None)
-
-###############################################################################
-def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
+def _build_runtime_bundle(
+    tmp_path: Path,
+) -> tuple[Path, dict[str, object], str, Path, Path]:
     staging = tmp_path / "staging"
     (staging / "backend").mkdir(parents=True)
     (staging / "client").mkdir()
     (staging / "settings").mkdir()
     (staging / "backend" / "XREPORT-backend.exe").write_bytes(b"stub")
-    (staging / "client" / "index.html").write_text("<html></html>", encoding="utf-8")
+    (staging / "client" / "index.html").write_text(
+        "<html></html>", encoding="utf-8"
+    )
     (staging / "client" / "error.html").write_text(
         "<html><div id='status'></div></html>", encoding="utf-8"
     )
     (staging / "settings" / ".env.example").write_text("", encoding="utf-8")
-    (staging / "settings" / "configurations.json").write_text("{}", encoding="utf-8")
-    (staging / "settings" / "inference_models.json").write_text("{}", encoding="utf-8")
     script = (
         Path(__file__).parents[2] / "desktop" / "build" / "create_runtime_bundle.py"
     )
-
     output = tmp_path / "runtime.zip"
     audit = tmp_path / "audit.json"
     completed = subprocess.run(
@@ -99,13 +80,99 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
         text=True,
         check=True,
     )
-    manifest = json.loads(audit.read_text(encoding="utf-8"))
+    return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
+
+###############################################################################
+def _assert_log_staging_is_rejected(
+    tmp_path: Path, staging: Path, script: Path
+) -> None:
+    (staging / "logs").mkdir()
+    (staging / "logs" / "backend.log").write_text("forbidden", encoding="utf-8")
+    rejected = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--staging",
+            str(staging),
+            "--output",
+            str(tmp_path / "rejected.zip"),
+            "--version",
+            "3.1.0",
+            "--variant",
+            "cpu",
+            "--architecture",
+            "windows-x64",
+            "--source-commit",
+            "0" * 40,
+            "--audit",
+            str(tmp_path / "rejected.json"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "forbidden runtime staging entry" in rejected.stderr
+
+###############################################################################
+def test_packaged_layout_seeds_data_without_overwriting_user_edits(
+    tmp_path: Path, monkeypatch
+) -> None:
+    runtime = tmp_path / "runtime"
+    data = tmp_path / "data"
+    (runtime / "settings").mkdir(parents=True)
+    (runtime / "client").mkdir()
+    (runtime / "settings" / ".env.example").write_text(
+        "EMBEDDED_DATABASE=true\n", encoding="utf-8"
+    )
+    monkeypatch.setenv("XREPORT_DESKTOP", "true")
+    monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
+    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data))
+    monkeypatch.setenv("XREPORT_RELEASE_VERSION", "3.1.0")
+    monkeypatch.setenv("XREPORT_RUNTIME_VARIANT", "cpu")
+    monkeypatch.setenv("XREPORT_CLIENT_DIST_DIR", str(runtime / "client"))
+
+    layout = RuntimeLayout.from_environment()
+    ensure_packaged_data(layout)
+    env_path = data / ".env"
+    assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
+    assert not (data / "settings").exists()
+    assert layout.cache_root == data / "runtimes" / "cache"
+    assert layout.cache_root.is_dir()
+    assert layout.cache_root != data / "caches"
+    persistent_model = data / "models" / "huggingface" / "installed" / "marker"
+    persistent_database = data / "database.db"
+    persistent_model.mkdir(parents=True)
+    persistent_model.joinpath("model.bin").write_bytes(b"persistent")
+    persistent_database.write_bytes(b"database")
+    layout.cache_root.joinpath("transient").write_bytes(b"cache")
+
+    env_path.write_text("CUSTOM_SETTING=kept\n", encoding="utf-8")
+    ensure_packaged_data(layout)
+    assert env_path.read_text(encoding="utf-8") == "CUSTOM_SETTING=kept\n"
+    assert persistent_model.joinpath("model.bin").read_bytes() == b"persistent"
+    assert persistent_database.read_bytes() == b"database"
+
+###############################################################################
+def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
+    token = "a" * 64
+    monkeypatch.setenv("XREPORT_DESKTOP_TOKEN", token)
+
+    assert token_matches(token)
+    assert not token_matches("b" * 64)
+    assert not token_matches(None)
+
+###############################################################################
+def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
+    output, manifest, stdout, staging, script = _build_runtime_bundle(tmp_path)
     assert output.is_file()
+    with zipfile.ZipFile(output) as archive:
+        assert "settings/configurations.json" not in archive.namelist()
+        assert "settings/inference_models.json" not in archive.namelist()
     assert manifest["format"] == 2
     assert manifest["architecture"] == "windows-x64"
     assert manifest["source_commit"] == "0" * 40
     assert manifest["payload_sha256"]
-    assert "runtime-manifest.json" not in completed.stdout
+    assert "runtime-manifest.json" not in stdout
     verified = verify_archive(
         output,
         expected_version="3.1.0",
@@ -140,6 +207,16 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
     with pytest.raises(ValueError, match="missing required"):
         verify_archive(
             missing_required,
+            expected_version="3.1.0",
+            expected_variant="cpu",
+            expected_source_commit="0" * 40,
+    )
+
+    cache_archive = tmp_path / "cache-member.zip"
+    _copy_archive_with_member(output, cache_archive, "runtimes/cache/marker", b"forbidden")
+    with pytest.raises(ValueError, match="contains forbidden member"):
+        verify_archive(
+            cache_archive,
             expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
@@ -194,32 +271,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             expected_source_commit="0" * 40,
         )
 
-    (staging / "logs").mkdir()
-    (staging / "logs" / "backend.log").write_text("forbidden", encoding="utf-8")
-    rejected = subprocess.run(
-        [
-            sys.executable,
-            str(script),
-            "--staging",
-            str(staging),
-            "--output",
-            str(tmp_path / "rejected.zip"),
-            "--version",
-            "3.1.0",
-            "--variant",
-            "cpu",
-            "--architecture",
-            "windows-x64",
-            "--source-commit",
-            "0" * 40,
-            "--audit",
-            str(tmp_path / "rejected.json"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert rejected.returncode != 0
-    assert "forbidden runtime staging entry" in rejected.stderr
+    _assert_log_staging_is_rejected(tmp_path, staging, script)
 
     unsafe = tmp_path / "unsafe.zip"
     with zipfile.ZipFile(unsafe, "w") as archive:
@@ -259,3 +311,126 @@ def test_packaged_desktop_processes_are_windowless() -> None:
     assert "XREPORT_PYINSTALLER_CONSOLE" not in spec
     assert "creation_flags(&mut command, 0x08000000)" in backend
     assert 'windows_subsystem = "windows"' in shell
+
+###############################################################################
+def test_frozen_backend_supports_spawned_training_workers() -> None:
+    entrypoint = (
+        Path(__file__).parents[2] / "server" / "desktop_entry.py"
+    ).read_text(encoding="utf-8")
+
+    assert "import multiprocessing" in entrypoint
+    assert "multiprocessing.freeze_support()" in entrypoint
+
+###############################################################################
+def test_development_shell_does_not_require_release_runtime_archive() -> None:
+    launcher = (Path(__file__).parents[3] / "start_on_windows.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "[switch]$Development" in launcher
+    assert "Properties.Remove('resources')" in launcher
+    assert "-ReleaseVersion $Version -Development" in launcher
+
+###############################################################################
+def test_packaged_client_keeps_the_startup_shell_assets() -> None:
+    client_root = Path(__file__).parents[2] / "client"
+    index = (client_root / "src" / "index.html").read_text(encoding="utf-8")
+    shell = (client_root / "public" / "desktop-shell.js").read_text(encoding="utf-8")
+    startup_css = client_root / "public" / "startup.css"
+
+    assert 'id="desktop-startup"' in index
+    assert 'id="status"' in index
+    assert "startup.css" in index
+    assert "desktop-startup" in shell
+    assert startup_css.is_file()
+
+###############################################################################
+def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
+    repository_root = Path(__file__).parents[3]
+    workflow = (repository_root / ".github" / "workflows" / "desktop-release.yml").read_text(
+        encoding="utf-8"
+    )
+    native_driver = (
+        repository_root / "app" / "desktop" / "build" / "validate_native_webview.ps1"
+    ).read_text(encoding="utf-8")
+    native_smoke = (
+        repository_root / "app" / "desktop" / "build" / "smoke_desktop.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "package_run_id:" in workflow
+    assert "source_commit:" in workflow
+    assert "Download retained package outputs for approval phase" in workflow
+    assert "if: github.event_name == 'workflow_dispatch' && inputs.package_run_id != ''" in workflow
+    assert '--source-commit "$SOURCE_COMMIT"' in workflow
+    assert "--target \"$SOURCE_COMMIT\"" in workflow
+    assert "$NativeScenario -join ','" in native_smoke
+    assert "::FocusedElement" in native_driver
+    assert "StartupBackendDelaySeconds" in native_driver
+    assert "StartupBackendExecutable" in native_driver
+    assert "delayed_backend_seconds" in native_driver
+    for scenario in (
+        "History",
+        "Keyboard",
+        "Modal",
+        "SlowReadiness",
+        "BackendStop",
+        "BackendRetry",
+        "SecondInstance",
+        "Cleanup",
+    ):
+        assert scenario in native_driver
+
+###############################################################################
+def test_approved_release_manifest_binds_sha_and_source_commit(tmp_path: Path) -> None:
+    version = "3.1.0"
+    source_commit = "a" * 40
+    release_root = tmp_path / "release"
+    release_root.mkdir()
+    artifact_hashes: dict[str, str] = {}
+    for name in expected_artifacts(version):
+        payload = f"{name}\n".encode("utf-8")
+        artifact = release_root / name
+        artifact.write_bytes(payload)
+        artifact_hashes[name] = hashlib.sha256(payload).hexdigest()
+
+    validation_record = tmp_path / "validation.md"
+    validation_record.write_text("approved technical record\n", encoding="utf-8")
+    manifest_path = tmp_path / "approved-release-manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "xreport-release-validation-v1",
+                "status": "approved",
+                "version": version,
+                "source_commit": source_commit,
+                "approval": {
+                    "decision": "approved",
+                    "approved_by": "release-owner",
+                    "approved_at_utc": "2026-09-30T12:00:00Z",
+                },
+                "validation_record": validation_record.name,
+                "artifacts": artifact_hashes,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    receipt = verify_manifest(
+        manifest_path,
+        release_root,
+        source_commit=source_commit,
+        version=version,
+        repository_root=tmp_path,
+    )
+    assert receipt["status"] == "approved"
+    assert len(receipt["artifacts"]) == 8
+
+    (release_root / expected_artifacts(version)[0]).write_bytes(b"tampered\n")
+    with pytest.raises(ManifestError, match="SHA-256 mismatch"):
+        verify_manifest(
+            manifest_path,
+            release_root,
+            source_commit=source_commit,
+            version=version,
+            repository_root=tmp_path,
+        )
