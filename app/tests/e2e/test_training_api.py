@@ -62,7 +62,6 @@ def test_delete_checkpoint_rejects_path_traversal(
 
     assert response.status == 400
 
-
 ###############################################################################
 def test_delete_checkpoint_rejects_referenced_checkpoint(
     api_context: APIRequestContext,

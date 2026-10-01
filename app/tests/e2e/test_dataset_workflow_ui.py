@@ -13,7 +13,6 @@ from server.common.path import RESOURCES_DIR
 
 _ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
 
-
 ###############################################################################
 def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
     response = api_context.patch(
@@ -21,7 +20,6 @@ def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> Non
         data={"features": {"allow_local_filesystem_access": enabled}},
     )
     assert response.ok, f"Could not set filesystem access: {response.status}"
-
 
 ###############################################################################
 def test_s21_dataset_page_shows_and_confirms_partial_import(
@@ -108,7 +106,6 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
         _set_filesystem_access(api_context, original_access)
-
 
 ###############################################################################
 def test_s23_viewer_navigation_and_long_source_path_row_containment(
@@ -242,7 +239,6 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
                 _set_filesystem_access(api_context, original_access)
             finally:
                 shutil.rmtree(fixture_root, ignore_errors=True)
-
 
 ###############################################################################
 def test_s23_source_delete_requires_processed_dataset_cleanup(

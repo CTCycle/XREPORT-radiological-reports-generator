@@ -8,39 +8,50 @@ from server.services import training as training_module
 from server.services.jobs import JobExecutionError
 
 
+###############################################################################
 class _Clock:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.value = 0.0
 
+    # -------------------------------------------------------------------------
     def __call__(self) -> float:
         current = self.value
         self.value += 1.0
         return current
 
 
+###############################################################################
 class _StalledWorker:
     started_at = 0.0
     lifecycle_phase: str | None = None
     pid = 4321
     exitcode: int | None = None
 
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.terminated = False
         self.stop_called = False
         self.poll_count = 0
 
+    # -------------------------------------------------------------------------
     def is_alive(self) -> bool:
         return not self.terminated
 
+    # -------------------------------------------------------------------------
     def is_interrupted(self) -> bool:
         return self.stop_called
 
+    # -------------------------------------------------------------------------
     def stop(self) -> None:
         self.stop_called = True
 
+    # -------------------------------------------------------------------------
     def terminate(self) -> None:
         self.terminated = True
 
+    # -------------------------------------------------------------------------
     def poll(self, timeout: float = 0.25) -> dict[str, object] | None:
         del timeout
         self.poll_count += 1
@@ -53,14 +64,17 @@ class _StalledWorker:
             }
         return None
 
+    # -------------------------------------------------------------------------
     def join(self, timeout: float | None = None) -> None:
         del timeout
 
+    # -------------------------------------------------------------------------
     def read_result(self, timeout: float = 0.5) -> None:
         del timeout
         return None
 
 
+###############################################################################
 def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
     watchdog.observe(
@@ -83,6 +97,7 @@ def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
     )
 
 
+###############################################################################
 def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
     first_event = {
@@ -105,6 +120,7 @@ def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
     )
 
 
+###############################################################################
 def test_monitor_terminates_stalled_worker_with_typed_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

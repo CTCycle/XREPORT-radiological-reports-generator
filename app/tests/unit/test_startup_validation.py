@@ -30,7 +30,6 @@ def _database_settings() -> DatabaseSettings:
         insert_batch_size=1000,
     )
 
-
 ###############################################################################
 def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
@@ -71,7 +70,6 @@ def test_startup_validations_prepares_database_and_composes_settings_once(
     assert result is settings
     assert prepared == [database]
     assert composed == [True]
-
 
 ###############################################################################
 def test_app_lifespan_uses_returned_settings_for_state_and_health(monkeypatch) -> None:

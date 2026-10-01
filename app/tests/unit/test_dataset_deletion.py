@@ -30,7 +30,6 @@ from server.services.jobs import JobManager
 from server.services.preparation import PreparationService
 from server.services.upload import UploadState
 
-
 ###############################################################################
 @pytest.fixture
 def database() -> Iterator[Database]:
@@ -53,7 +52,6 @@ def database() -> Iterator[Database]:
     yield database
     engine.dispose()
 
-
 ###############################################################################
 def _preparation_service(database: Database) -> PreparationService:
     return PreparationService(
@@ -69,7 +67,6 @@ def _preparation_service(database: Database) -> PreparationService:
             ),
         ),
     )
-
 
 ###############################################################################
 def test_source_dataset_delete_preserves_processed_samples_until_they_are_deleted(

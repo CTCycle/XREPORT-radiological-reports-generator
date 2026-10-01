@@ -31,20 +31,24 @@ CRITICAL_PROGRESS_TYPES = {
 }
 
 
+###############################################################################
 def _worker_exception_message(exc: BaseException) -> str:
     message = str(exc).strip()
     return message or type(exc).__name__
 
 
+###############################################################################
 def _worker_exception_traceback(exc: BaseException) -> str:
     trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     return trace[:MAX_WORKER_TRACEBACK_LENGTH]
 
 
+###############################################################################
 def _is_critical_progress_message(message: dict[str, Any]) -> bool:
     return message.get("type") in CRITICAL_PROGRESS_TYPES
 
 
+###############################################################################
 def _evict_plot_messages(target_queue: Any) -> bool:
     """Remove at most one nonessential plot message while preserving ordering."""
 
@@ -74,6 +78,7 @@ def _evict_plot_messages(target_queue: Any) -> bool:
     return removed
 
 
+###############################################################################
 def _put_progress_message(
     target_queue: Any,
     message: dict[str, Any],
@@ -116,6 +121,7 @@ def _put_progress_message(
         return False
 
 
+###############################################################################
 class ProcessLike(Protocol):
 
     # -------------------------------------------------------------------------

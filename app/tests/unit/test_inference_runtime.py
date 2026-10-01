@@ -6,7 +6,6 @@ import torch
 
 from server.services.inference_runtime import InferenceRuntimeCoordinator
 
-
 ###############################################################################
 def test_xreport_runtime_metadata_reports_requested_and_resolved_devices(
     monkeypatch,
