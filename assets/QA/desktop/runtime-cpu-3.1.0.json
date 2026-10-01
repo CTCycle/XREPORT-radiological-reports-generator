@@ -2,8 +2,8 @@
   "application": "XREPORT",
   "architecture": "windows-x64",
   "backend_executable": "backend/XREPORT-backend.exe",
-  "created_utc": "2026-09-30T21:56:25Z",
-  "dirty_tree": true,
+  "created_utc": "2026-10-01T11:08:41Z",
+  "dirty_tree": false,
   "file_count": 6764,
   "format": 2,
   "largest_entries": [
@@ -16,7 +16,7 @@
       "path": "backend/_internal/torch_cpu.dll"
     },
     {
-      "bytes": 84384458,
+      "bytes": 84384556,
       "path": "backend/XREPORT-backend.exe"
     },
     {
@@ -88,9 +88,9 @@
       "path": "backend/_internal/av.libs/avfilter-11-aef80fc767dc77e0319469b5bdcdf998.dll"
     }
   ],
-  "payload_bytes": 1145442384,
-  "payload_sha256": "1682e2fa19bfac675f0923f50a402c7f39be3a7a39b56d6b1e340c260718f710",
-  "source_commit": "e344e40cd129672fbd73a0faba6f568dd83a92f8",
+  "payload_bytes": 1145442482,
+  "payload_sha256": "03da18158b95d0e8e7a400f76b4a151f189bce3fd29a2eb69fa8d7fb012631d4",
+  "source_commit": "301a5a510e494c501d6c25eb22d5baea824e936a",
   "variant": "cpu",
   "version": "3.1.0"
 }

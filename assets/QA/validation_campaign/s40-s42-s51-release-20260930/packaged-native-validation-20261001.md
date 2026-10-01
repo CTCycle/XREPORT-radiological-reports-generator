@@ -1,26 +1,25 @@
 # Packaged native validation — 2026-10-01
 
 Status: `PASS` for the exercised packaged CPU startup and the retained CUDA
-native-interaction receipt. Current release artifact binding remains
-`PARTIAL`; release approval is open for the remaining CUDA, S42, S51, and
-approval-control boundaries.
+native-interaction receipt. Current CPU and CUDA release artifact binding is
+`PASS`; release approval remains open for the S42, S51, and approval-control
+boundaries.
 
 ## Candidate and artifacts
 
-The current CPU package pair is bound to commit
-`af666df53b3424c08a279bc9d0b79b81078815bd` at version `3.1.0` with
-`dirty_tree=false` and has current release-folder artifacts:
+The current CPU and CUDA package pairs are bound to commit
+`301a5a510e494c501d6c25eb22d5baea824e936a` at version `3.1.0` with
+`dirty_tree=false` and have current release-folder artifacts:
 
-- CPU payload SHA-256: `e06e0be4fa22427a4e0cb6950c97cbe84f6f468b6fb625a0e909c7b47fc65a21`.
+- CPU runtime payload SHA-256: `03da18158b95d0e8e7a400f76b4a151f189bce3fd29a2eb69fa8d7fb012631d4`.
+- CUDA runtime payload SHA-256: `d69ee87c7f627c277e68e21fcdb49340cb702ac8e2aff402e776a8445ac02f3f`.
+- CPU artifact checksums: portable `b15aae37c6efec59d442e54acdd0fbb6480a038036cae6e9d0dce1a6dc8eb1c5`; MSI `a856b320af8e6c02eef323de57fad3ec944a9f41391266c40d53d9b4e50ef2eb`.
+- CUDA artifact checksums: portable `c4c6ca6ce7868cb89f0761957e821ee6c97295021be7aea116a08eb1da5c3fe7`; MSI `3cb3aa58c7fa22b29d71b24f45c76aa7533dc6f3e8ee4708cfe6d5991aa4242c`.
 
-The current CUDA build produced only a dirty-tree diagnostic runtime audit
-(`dirty_tree=true`, payload SHA-256
-`2d6fc6086a5662cf29c8276a6fa8d063ac10edbc2274d851150a1ec05d7dffbe`) and a
-target-folder MSI/raw executable during direct Tauri diagnostics. The CUDA
-portable/MSI pair, checksum, and build metadata are not present in the current
-`release/` folder, and the wrapper/post-processing step returned `-1`. The
-earlier clean-source CUDA receipt and inference note are retained as historical
-records, but are not current release-artifact proof.
+Both variants passed the official artifact verifier, including runtime-resource
+binding, checksum, portable, and MSI checks. The retained CUDA native receipt
+and inference note remain historical interaction/inference evidence; they are
+not relabeled as runs from the current artifact directory.
 
 ## Exercised evidence
 
@@ -55,8 +54,7 @@ targeted baseline was also green).
 
 ## Remaining release boundaries
 
-- S42 still needs a genuine GPU-less Windows package lane and a current
-  clean-SHA CUDA release pair. The supported repair workflow now resolves
+- S42 still needs a genuine GPU-less Windows package lane. The supported repair workflow now resolves
   `ISSUE-006` for the current local canonical resource; see the [canonical
   repair note](canonical-model-repair-20261001.md). The CUDA proof is RTX 3060
   technical evidence; the current dirty diagnostic MSI is not promoted to the
@@ -70,11 +68,10 @@ targeted baseline was also green).
   establish graceful user-cancellation semantics.
 - S51 remains `PARTIAL` for genuine GPU-less hardware, hosted-CI,
   representative-data, and attribution of the original slow initialization.
-- Exact CPU artifact hashes and the historical CUDA hashes are recorded in the
-  clean-SHA rebinding note. The approved release manifest remains intentionally
-  absent until a current CUDA pair, genuine no-GPU evidence, and current-
-  revision hosted CI are available; the build-environment attempts and direct
-  Tauri diagnostic result are in the [clean-SHA rebinding record](clean-scha-release-rebind-attempt-20261001.md).
+- Exact current CPU/CUDA artifact hashes are recorded above. The approved
+  release manifest remains intentionally absent until genuine no-GPU evidence
+  and current-revision hosted CI are available; the earlier build-environment
+  attempts are retained in the [clean-SHA rebinding record](clean-scha-release-rebind-attempt-20261001.md).
 
 An administrator-capable retry was used for build diagnostics, but no MSI
 install/uninstall lifecycle was performed. All task-owned XREPORT processes and
