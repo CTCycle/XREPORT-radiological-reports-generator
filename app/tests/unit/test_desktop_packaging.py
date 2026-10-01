@@ -313,6 +313,15 @@ def test_packaged_desktop_processes_are_windowless() -> None:
     assert 'windows_subsystem = "windows"' in shell
 
 ###############################################################################
+def test_frozen_backend_supports_spawned_training_workers() -> None:
+    entrypoint = (
+        Path(__file__).parents[2] / "server" / "desktop_entry.py"
+    ).read_text(encoding="utf-8")
+
+    assert "import multiprocessing" in entrypoint
+    assert "multiprocessing.freeze_support()" in entrypoint
+
+###############################################################################
 def test_development_shell_does_not_require_release_runtime_archive() -> None:
     launcher = (Path(__file__).parents[3] / "start_on_windows.ps1").read_text(
         encoding="utf-8"
@@ -356,6 +365,9 @@ def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
     assert "--target \"$SOURCE_COMMIT\"" in workflow
     assert "$NativeScenario -join ','" in native_smoke
     assert "::FocusedElement" in native_driver
+    assert "StartupBackendDelaySeconds" in native_driver
+    assert "StartupBackendExecutable" in native_driver
+    assert "delayed_backend_seconds" in native_driver
     for scenario in (
         "History",
         "Keyboard",

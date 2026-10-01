@@ -1,6 +1,6 @@
-# S51 follow-up implementation and validation summary — 2026-09-30
+# S51 follow-up implementation and validation summary — 2026-10-01
 
-Last updated: 2026-09-30
+Last updated: 2026-10-01
 
 ## Outcome
 
@@ -9,6 +9,13 @@ reproducible in three independent official-launcher source-runtime runs. Each
 run completed the maintained eight-scenario S51 matrix, produced real CUDA
 training progress and checkpoint artifacts, classified the cancellation case
 as `CANCELLED`, left no running jobs, and retained SQLite integrity `ok`.
+The current dirty working tree also completed the CPU source lane at both
+eight-row and scale-8/64-row fixture sizes, an explicitly emulated
+unavailable-GPU fallback lane, and a packaged CPU active-training
+close/reopen check. These additions close the runnable source
+CPU/scale/fallback comparisons and the bounded packaged cleanup/reopen slice,
+but they do not establish genuine GPU-less hardware or a native Training-form
+submission/cancellation workflow.
 
 The original failure remains preserved in
 [s51-source-run4-after-restart.json](s51-source-run4-after-restart.json) and
@@ -28,9 +35,9 @@ desktop, or release-readiness evidence.
 ## Revision and environment
 
 - Branch: `develop`.
-- Working-tree source revision: `d662c3be83c3d6f6fc5d1c2ea4aeec9a3bfff53c`.
-- The receipts record `dirty=true` because the implementation and test edits
-  were intentionally kept in the working tree for review.
+- Base HEAD: `e344e40cd129672fbd73a0faba6f568dd83a92f8`.
+- The 2026-10-01 receipts record a dirty working tree because the implementation
+  and test edits were intentionally kept in the working tree for review.
 - Official Windows launcher with an isolated SQLite/resource root and
   `HF_HUB_OFFLINE=1`.
 - Windows 11 build `26200`, Python `3.14.7`, 12 logical CPUs, RTX 3060 with
@@ -94,6 +101,37 @@ processing/evaluation and processing/training overlap, four-way contention,
 cancellation, checkpoint/dataset cleanup, cold-start import probes, resource
 samples, and final API/database checks.
 
+## 2026-10-01 source-lane additions
+
+The three new receipts below were run from disposable resource roots using the
+maintained eight-scenario S51 matrix. Each completed all `19` operations with
+zero scenario errors, no final running jobs, cleanup errors `0`, and SQLite
+`integrity_check=ok`; the cancellation scenario reached its expected terminal
+state.
+
+| Receipt | Fixture/lane | Result | Boundary |
+| --- | --- | --- | --- |
+| [CPU source](s51-cpu-source-run-20261001.json) | 8 rows, `cpu` | `8/8` scenarios completed; six training jobs reached `worker_completed`; one cancellation reached `cancelled`. | CPU requested with `use_device_GPU=false` on the current RTX host; not a no-GPU hardware claim. |
+| [CPU scale-8 source](s51-scale8-source-cpu-20261001.json) | 64 rows, `cpu`, clean backend start | `8/8` scenarios completed after the real 64-row upload/load/process path; all scenario running-job checks were empty. | Deterministic generated synthetic scale only; not representative data or packaged training. |
+| [Unavailable-GPU emulation](s51-unavailable-gpu-emulated-20261001.json) | 8 rows, `unavailable-gpu` with backend `CUDA_VISIBLE_DEVICES=-1` | `8/8` scenarios completed; device logs recorded `No GPU found. Falling back to CPU` and `CPU is set as the active device`; GPU memory/utilization remained `0`. | Software-masked fallback only. The host sampler still saw the RTX 3060, so this is not genuine GPU-less hardware evidence. |
+
+The scale-8 preparation used the durable
+[S53 scale-8 fixture](s53-scale8-fixture/fixture-manifest.json), imported all
+`64` rows and matched all `64` images in the disposable root, then verified the
+processed baseline at `row_count=64` before S51 execution.
+
+## Packaged active-training close/reopen
+
+The [packaged active-training receipt](../s40-s42-s51-release-20260930/packaged-active-training-close-reopen-20261001.json)
+started a CPU training job through the packaged API, observed it in `running`
+state, and requested native package close immediately while the job was still
+active. The package, backend, listener, and readiness/session contracts were
+removed. A second package instance rotated the backend session, returned
+health `ok`, and reported zero running jobs before clean close. This is a
+technical API-started synthetic close/reopen check; it does not cover the
+native Training form, graceful user cancellation semantics, representative
+data, or a genuine GPU-less package.
+
 ## Regression and live checks
 
 - Focused backend S51 regression set: `30 passed`.
@@ -113,16 +151,18 @@ samples, and final API/database checks.
   `Current phase`/`Waiting to start` region and accessible worker-status
   semantics while idle.
 
-The standard `app/tests/run_tests.bat` runner and packaged/no-GPU lanes were
-not rerun in this follow-up; the prior runner evidence remains historical and
-is not promoted to evidence for these uncommitted changes.
+The standard `app/tests/run_tests.bat` runner and genuine no-GPU lane were not
+rerun in this follow-up; the prior runner evidence remains historical and is
+not promoted to evidence for these uncommitted changes. The packaged CPU
+active-training close/reopen check is recorded separately above.
 
 ## Remaining limits and status
 
-The following remain outside this follow-up: CPU-only and packaged/no-GPU
-training comparison, expanded 64-row S51 contention, native WebView
-close/reopen behavior during an active training job, and hosted CI for the
-working-tree revision. The source-runtime CUDA/SQLite clean-restart and
-contention slice is improved and repeatable, but S51 is kept `PARTIAL` until
-those broader boundaries and the original slow-initialization cause receive
-their own evidence.
+The following remain outside this follow-up: genuine GPU-less hardware and
+packaged/no-GPU training comparison, native Training-form submission and
+graceful user cancellation semantics, hosted CI for the working-tree
+revision, representative data, and attribution of the original slow
+initialization cause. The source-runtime CUDA/CPU/fallback/scale contention
+slice and bounded packaged close/reopen slice are now evidenced, but S51 is
+kept `PARTIAL` until the remaining broader boundaries receive their own
+evidence.

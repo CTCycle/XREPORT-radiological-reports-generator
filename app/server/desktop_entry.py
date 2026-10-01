@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from functools import partial
 from importlib import import_module
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import secrets
@@ -256,6 +257,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:

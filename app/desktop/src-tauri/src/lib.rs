@@ -105,7 +105,11 @@ fn navigate_to_backend(window: &WebviewWindow, handle: &BackendHandle) -> Result
     if !navigation::is_allowed_navigation(&url, Some(handle.port)) {
         return Err("refusing to navigate to an untrusted backend URL".to_string());
     }
-    window.navigate(url).map_err(|error| error.to_string())
+    let script = format!(
+        "window.location.replace({});",
+        serde_json::to_string(url.as_str()).map_err(|error| error.to_string())?
+    );
+    window.eval(script).map_err(|error| error.to_string())
 }
 
 fn start_packaged_backend(window: WebviewWindow, state: DesktopState) {

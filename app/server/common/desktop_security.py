@@ -54,9 +54,9 @@ def _security_headers(response: Response) -> Response:
 class DesktopSecurityMiddleware(BaseHTTPMiddleware):
     """Require the per-launch cookie for every packaged UI/API request.
 
-    Health and shutdown are native-shell operations and therefore accept the
-    private header instead of a browser cookie.  The one-time bootstrap route
-    is the only endpoint that accepts the token in a URL.
+    The native shell may probe health and shutdown with the private header;
+    the browser UI may probe health with its per-launch cookie.  The one-time
+    bootstrap route is the only endpoint that accepts the token in a URL.
     """
 
     # -------------------------------------------------------------------------
@@ -79,18 +79,28 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
                 desktop_token(),
                 httponly=True,
                 secure=False,
-                samesite="strict",
+                # The packaged WebView starts at tauri.localhost and crosses
+                # to loopback for this one top-level GET. Lax is required for
+                # WebView2 to send the freshly established session cookie on
+                # the immediate redirect to the protected root.
+                samesite="lax",
                 path="/",
             )
             return _security_headers(response)
 
         native_probe = token_matches(request.headers.get(PRIVATE_TOKEN_HEADER))
-        if path == HEALTH_PATH or path == SHUTDOWN_PATH:
+        session_probe = token_matches(request.cookies.get(SESSION_COOKIE))
+        if path == HEALTH_PATH:
+            if not native_probe and not session_probe:
+                return _security_headers(
+                    JSONResponse({"detail": "Unauthorized"}, status_code=401)
+                )
+        elif path == SHUTDOWN_PATH:
             if not native_probe:
                 return _security_headers(
                     JSONResponse({"detail": "Unauthorized"}, status_code=401)
                 )
-        elif not token_matches(request.cookies.get(SESSION_COOKIE)):
+        elif not session_probe:
             return _security_headers(
                 JSONResponse({"detail": "Desktop session required"}, status_code=401)
             )
