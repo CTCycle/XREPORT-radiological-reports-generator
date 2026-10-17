@@ -38,10 +38,15 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout immutable build source
+      - name: Checkout verification workspace
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_commit || github.sha }}
+          # The preparation phase builds from the dispatched ref (github.sha).
+          # The approval phase verifies retained packages with the tooling and
+          # recovered runtime audits committed at github.sha; the immutable
+          # build source stays pinned through SOURCE_COMMIT, the package
+          # checksums, and the approved validation manifest.
+          ref: ${{ inputs.package_run_id != '' && github.sha || inputs.source_commit || github.sha }}
           fetch-depth: 1
 
       - name: Validate workflow phase inputs
@@ -99,10 +104,16 @@ jobs:
           if ([string]$metadata.variant -ne '${{ matrix.artifact }}') { throw "Package variant mismatch: $($metadata.variant)" }
           Get-ChildItem release | Select-Object Name,Length | Format-Table
 
+      - name: Set up Python for approval-phase artifact verification
+        if: ${{ inputs.package_run_id != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Verify packaged runtime and MSI resource
         shell: pwsh
         run: |
-          & .\app\desktop\build\verify_desktop_artifacts.ps1 -Variant '${{ matrix.artifact }}' -Version ($env:RELEASE_VERSION -replace '^v', '')
+          & .\app\desktop\build\verify_desktop_artifacts.ps1 -Variant '${{ matrix.artifact }}' -Version ($env:RELEASE_VERSION -replace '^v', '') -SourceCommit $env:SOURCE_COMMIT
           if ($LASTEXITCODE -ne 0) { throw "Artifact verification failed with exit code $LASTEXITCODE." }
 
       - name: Smoke-test packaged portable application
