@@ -77,16 +77,18 @@ The dependency chain is:
   `dirty_tree=false`; both full MSI install → launch → graceful-close →
   uninstall lifecycles passed on 2026-10-01. The staged
   `approved-release-manifest.json` still awaits human approval.
-- The v3.2.0 cpu/cuda portable/MSI pairs are bound to source `48fe4332` with
-  `dirty_tree=false`; the retained CI packages from prepare run `39028661915`
-  were re-verified locally on 2026-10-17 (official artifact verifier `PASS` for
-  both variants after recovering the embedded runtime audits), both portable
-  smokes passed, and both full MSI install → launch → close → uninstall
-  lifecycles passed (CUDA fully graceful; CPU close step force-killed after the
-  deliberate-backend-exit error-page race, with all cleanup invariants green).
-  See the [release-3.2.0-20261017
-  summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md).
-  The new staged `approved-release-manifest.json` awaits human approval.
+- The v3.2.0 package set from prepare run `39028661915` remains hash-verified
+  historical evidence but is superseded and not releasable. Native review found
+  a malformed Training wizard layout and a cancellation message that reported
+  `Unknown error` for a correctly cancelled job; the approval manifest is on
+  `hold`. The working tree contains focused fixes; the client spec passed and
+  the Angular build succeeded. The interim dirty-tree CPU portable run covered
+  route navigation, Training submission/cancellation state, and graceful
+  close/reopen cleanup, but it is not exact-source release evidence. A new
+  package run and the CPU/CUDA portable/MSI matrix are pending. S42 remains
+  `PARTIAL` pending GPU and genuine GPU-less checks of the exact CUDA packages;
+  S51 remains `PARTIAL` for its broader open gaps. See the
+  [release-3.2.0-20261017 summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md).
 - The full live-service Python suite passed `235` with `3` documented PostgreSQL
   skips. The Angular production builder still crashes with Windows
   `0xC0000005`, so no new full S03 production-build PASS is claimed beyond the
