@@ -3,11 +3,13 @@
 # route-only packaged smoke remains separate from complete S40 evidence.
 param(
     [string]$WindowTitlePattern = 'XREPORT*',
+    [int]$WindowProcessId = 0,
     [string]$Output = (Join-Path (Get-Location) 'native-webview-validation.json'),
     [string[]]$Routes = @('Inference', 'Dataset', 'Training', 'Reports', 'Settings', 'Help'),
     [string[]]$Scenario = @('Routes'),
     [int]$WaitMilliseconds = 300,
     [int]$TimeoutSeconds = 20,
+    [ValidateRange(5, 300)][int]$StartupUiReadyTimeoutSeconds = 90,
     [int]$BackendPort = 5003,
     [int]$UiPort = 8003,
     [int]$BackendProcessId = 0,
@@ -97,7 +99,10 @@ function Find-NativeWindow {
                 $_.Refresh()
                 $_
             } | Where-Object {
-                $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like $WindowTitlePattern
+                $_.MainWindowHandle -ne 0 -and (
+                    ($WindowProcessId -gt 0 -and $_.Id -eq $WindowProcessId) -or
+                    ($WindowProcessId -le 0 -and $_.MainWindowTitle -like $WindowTitlePattern)
+                )
             }
         )
         if ($windows.Count -gt 1) {
@@ -887,9 +892,16 @@ foreach ($scenarioName in $allScenarioNames) {
     $result.scenarios[$scenarioName] = [ordered]@{ id = $scenarioName; status = 'UNRUN' }
 }
 
+$inferenceControl = $null
 $initialNames = @(Get-AccessibleNames -Window $window)
 if ($StartupBackendDelaySeconds -gt 0) {
     Start-Sleep -Seconds $StartupBackendDelaySeconds
+    $initialNames = @(Get-AccessibleNames -Window $window)
+}
+else {
+    # A cold packaged WebView can finish composing after the backend is ready.
+    # Wait for the first route before saving the startup capture or testing routes.
+    $inferenceControl = Wait-ForNamedElement -Window $window -Names @('Inference') -Seconds $StartupUiReadyTimeoutSeconds
     $initialNames = @(Get-AccessibleNames -Window $window)
 }
 $startupScreenshot = Join-Path $screenshotRoot 'startup.png'
@@ -903,7 +915,9 @@ if ($StartupBackendDelaySeconds -gt 0) {
 
 # Finding the ready navigation is also the startup assertion for every live
 # route run. The dedicated slow-readiness scenario must attach before it appears.
-$inferenceControl = Wait-ForNamedElement -Window $window -Names @('Inference')
+if ($null -eq $inferenceControl) {
+    $inferenceControl = Wait-ForNamedElement -Window $window -Names @('Inference')
+}
 if ($null -ne $inferenceControl) {
     Set-ScenarioResult -Name 'startup' -Status 'PASS' -Details @{ ready_route = 'Inference' }
 }
