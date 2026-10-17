@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-01
+Last updated: 2026-10-17
 
 This is the canonical high-level operational status catalog for the current
 XREPORT checkout. It summarizes what is working, validated, partial, blocked,
@@ -102,6 +102,18 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
+- On 2026-10-17, the v3.2.0 release-validation package was completed and staged:
+  cpu/cuda portable+MSI pairs bound to source
+  `48fe4332bae317c6ef45fdaf2acf2e52bf193b1c` (`dirty_tree=false`), official
+  artifact verification `PASS` for both variants (including full portable
+  runtime re-hash), portable smokes `PASS`, and both MSI lifecycle gates `PASS`
+  (install → launch → close → uninstall). The release is not yet dispatched;
+  the staged `approved-release-manifest.json` awaits human approval, after which
+  `desktop-release.yml` is dispatched with `package_run_id=39028661915`. See the
+  [release-3.2.0-20261017
+  summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md)
+  and the [validation campaign
+  ledger](validation_campaign_ledger.md).
 - On 2026-10-01, S11 closed as `PASS` and S37 closed as `PASS` for the
   gated-provider behavior contract. The S11 live `/api/settings` surface
   passed GET/PATCH/reset, bounds, hidden-field protection, null rejection, and

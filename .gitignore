@@ -18,6 +18,12 @@ runtimes/cache/
 assets/QA/**
 !assets/QA/validation_campaign/
 !assets/QA/validation_campaign/**
+# Desktop release-gate evidence (recovered runtime audits, verification and
+# smoke reports) is retained for approval-phase verification of retained packages.
+!assets/QA/desktop/
+!assets/QA/desktop/runtime-*.json
+!assets/QA/desktop/verification-*.json
+!assets/QA/desktop/smoke-*.json
 
 # Python
 *.egg-info/
@@ -83,3 +89,6 @@ app/desktop/src-tauri/generated/
 app/desktop/src-tauri/gen/
 app/desktop/src-tauri/ui/
 release/
+
+# Retained desktop smoke shell logs (must override the global *.log rule above).
+!assets/QA/desktop/smoke-*-shell.log
