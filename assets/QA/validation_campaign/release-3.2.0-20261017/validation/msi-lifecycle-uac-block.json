@@ -1,0 +1,30 @@
+{
+  "schema_version": "xreport-release-msi-lifecycle-block-v1",
+  "observed_utc": "2026-10-17T19:11:25.1718409Z",
+  "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
+  "package_run_id": "39056753392",
+  "validation_host": {
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "elevation_available": null,
+    "uac_prompt_presented": true,
+    "uac_approved": false
+  },
+  "cpu": {
+    "msi_sha256": "557e2a421bcd62dfad5ffa03f5f9b7e8efbd5ccfdc70a646ad2a8c00796177c1",
+    "install_attempted": true,
+    "install_started": false,
+    "uac_outcome": "operation_cancelled_by_user",
+    "registry_entry_present": false,
+    "install_log_created": false,
+    "uninstall_attempted": false,
+    "status": "BLOCKED"
+  },
+  "cuda": {
+    "msi_sha256": "3c4c2a1e3f8f7a38e688f9eb47f9139b170e30395cf2eeae752239635b1c4c3c",
+    "install_attempted": false,
+    "uninstall_attempted": false,
+    "status": "BLOCKED",
+    "reason": "No elevated transaction was started after the CPU MSI UAC request was cancelled; awaiting user direction before another prompt."
+  },
+  "passed": false
+}

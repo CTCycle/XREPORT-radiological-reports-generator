@@ -1,7 +1,7 @@
 {
   "schema_version": "xreport-release-validation-v1",
   "status": "hold",
-  "source_commit": "48fe4332bae317c6ef45fdaf2acf2e52bf193b1c",
+  "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
   "version": "3.2.0",
   "validation_record": "assets/QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md",
   "approval": {
@@ -9,16 +9,16 @@
     "approved_by": "CTCycle",
     "approved_at_utc": "2026-10-17T15:59:41Z",
     "invalidated_at_utc": "2026-10-17T18:04:45Z",
-    "reason": "The approved package set contains a Training wizard layout defect and a cancellation message defect. Replacement source and package hashes require validation."
+    "reason": "The package set from run 39028661915 is superseded. Replacement run 39056753392 passes the CPU/CUDA portable artifact, UI, training, inference, and cleanup checks, but elevated MSI install/uninstall has not run after the CPU UAC prompt was cancelled. No GPU-less host is available. Keep approval and publication on hold; do not claim S42 or S51 complete."
   },
   "artifacts": {
-    "XREPORT-v3.2.0-windows-x64-cpu-portable.exe": "9f4ded29671c043f4858c81b79614ab89ff300f32c026f094b6b0235fc6cf112",
-    "XREPORT-v3.2.0-windows-x64-cpu.msi": "18fa919cc87620381e13fcf0a5ebe06d4070421d21aaa933772aee247780f3b8",
-    "XREPORT-v3.2.0-windows-x64-cpu.sha256": "efb644d353ab56b8e599ee3743032b233d61352485be279a95cba3b78e015e53",
-    "XREPORT-v3.2.0-windows-x64-cpu-build.json": "0c399d08ef5d925328ce08c4ea755ec2c48f0c6d6b4516a9f3211db8396c007a",
-    "XREPORT-v3.2.0-windows-x64-cuda-portable.exe": "426b1a22b1250d7c25ef8c83cb110192f503fc3f7a391b64903f0841f1591dc7",
-    "XREPORT-v3.2.0-windows-x64-cuda.msi": "04c121dea052c56706920764e33cc18247f0af9a4c02617617f46f5e0648901a",
-    "XREPORT-v3.2.0-windows-x64-cuda.sha256": "4e3ef71c155b6713ae82b2f4d459fc9324bd7c10bc5e4dd6f6e30a149360efd5",
-    "XREPORT-v3.2.0-windows-x64-cuda-build.json": "3357ed63bf88daf878fe83d2059c5c05ec7ec5b86230f51c51007e8c967159ce"
+    "XREPORT-v3.2.0-windows-x64-cpu-portable.exe": "288916fcc51d791c4319799e937e92e795a8c8776a98295996003e0c656894c0",
+    "XREPORT-v3.2.0-windows-x64-cpu.msi": "557e2a421bcd62dfad5ffa03f5f9b7e8efbd5ccfdc70a646ad2a8c00796177c1",
+    "XREPORT-v3.2.0-windows-x64-cpu.sha256": "bc3e18bdeead395d7040a132461b6486b3c0285edb41aa6af5db173e29dbaa79",
+    "XREPORT-v3.2.0-windows-x64-cpu-build.json": "3926ea805b11fa85328db005e5381ba50636ea0d352882c50ee403a99db6d788",
+    "XREPORT-v3.2.0-windows-x64-cuda-portable.exe": "f41ec66ae251581a1e4f0f7a6fa96c30627a5ecc1d56b11213ec9a7e4eac7c3e",
+    "XREPORT-v3.2.0-windows-x64-cuda.msi": "3c4c2a1e3f8f7a38e688f9eb47f9139b170e30395cf2eeae752239635b1c4c3c",
+    "XREPORT-v3.2.0-windows-x64-cuda.sha256": "a265516a83ddb0d01af5f651e45624a6521dafe715ce0f6fc517a3cbcb90603f",
+    "XREPORT-v3.2.0-windows-x64-cuda-build.json": "fc751e7b0030d5e0020ac8f91f47c6436e3b5fe89d2153282d5ad8a4873b24f8"
   }
 }

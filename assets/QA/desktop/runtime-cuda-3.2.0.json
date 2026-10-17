@@ -2,7 +2,7 @@
   "application": "XREPORT",
   "architecture": "windows-x64",
   "backend_executable": "backend/XREPORT-backend.exe",
-  "created_utc": "2026-10-17T11:33:05Z",
+  "created_utc": "2026-10-17T18:14:35Z",
   "dirty_tree": false,
   "file_count": 6788,
   "format": 2,
@@ -88,9 +88,9 @@
       "path": "backend/_internal/torch/lib/nvperf_host.dll"
     }
   ],
-  "payload_bytes": 3218264792,
-  "payload_sha256": "b952ae924329a7c26daafdb42cfcd139eddfc109b17037bbf18d9091e0608e49",
-  "source_commit": "48fe4332bae317c6ef45fdaf2acf2e52bf193b1c",
+  "payload_bytes": 3218264169,
+  "payload_sha256": "def58f773cd9f000f5580f1a88d6f0366ce51e6e80a695dbd4d8b9f605f67928",
+  "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
   "variant": "cuda",
   "version": "3.2.0"
 }

@@ -1,18 +1,18 @@
 {
   "schema_version": "xreport-packaged-active-training-close-reopen-v1",
-  "observed_utc": "2026-10-17T17:57:18.6029465Z",
-  "repository_head": "4f82b45f9176948d628887240da9bbdd508f524a",
+  "observed_utc": "2026-10-17T18:43:48.9239742Z",
+  "repository_head": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
   "dirty_tree": true,
   "variant": "cpu",
   "version": "3.2.0",
   "package_kind": "portable",
-  "executable": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\release\\XREPORT-v3.2.0-windows-x64-cpu-portable.exe",
+  "executable": "C:\\Users\\Thomas V\\AppData\\Local\\Temp\\XREPORT-release-39056753392\\cpu\\XREPORT-v3.2.0-windows-x64-cpu-portable.exe",
   "fixture": {
     "root": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\release-3.2.0-20261017\\fixtures",
     "csv": "synthetic-dataset.csv",
     "dataset": "synthetic-dataset",
-    "processed_dataset": "s51-packaged-2996-processed",
-    "checkpoint": "s51-packaged-2996-checkpoint",
+    "processed_dataset": "s51-packaged-2216-processed",
+    "checkpoint": "s51-packaged-2216-checkpoint",
     "synthetic": true
   },
   "seed": {
@@ -21,27 +21,27 @@
     "tokenizer": "models/tokenizers"
   },
   "start": {
-    "pid": 11244,
-    "window_pid": 11244,
-    "backend_pid": 12336,
-    "port": 50918,
+    "pid": 15804,
+    "window_pid": 15804,
+    "backend_pid": 18808,
+    "port": 57893,
     "health": {
       "status": "ok",
       "application": "XREPORT Backend",
       "version": "3.2.0",
       "runtime_mode": "sqlite",
       "runtime_variant": "cpu",
-      "runtime_port": 50918
+      "runtime_port": 57893
     },
     "session": {
-      "bootstrap_url": "http://127.0.0.1:50918/__xreport/bootstrap?token=zMtT4LtRQn-F6szfbGzZNJwHCsIOJ0ftpAn5OquN0ck",
-      "pid": 12336,
+      "pid": 18808,
       "variant": "cpu",
-      "version": "3.2.0"
+      "version": "3.2.0",
+      "bootstrap_path": "/__xreport/bootstrap"
     }
   },
   "native_acceptance": {
-    "output": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\release-3.2.0-20261017\\validation\\native-wizard-fix-cpu-portable-windowprocess.json",
+    "output": "G:\\Projects\\Repositories\\Active projects\\XREPORT Radiological Reports\\assets\\QA\\validation_campaign\\release-3.2.0-20261017\\validation\\native-cpu-portable-training-ui.json",
     "passed": true,
     "requested_scenarios": [
       "routes",
@@ -89,12 +89,12 @@
       "training_submit_cancel": {
         "id": "training_submit_cancel",
         "status": "PASS",
-        "dataset": "s51-packaged-2996-processed",
+        "dataset": "s51-packaged-2216-processed",
         "requested_device": "cpu",
         "epochs": 100,
         "submitted_through_native_ui": true,
         "stop_clicked_through_native_ui": true,
-        "job_id": "82cc3025",
+        "job_id": "bc8f2dcb",
         "terminal_status": "cancelled",
         "terminal_result": {
           "current_epoch": 0,
@@ -108,13 +108,14 @@
           "worker_phase": "worker_cancelled",
           "worker_phase_status": "cancelled",
           "worker_phase_elapsed_seconds": 0.0,
-          "worker_elapsed_seconds": 7.89,
-          "worker_pid": 9520,
+          "worker_elapsed_seconds": 7.936,
+          "worker_pid": 7240,
           "chart_data": [],
           "epoch_boundaries": [],
           "available_metrics": []
         },
-        "error": null
+        "error": null,
+        "training_log_feedback": "Training job started (bc8f2dcb).\nTraining cancelled."
       },
       "cleanup": {
         "id": "cleanup",
@@ -122,18 +123,29 @@
       }
     },
     "screenshots": [
-      "training-wizard.png"
+      "startup.png",
+      "inference.png",
+      "dataset.png",
+      "training.png",
+      "reports.png",
+      "settings.png",
+      "help.png",
+      "training.png",
+      "training-wizard.png",
+      "training-summary.png",
+      "training-active.png",
+      "training-cancelled.png"
     ]
   },
   "training_ui_submit_cancel": {
     "id": "training_submit_cancel",
     "status": "PASS",
-    "dataset": "s51-packaged-2996-processed",
+    "dataset": "s51-packaged-2216-processed",
     "requested_device": "cpu",
     "epochs": 100,
     "submitted_through_native_ui": true,
     "stop_clicked_through_native_ui": true,
-    "job_id": "82cc3025",
+    "job_id": "bc8f2dcb",
     "terminal_status": "cancelled",
     "terminal_result": {
       "current_epoch": 0,
@@ -147,25 +159,26 @@
       "worker_phase": "worker_cancelled",
       "worker_phase_status": "cancelled",
       "worker_phase_elapsed_seconds": 0.0,
-      "worker_elapsed_seconds": 7.89,
-      "worker_pid": 9520,
+      "worker_elapsed_seconds": 7.936,
+      "worker_pid": 7240,
       "chart_data": [],
       "epoch_boundaries": [],
       "available_metrics": []
     },
-    "error": null
+    "error": null,
+    "training_log_feedback": "Training job started (bc8f2dcb).\nTraining cancelled."
   },
   "training": {
-    "job_id": "9b6acda4",
+    "job_id": "9a33e4a1",
     "start": {
-      "job_id": "9b6acda4",
+      "job_id": "9a33e4a1",
       "job_type": "training",
       "status": "running",
       "message": "Training job started",
       "poll_interval": 1.0
     },
     "before_close": {
-      "job_id": "9b6acda4",
+      "job_id": "9a33e4a1",
       "job_type": "training",
       "status": "running",
       "poll_interval": 1.0,
@@ -182,45 +195,45 @@
         "worker_phase": "target_started",
         "worker_phase_status": "started",
         "worker_phase_elapsed_seconds": 0.0,
-        "worker_elapsed_seconds": 1.183,
-        "worker_pid": 15488,
+        "worker_elapsed_seconds": 1.197,
+        "worker_pid": 11356,
         "chart_data": [],
         "epoch_boundaries": [],
         "available_metrics": []
       },
       "error": null
     },
-    "processing_job_id": "e1a42127"
+    "processing_job_id": "de0548b9"
   },
   "close_during_training": {
     "shell_exited": true,
     "launcher_exited": true,
-    "window_pid": 11244,
-    "launcher_pid": 11244,
+    "window_pid": 15804,
+    "launcher_pid": 15804,
     "graceful_exit": true,
     "forced_kill": false,
     "backend_and_listener_gone": true,
-    "backend_pid": 12336,
-    "port": 50918
+    "backend_pid": 18808,
+    "port": 57893
   },
   "reopen": {
-    "pid": 31004,
-    "window_pid": 31004,
-    "backend_pid": 20552,
-    "port": 55216,
+    "pid": 30876,
+    "window_pid": 30876,
+    "backend_pid": 4884,
+    "port": 57584,
     "health": {
       "status": "ok",
       "application": "XREPORT Backend",
       "version": "3.2.0",
       "runtime_mode": "sqlite",
       "runtime_variant": "cpu",
-      "runtime_port": 55216
+      "runtime_port": 57584
     },
     "session": {
-      "bootstrap_url": "http://127.0.0.1:55216/__xreport/bootstrap?token=axvCQ-xyTzGSUXv0A07SJs0FRym-G0dTk0da84czZMQ",
-      "pid": 20552,
+      "pid": 4884,
       "variant": "cpu",
-      "version": "3.2.0"
+      "version": "3.2.0",
+      "bootstrap_path": "/__xreport/bootstrap"
     },
     "running_jobs": {
       "jobs": []
@@ -234,13 +247,13 @@
   "cleanup": {
     "shell_exited": true,
     "launcher_exited": true,
-    "window_pid": 31004,
-    "launcher_pid": 31004,
+    "window_pid": 30876,
+    "launcher_pid": 30876,
     "graceful_exit": true,
     "forced_kill": false,
     "backend_and_listener_gone": true,
-    "backend_pid": 20552,
-    "port": 55216
+    "backend_pid": 4884,
+    "port": 57584
   },
   "stage": "final_cleanup",
   "passed": true
