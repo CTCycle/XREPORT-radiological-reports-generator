@@ -197,7 +197,13 @@ function Start-Packaged {
     }
     $windowProcess = Find-PackagedWindowProcess -LauncherProcessId $script:launcherProcess.Id -TimeoutSeconds 30
     $script:process = $windowProcess
-    return [ordered]@{ pid = [int]$script:launcherProcess.Id; window_pid = [int]$windowProcess.Id; backend_pid = $backendPid; port = $port; health = $health; session = $session }
+    $safeSession = [ordered]@{
+        pid = [int]$session.pid
+        variant = [string]$session.variant
+        version = [string]$session.version
+        bootstrap_path = $bootstrap.AbsolutePath
+    }
+    return [ordered]@{ pid = [int]$script:launcherProcess.Id; window_pid = [int]$windowProcess.Id; backend_pid = $backendPid; port = $port; health = $health; session = $safeSession }
 }
 
 function Find-PackagedWindowProcess {
