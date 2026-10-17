@@ -148,6 +148,35 @@ describe('cooperative page cancellation', () => {
     expect(activeJob(page).activeJobId).toBe('training-1');
   });
 
+  it('reports a cancelled training run without presenting it as an error', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TrainingPage],
+      providers: [
+        { provide: DatasetApiService, useValue: { getProcessedNames: () => apiResult({ datasets: [], count: 0 }) } },
+        { provide: TrainingApiService, useValue: { getCheckpoints: () => apiResult({ checkpoints: [] }) } },
+        { provide: ValidationApiService, useValue: {} },
+        { provide: JobsApiService, useValue: { list: () => apiResult({ jobs: [] }) } },
+        {
+          provide: JobPollingService,
+          useValue: {
+            poll: () => of({ job_id: 'training-cancelled', status: 'cancelled', result: null, error: null, progress: 0 }),
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(TrainingPage);
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    const appState = TestBed.inject(AppStateService);
+    (page as unknown as { pollTraining(jobId: string, pollInterval: number): void }).pollTraining('training-cancelled', 0.25);
+
+    expect(appState.training().dashboardState.isTraining).toBe(false);
+    expect(appState.training().dashboardState.logEntries.at(-1)).toBe('Training cancelled.');
+    expect(page.trainingError()).toBeNull();
+    expect(activeJob(page).activeJobId).toBeNull();
+  });
+
   it('keeps training active and surfaces a rejected cancellation', async () => {
     const cancel = vi.fn(() => apiResult({ job_id: 'training-2', success: false, message: 'Job cannot be cancelled' }));
     await TestBed.configureTestingModule({

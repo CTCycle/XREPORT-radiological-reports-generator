@@ -448,98 +448,54 @@ input[type="checkbox"] {
     border: 1px solid var(--border-color);
 }
 
-.training-wizard-header {
+.training-wizard-modal > .modal-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    padding: 1.1rem 1.4rem;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
     background: var(--surface-elevated);
-    gap: 1rem;
 }
 
-.training-wizard-header h3 {
+.training-wizard-modal > .modal-header h2 {
     margin: 0;
     font-size: 1.1rem;
     color: var(--text-primary);
 }
 
-.training-wizard-header p {
-    margin: 0.35rem 0 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-}
-
-.training-wizard-close {
-    background: none;
-    border: none;
+.training-wizard-modal > .modal-header .btn-icon-small {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--control-height-sm);
+    height: var(--control-height-sm);
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.training-wizard-close:hover {
+.training-wizard-modal > .modal-header .btn-icon-small:hover {
+    border-color: var(--border-color);
     background: var(--input-bg);
     color: var(--text-primary);
 }
 
-.wizard-steps {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.9rem 1.4rem 0.5rem;
+.training-wizard-modal > .modal-header .btn-icon-small:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
-.wizard-step {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    position: relative;
-    flex: 1;
-}
-
-.wizard-step-dot {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 1px solid var(--border-color);
+.training-wizard-modal > p {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0.75rem 1.25rem;
     color: var(--text-secondary);
-    display: grid;
-    place-items: center;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--input-bg);
-}
-
-.wizard-step-dot.active {
-    border-color: var(--accent-color-strong);
-    background: var(--accent-soft);
-    color: var(--accent-color-strong);
-}
-
-.wizard-step-label {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.wizard-step-label.active {
-    color: var(--text-primary);
-}
-
-.wizard-step-line {
-    flex: 1;
-    height: 1px;
-    background: var(--border-color);
-    margin-left: 0.5rem;
-}
-
-.wizard-step-line.active {
-    background: var(--accent-color);
 }
 
 .training-wizard-body {
@@ -736,15 +692,6 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 720px) {
-    .wizard-steps {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .wizard-step-line {
-        display: none;
-    }
-
     .panel-card-summary {
         grid-template-columns: 1fr;
     }
@@ -960,6 +907,16 @@ input[type="checkbox"] {
 
 .training-wizard-actions {
     gap: 0.5rem;
+}
+
+.training-wizard-modal > .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border-color);
 }
 
 @media (max-width: 640px) {

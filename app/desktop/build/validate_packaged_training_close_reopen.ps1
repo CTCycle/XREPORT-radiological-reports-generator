@@ -7,7 +7,11 @@ param(
     [string]$ValidationRoot,
     [string]$SeedResourceRoot,
     [string]$FixtureRoot,
-    [string]$Output
+    [string]$Output,
+    [ValidateSet('portable', 'msi')][string]$PackageKind = 'portable',
+    [string]$ExecutablePath,
+    [string]$NativeOutput,
+    [switch]$ExerciseTrainingUiSubmitCancel
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,7 +23,7 @@ if ([string]::IsNullOrWhiteSpace($SeedResourceRoot)) {
     $SeedResourceRoot = Join-Path $repoRoot 'runtimes\cache\release-validation-20260925\resources'
 }
 if ([string]::IsNullOrWhiteSpace($FixtureRoot)) {
-    $FixtureRoot = Join-Path $repoRoot 'assets\QA\validation_campaign\s27\fixtures'
+    $FixtureRoot = Join-Path $repoRoot 'assets\QA\validation_campaign\release-3.2.0-20261017\fixtures'
 }
 if ([string]::IsNullOrWhiteSpace($Output)) {
     $Output = Join-Path $repoRoot "assets\QA\desktop\packaged-active-training-$Variant-$Version.json"
@@ -34,9 +38,11 @@ if ($ownsValidationRoot) {
 }
 $ValidationRoot = [IO.Path]::GetFullPath($ValidationRoot)
 $portable = Join-Path $ReleaseRoot "XREPORT-v$Version-windows-x64-$Variant-portable.exe"
+$packagedExecutable = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) { $portable } else { [IO.Path]::GetFullPath($ExecutablePath) }
+if ($PackageKind -eq 'msi' -and [string]::IsNullOrWhiteSpace($ExecutablePath)) { throw 'ExecutablePath is required for an installed MSI package.' }
 $csvPath = Get-ChildItem -LiteralPath $FixtureRoot -File -Filter '*.csv' | Select-Object -First 1
 $imageFolder = Join-Path $FixtureRoot 'images'
-if (-not (Test-Path -LiteralPath $portable -PathType Leaf)) { throw "Portable artifact is missing: $portable" }
+if (-not (Test-Path -LiteralPath $packagedExecutable -PathType Leaf)) { throw "Packaged executable is missing: $packagedExecutable" }
 if ($null -eq $csvPath) { throw "Fixture CSV is missing under $FixtureRoot" }
 if (-not (Test-Path -LiteralPath $imageFolder -PathType Container)) { throw "Fixture image folder is missing: $imageFolder" }
 foreach ($relative in @('models\XRAYEncoder', 'models\tokenizers')) {
@@ -60,7 +66,9 @@ $readyPath = Join-Path $stateRoot 'desktop-ready.json'
 $datasetName = "s51-packaged-$PID"
 $processedName = "$datasetName-processed"
 $checkpointName = "$datasetName-checkpoint"
+$desktopToken = $null
 $process = $null
+$launcherProcess = $null
 $backendPid = $null
 $port = $null
 $webSession = $null
@@ -73,10 +81,13 @@ $receipt = [ordered]@{
     dirty_tree = [bool](@(git -C $repoRoot status --porcelain).Count)
     variant = $Variant
     version = $Version
-    portable = [IO.Path]::GetFileName($portable)
+    package_kind = $PackageKind
+    executable = $packagedExecutable
     fixture = [ordered]@{ root = $FixtureRoot; csv = $csvPath.Name; dataset = $datasetName; processed_dataset = $processedName; checkpoint = $checkpointName; synthetic = $true }
     seed = [ordered]@{ resource_root = $SeedResourceRoot; encoder = 'models/XRAYEncoder'; tokenizer = 'models/tokenizers' }
     start = $null
+    native_acceptance = $null
+    training_ui_submit_cancel = $null
     training = $null
     close_during_training = $null
     reopen = $null
@@ -124,16 +135,27 @@ function Wait-BackendGone {
 }
 
 function Close-PackagedProcess {
-    param([Parameter(Mandatory = $true)][System.Diagnostics.Process]$Target)
-    if ($Target.HasExited) { return $true }
-    try { $Target.CloseMainWindow() | Out-Null } catch { }
-    try { [void]$Target.WaitForExit(30000) } catch { }
-    $Target.Refresh()
+    param(
+        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Target,
+        [switch]$AllowForcedKill
+    )
+    $forcedKill = $false
     if (-not $Target.HasExited) {
+        try { $Target.CloseMainWindow() | Out-Null } catch { }
+        try { [void]$Target.WaitForExit(30000) } catch { }
+    }
+    $Target.Refresh()
+    if (-not $Target.HasExited -and $AllowForcedKill) {
         Stop-Process -Id $Target.Id -Force -ErrorAction SilentlyContinue
         try { [void]$Target.WaitForExit(10000) } catch { }
+        $forcedKill = $true
     }
-    return $Target.HasExited
+    $Target.Refresh()
+    return [ordered]@{
+        graceful_exit = [bool]($Target.HasExited -and -not $forcedKill)
+        app_exited = [bool]$Target.HasExited
+        forced_kill = [bool]$forcedKill
+    }
 }
 
 function Invoke-JsonApi {
@@ -152,7 +174,8 @@ function Invoke-JsonApi {
 }
 
 function Start-Packaged {
-    $script:process = Start-Process -FilePath $portable -WorkingDirectory $ValidationRoot -PassThru
+    $script:launcherProcess = Start-Process -FilePath $packagedExecutable -WorkingDirectory $ValidationRoot -PassThru
+    $script:process = $script:launcherProcess
     if (-not (Wait-Path -Path $sessionPath -TimeoutSeconds 180)) { throw 'Packaged session contract was not written.' }
     $session = Get-Content -LiteralPath $sessionPath -Raw | ConvertFrom-Json
     $script:backendPid = [int]$session.pid
@@ -165,13 +188,55 @@ function Start-Packaged {
         throw "Packaged bootstrap did not establish a session (status $($bootstrapResponse.StatusCode))."
     }
     $token = [Uri]::UnescapeDataString(($bootstrap.Query -replace '^\?token=', ''))
+    $script:desktopToken = $token
     $script:apiHeaders = @{ 'X-XREPORT-Desktop-Token' = $token }
     $healthResponse = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$port/api/health" -Headers $script:apiHeaders -WebSession $script:webSession -TimeoutSec 20
     $health = $healthResponse.Content | ConvertFrom-Json
     if ($health.status -ne 'ok' -or $health.runtime_variant -ne $Variant -or $health.version -ne $Version) {
         throw 'Packaged health contract did not match the requested variant/version.'
     }
-    return [ordered]@{ pid = [int]$process.Id; backend_pid = $backendPid; port = $port; health = $health; session = $session }
+    $windowProcess = Find-PackagedWindowProcess -LauncherProcessId $script:launcherProcess.Id -TimeoutSeconds 30
+    $script:process = $windowProcess
+    return [ordered]@{ pid = [int]$script:launcherProcess.Id; window_pid = [int]$windowProcess.Id; backend_pid = $backendPid; port = $port; health = $health; session = $session }
+}
+
+function Find-PackagedWindowProcess {
+    param([Parameter(Mandatory = $true)][int]$LauncherProcessId, [int]$TimeoutSeconds = 30)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $records = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue)
+        $processIds = [System.Collections.Generic.HashSet[int]]::new()
+        [void]$processIds.Add($LauncherProcessId)
+        $expanded = $true
+        while ($expanded) {
+            $expanded = $false
+            foreach ($record in $records) {
+                if ($processIds.Contains([int]$record.ParentProcessId) -and $processIds.Add([int]$record.ProcessId)) {
+                    $expanded = $true
+                }
+            }
+        }
+        foreach ($id in $processIds) {
+            $candidate = Get-Process -Id $id -ErrorAction SilentlyContinue
+            if ($null -eq $candidate) { continue }
+            $candidate.Refresh()
+            if ($candidate.MainWindowHandle -ne 0 -and $candidate.MainWindowTitle -match '(?i)XREPORT.*Radiological Reports') {
+                return $candidate
+            }
+        }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "The packaged XREPORT main window was not found among launcher process $LauncherProcessId and its descendants."
+}
+
+function Wait-PackagedProcessExit {
+    param([Parameter(Mandatory = $true)][System.Diagnostics.Process]$Target, [int]$TimeoutSeconds = 30)
+    $Target.Refresh()
+    if (-not $Target.HasExited) {
+        try { [void]$Target.WaitForExit($TimeoutSeconds * 1000) } catch { }
+    }
+    $Target.Refresh()
+    return [bool]$Target.HasExited
 }
 
 try {
@@ -216,6 +281,40 @@ try {
     $processing = Wait-JobTerminal -BaseUrl $baseUrl -JobId $processingStart.job_id -TimeoutSeconds 240
     if ($processing.status -ne 'completed') { throw "Packaged dataset processing failed: $($processing | ConvertTo-Json -Compress)" }
 
+    if ($ExerciseTrainingUiSubmitCancel) {
+        $receipt.stage = 'native_training_submit_cancel'
+        if ([string]::IsNullOrWhiteSpace($NativeOutput)) {
+            $nativeStem = [IO.Path]::GetFileNameWithoutExtension($Output)
+            $NativeOutput = Join-Path (Split-Path -Parent $Output) "$nativeStem-native.json"
+        }
+        $nativeOutputPath = [IO.Path]::GetFullPath($NativeOutput)
+        $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+        $nativeScript = Join-Path $PSScriptRoot 'validate_native_webview.ps1'
+        $nativeArguments = @(
+            '-NoProfile', '-File', $nativeScript,
+            '-Output', $nativeOutputPath,
+            '-Scenario', 'Routes,TrainingSubmitCancel',
+            '-BackendPort', [string]$port,
+            '-DesktopToken', $desktopToken,
+            '-TrainingDatasetName', $processedName,
+            '-TrainingDevice', $(if ($Variant -eq 'cuda') { 'cuda' } else { 'cpu' })
+        )
+        & $pwsh @nativeArguments
+        if ($LASTEXITCODE -ne 0) { throw "Native packaged UI validation failed with exit code $LASTEXITCODE." }
+        $nativeReceipt = Get-Content -LiteralPath $nativeOutputPath -Raw | ConvertFrom-Json
+        $receipt.native_acceptance = [ordered]@{
+            output = $nativeOutputPath
+            passed = [bool]$nativeReceipt.passed
+            requested_scenarios = @($nativeReceipt.requested_scenarios)
+            scenarios = $nativeReceipt.scenarios
+            screenshots = @($nativeReceipt.screenshots)
+        }
+        $receipt.training_ui_submit_cancel = $nativeReceipt.scenarios.training_submit_cancel
+        if (-not $nativeReceipt.passed -or $nativeReceipt.scenarios.training_submit_cancel.status -ne 'PASS') {
+            throw 'Packaged native UI routes or Training submission/cancellation did not pass.'
+        }
+    }
+
     $receipt.stage = 'training_start'
     $trainingBody = @{
         dataset_name = $processedName; epochs = 1; batch_size = 1; num_encoders = 1; num_decoders = 1
@@ -235,10 +334,12 @@ try {
 
     $receipt.stage = 'close_during_training'
     $firstClose = Close-PackagedProcess -Target $process
+    $launcherExited = if ($launcherProcess.Id -eq $process.Id) { [bool]$firstClose.app_exited } else { Wait-PackagedProcessExit -Target $launcherProcess -TimeoutSeconds 30 }
     $firstCleanup = Wait-BackendGone -BackendProcessId $backendPid -Port $port -TimeoutSeconds 45
-    $receipt.close_during_training = [ordered]@{ shell_exited = $firstClose; backend_and_listener_gone = $firstCleanup; backend_pid = $backendPid; port = $port }
-    if (-not $firstClose -or -not $firstCleanup) { throw 'Packaged close did not remove the shell/backend/listener after active training.' }
+    $receipt.close_during_training = [ordered]@{ shell_exited = $firstClose.app_exited; launcher_exited = $launcherExited; window_pid = [int]$process.Id; launcher_pid = [int]$launcherProcess.Id; graceful_exit = [bool]($firstClose.graceful_exit -and $launcherExited); forced_kill = $firstClose.forced_kill; backend_and_listener_gone = $firstCleanup; backend_pid = $backendPid; port = $port }
+    if (-not $firstClose.graceful_exit -or -not $launcherExited -or $firstClose.forced_kill -or -not $firstCleanup) { throw 'Packaged close did not gracefully remove the shell, launcher, backend, and listener after active training.' }
     $process = $null
+    $launcherProcess = $null
 
     $receipt.stage = 'reopen'
     $receipt.reopen = Start-Packaged
@@ -255,14 +356,27 @@ try {
     $receipt.reopen.no_running_jobs = @($runningAfterReopen.jobs).Count -eq 0
     $receipt.stage = 'final_cleanup'
     $secondClose = Close-PackagedProcess -Target $process
+    $secondLauncherExited = if ($launcherProcess.Id -eq $process.Id) { [bool]$secondClose.app_exited } else { Wait-PackagedProcessExit -Target $launcherProcess -TimeoutSeconds 30 }
     $secondCleanup = Wait-BackendGone -BackendProcessId $backendPid -Port $port -TimeoutSeconds 45
-    $receipt.cleanup = [ordered]@{ shell_exited = $secondClose; backend_and_listener_gone = $secondCleanup; backend_pid = $backendPid; port = $port }
-    $receipt.passed = [bool]($receipt.close_during_training.shell_exited -and $receipt.close_during_training.backend_and_listener_gone -and $receipt.reopen.no_running_jobs -and $secondClose -and $secondCleanup)
+    $receipt.cleanup = [ordered]@{ shell_exited = $secondClose.app_exited; launcher_exited = $secondLauncherExited; window_pid = [int]$process.Id; launcher_pid = [int]$launcherProcess.Id; graceful_exit = [bool]($secondClose.graceful_exit -and $secondLauncherExited); forced_kill = $secondClose.forced_kill; backend_and_listener_gone = $secondCleanup; backend_pid = $backendPid; port = $port }
+    $receipt.passed = [bool]($receipt.close_during_training.graceful_exit -and -not $receipt.close_during_training.forced_kill -and $receipt.close_during_training.backend_and_listener_gone -and $receipt.reopen.no_running_jobs -and $secondClose.graceful_exit -and $secondLauncherExited -and -not $secondClose.forced_kill -and $secondCleanup -and (-not $ExerciseTrainingUiSubmitCancel -or $receipt.training_ui_submit_cancel.status -eq 'PASS'))
 }
 catch {
     $receipt.error = $_.Exception.Message
-    if ($process) { Close-PackagedProcess -Target $process | Out-Null }
-    if ($backendPid -and $port) { $receipt.cleanup = [ordered]@{ shell_exited = $true; backend_and_listener_gone = (Wait-BackendGone -BackendProcessId $backendPid -Port $port -TimeoutSeconds 30); backend_pid = $backendPid; port = $port } }
+    if ($process) {
+        $failedClose = Close-PackagedProcess -Target $process -AllowForcedKill
+        $launcherExited = if ($null -eq $launcherProcess -or $launcherProcess.Id -eq $process.Id) { [bool]$failedClose.app_exited } else { Wait-PackagedProcessExit -Target $launcherProcess -TimeoutSeconds 10 }
+        if (-not $launcherExited -and $launcherProcess -and $launcherProcess.Id -ne $process.Id) {
+            Stop-Process -Id $launcherProcess.Id -Force -ErrorAction SilentlyContinue
+            $launcherExited = Wait-PackagedProcessExit -Target $launcherProcess -TimeoutSeconds 10
+        }
+        $receipt.cleanup = [ordered]@{ shell_exited = $failedClose.app_exited; launcher_exited = $launcherExited; window_pid = [int]$process.Id; launcher_pid = if ($launcherProcess) { [int]$launcherProcess.Id } else { $null }; graceful_exit = [bool]($failedClose.graceful_exit -and $launcherExited); forced_kill = [bool]($failedClose.forced_kill -or (-not $launcherExited)); backend_and_listener_gone = $false; backend_pid = $backendPid; port = $port }
+    }
+    if ($backendPid -and $port) {
+        $cleanupPass = Wait-BackendGone -BackendProcessId $backendPid -Port $port -TimeoutSeconds 30
+        if ($null -eq $receipt.cleanup) { $receipt.cleanup = [ordered]@{ shell_exited = $true; graceful_exit = $null; forced_kill = $false; backend_and_listener_gone = $cleanupPass; backend_pid = $backendPid; port = $port } }
+        else { $receipt.cleanup.backend_and_listener_gone = $cleanupPass }
+    }
 }
 finally {
     if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
