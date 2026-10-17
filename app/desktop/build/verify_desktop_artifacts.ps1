@@ -12,6 +12,10 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 if (-not $ReleaseRoot) { $ReleaseRoot = Join-Path $repoRoot 'release' }
 if (-not $SourceCommit) { $SourceCommit = (git -C $repoRoot rev-parse HEAD).Trim() }
 $python = Join-Path $repoRoot 'runtimes\python\python.exe'
+if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+    $systemPython = Get-Command python.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $systemPython) { $python = $systemPython.Source }
+}
 $runtimeVerifier = Join-Path $PSScriptRoot 'verify_runtime_bundle.py'
 $prefix = "XREPORT-v$Version-windows-x64-$Variant"
 $portable = Join-Path $ReleaseRoot "$prefix-portable.exe"
