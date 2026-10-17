@@ -145,9 +145,13 @@ export class TrainingPage {
         this.appState.updateDashboard(dashboardUpdate);
       }
       if (['completed', 'failed', 'cancelled'].includes(status.status)) {
-        const terminalMessage = status.status === 'completed' ? 'Training completed successfully.' : `Training ${status.status}: ${status.error ?? 'Unknown error'}`;
+        const terminalMessage = status.status === 'completed'
+          ? 'Training completed successfully.'
+          : status.status === 'cancelled'
+            ? 'Training cancelled.'
+            : `Training failed: ${status.error ?? 'Unknown error'}`;
         this.appState.updateDashboard((current) => ({ ...current, isTraining: false, logEntries: [...current.logEntries, terminalMessage].slice(-200) }));
-        if (status.status !== 'completed') this.trainingError.set(status.error ?? `Training ${status.status}`);
+        if (status.status === 'failed') this.trainingError.set(status.error ?? 'Training failed.');
         this.activeJobId = null;
         void this.loadCheckpoints();
       }

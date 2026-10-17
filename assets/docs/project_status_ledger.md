@@ -102,14 +102,16 @@ form of evidence exists for the stated scope.
 
 ## Current Snapshot
 
-- On 2026-10-17, the v3.2.0 release-validation package was completed and staged:
-  cpu/cuda portable+MSI pairs bound to source
-  `48fe4332bae317c6ef45fdaf2acf2e52bf193b1c` (`dirty_tree=false`), official
-  artifact verification `PASS` for both variants (including full portable
-  runtime re-hash), portable smokes `PASS`, and both MSI lifecycle gates `PASS`
-  (install → launch → close → uninstall). The release is not yet dispatched;
-  the staged `approved-release-manifest.json` awaits human approval, after which
-  `desktop-release.yml` is dispatched with `package_run_id=39028661915`. See the
+- On 2026-10-17, native review found a broken Training wizard layout and a
+  misleading cancellation message in the v3.2.0 packages from run `39028661915`.
+  Those hashes and the earlier approval are superseded; the approved release
+  manifest is now on `hold`. The working tree fixes the modal styling and
+  reports cancellation as a normal terminal outcome. The focused client
+  specification passed (11 tests) and the Angular production build passed, but
+  the exact replacement CPU/CUDA portable/MSI package matrix has not been run.
+  Publication is held pending a new source-bound package run, GPU and GPU-less
+  validation, and graceful MSI lifecycles. S42 remains `PARTIAL` pending the
+  exact CUDA package lanes; S51 remains `PARTIAL` for its broader gaps. See the
   [release-3.2.0-20261017
   summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md)
   and the [validation campaign
@@ -353,6 +355,8 @@ Only actionable current problems belong here.
 
 | ID | Affected Component | Severity | Concise Description | Current Impact | Reproduction or Evidence | Suspected Cause | Blocker | Remediation Status | Required Revalidation | Related Documentation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ISSUE-007` | `ui.training.wizard` | `MEDIUM` | The packaged New Training Wizard used stale CSS selectors, leaving the modal header and controls misaligned. | The retained v3.2.0 CPU/CUDA packages render the wizard incorrectly; their release approval is invalidated. | [Release validation record](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md); [interim native capture](../QA/validation_campaign/release-3.2.0-20261017/validation/native-screenshots/training-wizard.png) shows the corrected layout. | Component markup uses shared `.modal-header` / `.modal-footer` classes while page CSS targeted obsolete wizard-specific selectors. | Exact replacement packages and matrix. | `FIXED IN WORKING TREE` — exact CPU/CUDA portable/MSI package revalidation is pending. | Confirm the corrected rendered wizard on exact replacement CPU and CUDA portable/MSI packages. | [UI patterns](ui/components_and_patterns.md); [UI experience](ui/experience.md) |
+| `ISSUE-008` | `ui.training.cancellation` | `LOW` | A successful `cancelled` terminal state was logged as `Training cancelled: Unknown error` and surfaced through the error signal. | The retained v3.2.0 package set reports a normal cancellation as an error; its release approval is invalidated. | [Release validation record](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md); focused client regression in [job-cancellation.pages.spec.ts](../../app/client/src/app/pages/job-cancellation.pages.spec.ts). | The Training page handled `cancelled` like `failed` when selecting terminal text and error state. | Exact replacement package matrix. | `FIXED IN WORKING TREE` — focused regression passed; exact CPU/CUDA portable/MSI package revalidation is pending. | Confirm native cancellation message, terminal status, cleanup, and no false error on exact replacement packages. | [UI patterns](ui/components_and_patterns.md); [workflows](operations/workflows.md) |
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | The gated MedGemma entry cannot be installed or generated without authorized provider access and a supported credential. The S37 gated-provider behavior gate passed separately on 2026-10-01 without model access. | One current catalogue entry is unavailable in the current environment; the gated behaviour contract (catalogue state, 409 rejection, disabled UI) is validated. | [2026-10-01 live receipt](../QA/validation_campaign/s11-s37-20261001/s37-s11-live-receipt.json): `access_policy=gated`, `not_installed`, no `HF_TOKEN`; [S37 summary](../QA/validation_campaign/s37/summary-20261001.md). | Not a confirmed software defect. | Authorized gated access and a supported credential. | `BLOCKED` — waiting for authorized access configuration. | Download the exact pinned revision, run real inference, and capture a receipt before changing status. | [gated access](runtime/local_inference_models.md); [configuration](runtime/configuration.md) |
 | `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | Legacy unconfigured pytest runs warned on protected cache paths. The full official `run_tests.bat` now passes through configured runtime caches without pytest cache warnings. | Test execution is validated; Git directory scans still warn when they encounter some pre-existing protected cache paths outside the configured root. | [2026-09-24 runner summary and logs](../QA/validation_campaign/issue-004-windows-cache-20260924/summary.md); [S30–S32 campaign](../QA/validation_campaign/s30-s32-20260924/summary.md); earlier [settings QA](../QA/settings-migration-validation-20260917.md), [E2E QA](../QA/e2e-validation-20260917.md), and [S12 summary](../QA/validation_campaign/s12/summary-20260922.md). | Historical cache directory ACL/ownership, not the official runner configuration. | Filesystem permission/ownership of legacy cache paths. | `OPEN` — official runner is validated; legacy protected paths remain inaccessible and were left unchanged. | Verify ownership/access and safe disposition of the historical paths before cleanup; do not remove cache residue without confirmed ownership. | [testing rules](coding/testing_and_quality.md); [startup](runtime/startup.md) |
 

@@ -1,13 +1,15 @@
 {
   "schema_version": "xreport-release-validation-v1",
-  "status": "approved",
+  "status": "hold",
   "source_commit": "48fe4332bae317c6ef45fdaf2acf2e52bf193b1c",
   "version": "3.2.0",
   "validation_record": "assets/QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md",
   "approval": {
-    "decision": "approved",
+    "decision": "invalidated",
     "approved_by": "CTCycle",
-    "approved_at_utc": "2026-10-17T15:59:41Z"
+    "approved_at_utc": "2026-10-17T15:59:41Z",
+    "invalidated_at_utc": "2026-10-17T18:04:45Z",
+    "reason": "The approved package set contains a Training wizard layout defect and a cancellation message defect. Replacement source and package hashes require validation."
   },
   "artifacts": {
     "XREPORT-v3.2.0-windows-x64-cpu-portable.exe": "9f4ded29671c043f4858c81b79614ab89ff300f32c026f094b6b0235fc6cf112",

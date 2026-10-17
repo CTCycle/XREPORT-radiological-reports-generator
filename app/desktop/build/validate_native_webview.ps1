@@ -11,6 +11,10 @@ param(
     [int]$BackendPort = 5003,
     [int]$UiPort = 8003,
     [int]$BackendProcessId = 0,
+    [string]$DesktopToken,
+    [string]$TrainingDatasetName,
+    [ValidateSet('cpu', 'cuda')][string]$TrainingDevice = 'cpu',
+    [int]$TrainingCancelTimeoutSeconds = 120,
     [string]$BackendRestartExecutable,
     [string[]]$BackendRestartArgumentList = @(),
     [string]$BackendRestartWorkingDirectory,
@@ -331,6 +335,7 @@ function Invoke-Route {
         found = $false
         invoked = $false
         invoke_method = $null
+        retry_count = 0
         heading_found = $false
         screenshot = $null
         error = $null
@@ -343,8 +348,21 @@ function Invoke-Route {
         $routeResult.invoked = $true
         Start-Sleep -Milliseconds $WaitMilliseconds
         if ($Route -eq 'Help') {
-            if ($null -eq (Wait-ForNamedElement -Window $Window -Names @('Tips & Tricks'))) {
-                throw 'Help route did not expose the Tips & Tricks dialog.'
+            $dialog = Wait-ForNamedElement -Window $Window -Names @('Tips & Tricks') -Seconds ([Math]::Min($TimeoutSeconds, 5))
+            if ($null -eq $dialog) {
+                $retryControl = Find-RouteControl -Window $Window -Route 'Help'
+                if ($null -ne $retryControl) {
+                    [void](Invoke-NativeControl -Control $retryControl -Window $Window)
+                    $routeResult.retry_count = 1
+                    $dialog = Wait-ForNamedElement -Window $Window -Names @('Tips & Tricks') -Seconds $TimeoutSeconds
+                }
+            }
+            if ($null -eq $dialog) {
+                $failureScreenshot = Join-Path $ScreenshotRoot 'help-dialog-not-open.png'
+                Save-NativeScreenshot -Window $Window -Path $failureScreenshot
+                $routeResult.screenshot = [IO.Path]::GetFileName($failureScreenshot)
+                $Result.screenshots += [IO.Path]::GetFileName($failureScreenshot)
+                throw 'Help route did not expose the Tips & Tricks dialog after one retry.'
             }
         }
         else {
@@ -375,6 +393,286 @@ function Invoke-Route {
     }
     $Result.routes += $routeResult
     return $routeResult
+}
+
+function Find-NamedElementPrefix {
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
+        [Parameter(Mandatory = $true)][string]$Prefix,
+        [System.Windows.Automation.ControlType]$ControlType = [System.Windows.Automation.ControlType]::Button
+    )
+    $all = $Window.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition
+    )
+    for ($index = 0; $index -lt $all.Count; $index++) {
+        $element = $all[$index]
+        if ($element.Current.ControlType -eq $ControlType -and
+            ([string]$element.Current.Name).StartsWith($Prefix, [StringComparison]::OrdinalIgnoreCase)) {
+            return $element
+        }
+    }
+    return $null
+}
+
+function Find-NamedElementWithType {
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
+        [Parameter(Mandatory = $true)][string[]]$Names,
+        [Parameter(Mandatory = $true)][System.Windows.Automation.ControlType]$ControlType
+    )
+    foreach ($name in $Names) {
+        $nameCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            $name
+        )
+        $typeCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            $ControlType
+        )
+        $condition = [System.Windows.Automation.AndCondition]::new(
+            [System.Windows.Automation.Condition[]]@($nameCondition, $typeCondition)
+        )
+        $control = $Window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        if ($null -ne $control) { return $control }
+    }
+    return $null
+}
+
+function Set-NativeInputValue {
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+    $control = Find-NamedElementWithType -Window $Window -Names @($Name) -ControlType ([System.Windows.Automation.ControlType]::Spinner)
+    if ($null -eq $control) {
+        $control = Find-NamedElementWithType -Window $Window -Names @($Name) -ControlType ([System.Windows.Automation.ControlType]::Edit)
+    }
+    if ($null -eq $control) {
+        $control = Find-NamedElementPrefix -Window $Window -Prefix $Name -ControlType ([System.Windows.Automation.ControlType]::Spinner)
+    }
+    if ($null -eq $control) {
+        $control = Find-NamedElementPrefix -Window $Window -Prefix $Name -ControlType ([System.Windows.Automation.ControlType]::Edit)
+    }
+    if ($null -eq $control) {
+        $label = Find-NamedTextElement -Window $Window -Names @($Name)
+        if ($null -ne $label) {
+            $labelBounds = $label.Current.BoundingRectangle
+            $editCondition = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Edit
+            )
+            $spinnerCondition = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::Spinner
+            )
+            $edits = @()
+            foreach ($condition in @($spinnerCondition, $editCondition)) {
+                $foundEdits = $Window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)
+                for ($editIndex = 0; $editIndex -lt $foundEdits.Count; $editIndex++) { $edits += $foundEdits[$editIndex] }
+            }
+            $candidates = @()
+            for ($index = 0; $index -lt $edits.Count; $index++) {
+                $edit = $edits[$index]
+                $bounds = $edit.Current.BoundingRectangle
+                if (-not $edit.Current.IsEnabled -or $edit.Current.IsOffscreen -or
+                    [Math]::Abs($bounds.Left - $labelBounds.Left) -gt 30) { continue }
+                $gap = $bounds.Top - $labelBounds.Bottom
+                if ($gap -lt -8 -or $gap -gt 110) { continue }
+                try {
+                    $null = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+                    $candidates += [pscustomobject]@{ Gap = $gap; Control = $edit }
+                }
+                catch { continue }
+            }
+            $candidate = $candidates | Sort-Object Gap | Select-Object -First 1
+            if ($null -ne $candidate) { $control = $candidate.Control }
+        }
+    }
+    if ($null -eq $control) {
+        $all = $Window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+        $details = @()
+        for ($index = 0; $index -lt $all.Count; $index++) {
+            $element = $all[$index]
+            if ($element.Current.ControlType -notin @([System.Windows.Automation.ControlType]::Edit, [System.Windows.Automation.ControlType]::Text) -and
+                [string]$element.Current.Name -ne $Name -and [string]$element.Current.Name -ne 'New Training Wizard') { continue }
+            $bounds = $element.Current.BoundingRectangle
+            $details += '{0}:{1} [{2},{3},{4},{5}] offscreen={6}' -f $element.Current.ControlType.ProgrammaticName, $element.Current.Name, [Math]::Round($bounds.Left), [Math]::Round($bounds.Top), [Math]::Round($bounds.Width), [Math]::Round($bounds.Height), $element.Current.IsOffscreen
+        }
+        throw "Training input '$Name' was not exposed by native UI Automation. Controls: $($details -join '; ')"
+    }
+    try {
+        try {
+            $pattern = $control.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+            $pattern.SetValue($Value)
+            if ([string]$pattern.Current.Value -ne $Value) { throw "Training input '$Name' did not retain the requested value." }
+        }
+        catch {
+            $rangePattern = $control.GetCurrentPattern([System.Windows.Automation.RangeValuePattern]::Pattern)
+            $rangePattern.SetValue([double]$Value)
+            if ([double]$rangePattern.Current.Value -ne [double]$Value) { throw "Training input '$Name' did not retain the requested value." }
+        }
+    } catch {
+        throw "Training input '$Name' could not be set through native UI Automation: $($_.Exception.Message)"
+    }
+}
+
+function Set-NativeToggleState {
+    param(
+        [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][bool]$Enabled
+    )
+    $control = Find-NamedElementWithType -Window $Window -Names @($Name) -ControlType ([System.Windows.Automation.ControlType]::CheckBox)
+    if ($null -eq $control) {
+        $label = Find-NamedTextElement -Window $Window -Names @($Name)
+        if ($null -ne $label) {
+            $labelBounds = $label.Current.BoundingRectangle
+            $checkBoxCondition = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::CheckBox
+            )
+            $checkBoxes = $Window.FindAll([System.Windows.Automation.TreeScope]::Descendants, $checkBoxCondition)
+            $candidates = @()
+            for ($index = 0; $index -lt $checkBoxes.Count; $index++) {
+                $checkBox = $checkBoxes[$index]
+                $bounds = $checkBox.Current.BoundingRectangle
+                $verticalDelta = [Math]::Abs(($bounds.Top + $bounds.Bottom) / 2 - ($labelBounds.Top + $labelBounds.Bottom) / 2)
+                if ($checkBox.Current.IsOffscreen -or $verticalDelta -gt 24 -or $bounds.Right -gt ($labelBounds.Left + 32)) { continue }
+                $candidates += [pscustomobject]@{ Gap = [Math]::Abs($labelBounds.Left - $bounds.Right); Control = $checkBox }
+            }
+            $candidate = $candidates | Sort-Object Gap | Select-Object -First 1
+            if ($null -ne $candidate) { $control = $candidate.Control }
+        }
+    }
+    if ($null -eq $control) { throw "Training option '$Name' was not exposed by native UI Automation." }
+    $pattern = $control.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+    $isEnabled = $pattern.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On
+    if ($isEnabled -ne $Enabled) {
+        $pattern.Toggle()
+        $deadline = [DateTime]::UtcNow.AddSeconds(3)
+        do {
+            Start-Sleep -Milliseconds 100
+            try {
+                $pattern = $control.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+                $isEnabled = $pattern.Current.ToggleState -eq [System.Windows.Automation.ToggleState]::On
+            }
+            catch { continue }
+        } while ($isEnabled -ne $Enabled -and [DateTime]::UtcNow -lt $deadline)
+    }
+    if ($isEnabled -ne $Enabled) {
+        $bounds = $control.Current.BoundingRectangle
+        throw "Training option '$Name' did not retain requested state Enabled=$Enabled; observed=$isEnabled; UIA name='$($control.Current.Name)' type='$($control.Current.ControlType.ProgrammaticName)' bounds=[$([Math]::Round($bounds.Left)),$([Math]::Round($bounds.Top)),$([Math]::Round($bounds.Width)),$([Math]::Round($bounds.Height))]."
+    }
+}
+
+function Invoke-TrainingSubmitCancel {
+    if ([string]::IsNullOrWhiteSpace($TrainingDatasetName)) { throw 'TrainingDatasetName is required for TrainingSubmitCancel.' }
+    if ([string]::IsNullOrWhiteSpace($DesktopToken)) { throw 'DesktopToken is required for TrainingSubmitCancel API verification.' }
+    if ($BackendPort -lt 1 -or $BackendPort -gt 65535) { throw 'A valid BackendPort is required for TrainingSubmitCancel.' }
+
+    $baseUrl = "http://127.0.0.1:$BackendPort"
+    $webSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $cookie = New-Object System.Net.Cookie('xreport_session', $DesktopToken, '/', '127.0.0.1')
+    $webSession.Cookies.Add($cookie)
+    $headers = @{ 'X-XREPORT-Desktop-Token' = $DesktopToken }
+    $before = Invoke-RestMethod -Uri "$baseUrl/api/jobs?job_type=training" -Headers $headers -WebSession $webSession -TimeoutSec 15
+    $beforeIds = @($before.jobs | ForEach-Object { [string]$_.job_id })
+    $route = Invoke-Route -Window $window -Route 'Training' -ScreenshotRoot $screenshotRoot -Result $result
+    if (-not $route.invoked -or -not $route.heading_found) { throw 'Training route did not open before TrainingSubmitCancel.' }
+
+    $dataset = Find-NamedElementPrefix -Window $window -Prefix $TrainingDatasetName
+    if ($null -eq $dataset) { throw "Processed synthetic dataset '$TrainingDatasetName' was not present in the Training page." }
+    Invoke-NativeControl -Control $dataset -Window $window | Out-Null
+    $configure = Wait-ForNamedElement -Window $window -Names @('Configure Training')
+    if ($null -eq $configure) { throw 'Configure Training was not enabled after selecting the synthetic dataset.' }
+    Invoke-NativeControl -Control $configure -Window $window | Out-Null
+    if ($null -eq (Wait-ForNamedElement -Window $window -Names @('New Training Wizard'))) {
+        throw 'The New Training Wizard did not open from the packaged Training page.'
+    }
+
+    $trainingPage = Join-Path $screenshotRoot 'training-wizard.png'
+    Save-NativeScreenshot -Window $window -Path $trainingPage
+    $result.screenshots += [IO.Path]::GetFileName($trainingPage)
+    for ($step = 0; $step -lt 2; $step++) {
+        $next = Find-NamedElement -Window $window -Names @('Next')
+        if ($null -eq $next) { throw "Training wizard did not expose Next on configuration step $($step + 1)." }
+        Invoke-NativeControl -Control $next -Window $window | Out-Null
+    }
+    if ($null -eq (Wait-ForNamedElement -Window $window -Names @('Training Parameters'))) {
+        throw 'The Training Parameters page did not appear in the wizard.'
+    }
+    Set-NativeInputValue -Window $window -Name 'Epochs' -Value '100'
+    $next = Find-NamedElement -Window $window -Names @('Next')
+    if ($null -eq $next) { throw 'Training wizard did not expose Next before device configuration.' }
+    Invoke-NativeControl -Control $next -Window $window | Out-Null
+    Set-NativeToggleState -Window $window -Name 'Enable GPU' -Enabled ($TrainingDevice -eq 'cuda')
+    $next = Find-NamedElement -Window $window -Names @('Next')
+    if ($null -eq $next) { throw 'Training wizard did not expose Next before the summary.' }
+    Invoke-NativeControl -Control $next -Window $window | Out-Null
+    if ($null -eq (Wait-ForNamedElement -Window $window -Names @('Training Summary'))) {
+        throw 'The Training Summary page did not appear in the wizard.'
+    }
+    $summaryShot = Join-Path $screenshotRoot 'training-summary.png'
+    Save-NativeScreenshot -Window $window -Path $summaryShot
+    $result.screenshots += [IO.Path]::GetFileName($summaryShot)
+
+    $start = Find-NamedElement -Window $window -Names @('Start training')
+    if ($null -eq $start -or -not $start.Current.IsEnabled) { throw 'Start training was not enabled in the wizard summary.' }
+    Invoke-NativeControl -Control $start -Window $window | Out-Null
+    $trainingJob = $null
+    $startDeadline = [DateTime]::UtcNow.AddSeconds($TrainingCancelTimeoutSeconds)
+    do {
+        $jobs = Invoke-RestMethod -Uri "$baseUrl/api/jobs?job_type=training" -Headers $headers -WebSession $webSession -TimeoutSec 15
+        $trainingJob = @($jobs.jobs | Where-Object { [string]$_.job_id -notin $beforeIds } | Select-Object -First 1)[0]
+        if ($null -ne $trainingJob) { break }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $startDeadline)
+    if ($null -eq $trainingJob) { throw 'The Training wizard did not submit a training job.' }
+
+    $stop = $null
+    $activeDeadline = [DateTime]::UtcNow.AddSeconds($TrainingCancelTimeoutSeconds)
+    do {
+        $stop = Find-NamedElement -Window $window -Names @('Stop training')
+        if ($null -ne $stop -and $stop.Current.IsEnabled -and $trainingJob.status -in @('pending', 'running')) { break }
+        $trainingJob = Invoke-RestMethod -Uri "$baseUrl/api/jobs/$($trainingJob.job_id)" -Headers $headers -WebSession $webSession -TimeoutSec 15
+        if ($trainingJob.status -in @('failed', 'completed', 'cancelled')) { break }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $activeDeadline)
+    if ($null -eq $stop -or -not $stop.Current.IsEnabled -or $trainingJob.status -notin @('pending', 'running')) {
+        throw "Training did not reach an active UI state for cancellation: $($trainingJob | ConvertTo-Json -Compress)"
+    }
+    $activeShot = Join-Path $screenshotRoot 'training-active.png'
+    Save-NativeScreenshot -Window $window -Path $activeShot
+    $result.screenshots += [IO.Path]::GetFileName($activeShot)
+    Invoke-NativeControl -Control $stop -Window $window | Out-Null
+
+    $jobId = [string]$trainingJob.job_id
+    $deadline = [DateTime]::UtcNow.AddSeconds($TrainingCancelTimeoutSeconds)
+    do {
+        $trainingJob = Invoke-RestMethod -Uri "$baseUrl/api/jobs/$jobId" -Headers $headers -WebSession $webSession -TimeoutSec 15
+        if ($trainingJob.status -in @('completed', 'failed', 'cancelled')) { break }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $deadline)
+    $details = [ordered]@{
+        dataset = $TrainingDatasetName
+        requested_device = $TrainingDevice
+        epochs = 100
+        submitted_through_native_ui = $true
+        stop_clicked_through_native_ui = $true
+        job_id = $jobId
+        terminal_status = $trainingJob.status
+        terminal_result = $trainingJob.result
+        error = $trainingJob.error
+    }
+    $cancelShot = Join-Path $screenshotRoot 'training-cancelled.png'
+    Save-NativeScreenshot -Window $window -Path $cancelShot
+    $result.screenshots += [IO.Path]::GetFileName($cancelShot)
+    if ($trainingJob.status -ne 'cancelled') {
+        throw "Native Stop training did not produce a cancelled job: $($details | ConvertTo-Json -Compress)"
+    }
+    return $details
 }
 
 function Set-ScenarioResult {
@@ -453,8 +751,8 @@ function Invoke-SecondInstanceCheck {
     return [pscustomobject]@{ Status = 'PASS'; Error = $null }
 }
 
-$allScenarioNames = @('startup', 'routes', 'history', 'keyboard', 'modal', 'slow_readiness', 'backend_stop', 'backend_retry', 'second_instance', 'cleanup')
-$allowedScenarioNames = @('All', 'Routes', 'History', 'Keyboard', 'Modal', 'SlowReadiness', 'BackendStop', 'BackendRetry', 'SecondInstance', 'Cleanup')
+$allScenarioNames = @('startup', 'routes', 'history', 'keyboard', 'modal', 'slow_readiness', 'backend_stop', 'backend_retry', 'second_instance', 'training_submit_cancel', 'cleanup')
+$allowedScenarioNames = @('All', 'Routes', 'History', 'Keyboard', 'Modal', 'SlowReadiness', 'BackendStop', 'BackendRetry', 'SecondInstance', 'TrainingSubmitCancel', 'Cleanup')
 $scenarioValues = @($Scenario | ForEach-Object { $_ -split ',' | ForEach-Object { $_.Trim() } } | Where-Object { $_ })
 $invalidScenarioNames = @($scenarioValues | Where-Object { $_ -notin $allowedScenarioNames })
 if ($invalidScenarioNames.Count -gt 0) {
@@ -471,6 +769,7 @@ $requestedScenarios = if ($scenarioValues -contains 'All') { @($allScenarioNames
             'BackendStop' { 'backend_stop' }
             'BackendRetry' { 'backend_retry' }
             'SecondInstance' { 'second_instance' }
+            'TrainingSubmitCancel' { 'training_submit_cancel' }
             'Cleanup' { 'cleanup' }
         }
     }
@@ -701,6 +1000,16 @@ if (Test-ScenarioRequested -Name 'second_instance') {
     }
     catch {
         Set-ScenarioResult -Name 'second_instance' -Status 'FAIL' -Details @{ error = $_.Exception.Message }
+    }
+}
+
+if (Test-ScenarioRequested -Name 'training_submit_cancel') {
+    try {
+        $trainingDetails = Invoke-TrainingSubmitCancel
+        Set-ScenarioResult -Name 'training_submit_cancel' -Status 'PASS' -Details $trainingDetails
+    }
+    catch {
+        Set-ScenarioResult -Name 'training_submit_cancel' -Status 'FAIL' -Details @{ error = $_.Exception.Message }
     }
 }
 
