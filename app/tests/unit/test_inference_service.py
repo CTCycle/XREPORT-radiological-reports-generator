@@ -14,6 +14,7 @@ from server.configurations import ServerSettings
 from server.services.errors import ConflictError
 from server.services.inference import InferenceImageStore, InferenceService
 from server.services.inference_catalog import InferenceModelCatalog
+from server.services.inference_runtime import InferenceRuntimeCoordinator
 from server.services.jobs import JobManager
 from server.services.model_installation import ModelInstallationManager
 
@@ -171,6 +172,7 @@ def test_generation_allows_a_ready_gated_public_model() -> None:
         ),
         model_catalog=catalog,
         installation_manager=cast(ModelInstallationManager, MagicMock()),
+        runtime=cast(InferenceRuntimeCoordinator, MagicMock()),
         repository=MagicMock(),
     )
 

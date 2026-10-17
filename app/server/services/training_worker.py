@@ -522,7 +522,10 @@ def process_target(
 ) -> None:
     try:
         if os.name != "nt":
-            os.setsid()
+            try:
+                os.setsid()
+            except OSError:
+                pass
         worker.report_lifecycle("child_started", target=getattr(target, "__name__", "target"))
         worker.report_lifecycle(
             "target_started",
