@@ -51,9 +51,29 @@ foreach ($relative in @('models\XRAYEncoder', 'models\tokenizers')) {
     }
 }
 
-$validationRootPrefix = ([IO.Path]::GetFullPath((Join-Path $repoRoot 'runtimes\cache'))).TrimEnd('\') + '\'
-if (-not $ValidationRoot.StartsWith($validationRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "ValidationRoot must remain under the repository runtimes/cache directory: $ValidationRoot"
+$validationRootPrefixes = @()
+$validationRootPrefixes += ([IO.Path]::GetFullPath((Join-Path $repoRoot 'runtimes\cache'))).TrimEnd('\') + '\'
+try {
+    $currentUserSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $profileKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$currentUserSid"
+    $currentUserProfile = [Environment]::ExpandEnvironmentVariables([string](Get-ItemProperty -LiteralPath $profileKey -ErrorAction Stop).ProfileImagePath)
+    $currentUserLocalAppData = Join-Path $currentUserProfile 'AppData\Local'
+    $validationRootPrefixes += ([IO.Path]::GetFullPath((Join-Path $currentUserLocalAppData 'xreport-release-validation'))).TrimEnd('\') + '\'
+} catch {
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $validationRootPrefixes += ([IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'xreport-release-validation'))).TrimEnd('\') + '\'
+    }
+}
+$validationRootAllowed = $false
+foreach ($validationRootPrefix in $validationRootPrefixes) {
+    $rootPrefixMatches = $ValidationRoot.StartsWith($validationRootPrefix, [StringComparison]::OrdinalIgnoreCase)
+    if ($rootPrefixMatches) {
+        $validationRootAllowed = $true
+        break
+    }
+}
+if (-not $validationRootAllowed) {
+    throw "ValidationRoot must remain under the repository runtimes/cache directory or the current user's task-specific local-app-data validation directory: $ValidationRoot"
 }
 if (Test-Path -LiteralPath $ValidationRoot) {
     throw "ValidationRoot already exists; use a new task-owned path: $ValidationRoot"
@@ -226,7 +246,11 @@ function Find-PackagedWindowProcess {
             $candidate = Get-Process -Id $id -ErrorAction SilentlyContinue
             if ($null -eq $candidate) { continue }
             $candidate.Refresh()
-            if ($candidate.MainWindowHandle -ne 0 -and $candidate.MainWindowTitle -match '(?i)XREPORT.*Radiological Reports') {
+            $candidatePath = [string]$candidate.Path
+            if ($candidate.MainWindowHandle -ne 0 -and (
+                $candidate.MainWindowTitle -match '(?i)XREPORT.*Radiological Reports' -or
+                [string]::Equals($candidatePath, $packagedExecutable, [StringComparison]::OrdinalIgnoreCase)
+            )) {
                 return $candidate
             }
         }
@@ -300,6 +324,8 @@ try {
             '-NoProfile', '-File', $nativeScript,
             '-Output', $nativeOutputPath,
             '-Scenario', 'Routes,TrainingSubmitCancel',
+            '-StartupUiReadyTimeoutSeconds', '90',
+            '-WindowProcessId', [string]$script:process.Id,
             '-BackendPort', [string]$port,
             '-DesktopToken', $desktopToken,
             '-TrainingDatasetName', $processedName,
