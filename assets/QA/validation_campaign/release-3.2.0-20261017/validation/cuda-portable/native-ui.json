@@ -1,15 +1,26 @@
 {
   "format": 2,
-  "observed_utc": "2026-10-17T17:57:48.642945Z",
-  "process_id": 11244,
-  "window_title": "XREPORT â€” Radiological Reports (CPU)",
-  "native_window_handle": 5311440,
+  "observed_utc": "2026-10-17T19:06:17.3495546Z",
+  "process_id": 35252,
+  "window_title": "XREPORT — Radiological Reports (CUDA)",
+  "native_window_handle": 4326634,
   "requested_scenarios": [
     "routes",
     "training_submit_cancel"
   ],
   "screenshots": [
-    "training-wizard.png"
+    "startup.png",
+    "inference.png",
+    "dataset.png",
+    "training.png",
+    "reports.png",
+    "settings.png",
+    "help.png",
+    "training.png",
+    "training-wizard.png",
+    "training-summary.png",
+    "training-active.png",
+    "training-cancelled.png"
   ],
   "routes": [
     {
@@ -19,6 +30,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "inference.png",
       "error": null
     },
     {
@@ -28,6 +40,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "dataset.png",
       "error": null
     },
     {
@@ -37,6 +50,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "training.png",
       "error": null
     },
     {
@@ -46,6 +60,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "reports.png",
       "error": null
     },
     {
@@ -55,6 +70,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "settings.png",
       "error": null
     },
     {
@@ -64,6 +80,7 @@
       "invoke_method": "mouse_click",
       "retry_count": 0,
       "heading_found": false,
+      "screenshot": "help.png",
       "error": null
     },
     {
@@ -73,6 +90,7 @@
       "invoke_method": "invoke_pattern",
       "retry_count": 0,
       "heading_found": true,
+      "screenshot": "training.png",
       "error": null
     }
   ],
@@ -118,12 +136,12 @@
     "training_submit_cancel": {
       "id": "training_submit_cancel",
       "status": "PASS",
-      "dataset": "s51-packaged-2996-processed",
-      "requested_device": "cpu",
+      "dataset": "s51-packaged-7236-processed",
+      "requested_device": "cuda",
       "epochs": 100,
       "submitted_through_native_ui": true,
       "stop_clicked_through_native_ui": true,
-      "job_id": "82cc3025",
+      "job_id": "9cf114ce",
       "terminal_status": "cancelled",
       "terminal_result": {
         "current_epoch": 0,
@@ -137,13 +155,14 @@
         "worker_phase": "worker_cancelled",
         "worker_phase_status": "cancelled",
         "worker_phase_elapsed_seconds": 0.0,
-        "worker_elapsed_seconds": 7.89,
-        "worker_pid": 9520,
+        "worker_elapsed_seconds": 7.085,
+        "worker_pid": 9476,
         "chart_data": [],
         "epoch_boundaries": [],
         "available_metrics": []
       },
-      "error": null
+      "error": null,
+      "training_log_feedback": "Training job started (9cf114ce).\nTraining cancelled."
     },
     "cleanup": {
       "id": "cleanup",
@@ -176,13 +195,13 @@
     "Select a processed dataset to configure your next run.",
     "Collapse new training session",
     "Refresh datasets",
-    "s51-packaged-2996-processed 8 rows",
+    "s51-packaged-7236-processed 8 rows",
     "Show dataset metadata",
     "Delete dataset",
     "Initialize Training",
     "Launch the configuration wizard to set up your training run.",
     "Selected Dataset",
-    "s51-packaged-2996-processed",
+    "s51-packaged-7236-processed",
     "Samples",
     "8",
     "Configure Training",
@@ -202,7 +221,7 @@
     "Evaluate Model",
     "Training Dashboard",
     "LIVE SESSION",
-    "Failed",
+    "Idle",
     "EPOCH",
     "0 / 100",
     "TRAIN LOSS",
@@ -220,12 +239,11 @@
     "CURRENT PHASE",
     "Worker cancelled",
     "0s in phase",
-    "Training cancelled",
     "LOSS",
     "Waiting for training data...",
     "ACCURACY",
     "TRAINING LOG",
-    "Training job started (82cc3025).\nTraining cancelled: Unknown error"
+    "Training job started (9cf114ce).\nTraining cancelled."
   ],
   "passed": true,
   "required_scenarios": [

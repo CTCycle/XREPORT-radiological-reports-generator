@@ -43,6 +43,10 @@ public static class XReportNativeWindowCapture {
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")]
+    public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
 }
 '@
 }
@@ -111,13 +115,25 @@ function Find-NativeWindow {
     return [pscustomobject]@{ Process = $process; Element = $element }
 }
 
+function Ensure-NativeWindowForeground {
+    param([Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window)
+    $windowHandle = [IntPtr]$Window.Current.NativeWindowHandle
+    [void][XReportNativeWindowCapture]::SetForegroundWindow($windowHandle)
+    try { $Window.SetFocus() } catch { }
+    Start-Sleep -Milliseconds 150
+    if ([XReportNativeWindowCapture]::GetForegroundWindow() -ne $windowHandle) {
+        throw 'Refusing native UI interaction while another window covers XREPORT.'
+    }
+}
+
 function Save-NativeScreenshot {
     param(
         [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
         [Parameter(Mandatory = $true)][string]$Path
     )
+    $windowHandle = [IntPtr]$Window.Current.NativeWindowHandle
     $rect = New-Object XReportNativeWindowCapture+RECT
-    if (-not [XReportNativeWindowCapture]::GetWindowRect($Window.Current.NativeWindowHandle, [ref]$rect)) {
+    if (-not [XReportNativeWindowCapture]::GetWindowRect($windowHandle, [ref]$rect)) {
         throw 'GetWindowRect failed for the native XREPORT window.'
     }
     $width = $rect.Right - $rect.Left
@@ -126,7 +142,17 @@ function Save-NativeScreenshot {
     $bitmap = New-Object System.Drawing.Bitmap($width, $height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     try {
-        $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+        $captured = $false
+        foreach ($flags in @(2, 0)) {
+            $hdc = $graphics.GetHdc()
+            try { $captured = [XReportNativeWindowCapture]::PrintWindow($windowHandle, $hdc, [uint32]$flags) }
+            finally { $graphics.ReleaseHdc($hdc) }
+            if ($captured) { break }
+        }
+        if (-not $captured) {
+            Ensure-NativeWindowForeground -Window $Window
+            $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, $bitmap.Size)
+        }
         $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
     } finally {
         $graphics.Dispose()
@@ -139,19 +165,32 @@ function Find-RouteControl {
         [Parameter(Mandatory = $true)][System.Windows.Automation.AutomationElement]$Window,
         [Parameter(Mandatory = $true)][string]$Route
     )
-    $candidateNames = if ($Route -eq 'Help') { @('Help', 'Help and tips') } else { @($Route) }
+    $candidateNames = if ($Route -eq 'Help') { @('Help and tips', 'Help') } else { @($Route) }
+    $fallback = $null
     foreach ($candidateName in $candidateNames) {
         $condition = New-Object System.Windows.Automation.PropertyCondition(
             [System.Windows.Automation.AutomationElement]::NameProperty,
             $candidateName
         )
-        $control = $Window.FindFirst(
+        $controls = $Window.FindAll(
             [System.Windows.Automation.TreeScope]::Descendants,
             $condition
         )
-        if ($null -ne $control) { return $control }
+        for ($index = 0; $index -lt $controls.Count; $index++) {
+            $control = $controls[$index]
+            if ($control.Current.IsOffscreen -or -not $control.Current.IsEnabled) { continue }
+            if ($null -eq $fallback) { $fallback = $control }
+            try {
+                $null = $control.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                return $control
+            } catch { }
+            try {
+                $legacy = $control.GetCurrentPattern([System.Windows.Automation.LegacyIAccessiblePattern]::Pattern)
+                if (-not [string]::IsNullOrWhiteSpace($legacy.Current.DefaultAction)) { return $control }
+            } catch { }
+        }
     }
-    return $null
+    return $fallback
 }
 
 function Invoke-NativeControl {
@@ -164,11 +203,18 @@ function Invoke-NativeControl {
         $pattern.Invoke()
         return 'invoke_pattern'
     } catch {
+        try {
+            $legacy = $Control.GetCurrentPattern([System.Windows.Automation.LegacyIAccessiblePattern]::Pattern)
+            if (-not [string]::IsNullOrWhiteSpace($legacy.Current.DefaultAction)) {
+                $legacy.DoDefaultAction()
+                return 'legacy_default_action'
+            }
+        } catch { }
         $bounds = $Control.Current.BoundingRectangle
         if ($bounds.Width -le 0 -or $bounds.Height -le 0) {
             throw "Native control is not invokable and has no usable bounds: $($Control.Current.Name)"
         }
-        [XReportNativeWindowCapture]::SetForegroundWindow($Window.Current.NativeWindowHandle) | Out-Null
+        Ensure-NativeWindowForeground -Window $Window
         $x = [int][Math]::Round($bounds.Left + ($bounds.Width / 2))
         $y = [int][Math]::Round($bounds.Top + ($bounds.Height / 2))
         [XReportNativeMouse]::Click($x, $y)
@@ -290,7 +336,7 @@ function Send-NativeKey {
         [Parameter(Mandatory = $true)][int]$VirtualKey,
         [int]$Modifier = 0
     )
-    [XReportNativeWindowCapture]::SetForegroundWindow($Window.Current.NativeWindowHandle) | Out-Null
+    Ensure-NativeWindowForeground -Window $Window
     [XReportNativeKeyboard]::Press([uint16]$VirtualKey, [uint16]$Modifier)
 }
 
@@ -382,9 +428,14 @@ function Invoke-Route {
         $routeResult.screenshot = [IO.Path]::GetFileName($screenshot)
         $Result.screenshots += [IO.Path]::GetFileName($screenshot)
         if ($Route -eq 'Help') {
-            Send-NativeKey -Window $Window -VirtualKey 0x1B
+            $close = Find-NamedElement -Window $Window -Names @('Close', 'Close Tips and Tricks')
+            if ($null -ne $close) {
+                Invoke-NativeControl -Control $close -Window $Window | Out-Null
+            } else {
+                Send-NativeKey -Window $Window -VirtualKey 0x1B
+            }
             if (-not (Wait-ForNameToDisappear -Window $Window -Names @('Tips & Tricks', 'Close Tips and Tricks'))) {
-                throw 'Help dialog did not close after Escape.'
+                throw 'Tips & Tricks dialog did not close through its Close control.'
             }
         }
     }
@@ -592,6 +643,8 @@ function Invoke-TrainingSubmitCancel {
         throw 'The New Training Wizard did not open from the packaged Training page.'
     }
 
+    # Let WebView2 finish compositing the modal before capturing the native window.
+    Start-Sleep -Milliseconds 500
     $trainingPage = Join-Path $screenshotRoot 'training-wizard.png'
     Save-NativeScreenshot -Window $window -Path $trainingPage
     $result.screenshots += [IO.Path]::GetFileName($trainingPage)
@@ -666,12 +719,35 @@ function Invoke-TrainingSubmitCancel {
         terminal_result = $trainingJob.result
         error = $trainingJob.error
     }
-    $cancelShot = Join-Path $screenshotRoot 'training-cancelled.png'
-    Save-NativeScreenshot -Window $window -Path $cancelShot
-    $result.screenshots += [IO.Path]::GetFileName($cancelShot)
     if ($trainingJob.status -ne 'cancelled') {
         throw "Native Stop training did not produce a cancelled job: $($details | ConvertTo-Json -Compress)"
     }
+    $feedbackDeadline = [DateTime]::UtcNow.AddSeconds(8)
+    $feedbackText = $null
+    do {
+        $feedbackText = @(
+            Get-AccessibleNames -Window $window |
+                Where-Object { $_ -like '*Training cancelled.*' } |
+                Select-Object -First 1
+        )[0]
+        if (-not [string]::IsNullOrWhiteSpace($feedbackText)) { break }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $feedbackDeadline)
+    if ([string]::IsNullOrWhiteSpace($feedbackText)) {
+        throw 'Training was cancelled, but the native Training log did not show the normal cancellation message.'
+    }
+    $feedbackElement = Find-NamedElementPrefix -Window $window -Prefix 'Training cancelled.'
+    if ($null -ne $feedbackElement) {
+        try {
+            $scrollPattern = $feedbackElement.GetCurrentPattern([System.Windows.Automation.ScrollItemPattern]::Pattern)
+            $scrollPattern.ScrollIntoView()
+        } catch { }
+        try { $feedbackElement.SetFocus() } catch { }
+    }
+    $details.training_log_feedback = $feedbackText
+    $cancelShot = Join-Path $screenshotRoot 'training-cancelled.png'
+    Save-NativeScreenshot -Window $window -Path $cancelShot
+    $result.screenshots += [IO.Path]::GetFileName($cancelShot)
     return $details
 }
 
@@ -837,7 +913,7 @@ else {
 
 if (Test-ScenarioRequested -Name 'routes') {
     foreach ($route in $Routes) { Invoke-Route -Window $window -Route $route -ScreenshotRoot $screenshotRoot -Result $result | Out-Null }
-    $failedRoutes = @($result.routes | Where-Object { -not $_.invoked -or ($_.route -ne 'Help' -and -not $_.heading_found) -or [string]::IsNullOrWhiteSpace($_.screenshot) })
+    $failedRoutes = @($result.routes | Where-Object { -not $_.invoked -or ($_.route -ne 'Help' -and -not $_.heading_found) -or -not [string]::IsNullOrWhiteSpace($_.error) -or [string]::IsNullOrWhiteSpace($_.screenshot) })
     if ($failedRoutes.Count -eq 0) {
         Set-ScenarioResult -Name 'routes' -Status 'PASS' -Details @{ route_count = $Routes.Count }
     }
