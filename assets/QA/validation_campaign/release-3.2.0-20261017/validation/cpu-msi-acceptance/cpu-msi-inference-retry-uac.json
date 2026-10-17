@@ -1,0 +1,32 @@
+{
+  "msi_filename": "XREPORT-v3.2.0-windows-x64-cpu.msi",
+  "variant": "cpu",
+  "purpose": "Reinstall the exact MSI to run CPU MSI inference after the previous install, native UI, Training/cancellation, close/reopen, and uninstall checks passed.",
+  "package_kind": "msi",
+  "observed_utc": "2026-10-17T20:35:01Z",
+  "prior_acceptance": {
+    "uninstall_log": "cpu-msi-uninstall.log",
+    "training_close_reopen": "training-close-reopen.json",
+    "native_ui": "native-ui.json",
+    "install_log": "../cpu-msi-install.log"
+  },
+  "retry": {
+    "uac_outcome": "operation_cancelled_by_user",
+    "error": "Start-Process reported: Operation cancelled by user.",
+    "install_log_created": false,
+    "status": "BLOCKED",
+    "registry_entry_present": false,
+    "install_started": false
+  },
+  "validation_host": {
+    "uac_prompt_presented": true,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU"
+  },
+  "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
+  "package_run_id": "39056753392",
+  "inference_status": "NOT_RUN",
+  "schema_version": "xreport-release-msi-attempt-v1",
+  "passed": false,
+  "version": "3.2.0",
+  "msi_sha256": "557e2a421bcd62dfad5ffa03f5f9b7e8efbd5ccfdc70a646ad2a8c00796177c1"
+}
