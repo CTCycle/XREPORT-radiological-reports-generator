@@ -3,13 +3,13 @@
   "status": "approved",
   "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
   "version": "3.2.0",
-  "validation_record": "assets/QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md",
+  "validation_record": "assets/docs/validation_campaign_ledger.md",
   "approval": {
     "decision": "approved",
     "approved_by": "CTCycle",
     "approved_at_utc": "2026-10-17T20:55:04Z",
     "invalidated_at_utc": null,
-    "reason": "Run 39028661915 is superseded. Exact CPU/CUDA portable and MSI package artifacts from run 39056753392 are hash-verified. Both MSI install/UI/Training/close/reopen/uninstall lifecycles passed on the RTX 3060 host, and CPU/CUDA MSI inference passed with CPU and CUDA provenance respectively. The post-inference CPU MSI uninstall prompt was canceled at UAC twice; the same package's earlier successful lifecycle uninstall is recorded, and no app process or listener remains, although the MSI remains installed on the validation host. No GPU-less host is available; CUDA fallback remains untested by user direction and is not a primary release blocker. S42 and S51 remain partial."
+    "reason": "Approved on 2026-10-17 for the exact CPU/CUDA artifacts from run 39056753392 after hash verification, MSI lifecycle acceptance, and synthetic CPU/CUDA inference on the RTX 3060 host. At approval the post-inference CPU MSI remained installed after two UAC cancellations; the final authorized uninstall on 2026-10-18 returned exit code 0 and left no XREPORT registration, install tree, shortcut, process, or listener. No GPU-less host was available, so CUDA fallback remains untested and S42/S51 remain partial."
   },
   "artifacts": {
     "XREPORT-v3.2.0-windows-x64-cpu-portable.exe": "288916fcc51d791c4319799e937e92e795a8c8776a98295996003e0c656894c0",
