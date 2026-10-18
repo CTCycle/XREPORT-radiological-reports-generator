@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-10-02
+Last updated: 2026-10-18
 
 ## Deployment Scope
 
@@ -70,11 +70,13 @@ executables through the packaged startup smoke test:
 ```
 
 The smoke command uses a short temporary profile by default and writes its
-summary reports under `assets/QA/desktop/`. If `-DataRoot` is supplied for
-preserved runtime evidence, use a short path: a deeply nested repository path
-can exceed the Windows DLL loader's effective path limit for native frozen
-extensions such as `regex._regex`, causing a test-harness startup failure even
-though the same artifact starts correctly under a normal user profile.
+working reports under `assets/QA/desktop/`. Record the scoped result and any
+remaining limit in the campaign ledger; do not retain duplicate receipt files
+in the tracked tree. If `-DataRoot` is supplied for preserved runtime evidence,
+use a short path: a deeply nested repository path can exceed the Windows DLL
+loader's effective path limit for native frozen extensions such as
+`regex._regex`, causing a test-harness startup failure even though the same
+artifact starts correctly under a normal user profile.
 
 The shell extracts atomically to
 `%LOCALAPPDATA%\XREPORT\runtime\<variant>\<version>\<payload-sha256>`. The
@@ -96,20 +98,3 @@ maintained system WebView2 runtime. MSI packages are per-machine products with
 mode by default. The tagged `desktop-release.yml` workflow publishes the
 verified CPU/CUDA portable, MSI, checksum, and build-metadata files to the
 matching GitHub Release. Signing is deliberately absent.
-
-## DILIGENT reference comparison
-
-XREPORT follows the useful DILIGENT pattern of a frozen backend, verified
-runtime extraction, data-root separation, and Windows Job Object. It adds the
-controls that the reference implementation still lacks: a common CPU/CUDA
-single-instance mutex, splash-before-startup plus actionable failure UI,
-authenticated loopback traffic and backend CSP headers, an HTTPS-only external
-navigation allowlist, graceful shutdown with a crash watchdog, streamed ZIP64
-bundling, exact artifact selection, and standard checksum manifests. These
-corrections should also be applied to DILIGENT: its fixed readiness/log files
-race on a second launch; the splash is created after a blocking wait; localhost
-HTTP lacks equivalent authentication/security headers; rejected arbitrary
-schemes are handed to the OS opener; shutdown is force-only; the bundler reads
-large files into memory; and release publication can select an arbitrary EXE,
-uses size-only MSI validation, duplicates frontend build work, and writes
-nonstandard checksum labels. The DILIGENT checkout was not modified.

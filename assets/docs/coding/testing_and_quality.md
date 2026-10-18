@@ -46,13 +46,15 @@ proves the Angular startup/recovery shell. Do not advance to feature workflows
 while S00 remains red on the current revision, even when a different operating
 system passes locally.
 
-Every executed slice must record the exact revision, dirty-tree state,
-environment, scenarios, result, regressions, and issue references in a compact
-durable summary under `assets/QA/validation_campaign/`. Bulky captures
-(screenshots, logs, raw receipts, fixtures) are not tracked; keep them local and
-recoverable from Git history where they were once committed. A passing unit or
-build gate does not promote a feature workflow to end-to-end `VALIDATED`; the
-workflow must also be exercised and observed at the appropriate boundary.
+When validation changes a status or establishes an important limit, update the
+existing [campaign ledger](../validation_campaign_ledger.md) or
+[status ledger](../project_status_ledger.md) with the source revision, scope,
+result, and remaining boundary. Link the relevant test, CI run, or required
+release manifest; do not create a standalone summary for every slice. Keep
+screenshots, logs, and working receipts under `assets/QA/`. Track only files
+required by project tooling; the approved release manifest is required by the
+release verifier. A passing unit or build gate does not promote a feature
+workflow to end-to-end `VALIDATED`; observe it at the appropriate boundary.
 
 Use repository-local disposable state for the campaign:
 
