@@ -74,9 +74,9 @@ Startup validation is the Tier 0 foundation of the campaign in
   startup gate for an ordinary API error.
 
 The acceptance boundary is rendered behavior plus backend evidence, not merely
-an HTTP 200 from the preview server. Keep the compact slice summary under
-`assets/QA/validation_campaign/` when the result is intended to be reused by
-another checkout; bulky captures stay local and are not tracked.
+an HTTP 200 from the preview server. Save captures under `assets/QA/`, then
+record the result, source revision, scope, and remaining limits in the existing
+campaign or status ledger. Do not add a separate summary file for each slice.
 
 Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
 frontend dependencies as needed, rebuild the Angular client, and leave backend

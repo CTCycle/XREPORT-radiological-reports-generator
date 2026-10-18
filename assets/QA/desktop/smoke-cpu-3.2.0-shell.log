@@ -1,5 +1,0 @@
-startup phase=runtime_ready cache_hit=false phase_elapsed_ms=18871 total_elapsed_ms=18871
-startup phase=backend_launching variant=cpu version=3.2.0 total_elapsed_ms=18874
-startup phase=backend_spawned pid=14176 total_elapsed_ms=20189
-startup phase=backend_ready port=52367 total_elapsed_ms=26478
-backend stopped elapsed_ms=707

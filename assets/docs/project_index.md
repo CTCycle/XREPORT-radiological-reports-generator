@@ -8,7 +8,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 1. Start with this file only.
 2. Read `project_status_ledger.md` before substantial implementation or validation work to understand current operational state, active issues, and validation debt.
-3. Read `validation_campaign_ledger.md` when planning or executing a validation slice, or when interpreting QA evidence.
+3. Read `validation_campaign_ledger.md` for current gate outcomes, release evidence, and validation limits.
 4. Identify the topic area that matches the task.
 5. Open the smallest leaf file that covers the needed detail.
 6. Open sibling files only when the task clearly crosses topic boundaries.
@@ -27,9 +27,9 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `project_index.md`
   - Documentation index, navigation rules, and environment guidance.
 - `project_status_ledger.md`
-  - Canonical current operational status, evidence summary, open issues, resolved findings, and validation debt.
+  - Canonical current operational status, active issues, and known validation limits.
 - `validation_campaign_ledger.md`
-  - Subordinate slice ledger for the long-term validation campaign: hard-gate order, slice status, evidence policy, and release-validation records.
+  - Compact validation gate map, current release evidence, and campaign-wide limits.
 
 ### Architecture
 
@@ -41,8 +41,6 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
   - Domain, service, repository, provider, job model, service composition, and async versus sync behavior.
 - `architecture/persistence.md`
   - Database mode selection, schema compatibility checks, entity ownership, constraints, and artifact locations.
-- `architecture/architecture_review.md`
-  - Findings, implementation status, deferred migration work, and validation evidence from the architecture review.
 
 ### Coding
 
@@ -90,7 +88,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 1. Read `project_index.md`.
 2. Read `project_status_ledger.md` when the task involves implementation, debugging, release, or validation.
-3. Read `validation_campaign_ledger.md` for validation work and use its slice IDs to select evidence.
+3. Read `validation_campaign_ledger.md` for current gate outcomes and follow its links to the relevant tests or topic documents.
 4. Open the smallest leaf file that answers the question.
 5. Expand to adjacent files only when the task crosses topic boundaries.
 6. Return here before jumping to a different topic branch.
@@ -101,9 +99,9 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Defer reading until the task proves the file is needed.
 - Keep affected docs updated whenever implementation changes alter behavior.
 - Keep `project_status_ledger.md` synchronized after implementation, regression discovery, meaningful validation, blocker changes, or issue resolution and revalidation.
-- Keep `validation_campaign_ledger.md` synchronized after each executed slice; it must preserve the distinction between implementation, automated coverage, exercised behavior, and observed outcome.
-- Treat the ledger as the canonical current-state summary; keep architecture documents authoritative for structure and contracts, slice summaries and release-gate receipts authoritative for detailed evidence, and implementation plans authoritative for intended work.
-- Keep bulky QA captures out of the tracked tree. Tracked evidence is limited to compact durable records (per-slice summaries, the approved release manifest, and desktop gate receipts); see the Evidence Policy in `validation_campaign_ledger.md`.
+- Update `validation_campaign_ledger.md` when a gate outcome or scope limit changes. Keep implementation, automated coverage, exercised behavior, and observed outcome distinct without appending a per-run history.
+- Treat `project_status_ledger.md` as the canonical current-state summary and architecture/topic documents as the authority for structure and contracts. The validation ledger records current gate outcomes and important limits; it is not a second run history.
+- Store QA captures and working reports under `assets/QA/`. Keep useful outcomes in the existing ledgers and topic documents instead of adding per-slice summary files. Track a QA artifact only when a project tool requires it; the approved release manifest is one such input.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select relevant docs from folder structure and user intent before opening more files.
 

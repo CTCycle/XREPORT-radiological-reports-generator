@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-02
+Last updated: 2026-10-18
 
 ## Primary Commands
 
@@ -93,9 +93,12 @@ $env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
 app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/e2e/test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health -q --basetemp runtimes/cache/pytest-tmp/tier0-s02 -o "cache_dir=runtimes/cache/pytest"
 ```
 
-Durable campaign summaries belong under `assets/QA/validation_campaign/`;
-transient caches, server logs, and generated bundles remain under
-`runtimes/cache` unless a slice summary explicitly promotes them to evidence.
+Store QA screenshots, logs, and working reports under `assets/QA/`. Record the
+result, source revision, scope, and remaining limit in the existing status or
+campaign ledger instead of adding a separate summary for each slice. Track an
+artifact only when project tooling requires it; the approved release manifest
+is the current example. Disposable caches and generated bundles belong under
+`runtimes/cache`.
 
 ### Development cache locations
 
