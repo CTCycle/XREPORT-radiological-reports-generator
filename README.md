@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator.svg)](LICENSE)
 [![CI](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml)
 
-Last updated: 2026-10-01
+Last updated: 2026-10-18
 
 ## 1. What XREPORT is
 
