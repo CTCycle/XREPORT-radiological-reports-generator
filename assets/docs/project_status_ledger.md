@@ -110,8 +110,10 @@ form of evidence exists for the stated scope.
   inference on both CPU and CUDA. CUDA executed on `cuda:0`; CPU ran with CUDA
   unavailable. Exact CPU and CUDA MSI install, native UI/Training, close/reopen,
   uninstall, and inference checks passed on the RTX 3060. A post-inference CPU
-  MSI uninstall retry was canceled at UAC; the package remains installed on the
-  validation host, with no app process or listener. No GPU-less Windows host is
+  MSI uninstall prompts were canceled twice, and a separate post-publication
+  cleanup attempt was canceled at UAC on 2026-10-18; the package remains
+  installed on the validation host, with no app process or listener. No
+  GPU-less Windows host is
   available; CUDA fallback remains untested by user direction and is not a
   primary release blocker. S42 and S51 remain `PARTIAL`. See the
   [release-3.2.0-20261017
