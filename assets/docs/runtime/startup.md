@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-02
+Last updated: 2026-10-18
 
 ## Windows Local Launcher
 
@@ -74,9 +74,9 @@ Startup validation is the Tier 0 foundation of the campaign in
   startup gate for an ordinary API error.
 
 The acceptance boundary is rendered behavior plus backend evidence, not merely
-an HTTP 200 from the preview server. Keep the slice summary and screenshots in
-the tracked campaign evidence directory when the result is intended to be
-reused by another checkout.
+an HTTP 200 from the preview server. Keep the compact slice summary under
+`assets/QA/validation_campaign/` when the result is intended to be reused by
+another checkout; bulky captures stay local and are not tracked.
 
 Choose **Rebuild frontend only** to prepare the portable Node.js runtime and
 frontend dependencies as needed, rebuild the Angular client, and leave backend
