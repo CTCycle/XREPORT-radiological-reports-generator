@@ -7,7 +7,6 @@ import pytest
 from server.services import training as training_module
 from server.services.jobs import JobExecutionError
 
-
 ###############################################################################
 class _Clock:
 
@@ -20,7 +19,6 @@ class _Clock:
         current = self.value
         self.value += 1.0
         return current
-
 
 ###############################################################################
 class _StalledWorker:
@@ -73,7 +71,6 @@ class _StalledWorker:
         del timeout
         return None
 
-
 ###############################################################################
 def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
@@ -96,7 +93,6 @@ def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
         is None
     )
 
-
 ###############################################################################
 def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
@@ -118,7 +114,6 @@ def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
         )
         == "worker_phase_timeout"
     )
-
 
 ###############################################################################
 def test_monitor_terminates_stalled_worker_with_typed_failure(
