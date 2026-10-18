@@ -19,23 +19,19 @@ from server.services.training_worker import (
     process_target,
 )
 
-
 ###############################################################################
 def _child_reports_success(*, worker: WorkerChannels) -> None:
     worker.report_lifecycle("test_phase")
     worker.report_result({"result": {"completed": True}})
-
 
 ###############################################################################
 def _raise_from_child(*, worker: WorkerChannels) -> None:
     del worker
     raise ValueError("child exploded")
 
-
 ###############################################################################
 def _set_stop_event(*, worker: WorkerChannels) -> None:
     worker.stop_event.set()
-
 
 ###############################################################################
 def test_child_failure_reports_lifecycle_and_traceback() -> None:
@@ -70,7 +66,6 @@ def test_child_failure_reports_lifecycle_and_traceback() -> None:
     assert diagnostic["message"] == "child exploded"  # type: ignore[index]
     assert "ValueError: child exploded" in diagnostic["traceback"]  # type: ignore[index]
 
-
 ###############################################################################
 def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue()
@@ -96,7 +91,6 @@ def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     ]
     assert result_queue.empty()
 
-
 ###############################################################################
 def test_plot_pressure_does_not_discard_critical_progress() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue(maxsize=2)
@@ -111,7 +105,6 @@ def test_plot_pressure_does_not_discard_critical_progress() -> None:
         "training_plot",
         "training_update",
     }
-
 
 ###############################################################################
 def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
@@ -132,7 +125,6 @@ def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
     assert message["phase"] == "model_loading_started"
     assert message["elapsed_seconds"] >= 0
     assert message["phase_elapsed_seconds"] == 0.0
-
 
 ###############################################################################
 def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
@@ -161,7 +153,6 @@ def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
         "epoch_completed",
     ]
     assert any(message.get("type") == "training_update" for message in messages)
-
 
 ###############################################################################
 def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> None:
@@ -200,7 +191,6 @@ def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> No
             worker.join(timeout=2.0)
         worker.cleanup()
 
-
 ###############################################################################
 class ExitedWorker:
     exitcode = 7
@@ -210,7 +200,6 @@ class ExitedWorker:
     def read_result(self, timeout: float = 0.5) -> None:
         del timeout
         return None
-
 
 ###############################################################################
 def test_non_zero_worker_exit_is_typed_and_recorded(
@@ -243,7 +232,6 @@ def test_non_zero_worker_exit_is_typed_and_recorded(
             }
         },
     )
-
 
 ###############################################################################
 def test_reported_child_failure_keeps_diagnostics(
@@ -295,7 +283,6 @@ def test_reported_child_failure_keeps_diagnostics(
         },
     )
 
-
 ###############################################################################
 def test_normal_worker_result_is_returned_unchanged(
     monkeypatch: pytest.MonkeyPatch,
@@ -323,7 +310,6 @@ def test_normal_worker_result_is_returned_unchanged(
     assert result == {"checkpoint_path": "checkpoint-a"}
     manager.update_result.assert_not_called()
 
-
 ###############################################################################
 def test_missing_result_payload_is_a_typed_failure(
     monkeypatch: pytest.MonkeyPatch,
@@ -350,7 +336,6 @@ def test_missing_result_payload_is_a_typed_failure(
         training_module.read_worker_result("job-missing", MissingResultWorker())  # type: ignore[arg-type]
 
     assert raised.value.code == "training_worker_missing_result"
-
 
 ###############################################################################
 def test_zero_exit_empty_result_is_not_success(

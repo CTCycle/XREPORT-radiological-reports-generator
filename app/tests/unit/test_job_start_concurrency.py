@@ -143,7 +143,6 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running("training")
 
-
 ###############################################################################
 def test_initial_result_is_visible_before_runner_starts() -> None:
     manager = JobManager()
