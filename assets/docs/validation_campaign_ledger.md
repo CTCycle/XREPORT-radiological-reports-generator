@@ -83,8 +83,10 @@ The dependency chain is:
   verification and GPU-host native UI, Training submit/cancel, and cleanup;
   portable inference passed for both variants and CPU/CUDA MSI inference passed.
   CPU and CUDA MSI install/UI/Training/close/reopen/uninstall checks passed.
-  A post-inference CPU MSI uninstall retry was canceled at UAC; the exact MSI
-  remains installed on the validation host, with no app process or listener.
+  The post-inference CPU MSI uninstall prompts were canceled twice, and a
+  separate post-publication cleanup attempt was canceled at UAC on 2026-10-18;
+  the exact MSI remains installed on the validation host, with no app process
+  or listener.
   No GPU-less host is available; fallback remains untested by user direction
   and is not a primary release blocker. S42 and S51 remain `PARTIAL`; S51
   retains broader contention/resilience gaps. See the [release-3.2.0-20261017
