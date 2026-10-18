@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 This is the canonical high-level operational status catalog for the current
 XREPORT checkout. It summarizes what is working, validated, partial, blocked,
@@ -118,6 +118,10 @@ form of evidence exists for the stated scope.
   summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md)
   and the [validation campaign
   ledger](validation_campaign_ledger.md).
+- On 2026-10-18, release workflow run `39103683278` published v3.2.0 from
+  source `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The tag points to that
+  source and all eight published asset digests match the approved manifest.
+  S42 and S51 remain `PARTIAL`; see the release validation record for scope.
 - On 2026-10-01, S11 closed as `PASS` and S37 closed as `PASS` for the
   gated-provider behavior contract. The S11 live `/api/settings` surface
   passed GET/PATCH/reset, bounds, hidden-field protection, null rejection, and
