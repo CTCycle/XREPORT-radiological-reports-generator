@@ -57,7 +57,6 @@ DEFAULT_WORKER_STARTUP_TIMEOUT_SECONDS = 60.0
 DEFAULT_WORKER_PHASE_TIMEOUT_SECONDS = 300.0
 DEFAULT_WORKER_FIRST_BATCH_TIMEOUT_SECONDS = 480.0
 
-
 ###############################################################################
 def _configured_watchdog_timeout(name: str, default: float) -> float:
     """Read an optional local watchdog override without changing persisted settings."""
@@ -75,7 +74,6 @@ def _configured_watchdog_timeout(name: str, default: float) -> float:
         return default
     return value
 
-
 ###############################################################################
 class TrainingRuntime:
     """Owns only the internal worker handle for the active training job."""
@@ -83,7 +81,6 @@ class TrainingRuntime:
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.worker: ProcessWorker | None = None
-
 
 ###############################################################################
 @dataclass
@@ -313,7 +310,6 @@ def record_worker_diagnostics(
         {WORKER_DIAGNOSTICS_KEY: public_diagnostics},
     )
 
-
 ###############################################################################
 def build_worker_exit_diagnostics(
     worker: ProcessWorker,
@@ -327,11 +323,9 @@ def build_worker_exit_diagnostics(
         "reported": False,
     }
 
-
 ###############################################################################
 def _read_worker_result_payload(worker: ProcessWorker) -> dict[str, Any] | None:
     return worker.read_result(timeout=0.5)
-
 
 ###############################################################################
 def _record_reported_worker_diagnostics(
@@ -364,7 +358,6 @@ def _record_reported_worker_diagnostics(
         )
     record_worker_diagnostics(job_id, diagnostics)
 
-
 ###############################################################################
 def _raise_missing_worker_result(
     job_id: str,
@@ -387,7 +380,6 @@ def _raise_missing_worker_result(
         phase=str(diagnostics["phase"]),
         recoverable=True,
     )
-
 
 ###############################################################################
 def read_worker_result(job_id: str, worker: ProcessWorker) -> dict[str, Any]:
@@ -454,7 +446,6 @@ def register_checkpoint_result(result: dict[str, Any]) -> dict[str, Any]:
     CheckpointRepository().register_completed_checkpoint(path.name, path)
     return result
 
-
 ###############################################################################
 def _training_stall_diagnostics(
     worker: ProcessWorker,
@@ -475,7 +466,6 @@ def _training_stall_diagnostics(
         "phase_elapsed_seconds": round(max(0.0, now - phase_started_at), 3),
         "elapsed_seconds": round(max(0.0, now - watchdog.started_at), 3),
     }
-
 
 ###############################################################################
 def _record_training_stall(

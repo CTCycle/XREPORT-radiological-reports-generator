@@ -30,23 +30,19 @@ CRITICAL_PROGRESS_TYPES = {
     "training_update",
 }
 
-
 ###############################################################################
 def _worker_exception_message(exc: BaseException) -> str:
     message = str(exc).strip()
     return message or type(exc).__name__
-
 
 ###############################################################################
 def _worker_exception_traceback(exc: BaseException) -> str:
     trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     return trace[:MAX_WORKER_TRACEBACK_LENGTH]
 
-
 ###############################################################################
 def _is_critical_progress_message(message: dict[str, Any]) -> bool:
     return message.get("type") in CRITICAL_PROGRESS_TYPES
-
 
 ###############################################################################
 def _evict_plot_messages(target_queue: Any) -> bool:
@@ -76,7 +72,6 @@ def _evict_plot_messages(target_queue: Any) -> bool:
         except Exception:  # noqa: BLE001
             return False
     return removed
-
 
 ###############################################################################
 def _put_progress_message(
@@ -119,7 +114,6 @@ def _put_progress_message(
     except (queue.Full, EOFError, OSError):
         logger.warning("Dropped critical training progress message: %s", message.get("type"))
         return False
-
 
 ###############################################################################
 class ProcessLike(Protocol):
