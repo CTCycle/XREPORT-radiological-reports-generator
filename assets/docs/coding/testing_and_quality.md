@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-09-21
+Last updated: 2026-10-18
 
 ## Tooling And Quality Gates
 
@@ -47,10 +47,12 @@ while S00 remains red on the current revision, even when a different operating
 system passes locally.
 
 Every executed slice must record the exact revision, dirty-tree state,
-environment, scenarios, result, regressions, issue references, and durable
-evidence under `assets/QA/validation_campaign/`. A passing unit or build gate
-does not promote a feature workflow to end-to-end `VALIDATED`; the workflow must
-also be exercised and observed at the appropriate boundary.
+environment, scenarios, result, regressions, and issue references in a compact
+durable summary under `assets/QA/validation_campaign/`. Bulky captures
+(screenshots, logs, raw receipts, fixtures) are not tracked; keep them local and
+recoverable from Git history where they were once committed. A passing unit or
+build gate does not promote a feature workflow to end-to-end `VALIDATED`; the
+workflow must also be exercised and observed at the appropriate boundary.
 
 Use repository-local disposable state for the campaign:
 

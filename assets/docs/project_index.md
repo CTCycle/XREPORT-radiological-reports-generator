@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-09-21
+Last updated: 2026-10-18
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -29,7 +29,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - `project_status_ledger.md`
   - Canonical current operational status, evidence summary, open issues, resolved findings, and validation debt.
 - `validation_campaign_ledger.md`
-  - Subordinate slice ledger for the long-term validation campaign, hard-gate order, durable evidence rules, and current Tier 0 execution state.
+  - Subordinate slice ledger for the long-term validation campaign: hard-gate order, slice status, evidence policy, and release-validation records.
 
 ### Architecture
 
@@ -102,7 +102,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Keep affected docs updated whenever implementation changes alter behavior.
 - Keep `project_status_ledger.md` synchronized after implementation, regression discovery, meaningful validation, blocker changes, or issue resolution and revalidation.
 - Keep `validation_campaign_ledger.md` synchronized after each executed slice; it must preserve the distinction between implementation, automated coverage, exercised behavior, and observed outcome.
-- Treat the ledger as the canonical current-state summary; keep architecture documents authoritative for structure and contracts, validation reports authoritative for detailed evidence, and implementation plans authoritative for intended work.
+- Treat the ledger as the canonical current-state summary; keep architecture documents authoritative for structure and contracts, slice summaries and release-gate receipts authoritative for detailed evidence, and implementation plans authoritative for intended work.
+- Keep bulky QA captures out of the tracked tree. Tracked evidence is limited to compact durable records (per-slice summaries, the approved release manifest, and desktop gate receipts); see the Evidence Policy in `validation_campaign_ledger.md`.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select relevant docs from folder structure and user intent before opening more files.
 
