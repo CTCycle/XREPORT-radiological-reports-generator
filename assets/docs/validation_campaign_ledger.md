@@ -75,8 +75,7 @@ The dependency chain is:
   genuine no-GPU package lane.
 - The v3.1.0 CPU/CUDA portable/MSI pairs are bound to source `301a5a51` with
   `dirty_tree=false`; both full MSI install → launch → graceful-close →
-  uninstall lifecycles passed on 2026-10-01. The staged
-  `approved-release-manifest.json` still awaits human approval.
+  uninstall lifecycles passed on 2026-10-01.
 - The v3.2.0 package set from prepare run `39028661915` is superseded. Native
   review found a malformed Training wizard layout and a misleading cancellation
   message; both were fixed in source `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`.
@@ -90,6 +89,12 @@ The dependency chain is:
   and is not a primary release blocker. S42 and S51 remain `PARTIAL`; S51
   retains broader contention/resilience gaps. See the [release-3.2.0-20261017
   summary](../QA/validation_campaign/release-3.2.0-20261017/summary-20261017.md).
+- The v3.2.0 release was published on 2026-10-18 by workflow run
+  [`39103683278`](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39103683278).
+  Tag `v3.2.0` resolves to source
+  `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`; all eight published asset
+  digests match the approved manifest and the [public release](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases/tag/v3.2.0).
+  S42 and S51 remain `PARTIAL` at their broader validation scopes.
 - The full live-service Python suite passed `235` with `3` documented PostgreSQL
   skips. The Angular production builder still crashes with Windows
   `0xC0000005`, so no new full S03 production-build PASS is claimed beyond the
