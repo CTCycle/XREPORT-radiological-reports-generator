@@ -13,6 +13,32 @@ runtimes/**
 runtimes/cache/
 !runtimes/cache/
 !runtimes/cache/.gitkeep
+app/server/runtimes/cache/
+
+# Interpreter and test-tool caches
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Server validation scratch outputs; durable QA belongs in the repository root
+# assets/QA/ tree and follows the allowlist below.
+app/server/assets/QA/.scratch-*/
+app/server/assets/QA/pytest-cache-*/
+
+# Trained model artifacts and downloaded Python wheels are runtime data.
+*.keras
+*.h5
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.whl
+
+# Large legacy dataset copies removed from the current source tree.
+/dataset/XREP_train.csv
+/dataset/XREP_test.csv
+/XREPORT/data/XREP_dataset.csv
 # Keep large/transient QA captures local by default. Tracked evidence is limited
 # to compact durable records: per-campaign summary reports and the approved
 # release manifest. Bulky captures stay local (Git history preserves prior commits).
