@@ -9,6 +9,7 @@ param(
     [string]$DesktopTarget = 'All',
     [switch]$OfflineWebView2,
     [string]$Version,
+    [switch]$AllDesktopReleases,
     [switch]$Force,
     [switch]$AllowDirtyTree
 )
@@ -109,6 +110,7 @@ $RustVersion = '1.95.0'
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
 $script:LauncherInteractive = -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+$script:LauncherProgressAvailable = $true
 
 function Write-Step([string]$Message) { Clear-LauncherProgress; Write-Host "[STEP] $Message" -ForegroundColor Cyan }
 function Write-Ok([string]$Message) { Clear-LauncherProgress; Write-Host "[OK] $Message" -ForegroundColor Green }
@@ -133,7 +135,10 @@ function Start-LauncherProgress {
     param([Parameter(Mandatory = $true)][string]$Activity, [Parameter(Mandatory = $true)][string]$Status)
     $id = $script:NextProgressId++
     $script:ActiveProgressActivities[$id] = $Activity
-    if ($script:LauncherInteractive) { Write-Progress -Id $id -Activity $Activity -Status $Status }
+    if ($script:LauncherInteractive -and $script:LauncherProgressAvailable) {
+        try { Write-Progress -Id $id -Activity $Activity -Status $Status }
+        catch { $script:LauncherProgressAvailable = $false }
+    }
     return $id
 }
 
@@ -148,7 +153,10 @@ function Update-LauncherProgress {
     $activity = $script:ActiveProgressActivities[$Id]
     $progress = @{ Id = $Id; Activity = $activity; Status = $Status }
     if ($null -ne $PercentComplete) { $progress.PercentComplete = $PercentComplete }
-    if ($script:LauncherInteractive) { Write-Progress @progress }
+    if ($script:LauncherInteractive -and $script:LauncherProgressAvailable) {
+        try { Write-Progress @progress }
+        catch { $script:LauncherProgressAvailable = $false }
+    }
 }
 
 function Complete-LauncherProgress {
@@ -1813,22 +1821,31 @@ function Read-DesktopReleaseVersion {
 function Read-DesktopArtifactSelection {
     param(
         [Parameter(Mandatory = $true)][ValidateSet('Create', 'Remove')][string]$Operation,
-        [Parameter(Mandatory = $true)][string]$ReleaseVersion
+        [string]$ReleaseVersion = $Version
     )
-    $definitions = @(Get-DesktopArtifactDefinitions -ReleaseVersion $ReleaseVersion)
+    $definitions = if ($Operation -eq 'Create') {
+        @(Get-DesktopArtifactDefinitions -ReleaseVersion $ReleaseVersion)
+    }
+    else {
+        @(
+            [pscustomobject]@{ Key = 'CpuPortable'; Label = 'CPU portable executable' }
+            [pscustomobject]@{ Key = 'CpuMsi'; Label = 'CPU MSI installer' }
+            [pscustomobject]@{ Key = 'CudaPortable'; Label = 'CUDA portable executable' }
+            [pscustomobject]@{ Key = 'CudaMsi'; Label = 'CUDA MSI installer' }
+        )
+    }
     while ($true) {
         Clear-LauncherProgress
         if ($script:LauncherInteractive) { try { Clear-Host } catch { } }
         Write-Host ''
         Write-Host "  DESKTOP RELEASE / $Operation" -ForegroundColor Cyan
-        Write-Host "  Version: v$ReleaseVersion" -ForegroundColor DarkGray
+        if ($Operation -eq 'Create') { Write-Host "  Version: v$ReleaseVersion" -ForegroundColor DarkGray }
         Write-MenuRule
         $entries = @(
             for ($index = 0; $index -lt $definitions.Count; $index++) {
                 $definition = $definitions[$index]
                 if ($Operation -eq 'Remove') {
-                    $state = if (Test-Path -LiteralPath $definition.Path) { 'present' } else { 'not found' }
-                    $description = "$state; update variant manifests"
+                    $description = 'Remove this package for a selected version'
                 }
                 else {
                     $description = 'Build or rebuild this package'
@@ -1843,10 +1860,19 @@ function Read-DesktopArtifactSelection {
             }
             [pscustomobject]@{
                 Key = 'All'
-                Label = 'All desktop artifacts'
-                Description = "${Operation} all four packages"
+                Label = if ($Operation -eq 'Remove') { 'All artifacts for one version' } else { 'All desktop artifacts' }
+                Description = if ($Operation -eq 'Remove') { 'Remove every package for a selected version' } else { 'Build all four packages' }
                 Definition = $definitions
                 Destructive = $Operation -eq 'Remove'
+            }
+            if ($Operation -eq 'Remove') {
+                [pscustomobject]@{
+                    Key = 'AllVersions'
+                    Label = 'All versions and artifacts'
+                    Description = 'Remove every release and generated desktop build state'
+                    Definition = $null
+                    Destructive = $true
+                }
             }
             [pscustomobject]@{
                 Key = 'Back'
@@ -1877,6 +1903,14 @@ function Read-DesktopArtifactSelection {
         if ($selectedEntry.Key -eq 'Back') {
             Clear-LauncherProgress
             return $null
+        }
+        if ($Operation -eq 'Remove') {
+            Clear-LauncherProgress
+            if ($selectedEntry.Key -eq 'AllVersions') {
+                return [pscustomobject]@{ AllVersions = $true; Keys = @() }
+            }
+            $keys = if ($selectedEntry.Key -eq 'All') { @($definitions | Select-Object -ExpandProperty Key) } else { @($selectedEntry.Key) }
+            return [pscustomobject]@{ AllVersions = $false; Keys = $keys }
         }
         if ($selectedEntry.Key -eq 'All') {
             Clear-LauncherProgress
@@ -1977,13 +2011,20 @@ function Invoke-RemoveDesktopArtifacts {
 }
 
 function Invoke-RemoveDesktopArtifactsMenu {
-    $releaseVersion = Read-DesktopReleaseVersion -Operation 'Remove'
-    $selected = Read-DesktopArtifactSelection -Operation 'Remove' -ReleaseVersion $releaseVersion
+    $selected = Read-DesktopArtifactSelection -Operation 'Remove'
     if ($null -eq $selected) {
         Clear-LauncherProgress
         return
     }
-    Invoke-RemoveDesktopArtifacts -Selections @($selected) -ReleaseVersion $releaseVersion
+    if ($selected.AllVersions) {
+        Invoke-RemoveAllDesktopReleaseArtifacts
+        return
+    }
+
+    $releaseVersion = Read-DesktopReleaseVersion -Operation 'Remove'
+    $selections = @(Get-DesktopArtifactDefinitions -ReleaseVersion $releaseVersion | Where-Object { $_.Key -in $selected.Keys })
+    if ($selections.Count -eq 0) { throw "No desktop release selections resolved for version $releaseVersion" }
+    Invoke-RemoveDesktopArtifacts -Selections $selections -ReleaseVersion $releaseVersion
 }
 
 function Invoke-LaunchDesktopDev {
@@ -2016,28 +2057,62 @@ function Invoke-LaunchDesktopDev {
     }
 }
 
-function Invoke-RemoveDesktopRelease {
-    if (-not (Confirm-DestructiveAction 'remove all desktop release outputs and generated release state')) { return }
+function Remove-DesktopGeneratedState {
     $generatedConfigs = @(Get-ChildItem -LiteralPath $DesktopBuildDir -File -Filter 'tauri-*.json' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     $targets = @(
-        $DesktopReleaseDir,
+        (Join-Path $DesktopDir 'node_modules'),
+        (Join-Path $DesktopBuildDir '__pycache__'),
         (Join-Path $DesktopBuildDir 'runtime-staging'),
         (Join-Path $DesktopBuildDir 'pyinstaller'),
         (Join-Path $DesktopBuildDir 'cpu-overlay'),
         (Join-Path $DesktopBuildDir 'cargo-target'),
         $DesktopTargetDir,
-        (Join-Path $DesktopTauriDir 'generated\runtime.zip'),
+        # This ignored tree contains obsolete nested build output from early desktop builds.
+        (Join-Path $DesktopTauriDir 'app'),
+        (Join-Path $DesktopTauriDir 'gen'),
         (Join-Path $DesktopTauriDir 'ui')
     ) + $generatedConfigs
-    $results = foreach ($target in $targets) {
-        Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target"
+    foreach ($target in $targets) {
+        if (Test-Path -LiteralPath $target) {
+            [void](Remove-LauncherPath -Path $target -Activity "XREPORT: remove desktop state $([IO.Path]::GetFileName($target))" -Strict)
+        }
     }
-    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
-    if ($skipped -gt 0) {
-        Write-Warn "Desktop release cleanup completed; skipped $skipped locked or protected item(s)."
-    } else {
-        Write-Ok 'Desktop release outputs, staging, and Tauri target files removed; user data was preserved.'
+    $generatedDir = Join-Path $DesktopTauriDir 'generated'
+    if (Test-Path -LiteralPath $generatedDir) {
+        [void](Remove-LauncherPath -Path $generatedDir -KeepRoot -Activity 'XREPORT: remove generated Tauri runtime state' -Strict)
     }
+}
+
+function Invoke-RemoveAllDesktopReleaseArtifacts {
+    if (-not (Confirm-DestructiveAction 'remove all desktop release artifacts and generated build state')) { return }
+    $artifactPattern = '^XREPORT-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)(?:-portable\.exe|\.msi|\.sha256|-build\.json)$'
+    if (Test-Path -LiteralPath $DesktopReleaseDir) {
+        $artifacts = @(Get-ChildItem -LiteralPath $DesktopReleaseDir -File | Where-Object { $_.Name -match $artifactPattern })
+        foreach ($artifact in $artifacts) {
+            [void](Remove-LauncherPath -Path $artifact.FullName -PreserveNames @() -Activity "XREPORT: remove release artifact $($artifact.Name)" -Strict)
+        }
+    }
+    Remove-DesktopGeneratedState
+    Write-Ok 'All desktop release artifacts and generated build state removed; repository source, QA evidence, installed applications, and user data were preserved.'
+}
+
+function Invoke-RemoveDesktopRelease {
+    if ($script:AllDesktopReleases) {
+        Invoke-RemoveAllDesktopReleaseArtifacts
+        return
+    }
+    if ([string]::IsNullOrWhiteSpace($Version)) {
+        throw 'RemoveDesktopRelease requires -Version for one release or -AllDesktopReleases to remove all releases and generated build state.'
+    }
+    if ($Version -notmatch '^\d+\.\d+\.\d+$') {
+        throw "Invalid release version: $Version. Use semantic version format such as 3.2.0."
+    }
+
+    $variants = if ($DesktopRuntime -eq 'All') { @('cpu', 'cuda') } else { @($DesktopRuntime.ToLowerInvariant()) }
+    $targets = if ($DesktopTarget -eq 'All') { @('Portable', 'Msi') } else { @($DesktopTarget) }
+    $selections = @(Get-DesktopArtifactDefinitions -ReleaseVersion $Version | Where-Object { $_.Variant -in $variants -and $_.Target -in $targets })
+    if ($selections.Count -eq 0) { throw "No desktop release artifacts resolved for version $Version" }
+    Invoke-RemoveDesktopArtifacts -Selections $selections -ReleaseVersion $Version
 }
 
 function Read-InstallationType {
@@ -2591,7 +2666,7 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Tests'; Label = 'Run test suite'; Description = 'Execute project checks'; Destructive = $false }
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Key = 'Update'; Label = 'Update application'; Description = 'Pull origin/main (clean main branch required)'; Destructive = $false }
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'CreateRelease'; Label = 'Create release artifacts'; Description = 'Build selected desktop packages'; Destructive = $false }
-        [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Delete selected desktop packages'; Destructive = $true }
+        [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Remove selected packages or all releases and build state'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete application logs'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Cache'; Label = 'Clear cache'; Description = 'Remove temporary caches'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Checkpoints'; Label = 'Remove checkpoints'; Description = 'Delete saved model checkpoints'; Destructive = $true }
@@ -2638,6 +2713,9 @@ function Show-Menu {
 
 if ($Launch -and $Action) {
     throw 'Use either -Launch or -Action, not both.'
+}
+if ($AllDesktopReleases -and $Action -ne 'RemoveDesktopRelease') {
+    throw '-AllDesktopReleases requires -Action RemoveDesktopRelease.'
 }
 
 if ($Launch) {

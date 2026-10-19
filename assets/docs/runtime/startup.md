@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-18
+Last updated: 2026-10-19
 
 ## Windows Local Launcher
 
@@ -144,10 +144,12 @@ Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
 `-OfflineWebView2` as needed. A clean tree is required unless
 `-AllowDirtyTree` is explicitly supplied for diagnostic work. Outputs are
 under `release/`; generated Cargo/PyInstaller/runtime staging is under
-`app/desktop/build` and is ignored. Remove it with:
+`app/desktop/build` and is ignored. To remove every desktop release and its
+generated build state, choose **All versions and artifacts** from the
+launcher’s **Remove release artifacts** menu or run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease -AllDesktopReleases
 ```
 
 The release action always recreates `app/desktop/src-tauri/ui` and
@@ -160,11 +162,24 @@ release Tauri build is invoked without a valid generated runtime. From
 The interactive launcher has a **DESKTOP RELEASE** section. **Create release
 artifacts** prompts for a version and then offers CPU portable, CPU MSI, CUDA
 portable, CUDA MSI, or all four packages. **Remove release artifacts** offers
-the same choices for that version and keeps the remaining variant checksum and
-build metadata sidecars synchronized. These menu actions operate on final
-`release/` payloads; the direct `RemoveDesktopRelease` action remains the
-full cleanup for release, staging, PyInstaller, CPU overlay, Tauri target, and
-generated runtime output.
+the same package choices, **All artifacts for one version**, and **All versions
+and artifacts**. Removing selected packages for one version keeps the
+remaining variant checksum and build metadata sidecars synchronized. **All
+versions and artifacts** removes every desktop release plus generated desktop
+build state, including Cargo targets, PyInstaller/runtime staging, desktop
+dependencies, and generated Tauri files. It preserves tracked source and build
+scripts, `assets/QA/` evidence, installed applications, and user data. The
+`app/desktop` directory remains because it contains tracked application source.
+
+Direct removal accepts either a version and optional runtime/target selection,
+or the all-releases switch:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action RemoveDesktopRelease -Version 3.2.0 -DesktopRuntime Cpu -DesktopTarget All
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action RemoveDesktopRelease -AllDesktopReleases
+```
 
 Portable output is one EXE per variant: the release script streams the audited
 ZIP64 runtime onto the PE as an overlay and writes a fixed footer. MSI output
