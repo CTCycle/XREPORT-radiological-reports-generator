@@ -15,7 +15,7 @@ or suitability for patient care.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; official launcher start remains open) | GitHub Actions and current Windows S01/S02/S03 checks passed. Tier 0 remains partial because the official launcher start path was not rerun while its configured UI port was owned. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; standard-port launcher start remains open) | GitHub Actions and current Windows S01/S02/S03 checks passed. The official launcher completed a full start on isolated ports, but successful startup on the standard UI port remains untested because a pre-existing repository server owns port 8003. A non-interactive launch correctly failed closed and preserved that process. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
@@ -52,16 +52,20 @@ see [testing and quality rules](coding/testing_and_quality.md).
   all 191 backend unit tests passed; after `npm ci`, the Angular production
   build and lint passed, as did all 53 client unit tests. The backend test
   commands were rerun with an absolute cache path under `runtimes/cache`.
-- `S02` rendered startup and recovery checks passed in Chromium. The existing
-  repository `serve-built.cjs` process already owned port 8003 and was left
-  untouched; an isolated backend on port 5003 served the rebuilt bundle. Both
-  browser tests passed: feature requests stayed gated through failed health
-  probes, the shell showed progress and unavailable/retry states, retry
-  recovered to the workspace, and a later catalogue error remained in-app.
-  Captures are stored under ignored `assets/QA/validation_campaign/tier-0/`.
-  The official launcher start path was not rerun because the existing UI
-  process occupied its configured port, so launcher startup and process
-  ownership remain open.
+- `S02` rendered startup and recovery checks passed in Chromium. Both browser
+  tests passed: feature requests stayed gated through failed health probes,
+  the shell showed progress and unavailable/retry states, retry recovered to
+  the workspace, and a later catalogue error remained in-app. Captures are
+  stored under ignored `assets/QA/validation_campaign/tier-0/`.
+- The official launcher then completed a full start on isolated ports
+  `51873`/`41873` with a disposable `XREPORT_RESOURCES_DIR`. It detected the
+  missing frontend build manifest, rebuilt the production bundle, and returned
+  HTTP 200 from both the UI root and backend `/api/health`. The launched
+  listeners and disposable data were removed afterward, and `settings/.env`
+  was restored byte-for-byte. The configured UI port `8003` was still owned by
+  the pre-existing repository `serve-built.cjs` PID `37384`; a default-port
+  non-interactive launch failed closed and left that process running. Successful
+  startup on the standard ports and process-ownership races remain open.
 - Launcher behavior passed isolated disposable fixtures: single-package
   cleanup recalculated remaining checksums and release metadata; per-version
   cleanup removed only that version's payloads and stale sidecars; all-version
