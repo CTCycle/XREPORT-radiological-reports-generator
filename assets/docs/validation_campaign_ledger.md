@@ -15,7 +15,7 @@ or suitability for patient care.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` CI pass/Sonar fail; `S01` blocked; `S03` CI pass; `S02` unobserved) | Current Windows SQLite and rendered startup gates were not completed, so Tier 0 is not clear. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` CI pass, Sonar unresolved; `S01`, `S03`, `S02` pass) | Current Windows S01/S02/S03 checks passed. Tier 0 remains partial because the latest available SonarCloud scan failed on the parent source and no Sonar check is attached to the current non-source candidate. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
@@ -29,32 +29,42 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current candidate: launcher and Tier 0
 
-- Candidate source was `d5c69560af57aeacb6cf5a342cc5c8834cf3f849`. The
-  [Backend And Client Validation run](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39301832264/job/118228724747)
+- The application-source candidate validated is
+  `b98a9b60492b63fb41a904e3cff4815325b8d075` on `develop`; the current ledger
+  updates do not change application source. Its
+  [Backend And Client Validation run](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39424015542/job/118631860560)
   passed backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained
-  API E2E, and client build, built-server, lint, and unit checks. This is CI
-  evidence for the source revision; it does not replace the Windows startup
-  checks below.
-- The [SonarCloud check](https://github.com/CTCycle/XREPORT-radiological-reports-generator/runs/118229363263)
-  on that revision failed with Security Rating `E` and Reliability `C` on New
-  Code; its GitHub check has no inline annotations. The issue view includes
-  findings across unchanged project files. The launcher entries are low-impact
-  reliability warnings on unchanged catch blocks and a maintainability warning
-  in release selection. No finding in the changed ignore rule or all-version
-  cleanup/progress code was attributable to the failed Security/Reliability
-  thresholds. The project-wide Sonar gate remains unresolved.
-- `S01` was not run on Windows: neither `app/server/.venv` nor
-  `runtimes/.venv` is present. Fresh SQLite readiness, Alembic head, restart,
-  and rejection of an unversioned database therefore remain unverified for
-  this candidate. `S02` rendered startup and recovery states were not observed
-  in a browser because the local Angular CLI and backend environment are
-  unavailable. The UI state tests exist, and the exact-source CI client suite
-  passed, but those results do not establish rendered behavior.
-- `S03` passed in exact-source CI. Locally, the built-server suite passed all
-  9 tests after granting localhost socket access. A local Angular build could
-  not start because the checkout has no Angular CLI executable in
-  `app/client/node_modules`; the prescribed Python environments are also
-  absent.
+  API E2E, client build, built-server, lint, and unit checks. This exact-commit
+  CI result complements, but does not replace, the Windows startup checks below.
+- `S00` remains partial. The current candidate has only the successful GitHub
+  Actions check; no SonarCloud check is attached to it. The last available
+  [SonarCloud result](https://github.com/CTCycle/XREPORT-radiological-reports-generator/runs/118229363263)
+  is a failure on parent source `d5c69560af57aeacb6cf5a342cc5c8834cf3f849`
+  with Security Rating `E` and Reliability `C` on New Code. The current
+  candidate changes `.gitignore` and documentation only, so that source scan
+  remains relevant but has not been cleared by a new Sonar run. Its check has
+  no inline annotations; the issue view includes findings across unchanged project
+  files. The project-wide Sonar gate remains unresolved.
+- `S01` passed on the current Windows candidate using a disposable
+  `XREPORT_RESOURCES_DIR`: fresh SQLite startup returned health `200`, reached
+  Alembic head `e91a4f6c2d73`, created the required resource directories, and
+  passed SQLite integrity. A restart reused the same 12-table schema. A
+  non-empty database without `alembic_version` exited nonzero and was not
+  stamped.
+- `S03` passed locally on the current candidate: Ruff and Pyright passed;
+  all 191 backend unit tests passed; after `npm ci`, the Angular production
+  build and lint passed, as did all 53 client unit tests. The backend test
+  commands were rerun with an absolute cache path under `runtimes/cache`.
+- `S02` rendered startup and recovery checks passed in Chromium. The existing
+  repository `serve-built.cjs` process already owned port 8003 and was left
+  untouched; an isolated backend on port 5003 served the rebuilt bundle. Both
+  browser tests passed: feature requests stayed gated through failed health
+  probes, the shell showed progress and unavailable/retry states, retry
+  recovered to the workspace, and a later catalogue error remained in-app.
+  Captures are stored under ignored `assets/QA/validation_campaign/tier-0/`.
+  The official launcher start path was not rerun because the existing UI
+  process occupied its configured port, so launcher startup and process
+  ownership remain open.
 - Launcher behavior passed isolated disposable fixtures: single-package
   cleanup recalculated remaining checksums and release metadata; per-version
   cleanup removed only that version's payloads and stale sidecars; all-version
@@ -69,8 +79,12 @@ see [testing and quality rules](coding/testing_and_quality.md).
   ignored, including `app/client/.angular/cache/`, while allowlisted source,
   QA evidence, and `runtimes/cache/.gitkeep` remain trackable. The configured
   Windows test runner uses `runtimes/cache` and a per-run pytest base-temp.
-  `ISSUE-004` remains open: protected legacy cache warnings were not rechecked
-  or cleaned, and that residue was left untouched.
+  Direct pytest instructions now resolve the absolute cache root; using a
+  relative `cache_dir` had placed pytest state under `app/server/runtimes/cache`
+  and those instructions were corrected. `ISSUE-004` remains open because the
+  pre-existing `app/server/runtimes/cache/pytest-xreport-current-validation`
+  and `app/server/runtimes/cache/s23-20260924/pytest-cache` trees deny
+  enumeration. They were left untouched.
 
 ## Current release evidence
 

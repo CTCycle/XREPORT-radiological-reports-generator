@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-18
+Last updated: 2026-10-20
 
 ## Primary Commands
 
@@ -54,8 +54,20 @@ timestamped backend logs beside it. Readiness/session files in
 ### Tests
 
 - `app/tests/run_tests.bat`
-- `app/server/.venv/Scripts/python.exe -m pytest -c app/server/pyproject.toml app/tests -v --tb=short --basetemp runtimes/cache/pytest-tmp/manual -o "cache_dir=runtimes/cache/pytest"`
 - `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_inference_model.py" --help`
+
+For direct PowerShell pytest runs, resolve the cache root from the repository
+root so pytest's configuration directory cannot redirect the relative
+`cache_dir` into `app/server/runtimes/cache`:
+
+```powershell
+$cacheRoot = (Resolve-Path .\runtimes\cache).Path
+$pytestCache = Join-Path $cacheRoot 'pytest'
+$pytestTemp = Join-Path $cacheRoot 'pytest-tmp\manual'
+& .\app\server\.venv\Scripts\python.exe -m pytest `
+  -c .\app\server\pyproject.toml .\app\tests `
+  -v --tb=short --basetemp $pytestTemp -o "cache_dir=$pytestCache"
+```
 
 The former CXRMate-ED sensitivity wrapper has been retired with the model. The
 generic validator is for active catalogue entries only; a model that fails
@@ -74,7 +86,12 @@ Set-Location app/server
 .\.venv\Scripts\ruff.exe check .
 .\.venv\Scripts\pyright.exe .
 Set-Location ../..
-app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/unit -q --basetemp runtimes/cache/pytest-tmp/tier0-unit -o "cache_dir=runtimes/cache/pytest"
+$cacheRoot = (Resolve-Path .\runtimes\cache).Path
+$pytestCache = Join-Path $cacheRoot 'pytest'
+$pytestTemp = Join-Path $cacheRoot 'pytest-tmp\tier0-unit'
+& .\app\server\.venv\Scripts\python.exe -m pytest `
+  -c .\app\server\pyproject.toml .\app\tests\unit `
+  -q --basetemp $pytestTemp -o "cache_dir=$pytestCache"
 Set-Location app/client
 npm ci --no-audit --no-fund
 npm run build
@@ -90,7 +107,16 @@ Set-Location ../..
 .\start_on_windows.ps1 -Action Launch
 $env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
 $env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
-app\server\.venv\Scripts\python.exe -m pytest -c app/server/pyproject.toml app/tests/e2e/test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health -q --basetemp runtimes/cache/pytest-tmp/tier0-s02 -o "cache_dir=runtimes/cache/pytest"
+$repoRoot = (Resolve-Path .).Path
+$env:XREPORT_E2E_SCREENSHOT_DIR = Join-Path $repoRoot 'assets/QA/validation_campaign/tier-0/s02'
+$cacheRoot = (Resolve-Path .\runtimes\cache).Path
+$pytestCache = Join-Path $cacheRoot 'pytest'
+$pytestTemp = Join-Path $cacheRoot 'pytest-tmp\tier0-s02'
+& .\app\server\.venv\Scripts\python.exe -m pytest `
+  -c .\app\server\pyproject.toml `
+  .\app\tests\e2e/test_angular_ui.py::test_startup_gate_holds_inference_until_backend_health `
+  .\app\tests\e2e/test_angular_ui.py::test_startup_timing_retry_and_post_ready_feature_error `
+  -q --basetemp $pytestTemp -o "cache_dir=$pytestCache"
 ```
 
 Store QA screenshots, logs, and working reports under `assets/QA/`. Record the
