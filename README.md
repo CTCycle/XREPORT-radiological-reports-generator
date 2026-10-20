@@ -1,3 +1,5 @@
+<p align="center"><img src="app/client/public/favicon.png" alt="XREPORT logo" width="112"></p>
+
 # XREPORT Radiological Reports Generator
 
 **A local-first research app for preparing imaging datasets, training and evaluating models, and reviewing draft radiology reports.**
