@@ -20,7 +20,7 @@ or suitability for patient care.
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
 | 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
-| 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | `S51` remains partial for heavy-worker contention and hardware coverage. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
+| 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | The S51 deterministic job-admission and harness-contract unit checks passed on the current source; live heavy-worker/GPU contention and hardware metrics remain untested. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
 
 Run the Tier 0 sequence in order: `S00 → S01 → S03 → S02`. A failed hard gate
 blocks claims about dependent workflows until the current source is repaired
@@ -121,6 +121,18 @@ see [testing and quality rules](coding/testing_and_quality.md).
   performance baselines passed for their stated technical scopes. Packaged
   timing, genuine no-GPU fallback, broader representative-data behavior, and
   spoken accessibility remain outside those results.
+- `S51` bounded concurrency recheck passed 15 tests across
+  [`test_job_start_concurrency.py`](../../app/tests/unit/test_job_start_concurrency.py)
+  and
+  [`test_validate_resilience_baseline.py`](../../app/tests/unit/test_validate_resilience_baseline.py)
+  on source candidate `b98a9b60492b63fb41a904e3cff4815325b8d075`. These checks
+  cover atomic duplicate-start rejection, overlap and cleanup for distinct job
+  types, and the resilience harness's scenario and worker-observation
+  contracts with stubbed workers. The live S51 workload matrix was not run because its default
+  `assets/QA/validation_campaign/s27/fixtures` directory is absent. Although
+  this host exposes an RTX 3060 Laptop GPU, no real heavy worker was started;
+  GPU contention, high-water resource samples, and real-worker cleanup remain
+  unvalidated, so S51 stays `PARTIAL`.
 - Public-model technical checks and output review do not show diagnostic
   accuracy. Keep model readiness and `validation_status` separate from any
   clinical or quality claim.
