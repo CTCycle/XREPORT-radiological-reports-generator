@@ -15,7 +15,7 @@ or suitability for patient care.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` CI pass, Sonar unresolved; `S01`, `S03`, `S02` pass) | Current Windows S01/S02/S03 checks passed. Tier 0 remains partial because the latest available SonarCloud scan failed on the parent source and no Sonar check is attached to the current non-source candidate. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` CI pass, Sonar unresolved; `S01`, `S03`, `S02` pass) | Current Windows S01/S02/S03 checks passed. GitHub Actions also passed on the documentation candidate; Tier 0 remains partial because the latest available SonarCloud scan failed on the parent source and no Sonar check is attached to the current candidate. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
@@ -36,8 +36,11 @@ see [testing and quality rules](coding/testing_and_quality.md).
   passed backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained
   API E2E, client build, built-server, lint, and unit checks. This exact-commit
   CI result complements, but does not replace, the Windows startup checks below.
-- `S00` remains partial. The current candidate has only the successful GitHub
-  Actions check; no SonarCloud check is attached to it. The last available
+- The documentation-only candidate `9e1122be11b22e53f3391d1358fd6a5efe4a0b99`
+  also passed all GitHub Actions steps in
+  [run 39432766239](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39432766239).
+- `S00` remains partial. The current candidate has a successful GitHub Actions
+  check, but no SonarCloud check is attached to it. The last available
   [SonarCloud result](https://github.com/CTCycle/XREPORT-radiological-reports-generator/runs/118229363263)
   is a failure on parent source `d5c69560af57aeacb6cf5a342cc5c8834cf3f849`
   with Security Rating `E` and Reliability `C` on New Code. The current
