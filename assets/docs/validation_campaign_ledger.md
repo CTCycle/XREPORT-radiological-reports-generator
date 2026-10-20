@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-18
+Last updated: 2026-10-20
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -15,17 +15,62 @@ or suitability for patient care.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PASS` (`S00`–`S03`) | Recheck the current candidate revision before release; source launcher edge cases remain partial in the status ledger. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` CI pass/Sonar fail; `S01` blocked; `S03` CI pass; `S02` unobserved) | Current Windows SQLite and rendered startup gates were not completed, so Tier 0 is not clear. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
-| 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S42` passed on a CUDA-capable host; GPU-less CUDA fallback is untested. The v3.2.0 release package scope is recorded below. |
-| 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | `S51` remains partial for broader contention and hardware coverage. Browser accessibility checks passed; spoken screen-reader output was not observed. |
+| 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
+| 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | `S51` remains partial for heavy-worker contention and hardware coverage. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
 
 Run the Tier 0 sequence in order: `S00 → S01 → S03 → S02`. A failed hard gate
 blocks claims about dependent workflows until the current source is repaired
 and revalidated. Select the smallest relevant regression set for other changes;
 see [testing and quality rules](coding/testing_and_quality.md).
+
+## Current candidate: launcher and Tier 0
+
+- Candidate source was `d5c69560af57aeacb6cf5a342cc5c8834cf3f849`. The
+  [Backend And Client Validation run](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39301832264/job/118228724747)
+  passed backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained
+  API E2E, and client build, built-server, lint, and unit checks. This is CI
+  evidence for the source revision; it does not replace the Windows startup
+  checks below.
+- The [SonarCloud check](https://github.com/CTCycle/XREPORT-radiological-reports-generator/runs/118229363263)
+  on that revision failed with Security Rating `E` and Reliability `C` on New
+  Code; its GitHub check has no inline annotations. The issue view includes
+  findings across unchanged project files. The launcher entries are low-impact
+  reliability warnings on unchanged catch blocks and a maintainability warning
+  in release selection. No finding in the changed ignore rule or all-version
+  cleanup/progress code was attributable to the failed Security/Reliability
+  thresholds. The project-wide Sonar gate remains unresolved.
+- `S01` was not run on Windows: neither `app/server/.venv` nor
+  `runtimes/.venv` is present. Fresh SQLite readiness, Alembic head, restart,
+  and rejection of an unversioned database therefore remain unverified for
+  this candidate. `S02` rendered startup and recovery states were not observed
+  in a browser because the local Angular CLI and backend environment are
+  unavailable. The UI state tests exist, and the exact-source CI client suite
+  passed, but those results do not establish rendered behavior.
+- `S03` passed in exact-source CI. Locally, the built-server suite passed all
+  9 tests after granting localhost socket access. A local Angular build could
+  not start because the checkout has no Angular CLI executable in
+  `app/client/node_modules`; the prescribed Python environments are also
+  absent.
+- Launcher behavior passed isolated disposable fixtures: single-package
+  cleanup recalculated remaining checksums and release metadata; per-version
+  cleanup removed only that version's payloads and stale sidecars; all-version
+  cleanup removed matching release artifacts and generated desktop state while
+  preserving unrelated files, source, QA, and user data. A throwing
+  `Write-Progress` fallback completed cleanup. Valid, stale-source,
+  stale-dependency, missing, invalid, and missing-output frontend manifests
+  produced the expected states. The occupied-port non-interactive path failed
+  closed; the interactive decline path was exercised with a disposable
+  listener and simulated prompt input and preserved that listener.
+- `git check-ignore` confirmed the launcher and test-runner cache paths are
+  ignored, including `app/client/.angular/cache/`, while allowlisted source,
+  QA evidence, and `runtimes/cache/.gitkeep` remain trackable. The configured
+  Windows test runner uses `runtimes/cache` and a per-run pytest base-temp.
+  `ISSUE-004` remains open: protected legacy cache warnings were not rechecked
+  or cleaned, and that residue was left untouched.
 
 ## Current release evidence
 
