@@ -9,7 +9,9 @@ diary, detailed test report, release approval, or clinical-quality statement.
 The published v3.2.0 release was validated at source
 `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The most recent application-source
 Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`; these
-ledger updates change documentation only. The overall Tier 0 result remains
+ledger updates change documentation only. Documentation candidate
+`9e1122be11b22e53f3391d1358fd6a5efe4a0b99` passed GitHub Actions run
+`39432766239`. The overall Tier 0 result remains
 `PARTIAL` because SonarCloud failed on the parent source and the
 official launcher start path was not rerun while its UI port was already owned.
 Current Windows SQLite readiness, rendered startup/recovery, and deterministic
