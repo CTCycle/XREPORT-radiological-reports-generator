@@ -7,10 +7,13 @@ component confidence, active issues, and known limits; it is not a development
 diary, detailed test report, release approval, or clinical-quality statement.
 
 The published v3.2.0 release was validated at source
-`a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The launcher and Tier 0 review
-targeted `d5c69560af57aeacb6cf5a342cc5c8834cf3f849`; its overall Tier 0 result
-is `PARTIAL` because the SonarCloud quality gate failed and current Windows
-SQLite and rendered startup checks could not be run. The
+`a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The most recent application-source
+Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`; these
+ledger updates change documentation only. The overall Tier 0 result remains
+`PARTIAL` because SonarCloud failed on the parent source and the
+official launcher start path was not rerun while its UI port was already owned.
+Current Windows SQLite readiness, rendered startup/recovery, and deterministic
+quality gates passed. The
 [validation campaign ledger](validation_campaign_ledger.md) records the exact
 evidence and remaining boundaries.
 
@@ -54,7 +57,7 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate SQLite readiness/restart/unversioned-database rejection and browser-rendered startup/recovery were not run. Real rebuild execution and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher start path was not rerun because port 8003 was already owned by the existing repository `serve-built.cjs` process; real rebuild execution and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.desktop.packaged` | `PARTIAL` | Published v3.2.0 CPU/CUDA portable and MSI packages passed the scoped acceptance described in the campaign ledger. CUDA fallback without an NVIDIA GPU and cross-variant performance remain untested. | [Campaign](validation_campaign_ledger.md), [deployment](runtime/deployment.md) |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | No supported container image or deployment contract exists. | [Runtime modes](runtime/modes.md) |
 | `configuration.runtime_settings` | `VALIDATED` | Public database-backed settings, limits, save/reload/reset, and hidden-field protection are covered. Infrastructure and static model-policy values are not user settings. | [Configuration](runtime/configuration.md) |
@@ -93,14 +96,14 @@ where to revalidate after a change.
 | `ui.settings`, `ui.inference.catalogue_and_sections`, `ui.reports.history`, `ui.startup_gate`, `ui.shell.routing_theme_guidance`, `ui.validation.report_review` | `VALIDATED` | The named routes, states, persistence, and report review are covered by focused client/API tests and browser checks using technical fixtures. This is not full product accessibility certification. | [UI experience](ui/experience.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.inference.workflow` | `PARTIAL` | Generate/review is observed for one provider and limited inputs. Other provider contracts and browser download-event observation remain open. | [Local inference models](runtime/local_inference_models.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.dataset_and_training_surfaces` | `PARTIAL` | The routes and selected technical flows are exercised; representative data, full packaged workflows, and spoken assistive-technology output remain outside. | [UI experience](ui/experience.md), [dataset workflow E2E](../../app/tests/e2e/test_dataset_workflow_ui.py) |
-| `test.infrastructure.windows_cache` | `PARTIAL` | `git check-ignore` confirms the configured runner caches and `app/client/.angular/cache/` are ignored, with the source/QA allowlists preserved; `app/tests/run_tests.bat` directs pytest to disposable cache and base-temp paths. Pre-existing protected cache paths were not cleaned or rechecked and may still warn. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `test.infrastructure.windows_cache` | `PARTIAL` | Configured runner caches and `app/client/.angular/cache/` remain ignored, source/QA allowlists are preserved, and `app/tests/run_tests.bat` uses canonical `runtimes/cache` paths. Direct pytest instructions now resolve the canonical cache root before invoking pytest. Recheck found pre-existing protected trees under `app/server/runtimes/cache` that deny access; they remain untouched and may still warn. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 
 ## Active issues
 
 | ID | Component | Severity | State | Current impact and next evidence |
 | --- | --- | --- | --- | --- |
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | `BLOCKED` | The gated model cannot be installed without authorized provider access. After access is configured, install the exact pinned revision and capture real inference before changing status. |
-| `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | `OPEN` | Configured runner caches and the Angular cache are ignored, but protected legacy cache paths were left untouched and not rechecked. Continue using disposable runner paths; inspect ownership and access before any cleanup. |
+| `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | `OPEN` | `app/server/runtimes/cache/pytest-xreport-current-validation` and `app/server/runtimes/cache/s23-20260924/pytest-cache` still deny enumeration. Both were left untouched. Continue using the absolute canonical cache root and inspect access before any cleanup. |
 
 ## Evidence ownership
 
