@@ -84,9 +84,9 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(
         engine.dispose()
 
 ###############################################################################
-def test_upgrade_from_previous_head_preserves_settings_and_records(tmp_path) -> None:
+def test_database_at_head_preserves_settings_and_records(tmp_path) -> None:
     database_path = tmp_path / "database.db"
-    command.upgrade(_alembic_config(database_path), "e91a4f6c2d73")
+    command.upgrade(_alembic_config(database_path), "heads")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -123,7 +123,7 @@ def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    command.upgrade(_alembic_config(database_path), "c1e4f1a7b2d9")
+    command.upgrade(_alembic_config(database_path), "heads")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
