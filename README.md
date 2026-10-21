@@ -45,13 +45,13 @@ On Windows, run the launcher from the repository root:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
 
-The launcher prepares local runtimes and dependencies as needed, initializes the database, builds the frontend when its output is missing or stale, and opens the local application when ready. First launch can take several minutes. For manual macOS/Linux setup, see [Getting started](assets/docs/operations/getting_started.md).
+The launcher prepares local runtimes and dependencies as needed, initializes the database, builds the frontend when its output is missing or stale, and opens the local application when ready. FastAPI serves the built frontend and API from the same origin; the launcher stays open until you press Ctrl+C to stop the backend cleanly. First launch can take several minutes. For manual macOS/Linux development setup, see [Getting started](assets/docs/operations/getting_started.md).
 
 Windows CPU and CUDA portable or MSI packages are listed on [GitHub Releases](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) when available. CUDA requires supported NVIDIA hardware and drivers. Portable packages require Microsoft WebView2.
 
 ## Configuration
 
-Source-mode settings live in `settings/.env`, which the launcher creates from `settings/.env.example` when absent. Defaults bind the UI to `127.0.0.1:8003`, the API to `127.0.0.1:5003`, and use the `data` directory with embedded SQLite. Set `XREPORT_RESOURCES_DIR` to use another source-mode resource root. `HF_TOKEN` is needed only for gated Hugging Face models that require access credentials.
+Source-mode settings live in `settings/.env`, which the launcher creates from `settings/.env.example` when absent. Defaults bind the normal browser/API origin to `127.0.0.1:5003`; `UI_HOST` and `UI_PORT` configure Angular and Tauri development workflows. The app uses the `data` directory with embedded SQLite. Set `XREPORT_RESOURCES_DIR` to use another source-mode resource root. `HF_TOKEN` is needed only for gated Hugging Face models that require access credentials.
 
 Use only data you are authorized to process, and de-identify images and reports before import. Back up important datasets and checkpoints before resetting or removing application data. Treat every generated report as an unverified draft: compare it with the source images and relevant context, then correct or discard unsupported statements under the appropriate review process.
 

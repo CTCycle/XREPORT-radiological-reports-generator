@@ -22,12 +22,14 @@ The CPU and CUDA products intentionally share that data directory while using
 variant-specific immutable runtime archives.
 
 - UI not reachable:
-  - check `UI_HOST` and `UI_PORT` in `settings/.env`
-  - verify the backend is running on `FASTAPI_HOST` and `FASTAPI_PORT`
+  - normal Windows Launch serves the UI and API from `FASTAPI_HOST` and `FASTAPI_PORT`; check backend startup output and the built frontend bundle
+  - for Angular or Tauri development, check `UI_HOST` and `UI_PORT` and verify the development server is running
 - configured port already in use:
-  - interactive Launch lists the owning PIDs, ports, and available process metadata before asking once for termination
+  - normal Launch checks `FASTAPI_PORT`; `LaunchDesktopDev` checks both `FASTAPI_PORT` and `UI_PORT`
+  - interactive launch lists owner metadata and asks before terminating only identified XREPORT process trees
+  - unknown owners are reported, left running, and cause launch to stop
   - answer `No` to cancel without stopping processes or starting services
-  - non-interactive Launch fails closed; free the ports or rerun interactively
+  - non-interactive launch fails closed; free the ports or rerun interactively
   - a failed termination, launcher/ancestor owner, or new owner appearing after approval aborts the launch without killing the new process
 - frontend bundle is stale or missing:
   - run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`

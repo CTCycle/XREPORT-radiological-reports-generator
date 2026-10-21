@@ -354,13 +354,18 @@ function Find-UvExecutable {
 function Invoke-HealthCheck {
     param(
         [Parameter(Mandatory = $true)][string]$Uri,
-        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60
+        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
+        [Diagnostics.Process]$Process,
+        [string]$ProcessLabel = 'Application process'
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $activity = "XREPORT: wait for health $Uri"
     $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds"
     try {
         do {
+            if ($Process -and $Process.HasExited) {
+                throw "$ProcessLabel exited before reporting ready (exit code $($Process.ExitCode))."
+            }
             $elapsed = [int](([DateTime]::Now - $deadline.AddSeconds(-$TimeoutSeconds)).TotalSeconds)
             Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
             try {
@@ -376,6 +381,99 @@ function Invoke-HealthCheck {
     } finally {
         Complete-LauncherProgress -Id $progressId
     }
+}
+
+function Get-LoopbackHost {
+    param([Parameter(Mandatory = $true)][string]$HostName)
+    $normalizedHost = $HostName.Trim().ToLowerInvariant()
+    if ($normalizedHost -eq '::') { return '::1' }
+    if ($normalizedHost -in @('0.0.0.0', '*', '+')) { return '127.0.0.1' }
+    return $HostName.Trim()
+}
+
+function Get-LocalServiceUrl {
+    param(
+        [Parameter(Mandatory = $true)][string]$HostName,
+        [Parameter(Mandatory = $true)][int]$Port
+    )
+    $urlHost = Get-LoopbackHost -HostName $HostName
+    if ($urlHost.Contains(':') -and -not $urlHost.StartsWith('[')) { $urlHost = "[$urlHost]" }
+    return "http://${urlHost}:$Port"
+}
+
+function New-LauncherToken {
+    $bytes = New-Object byte[] 32
+    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $generator.GetBytes($bytes) } finally { $generator.Dispose() }
+    return [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+}
+
+function Get-XReportLogDirectory {
+    $resourceRoot = [string]$env:XREPORT_RESOURCES_DIR
+    if ([string]::IsNullOrWhiteSpace($resourceRoot)) {
+        $resourceRoot = Join-Path $RepoRoot 'data'
+    } elseif (-not [IO.Path]::IsPathRooted($resourceRoot)) {
+        $resourceRoot = Join-Path $RepoRoot $resourceRoot
+    }
+    $logDirectory = Join-Path $resourceRoot 'logs'
+    New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+    return [IO.Path]::GetFullPath($logDirectory)
+}
+
+function Stop-OwnedProcessTree {
+    param(
+        [Parameter(Mandatory = $true)][Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [ValidateRange(0, 600)][int]$GraceSeconds = 10
+    )
+    if ($Process.HasExited) { return $true }
+    $deadline = (Get-Date).AddSeconds($GraceSeconds)
+    while (-not $Process.HasExited -and (Get-Date) -lt $deadline) {
+        try { $null = $Process.WaitForExit(250) } catch { break }
+    }
+    if ($Process.HasExited) { return $true }
+
+    Write-Warn "$Label (PID $($Process.Id)) did not exit gracefully; stopping only its owned process tree."
+    $taskkillOutput = @(& taskkill.exe /PID $Process.Id /T /F 2>&1)
+    $taskkillExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+    try { $null = $Process.WaitForExit(5000) } catch { }
+    if ($Process.HasExited) {
+        Write-Info "$Label process tree stopped after forced cleanup."
+        return $true
+    }
+    $detail = (@($taskkillOutput | ForEach-Object { [string]$_ }) -join ' ').Trim()
+    Write-Error "$Label process tree could not be stopped (taskkill exit code $taskkillExitCode): $detail"
+    return $false
+}
+
+function Request-SourceBackendShutdown {
+    param(
+        [Diagnostics.Process]$Process,
+        [string]$BaseUrl,
+        [string]$LaunchToken,
+        [string]$Label = 'Backend'
+    )
+    if (-not $Process) { return $true }
+    if ($Process.HasExited) { return $true }
+
+    $gracefulRequestSucceeded = $false
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Method Post `
+            -Uri "$BaseUrl/__xreport/shutdown" `
+            -Headers @{ 'X-XREPORT-Launch-Token' = $LaunchToken } -TimeoutSec 3
+        $gracefulRequestSucceeded = $response.StatusCode -ge 200 -and $response.StatusCode -lt 300
+    } catch {
+        if (-not $Process.HasExited) {
+            Write-Warn "$Label graceful shutdown request failed: $($_.Exception.Message)"
+        }
+    }
+    if (-not (Stop-OwnedProcessTree -Process $Process -Label $Label -GraceSeconds 10)) {
+        return $false
+    }
+    if ($gracefulRequestSucceeded) {
+        Write-Ok "$Label stopped through the application shutdown endpoint."
+    }
+    return $true
 }
 
 function Ensure-PortableRuntimes {
@@ -926,40 +1024,13 @@ function Test-BackendDependenciesReady {
     return $true
 }
 
-function Stop-PortListener {
-    param(
-        [Parameter(Mandatory = $true)][int]$Port,
-        [int[]]$ExcludeProcessIds = @()
-    )
-
-    $listeners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Where-Object { $ExcludeProcessIds -notcontains [int]$_.OwningProcess } |
-        Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($processId in $listeners) {
-        Write-Info "Releasing port $Port from PID $processId"
-        & taskkill.exe /PID $processId /T /F | Out-Null
-    }
-    for ($attempt = 0; $attempt -lt 20; $attempt++) {
-        if (-not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)) { return }
-        Start-Sleep -Seconds 1
-    }
-    throw "Port $Port is still occupied after 20 seconds."
-}
-
-function Get-PortProcessId {
-    param([int]$Port)
-    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Select-Object -First 1 -ExpandProperty OwningProcess
-}
-
 function Get-PortConflicts {
     param(
-        [Parameter(Mandatory = $true)][int]$FastApiPort,
-        [Parameter(Mandatory = $true)][int]$UiPort,
+        [Parameter(Mandatory = $true)][int[]]$Ports,
         [object[]]$ProcessTable = @()
     )
 
-    $configuredPorts = @($FastApiPort, $UiPort) | Sort-Object -Unique
+    $configuredPorts = @($Ports | ForEach-Object { [int]$_ } | Sort-Object -Unique)
     $connections = @()
     $connectionLookupError = $null
     try {
@@ -1053,54 +1124,67 @@ function Format-PortConflict {
 
 function Wait-ForConfiguredPortsAvailable {
     param(
-        [Parameter(Mandatory = $true)][int]$FastApiPort,
-        [Parameter(Mandatory = $true)][int]$UiPort,
+        [Parameter(Mandatory = $true)][int[]]$Ports,
         [int]$Attempts = 40
     )
 
     for ($attempt = 0; $attempt -lt $Attempts; $attempt++) {
-        $conflicts = @(Get-PortConflicts -FastApiPort $FastApiPort -UiPort $UiPort)
+        $conflicts = @(Get-PortConflicts -Ports $Ports)
         if ($conflicts.Count -eq 0) { return @() }
         Start-Sleep -Milliseconds 250
     }
-    return @(Get-PortConflicts -FastApiPort $FastApiPort -UiPort $UiPort)
+    return @(Get-PortConflicts -Ports $Ports)
 }
 
 function Resolve-LaunchPortConflicts {
-    param([Parameter(Mandatory = $true)][hashtable]$Settings)
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Settings,
+        [switch]$IncludeUiPort
+    )
 
     $fastApiPort = 0
-    $uiPort = 0
     if (-not [int]::TryParse([string]$Settings.FASTAPI_PORT, [ref]$fastApiPort) -or $fastApiPort -lt 1 -or $fastApiPort -gt 65535) {
         throw "FASTAPI_PORT must be an integer between 1 and 65535; found '$($Settings.FASTAPI_PORT)'."
     }
-    if (-not [int]::TryParse([string]$Settings.UI_PORT, [ref]$uiPort) -or $uiPort -lt 1 -or $uiPort -gt 65535) {
-        throw "UI_PORT must be an integer between 1 and 65535; found '$($Settings.UI_PORT)'."
+    $ports = @($fastApiPort)
+    if ($IncludeUiPort) {
+        $uiPort = 0
+        if (-not [int]::TryParse([string]$Settings.UI_PORT, [ref]$uiPort) -or $uiPort -lt 1 -or $uiPort -gt 65535) {
+            throw "UI_PORT must be an integer between 1 and 65535; found '$($Settings.UI_PORT)'."
+        }
+        if ($fastApiPort -eq $uiPort) {
+            throw "FASTAPI_PORT and UI_PORT must be different; both are configured as $fastApiPort."
+        }
+        $ports += $uiPort
     }
-    if ($fastApiPort -eq $uiPort) {
-        throw "FASTAPI_PORT and UI_PORT must be different; both are configured as $fastApiPort."
-    }
+    $ports = @($ports | Sort-Object -Unique)
 
     $processTable = @()
-    $conflicts = @(Get-PortConflicts -FastApiPort $fastApiPort -UiPort $uiPort)
+    $conflicts = @(Get-PortConflicts -Ports $ports)
     if ($conflicts.Count -eq 0) {
-        Write-Ok "Launch ports $fastApiPort and $uiPort are available."
+        Write-Ok "Launch port(s) $($ports -join ', ') are available."
         return
     }
     try { $processTable = @(Get-XReportProcessTable) }
     catch { Write-Warn "Process metadata is unavailable; conflicts will be displayed by PID and port only: $($_.Exception.Message)" }
     if ($processTable.Count -gt 0) {
-        $conflicts = @(Get-PortConflicts -FastApiPort $fastApiPort -UiPort $uiPort -ProcessTable $processTable)
+        $conflicts = @(Get-PortConflicts -Ports $ports -ProcessTable $processTable)
     }
 
     Write-Warn 'Configured launch ports are occupied:'
     foreach ($conflict in $conflicts) { Write-Host "  $(Format-PortConflict -Conflict $conflict)" -ForegroundColor Yellow }
 
-    if (-not $script:LauncherInteractive) {
-        throw 'Launch ports are occupied and this invocation is non-interactive; no process was terminated. Free the listed ports or rerun interactively.'
+    $identifiedXReportPids = if ($processTable.Count -gt 0) {
+        @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    } else { @() }
+    $unknownConflicts = @($conflicts | Where-Object { $identifiedXReportPids -notcontains [int]$_.ProcessId })
+    if ($unknownConflicts.Count -gt 0) {
+        Write-Warn 'The following port owner(s) could not be identified as XREPORT and were left running:'
+        foreach ($conflict in $unknownConflicts) { Write-Host "  $(Format-PortConflict -Conflict $conflict)" -ForegroundColor Yellow }
+        throw 'A configured launch port is occupied by an unknown process. No unknown process was terminated; stop it manually or change the configured port.'
     }
-    if ($processTable.Count -eq 0) {
-        throw 'Process metadata is unavailable for the occupied launch ports; no process was terminated. Free the ports and rerun.'
+    if (-not $script:LauncherInteractive) {
+        throw 'Launch ports are occupied by identified XREPORT processes and this invocation is non-interactive; no process was terminated. Stop them manually or rerun interactively.'
     }
     $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
     $protectedConflicts = @($conflicts | Where-Object { $protectedProcessIds -contains [int]$_.ProcessId })
@@ -1109,7 +1193,7 @@ function Resolve-LaunchPortConflicts {
     }
 
     Clear-LauncherProgress
-    $confirmation = ([string](Read-Host 'Terminate all listed processes once and continue? [y/N]')).Trim()
+    $confirmation = ([string](Read-Host 'Terminate the identified XREPORT process tree(s) once and continue? [y/N]')).Trim()
     if ($confirmation -notmatch '^(?i:y|yes)$') {
         throw [System.OperationCanceledException]::new('Launch cancelled by the user. No process was terminated and no services were started.')
     }
@@ -1132,7 +1216,7 @@ function Resolve-LaunchPortConflicts {
         }
     }
 
-    $remainingConflicts = @(Wait-ForConfiguredPortsAvailable -FastApiPort $fastApiPort -UiPort $uiPort)
+    $remainingConflicts = @(Wait-ForConfiguredPortsAvailable -Ports $ports)
     if ($remainingConflicts.Count -gt 0) {
         $unapproved = @($remainingConflicts | Where-Object { $approvedProcessIds -notcontains [int]$_.ProcessId })
         if ($unapproved.Count -gt 0) {
@@ -1140,7 +1224,7 @@ function Resolve-LaunchPortConflicts {
         }
         throw "Approved process(es) still occupy configured launch ports after termination: $(($remainingConflicts | ForEach-Object { Format-PortConflict -Conflict $_ }) -join ' | ')"
     }
-    Write-Ok 'Configured launch ports are available after approved conflict resolution.'
+    Write-Ok 'Configured launch ports are available after identified XREPORT process cleanup.'
 }
 
 function Get-XReportProcessTable {
@@ -1162,7 +1246,7 @@ function Get-XReportApplicationProcessIds {
         $executablePath = [string]$process.ExecutablePath
         $processName = [IO.Path]::GetFileNameWithoutExtension([string]$process.Name)
         $repoScoped = ($commandLine -match $repoPattern) -or ($executablePath -match $repoPattern)
-        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|\buvicorn\b)')
+        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|server\.source_entry|\buvicorn\b)')
         $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
         $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
         $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
@@ -1200,31 +1284,55 @@ function Get-XReportProcessTreeIds {
     return $processIds
 }
 
+function Stop-XReportListenersOnPorts {
+    param([Parameter(Mandatory = $true)][int[]]$Ports)
+
+    $processTable = Get-XReportProcessTable
+    $conflicts = @(Get-PortConflicts -Ports $Ports -ProcessTable $processTable)
+    if ($conflicts.Count -eq 0) { return }
+    $identifiedPids = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    $unknownConflicts = @($conflicts | Where-Object { $identifiedPids -notcontains [int]$_.ProcessId })
+    if ($unknownConflicts.Count -gt 0) {
+        Write-Warn 'Unknown port owner(s) were left running:'
+        foreach ($conflict in $unknownConflicts) { Write-Host "  $(Format-PortConflict -Conflict $conflict)" -ForegroundColor Yellow }
+        throw 'An unknown process owns a configured port. It was left running; no XREPORT launch or maintenance process was started.'
+    }
+
+    $rootProcessIds = @($conflicts | ForEach-Object { [int]$_.ProcessId } | Sort-Object -Unique)
+    foreach ($processId in $rootProcessIds) {
+        Write-Info "Stopping identified XREPORT process tree rooted at PID $processId."
+        $taskkillOutput = @(& taskkill.exe /PID $processId /T /F 2>&1)
+        if ($LASTEXITCODE -ne 0 -and $null -ne (Get-Process -Id $processId -ErrorAction SilentlyContinue)) {
+            $detail = (@($taskkillOutput | ForEach-Object { [string]$_ }) -join ' ').Trim()
+            throw "Unable to stop XREPORT PID $processId from configured port(s) $($Ports -join ', '): $detail"
+        }
+    }
+    $remaining = @(Wait-ForConfiguredPortsAvailable -Ports $Ports)
+    if ($remaining.Count -gt 0) {
+        throw "Configured port(s) $($Ports -join ', ') remain occupied after stopping identified XREPORT processes: $(($remaining | ForEach-Object { Format-PortConflict -Conflict $_ }) -join ' | ')"
+    }
+}
+
 function Stop-XReportProcesses {
     $settings = Import-XReportEnvironment
     $processTable = Get-XReportProcessTable
     $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
-
-    $configuredPorts = @($settings.FASTAPI_PORT, $settings.UI_PORT) |
-        ForEach-Object { [int]$_ } |
-        Sort-Object -Unique
-    $rootProcessIds = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
-    foreach ($port in $configuredPorts) {
-        $portProcessId = Get-PortProcessId -Port $port
-        if ($null -ne $portProcessId) { $rootProcessIds += [int]$portProcessId }
+    $configuredPorts = @([int]$settings.FASTAPI_PORT, [int]$settings.UI_PORT) | Sort-Object -Unique
+    $portConflicts = @(Get-PortConflicts -Ports $configuredPorts -ProcessTable $processTable)
+    $identifiedPids = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    $unknownConflicts = @($portConflicts | Where-Object { $identifiedPids -notcontains [int]$_.ProcessId })
+    foreach ($conflict in $unknownConflicts) {
+        Write-Warn "Leaving unknown port owner running: $(Format-PortConflict -Conflict $conflict)"
     }
+
     $rootProcessIds = @(
-        $rootProcessIds |
+        $identifiedPids |
             Where-Object { $protectedProcessIds -notcontains [int]$_ } |
             ForEach-Object { [int]$_ } |
             Sort-Object -Unique
     )
-
     if ($rootProcessIds.Count -eq 0) {
-        foreach ($port in $configuredPorts) {
-            Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
-        }
-        Write-Info 'No XREPORT application processes or configured listeners were found.'
+        Write-Info 'No identifiable XREPORT application processes were found; unknown listeners remain untouched.'
         return
     }
 
@@ -1234,8 +1342,7 @@ function Stop-XReportProcesses {
             ForEach-Object { [int]$_ } |
             Sort-Object -Unique
     )
-    Write-Info "Stopping $($treeProcessIds.Count) XREPORT process(es)."
-
+    Write-Info "Stopping $($treeProcessIds.Count) identified XREPORT process(es)."
     foreach ($rootProcessId in $rootProcessIds) {
         $processInfo = @($processTable | Where-Object { [int]$_.ProcessId -eq $rootProcessId } | Select-Object -First 1)
         $processName = if ($processInfo.Count -gt 0) { [string]$processInfo[0].Name } else { 'process' }
@@ -1248,23 +1355,14 @@ function Stop-XReportProcesses {
             $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
         }
     )
-    foreach ($processId in ($remainingProcessIds | Sort-Object -Descending)) {
-        try { Stop-Process -Id ([int]$processId) -Force -ErrorAction Stop } catch { }
-    }
-
-    foreach ($port in $configuredPorts) {
-        Stop-PortListener -Port $port -ExcludeProcessIds $protectedProcessIds
-    }
-
-    $remainingProcessIds = @(
-        $treeProcessIds | Where-Object {
-            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
-        }
-    )
     if ($remainingProcessIds.Count -gt 0) {
-        throw "Unable to stop XREPORT process(es): $($remainingProcessIds -join ', ')."
+        throw "Unable to stop identified XREPORT process(es): $($remainingProcessIds -join ', ')."
     }
-    Write-Ok 'All XREPORT application processes and configured listeners were stopped.'
+    $remainingListeners = @(Get-PortConflicts -Ports $configuredPorts)
+    foreach ($conflict in $remainingListeners) {
+        Write-Warn "Configured listener remains running because it is not identified as XREPORT: $(Format-PortConflict -Conflict $conflict)"
+    }
+    Write-Ok 'Identified XREPORT application processes were stopped.'
 }
 
 function Invoke-Launch {
@@ -1284,9 +1382,6 @@ function Invoke-Launch {
     else {
         Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
     }
-    if (-not (Test-PortableNodeRuntimeReady)) {
-        Ensure-PortableNodeRuntime
-    }
     Write-Info "Launch timing phase=dependency_readiness elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)"
 
     $buildCheckStarted = $launchStopwatch.ElapsedMilliseconds
@@ -1301,61 +1396,55 @@ function Invoke-Launch {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
     $backendAppPath = Join-Path $RepoRoot 'app'
-    Write-Step 'Starting backend'
-    $escapedPython = $VenvPython.Replace("'", "''")
-    $escapedApp = $backendAppPath.Replace("'", "''")
-    $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-    if ($settings.RELOAD -eq 'true') { $backendCommand += ' --reload' }
+    $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
+    $healthUrl = "$appUrl/api/health"
+    $launchToken = New-LauncherToken
+    $previousServeClient = [Environment]::GetEnvironmentVariable('XREPORT_SERVE_CLIENT', 'Process')
+    $previousLaunchToken = [Environment]::GetEnvironmentVariable('XREPORT_LAUNCH_TOKEN', 'Process')
+    $backendProcess = $null
     $backendStartStarted = $launchStopwatch.ElapsedMilliseconds
-    $backendProcess = Start-Process -FilePath 'powershell.exe' `
-        -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) `
-        -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
-    Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
-
-    $healthUrl = "http://$($settings.FASTAPI_HOST):$($settings.FASTAPI_PORT)/api/health"
-    $uiUrl = "http://$($settings.UI_HOST):$($settings.UI_PORT)"
-    $frontendProcess = $null
     try {
-        if (-not (Test-Path -LiteralPath $FrontendServerScript)) {
-            throw "Built frontend server was not found: $FrontendServerScript"
-        }
-        Write-Step 'Starting built frontend server while the backend initializes'
-        $frontendStartStarted = $launchStopwatch.ElapsedMilliseconds
-        $quotedFrontendServerScript = '"' + $FrontendServerScript + '"'
-        $frontendProcess = Start-Process -FilePath $NodeExe -ArgumentList @(
-            $quotedFrontendServerScript,
-            '--host', $settings.UI_HOST,
-            '--port', $settings.UI_PORT,
-            '--api-base-url', $settings.UI_API_BASE_URL,
-            '--backend-host', $settings.FASTAPI_HOST,
-            '--backend-port', $settings.FASTAPI_PORT
-        ) `
-            -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru
-        Write-Info "Launch timing phase=frontend_server_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $frontendStartStarted)"
-        Write-Step "Waiting for frontend at $uiUrl"
-        $uiReachabilityStarted = $launchStopwatch.ElapsedMilliseconds
-        Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60
-        Write-Info "Launch timing phase=ui_reachable elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $uiReachabilityStarted)"
+        $env:XREPORT_SERVE_CLIENT = '1'
+        $env:XREPORT_LAUNCH_TOKEN = $launchToken
+        Write-Step 'Starting the FastAPI server with the built Angular frontend'
+        $backendProcess = Start-Process -FilePath $VenvPython `
+            -ArgumentList @('-m', 'server.source_entry') `
+            -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
+        Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
+
+        Write-Step "Waiting for FastAPI health at $healthUrl"
+        $healthStarted = $launchStopwatch.ElapsedMilliseconds
+        Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'FastAPI backend'
+        Write-Info "Launch timing phase=backend_healthy elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $healthStarted)"
 
         try {
-            Start-Process -FilePath $uiUrl -ErrorAction Stop | Out-Null
+            Start-Process -FilePath $appUrl -ErrorAction Stop | Out-Null
         }
         catch {
-            Write-Warn "Automatic browser launch failed. Open the interface manually at $uiUrl. $($_.Exception.Message)"
+            Write-Warn "Automatic browser launch failed. Open the interface manually at $appUrl. $($_.Exception.Message)"
         }
 
-        Write-Ok 'XREPORT interface started. Backend initialization is continuing in the application.'
-        Write-Host "Backend: $healthUrl (initializing; launcher PID $($backendProcess.Id))"
-        Write-Host "Frontend: $uiUrl (PID $($frontendProcess.Id))"
-    }
-    catch {
-        if ($frontendProcess -and -not $frontendProcess.HasExited) {
-            & taskkill.exe /PID $frontendProcess.Id /T /F | Out-Null
+        Write-Ok 'XREPORT is running from FastAPI. The application can show Database recovery if startup health reports database_recovery.'
+        Write-Host "Application: $appUrl"
+        Write-Host "API health: $healthUrl"
+        Write-Host 'This launcher owns the backend lifecycle. Press Ctrl+C to stop XREPORT.'
+        while (-not $backendProcess.HasExited) {
+            Start-Sleep -Milliseconds 500
         }
-        if ($backendProcess -and -not $backendProcess.HasExited) {
-            & taskkill.exe /PID $backendProcess.Id /T /F | Out-Null
+        throw "FastAPI backend exited unexpectedly with code $($backendProcess.ExitCode)."
+    } finally {
+        try {
+            if ($backendProcess) {
+                if (-not (Request-SourceBackendShutdown -Process $backendProcess -BaseUrl $appUrl -LaunchToken $launchToken -Label 'FastAPI backend')) {
+                    Write-Error 'FastAPI backend shutdown failed; inspect the console output and stop the captured backend process tree manually.'
+                }
+            }
+        } finally {
+            if ($null -eq $previousServeClient) { Remove-Item Env:XREPORT_SERVE_CLIENT -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_SERVE_CLIENT = $previousServeClient }
+            if ($null -eq $previousLaunchToken) { Remove-Item Env:XREPORT_LAUNCH_TOKEN -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_LAUNCH_TOKEN = $previousLaunchToken }
         }
-        throw
     }
 }
 
@@ -1364,7 +1453,7 @@ function Invoke-InstallOrUpdate {
     Write-Ok 'Portable runtimes ready.'
     $installationType = Read-InstallationType
     $settings = Import-XReportEnvironment
-    Stop-PortListener -Port ([int]$settings.UI_PORT)
+    Stop-XReportListenersOnPorts -Ports @([int]$settings.UI_PORT)
     Install-Dependencies -BuildFrontend -InstallationType $installationType
     Write-Step 'Synchronizing database schema'
     Invoke-InitializeDatabase
@@ -1379,7 +1468,7 @@ function Invoke-RebuildFrontend {
         Write-Step 'Frontend dependencies are missing or unusable; installing them.'
         Install-FrontendDependencies
     }
-    Stop-PortListener -Port ([int]$settings.UI_PORT)
+    Stop-XReportListenersOnPorts -Ports @([int]$settings.UI_PORT)
     Invoke-FrontendBuild
     Write-Ok 'Frontend rebuilt successfully'
 }
@@ -1456,6 +1545,11 @@ function Get-DesktopConfigPath {
         $config.app.security | Add-Member -MemberType NoteProperty -Name capabilities -Value @($capability)
     }
     $config.version = $ReleaseVersion
+    if ($Development) {
+        $config.build.devUrl = Get-LocalServiceUrl `
+            -HostName ([string]$env:UI_HOST) `
+            -Port ([int]$env:UI_PORT)
+    }
     if ($Development -and $config.bundle.PSObject.Properties.Name -contains 'resources') {
         $config.bundle.PSObject.Properties.Remove('resources')
     }
@@ -2029,30 +2123,93 @@ function Invoke-RemoveDesktopArtifactsMenu {
 
 function Invoke-LaunchDesktopDev {
     $settings = Import-XReportEnvironment
+    Resolve-LaunchPortConflicts -Settings $settings -IncludeUiPort
     Ensure-PortableRuntimes
+    Initialize-Environment
+    if (-not (Test-BackendDependenciesReady)) {
+        Install-BackendDependencies -InstallationType 'Standard'
+    }
     if (-not (Test-FrontendDependenciesReady)) { Install-FrontendDependencies }
     if (-not (Test-DesktopDependenciesReady)) { Install-DesktopDependencies }
     Invoke-DesktopFrontendBuild | Out-Null
-    Stop-PortListener -Port ([int]$settings.FASTAPI_PORT)
-    Stop-PortListener -Port ([int]$settings.UI_PORT)
+
     $backendAppPath = Join-Path $RepoRoot 'app'
-    $escapedPython = $VenvPython.Replace("'", "''")
-    $escapedApp = $backendAppPath.Replace("'", "''")
-    $backendCommand = "& '$escapedPython' -m uvicorn server.app:app --app-dir '$escapedApp' --host $($settings.FASTAPI_HOST) --port $($settings.FASTAPI_PORT) --log-level info"
-    $backendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $backendCommand) -WorkingDirectory $RepoRoot -WindowStyle Normal -PassThru
-    $frontendCommand = "& '$($NpmCmd.Replace("'", "''"))' run preview -- --host $($settings.UI_HOST) --port $($settings.UI_PORT)"
-    $frontendProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NoExit', '-Command', $frontendCommand) -WorkingDirectory $ClientDir -WindowStyle Normal -PassThru
+    $launchToken = New-LauncherToken
+    $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
+    $uiUrl = Get-LocalServiceUrl -HostName ([string]$settings.UI_HOST) -Port ([int]$settings.UI_PORT)
+    $backendProxyHost = Get-LoopbackHost -HostName ([string]$settings.FASTAPI_HOST)
+    $logDirectory = Get-XReportLogDirectory
+    $logStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $backendStdout = Join-Path $logDirectory "tauri-dev-backend-$logStamp.stdout.log"
+    $backendStderr = Join-Path $logDirectory "tauri-dev-backend-$logStamp.stderr.log"
+    $frontendStdout = Join-Path $logDirectory "tauri-dev-bundle-$logStamp.stdout.log"
+    $frontendStderr = Join-Path $logDirectory "tauri-dev-bundle-$logStamp.stderr.log"
+    $previousLaunchToken = [Environment]::GetEnvironmentVariable('XREPORT_LAUNCH_TOKEN', 'Process')
+    $previousServeClient = [Environment]::GetEnvironmentVariable('XREPORT_SERVE_CLIENT', 'Process')
+    $previousDesktopDev = [Environment]::GetEnvironmentVariable('XREPORT_DESKTOP_DEV', 'Process')
+    $backendProcess = $null
+    $frontendProcess = $null
     try {
-        Invoke-HealthCheck -Uri "http://$($settings.UI_HOST):$($settings.UI_PORT)/" -TimeoutSeconds 60
+        $env:XREPORT_LAUNCH_TOKEN = $launchToken
+        Remove-Item Env:XREPORT_SERVE_CLIENT -ErrorAction SilentlyContinue
+        Write-Info "Development logs will be retained under $logDirectory"
+        Write-Step 'Starting the source FastAPI backend and built-bundle development server'
+        $backendProcess = Start-Process -FilePath $VenvPython `
+            -ArgumentList @('-m', 'server.source_entry') `
+            -WorkingDirectory $backendAppPath -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr
+        $quotedFrontendServerScript = '"' + $FrontendServerScript + '"'
+        $frontendProcess = Start-Process -FilePath $NodeExe `
+            -ArgumentList @($quotedFrontendServerScript, '--host', $settings.UI_HOST, '--port', $settings.UI_PORT, '--api-base-url', $settings.UI_API_BASE_URL, '--backend-host', $backendProxyHost, '--backend-port', $settings.FASTAPI_PORT) `
+            -WorkingDirectory $ClientDir -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput $frontendStdout -RedirectStandardError $frontendStderr
+
+        Invoke-HealthCheck -Uri "$appUrl/api/health" -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'Tauri development backend'
+        Invoke-HealthCheck -Uri "$uiUrl/" -TimeoutSeconds 60 -Process $frontendProcess -ProcessLabel 'Built-bundle development server'
+        Write-Info "Backend logs: $backendStdout; $backendStderr"
+        Write-Info "Built-bundle logs: $frontendStdout; $frontendStderr"
+
         $env:XREPORT_DESKTOP_DEV = '1'
         $devConfigPath = Get-DesktopConfigPath -Variant 'cpu' -ReleaseVersion $Version -Development
-        Write-Step 'Launching the debug Tauri shell; backend and frontend consoles remain visible.'
+        Write-Step 'Launching the debug Tauri shell in this launcher console.'
         Invoke-Checked -FilePath $NpmCmd -ArgumentList @('exec', '--', 'tauri', 'dev', '--config', $devConfigPath) -WorkingDirectory $DesktopDir
     }
     finally {
-        Remove-Item Env:XREPORT_DESKTOP_DEV -ErrorAction SilentlyContinue
-        foreach ($process in @($frontendProcess, $backendProcess)) {
-            if ($process -and -not $process.HasExited) { & taskkill.exe /PID $process.Id /T /F | Out-Null }
+        $shutdownSucceeded = $true
+        try {
+            if ($backendProcess) {
+                try {
+                    if (-not (Request-SourceBackendShutdown `
+                        -Process $backendProcess -BaseUrl $appUrl -LaunchToken $launchToken `
+                        -Label 'Tauri development backend')) {
+                        $shutdownSucceeded = $false
+                    }
+                } catch {
+                    $shutdownSucceeded = $false
+                    Write-Warn "Tauri development backend cleanup failed: $($_.Exception.Message)"
+                }
+            }
+            if ($frontendProcess) {
+                try {
+                    if (-not (Stop-OwnedProcessTree -Process $frontendProcess -Label 'Built-bundle development server' -GraceSeconds 2)) {
+                        $shutdownSucceeded = $false
+                    }
+                } catch {
+                    $shutdownSucceeded = $false
+                    Write-Warn "Built-bundle development server cleanup failed: $($_.Exception.Message)"
+                }
+            }
+        } finally {
+            if ($null -eq $previousDesktopDev) { Remove-Item Env:XREPORT_DESKTOP_DEV -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_DESKTOP_DEV = $previousDesktopDev }
+            if ($null -eq $previousServeClient) { Remove-Item Env:XREPORT_SERVE_CLIENT -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_SERVE_CLIENT = $previousServeClient }
+            if ($null -eq $previousLaunchToken) { Remove-Item Env:XREPORT_LAUNCH_TOKEN -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_LAUNCH_TOKEN = $previousLaunchToken }
+            Write-Info "Tauri development logs retained at $logDirectory"
+        }
+        if (-not $shutdownSucceeded) {
+            Write-Warn "Tauri development shutdown was incomplete. Logs remain available under $logDirectory."
         }
     }
 }
