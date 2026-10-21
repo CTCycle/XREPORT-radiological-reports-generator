@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from threading import Lock
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 from ..common.path import ENV_EXAMPLE_FILE_PATH, ENV_FILE_PATH
 from ..common.utils.logger import logger
@@ -55,7 +55,25 @@ def load_environment(*, force: bool = False) -> Path:
             return env_path
 
         resource_root_override = os.getenv("XREPORT_RESOURCES_DIR")
-        load_dotenv(dotenv_path=env_path, override=True)
+        from server.configurations.database_config import bootstrap_database_configuration
+
+        migration_error = bootstrap_database_configuration(env_path)
+        if migration_error:
+            logger.warning(
+                "Database configuration needs recovery through Settings: %s",
+                migration_error,
+            )
+
+        for name, value in dotenv_values(dotenv_path=env_path).items():
+            if name is None or value is None:
+                continue
+            if name == "EMBEDDED_DATABASE" or name.startswith("DATABASE_"):
+                continue
+            os.environ[name] = value
+
+        for name in tuple(os.environ):
+            if name == "EMBEDDED_DATABASE" or name.startswith("DATABASE_"):
+                os.environ.pop(name, None)
         if resource_root_override and resource_root_override.strip():
             # Keep spawned workers aligned with the runtime layout resolved at import.
             os.environ["XREPORT_RESOURCES_DIR"] = resource_root_override

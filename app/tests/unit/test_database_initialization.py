@@ -15,7 +15,7 @@ from server.repositories.schemas import Base
 from server.repositories.schemas.models import InferenceReport, InferenceRun
 
 ###############################################################################
-def _sqlite_settings() -> DatabaseSettings:
+def _sqlite_settings(path: Path) -> DatabaseSettings:
     return DatabaseSettings(
         backend="sqlite",
         engine=None,
@@ -28,6 +28,7 @@ def _sqlite_settings() -> DatabaseSettings:
         ssl_ca=None,
         connect_timeout=3,
         insert_batch_size=1000,
+        sqlite_path=path,
     )
 
 ###############################################################################
@@ -47,10 +48,6 @@ def _postgres_settings() -> DatabaseSettings:
     )
 
 ###############################################################################
-def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
-    monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
-    monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
-
 ###############################################################################
 def _alembic_config(path: Path) -> Config:
     config = Config(str(initializer.MIGRATIONS_DIR.parent / "alembic.ini"))
@@ -70,10 +67,8 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-
-    initializer.initialize_database(_sqlite_settings())
-    initializer.prepare_database_for_startup(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
+    initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
@@ -90,11 +85,45 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(
         engine.dispose()
 
 ###############################################################################
+def test_upgrade_from_previous_head_preserves_settings_and_records(tmp_path) -> None:
+    database_path = tmp_path / "database.db"
+    command.upgrade(_alembic_config(database_path), "e91a4f6c2d73")
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "UPDATE application_settings SET global_seed = 909 WHERE settings_id = 1"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO datasets (name, name_key, created_at) "
+                "VALUES ('Retained dataset', 'retained-dataset', '2026-10-20 12:00:00')"
+            )
+    finally:
+        engine.dispose()
+
+    initializer.initialize_database(_sqlite_settings(database_path))
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT global_seed, theme_preference FROM application_settings "
+                "WHERE settings_id = 1"
+            ).one() == (909, None)
+            assert connection.exec_driver_sql(
+                "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
+            ).scalar_one() == "Retained dataset"
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == initializer.HEAD_REVISION
+    finally:
+        engine.dispose()
+
+###############################################################################
 def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
     command.upgrade(_alembic_config(database_path), "c1e4f1a7b2d9")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
@@ -108,7 +137,7 @@ def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="implicit schema adoption"):
-        initializer.initialize_database(_sqlite_settings())
+        initializer.initialize_database(_sqlite_settings(database_path))
 
     assert "alembic_version" not in _database_tables(database_path)
 
@@ -117,7 +146,6 @@ def test_unknown_partial_schema_is_rejected_without_stamping(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -128,14 +156,13 @@ def test_unknown_partial_schema_is_rejected_without_stamping(
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="implicit schema adoption"):
-        initializer.prepare_database_for_startup(_sqlite_settings())
+        initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
     assert "alembic_version" not in _database_tables(database_path)
 
 ###############################################################################
 def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
 
     def fail_upgrade(config: Config, _revision: str) -> None:
         connection = config.attributes["connection"]
@@ -144,7 +171,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
 
     monkeypatch.setattr(initializer.command, "upgrade", fail_upgrade)
     with pytest.raises(RuntimeError, match="Unexpected error"):
-        initializer.initialize_database(_sqlite_settings())
+        initializer.initialize_database(_sqlite_settings(database_path))
 
     assert "transient_failure" not in _database_tables(database_path)
     assert "alembic_version" not in _database_tables(database_path)
@@ -152,8 +179,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
 ###############################################################################
 def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    initializer.initialize_database(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -164,16 +190,15 @@ def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="differs from the current ORM schema"):
-        initializer.prepare_database_for_startup(_sqlite_settings())
+        initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
 ###############################################################################
 def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    initializer.initialize_database(_sqlite_settings())
-    database = database_engine.Database(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
+    database = database_engine.Database(_sqlite_settings(database_path))
 
     try:
         with database.engine.connect() as connection:
@@ -231,8 +256,7 @@ def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
 ###############################################################################
 def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    settings = _sqlite_settings()
+    settings = _sqlite_settings(database_path)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [

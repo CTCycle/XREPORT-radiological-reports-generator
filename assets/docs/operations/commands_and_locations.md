@@ -162,7 +162,7 @@ requires one linear head and never performs downgrades automatically.
 - end-to-end dataset preparation to training to inference to validation workflow
 - long-running operations with start, poll, and cancel behavior
 - local web runtime with a consolidated Windows launcher and maintenance menu
-- SQLite by default with optional PostgreSQL mode selected by `EMBEDDED_DATABASE`
+- SQLite and PostgreSQL backends, selected from Settings → Database
 
 ## Data And Output Locations
 
