@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import json
 
 import pytest
-import sqlalchemy
 
 import server.repositories.database.initializer as initializer
 from server.configurations.settings import DatabaseSettings
@@ -52,82 +50,7 @@ def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Database:
     return database
 
 ###############################################################################
-def test_legacy_json_is_imported_once_during_alembic_upgrade(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    data_root = tmp_path / "data"
-    path = data_root / "settings" / "configurations.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        json.dumps(
-            {
-                "global": {"seed": 123},
-                "features": {"allow_local_filesystem_access": False},
-                "jobs": {"polling_interval": 2.5},
-                "inference": {
-                    "hf_local_only": False,
-                    "device": "cuda",
-                    "max_loaded_models": 1,
-                    "model_timeout": 120,
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("XREPORT_DESKTOP", "true")
-    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data_root))
-    db_path = tmp_path / "database.db"
-    settings = _sqlite_settings(db_path)
-    initializer.initialize_database(settings)
-    database = Database(settings)
-
-    values = ApplicationSettingsRepository(database).get_settings()
-    assert values.global_seed == 123
-    assert values.allow_local_filesystem_access is False
-    assert values.job_polling_interval == 2.5
-    assert values.inference_hf_local_only is False
-    assert values.inference_device == "cuda"
-    assert values.inference_model_timeout == 120
-    assert path.is_file()
-
-###############################################################################
-def test_legacy_json_with_non_singleton_model_limit_rolls_back(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    data_root = tmp_path / "data"
-    path = data_root / "settings" / "configurations.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(
-        json.dumps(
-            {
-                "global": {"seed": 42},
-                "features": {"allow_local_filesystem_access": True},
-                "jobs": {"polling_interval": 1.0},
-                "inference": {
-                    "hf_local_only": True,
-                    "device": "auto",
-                    "max_loaded_models": 2,
-                    "model_timeout": 600,
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("XREPORT_DESKTOP", "true")
-    monkeypatch.setenv("XREPORT_DATA_ROOT", str(data_root))
-    db_path = tmp_path / "database.db"
-    with pytest.raises(RuntimeError, match="max_loaded_models"):
-        initializer.initialize_database(_sqlite_settings(db_path))
-    assert path.is_file()
-    if db_path.exists():
-        engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
-        try:
-            assert "application_settings" not in sqlalchemy.inspect(engine).get_table_names()
-        finally:
-            engine.dispose()
-
-###############################################################################
-def test_fresh_upgrade_without_legacy_json_uses_typed_defaults(
+def test_fresh_upgrade_uses_typed_defaults(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     data_root = tmp_path / "data"

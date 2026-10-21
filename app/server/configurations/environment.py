@@ -57,11 +57,11 @@ def load_environment(*, force: bool = False) -> Path:
         resource_root_override = os.getenv("XREPORT_RESOURCES_DIR")
         from server.configurations.database_config import bootstrap_database_configuration
 
-        migration_error = bootstrap_database_configuration(env_path)
-        if migration_error:
+        bootstrap_error = bootstrap_database_configuration()
+        if bootstrap_error:
             logger.warning(
                 "Database configuration needs recovery through Settings: %s",
-                migration_error,
+                bootstrap_error,
             )
 
         for name, value in dotenv_values(dotenv_path=env_path).items():
