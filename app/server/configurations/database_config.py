@@ -65,6 +65,7 @@ class DatabaseConfiguration(BaseModel):
     connect_timeout: int = Field(default=30, ge=1, le=300)
     insert_batch_size: int = Field(default=1000, ge=1)
 
+    # -------------------------------------------------------------------------
     @field_validator("sqlite_path", mode="before")
     @classmethod
     def parse_sqlite_path(cls, value: Any) -> Any:
@@ -72,11 +73,13 @@ class DatabaseConfiguration(BaseModel):
             return Path(value)
         return value
 
+    # -------------------------------------------------------------------------
     @field_validator("password", mode="before")
     @classmethod
     def normalize_empty_password(cls, value: Any) -> Any:
         return None if value == "" else value
 
+    # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_backend_fields(self) -> DatabaseConfiguration:
         if self.backend == "sqlite":
@@ -106,6 +109,7 @@ class DatabaseConfiguration(BaseModel):
             raise ValueError("PostgreSQL uses the installed psycopg driver.")
         return self
 
+    # -------------------------------------------------------------------------
     def to_database_settings(self):
         from server.configurations.settings import DatabaseSettings
 
@@ -124,6 +128,7 @@ class DatabaseConfiguration(BaseModel):
             sqlite_path=self.sqlite_path,
         )
 
+    # -------------------------------------------------------------------------
     def public_dict(self) -> dict[str, Any]:
         values = self.model_dump(mode="json", exclude={"password"})
         values["password_configured"] = bool(self.password)
