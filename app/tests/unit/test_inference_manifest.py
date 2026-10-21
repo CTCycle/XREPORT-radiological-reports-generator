@@ -28,10 +28,10 @@ def test_embedded_catalog_contains_unique_sha_pinned_public_models() -> None:
         entry.model_ref: validation_contract_hash(entry)
         for entry in models
     } == {
-        "huggingface:aehrc/cxrmate-multi-tf": "770983f4b6d02fe550d739106838a4834719dad0b0d54258c9738790af0d0ddd",
-        "huggingface:StanfordAIMI/CheXOne": "e3fe82011143281cd89b95575fafcc55aa01e40f154cef83c233313dcb728b3d",
-        "huggingface:aehrc/cxrmate-2": "ef9bf48a66e2e6a6df964da4fbcef1d9c3be0d783ee4a95376f900650e4c59ca",
-        "huggingface:google/medgemma-1.5-4b-it": "db8398f1c7a5dfd7d1c5b41a67cb67109f9e77865dc7ad3836cc86bd796b761d",
+        "huggingface:aehrc/cxrmate-multi-tf": "4feea8f90fba6c26881d35e6178fcc878eb56a8ed53df717d74f856d6df92ee7",
+        "huggingface:StanfordAIMI/CheXOne": "06314a6921f88ddecbaa25cd9eef44e0cbab78701b06319de11feffbd930dc4e",
+        "huggingface:aehrc/cxrmate-2": "cc03947d5f74291f602c9c05e341d58d43fab9883f18637278fe35ee24f0a1c1",
+        "huggingface:google/medgemma-1.5-4b-it": "a22ad3bcad11b2438bee9fc4bc53d1cb127d81b42931b0e1192e6170418c0163",
     }
 
 ###############################################################################

@@ -20,7 +20,16 @@ both lint gates, and the browser/API E2E suites except the `S23` case that
 requires the still-absent `s27` fixture pack; the S01 launcher start sequence
 and a fresh CI run for the new source remain open. The overall Tier 0 result
 remains `PARTIAL` because the official launcher start path was not rerun while
-its UI port was already owned. SonarCloud is excluded from project gates
+its UI port was already owned. Follow-on cleanup removed the neutral validation
+hash field, historical cache-directory sweep, and npm peer-dependency bypass,
+and replaced the API type generator. A clean `npm ci`, dependency-tree check,
+API type generation, client build/lint, 64 client unit tests, 18 dedicated
+browser E2E tests, backend Ruff, and backend Pyright passed. The standard runner
+reported 245 passed, 3 skipped, and 4 failed; the S23 failure lacks its fixture
+pack, the upload-size case passed on retry, the S10 retry could not connect to
+the runner listener, and the request-gate test failed before its body due to
+Windows asyncio loop initialization. These end-to-end scopes remain `PARTIAL`.
+SonarCloud is excluded from project gates
 because the available plan does not support analysis for this repository's
 over-50k LOC. The
 [validation campaign ledger](validation_campaign_ledger.md) records the exact
@@ -66,7 +75,7 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed against the previous source; the Alembic stream is now squashed to the single baseline `b1e7a2c4d908` and the full launcher S01 sequence has not rerun on it. Post-change unit coverage confirmed fresh initialization reaches the squashed head with seeded default settings, restart reuse, and unversioned-database rejection. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. The configured UI port `8003` remains owned by the pre-existing repository `serve-built.cjs` PID `37384`; default-port launch correctly failed closed and preserved it, so successful startup on the standard ports and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed against the previous source; the Alembic stream is now squashed to the single baseline `b1e7a2c4d908` and the full launcher S01 sequence has not rerun on it. Post-change unit coverage confirmed fresh initialization reaches the squashed head with seeded default settings, restart reuse, and unversioned-database rejection. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. A prior check found UI port `8003` occupied by repository `serve-built.cjs` PID `37384` and confirmed default-port launch failed closed while preserving it. The current recheck found no listener on ports `5003` or `8003`; S01 has not been rerun for the current source, so standard-port startup remains open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.desktop.packaged` | `PARTIAL` | Published v3.2.0 CPU/CUDA portable and MSI packages passed the scoped acceptance described in the campaign ledger. CUDA fallback without an NVIDIA GPU and cross-variant performance remain untested. | [Campaign](validation_campaign_ledger.md), [deployment](runtime/deployment.md) |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | No supported container image or deployment contract exists. | [Runtime modes](runtime/modes.md) |
 | `configuration.runtime_settings` | `VALIDATED` | Non-database settings and theme preferences autosave with debounced numeric inputs, ordered writes, immediate visual theme application, inline failure recovery, reload persistence, and per-database restoration. Client unit and focused browser checks cover all four settings tabs; backend tests cover persistence after repository reopen. Infrastructure and static model-policy values are not user settings. | [Configuration](runtime/configuration.md), [settings E2E](../../app/tests/e2e/test_angular_ui.py) |
@@ -106,14 +115,13 @@ where to revalidate after a change.
 | `ui.settings`, `ui.inference.catalogue_and_sections`, `ui.reports.history`, `ui.startup_gate`, `ui.shell.routing_theme_guidance`, `ui.validation.report_review` | `VALIDATED` | Settings tabs and controls are covered by focused client/API tests and browser checks using technical fixtures: non-database changes autosave and restore after reload, while database edits remain drafts until a successful current-candidate connection test and explicit confirmation; failed probes leave the active backend unchanged. This is not full product accessibility certification. | [UI experience](ui/experience.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.inference.workflow` | `PARTIAL` | Generate/review is observed for one provider and limited inputs. Other provider contracts and browser download-event observation remain open. | [Local inference models](runtime/local_inference_models.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.dataset_and_training_surfaces` | `PARTIAL` | The routes and selected technical flows are exercised; representative data, full packaged workflows, and spoken assistive-technology output remain outside. | [UI experience](ui/experience.md), [dataset workflow E2E](../../app/tests/e2e/test_dataset_workflow_ui.py) |
-| `test.infrastructure.windows_cache` | `PARTIAL` | Configured runner caches and `app/client/.angular/cache/` remain ignored, source/QA allowlists are preserved, and `app/tests/run_tests.bat` uses canonical `runtimes/cache` paths. Direct pytest instructions now resolve the canonical cache root before invoking pytest. Recheck found pre-existing protected trees under `app/server/runtimes/cache` that deny access; they remain untouched and may still warn. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `test.infrastructure.windows_cache` | `PARTIAL` | Runner and direct pytest instructions use canonical `runtimes/cache` paths. Launcher cache clear and uninstall now target only current runtime/build locations; PowerShell parsing passed, but these two actions were not exercised in this run. Historical cache locations are no longer enumerated or removed. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 
 ## Active issues
 
 | ID | Component | Severity | State | Current impact and next evidence |
 | --- | --- | --- | --- | --- |
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | `BLOCKED` | The gated model cannot be installed without authorized provider access. After access is configured, install the exact pinned revision and capture real inference before changing status. |
-| `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | `OPEN` | `app/server/runtimes/cache/pytest-xreport-current-validation` and `app/server/runtimes/cache/s23-20260924/pytest-cache` still deny enumeration. Both were left untouched. Continue using the absolute canonical cache root and inspect access before any cleanup. |
 
 ## Evidence ownership
 
