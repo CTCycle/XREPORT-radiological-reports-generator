@@ -8,6 +8,7 @@ import re
 from time import perf_counter
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -39,6 +40,9 @@ from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
 from server.common.path import RUNTIME_VARIANT
 from server.configurations import get_database_settings
 from server.configurations.database_config import DatabaseConfigurationError
+from server.configurations.runtime_environment import (
+    get_runtime_environment_settings,
+)
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
@@ -162,6 +166,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app() -> FastAPI:
+    runtime_environment = get_runtime_environment_settings()
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
@@ -239,6 +244,15 @@ def create_app() -> FastAPI:
             methods=["GET"],
             include_in_schema=False,
             response_model=None,
+        )
+
+    if runtime_environment.cors.allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(runtime_environment.cors.allowed_origins),
+            allow_credentials=runtime_environment.cors.allow_credentials,
+            allow_methods=list(runtime_environment.cors.allow_methods),
+            allow_headers=list(runtime_environment.cors.allow_headers),
         )
 
     return application

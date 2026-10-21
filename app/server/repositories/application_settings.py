@@ -67,8 +67,6 @@ class ApplicationSettingsRepository:
                 "global_seed": record.global_seed,
                 "allow_local_filesystem_access": record.allow_local_filesystem_access,
                 "job_polling_interval": record.job_polling_interval,
-                "inference_hf_local_only": record.inference_hf_local_only,
-                "inference_device": record.inference_device,
                 "inference_model_timeout": record.inference_model_timeout,
                 "theme_preference": record.theme_preference,
                 **changes,
@@ -106,8 +104,6 @@ class ApplicationSettingsRepository:
                 "global_seed": record.global_seed,
                 "allow_local_filesystem_access": record.allow_local_filesystem_access,
                 "job_polling_interval": record.job_polling_interval,
-                "inference_hf_local_only": record.inference_hf_local_only,
-                "inference_device": record.inference_device,
                 "inference_model_timeout": record.inference_model_timeout,
                 "theme_preference": record.theme_preference,
             }

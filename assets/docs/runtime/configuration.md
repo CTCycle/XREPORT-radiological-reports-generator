@@ -12,14 +12,15 @@ Last updated: 2026-10-21
   `app/server/configurations/inference_models.py`
 - Tracked first-run environment template: `settings/.env.example`
 
-The environment file contains no database settings. The dedicated database
-configuration file contains only the selected backend and its connection
-parameters; PostgreSQL passwords are protected with Windows DPAPI. The active
-database stores the four user-editable application values and two hidden runtime
-policy values. The reviewed model catalogue is immutable typed application
-code; it is not loaded from a runtime file. Missing or invalid database
-configuration opens the restricted Database recovery UI; on first run a
-default SQLite configuration is created automatically.
+The environment file contains process-level deployment and runtime policy, but
+no database settings. The dedicated database configuration file contains only
+the selected backend and its connection parameters; PostgreSQL passwords are
+protected with Windows DPAPI. The active database stores only user-editable
+application values managed through the Settings API. The reviewed model
+catalogue is immutable typed application code; it is not loaded from a runtime
+file. Missing or invalid database configuration opens the restricted Database
+recovery UI; on first run a default SQLite configuration is created
+automatically.
 
 ## Packaged desktop configuration
 
@@ -44,6 +45,12 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `UI_HOST`
 - `UI_PORT`
 - `UI_API_BASE_URL`
+- `CORS_ALLOWED_ORIGINS`
+- `CORS_ALLOW_CREDENTIALS`
+- `CORS_ALLOW_METHODS`
+- `CORS_ALLOW_HEADERS`
+- `INFERENCE_HF_LOCAL_ONLY`
+- `INFERENCE_DEVICE`
 - `RELOAD`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
@@ -66,11 +73,10 @@ The application-settings record contains the following owned values:
 - `inference.model_timeout`
 - `theme_preference` (the global theme selector)
 
-The same database row also stores the hidden process policy values
-`inference.hf_local_only` and `inference.device`. They are loaded at startup,
-are not returned by the public Settings API, and are not user-editable.
-`inference.max_loaded_models` was unused and is no longer part of the runtime
-settings model.
+`INFERENCE_HF_LOCAL_ONLY` and `INFERENCE_DEVICE` are process-level inference
+policies loaded from `.env`. They are not part of the UI settings bundle or the
+application-settings database row. `inference.max_loaded_models` was unused
+and is no longer part of the runtime settings model.
 
 Completed local Hugging Face inference records the requested device policy and
 the effective runtime topology and dtype in provenance. For `auto`, the
@@ -103,11 +109,11 @@ Only these values are user-editable through Settings:
 
 Changing a seed, polling interval, or inference timeout applies to newly started
 work. Running jobs and generations keep the value captured at their start.
-`inference.device`, `inference.hf_local_only`, and
-the static model catalogue remain runtime policy and are not exposed by the
-Settings API. A prior browser theme preference is imported into the active
-database once; later theme changes are stored in that database and switching
-databases loads its theme choice.
+`INFERENCE_DEVICE`, `INFERENCE_HF_LOCAL_ONLY`, and the static model catalogue
+remain runtime policy and are not exposed by the Settings API. A prior browser
+theme preference is imported into the active database once; later theme
+changes are stored in that database and switching databases loads its theme
+choice.
 
 `UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Environment initialization preserves an explicit process-level value over a value in `settings/.env`, so spawned job workers inherit the same resource root resolved by the parent. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
@@ -127,15 +133,16 @@ independent; XREPORT does not copy records or settings between them.
 If a database configuration is missing, corrupt, or unavailable at startup, a
 restricted Database settings screen lets the user repair or select a backend
 before normal routes are enabled. Restart the app after changing process-level
-launch configuration such as `XREPORT_RESOURCES_DIR`, host, or port. Ordinary
-database switches do not require a restart. A saved PostgreSQL password can be
-opened only by the Windows account that protected it; re-enter it after moving
-the data directory to another account or machine.
+launch configuration such as `XREPORT_RESOURCES_DIR`, host, port, CORS, or
+inference policy. Ordinary database switches do not require a restart. A saved
+PostgreSQL password can be opened only by the Windows account that protected
+it; re-enter it after moving the data directory to another account or machine.
 
 ## Interoperability
 
 - Frontend calls backend routes through `/api`.
 - Angular `start` and `dev` proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
+- CORS is disabled when `CORS_ALLOWED_ORIGINS` is empty. When configured, comma-separated origins, methods, headers, and credential behavior are read from `.env` at process startup; wildcard origins cannot be combined with credentials.
 - The `preview` script serves `dist/client-angular/browser` with a built-in Node
   static server, Angular SPA fallback, and the same `/api` reverse proxy.
 - The Windows launcher starts FastAPI plus that built-bundle server, waits for
