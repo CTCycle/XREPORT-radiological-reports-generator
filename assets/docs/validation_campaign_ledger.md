@@ -11,17 +11,18 @@ Validation here means technical software evidence for a stated scope. It does
 not establish clinical validity, diagnostic performance, regulatory approval,
 or suitability for patient care.
 
-The preceding `develop` candidate
-`df1199790a15ab7ffc66cc6772867321aefe3140` passed hosted CI run
-[39662773417](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39662773417).
-The v3.2.1 working candidate repairs upgrades from published database revisions
+The v3.2.1 candidate at
+`1a15d24cb07fecbf66601940752a164c47972fc7` passed hosted CI run
+[39667709442](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39667709442).
+That run passed backend unit tests, Ruff, Pyright, the PostgreSQL persistence
+contract, retained API E2E, client build/server, lint, and client unit tests.
+The candidate repairs upgrades from published database revisions
 `f48a7c2e91b6` and `e91a4f6c2d73` and retains the v3.2.0 browser theme
 preference. Its 16 focused database-initialization tests, four version/OpenAPI
 tests, 65 client unit tests, and both lint gates pass locally. Current-source
 navigation and seed persistence across a launcher restart passed with isolated
-resources; candidate hosted CI and official packages remain unverified. The
-latest successful PostgreSQL contract checks were hosted at the preceding
-candidate; live authenticated PostgreSQL switching remains unverified.
+resources, with backend version 3.2.1. Official packages remain unverified.
+Live authenticated PostgreSQL switching remains unverified.
 Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
 `.scratch-openapi` QA directories after consolidating their durable outcomes in
 the existing ledgers. Referenced validation captures and the logs supporting
@@ -31,7 +32,7 @@ unresolved checks were retained.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` candidate hosted CI remains open; current-source navigation and restart persistence passed; focused local migration/version/OpenAPI/client/lint checks passed; rendered `S02` checks pass) | The v3.2.1 working candidate passes 16 migration tests, four version/OpenAPI tests, 65 client unit tests, and both lint gates locally. The official launcher used isolated resources on ports 5003/8003; Inference, Reports, Dataset, Training, and Settings loaded; settings seed `317` survived navigation and restart; backend health, SQLite integrity, and Alembic head `42c8e1f7b0d3` passed. The preceding candidate hosted run 39662773417 passed all jobs, but no CI run covers the current changes yet. SonarCloud is excluded because the available plan does not support this repository's over-50k LOC analysis. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` candidate CI passed; current-source navigation and restart persistence passed; focused local migration/version/OpenAPI/client/lint checks passed; official packages remain open; rendered `S02` checks pass) | Candidate commit `1a15d24` passed hosted run 39667709442, including backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained API E2E, client build/server/lint/unit tests. The official launcher used isolated resources on ports 5003/8003; Inference, Reports, Dataset, Training, and Settings loaded; seed `317` survived navigation and restart; backend version was 3.2.1, SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`. CPU/CUDA packages and package smoke are still open. SonarCloud is excluded because the available plan does not support this repository's over-50k LOC analysis. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PARTIAL` (`S10`–`S15`; database runtime switch partial) | The v3.2.1 candidate restores the browser theme preference to database settings when the released database has no saved value; client unit tests cover import and stale-copy removal. SQLite migration tests cover both revisions from published v3.2.0 and preserve settings/data. Successful authenticated PostgreSQL connection and UI activation remain unverified; live PostgreSQL testing was deferred on 2026-10-21. Broader Tier 1 workflows retain their existing limits. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PARTIAL` (`S20`–`S28`) | The current standard run includes an S23 failure because `assets/QA/validation_campaign/s27/fixtures/images` is absent. Other workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
