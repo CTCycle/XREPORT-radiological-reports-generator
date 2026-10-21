@@ -15,9 +15,9 @@ or suitability for patient care.
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; standard-port launcher start remains open) | GitHub Actions and current Windows S01/S02/S03 checks passed. The official launcher completed a full start on isolated ports, but successful startup on the standard UI port remains untested because a pre-existing repository server owns port 8003. A non-interactive launch correctly failed closed and preserved that process. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; current-source launcher start remains open) | GitHub Actions and Windows S01/S02/S03 checks passed for the previously validated source. The official launcher completed a full start on isolated ports. A prior standard-port launch failed closed while preserving an existing listener; the current recheck found no listeners on ports 5003 or 8003, but the launcher has not been rerun on the current source. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PARTIAL` (`S10`–`S15`; database runtime switch partial) | Non-database settings autosave, apply immediately where feasible, and restore after reload; database edits remain drafts until the current candidate passes a connection test and the user confirms. Existing SQLite and PostgreSQL 16 persistence contracts pass. The Database UI was exercised across two SQLite files, including per-database settings reload, restart persistence, unavailable-PostgreSQL handling, and rollback. A successful PostgreSQL connection and UI switch remain unverified because the local service requires credentials unavailable for this run. |
-| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
+| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PARTIAL` (`S20`–`S28`) | The current standard run includes an S23 failure because `assets/QA/validation_campaign/s27/fixtures/images` is absent. Other workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
 | 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
 | 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | The S51 deterministic job-admission and harness-contract unit checks passed on the current source; live heavy-worker/GPU contention and hardware metrics remain untested. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
@@ -29,6 +29,24 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current candidate: launcher and Tier 0
 
+- The follow-on compatibility cleanup removed the neutral
+  `generation_profile_contract_version` field from validation contract hashes,
+  so existing receipts with former hashes are stale and may require fresh
+  validation. Launcher cache cleanup now targets only the canonical runtime
+  cache; startup documentation reflects that scope. The client replaced
+  `openapi-typescript` with pinned `@hey-api/openapi-ts` `0.99.0`, generates
+  TypeScript types only, pins Angular tooling to `22.1.8`, and no longer bypasses
+  npm peer checks. A clean npm install and dependency tree, generated API types,
+  client production build/lint, 64 client unit tests, 18 dedicated Angular E2E
+  tests, backend Ruff, and Pyright passed. The full standard runner collected
+  252 tests: 245 passed, 3 skipped, and 4 failed. The failures were the missing
+  S23 fixture, an S10 browser console 502 (its focused retry could not connect
+  to the runner listener), a transient upload request reset (the focused retry
+  passed), and the request-drain gate test failing before its body due to
+  Windows asyncio loop initialization. The overall end-to-end result remains
+  partial. A broader Ruff invocation that included tests reported nine
+  complexity/statement-count findings in existing test files; the backend
+  source Ruff gate passed.
 - On 2026-10-21 the application source dropped its legacy compatibility layers:
   the Alembic stream was squashed to the single current-schema baseline
   `b1e7a2c4d908`, the database-configuration bootstrap stopped reading legacy
@@ -124,10 +142,9 @@ see [testing and quality rules](coding/testing_and_quality.md).
   Windows test runner uses `runtimes/cache` and a per-run pytest base-temp.
   Direct pytest instructions now resolve the absolute cache root; using a
   relative `cache_dir` had placed pytest state under `app/server/runtimes/cache`
-  and those instructions were corrected. `ISSUE-004` remains open because the
-  pre-existing `app/server/runtimes/cache/pytest-xreport-current-validation`
-  and `app/server/runtimes/cache/s23-20260924/pytest-cache` trees deny
-  enumeration. They were left untouched.
+  and those instructions were corrected. Launcher cache clear now operates
+  only on canonical `runtimes/cache`, and uninstall no longer scans historical
+  cache locations. Existing historical cache contents were not modified.
 
 ## Current release evidence
 

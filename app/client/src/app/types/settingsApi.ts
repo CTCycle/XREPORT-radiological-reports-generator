@@ -1,10 +1,12 @@
-import type { components } from './api.generated';
+import type {
+  ApplicationSettingsPatch as ApiApplicationSettingsPatch,
+  ApplicationSettingsResponse as ApiApplicationSettingsResponse,
+  RuntimeApplicationSettings as ApiRuntimeApplicationSettings,
+} from './generated/types.gen';
 
-type Schemas = components['schemas'];
-
-export type RuntimeApplicationSettings = Schemas['RuntimeApplicationSettings'];
-export type ApplicationSettingsResponse = Schemas['ApplicationSettingsResponse'];
-export type ApplicationSettingsPatch = Schemas['ApplicationSettingsPatch'];
+export type RuntimeApplicationSettings = ApiRuntimeApplicationSettings;
+export type ApplicationSettingsResponse = ApiApplicationSettingsResponse;
+export type ApplicationSettingsPatch = ApiApplicationSettingsPatch;
 
 export type DatabaseBackend = 'sqlite' | 'postgresql';
 
