@@ -29,9 +29,23 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current candidate: launcher and Tier 0
 
-- The application-source candidate validated is
-  `b98a9b60492b63fb41a904e3cff4815325b8d075` on `develop`; the current ledger
-  updates do not change application source. Its
+- On 2026-10-21 the application source dropped its legacy compatibility layers:
+  the Alembic stream was squashed to the single current-schema baseline
+  `b1e7a2c4d908`, the database-configuration bootstrap stopped reading legacy
+  `.env`/`DATABASE_*` values and now creates a default SQLite configuration,
+  the former packaged settings-JSON cleanup was removed, and the client no
+  longer migrates a browser-stored theme preference into the database.
+  Post-change reruns on Windows: backend pytest excluding live-server E2E
+  passed 205 cases with 3 skipped, the Angular production build, lint, and all
+  64 client unit tests passed, the browser/UI E2E runner passed 18 cases
+  against a rebuilt bundle, and the Python browser/API E2E suite passed 43
+  cases; its single remaining failure is `S23`, blocked by the still-absent
+  `assets/QA/validation_campaign/s27/fixtures` pack. Successful launcher
+  startup on the standard UI port and a fresh CI run for this new source
+  revision remain open.
+- The application-source candidate validated before the legacy cleanup is
+  `b98a9b60492b63fb41a904e3cff4815325b8d075` on `develop`; the CI and launcher
+  evidence bullets below pinned to that revision. Its
   [Backend And Client Validation run](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39424015542/job/118631860560)
   passed backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained
   API E2E, client build, built-server, lint, and unit checks. This exact-commit
@@ -42,12 +56,15 @@ see [testing and quality rules](coding/testing_and_quality.md).
   API E2E, client build, built-server, lint, and unit checks. SonarCloud is not
   a project gate: the available plan does not support analysis for this
   repository's over-50k LOC, so no Sonar result is required for S00.
-- `S01` passed on the current Windows candidate using a disposable
+- `S01` passed on the earlier Windows candidate using a disposable
   `XREPORT_RESOURCES_DIR`: fresh SQLite startup returned health `200`, reached
-  Alembic head `a83cdb64e721`, created the required resource directories, and
+  the then-current Alembic head, created the required resource directories, and
   passed SQLite integrity. A restart reused the same 12-table schema. A
   non-empty database without `alembic_version` exited nonzero and was not
-  stamped.
+  stamped. Post-cleanup, fresh initialization reaches the squashed head
+  `b1e7a2c4d908` under unit coverage and the local runtime recreated its
+  database at that head; the full launcher S01 sequence has not rerun on the
+  new source.
 - `S03` passed locally on the current candidate: Ruff and Pyright passed;
   all 191 backend unit tests passed; after `npm ci`, the Angular production
   build and lint passed, as did all 53 client unit tests. The backend test
