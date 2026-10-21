@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import inspect, text
 
-from server.common.path import DATABASE_FILE_PATH, ENV_FILE_PATH
+from server.common.path import DATABASE_FILE_PATH
 from server.configurations.database_config import (
     DatabaseConfiguration,
     DatabaseConfigurationError,
@@ -147,7 +147,7 @@ class DatabaseSettingsService:
                 settings=SettingsService._response(values),
             )
             activation = activate_database(candidate_database)
-            save_database_configuration(resolved, environment_file=ENV_FILE_PATH)
+            save_database_configuration(resolved)
             from server.configurations.startup import get_database_settings
 
             get_database_settings.cache_clear()

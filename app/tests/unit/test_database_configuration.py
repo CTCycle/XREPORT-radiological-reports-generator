@@ -79,28 +79,6 @@ def test_invalid_database_config_is_preserved_for_recovery(tmp_path: Path) -> No
     assert path.read_bytes() == original
 
 ###############################################################################
-def test_failed_legacy_cleanup_restores_previous_database_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    path = tmp_path / "database-config.json"
-    environment_file = tmp_path / ".env"
-    environment_file.write_text("DATABASE_HOST=legacy\nOTHER=value\n", encoding="utf-8")
-    previous = _sqlite(tmp_path / "previous.db")
-    candidate = _sqlite(tmp_path / "candidate.db")
-    database_config.save_database_configuration(previous, path=path)
-
-    def fail_cleanup(_path: Path) -> None:
-        raise DatabaseConfigurationError("cleanup failed")
-
-    monkeypatch.setattr(database_config, "_remove_legacy_environment_entries", fail_cleanup)
-    with pytest.raises(DatabaseConfigurationError, match="cleanup failed"):
-        database_config.save_database_configuration(
-            candidate, path=path, environment_file=environment_file
-        )
-
-    assert database_config.read_database_configuration(path=path) == previous
-
-###############################################################################
 def test_connection_test_reports_an_unavailable_postgres_server() -> None:
     configuration = DatabaseConfiguration(
         backend="postgresql",
@@ -138,14 +116,11 @@ def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
         lambda settings: settings,
     )
     config_path = tmp_path / "database-config.json"
-    environment_file = tmp_path / ".env"
-    environment_file.write_text("DATABASE_HOST=old\nOTHER=value\n", encoding="utf-8")
-    monkeypatch.setattr(database_settings_service, "ENV_FILE_PATH", environment_file)
     monkeypatch.setattr(
         database_settings_service,
         "save_database_configuration",
-        lambda configuration, environment_file=None: database_config.save_database_configuration(
-            configuration, path=config_path, environment_file=environment_file
+        lambda configuration: database_config.save_database_configuration(
+            configuration, path=config_path
         ),
     )
 
@@ -161,7 +136,6 @@ def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
         assert result.response.settings.values.global_settings.seed == 22
         assert ApplicationSettingsRepository().get_settings().global_seed == 22
         assert database_config.read_database_configuration(path=config_path) == target_configuration
-        assert "DATABASE_HOST" not in environment_file.read_text(encoding="utf-8")
 
         def fail_save(_configuration, **_kwargs) -> None:
             raise DatabaseConfigurationError("simulated configuration write failure")

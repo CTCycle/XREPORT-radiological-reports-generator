@@ -71,13 +71,13 @@ def test_explicit_resource_root_override_survives_environment_loading(
     assert os.environ["XREPORT_TEST_ENV"] == "from-file"
 
 ###############################################################################
-def test_legacy_database_environment_is_migrated_and_not_loaded(tmp_path, monkeypatch) -> None:
+def test_stray_database_keys_are_ignored_and_purged(tmp_path, monkeypatch) -> None:
     env_path, _ = _configure_environment_paths(tmp_path, monkeypatch)
     env_path.write_text(
-        "EMBEDDED_DATABASE=true\nDATABASE_INSERT_BATCH_SIZE=25\nXREPORT_TEST_ENV=kept\n",
+        "EMBEDDED_DATABASE=false\nDATABASE_INSERT_BATCH_SIZE=25\nXREPORT_TEST_ENV=kept\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("DATABASE_HOST", "legacy-host")
+    monkeypatch.setenv("DATABASE_HOST", "leftover-host")
     monkeypatch.setenv("EMBEDDED_DATABASE", "false")
     monkeypatch.delenv("XREPORT_TEST_ENV", raising=False)
 
@@ -85,9 +85,9 @@ def test_legacy_database_environment_is_migrated_and_not_loaded(tmp_path, monkey
 
     configured = database_config.read_database_configuration()
     assert configured.backend == "sqlite"
-    assert configured.insert_batch_size == 25
-    assert "DATABASE_INSERT_BATCH_SIZE" not in env_path.read_text(encoding="utf-8")
-    assert "EMBEDDED_DATABASE" not in env_path.read_text(encoding="utf-8")
+    assert configured.sqlite_path == env_path.parent.parent / "database.db"
+    assert configured.insert_batch_size == 1000
     assert "DATABASE_HOST" not in os.environ
     assert "EMBEDDED_DATABASE" not in os.environ
     assert os.environ["XREPORT_TEST_ENV"] == "kept"
+    assert "DATABASE_INSERT_BATCH_SIZE" in env_path.read_text(encoding="utf-8")
