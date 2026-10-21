@@ -1,24 +1,38 @@
-import type { components } from './api.generated';
+import type {
+  BodyGenerateReportsApiInferenceGeneratePost as GenerateReportsBody,
+  CheckpointEvaluationReportResponse as ApiCheckpointEvaluationReport,
+  CheckpointEvaluationRequest as ApiCheckpointEvaluationRequest,
+  CheckpointEvaluationResults as ApiCheckpointEvaluationResults,
+  InferenceHistoryDeleteResponse as ApiInferenceHistoryDeleteResponse,
+  InferenceHistoryDetail as ApiInferenceHistoryDetail,
+  InferenceHistoryReport as ApiInferenceHistoryReport,
+  InferenceHistoryReportSummary as ApiInferenceHistoryReportSummary,
+  InferenceHistoryResponse as ApiInferenceHistoryResponse,
+  InferenceHistorySummary as ApiInferenceHistorySummary,
+  InferenceHistoryUpdateRequest as ApiInferenceHistoryUpdateRequest,
+  InferenceModelsResponse as ApiInferenceModelsResponse,
+  ModelAvailability as ApiModelAvailability,
+  ModelMaintenanceRequest as ApiModelMaintenanceRequest,
+  ModelUpdateCheckResponse as ApiModelUpdateCheckResponse,
+} from './generated/types.gen';
 
-type Schemas = components['schemas'];
-
-export type GenerationProfile = Schemas['Body_generate_reports_api_inference_generate_post']['generation_profile'];
-export type ModelStatus = Schemas['ModelAvailability']['status'];
-export type OutputSection = NonNullable<Schemas['ModelAvailability']['output_sections']>[number];
-export type ValidationStatus = Schemas['ModelAvailability']['validation_status'];
-export type ModelAvailability = Schemas['ModelAvailability'];
-export type InferenceModelsResponse = Schemas['InferenceModelsResponse'];
-export type ModelUpdateCheckResponse = Schemas['ModelUpdateCheckResponse'];
-export type ModelMaintenanceAction = Schemas['ModelMaintenanceRequest']['action'];
-export type CheckpointEvaluationRequest = Schemas['CheckpointEvaluationRequest'];
-export type CheckpointEvaluationResults = Schemas['CheckpointEvaluationResults'];
-export type CheckpointEvaluationReport = Schemas['CheckpointEvaluationReportResponse'];
-export type InferenceHistoryStatus = Schemas['InferenceHistorySummary']['status'];
+export type GenerationProfile = GenerateReportsBody['generation_profile'];
+export type ModelStatus = ApiModelAvailability['status'];
+export type OutputSection = NonNullable<ApiModelAvailability['output_sections']>[number];
+export type ValidationStatus = ApiModelAvailability['validation_status'];
+export type ModelAvailability = ApiModelAvailability;
+export type InferenceModelsResponse = ApiInferenceModelsResponse;
+export type ModelUpdateCheckResponse = ApiModelUpdateCheckResponse;
+export type ModelMaintenanceAction = ApiModelMaintenanceRequest['action'];
+export type CheckpointEvaluationRequest = ApiCheckpointEvaluationRequest;
+export type CheckpointEvaluationResults = ApiCheckpointEvaluationResults;
+export type CheckpointEvaluationReport = ApiCheckpointEvaluationReport;
+export type InferenceHistoryStatus = ApiInferenceHistorySummary['status'];
 export type InferenceHistorySort = 'newest' | 'oldest';
-export type InferenceHistoryReportSummary = Schemas['InferenceHistoryReportSummary'];
-export type InferenceHistorySummary = Schemas['InferenceHistorySummary'];
-export type InferenceHistoryResponse = Schemas['InferenceHistoryResponse'];
-export type InferenceHistoryReport = Schemas['InferenceHistoryReport'];
-export type InferenceHistoryDetail = Schemas['InferenceHistoryDetail'];
-export type InferenceHistoryUpdateRequest = Schemas['InferenceHistoryUpdateRequest'];
-export type InferenceHistoryDeleteResponse = Schemas['InferenceHistoryDeleteResponse'];
+export type InferenceHistoryReportSummary = ApiInferenceHistoryReportSummary;
+export type InferenceHistorySummary = ApiInferenceHistorySummary;
+export type InferenceHistoryResponse = ApiInferenceHistoryResponse;
+export type InferenceHistoryReport = ApiInferenceHistoryReport;
+export type InferenceHistoryDetail = ApiInferenceHistoryDetail;
+export type InferenceHistoryUpdateRequest = ApiInferenceHistoryUpdateRequest;
+export type InferenceHistoryDeleteResponse = ApiInferenceHistoryDeleteResponse;

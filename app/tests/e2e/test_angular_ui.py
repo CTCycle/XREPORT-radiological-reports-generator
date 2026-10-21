@@ -4,7 +4,7 @@ import os
 import re
 from pathlib import Path
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Route, expect
 
 ###############################################################################
 def test_inference_route_renders_catalog_and_navigation(
@@ -313,24 +313,128 @@ def test_settings_route_persists_and_resets_runtime_values(
     page.get_by_role("tab", name="Data access").click()
     expect(page.get_by_role("heading", name="Data access")).to_be_visible()
     expect(page.get_by_role("checkbox", name="Enabled")).to_be_visible()
+    filesystem_access = page.get_by_role("checkbox", name="Enabled", exact=True)
+    previous_access = filesystem_access.is_checked()
+    with page.expect_response(
+        lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
+    ) as filesystem_save:
+        filesystem_access.set_checked(not previous_access)
+    assert filesystem_save.value.ok
 
     page.get_by_role("tab", name="Advanced").click()
     expect(page.get_by_role("heading", name="Advanced")).to_be_visible()
-    expect(page.get_by_role("spinbutton", name="Job status polling interval seconds")).to_be_visible()
-    page.get_by_role("tab", name="General").click()
+    polling = page.get_by_role("spinbutton", name="Job status polling interval seconds")
+    timeout = page.get_by_role("spinbutton", name="Inference timeout seconds")
+    expect(polling).to_be_visible()
+    expect(timeout).to_be_visible()
 
+    page.get_by_role("tab", name="General").click()
     seed = page.get_by_role("spinbutton", name="Default random seed")
     try:
         seed.fill("123")
-        page.get_by_role("button", name="Save changes").click()
-        expect(page.get_by_text("Settings saved.", exact=True)).to_be_visible()
+        page.reload()
+        expect(seed).to_have_value("123")
+
+        page.get_by_role("tab", name="Advanced").click()
+        polling.fill("2.5")
+        with page.expect_response(
+            lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        ) as polling_save:
+            timeout.fill("901")
+        assert polling_save.value.ok
+        with page.expect_response(
+            lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        ) as timeout_save:
+            timeout.blur()
+        assert timeout_save.value.ok
 
         page.reload()
         expect(seed).to_have_value("123")
+        page.get_by_role("tab", name="Data access").click()
+        expect(filesystem_access).to_be_checked(checked=not previous_access)
+        page.get_by_role("tab", name="Advanced").click()
+        expect(polling).to_have_value("2.5")
+        expect(timeout).to_have_value("901")
     finally:
         page.goto(f"{base_url}/settings")
         page.get_by_role("button", name="Reset to defaults").click()
         expect(page.get_by_text("Settings reset to defaults.", exact=True)).to_be_visible()
+
+###############################################################################
+def test_database_settings_are_drafts_until_confirmation_and_failed_probe_keeps_active_backend(
+    page: Page,
+    base_url: str,
+) -> None:
+    response = page.goto(f"{base_url}/settings")
+    assert response is not None and response.ok
+    page.get_by_role("tab", name="Database").click()
+    expect(page.get_by_role("heading", name="Database")).to_be_visible()
+
+    database_status = page.locator(".database-status")
+    expect(database_status).to_contain_text("Connected to SQLite")
+    active_path = page.get_by_label("Database file path").input_value()
+    page.get_by_label("Database file path").fill(active_path + ".candidate")
+    expect(database_status).to_contain_text(active_path)
+    expect(page.get_by_role("button", name="Apply database settings")).to_be_disabled()
+
+    page.reload()
+    page.get_by_role("tab", name="Database").click()
+    expect(page.get_by_label("Database file path")).to_have_value(active_path)
+
+    page.get_by_label("Database backend").select_option("postgresql")
+    page.locator("#database-host").fill("127.0.0.1")
+    page.locator("#database-port").fill("1")
+    page.locator("#database-name").fill("xreport_unavailable")
+    page.locator("#database-username").fill("xreport")
+    page.locator("#database-password").fill("candidate-password")
+    page.locator("#database-timeout").fill("1")
+    page.locator("#database-batch-size").fill("128")
+    page.get_by_role("checkbox", name="Require SSL").check()
+    page.locator("#database-ssl-ca").fill("C:\\candidate\\ca.pem")
+    expect(page.locator("#database-ssl-ca")).to_have_value("C:\\candidate\\ca.pem")
+    expect(database_status).to_contain_text(active_path)
+    with page.expect_response(
+        lambda item: item.url.endswith("/api/settings/database/test")
+        and item.request.method == "POST"
+    ) as test_response:
+        page.get_by_role("button", name="Test connection").click()
+    assert test_response.value.ok
+    expect(page.locator(".database-panel .settings-feedback-error")).to_be_visible()
+    expect(page.get_by_role("button", name="Apply database settings")).to_be_disabled()
+    expect(database_status).to_contain_text("Connected to SQLite")
+
+    page.reload()
+    page.get_by_role("tab", name="Database").click()
+    expect(page.get_by_label("Database backend")).to_have_value("sqlite")
+    expect(page.get_by_label("Database file path")).to_have_value(active_path)
+    expect(page.locator(".database-status")).to_contain_text("Connected to SQLite")
+
+###############################################################################
+def test_settings_autosave_failure_reverts_value_and_shows_error(
+    page: Page,
+    base_url: str,
+) -> None:
+    response = page.goto(f"{base_url}/settings")
+    assert response is not None and response.ok
+    seed = page.get_by_role("spinbutton", name="Default random seed")
+    previous_seed = seed.input_value()
+
+    def reject_settings_write(route: Route) -> None:
+        if route.request.method == "PATCH":
+            route.fulfill(
+                status=503,
+                content_type="application/json",
+                body='{"detail":"simulated settings write failure"}',
+            )
+            return
+        route.continue_()
+
+    page.route("**/api/settings", reject_settings_write)
+    seed.fill("123" if previous_seed != "123" else "124")
+    feedback = page.locator(".settings-feedback-error[role='alert']")
+    expect(feedback).to_contain_text("simulated settings write failure")
+    expect(feedback).to_contain_text("failed changes were reverted")
+    expect(seed).to_have_value(previous_seed)
 
 ###############################################################################
 def test_dataset_and_training_routes_render_workflow_surfaces(
@@ -448,11 +552,20 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     assert settings_metrics
     assert all(len(metric["columns"].split()) == 1 for metric in settings_metrics)
 
-    page.get_by_role("button", name="Use Light theme").click()
+    page.get_by_role("tab", name="Database").click()
+    expect(page.get_by_role("heading", name="Database", level=2)).to_be_visible()
+    assert page.locator(".database-field").count() > 0
+
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        page.get_by_role("button", name="Use Light theme").click()
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
     page.screenshot(path=str(qa_dir / "xreport-settings-narrow-light.png"), full_page=False)
-    page.get_by_role("button", name="Use Dark theme").click()
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        page.get_by_role("button", name="Use Dark theme").click()
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        page.get_by_role("button", name="Use System theme").click()
+    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
 
     page.set_viewport_size({"width": 390, "height": 844})
     response = page.goto(f"{base_url}/inference")
@@ -843,7 +956,7 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
             assert toggle.get_attribute("aria-label")
     elif route_name == "settings":
         tabs = page.get_by_role("tab")
-        expect(tabs).to_have_count(3)
+        expect(tabs).to_have_count(4)
         tab_metadata = page.evaluate(
             """
             () => [...document.querySelectorAll('[role="tab"]')].map((tab) => ({
@@ -1063,10 +1176,12 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     expect(system).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
 
-    light.click()
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        light.click()
     expect(light).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    assert page.evaluate("() => localStorage.getItem('theme-preference')") == "light"
+    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
+    assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     page.screenshot(path=str(qa_dir / "theme-light-inference.png"), full_page=False)
     response = page.reload()
     assert response is not None and response.ok
@@ -1075,10 +1190,12 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     page.emulate_media(color_scheme="dark")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
 
-    dark.click()
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        dark.click()
     expect(dark).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-    assert page.evaluate("() => localStorage.getItem('theme-preference')") == "dark"
+    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
+    assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     response = page.reload()
     assert response is not None and response.ok
     expect(dark).to_have_attribute("aria-pressed", "true")
@@ -1086,10 +1203,11 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     page.emulate_media(color_scheme="light")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
 
-    system.click()
+    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+        system.click()
     expect(system).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    assert page.evaluate("() => localStorage.getItem('theme-preference')") == "system"
+    assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     page.emulate_media(color_scheme="dark")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
     expect(system).to_have_attribute("aria-pressed", "true")
@@ -1106,7 +1224,7 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     assert response is not None and response.ok
     expect(system).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    assert page.evaluate("() => localStorage.getItem('theme-preference')") == "system"
+    assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     page.emulate_media(color_scheme="dark")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
 

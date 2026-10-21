@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-09-22
+Last updated: 2026-10-21
 
 ## Troubleshooting Quick Guide
 
@@ -68,18 +68,24 @@ than suppressed with retries or broad exception handling.
 
 ## Database Initialization
 
-### SQLite Mode
+### SQLite
 
-- When `EMBEDDED_DATABASE=true`, source mode initializes `<resource root>/database.db` automatically on first startup if the file does not exist. Packaged mode initializes `%LOCALAPPDATA%\XREPORT\data\database.db`; it never writes a database into the immutable installation/runtime directory.
+- Select SQLite in Settings → Database and set an absolute database file path. The default is `<resource root>/database.db`; packaged mode defaults to `%LOCALAPPDATA%\XREPORT\data\database.db` and never writes into the immutable installation/runtime directory.
 - On later startups, existing data is not recreated, reset, or reseeded. Alembic checks the applied revision and upgrades to head under an exclusive SQLite transaction.
-- A non-empty database without `alembic_version` is stamped only after exact v1 schema validation. Partial or modified schemas fail and are not repaired automatically.
-- The launcher option `4` can be used to manually trigger the same idempotent Alembic initialization.
+- A non-empty database without a recognized Alembic revision, or with a partial or modified schema, fails closed and is not repaired automatically.
 
-### PostgreSQL Mode
+### PostgreSQL
 
-- When `EMBEDDED_DATABASE=false`, startup and option `4` create the configured PostgreSQL database when absent (subject to permissions), then apply pending Alembic revisions under advisory locks.
-- The same command also works for SQLite mode and is safe when the database already exists.
-- Invalid, unavailable, unsupported, or permission-limited PostgreSQL connections fail with a sanitized database migration error; correct the connection settings or use an administrative initialization account.
+- Enter the host, port, database, username, password, and optional SSL settings in Settings → Database. A saved password is protected with Windows DPAPI for the current Windows account.
+- PostgreSQL initialization creates the selected database when absent if the configured role has permission, then applies pending Alembic revisions under advisory locks.
+- Use Test connection to distinguish network/authentication failures from a schema that needs initialization. Invalid, unavailable, unsupported, or permission-limited connections show a sanitized error; correct the settings or use an appropriately privileged account.
+
+### Startup database recovery and switching
+
+- A missing, corrupt, or unavailable database configuration opens the restricted Database screen. Normal API routes remain unavailable until a connection and schema are activated.
+- Switching blocks new API requests while in-flight requests drain, and is unavailable while a background job is running. Each database keeps its own data and application settings; switching does not copy records.
+- When the configuration file is missing on first run, startup creates a default SQLite configuration. Stray `EMBEDDED_DATABASE`/`DATABASE_*` lines in `.env` are ignored; `DATABASE_URL` is unsupported and requires repair through recovery.
+- Restart after changing process launch settings such as the resource root, host, or port. Switching a database from Settings does not require a restart.
 
 ### Schema compatibility failure
 

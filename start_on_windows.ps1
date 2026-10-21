@@ -2432,163 +2432,14 @@ function Remove-LauncherPath {
     return [pscustomobject]$result
 }
 
-function Get-LegacyCacheDirectories {
-    $legacyPaths = @(
-        (Join-Path $RepoRoot 'app\tests\cache'),
-        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
-        (Join-Path $RepoRoot '.pytest_cache'),
-        (Join-Path $RepoRoot '.ruff_cache'),
-        (Join-Path $RepoRoot '.mypy_cache'),
-        (Join-Path $RepoRoot '.pyright'),
-        (Join-Path $RepoRoot '.uv-cache'),
-        (Join-Path $RepoRoot '.pytest-tmp'),
-        (Join-Path $RuntimesDir '.uv-cache'),
-        (Join-Path $ServerDir 'runtimes\cache'),
-        (Join-Path $ClientDir '.angular\cache'),
-        (Join-Path $ClientDir 'node_modules\.cache'),
-        (Join-Path $ClientDir 'coverage')
-    )
-    $resourceRoots = @(
-        (Join-Path $RepoRoot 'data'),
-        (Get-ConfiguredResourceRoot)
-    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
-    foreach ($resourceRoot in $resourceRoots) {
-        $legacyPaths += @(
-            (Join-Path $resourceRoot 'cache'),
-            (Join-Path $resourceRoot 'caches'),
-            (Join-Path $resourceRoot '.cache'),
-            (Join-Path $resourceRoot '__pycache__'),
-            (Join-Path $resourceRoot 'models\.cache'),
-            (Join-Path $resourceRoot 'models\huggingface\hub-cache'),
-            (Join-Path $resourceRoot 'models\huggingface\.cache'),
-            (Join-Path $resourceRoot 'models\huggingface\cache'),
-            (Join-Path $resourceRoot 'models\torch'),
-            (Join-Path $resourceRoot 'models\keras'),
-            (Join-Path $resourceRoot 'matplotlib')
-        )
-    }
-    $qaRoots = @(
-        (Join-Path $RepoRoot 'assets\QA'),
-        (Join-Path $RepoRoot 'app\server\assets\QA')
-    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
-    foreach ($qaRoot in $qaRoots) {
-        if (Test-Path -LiteralPath $qaRoot -PathType Container) {
-            $legacyPaths += @(
-                Get-ChildItem -LiteralPath $qaRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-                    Where-Object {
-                        $_.Name -in @('.pytest_cache', '.ruff_cache', '.mypy_cache') -or
-                        $_.Name -like 'pytest-cache*'
-                    }
-            )
-        }
-    }
-
-    $legacyNames = @(
-        '__pycache__', '.uv-cache', '.pytest_cache', '.ruff_cache', '.mypy_cache',
-        '.pyright', '.cache', 'cache', 'caches'
-    )
-    $excludedNames = @('.git', '.venv', 'node_modules', 'dist', 'build', 'release', 'target')
-    $skipSubtrees = @(
-        $RuntimesDir,
-        $VenvDir,
-        (Join-Path $RepoRoot '.venv'),
-        (Join-Path $ClientDir 'node_modules'),
-        (Join-Path $DesktopDir 'node_modules'),
-        $DesktopTargetDir,
-        $qaRoots,
-        (Join-Path $ClientDir '.angular'),
-        (Join-Path $RepoRoot 'app\tests\cache'),
-        (Join-Path $RepoRoot 'app\server\app\tests\cache'),
-        (Join-Path $ServerDir 'runtimes\cache')
-    ) | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Select-Object -Unique
-    $pending = [Collections.Generic.Stack[string]]::new()
-    $pending.Push($RepoRoot)
-    $found = [Collections.Generic.List[object]]::new()
-    $foundPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($legacyPath in @($legacyPaths)) {
-        $candidatePath = if ($legacyPath -is [IO.FileSystemInfo]) { $legacyPath.FullName } else { [string]$legacyPath }
-        if (-not (Test-Path -LiteralPath $candidatePath)) { continue }
-        $legacyItem = Get-Item -LiteralPath $candidatePath -Force -ErrorAction SilentlyContinue
-        if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
-            [void]$found.Add($legacyItem)
-        }
-    }
-    $progressId = Start-LauncherProgress -Activity 'XREPORT: find legacy caches' -Status 'Scanning repository directories'
-    try {
-        while ($pending.Count -gt 0) {
-            $current = $pending.Pop()
-            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: find legacy caches' -Status "Scanning $current"
-            try {
-                $childDirectories = @([IO.Directory]::EnumerateDirectories($current) |
-                    Sort-Object @{ Expression = { $_.ToUpperInvariant() }; Descending = $false })
-            } catch {
-                continue
-            }
-            foreach ($childPath in $childDirectories) {
-                $childName = Split-Path -Leaf $childPath
-                $isSkippedSubtree = $false
-                foreach ($skipRoot in $skipSubtrees) {
-                    if ($childPath.Equals($skipRoot, [StringComparison]::OrdinalIgnoreCase) -or
-                        $childPath.StartsWith("$skipRoot\", [StringComparison]::OrdinalIgnoreCase)) {
-                        $isSkippedSubtree = $true
-                        break
-                    }
-                }
-                if ($isSkippedSubtree -or $childName -in $excludedNames -or
-                    $childPath.StartsWith((Join-Path $RepoRoot 'data') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                    continue
-                }
-                $isPytestCache = $childName -match '^pytest[-_](cache|tmp|integration|e2e|release|full|runtime|settings)'
-                if ($childName -in $legacyNames -or $isPytestCache) {
-                    $legacyItem = Get-Item -LiteralPath $childPath -Force -ErrorAction SilentlyContinue
-                    if ($null -ne $legacyItem -and $foundPaths.Add($legacyItem.FullName)) {
-                        [void]$found.Add($legacyItem)
-                    }
-                    continue
-                }
-                $pending.Push([string]$childPath)
-            }
-        }
-        @($found |
-            Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    }
-    finally {
-        Complete-LauncherProgress -Id $progressId
-    }
-}
-
-function Remove-PythonCaches {
-    $caches = @(Get-LegacyCacheDirectories | Where-Object { $_.Name -eq '__pycache__' })
-    $results = @($caches | ForEach-Object { Remove-LauncherPath -Path $_.FullName -Activity "XREPORT: remove $($_.FullName)" })
-    $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
-    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
-    if ($skipped -gt 0) {
-        Write-Warn "Removed $removed Python cache item(s); skipped $skipped protected item(s)."
-    } else {
-        Write-Ok "Removed $removed Python cache item(s)"
-    }
-}
-
 function Clear-ApplicationCache {
     if (-not (Confirm-DestructiveAction 'clear application caches')) { return }
-    $targets = @(
-        $RuntimeCacheDir
-    )
-    $legacyCaches = @(Get-LegacyCacheDirectories)
-    $allTargets = @(
-        $targets + @($legacyCaches | ForEach-Object { $_.FullName }) |
-            ForEach-Object { [IO.Path]::GetFullPath($_) } |
-            Select-Object -Unique
-    )
+    $cacheRoot = [IO.Path]::GetFullPath($RuntimeCacheDir)
     $results = [Collections.Generic.List[object]]::new()
-    $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "0 of $($allTargets.Count) paths"
+    $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "Clearing $cacheRoot"
     try {
-        for ($index = 0; $index -lt $allTargets.Count; $index++) {
-            $target = $allTargets[$index]
-            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "$($index + 1) of $($allTargets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $allTargets.Count)))
-            $preserveNames = if ([IO.Path]::GetFullPath($target).TrimEnd('\').Equals([IO.Path]::GetFullPath($RuntimeCacheDir).TrimEnd('\'), [StringComparison]::OrdinalIgnoreCase)) { @('.gitkeep') } else { @() }
-            [void]$results.Add((Remove-LauncherPath -Path $target -PreserveNames $preserveNames -Activity "XREPORT: remove $target"))
-        }
+        Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "Clearing $cacheRoot" -PercentComplete 0
+        [void]$results.Add((Remove-LauncherPath -Path $cacheRoot -PreserveNames @('.gitkeep') -Activity "XREPORT: remove $cacheRoot"))
     }
     finally {
         Complete-LauncherProgress -Id $progressId
@@ -2611,7 +2462,6 @@ function Uninstall-Application {
         $VenvDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
-        (Join-Path $ClientDir '.angular'),
         (Join-Path $ClientDir 'dist')
     )
     $progressId = Start-LauncherProgress -Activity 'XREPORT: uninstall application' -Status "0 of $($targets.Count) paths"
@@ -2624,10 +2474,6 @@ function Uninstall-Application {
     }
     finally {
         Complete-LauncherProgress -Id $progressId
-    }
-    Remove-PythonCaches
-    foreach ($legacyCache in @(Get-LegacyCacheDirectories)) {
-        Remove-LauncherPath -Path $legacyCache.FullName -Activity "XREPORT: remove $($legacyCache.FullName)" | Out-Null
     }
     Write-Ok 'Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved.'
 }

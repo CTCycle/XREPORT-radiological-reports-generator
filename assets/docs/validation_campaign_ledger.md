@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -11,13 +11,30 @@ Validation here means technical software evidence for a stated scope. It does
 not establish clinical validity, diagnostic performance, regulatory approval,
 or suitability for patient care.
 
+The v3.2.1 candidate at
+`1a15d24cb07fecbf66601940752a164c47972fc7` passed hosted CI run
+[39667709442](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39667709442).
+That run passed backend unit tests, Ruff, Pyright, the PostgreSQL persistence
+contract, retained API E2E, client build/server, lint, and client unit tests.
+The candidate repairs upgrades from published database revisions
+`f48a7c2e91b6` and `e91a4f6c2d73` and retains the v3.2.0 browser theme
+preference. Its 16 focused database-initialization tests, four version/OpenAPI
+tests, 65 client unit tests, and both lint gates pass locally. Current-source
+navigation and seed persistence across a launcher restart passed with isolated
+resources, with backend version 3.2.1. Official packages remain unverified.
+Live authenticated PostgreSQL switching remains unverified.
+Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
+`.scratch-openapi` QA directories after consolidating their durable outcomes in
+the existing ledgers. Referenced validation captures and the logs supporting
+unresolved checks were retained.
+
 ## Gate map
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
-| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; standard-port launcher start remains open) | GitHub Actions and current Windows S01/S02/S03 checks passed. The official launcher completed a full start on isolated ports, but successful startup on the standard UI port remains untested because a pre-existing repository server owns port 8003. A non-interactive launch correctly failed closed and preserved that process. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
-| 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
-| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
+| 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` candidate CI passed; current-source navigation and restart persistence passed; focused local migration/version/OpenAPI/client/lint checks passed; official packages remain open; rendered `S02` checks pass) | Candidate commit `1a15d24` passed hosted run 39667709442, including backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained API E2E, client build/server/lint/unit tests. The official launcher used isolated resources on ports 5003/8003; Inference, Reports, Dataset, Training, and Settings loaded; seed `317` survived navigation and restart; backend version was 3.2.1, SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`. CPU/CUDA packages and package smoke are still open. SonarCloud is excluded because the available plan does not support this repository's over-50k LOC analysis. |
+| 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PARTIAL` (`S10`–`S15`; database runtime switch partial) | The v3.2.1 candidate restores the browser theme preference to database settings when the released database has no saved value; client unit tests cover import and stale-copy removal. SQLite migration tests cover both revisions from published v3.2.0 and preserve settings/data. Successful authenticated PostgreSQL connection and UI activation remain unverified; live PostgreSQL testing was deferred on 2026-10-21. Broader Tier 1 workflows retain their existing limits. |
+| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PARTIAL` (`S20`–`S28`) | The current standard run includes an S23 failure because `assets/QA/validation_campaign/s27/fixtures/images` is absent. Other workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
 | 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
 | 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | The S51 deterministic job-admission and harness-contract unit checks passed on the current source; live heavy-worker/GPU contention and hardware metrics remain untested. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
@@ -29,9 +46,66 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current candidate: launcher and Tier 0
 
-- The application-source candidate validated is
-  `b98a9b60492b63fb41a904e3cff4815325b8d075` on `develop`; the current ledger
-  updates do not change application source. Its
+- The follow-on compatibility cleanup removed the neutral
+  `generation_profile_contract_version` field from validation contract hashes,
+  so existing receipts with former hashes are stale and may require fresh
+  validation. Launcher cache cleanup now targets only the canonical runtime
+  cache; startup documentation reflects that scope. The client replaced
+  `openapi-typescript` with pinned `@hey-api/openapi-ts` `0.99.0`, generates
+  TypeScript types only, pins Angular tooling to `22.1.8`, and no longer bypasses
+  npm peer checks. A clean npm install and dependency tree, generated API types,
+  client production build/lint, 64 client unit tests, 18 dedicated Angular E2E
+  tests, backend Ruff, and Pyright passed. The full standard runner collected
+  252 tests: 245 passed, 3 skipped, and 4 failed. The failures were the missing
+  S23 fixture, an S10 browser console 502 (its focused retry could not connect
+  to the runner listener), a transient upload request reset (the focused retry
+  passed), and the request-drain gate test failing before its body due to
+  Windows asyncio loop initialization. The overall end-to-end result remains
+  partial. A broader Ruff invocation that included tests reported nine
+  complexity/statement-count findings in existing test files; the backend
+  source Ruff gate passed.
+- On 2026-10-21 the application source dropped its legacy compatibility layers:
+  the Alembic stream was squashed to the single current-schema baseline
+  `b1e7a2c4d908`, the database-configuration bootstrap stopped reading legacy
+  `.env`/`DATABASE_*` values and now creates a default SQLite configuration,
+  the former packaged settings-JSON cleanup was removed, and the client no
+  longer migrates a browser-stored theme preference into the database.
+  Post-change reruns on Windows: backend pytest excluding live-server E2E
+  passed 205 cases with 3 skipped, the Angular production build, lint, and all
+  64 client unit tests passed, the browser/UI E2E runner passed 18 cases
+  against a rebuilt bundle, and the Python browser/API E2E suite passed 43
+  cases; its single remaining failure is `S23`, blocked by the still-absent
+  `assets/QA/validation_campaign/s27/fixtures` pack. Successful launcher
+  current-source launcher startup on standard ports and rendered inference UI
+  now pass. Current-source restart reuse and a fresh hosted CI run for the
+  modified working tree remain open.
+- Current working-tree verification on 2026-10-21, based on HEAD
+  `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`: the official launcher started
+  the rebuilt bundle and backend on ports `8003`/`5003` with an isolated
+  `XREPORT_RESOURCES_DIR`; health and the rendered `/inference` page returned
+  HTTP 200. Fresh SQLite integrity was `ok` at Alembic head
+  `42c8e1f7b0d3`. The full backend unit suite passed 223 tests, Ruff and
+  Pyright passed, client lint passed, all 64 Angular unit tests passed, and
+  all 9 built-server tests passed. Local Node was `22.23.1`; the workflow pins
+  `22.22.3`. One real local run completed for public CC0 chest-radiograph
+  input using CXRMate Multi TF revision
+  `330721b9aa5bba201a3eb88eba4dd9a6607f3e7a`; provenance reports
+  `cuda:0`/CUDA used and the UI showed Findings and Impression for a public
+  [CC0 radiograph from Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Normal_posteroanterior_(PA)_chest_radiograph_(X-ray).jpg). Catalogue
+  status became `ready`, but `validation_status` is still `pending` and the
+  receipt is missing, so this is technical execution evidence only. Screenshot:
+  [live inference](../QA/codex-live-inference-20261021.png).
+- The latest [GitHub Actions run for HEAD
+  `ef1ae34`](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39643961325)
+  reported two PostgreSQL 16 persistence-contract failures caused by redundant
+  reflected parentheses; Ruff, unit tests, Pyright, and the other persistence
+  cases passed. The current working tree adds normalization and a regression
+  case, and its unit suite passes. The live PostgreSQL contract was not rerun
+  after the user deferred PostgreSQL testing; no hosted run can include the
+  uncommitted working-tree changes.
+- The application-source candidate validated before the legacy cleanup is
+  `b98a9b60492b63fb41a904e3cff4815325b8d075` on `develop`; the CI and launcher
+  evidence bullets below pinned to that revision. Its
   [Backend And Client Validation run](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39424015542/job/118631860560)
   passed backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained
   API E2E, client build, built-server, lint, and unit checks. This exact-commit
@@ -42,12 +116,12 @@ see [testing and quality rules](coding/testing_and_quality.md).
   API E2E, client build, built-server, lint, and unit checks. SonarCloud is not
   a project gate: the available plan does not support analysis for this
   repository's over-50k LOC, so no Sonar result is required for S00.
-- `S01` passed on the current Windows candidate using a disposable
-  `XREPORT_RESOURCES_DIR`: fresh SQLite startup returned health `200`, reached
-  Alembic head `e91a4f6c2d73`, created the required resource directories, and
-  passed SQLite integrity. A restart reused the same 12-table schema. A
-  non-empty database without `alembic_version` exited nonzero and was not
-  stamped.
+- `S01` current-source launch/render passed on 2026-10-21 using an isolated
+  `XREPORT_RESOURCES_DIR` on standard ports `5003`/`8003`: backend health and
+  the rendered inference route returned HTTP 200, and fresh SQLite integrity
+  passed at `42c8e1f7b0d3`. The current backend unit suite also passed the
+  non-empty unversioned-database rejection case. Current-source process restart
+  reuse remains unverified, so the broader S01 sequence is still partial.
 - `S03` passed locally on the current candidate: Ruff and Pyright passed;
   all 191 backend unit tests passed; after `npm ci`, the Angular production
   build and lint passed, as did all 53 client unit tests. The backend test
@@ -57,6 +131,28 @@ see [testing and quality rules](coding/testing_and_quality.md).
   the shell showed progress and unavailable/retry states, retry recovered to
   the workspace, and a later catalogue error remained in-app. Captures are
   stored under ignored `assets/QA/validation_campaign/tier-0/`.
+- Settings follow-up validated on `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`:
+  the rendered General, Data access, Advanced, and Database tabs were exercised
+  in the in-app browser on isolated SQLite resources. Autosaved values survived
+  reload and backend restart; bounds rejected out-of-range seed, polling, and
+  timeout values; reset restored defaults; and separate SQLite files retained
+  distinct settings. A failed PostgreSQL connection probe and an unconfirmed
+  database draft left SQLite active and Apply disabled. `/api/settings` exposed
+  only the user-facing inference timeout, not the private process policy.
+  Four focused browser/API E2E cases and 14 focused client settings specs passed.
+- The same revision's full backend unit suite passed (222 tests). An isolated
+  `.env` fixture validated defaults, accepted boolean/device/list values,
+  rejected invalid boolean/device values and wildcard origins with credentials,
+  and exercised allowed and rejected CORS preflights. Empty CORS origins left
+  CORS disabled. A SQLite database created at baseline `b1e7a2c4d908` upgraded
+  through normal initialization to `42c8e1f7b0d3`; user settings and a dataset
+  record were preserved, the former `inference_hf_local_only` and
+  `inference_device` columns were removed, and repeat initialization succeeded.
+  Backend Ruff and Pyright passed. The ignored local `settings/.env` remained
+  read-only; only isolated fixture/source-level environment behavior is
+  recorded here. Successful PostgreSQL activation remains unverified; the user
+  explicitly deferred that test in the current follow-up, and the separate
+  request-drain gate remains unverified.
 - The official launcher then completed a full start on isolated ports
   `51873`/`41873` with a disposable `XREPORT_RESOURCES_DIR`. It detected the
   missing frontend build manifest, rebuilt the production bundle, and returned
@@ -82,10 +178,9 @@ see [testing and quality rules](coding/testing_and_quality.md).
   Windows test runner uses `runtimes/cache` and a per-run pytest base-temp.
   Direct pytest instructions now resolve the absolute cache root; using a
   relative `cache_dir` had placed pytest state under `app/server/runtimes/cache`
-  and those instructions were corrected. `ISSUE-004` remains open because the
-  pre-existing `app/server/runtimes/cache/pytest-xreport-current-validation`
-  and `app/server/runtimes/cache/s23-20260924/pytest-cache` trees deny
-  enumeration. They were left untouched.
+  and those instructions were corrected. Launcher cache clear now operates
+  only on canonical `runtimes/cache`, and uninstall no longer scans historical
+  cache locations. Existing historical cache contents were not modified.
 
 ## Current release evidence
 

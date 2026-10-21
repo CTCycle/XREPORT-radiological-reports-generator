@@ -58,10 +58,6 @@ def validation_contract_hash(entry: InferenceManifestEntry) -> str:
         "weight_file_sets": entry.weight_file_sets,
         "trust_remote_code": entry.trust_remote_code,
         "remote_code_approved": entry.remote_code_approved,
-        # Retain the neutral field so receipts for the unaffected public
-        # models keep their established contract hashes after CXRMate-ED's
-        # retirement.
-        "generation_profile_contract_version": None,
     }
     encoded = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode(
         "utf-8"

@@ -208,29 +208,6 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
     layout.cache_root.mkdir(parents=True, exist_ok=True)
 
 ###############################################################################
-def remove_legacy_configuration_file(layout: RuntimeLayout) -> None:
-    """Delete a packaged legacy settings copy after its database import succeeds."""
-    if not layout.packaged:
-        return
-    legacy_file = layout.data_root / "settings" / ("configurations" + ".json")
-    if legacy_file.exists():
-        try:
-            legacy_file.unlink()
-        except OSError as exc:
-            raise RuntimeError(
-                "Database migration completed, but the legacy configuration file "
-                f"could not be removed: {legacy_file}"
-            ) from exc
-    legacy_dir = legacy_file.parent
-    try:
-        legacy_dir.rmdir()
-    except OSError:
-        # The directory may contain an operator-created backup or may already
-        # have been removed.  The file itself is the authoritative deletion
-        # gate; leave unrelated files untouched.
-        pass
-
-###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     """Validate the extracted runtime manifest before importing application code."""
     if not layout.packaged:
