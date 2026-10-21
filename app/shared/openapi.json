@@ -3,7 +3,7 @@
   "info": {
     "title": "XREPORT Backend",
     "description": "FastAPI backend",
-    "version": "3.2.0"
+    "version": "3.2.1"
   },
   "paths": {
     "/api/upload/dataset": {
