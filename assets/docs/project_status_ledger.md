@@ -24,10 +24,16 @@ passed the backend suite (excluding live-server E2E), all client unit tests,
 both lint gates, and the browser/API E2E suites except the `S23` case that
 requires the still-absent `s27` fixture pack. On 2026-10-21, the current
 working-tree launcher started on standard ports `5003`/`8003` with isolated
-resources; backend health and rendered `/inference` passed. Current-source
-restart reuse and a fresh hosted CI run for the modified worktree remain open.
-Tier 0 remains `PARTIAL` because the full S01 restart sequence and hosted
-revalidation are incomplete. Follow-on cleanup removed the neutral validation
+resources; Inference, Reports, Dataset, Training, and Settings loaded. Settings
+seed `317` survived navigation and launcher restart; backend health was OK,
+SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`. The v3.2.1
+candidate restores migration compatibility from published revisions
+`f48a7c2e91b6` and `e91a4f6c2d73`, including the prior browser theme
+preference. Sixteen focused database-initialization tests, four version/OpenAPI
+tests, 65 client unit tests, and both lint gates passed. The smoke preceded the
+3.2.1 metadata bump. Hosted run `39662773417` passed on the preceding develop
+revision; candidate CI and official packages remain open. Tier 0 remains
+`PARTIAL` until those gates finish. Follow-on cleanup removed the neutral validation
 hash field, historical cache-directory sweep, and npm peer-dependency bypass,
 and replaced the API type generator. A clean `npm ci`, dependency-tree check,
 API type generation, client build/lint, 64 client unit tests, 18 dedicated
@@ -82,7 +88,7 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 readiness, Alembic head, restart reuse, and unversioned-database rejection passed against the previous source. On `ef1ae34`, unit coverage upgraded SQLite from baseline `b1e7a2c4d908` to `42c8e1f7b0d3`, verified preserved settings/records and repeat initialization; the full launcher S01 sequence has not rerun. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. A prior check found UI port `8003` occupied by repository `serve-built.cjs` PID `37384` and confirmed default-port launch failed closed while preserving it. On 2026-10-21, the current working-tree launch used isolated resources on standard ports `5003`/`8003`; backend health and rendered `/inference` both returned HTTP 200. The fresh SQLite file passed `PRAGMA integrity_check` at Alembic head `42c8e1f7b0d3`, and current backend unit tests cover rejection of a non-empty unversioned file. Current-source restart reuse remains open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-source startup rendered Inference, Reports, Dataset, Training, and Settings; seed `317` survived navigation and restart with isolated resources. Backend health, SQLite integrity, and Alembic head `42c8e1f7b0d3` passed. Focused migration, version/OpenAPI, client-unit, and lint checks passed; candidate hosted CI remains pending. Earlier S02 state-transition coverage and the disposable-port launcher smoke remain valid for their stated scopes. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.desktop.packaged` | `PARTIAL` | Published v3.2.0 CPU/CUDA portable and MSI packages passed the scoped acceptance described in the campaign ledger. CUDA fallback without an NVIDIA GPU and cross-variant performance remain untested. | [Campaign](validation_campaign_ledger.md), [deployment](runtime/deployment.md) |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | No supported container image or deployment contract exists. | [Runtime modes](runtime/modes.md) |
 | `configuration.runtime_settings` | `VALIDATED` | On `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`, rendered settings tabs passed autosave, bounds, reset, reload/restart persistence, per-database isolation, failed-connection draft handling, and the Settings API policy boundary. Supported `.env` parsing and CORS behavior passed isolated fixtures. The ignored local `settings/.env` was not changed during the settings checks. | [Configuration](runtime/configuration.md), [campaign](validation_campaign_ledger.md), [environment tests](../../app/tests/unit/test_runtime_environment.py), [settings E2E](../../app/tests/e2e/test_angular_ui.py) |
@@ -94,7 +100,7 @@ where to revalidate after a change.
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `backend.api.contracts`, `backend.jobs.lifecycle`, `backend.ml_import_boundaries` | `VALIDATED` | Covered API contracts, generic job lifecycle, and lightweight-import boundaries are validated; this does not cover every endpoint or heavy workflow. | [Backend API](architecture/backend_api.md), [API tests](../../app/tests/e2e/test_inference_api.py), [job tests](../../app/tests/integration/test_job_lifecycle_api.py), [import test](../../app/tests/unit/test_ml_import_boundaries.py) |
-| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `PARTIAL` | On `ef1ae34`, SQLite migration from `b1e7a2c4d908` to `42c8e1f7b0d3` preserved user settings and an existing dataset record, removed the former inference policy columns, and passed repeat initialization. The current unit suite covers normalization of PostgreSQL 16 reflected check constraints, but live PostgreSQL migration/application and authenticated switching remain unverified; the user deferred PostgreSQL testing in this run. Crash recovery and every production configuration remain outside scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
+| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `PARTIAL` | The v3.2.1 candidate passes 16 focused database-initialization tests, including upgrades from published revisions `f48a7c2e91b6` and `e91a4f6c2d73`, preserved settings/dataset rows, theme-column restoration, and repeat initialization. The migration from `b1e7a2c4d908` to `42c8e1f7b0d3` remains covered. PostgreSQL check-normalization unit coverage passes, but live migration/application and authenticated switching remain unverified; live PostgreSQL testing was deferred. Candidate CI is pending. Crash recovery and every production configuration remain outside scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
 
 ### User workflows
 
