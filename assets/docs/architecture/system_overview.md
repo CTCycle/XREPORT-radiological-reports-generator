@@ -136,7 +136,7 @@ This keeps page dependencies aligned with the feature they operate on and avoids
 - Backend API entrypoint: `app/server/app.py`.
 - Frontend web entrypoint: `app/client/src/main.ts`.
 - Frontend route composition: `app/client/src/app/app.routes.ts`.
-- OpenAPI source snapshot and generated client types: `app/shared/openapi.json` and `app/client/src/app/types/api.generated.ts`.
+- OpenAPI source snapshot and generated client types: `app/shared/openapi.json` and `app/client/src/app/types/generated/types.gen.ts`.
 - Release version authority: `app/server/pyproject.toml`; client, desktop,
   Tauri, backend metadata, and OpenAPI copies are validated against it.
 - Local launcher and maintenance menu on Windows: `start_on_windows.ps1`.

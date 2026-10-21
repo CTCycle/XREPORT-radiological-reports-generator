@@ -53,6 +53,7 @@ COVERAGE_CACHE_DIR = RUNTIME_CACHE_DIR / "coverage"
 ANGULAR_CACHE_DIR = RUNTIME_CACHE_DIR / "angular"
 
 DATABASE_FILE_PATH = RESOURCES_DIR / "database.db"
+DATABASE_CONFIG_FILE_PATH = RESOURCES_DIR / "database-config.json"
 CLIENT_DIST_DIR = RUNTIME_LAYOUT.client_dist_dir
 
 ###############################################################################

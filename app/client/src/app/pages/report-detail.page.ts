@@ -151,7 +151,7 @@ export class ReportDetailPage {
   }
 
   sectionsFor(report: InferenceHistoryReport, session = this.detail()): OutputSection[] {
-    const declared = Object.keys(report.sections).filter(isOutputSection);
+    const declared = Object.keys(report.sections ?? {}).filter(isOutputSection);
     if (declared.length) return declared;
     const sessionSections = session?.output_sections.filter(isOutputSection) ?? [];
     return sessionSections.length ? sessionSections : ['raw_report'];

@@ -25,6 +25,7 @@ interface ThemeOption {
             [attr.aria-label]="'Use ' + option.label + ' theme'"
             [attr.aria-pressed]="theme.preference() === option.value"
             [attr.title]="'Use ' + option.label + ' theme'"
+            [disabled]="theme.databaseSwitching()"
             (click)="setPreference(option.value)"
           >
             <ng-icon [name]="option.icon" size="15" aria-hidden="true" />
@@ -32,6 +33,11 @@ interface ThemeOption {
           </button>
         }
       </div>
+      @if (theme.persistenceError()) {
+        <p class="theme-selector-error" role="status" aria-live="polite">{{ theme.persistenceError() }}</p>
+      } @else if (theme.persistenceSaved()) {
+        <p class="theme-selector-saved" role="status" aria-live="polite">Theme saved</p>
+      }
     </fieldset>
   `,
   styleUrl: '../styles/ThemeSelector.css',

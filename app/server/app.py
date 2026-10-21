@@ -4,13 +4,17 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
 from pathlib import Path
+import re
 from time import perf_counter
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from server.api.inference import router as inference_router
 from server.api.errors import register_service_error_handlers
+from server.api.database_settings import router as database_settings_router
 from server.api.jobs import router as jobs_router
 from server.api.preparation import router as preparation_router
 from server.api.settings import router as settings_router
@@ -31,9 +35,14 @@ from server.common.desktop_security import (
     install_shutdown_event,
     desktop_token,
 )
+from server.common.database_switch import DatabaseRequestGate
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
 from server.common.path import RUNTIME_VARIANT
 from server.configurations import get_database_settings
+from server.configurations.database_config import DatabaseConfigurationError
+from server.configurations.runtime_environment import (
+    get_runtime_environment_settings,
+)
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
@@ -47,9 +56,15 @@ def redirect_root_to_docs() -> RedirectResponse | FileResponse:
 ###############################################################################
 def health_check(request: Request) -> HealthResponse:
     settings = getattr(request.app.state, "server_settings", None)
-    runtime_mode = settings.database.backend if settings is not None else "unknown"
+    runtime_mode = (
+        settings.database.backend
+        if settings is not None
+        else getattr(request.app.state, "database_backend", "unknown")
+    )
     return HealthResponse(
-        status="ok",
+        status="ok"
+        if getattr(request.app.state, "database_ready", False)
+        else "database_recovery",
         application=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
         runtime_mode=runtime_mode,
@@ -87,26 +102,41 @@ def serve_packaged_frontend(path: str) -> FileResponse:
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
+    application.state.database_ready = False
+    application.state.database_error = None
+    application.state.database_backend = "unknown"
     startup_started = getattr(application.state, "desktop_startup_started_at", None)
     if startup_started is not None:
         logger.info(
             "Packaged startup phase=lifespan_entered elapsed_ms=%.0f",
             (perf_counter() - startup_started) * 1000,
         )
-    settings = run_startup_validations(get_database_settings())
-    if startup_started is not None:
-        logger.info(
-            "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
-            (perf_counter() - startup_started) * 1000,
-        )
-
-    if startup_started is not None:
-        logger.info(
-            "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
-            (perf_counter() - startup_started) * 1000,
-        )
-
-    application.state.server_settings = settings
+    try:
+        database_settings = get_database_settings()
+        application.state.database_backend = database_settings.backend
+        settings = run_startup_validations(database_settings)
+        application.state.server_settings = settings
+        application.state.database_ready = True
+        if startup_started is not None:
+            logger.info(
+                "Packaged startup phase=startup_validations_completed elapsed_ms=%.0f",
+                (perf_counter() - startup_started) * 1000,
+            )
+            logger.info(
+                "Packaged startup phase=settings_loaded elapsed_ms=%.0f",
+                (perf_counter() - startup_started) * 1000,
+            )
+    except (
+        DatabaseConfigurationError,
+        RuntimeError,
+        ValueError,
+        OSError,
+        SQLAlchemyError,
+    ) as exc:
+        message = _sanitize_startup_error(str(exc))
+        application.state.database_error = message
+        application.state.server_settings = None
+        logger.error("Database startup requires recovery: %s", message)
 
     ready_callback = getattr(application.state, "desktop_ready_callback", None)
     if ready_callback is not None:
@@ -136,12 +166,38 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 ###############################################################################
 def create_app() -> FastAPI:
+    runtime_environment = get_runtime_environment_settings()
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
         description=FASTAPI_DESCRIPTION,
         lifespan=app_lifespan,
     )
+    application.state.database_request_gate = DatabaseRequestGate()
+    application.state.database_ready = False
+    application.state.database_error = None
+    application.state.database_backend = "unknown"
+
+    @application.middleware("http")
+    async def database_request_guard(request: Request, call_next):
+        path = request.url.path
+        database_control_prefix = "/api/settings/database"
+        is_database_control = path == "/api/health" or (
+            path == database_control_prefix
+            or path.startswith(database_control_prefix + "/")
+        )
+        if not path.startswith("/api/") or is_database_control:
+            return await call_next(request)
+        if not getattr(request.app.state, "database_ready", False):
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "detail": "Database setup is required. Use the Database section in Settings."
+                },
+            )
+        gate = request.app.state.database_request_gate
+        return await gate.run_request(lambda: call_next(request))
+
     if PACKAGED_MODE:
         desktop_token()
         application.add_middleware(DesktopSecurityMiddleware)
@@ -156,6 +212,7 @@ def create_app() -> FastAPI:
         inference_router,
         jobs_router,
         settings_router,
+        database_settings_router,
     ):
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
     application.add_api_route(
@@ -189,7 +246,25 @@ def create_app() -> FastAPI:
             response_model=None,
         )
 
+    if runtime_environment.cors.allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(runtime_environment.cors.allowed_origins),
+            allow_credentials=runtime_environment.cors.allow_credentials,
+            allow_methods=list(runtime_environment.cors.allow_methods),
+            allow_headers=list(runtime_environment.cors.allow_headers),
+        )
+
     return application
+
+
+###############################################################################
+def _sanitize_startup_error(message: str) -> str:
+    first_line = message.splitlines()[0][:280] if message else "Database startup failed."
+    first_line = re.sub(
+        r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", first_line
+    )
+    return re.sub(r"(?i)(://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", first_line)
 
 
 app = create_app()

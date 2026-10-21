@@ -1,9 +1,12 @@
-import type { components } from './api.generated';
+import type {
+  JobCancelResponse as ApiJobCancelResponse,
+  JobListResponse as ApiJobListResponse,
+  JobStartResponse as ApiJobStartResponse,
+  JobStatusResponse as ApiJobStatusResponse,
+} from './generated/types.gen';
 
-type Schemas = components['schemas'];
-
-export type JobLifecycleStatus = Schemas['JobStatusResponse']['status'];
-export type JobStartResponse = Schemas['JobStartResponse'];
-export type JobStatusResponse = Schemas['JobStatusResponse'];
-export type JobListResponse = Schemas['JobListResponse'];
-export type JobCancelResponse = Schemas['JobCancelResponse'];
+export type JobLifecycleStatus = ApiJobStatusResponse['status'];
+export type JobStartResponse = ApiJobStartResponse;
+export type JobStatusResponse = ApiJobStatusResponse;
+export type JobListResponse = ApiJobListResponse;
+export type JobCancelResponse = ApiJobCancelResponse;

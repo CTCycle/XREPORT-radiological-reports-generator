@@ -147,6 +147,124 @@
   opacity: 0.65;
 }
 
+.database-panel {
+  min-width: 0;
+}
+
+.database-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin: 1.35rem 0 0.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+}
+
+.database-status-indicator {
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-top: 0.35rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--success-color);
+}
+
+.database-status-error .database-status-indicator {
+  background: var(--error-color);
+}
+
+.database-status div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.database-status strong {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.database-status span:not(.database-status-indicator) {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.database-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 1.1rem;
+}
+
+.database-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.5rem;
+}
+
+.database-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.database-field > label:not(.settings-checkbox-control) {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.database-field input[type='text'],
+.database-field input[type='password'],
+.database-field input[type='number'],
+.database-field select {
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  min-height: var(--control-height-md);
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+
+.database-grid .database-field input,
+.database-grid .database-field select {
+  width: 100%;
+}
+
+.database-field input:disabled,
+.database-field select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.database-field-toggle {
+  justify-content: flex-end;
+}
+
+.database-field-wide {
+  grid-column: 1 / -1;
+}
+
+.database-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.database-job-note {
+  margin: -0.75rem 0 0;
+  text-align: right;
+}
+
 .settings-checkbox-control {
   display: inline-flex;
   align-items: center;
@@ -217,6 +335,16 @@
   background: var(--success-soft);
 }
 
+.settings-save-status {
+  margin-top: 0.65rem;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.settings-save-status-success {
+  color: var(--success-color);
+}
+
 .settings-actions {
   display: flex;
   justify-content: space-between;
@@ -233,6 +361,14 @@
   .settings-field-control input[type='number'] {
     width: min(100%, 320px);
   }
+
+  .database-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .database-field-wide {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 680px) {
@@ -243,5 +379,9 @@
   .primary-button,
   .secondary-button {
     width: 100%;
+  }
+
+  .database-actions {
+    flex-direction: column-reverse;
   }
 }
