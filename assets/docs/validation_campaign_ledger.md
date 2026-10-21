@@ -11,6 +11,11 @@ Validation here means technical software evidence for a stated scope. It does
 not establish clinical validity, diagnostic performance, regulatory approval,
 or suitability for patient care.
 
+The later working-tree configuration change adds environment-driven CORS,
+moves inference process policy out of the application-settings table, and adds
+Alembic migration `42c8e1f7b0d3`. It has no validation evidence yet; the prior
+gate results below describe the source tested at the time.
+
 ## Gate map
 
 | Tier | Scope | Current result | Boundary |

@@ -306,11 +306,6 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
             "job_polling_interval <= 60::double precision",
         ),
         (
-            "inference_device IN ('auto', 'cpu', 'cuda')",
-            "inference_device = ANY (ARRAY['auto'::character varying, "
-            "'cpu'::character varying, 'cuda'::character varying]::character varying[])",
-        ),
-        (
             "global_seed >= 0 AND global_seed <= 4294967295",
             "global_seed >= 0 AND global_seed <= '4294967295'::numeric",
         ),
