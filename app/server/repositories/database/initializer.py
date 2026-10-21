@@ -172,6 +172,12 @@ def _normalize_check_expression(expression: object) -> str:
         normalized,
     )
     normalized = re.sub(r"\s*([(),><=])\s*", r"\1", normalized)
+    normalized = re.sub(r"\b(and|or)\(", r"\1 (", normalized)
+    normalized = re.sub(
+        r"\(([a-z_][a-z0-9_.]*\s+(?:is\s+(?:not\s+)?null|in\([^()]*\)))\)",
+        r"\1",
+        normalized,
+    )
     while normalized.startswith("(") and normalized.endswith(")"):
         depth = 0
         balanced = True
