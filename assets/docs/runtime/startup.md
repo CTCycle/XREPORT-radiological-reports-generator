@@ -16,15 +16,16 @@ For direct, non-interactive launch use:
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
 
-To force-stop XREPORT source services, desktop development shells, and
+To stop identifiable XREPORT source services, desktop development shells, and
 packaged XREPORT processes, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action KillProcesses
 ```
 
-This action also clears the configured backend and frontend listeners. It
-does not close the browser window.
+This action leaves processes on configured ports alone unless their command
+line or executable identifies them as XREPORT. Unknown listeners are reported
+and left running. It does not close the browser window.
 
 The menu can:
 
@@ -37,22 +38,27 @@ The menu can:
 - remove logs, clear caches, or uninstall generated dependencies
 - update source from `origin/main` with the clean-`main` guard
 
-The launch option starts FastAPI and a lightweight Node server for the existing
-production Angular bundle, waits only for the UI port to respond, attempts to
-open the browser, and then exits the menu. If Windows denies the automatic
-browser launch, both services remain running and the launcher prints the UI URL
-for manual opening. The Node server serves the bundle, applies
-Angular SPA fallback, and proxies `/api` to FastAPI. The Angular shell displays
-the XREPORT startup surface while it polls `/api/health`; routed pages are not
-created until the backend reports `status: "ok"`.
+Normal Windows Launch sets the private `XREPORT_SERVE_CLIENT` source-mode flag
+and starts only FastAPI. FastAPI serves the built Angular bundle from
+`app/client/dist/client-angular/browser`, falls back to `index.html` for
+extensionless Angular routes, and keeps `/api` requests in the API namespace.
+The browser and API use one origin at `http://FASTAPI_HOST:FASTAPI_PORT`; a
+wildcard bind address opens through loopback. The backend root remains a `/docs`
+redirect when the launcher flag is off. The Angular shell polls `/api/health`
+and can open the restricted Database recovery screen when health reports
+`database_recovery`.
 
-Before dependency preparation or service startup, Launch checks both configured
-ports. If listeners are found, the launcher lists each unique PID, process
-metadata when available, and every configured port it owns. Interactive Launch
-asks once before terminating the listed process trees. A declined prompt
-cancels without starting services; non-interactive Launch fails closed without
-terminating anything. A launcher or ancestor process owning a configured port,
-failed termination, or a newly appearing owner aborts the launch.
+Launch waits for `/api/health`, opens the application, then keeps this launcher
+console as the lifecycle owner. Press Ctrl+C to stop. The launcher requests
+FastAPI's authenticated shutdown endpoint and force-stops only the backend
+process tree it started if graceful shutdown does not finish. Backend logs stay
+in this console. If automatic browser launch fails, use the printed URL.
+
+Normal Launch checks only `FASTAPI_PORT`; `LaunchDesktopDev` checks both
+`FASTAPI_PORT` and `UI_PORT`. A port owner is stopped only when its process is
+identified as XREPORT, with confirmation during interactive launch. Unknown
+owners are reported and left running, and the launch stops with an error rather
+than terminating them. `KillProcesses` follows the same ownership rule.
 
 For isolated startup validation, a process-level `XREPORT_RESOURCES_DIR`
 override takes precedence over the same key in `settings/.env`. This lets a
@@ -74,7 +80,7 @@ Startup validation is the Tier 0 foundation of the campaign in
   startup gate for an ordinary API error.
 
 The acceptance boundary is rendered behavior plus backend evidence, not merely
-an HTTP 200 from the preview server. Save captures under `assets/QA/`, then
+an HTTP 200 from a server process. Save captures under `assets/QA/`, then
 record the result, source revision, scope, and remaining limits in the existing
 campaign or status ledger. Do not add a separate summary file for each slice.
 
@@ -121,10 +127,12 @@ frontend rebuild actions.
 
 ## Tauri desktop development
 
-`LaunchDesktopDev` builds Angular once, starts the source FastAPI backend on
-the configured 5003 port, starts the built-bundle server on 8003, waits only
-for the frontend, leaves both consoles visible, and opens the debug Tauri shell. The
-same Angular startup gate remains visible until backend readiness:
+`LaunchDesktopDev` builds Angular once, starts source FastAPI and the built-
+bundle server as supervised child processes, waits for backend and frontend
+readiness, then runs Tauri in the launcher console. The backend and bundle
+server write timestamped stdout/stderr logs below the configured resource
+root's `logs/` directory. Closing the Tauri shell or pressing Ctrl+C requests
+backend shutdown and stops only those child process trees:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
@@ -193,7 +201,8 @@ CPU/CUDA configurations, and generated OpenAPI version against that value.
 
 ## Manual Backend And Frontend
 
-Source-mode manual commands use the repository's canonical disposable-cache
+Non-Windows source-mode commands are development workflows and use the
+repository's canonical disposable-cache
 root. From the repository root, set `XREPORT_CACHE_ROOT="$PWD/runtimes/cache"`
 and the related `XDG_CACHE_HOME`, `UV_CACHE_DIR`, `PIP_CACHE_DIR`,
 `NPM_CONFIG_CACHE`, `PLAYWRIGHT_BROWSERS_PATH`, `PYTHONPYCACHEPREFIX`, and
@@ -205,14 +214,14 @@ PowerShell:
 ```powershell
 uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
 Set-Location app/client
-npm run preview -- --host 127.0.0.1 --port 8003
+npm run dev -- --host 127.0.0.1 --port 8003
 ```
 
-Use host and port values from `settings/.env`. Run `npm run build` before the
-first manual preview start. The `preview` script serves the built bundle and
-proxies `UI_API_BASE_URL` (normally `/api`) to the FastAPI host and port from
-the environment. Use `npm start` or `npm run dev` when an Angular development
-server is required.
+Use host and port values from `settings/.env`; the Angular development server
+proxies `/api` to FastAPI. Run `npm run build` and `npm run preview` only when
+validating the built bundle locally or during Tauri development. `npm preview`
+is not the production web server. The Windows Launch source-hosting flag is
+owned by the launcher and is not part of the manual source workflow.
 
 ## Test Runtime
 

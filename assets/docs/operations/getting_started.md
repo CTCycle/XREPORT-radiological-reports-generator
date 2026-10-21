@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-09-22
+Last updated: 2026-10-21
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -11,9 +11,10 @@ This guidance is for radiology and ML users running local report-generation work
 1. Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`.
 2. Select **Launch application**.
 3. Wait for runtime, dependency, database migration, build-freshness, and health checks to complete. The frontend builds only when its production output is absent or stale.
-4. Use the browser opened at the URL configured by `UI_HOST` and `UI_PORT` in `settings/.env`.
+4. Use the browser opened at `http://FASTAPI_HOST:FASTAPI_PORT` from
+   `settings/.env` (wildcard bind addresses open through loopback).
 
-For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`.
+For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`. The launcher stays open while the app runs; press Ctrl+C to request a graceful stop.
 
 The first launch creates the configured SQLite database (or PostgreSQL database
 when permitted) and applies all checked-in Alembic revisions. Subsequent
@@ -40,19 +41,24 @@ export PYTHONPYCACHEPREFIX="$XREPORT_CACHE_ROOT/python"
 export MPLCONFIGDIR="$XREPORT_CACHE_ROOT/matplotlib"
 ```
 
-1. Start the backend:
+Start these two development processes in separate terminals.
+
+Terminal 1, from the repository root:
 
 ```bash
 uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
 ```
 
-2. Start the frontend preview:
+Terminal 2, from the repository root:
 
 ```bash
 cd app/client
-npm run build
-npm run preview -- --host 127.0.0.1 --port 8003
+npm run dev -- --host 127.0.0.1 --port 8003
 ```
+
+The Angular development server proxies `/api` to FastAPI. Use `npm run build`
+followed by `npm run preview` only to validate the built bundle locally or for
+Tauri development; preview is not production hosting.
 
 ## First Report-Generation Run
 

@@ -58,6 +58,14 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `XREPORT_RESOURCES_DIR` (optional resource-root override; defaults to
   `data`)
 
+On Windows normal Launch, `FASTAPI_HOST` and `FASTAPI_PORT` determine the
+browser origin because FastAPI serves both the SPA and `/api`. A wildcard bind
+opens through loopback. `UI_HOST`, `UI_PORT`, and `UI_API_BASE_URL` configure
+Angular development and the Tauri built-bundle development server. `RELOAD` is
+for manual backend development; normal Launch does not enable reload.
+`XREPORT_SERVE_CLIENT` and `XREPORT_LAUNCH_TOKEN` are temporary launcher-owned
+process variables and are not configured in `.env`.
+
 Database selection and connection values are edited from Settings → Database.
 The supported backends are SQLite and PostgreSQL using psycopg 3. The database
 file supports schema validation and atomic replacement. Stray
@@ -143,11 +151,13 @@ it; re-enter it after moving the data directory to another account or machine.
 - Frontend calls backend routes through `/api`.
 - Angular `start` and `dev` proxy `/api` to `http://FASTAPI_HOST:FASTAPI_PORT` using `src/proxy.conf.cjs`.
 - CORS is disabled when `CORS_ALLOWED_ORIGINS` is empty. When configured, comma-separated origins, methods, headers, and credential behavior are read from `.env` at process startup; wildcard origins cannot be combined with credentials.
-- The `preview` script serves `dist/client-angular/browser` with a built-in Node
-  static server, Angular SPA fallback, and the same `/api` reverse proxy.
-- The Windows launcher starts FastAPI plus that built-bundle server, waits for
-  the UI port, and opens the configured UI URL. It rebuilds only when the
-  deterministic frontend build-state manifest is missing or stale.
+- Normal Windows Launch serves `dist/client-angular/browser` from FastAPI,
+  applies Angular route fallback, excludes `/api` from that fallback, waits for
+  `/api/health`, and opens the configured FastAPI URL. It rebuilds only when
+  the deterministic frontend build-state manifest is missing or stale.
+- The `preview` script serves the same built bundle with a Node static server
+  and `/api` reverse proxy for local bundle validation and Tauri development.
+  It is not the production Windows web server.
 - Source mode derives the runtime root from the repository layout and uses the
   explicit `XREPORT_RESOURCES_DIR` override when provided. Packaged mode uses
   the runtime/data roots supplied by the Tauri shell; it does not infer them

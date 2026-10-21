@@ -7,6 +7,7 @@ Last updated: 2026-10-21
 ### Launch And Maintenance
 
 ```powershell
+.\start_on_windows.ps1 -Action Launch
 .\start_on_windows.ps1 -Action LaunchDesktopDev
 .\start_on_windows.ps1 -Action KillProcesses
 .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.1
@@ -49,7 +50,8 @@ timestamped backend logs beside it. Readiness/session files in
 ### Manual Backend And Frontend
 
 - `uv run --project app/server python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
-- `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (preview serves the existing production bundle)
+- `cd app/client && npm start -- --host <host> --port <port>` (Angular development server; `/api` is proxied to FastAPI)
+- `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (local bundle validation or Tauri development only; not production hosting)
 
 ### Tests
 

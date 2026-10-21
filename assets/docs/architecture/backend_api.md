@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -160,6 +160,14 @@ readiness checks do not appear as an interactive application operation.
 
 ## Root Behavior And Serving
 
-- `GET /` on the FastAPI process redirects to `/docs`.
-- The FastAPI process does not own the Angular document root in the current runtime topology.
-- Angular is served by its own development or production frontend runtime, coordinated with FastAPI by `start_on_windows.ps1`.
+- By default, source-mode `GET /` redirects to `/docs`; manual source workflows
+  keep this behavior and run Angular CLI for the UI.
+- Normal Windows Launch opts into serving the built Angular bundle from FastAPI
+  with `XREPORT_SERVE_CLIENT=1`. The root serves `index.html`, existing files
+  are served as static assets, and extensionless client routes fall back to the
+  SPA entrypoint.
+- The source-mode SPA fallback never handles `/api` or `/api/...`; unknown API
+  paths remain JSON API responses. Angular uses relative `/api` calls, so the
+  production browser flow is same-origin.
+- Tauri release continues to load the frontend from the bundled `ui/` assets.
+  Rust continues to own the sidecar lifecycle and packaged security contract.
