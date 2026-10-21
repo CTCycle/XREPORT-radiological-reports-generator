@@ -35,19 +35,23 @@ from server.services.jobs import get_job_manager
 from server.services.settings import SettingsService
 
 
+###############################################################################
 class DatabaseSwitchBusyError(RuntimeError):
     """Raised when database switching would interrupt an active background job."""
 
 
+###############################################################################
 @dataclass(frozen=True)
 class DatabaseSwitchResult:
     response: DatabaseSwitchResponse
     server_settings: Any
 
 
+###############################################################################
 class DatabaseSettingsService:
     """Independent file-backed database configuration and runtime activation."""
 
+    # -------------------------------------------------------------------------
     def get_status(
         self,
         *,
@@ -86,6 +90,7 @@ class DatabaseSettingsService:
             error=connection_error,
         )
 
+    # -------------------------------------------------------------------------
     def test_connection(
         self, candidate: DatabaseConfiguration
     ) -> DatabaseConnectionTestResponse:
@@ -103,6 +108,7 @@ class DatabaseSettingsService:
             detail=detail,
         )
 
+    # -------------------------------------------------------------------------
     def switch_database(
         self, candidate: DatabaseConfiguration
     ) -> DatabaseSwitchResult:
@@ -157,6 +163,7 @@ class DatabaseSettingsService:
                 candidate_database.engine.dispose()
             raise
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _preserve_saved_password(
         candidate: DatabaseConfiguration,
@@ -178,6 +185,7 @@ class DatabaseSettingsService:
             else candidate
         )
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _probe(
         configuration: DatabaseConfiguration,
@@ -209,6 +217,7 @@ class DatabaseSettingsService:
             if database is not None:
                 database.engine.dispose()
 
+    # -------------------------------------------------------------------------
     @staticmethod
     def _summary(
         configuration: DatabaseConfiguration,
@@ -220,6 +229,7 @@ class DatabaseSettingsService:
         return DatabaseConfigurationSummary.model_validate(values)
 
 
+###############################################################################
 def _sanitize_database_error(error: Exception) -> str:
     message = str(error).splitlines()[0][:280]
     message = re.sub(r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", message)
@@ -227,6 +237,7 @@ def _sanitize_database_error(error: Exception) -> str:
     return message or "The database connection could not be established."
 
 
+###############################################################################
 @lru_cache(maxsize=1)
 def get_database_settings_service() -> DatabaseSettingsService:
     return DatabaseSettingsService()

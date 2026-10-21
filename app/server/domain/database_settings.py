@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from server.domain.settings import ApplicationSettingsResponse
 
 
+###############################################################################
 class DatabaseConfigurationSummary(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -24,6 +25,7 @@ class DatabaseConfigurationSummary(BaseModel):
     insert_batch_size: int
 
 
+###############################################################################
 class DatabaseConfigurationStatusResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -36,6 +38,7 @@ class DatabaseConfigurationStatusResponse(BaseModel):
     error: str | None = None
 
 
+###############################################################################
 class DatabaseConnectionTestResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -46,6 +49,7 @@ class DatabaseConnectionTestResponse(BaseModel):
     detail: str
 
 
+###############################################################################
 class DatabaseSwitchResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 

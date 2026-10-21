@@ -48,7 +48,6 @@ def _postgres_settings() -> DatabaseSettings:
     )
 
 ###############################################################################
-###############################################################################
 def _alembic_config(path: Path) -> Config:
     config = Config(str(initializer.MIGRATIONS_DIR.parent / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")

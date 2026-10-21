@@ -22,25 +22,32 @@ from server.services.database_settings import (
 from server.services.jobs import get_job_manager
 
 
+###############################################################################
 class DatabaseSettingsEndpoint:
+
+    # -------------------------------------------------------------------------
     def __init__(self, service: DatabaseSettingsService | None = None) -> None:
         self._service = service
 
+    # -------------------------------------------------------------------------
     @property
     def service(self) -> DatabaseSettingsService:
         return self._service or get_database_settings_service()
 
+    # -------------------------------------------------------------------------
     def get_status(self, request: Request) -> DatabaseConfigurationStatusResponse:
         return self.service.get_status(
             database_ready=bool(getattr(request.app.state, "database_ready", False)),
             startup_error=getattr(request.app.state, "database_error", None),
         )
 
+    # -------------------------------------------------------------------------
     def test_connection(
         self, candidate: DatabaseConfiguration
     ) -> DatabaseConnectionTestResponse:
         return self.service.test_connection(candidate)
 
+    # -------------------------------------------------------------------------
     async def switch_database(
         self, candidate: DatabaseConfiguration, request: Request
     ) -> DatabaseSwitchResponse:
@@ -90,6 +97,7 @@ class DatabaseSettingsEndpoint:
         finally:
             await gate.resume()
 
+    # -------------------------------------------------------------------------
     def add_routes(self, router: APIRouter) -> None:
         router.add_api_route(
             "",
@@ -114,6 +122,7 @@ class DatabaseSettingsEndpoint:
         )
 
 
+###############################################################################
 def get_router() -> APIRouter:
     router = APIRouter(prefix="/settings/database", tags=["database-settings"])
     DatabaseSettingsEndpoint().add_routes(router)
@@ -123,6 +132,7 @@ def get_router() -> APIRouter:
 router = get_router()
 
 
+###############################################################################
 def _sanitize_switch_error(error: Exception) -> str:
     message = str(error).splitlines()[0][:240] or "the target database could not be activated."
     message = re.sub(r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", message)

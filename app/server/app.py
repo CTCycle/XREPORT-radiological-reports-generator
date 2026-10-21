@@ -244,6 +244,7 @@ def create_app() -> FastAPI:
     return application
 
 
+###############################################################################
 def _sanitize_startup_error(message: str) -> str:
     first_line = message.splitlines()[0][:280] if message else "Database startup failed."
     first_line = re.sub(
