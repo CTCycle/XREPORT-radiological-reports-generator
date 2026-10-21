@@ -17,12 +17,9 @@ configuration file contains only the selected backend and its connection
 parameters; PostgreSQL passwords are protected with Windows DPAPI. The active
 database stores the four user-editable application values and two hidden runtime
 policy values. The reviewed model catalogue is immutable typed application
-code; it is not loaded from a runtime file.
-
-The Alembic upgrade that introduced `application_settings` is the only legacy
-reader for the former JSON application configuration. It imports the existing
-values once, then the obsolete file is removed. Normal startup, the Settings
-API, desktop packaging, and runtime services do not read or recreate it.
+code; it is not loaded from a runtime file. Missing or invalid database
+configuration opens the restricted Database recovery UI; on first run a
+default SQLite configuration is created automatically.
 
 ## Packaged desktop configuration
 
@@ -56,10 +53,10 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 
 Database selection and connection values are edited from Settings → Database.
 The supported backends are SQLite and PostgreSQL using psycopg 3. The database
-file supports schema validation and atomic replacement. If a legacy
-`.env` contains database keys, the first startup migrates the supported values
-once, stores credentials securely, and removes those keys. `DATABASE_URL` is
-unsupported and requires repair through the startup recovery screen.
+file supports schema validation and atomic replacement. Stray
+`EMBEDDED_DATABASE`/`DATABASE_*` lines in `.env` are ignored, are never loaded
+into the process environment, and `DATABASE_URL` is unsupported; use the
+Database section or the startup recovery screen to configure a backend.
 
 The application-settings record contains the following owned values:
 
@@ -68,9 +65,6 @@ The application-settings record contains the following owned values:
 - `jobs.polling_interval`
 - `inference.model_timeout`
 - `theme_preference` (the global theme selector)
-
-When a prior browser theme preference exists, the first successful startup
-imports it into the active database once and removes the browser copy.
 
 The same database row also stores the hidden process policy values
 `inference.hf_local_only` and `inference.device`. They are loaded at startup,
