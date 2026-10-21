@@ -246,10 +246,9 @@ under the single canonical `runtimes/cache` root. Its subdirectories include
 `<data-root>/runtimes/cache` path; persistent models and application data stay
 outside it.
 
-The cleanup action also performs a narrowly scoped, cleanup-only sweep for
-legacy root pytest/Ruff/uv directories, the former `app/tests/cache` trees,
-client-local cache directories, and old transient model-cache paths. Those
-legacy paths are never active configuration and are not recreated.
+The **Clear cache** action cleans only the canonical `runtimes/cache` directory
+(or `<data-root>/runtimes/cache` for packaged launches). It does not search or
+remove historical cache locations.
 
 Select **Clear cache** in the maintenance menu, or run:
 

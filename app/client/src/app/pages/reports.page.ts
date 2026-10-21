@@ -199,6 +199,6 @@ export class ReportsPage {
   }
 
   isEdited(report: InferenceHistorySummary['reports'][number]): boolean {
-    return report.edited;
+    return report.edited ?? false;
   }
 }
