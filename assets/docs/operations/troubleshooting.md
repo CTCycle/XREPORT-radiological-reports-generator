@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Troubleshooting Quick Guide
 
@@ -84,7 +84,7 @@ than suppressed with retries or broad exception handling.
 
 - A missing, corrupt, or unavailable database configuration opens the restricted Database screen. Normal API routes remain unavailable until a connection and schema are activated.
 - Switching blocks new API requests while in-flight requests drain, and is unavailable while a background job is running. Each database keeps its own data and application settings; switching does not copy records.
-- Legacy database keys in `.env` are migrated once when supported and removed. A legacy `DATABASE_URL` is unsupported; enter SQLite or PostgreSQL fields in recovery.
+- When the configuration file is missing on first run, startup creates a default SQLite configuration. Stray `EMBEDDED_DATABASE`/`DATABASE_*` lines in `.env` are ignored; `DATABASE_URL` is unsupported and requires repair through recovery.
 - Restart after changing process launch settings such as the resource root, host, or port. Switching a database from Settings does not require a restart.
 
 ### Schema compatibility failure

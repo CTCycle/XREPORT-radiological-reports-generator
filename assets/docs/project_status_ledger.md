@@ -8,13 +8,21 @@ diary, detailed test report, release approval, or clinical-quality statement.
 
 The published v3.2.0 release was validated at source
 `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The most recent application-source
-Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`; these
-ledger updates change documentation only. The overall Tier 0 result remains
-`PARTIAL` because the official launcher start path was not rerun while its UI
-port was already owned. SonarCloud is excluded from project gates because the
-available plan does not support analysis for this repository's over-50k LOC.
-Current Windows SQLite readiness, rendered startup/recovery, and deterministic
-quality gates passed. The
+Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`. On
+2026-10-21 the application source dropped legacy compatibility layers: the
+Alembic stream was squashed to the single current-schema baseline
+`b1e7a2c4d908`, database-configuration bootstrap now creates a default SQLite
+configuration instead of importing legacy `.env`/`DATABASE_*` values, the
+former settings-JSON cleanup was removed, and the client no longer migrates a
+browser-stored theme preference into the database. Post-change Windows reruns
+passed the backend suite (excluding live-server E2E), all client unit tests,
+both lint gates, and the browser/API E2E suites except the `S23` case that
+requires the still-absent `s27` fixture pack; the S01 launcher start sequence
+and a fresh CI run for the new source remain open. The overall Tier 0 result
+remains `PARTIAL` because the official launcher start path was not rerun while
+its UI port was already owned. SonarCloud is excluded from project gates
+because the available plan does not support analysis for this repository's
+over-50k LOC. The
 [validation campaign ledger](validation_campaign_ledger.md) records the exact
 evidence and remaining boundaries.
 
@@ -58,7 +66,7 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. The configured UI port `8003` remains owned by the pre-existing repository `serve-built.cjs` PID `37384`; default-port launch correctly failed closed and preserved it, so successful startup on the standard ports and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed against the previous source; the Alembic stream is now squashed to the single baseline `b1e7a2c4d908` and the full launcher S01 sequence has not rerun on it. Post-change unit coverage confirmed fresh initialization reaches the squashed head with seeded default settings, restart reuse, and unversioned-database rejection. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. The configured UI port `8003` remains owned by the pre-existing repository `serve-built.cjs` PID `37384`; default-port launch correctly failed closed and preserved it, so successful startup on the standard ports and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.desktop.packaged` | `PARTIAL` | Published v3.2.0 CPU/CUDA portable and MSI packages passed the scoped acceptance described in the campaign ledger. CUDA fallback without an NVIDIA GPU and cross-variant performance remain untested. | [Campaign](validation_campaign_ledger.md), [deployment](runtime/deployment.md) |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | No supported container image or deployment contract exists. | [Runtime modes](runtime/modes.md) |
 | `configuration.runtime_settings` | `VALIDATED` | Non-database settings and theme preferences autosave with debounced numeric inputs, ordered writes, immediate visual theme application, inline failure recovery, reload persistence, and per-database restoration. Client unit and focused browser checks cover all four settings tabs; backend tests cover persistence after repository reopen. Infrastructure and static model-policy values are not user settings. | [Configuration](runtime/configuration.md), [settings E2E](../../app/tests/e2e/test_angular_ui.py) |
@@ -70,7 +78,7 @@ where to revalidate after a change.
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `backend.api.contracts`, `backend.jobs.lifecycle`, `backend.ml_import_boundaries` | `VALIDATED` | Covered API contracts, generic job lifecycle, and lightweight-import boundaries are validated; this does not cover every endpoint or heavy workflow. | [Backend API](architecture/backend_api.md), [API tests](../../app/tests/e2e/test_inference_api.py), [job tests](../../app/tests/integration/test_job_lifecycle_api.py), [import test](../../app/tests/unit/test_ml_import_boundaries.py) |
-| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `VALIDATED` | SQLite migrations/restart, PostgreSQL 16 contract, inference history, and checkpoint registry behavior are covered for the exercised schemas and fixtures. Crash recovery and every production configuration are outside this scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
+| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `VALIDATED` | SQLite migrations/restart, PostgreSQL 16 contract, inference history, and checkpoint registry behavior are covered for the exercised schemas and fixtures; the checked-in stream is the single squashed baseline `b1e7a2c4d908`, and a re-created database no longer imports prior settings or auto-registers existing checkpoint folders. Crash recovery and every production configuration are outside this scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
 
 ### User workflows
 
