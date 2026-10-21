@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-09-22
+Last updated: 2026-10-20
 
 The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
 
@@ -124,19 +124,39 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 - `PATCH /api/settings`
 - `POST /api/settings/reset`
 
-The Settings API exposes only the four runtime-managed application values:
+The Settings API exposes only the runtime-managed application values:
 `global.seed`, `features.allow_local_filesystem_access`,
-`jobs.polling_interval`, and `inference.model_timeout`. PATCH requests are
+`jobs.polling_interval`, `inference.model_timeout`, and
+`theme_preference`. PATCH requests are
 nested partial updates and are validated by the backend before the authoritative
 `application_settings` row is updated transactionally. Reset restores those
-four public values while preserving static inference policy, environment
-configuration, database settings, and the model catalogue.
+public values while preserving static inference policy, file-backed
+database connection configuration, and the model catalogue.
 
 Database credentials, `.env` values, Hugging Face tokens, runtime paths,
 `inference.device`, `inference.hf_local_only`, and
 the obsolete `inference.max_loaded_models` key are never returned by this API.
 
-The health response reports backend status, application version, and active database mode. It is excluded from the OpenAPI schema so launcher readiness checks do not appear as an interactive application operation.
+## Database Settings
+
+- `GET /api/settings/database` reports the active connection, schema readiness,
+  background-job state, and recovery status without exposing credentials.
+- `POST /api/settings/database/test` tests a candidate connection and reports
+  connection and schema readiness separately.
+- `POST /api/settings/database/switch` prepares the target schema, pauses and
+  drains in-flight API requests, rejects active background jobs, then activates
+  the target connection. It returns application settings loaded from the
+  selected database. A failed activation rolls back to the previous
+  connection.
+
+Only the database settings routes remain available during startup recovery;
+other `/api` requests return 503 until a valid database is activated. SQLite
+and PostgreSQL (psycopg 3) are the supported backends.
+
+The health response reports backend status, application version, and active
+database mode. It can report `database_recovery` while the restricted Database
+settings UI is available. The health route is excluded from OpenAPI so launcher
+readiness checks do not appear as an interactive application operation.
 
 ## Root Behavior And Serving
 

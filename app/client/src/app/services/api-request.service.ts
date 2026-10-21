@@ -11,9 +11,9 @@ export interface ApiResult<T> {
 export class ApiRequestService {
   private readonly http = inject(HttpClient);
 
-  async request<T>(method: string, url: string, body?: unknown): Promise<ApiResult<T>> {
+  async request<T>(method: string, url: string, body?: unknown, options: { keepalive?: boolean } = {}): Promise<ApiResult<T>> {
     try {
-      const result = await firstValueFrom(this.http.request<T>(method, url, { body }));
+      const result = await firstValueFrom(this.http.request<T>(method, url, { body, ...options }));
       return { result, error: null };
     } catch (error) {
       return { result: null, error: this.formatError(error) };

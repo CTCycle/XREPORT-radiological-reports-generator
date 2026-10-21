@@ -3,20 +3,20 @@ from __future__ import annotations
 from functools import lru_cache
 
 from .environment import load_environment
+from .database_config import load_database_settings
 from .settings import (
     DatabaseSettings,
     ServerSettings,
     application_settings_to_server_settings,
-    database_settings_from_environment,
 )
 
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database_settings() -> DatabaseSettings:
-    """Load only environment-owned database settings."""
+    """Load the independent, file-backed database connection configuration."""
 
     load_environment()
-    return database_settings_from_environment()
+    return load_database_settings()
 
 ###############################################################################
 def get_server_settings() -> ServerSettings:
@@ -31,10 +31,10 @@ def get_server_settings() -> ServerSettings:
 def reload_settings_for_tests() -> ServerSettings:
     load_environment(force=True)
     get_database_settings.cache_clear()
-    from server.repositories.database.backend import get_database
+    from server.repositories.database.backend import reset_database
     from server.services.settings import get_settings_service
 
-    get_database.cache_clear()
+    reset_database()
     get_settings_service.cache_clear()
     return get_server_settings()
 

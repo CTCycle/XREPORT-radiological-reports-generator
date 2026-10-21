@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import Request
 
 import server.app as app_module
@@ -28,6 +30,7 @@ def _database_settings() -> DatabaseSettings:
         ssl_ca=None,
         connect_timeout=3,
         insert_batch_size=1000,
+        sqlite_path=Path("database.db").resolve(),
     )
 
 ###############################################################################

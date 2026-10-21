@@ -39,6 +39,9 @@ class ApplicationSettingsRecord(Base):
     inference_hf_local_only: Mapped[bool] = mapped_column(Boolean, nullable=False)
     inference_device: Mapped[str] = mapped_column(String(16), nullable=False)
     inference_model_timeout: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    theme_preference: Mapped[str | None] = mapped_column(
+        String(8), nullable=True, default=None
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime(),
         nullable=False,
@@ -61,6 +64,10 @@ class ApplicationSettingsRecord(Base):
         CheckConstraint(
             "inference_model_timeout >= 1",
             name="ck_application_settings_model_timeout",
+        ),
+        CheckConstraint(
+            "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
+            name="ck_application_settings_theme_preference",
         ),
     )
 

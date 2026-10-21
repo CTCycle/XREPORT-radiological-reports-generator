@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { SettingsApiService } from '../services/settings-api.service';
+import type { ApplicationSettingsPatch } from '../types/settingsApi';
 import { SettingsPage } from './settings.page';
 
 const settingsResponse = () => ({
@@ -18,21 +19,67 @@ const settingsResponse = () => ({
   },
 });
 
+const databaseSummary = (sqlitePath = 'C:\\data\\database.db') => ({
+  backend: 'sqlite' as const,
+  sqlite_path: sqlitePath,
+  engine: null,
+  host: null,
+  port: 5432,
+  database_name: null,
+  username: null,
+  password_configured: false,
+  ssl: false,
+  ssl_ca: null,
+  connect_timeout: 30,
+  insert_batch_size: 1000,
+});
+
+const databaseStatus = () => ({
+  state: 'ready' as const,
+  active: databaseSummary(),
+  suggested: databaseSummary(),
+  connected: true,
+  schema_ready: true,
+  jobs_running: false,
+  error: null,
+});
+
 describe('SettingsPage', () => {
   const api = {
     getSettings: vi.fn(),
     updateSettings: vi.fn(),
     resetSettings: vi.fn(),
+    getDatabaseSettings: vi.fn(),
+    testDatabaseConnection: vi.fn(),
+    switchDatabase: vi.fn(),
   };
 
   beforeEach(() => {
     api.getSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
-    api.updateSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
+    api.updateSettings.mockReset().mockImplementation(async (patch: ApplicationSettingsPatch) => {
+      const result = settingsResponse();
+      if (patch.global?.seed != null) result.values.global.seed = patch.global.seed;
+      if (patch.features?.allow_local_filesystem_access != null) {
+        result.values.features.allow_local_filesystem_access = patch.features.allow_local_filesystem_access;
+      }
+      if (patch.jobs?.polling_interval != null) result.values.jobs.polling_interval = patch.jobs.polling_interval;
+      if (patch.inference?.model_timeout != null) result.values.inference.model_timeout = patch.inference.model_timeout;
+      return { result, error: null };
+    });
     api.resetSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
+    api.getDatabaseSettings.mockReset().mockResolvedValue({ result: databaseStatus(), error: null });
+    api.testDatabaseConnection.mockReset().mockResolvedValue({
+      result: { success: true, backend: 'sqlite', connected: true, schema_ready: true, detail: 'Database is ready.' },
+      error: null,
+    });
+    api.switchDatabase.mockReset().mockResolvedValue({
+      result: { active: databaseSummary('C:\\data\\target.db'), settings: settingsResponse() },
+      error: null,
+    });
     TestBed.configureTestingModule({ imports: [SettingsPage], providers: [{ provide: SettingsApiService, useValue: api }] });
   });
 
-  it('loads the server baseline and sends only changed fields', async () => {
+  it('loads the server baseline and autosaves only changed fields', async () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -45,24 +92,95 @@ describe('SettingsPage', () => {
     page.updatePollingInterval(2.5);
     expect(page.dirty()).toBe(true);
 
-    await page.save();
+    await page.flushSettingsPersistence();
 
     expect(api.updateSettings).toHaveBeenCalledWith({ global: { seed: 123 }, jobs: { polling_interval: 2.5 } });
     expect(page.dirty()).toBe(false);
     expect(page.statusMessage()).toBe('Settings saved.');
   });
 
-  it('blocks invalid values before making a save request', async () => {
+  it('blocks invalid values before making a persistence request', async () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
     await fixture.whenStable();
     const page = fixture.componentInstance;
     page.updatePollingInterval(0);
 
-    await page.save();
+    await page.flushSettingsPersistence();
 
     expect(page.validationErrors().polling_interval).toBeTruthy();
     expect(api.updateSettings).not.toHaveBeenCalled();
+  });
+
+  it('debounces continuous edits and persists every numeric setting', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+
+    page.updateSeed(123);
+    page.updateSeed(124);
+    page.updatePollingInterval(2.5);
+    page.updateModelTimeout(900);
+    expect(api.updateSettings).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    expect(api.updateSettings).toHaveBeenCalledOnce();
+    expect(api.updateSettings).toHaveBeenCalledWith({
+      global: { seed: 124 },
+      jobs: { polling_interval: 2.5 },
+      inference: { model_timeout: 900 },
+    });
+    expect(page.draft()?.global.seed).toBe(124);
+    expect(page.draft()?.jobs.polling_interval).toBe(2.5);
+    expect(page.draft()?.inference.model_timeout).toBe(900);
+    expect(page.dirty()).toBe(false);
+  });
+
+  it('serializes rapid updates so an older response cannot overwrite the latest value', async () => {
+    let completeFirst!: (value: { result: ReturnType<typeof settingsResponse> | null; error: string | null }) => void;
+    api.updateSettings
+      .mockImplementationOnce(() => new Promise((resolve) => { completeFirst = resolve; }))
+      .mockImplementationOnce(async () => {
+        const result = settingsResponse();
+        result.values.features.allow_local_filesystem_access = true;
+        return { result, error: null };
+      });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+
+    page.updateFilesystemAccess(false);
+    await Promise.resolve();
+    await Promise.resolve();
+    page.updateFilesystemAccess(true);
+    const completed = page.flushSettingsPersistence();
+    completeFirst({
+      result: { ...settingsResponse(), values: { ...settingsResponse().values, features: { allow_local_filesystem_access: false } } },
+      error: null,
+    });
+    await completed;
+
+    expect(api.updateSettings).toHaveBeenNthCalledWith(1, { features: { allow_local_filesystem_access: false } });
+    expect(api.updateSettings).toHaveBeenNthCalledWith(2, { features: { allow_local_filesystem_access: true } });
+    expect(page.draft()?.features.allow_local_filesystem_access).toBe(true);
+    expect(page.dirty()).toBe(false);
+  });
+
+  it('reverts a change and reports an error when automatic persistence fails', async () => {
+    api.updateSettings.mockResolvedValue({ result: null, error: '503 Service Unavailable: backend offline' });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+
+    page.updateFilesystemAccess(false);
+    await page.flushSettingsPersistence();
+
+    expect(page.draft()?.features.allow_local_filesystem_access).toBe(true);
+    expect(page.saveError()).toContain('backend offline');
+    expect(page.saveError()).toContain('reverted');
   });
 
   it('switches logical categories while keeping the shared settings form', async () => {
@@ -88,6 +206,59 @@ describe('SettingsPage', () => {
     expect(page.activeTab()).toBe('advanced');
     expect(element.querySelector('#polling-interval')).not.toBeNull();
     expect(element.querySelector('#inference-timeout')).not.toBeNull();
+
+    (element.querySelector('#settings-tab-database') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(page.activeTab()).toBe('database');
+    expect(element.querySelector('#database-backend')).not.toBeNull();
+    expect(element.querySelector('#database-sqlite-path')).not.toBeNull();
+  });
+
+  it('tests and switches the selected database, then applies its settings immediately', async () => {
+    const switchedSettings = settingsResponse();
+    switchedSettings.values.global.seed = 77;
+    api.switchDatabase.mockResolvedValue({
+      result: { active: databaseSummary('C:\\data\\target.db'), settings: switchedSettings },
+      error: null,
+    });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.selectTab('database');
+    fixture.detectChanges();
+    const applyButton = (fixture.nativeElement as HTMLElement).querySelector('.database-actions .primary-button') as HTMLButtonElement;
+
+    await page.testDatabaseConnection();
+    expect(page.databaseTestResult()?.success).toBe(true);
+
+    page.updateSeed(98);
+    page.updateDatabaseDraft({ sqlite_path: 'C:\\data\\target.db' });
+    await page.switchDatabase();
+    expect(api.switchDatabase).not.toHaveBeenCalled();
+    await page.flushSettingsPersistence();
+    await page.switchDatabase();
+    expect(api.switchDatabase).not.toHaveBeenCalled();
+    expect(page.databaseTestResult()).toBeNull();
+    expect(applyButton.disabled).toBe(true);
+    await page.testDatabaseConnection();
+    fixture.detectChanges();
+    expect(applyButton.disabled).toBe(false);
+    await page.switchDatabase();
+
+    expect(api.switchDatabase).toHaveBeenCalledOnce();
+    expect(page.databaseStatus()?.active?.sqlite_path).toBe('C:\\data\\target.db');
+    expect(page.draft()?.global.seed).toBe(77);
+    expect(page.dirty()).toBe(false);
+  });
+
+  it('has no ordinary Save or Apply control', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('button[type="submit"]')).toBeNull();
+    expect(element.textContent).not.toContain('Save changes');
   });
 
   it('moves focus across categories with the tablist arrow keys', async () => {

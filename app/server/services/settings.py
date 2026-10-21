@@ -76,6 +76,9 @@ class SettingsService:
         if patch.inference is not None:
             if patch.inference.model_timeout is not None:
                 changes["inference_model_timeout"] = patch.inference.model_timeout
+        changes.update(
+            patch.model_dump(include={"theme_preference"}, exclude_none=True)
+        )
         if not changes:  # pragma: no cover - guarded by the request model
             raise ValueError("At least one application setting must be provided")
         return changes
@@ -107,6 +110,7 @@ class SettingsService:
                 "inference": RuntimeInferenceSettings(
                     model_timeout=values.inference_model_timeout,
                 ),
+                "theme_preference": values.theme_preference,
             }
         )
 
